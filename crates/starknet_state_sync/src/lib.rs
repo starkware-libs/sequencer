@@ -3,10 +3,12 @@ pub mod runner;
 
 use async_trait::async_trait;
 use papyrus_storage::body::BodyStorageReader;
+use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::TransactionKind;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
@@ -53,6 +55,11 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetClassHashAt(block_number, contract_address) => {
                 StateSyncResponse::GetClassHashAt(
                     self.get_class_hash_at(block_number, contract_address),
+                )
+            }
+            StateSyncRequest::GetCompiledClassDeprecated(block_number, class_hash) => {
+                StateSyncResponse::GetCompiledClassDeprecated(
+                    self.get_compiled_class_deprecated(block_number, class_hash),
                 )
             }
         }
@@ -133,6 +140,46 @@ impl StateSync {
             .get_class_hash_at(state_number, &contract_address)?
             .ok_or(StateSyncError::ContractNotFound(contract_address))?;
         Ok(class_hash)
+    }
+
+    fn get_compiled_class_deprecated(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncResult<ContractClass> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        let latest_block_number = txn.get_compiled_class_marker()?.prev();
+        if latest_block_number.is_none_or(|latest_block_number| latest_block_number < block_number)
+        {
+            return Err(StateSyncError::BlockNotFound(block_number));
+        }
+
+        let state_reader = txn.get_state_reader()?;
+
+        // Check if this class exists in the Cairo1 classes table.
+        if let Some(class_definition_block_number) =
+            state_reader.get_class_definition_block_number(&class_hash)?
+        {
+            if class_definition_block_number > block_number {
+                return Err(StateSyncError::ClassNotFound(class_hash));
+            }
+
+            let (option_casm, option_sierra) = txn.get_casm_and_sierra(&class_hash)?;
+
+            // Check if both options are `Some`. If not, since we verified the block number is
+            // smaller than the casm marker, we return that the class doesnt exist.
+            let (casm, sierra) =
+                option_casm.zip(option_sierra).ok_or(StateSyncError::ClassNotFound(class_hash))?;
+            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+            return Ok(ContractClass::V1((casm, sierra_version)));
+        }
+
+        // Check if this class exists in the Cairo0 classes table.
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let deprecated_compiled_contract_class = state_reader
+            .get_deprecated_class_definition_at(state_number, &class_hash)?
+            .ok_or(StateSyncError::ClassNotFound(class_hash))?;
+        Ok(ContractClass::V0(deprecated_compiled_contract_class))
     }
 }
 
