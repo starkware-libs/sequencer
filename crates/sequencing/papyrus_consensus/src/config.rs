@@ -15,6 +15,7 @@ use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
+use validator::Validate;
 
 use super::types::ValidatorId;
 use crate::types::DEFAULT_VALIDATOR_ID;
@@ -23,7 +24,7 @@ const CONSENSUS_TCP_PORT: u16 = 10100;
 const CONSENSUS_QUIC_PORT: u16 = 10101;
 
 /// Configuration for consensus.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusConfig {
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
@@ -41,8 +42,8 @@ pub struct ConsensusConfig {
     pub consensus_delay: Duration,
     /// Timeouts configuration for consensus.
     pub timeouts: TimeoutsConfig,
-    // TODO(Dan/Matan): validate configs (#[validate]).
     /// The network configuration for the consensus.
+    #[validate]
     pub network_config: NetworkConfig,
 }
 

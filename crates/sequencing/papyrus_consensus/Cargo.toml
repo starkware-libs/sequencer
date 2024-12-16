@@ -26,6 +26,7 @@ starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 enum-as-inner.workspace = true
