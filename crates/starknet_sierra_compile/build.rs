@@ -61,7 +61,7 @@ fn install_starknet_native_compile() {
 
 fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
     let binary_path = binary_path(out_dir(), binary_name);
-    println!("cargo:rerun-if-changed={:?}", binary_path);
+    println!("cargo:rerun-if-changed={}", binary_path.to_str().unwrap());
 
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
