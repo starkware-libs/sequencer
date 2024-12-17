@@ -178,4 +178,6 @@ pub enum ConsensusError {
     InternalNetworkError(String),
     #[error("{0}")]
     SyncError(String),
+    #[error("{0}")]
+    Other(String),
 }
