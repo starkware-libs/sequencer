@@ -526,7 +526,7 @@ async fn decision_reached() {
         .return_once(move |_| {
             async move {
                 Some(Ok(ProposalOutput {
-                    state_diff: ThinStateDiff::default(),
+                    state_diff: test_state_diff(),
                     commitment: ProposalCommitment::default(),
                     tx_hashes: test_tx_hashes(),
                     nonces: test_contract_nonces(),
@@ -549,12 +549,14 @@ async fn decision_reached() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(ThinStateDiff::default()))
+        .with(eq(INITIAL_HEIGHT), eq(test_state_diff()))
         .returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies);
 
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    let response =
+        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    assert_eq!(response.state_diff, test_state_diff());
 }
 
 #[rstest]

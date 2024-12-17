@@ -383,8 +383,8 @@ impl Batcher {
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
 
-        self.commit_proposal_and_block(state_diff, address_to_nonce, tx_hashes).await?;
-        Ok(DecisionReachedResponse {})
+        self.commit_proposal_and_block(state_diff.clone(), address_to_nonce, tx_hashes).await?;
+        Ok(DecisionReachedResponse { state_diff })
     }
 
     async fn commit_proposal_and_block(
