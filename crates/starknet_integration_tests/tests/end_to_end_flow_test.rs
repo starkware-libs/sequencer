@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_consensus::types::ValidatorId;
@@ -15,6 +17,8 @@ use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::test_identifiers::TestIdentifier;
@@ -23,13 +27,15 @@ use starknet_integration_tests::utils::{
     create_txs_for_integration_test,
     run_integration_test_scenario,
     test_tx_hashes_for_integration_test,
+    ACCOUNT_ID_0,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(2);
+const LAST_HEIGHT: BlockNumber = BlockNumber(3);
+const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -65,6 +71,9 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         Felt::from_hex_unchecked(
             "0x79b59c5036c9427b5194796ede67bdfffed1f311a77382d715174fcfcc33003",
         ),
+        Felt::from_hex_unchecked(
+            "0x36e1f3e0c71b77474494a5baa0a04a4e406626141eba2b2944e4b568f70ff48",
+        ),
     ];
 
     let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
@@ -75,10 +84,10 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     expected_proposer_iter.next().unwrap();
 
     let create_rpc_txs_scenarios =
-        [create_txs_for_integration_test, create_txs_for_integration_test];
+        [create_txs_for_integration_test, create_txs_for_integration_test, fund_new_account];
 
     let test_tx_hashes_scenarios =
-        [test_tx_hashes_for_integration_test, test_tx_hashes_for_integration_test];
+        [test_tx_hashes_for_integration_test, test_tx_hashes_for_integration_test, test_funding];
 
     assert_eq!(
         n_heights,
@@ -226,4 +235,21 @@ async fn listen_to_broadcasted_messages(
         expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>(),
         "Unexpected transactions"
     );
+}
+
+fn fund_new_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
+    let new_account_id = tx_generator.register_undeployed_account(
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        NEW_ACCOUNT_SALT,
+    );
+
+    let to = tx_generator.account_with_id(new_account_id).account;
+
+    let funding_tx = tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_transfer(&to);
+    vec![funding_tx]
+}
+
+fn test_funding(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
+    tx_hashes.to_vec()
 }
