@@ -2373,11 +2373,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 17899_u32.into(),
+            l1_gas: 17941_u32.into(),
             l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19593_u32.into()),
+        false => GasVector::from_l1_gas(19635_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {
