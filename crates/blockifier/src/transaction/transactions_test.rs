@@ -2416,7 +2416,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
             vm_resources: expected_execution_resources,
-            sierra_gas: gas_consumed.into(),
+            sierra_gas: gas_consumed,
             ..Default::default()
         },
     };
