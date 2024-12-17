@@ -661,9 +661,12 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
         _constants: &HashMap<String, Felt>,
     ) -> HintExecutionResult {
         let hint = hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)?;
+        
+        let no_temporary_segments = false;
         match hint {
-            Hint::Core(hint) => execute_core_hint_base(vm, exec_scopes, hint),
+            Hint::Core(hint) => execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments),
             Hint::Starknet(hint) => self.execute_next_syscall(vm, hint),
+            Hint::External(_) => todo!("Handle External Hints."),
         }
     }
 
