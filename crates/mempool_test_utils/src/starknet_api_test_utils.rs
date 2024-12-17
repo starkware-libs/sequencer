@@ -188,6 +188,8 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// let undeployed_account = tx_generator.account_with_id(2).account;
 /// // Generate a transfer to fund the undeployed account.
 /// let transfer_tx = tx_generator.account_with_id_mut(0).generate_transfer(&undeployed_account);
+/// // Generate a deploy account transaction for the undeployed account.
+/// let deploy_account_tx = tx_generator.account_with_id_mut(2).generate_deploy_account();
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
@@ -271,6 +273,7 @@ impl MultiAccountTransactionGenerator {
 pub struct AccountTransactionGenerator {
     pub account: Contract,
     nonce_manager: SharedNonceManager,
+    contract_address_salt: ContractAddressSalt,
 }
 
 impl AccountTransactionGenerator {
@@ -351,6 +354,22 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_args)
     }
 
+    pub fn generate_deploy_account(&mut self) -> RpcTransaction {
+        assert!(
+            !self.is_deployed(),
+            "Cannot deploy an already deployed account: the first transaction of every account \
+             must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+        assert_eq!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
+        let deploy_account_args = deploy_account_tx_args!(
+            class_hash: self.account.class_hash(),
+            resource_bounds: test_valid_resource_bounds(),
+            contract_address_salt: ContractAddressSalt(self.contract_address_salt.0)
+        );
+        rpc_deploy_account_tx(deploy_account_args)
+    }
+
     pub fn sender_address(&self) -> ContractAddress {
         self.account.sender_address
     }
@@ -379,6 +398,7 @@ impl AccountTransactionGenerator {
         let mut account_tx_generator = Self {
             account: Contract::new_for_account(account, &default_deploy_account_tx),
             nonce_manager,
+            contract_address_salt,
         };
         if is_deployed {
             // Bump the account nonce after transaction creation.
