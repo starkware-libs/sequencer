@@ -206,11 +206,7 @@ fn expected_validate_call_info(
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => retdata!(*constants::VALIDATE_RETDATA),
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => {
-            retdata!(*constants::VALIDATE_RETDATA)
-        }
+        CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
     let charged_resources = match tracked_resource {
@@ -223,15 +219,7 @@ fn expected_validate_call_info(
                 CairoVersion::Cairo0 => {
                     usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
                 }
-                CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-                    if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
-                        7
-                    } else {
-                        2
-                    }
-                }
-                #[cfg(feature = "cairo_native")]
-                CairoVersion::Cairo1(RunnableCairo1::Native) => {
+                CairoVersion::Cairo1(_) => {
                     if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
                         7
                     } else {
