@@ -9,6 +9,7 @@ use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
 use infra_utils::path::resolve_project_relative_path;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
@@ -18,7 +19,8 @@ use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
+use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     ContractAddressSalt,
@@ -27,7 +29,14 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{
+    calldata,
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+    nonce,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
@@ -160,17 +169,25 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// use blockifier::test_utils::contracts::FeatureContract;
 /// use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 /// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+/// use starknet_api::transaction::fields::ContractAddressSalt;
 ///
 /// let mut tx_generator = MultiAccountTransactionGenerator::new();
 /// let some_account_type =
 ///     FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
 /// // Initialize multiple accounts, these can be any account type in `FeatureContract`.
 /// tx_generator.register_deployed_account(some_account_type.clone());
-/// tx_generator.register_deployed_account(some_account_type);
+/// tx_generator.register_deployed_account(some_account_type.clone());
 ///
 /// let account_0_tx_with_nonce_0 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
 /// let account_1_tx_with_nonce_0 = tx_generator.account_with_id_mut(1).generate_invoke_with_tip(3);
 /// let account_0_tx_with_nonce_1 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
+///
+/// // Initialize an undeployed account.
+/// let salt = ContractAddressSalt(123_u64.into());
+/// tx_generator.register_undeployed_account(some_account_type, salt);
+/// let undeployed_account = tx_generator.account_with_id(2).account;
+/// // Generate a transfer to fund the undeployed account.
+/// let transfer_tx = tx_generator.account_with_id_mut(0).generate_transfer(&undeployed_account);
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
@@ -252,7 +269,7 @@ impl MultiAccountTransactionGenerator {
 /// TODO: add more transaction generation methods as needed.
 #[derive(Debug)]
 pub struct AccountTransactionGenerator {
-    account: Contract,
+    pub account: Contract,
     nonce_manager: SharedNonceManager,
 }
 
@@ -308,6 +325,30 @@ impl AccountTransactionGenerator {
     /// as needed.
     pub fn generate_raw_invoke(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
         rpc_invoke_tx(invoke_tx_args)
+    }
+
+    pub fn generate_transfer(&mut self, recipient: &Contract) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
+        let erc20_address = felt!(TEST_ERC20_CONTRACT_ADDRESS2);
+
+        let calldata = calldata![
+            erc20_address,                   // Contract address.
+            entry_point_selector.0,          // EP selector.
+            felt!(3_u8),                     // Calldata length.
+            *recipient.sender_address.key(), // Calldata: recipient.
+            felt!(1_u8),                     // Calldata: lsb amount.
+            felt!(0_u8)                      // Calldata: msb amount.
+        ];
+
+        let invoke_args = invoke_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            calldata
+        );
+
+        rpc_invoke_tx(invoke_args)
     }
 
     pub fn sender_address(&self) -> ContractAddress {
