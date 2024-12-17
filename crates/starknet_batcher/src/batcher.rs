@@ -101,19 +101,7 @@ impl Batcher {
             return Err(BatcherError::HeightInProgress);
         }
 
-        let storage_height = self.get_height_from_storage()?;
-        if storage_height < input.height {
-            return Err(BatcherError::StorageNotSynced {
-                storage_height,
-                requested_height: input.height,
-            });
-        }
-        if storage_height > input.height {
-            return Err(BatcherError::HeightAlreadyPassed {
-                storage_height,
-                requested_height: input.height,
-            });
-        }
+        self.validate_height_matches_storage(input.height)?;
 
         self.abort_active_height().await;
 
@@ -309,6 +297,24 @@ impl Batcher {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
         })
+    }
+
+    fn validate_height_matches_storage(&mut self, height: BlockNumber) -> BatcherResult<()> {
+        let storage_height = self.get_height_from_storage()?;
+
+        if storage_height < height {
+            return Err(BatcherError::StorageNotSynced {
+                storage_height,
+                requested_height: height,
+            });
+        }
+        if storage_height > height {
+            return Err(BatcherError::HeightAlreadyPassed {
+                storage_height,
+                requested_height: height,
+            });
+        }
+        Ok(())
     }
 
     #[instrument(skip(self), err)]
