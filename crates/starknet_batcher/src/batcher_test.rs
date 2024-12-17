@@ -507,6 +507,7 @@ async fn add_sync_block() {
     let mut batcher = create_batcher(mock_dependencies);
 
     let sync_block = SyncBlock {
+        block_number: INITIAL_HEIGHT,
         state_diff: test_state_diff(),
         transaction_hashes: test_tx_hashes().into_iter().collect(),
     };

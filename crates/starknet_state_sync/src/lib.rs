@@ -49,6 +49,7 @@ impl StateSync {
         if let Some(block_transaction_hashes) = txn.get_block_transaction_hashes(block_number)? {
             if let Some(thin_state_diff) = txn.get_state_diff(block_number)? {
                 return Ok(Some(SyncBlock {
+                    block_number,
                     state_diff: thin_state_diff,
                     transaction_hashes: block_transaction_hashes,
                 }));
