@@ -1,6 +1,7 @@
 #![allow(non_local_definitions)]
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
@@ -8,9 +9,8 @@ use blockifier::blockifier::transaction_executor::{TransactionExecutor, Transact
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
-use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::fee::receipt::TransactionReceipt;
-use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::utils::usize_from_u64;
@@ -137,8 +137,7 @@ pub struct PyBlockExecutor {
     pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
-    pub contract_class_manager_config: ContractClassManagerConfig,
-    pub global_contract_cache: GlobalContractCache<VersionedRunnableCompiledClass>,
+    pub contract_class_manager: Arc<ContractClassManager>,
 }
 
 #[pymethods]
@@ -169,10 +168,9 @@ impl PyBlockExecutor {
             versioned_constants,
             tx_executor: None,
             storage: Box::new(storage),
-            contract_class_manager_config: contract_class_manager_config.into(),
-            global_contract_cache: GlobalContractCache::new(
-                contract_class_manager_config.contract_cache_size,
-            ),
+            contract_class_manager: Arc::new(ContractClassManager::start(
+                contract_class_manager_config.into(),
+            )),
         }
     }
 
@@ -365,8 +363,9 @@ impl PyBlockExecutor {
     /// (this is true for every partial existence of information at tables).
     #[pyo3(signature = (block_number))]
     pub fn revert_block(&mut self, block_number: u64) -> NativeBlockifierResult<()> {
-        // Clear global class cache, to peroperly revert classes declared in the reverted block.
-        self.global_contract_cache.clear();
+        // Clear global class cache, to properly revert classes declared in the reverted block.
+        // TODO(Avi, 01/01/2025): Consider what exactly to clear in native compilation context.
+        self.contract_class_manager.clear();
         self.storage.revert_block(block_number)
     }
 
@@ -407,10 +406,9 @@ impl PyBlockExecutor {
             chain_info: os_config.into_chain_info(),
             versioned_constants,
             tx_executor: None,
-            contract_class_manager_config: contract_class_manager_config.into(),
-            global_contract_cache: GlobalContractCache::new(
-                contract_class_manager_config.contract_cache_size,
-            ),
+            contract_class_manager: Arc::new(ContractClassManager::start(
+                contract_class_manager_config.into(),
+            )),
         }
     }
 }
@@ -426,12 +424,17 @@ impl PyBlockExecutor {
         PapyrusReader::new(
             self.storage.reader().clone(),
             next_block_number,
-            self.global_contract_cache.clone(),
+            self.contract_class_manager.clone(),
         )
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
         use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+        let contract_class_manager_config = ContractClassManagerConfig {
+            run_cairo_native: false,
+            wait_on_native_compilation: false,
+            contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+        };
         Self {
             bouncer_config: BouncerConfig::max(),
             tx_executor_config: TransactionExecutorConfig::create_for_testing(true),
@@ -439,12 +442,9 @@ impl PyBlockExecutor {
             chain_info: ChainInfo::default(),
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
-            contract_class_manager_config: ContractClassManagerConfig {
-                run_cairo_native: false,
-                wait_on_native_compilation: false,
-                contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
-            },
-            global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            contract_class_manager: Arc::new(ContractClassManager::start(
+                contract_class_manager_config,
+            )),
         }
     }
 

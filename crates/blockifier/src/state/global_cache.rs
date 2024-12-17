@@ -7,6 +7,7 @@ use starknet_api::state::SierraContractClass;
 
 #[cfg(feature = "cairo_native")]
 use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::VersionedRunnableCompiledClass;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 
@@ -51,27 +52,29 @@ impl<T: Clone> GlobalContractCache<T> {
     }
 }
 
-#[cfg(feature = "cairo_native")]
 pub struct ContractCaches {
-    pub casm_cache: GlobalContractCache<RunnableCompiledClass>,
+    pub casm_cache: GlobalContractCache<VersionedRunnableCompiledClass>,
+    #[cfg(feature = "cairo_native")]
     pub native_cache: GlobalContractCache<CachedCairoNative>,
     pub sierra_cache: GlobalContractCache<Arc<SierraContractClass>>,
 }
 
 #[cfg(feature = "cairo_native")]
 impl ContractCaches {
-    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
+    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<VersionedRunnableCompiledClass> {
         self.casm_cache.get(class_hash)
     }
 
-    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: RunnableCompiledClass) {
+    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: VersionedRunnableCompiledClass) {
         self.casm_cache.set(class_hash, compiled_class);
     }
 
+    #[cfg(feature = "cairo_native")]
     pub fn get_native(&self, class_hash: &ClassHash) -> Option<CachedCairoNative> {
         self.native_cache.get(class_hash)
     }
 
+    #[cfg(feature = "cairo_native")]
     pub fn set_native(&self, class_hash: ClassHash, contract_executor: CachedCairoNative) {
         self.native_cache.set(class_hash, contract_executor);
     }
@@ -87,6 +90,7 @@ impl ContractCaches {
     pub fn new(cache_size: usize) -> Self {
         Self {
             casm_cache: GlobalContractCache::new(cache_size),
+            #[cfg(feature = "cairo_native")]
             native_cache: GlobalContractCache::new(cache_size),
             sierra_cache: GlobalContractCache::new(cache_size),
         }
@@ -94,6 +98,7 @@ impl ContractCaches {
 
     pub fn clear(&mut self) {
         self.casm_cache.clear();
+        #[cfg(feature = "cairo_native")]
         self.native_cache.clear();
         self.sierra_cache.clear();
     }

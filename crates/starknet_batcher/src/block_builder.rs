@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -10,10 +11,9 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
-use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -277,7 +277,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
-    pub global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
+    pub contract_class_manager: Arc<ContractClassManager>,
 }
 
 impl BlockBuilderFactory {
@@ -300,7 +300,7 @@ impl BlockBuilderFactory {
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
             height,
-            self.global_class_hash_to_class.clone(),
+            self.contract_class_manager.clone(),
         );
 
         let executor = TransactionExecutor::pre_process_and_create(

@@ -1,11 +1,13 @@
+use std::sync::Arc;
+
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
     VersionedRunnableCompiledClass,
 };
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
-use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::{StateReader, StateResult};
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
@@ -25,16 +27,16 @@ type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
+    contract_class_manager: Arc<ContractClassManager>,
 }
 
 impl PapyrusReader {
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
+        contract_class_manager: Arc<ContractClassManager>,
     ) -> Self {
-        Self { storage_reader, latest_block, global_class_hash_to_class }
+        Self { storage_reader, latest_block, contract_class_manager }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
@@ -132,15 +134,15 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
-        let versioned_contract_class = self.global_class_hash_to_class.get(&class_hash);
+        let versioned_contract_class = self.contract_class_manager.get_casm(&class_hash);
 
         match versioned_contract_class {
             Some(contract_class) => Ok(RunnableCompiledClass::from(contract_class)),
             None => {
                 let versioned_contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
                 // The class was declared in a previous (finalized) state; update the global cache.
-                self.global_class_hash_to_class
-                    .set(class_hash, versioned_contract_class_from_db.clone());
+                self.contract_class_manager
+                    .set_casm(class_hash, versioned_contract_class_from_db.clone());
                 Ok(RunnableCompiledClass::from(versioned_contract_class_from_db))
             }
         }
