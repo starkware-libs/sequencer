@@ -36,6 +36,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
@@ -105,6 +106,7 @@ struct MockDependencies {
     storage_reader: MockBatcherStorageReaderTrait,
     storage_writer: MockBatcherStorageWriterTrait,
     mempool_client: MockMempoolClient,
+    l1_provider_client: MockL1ProviderClient,
     proposal_manager: MockProposalManagerTraitWrapper,
     block_builder_factory: MockBlockBuilderFactoryTrait,
 }
@@ -116,6 +118,7 @@ impl Default for MockDependencies {
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriterTrait::new(),
+            l1_provider_client: MockL1ProviderClient::new(),
             mempool_client: MockMempoolClient::new(),
             proposal_manager: MockProposalManagerTraitWrapper::new(),
             block_builder_factory: MockBlockBuilderFactoryTrait::new(),
@@ -128,6 +131,7 @@ fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
+        Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
         Box::new(mock_dependencies.block_builder_factory),
         Box::new(mock_dependencies.proposal_manager),

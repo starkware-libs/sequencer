@@ -28,6 +28,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_l1_provider_types::SharedL1ProviderClient;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
@@ -42,11 +43,7 @@ use crate::block_builder::{
 };
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{GenerateProposalError, ProposalManager, ProposalManagerTrait};
-use crate::transaction_provider::{
-    DummyL1ProviderClient,
-    ProposeTransactionProvider,
-    ValidateTransactionProvider,
-};
+use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
     proposal_status_from,
@@ -62,6 +59,7 @@ pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
+    pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
 
     active_height: Option<BlockNumber>,
@@ -77,6 +75,7 @@ impl Batcher {
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
         storage_writer: Box<dyn BatcherStorageWriterTrait>,
+        l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         proposal_manager: Box<dyn ProposalManagerTrait>,
@@ -85,6 +84,7 @@ impl Batcher {
             config: config.clone(),
             storage_reader,
             storage_writer,
+            l1_provider_client,
             mempool_client,
             active_height: None,
             block_builder_factory,
@@ -136,8 +136,7 @@ impl Batcher {
 
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
-            // TODO: use a real L1 provider client.
-            Arc::new(DummyL1ProviderClient),
+            self.l1_provider_client.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
         );
 
@@ -186,8 +185,7 @@ impl Batcher {
 
         let tx_provider = ValidateTransactionProvider {
             tx_receiver: input_tx_receiver,
-            // TODO: use a real L1 provider client.
-            l1_provider_client: Arc::new(DummyL1ProviderClient),
+            l1_provider_client: self.l1_provider_client.clone(),
         };
 
         let (block_builder, abort_signal_sender) = self
@@ -429,7 +427,11 @@ impl Batcher {
     }
 }
 
-pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
+pub fn create_batcher(
+    config: BatcherConfig,
+    mempool_client: SharedMempoolClient,
+    l1_provider_client: SharedL1ProviderClient,
+) -> Batcher {
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
@@ -445,6 +447,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
         config,
         storage_reader,
         storage_writer,
+        l1_provider_client,
         mempool_client,
         block_builder_factory,
         proposal_manager,

@@ -137,6 +137,7 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
         mempool: get_disabled_component_config(),
         mempool_p2p: get_disabled_component_config(),
         state_sync: get_disabled_component_config(),
+        l1_provider: get_disabled_component_config(),
     }
 }
 
