@@ -17,7 +17,7 @@ use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction as ApiExecutableDeclareTransaction,
 };
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
@@ -79,7 +79,6 @@ use crate::test_utils::{
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
@@ -95,6 +94,7 @@ use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test_nonce_0,
     create_all_resource_bounds,
+    create_gas_amount_bounds_with_default_price,
     create_test_init_data,
     default_all_resource_bounds,
     default_l1_resource_bounds,
@@ -210,13 +210,12 @@ fn test_fee_enforcement(
                     (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
                     DEFAULT_STRK_L1_GAS_PRICE.into()
                 ),
-                GasVectorComputationMode::All => create_all_resource_bounds(
-                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L1_GAS_PRICE.into(),
-                    (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L2_GAS_PRICE.into(),
-                    (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(
+                    GasVector{
+                        l1_gas: (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                        l2_gas: (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
+                        l1_data_gas: (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
+                    },
                 ),
             },
             version,
@@ -242,13 +241,12 @@ fn test_all_bounds_combinations_enforce_fee(
     let expected_enforce_fee = l1_gas_bound + l1_data_gas_bound + l2_gas_bound > 0;
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         version: TransactionVersion::THREE,
-        resource_bounds: create_all_resource_bounds(
-            l1_gas_bound.into(),
-            DEFAULT_STRK_L1_GAS_PRICE.into(),
-            l2_gas_bound.into(),
-            DEFAULT_STRK_L2_GAS_PRICE.into(),
-            l1_data_gas_bound.into(),
-            DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        resource_bounds: create_gas_amount_bounds_with_default_price(
+            GasVector {
+                l1_gas: l1_gas_bound.into(),
+                l2_gas: l2_gas_bound.into(),
+                l1_data_gas: l1_data_gas_bound.into(),
+            },
         ),
     });
     assert_eq!(account_tx.enforce_fee(), expected_enforce_fee);

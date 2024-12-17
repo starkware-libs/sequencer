@@ -3,7 +3,7 @@ use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
@@ -44,6 +44,7 @@ use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::versioned_constants::VersionedConstants;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -57,6 +58,16 @@ pub const GET_SEQUENCER_ADDRESS: u64 = 7;
 pub const STORAGE_WRITE: u64 = 8;
 
 /// Test fixtures.
+
+#[fixture]
+pub fn block_context() -> BlockContext {
+    BlockContext::create_for_account_testing()
+}
+
+#[fixture]
+pub fn versioned_constants(block_context: BlockContext) -> VersionedConstants {
+    block_context.versioned_constants().clone()
+}
 
 #[fixture]
 pub fn max_fee() -> Fee {
@@ -79,20 +90,25 @@ pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> Va
         GasVectorComputationMode::NoL2Gas => {
             l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE.into())
         }
-        GasVectorComputationMode::All => create_all_resource_bounds(
-            DEFAULT_L1_GAS_AMOUNT,
-            DEFAULT_STRK_L1_GAS_PRICE.into(),
-            DEFAULT_L2_GAS_MAX_AMOUNT,
-            DEFAULT_STRK_L2_GAS_PRICE.into(),
-            DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-            DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
-        ),
+        GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(GasVector {
+            l1_gas: DEFAULT_L1_GAS_AMOUNT,
+            l1_data_gas: DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+            l2_gas: DEFAULT_L2_GAS_MAX_AMOUNT,
+        }),
     }
 }
 
-#[fixture]
-pub fn block_context() -> BlockContext {
-    BlockContext::create_for_account_testing()
+pub fn create_gas_amount_bounds_with_default_price(
+    GasVector { l1_gas, l1_data_gas, l2_gas }: GasVector,
+) -> ValidResourceBounds {
+    create_all_resource_bounds(
+        l1_gas,
+        DEFAULT_STRK_L1_GAS_PRICE.into(),
+        l2_gas,
+        DEFAULT_STRK_L2_GAS_PRICE.into(),
+        l1_data_gas,
+        DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+    )
 }
 
 /// Struct containing the data usually needed to initialize a test.

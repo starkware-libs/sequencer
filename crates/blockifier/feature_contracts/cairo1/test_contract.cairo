@@ -23,8 +23,8 @@ mod TestContract {
     };
     use core::circuit::{
         CircuitElement, CircuitInput, circuit_add, circuit_sub, circuit_mul, circuit_inverse,
-        EvalCircuitResult, EvalCircuitTrait, u384, CircuitOutputsTrait,
-        CircuitModulus, CircuitInputs, AddInputResultTrait
+        EvalCircuitResult, EvalCircuitTrait, u384, CircuitOutputsTrait, CircuitModulus,
+        CircuitInputs, AddInputResultTrait
     };
 
     #[storage]
@@ -82,15 +82,11 @@ mod TestContract {
         calldata_1: Array::<felt252>,
     ) -> Span::<felt252> {
         let res_0 = syscalls::call_contract_syscall(
-            contract_address_0,
-            entry_point_selector_0,
-            calldata_0.span(),
+            contract_address_0, entry_point_selector_0, calldata_0.span(),
         )
             .unwrap_syscall();
         let res_1 = syscalls::call_contract_syscall(
-            contract_address_1,
-            entry_point_selector_1,
-            calldata_1.span(),
+            contract_address_1, entry_point_selector_1, calldata_1.span(),
         )
             .unwrap_syscall();
         let mut res: Array::<felt252> = Default::default();
@@ -602,8 +598,13 @@ mod TestContract {
         let mul = circuit_mul(inv, sub);
 
         let modulus = TryInto::<_, CircuitModulus>::try_into([7, 0, 0, 0]).unwrap();
-        let outputs =
-            (mul,).new_inputs().next([3, 0, 0, 0]).next([6, 0, 0, 0]).done().eval(modulus).unwrap();
+        let outputs = (mul,)
+            .new_inputs()
+            .next([3, 0, 0, 0])
+            .next([6, 0, 0, 0])
+            .done()
+            .eval(modulus)
+            .unwrap();
 
         assert!(outputs.get_output(mul) == u384 { limb0: 6, limb1: 0, limb2: 0, limb3: 0 });
     }
@@ -632,17 +633,15 @@ mod TestContract {
         entry_point_selector: felt252,
         calldata: Array::<felt252>
     ) {
-        let class_hash_before_call = syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
-         match syscalls::call_contract_syscall(
-            contract_address, entry_point_selector, calldata.span())
-        {
+        let class_hash_before_call = syscalls::get_class_hash_at_syscall(contract_address)
+            .unwrap_syscall();
+        match syscalls::call_contract_syscall(
+            contract_address, entry_point_selector, calldata.span()
+        ) {
             Result::Ok(_) => panic!("Expected revert"),
             Result::Err(errors) => {
                 let mut error_span = errors.span();
-                assert(
-                    *error_span.pop_back().unwrap() == 'ENTRYPOINT_FAILED',
-                    'Unexpected error',
-                );
+                assert(*error_span.pop_back().unwrap() == 'ENTRYPOINT_FAILED', 'Unexpected error',);
                 let inner_error = *error_span.pop_back().unwrap();
                 if entry_point_selector == selector!("bad_selector") {
                     assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'Unexpected error');
@@ -651,8 +650,15 @@ mod TestContract {
                 }
             },
         };
-        let class_hash_after_call = syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
+        let class_hash_after_call = syscalls::get_class_hash_at_syscall(contract_address)
+            .unwrap_syscall();
         assert(self.my_storage_var.read() == 0, 'values should not change.');
         assert(class_hash_before_call == class_hash_after_call, 'class hash should not change.');
+    }
+
+    #[external(v0)]
+    fn return_result(ref self: ContractState, num: felt252) -> felt252 {
+        let result = num;
+        result
     }
 }
