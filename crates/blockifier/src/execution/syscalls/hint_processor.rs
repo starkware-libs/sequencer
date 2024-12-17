@@ -661,9 +661,17 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
         _constants: &HashMap<String, Felt>,
     ) -> HintExecutionResult {
         let hint = hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)?;
+        // Segment arena finalization is relevant only for proof so there is no need to allocate
+        // memory segments for it in the sequencer.
+        let no_temporary_segments = true;
         match hint {
-            Hint::Core(hint) => execute_core_hint_base(vm, exec_scopes, hint),
+            Hint::Core(hint) => {
+                execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)
+            }
             Hint::Starknet(hint) => self.execute_next_syscall(vm, hint),
+            Hint::External(_) => {
+                panic!("starknet should never accept classes with external hints!")
+            }
         }
     }
 

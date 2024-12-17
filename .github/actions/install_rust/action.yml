@@ -8,3 +8,6 @@ runs:
       with:
         cache-base: main(-v[0-9].*)?
         inherit-toolchain: true
+        bins: taplo-cli@0.9.0
+      env:
+        RUSTFLAGS: "-C link-arg=-fuse-ld=lld"

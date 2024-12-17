@@ -60,12 +60,13 @@ pub(crate) fn dump_config_file_changes(
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
         required_params.validator_id,
-        config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,
         config.http_server_config.ip,
         config.http_server_config.port,
         config.consensus_manager_config.consensus_config.start_height,
+        config.state_sync_config.storage_config.db_config.path_prefix,
+        config.state_sync_config.network_config.tcp_port,
     );
     let node_config_path = dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH, dir);
     assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
@@ -136,6 +137,7 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
         mempool: get_disabled_component_config(),
         mempool_p2p: get_disabled_component_config(),
         state_sync: get_disabled_component_config(),
+        l1_provider: get_disabled_component_config(),
     }
 }
 

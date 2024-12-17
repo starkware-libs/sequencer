@@ -17,7 +17,7 @@ use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 use crate::versioned_constants::VersionedConstants;
 
 #[test]
@@ -200,7 +200,7 @@ fn run_security_test(
         entry_point_selector: selector_from_name(entry_point_name),
         calldata,
         storage_address: security_contract.get_instance_address(0),
-        initial_gas: versioned_constants.default_initial_gas_cost(),
+        initial_gas: versioned_constants.inifite_gas_for_vm_mode(),
         ..Default::default()
     };
     let error = match entry_point_call.execute_directly(state) {
@@ -513,8 +513,8 @@ fn test_storage_related_members() {
 }
 
 #[test]
-fn test_cairo1_entry_point_segment_arena() {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+fn test_old_cairo1_entry_point_segment_arena() {
+    let test_contract = FeatureContract::CairoStepsTestContract;
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let calldata = calldata![];

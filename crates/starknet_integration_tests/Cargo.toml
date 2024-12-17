@@ -15,6 +15,7 @@ blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+infra_utils.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_consensus.workspace = true
@@ -36,7 +37,7 @@ starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
 starknet_sequencer_node = { workspace = true, features = ["testing"] }
-starknet_task_executor.workspace = true
+starknet_state_sync.workspace = true
 strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
@@ -44,7 +45,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
-infra_utils.workspace = true
 itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true

@@ -18,7 +18,7 @@ use crate::types::{ProposalContentId, Round, ValidatorId};
 pub enum StateMachineEvent {
     /// Sent by the state machine when a block is required to propose (ProposalContentId is always
     /// None). While waiting for the response of GetProposal, the state machine will buffer all
-    /// other events. The caller must respond with a valid proposal id for this height to the
+    /// other events. The caller *must* respond with a valid proposal id for this height to the
     /// state machine, and the same round sent out.
     GetProposal(Option<ProposalContentId>, Round),
     /// Consensus message, can be both sent from and to the state machine.
@@ -48,9 +48,10 @@ pub enum Step {
 }
 
 /// State Machine. Major assumptions:
-/// 1. SHC handles replays and conflicts.
+/// 1. SHC handles: authentication, replays, and conflicts.
 /// 2. SM must handle "out of order" messages (E.g. vote arrives before proposal).
-/// 3. No network failures.
+///
+/// Each height is begun with a call to `start`, with no further calls to it.
 pub struct StateMachine {
     id: ValidatorId,
     round: Round,
@@ -117,8 +118,8 @@ impl StateMachine {
 
     /// Process the incoming event.
     ///
-    /// If we are waiting for a response to `GetProposal` all other incoming events are buffered
-    /// until that response arrives.
+    /// If we are waiting for a response to [`GetProposal`](`StateMachineEvent::GetProposal`) all
+    /// other incoming events are buffered until that response arrives.
     ///
     /// Returns a set of events for the caller to handle. The caller should not mirror the output
     /// events back to the state machine, as it makes sure to handle them before returning.

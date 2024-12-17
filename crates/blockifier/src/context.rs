@@ -5,6 +5,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     GasVectorComputationMode,
@@ -12,6 +13,7 @@ use starknet_api::transaction::fields::{
 };
 
 use crate::bouncer::BouncerConfig;
+use crate::execution::call_info::CallInfo;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     HasRelatedFeeType,
@@ -42,19 +44,46 @@ impl TransactionContext {
 
     /// Returns the initial Sierra gas of the transaction.
     /// This value is used to limit the transaction's run.
-    // TODO(tzahi): replace returned value from u64 to GasAmount.
-    pub fn initial_sierra_gas(&self) -> u64 {
+    pub fn initial_sierra_gas(&self) -> GasAmount {
         match &self.tx_info {
             TransactionInfo::Deprecated(_)
             | TransactionInfo::Current(CurrentTransactionInfo {
                 resource_bounds: ValidResourceBounds::L1Gas(_),
                 ..
-            }) => self.block_context.versioned_constants.default_initial_gas_cost(),
+            }) => self.block_context.versioned_constants.initial_gas_no_user_l2_bound(),
             TransactionInfo::Current(CurrentTransactionInfo {
                 resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
                 ..
-            }) => l2_gas.max_amount.0,
+            }) => l2_gas.max_amount,
         }
+    }
+}
+
+pub(crate) struct GasCounter {
+    pub(crate) spent_gas: GasAmount,
+    pub(crate) remaining_gas: GasAmount,
+}
+
+impl GasCounter {
+    pub(crate) fn new(initial_gas: GasAmount) -> Self {
+        GasCounter { spent_gas: GasAmount(0), remaining_gas: initial_gas }
+    }
+
+    fn spend(&mut self, amount: GasAmount) {
+        self.spent_gas = self.spent_gas.checked_add(amount).expect("Gas overflow");
+        self.remaining_gas = self
+            .remaining_gas
+            .checked_sub(amount)
+            .expect("Overuse of gas; should have been caught earlier");
+    }
+
+    /// Limits the amount of gas that can be used (in validate\execute) by the given global limit.
+    pub(crate) fn limit_usage(&self, amount: GasAmount) -> u64 {
+        self.remaining_gas.min(amount).0
+    }
+
+    pub(crate) fn subtract_used_gas(&mut self, call_info: &CallInfo) {
+        self.spend(GasAmount(call_info.execution.gas_consumed));
     }
 }
 

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::{env, fs};
 
+use tracing::error;
+
 #[cfg(test)]
 #[path = "path_test.rs"]
 mod path_test;
@@ -21,9 +23,14 @@ macro_rules! compile_time_cargo_manifest_dir {
 /// # Returns
 /// * A `PathBuf` representing the resolved path starting from the project root.
 pub fn resolve_project_relative_path(relative_path: &str) -> Result<PathBuf, std::io::Error> {
-    let base_dir = path_of_project_root();
-    let path = base_dir.join(relative_path);
-    let absolute_path = fs::canonicalize(path)?;
+    let project_root_path = path_of_project_root();
+    let path = project_root_path.join(relative_path);
+    let absolute_path = fs::canonicalize(path).inspect_err(|err| {
+        error!(
+            "Error: {:?}, project root path {:?}, relative path {:?}",
+            err, project_root_path, relative_path
+        );
+    })?;
 
     Ok(absolute_path)
 }
@@ -39,7 +46,11 @@ pub fn project_path() -> Result<PathBuf, std::io::Error> {
 fn path_of_project_root() -> PathBuf {
     // Ascend two directories to get to the project root. This assumes that the project root is two
     // directories above the current file.
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).expect("Cannot navigate up").into()
+    PathBuf::from(compile_time_cargo_manifest_dir!())
+        .ancestors()
+        .nth(2)
+        .expect("Cannot navigate up")
+        .into()
 }
 
 // TODO(Tsabary/ Arni): consider alternatives.

@@ -3,25 +3,15 @@ use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransac
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
-use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
-use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
-use starknet_integration_tests::utils::{
-    create_integration_test_tx_generator,
-    run_integration_test,
-    send_account_txs,
-};
-use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_sequencer_node::test_utils::compilation::spawn_run_node;
+use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-#[fixture]
-fn tx_generator() -> MultiAccountTransactionGenerator {
-    create_integration_test_tx_generator()
-}
+use crate::integration_test_setup::IntegrationTestSetup;
+use crate::utils::send_account_txs;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -58,30 +48,25 @@ async fn await_block(
         .ok_or(())
 }
 
-#[rstest]
-#[tokio::test]
-async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
-    if !run_integration_test() {
-        return;
-    }
-
+pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
-    configure_tracing().await;
+    info!("Checking that the sequencer node executable is present.");
+    get_node_executable_path();
+
     info!("Running integration test setup.");
-
     // Creating the storage for the test.
-
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
     info!("Running sequencer node.");
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
-    match integration_test_setup.is_alive_test_client.await_alive(5000, 50).await {
-        Ok(_) => {}
-        Err(_) => panic!("Node is not alive."),
-    }
+    integration_test_setup
+        .is_alive_test_client
+        .await_alive(5000, 50)
+        .await
+        .expect("Node should be alive.");
 
     info!("Running integration test simulator.");
 
@@ -89,7 +74,6 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
         &mut |rpc_tx| integration_test_setup.add_tx_http_client.assert_add_tx_success(rpc_tx);
 
     const ACCOUNT_ID_0: AccountId = 0;
-
     let n_txs = 50;
     let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
     info!("Sending {n_txs} txs.");
@@ -101,10 +85,9 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
         papyrus_storage::open_storage(integration_test_setup.batcher_storage_config)
             .expect("Failed to open batcher's storage");
 
-    match await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader).await {
-        Ok(_) => {}
-        Err(_) => panic!("Did not reach expected block number."),
-    }
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader)
+        .await
+        .expect("Block number should have been reached.");
 
     info!("Shutting the node down.");
     node_run_handle.abort();

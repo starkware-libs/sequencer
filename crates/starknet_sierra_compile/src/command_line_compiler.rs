@@ -14,8 +14,6 @@ use crate::constants::CAIRO_LANG_BINARY_NAME;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
-#[cfg(feature = "cairo_native")]
-use crate::paths::output_file_path;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
@@ -66,8 +64,12 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-        let output_file_path = output_file_path(out_dir());
-        let additional_args = [output_file_path.as_str()];
+
+        let output_file = NamedTempFile::new()?;
+        let output_file_path = output_file.path().to_str().ok_or(
+            CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
+        )?;
+        let additional_args = [output_file_path];
 
         let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
 

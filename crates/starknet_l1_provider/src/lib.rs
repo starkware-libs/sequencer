@@ -1,13 +1,23 @@
+pub mod communication;
 pub mod errors;
 
 #[cfg(test)]
 pub mod test_utils;
 
+use std::collections::BTreeMap;
+use std::time::Duration;
+
 use indexmap::{IndexMap, IndexSet};
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::{L1ProviderResult, ValidationStatus};
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use validator::Validate;
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
@@ -24,11 +34,8 @@ pub struct L1Provider {
 }
 
 impl L1Provider {
-    pub async fn new(_config: L1ProviderConfig) -> L1ProviderResult<Self> {
-        todo!(
-            "init crawler to start next crawl from ~1 hour ago, this can have l1 errors when \
-             finding the latest block on L1 to 'subtract' 1 hour from."
-        );
+    pub fn new(_config: L1ProviderConfig) -> L1ProviderResult<Self> {
+        todo!("Init crawler in uninitialized_state from config, to initialize call `reset`.");
     }
 
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
@@ -75,8 +82,8 @@ impl L1Provider {
 
     /// Simple recovery from L1 and L2 reorgs by reseting the service, which rewinds L1 and L2
     /// information.
-    pub fn handle_reorg(&mut self) -> L1ProviderResult<()> {
-        self.reset()
+    pub async fn handle_reorg(&mut self) -> L1ProviderResult<()> {
+        self.reset().await
     }
 
     // TODO: this will likely change during integration with infra team.
@@ -88,14 +95,17 @@ impl L1Provider {
         )
     }
 
-    fn reset(&mut self) -> L1ProviderResult<()> {
+    pub async fn reset(&mut self) -> L1ProviderResult<()> {
         todo!(
             "resets internal buffers and rewinds the internal crawler _pointer_ back for ~1 \
              hour,so that the main loop will start collecting from that time gracefully. May hit \
-             base layer errors."
+             base layer errors when finding the latest block on l1 to 'subtract' 1 hour from. \
+             Then, transition to Pending."
         );
     }
 }
+
+impl ComponentStarter for L1Provider {}
 
 #[derive(Debug, Default)]
 struct TransactionManager {
@@ -185,5 +195,23 @@ impl std::fmt::Display for ProviderState {
     }
 }
 
-#[derive(Debug)]
-pub struct L1ProviderConfig;
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct L1ProviderConfig {
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub _poll_interval: Duration,
+}
+
+impl SerializeConfig for L1ProviderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "_poll_interval",
+            &Duration::from_millis(100).as_millis(),
+            "Interval in milliseconds between each scraping attempt of L1.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {
+    L1Provider { state: ProviderState::Propose, ..Default::default() }
+}
