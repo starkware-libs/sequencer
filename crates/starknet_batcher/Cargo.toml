@@ -19,8 +19,10 @@ papyrus_storage.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
+starknet_l1_provider_types.workspace = true
 starknet_mempool_types.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_state_sync_types.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -35,4 +37,5 @@ mockall.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet_l1_provider_types = { workspace = true, features = ["testing"] }
 starknet_mempool_types = { workspace = true, features = ["testing"] }

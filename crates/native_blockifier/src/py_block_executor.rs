@@ -8,7 +8,7 @@ use blockifier::blockifier::transaction_executor::{TransactionExecutor, Transact
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
@@ -138,7 +138,7 @@ pub struct PyBlockExecutor {
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager_config: ContractClassManagerConfig,
-    pub global_contract_cache: GlobalContractCache<RunnableCompiledClass>,
+    pub global_contract_cache: GlobalContractCache<VersionedRunnableCompiledClass>,
 }
 
 #[pymethods]
@@ -379,7 +379,6 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
-    #[cfg(any(feature = "testing", test))]
     #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size))]
     #[staticmethod]
     fn create_for_testing(
@@ -431,7 +430,6 @@ impl PyBlockExecutor {
         )
     }
 
-    #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
         use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
         Self {

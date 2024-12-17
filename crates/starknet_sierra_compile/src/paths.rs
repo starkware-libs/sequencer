@@ -17,8 +17,3 @@ fn shared_folder_dir(out_dir: std::path::PathBuf) -> std::path::PathBuf {
 pub fn binary_path(out_dir: std::path::PathBuf, binary_name: &str) -> std::path::PathBuf {
     shared_folder_dir(out_dir).join(binary_name)
 }
-
-#[cfg(feature = "cairo_native")]
-pub fn output_file_path(out_dir: std::path::PathBuf) -> String {
-    out_dir.join("output.so").to_str().unwrap().into()
-}

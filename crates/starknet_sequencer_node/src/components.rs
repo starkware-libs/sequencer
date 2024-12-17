@@ -4,6 +4,7 @@ use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
+use starknet_l1_provider::{create_l1_provider, L1Provider};
 use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use starknet_mempool_p2p::create_p2p_propagator_and_runner;
 use starknet_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -12,6 +13,8 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
+use starknet_state_sync::runner::StateSyncRunner;
+use starknet_state_sync::{create_state_sync_and_runner, StateSync};
 use starknet_state_sync_types::communication::EmptyStateSyncClient;
 
 use crate::clients::SequencerNodeClients;
@@ -27,10 +30,13 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
+    pub l1_provider: Option<L1Provider>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
     pub mempool_p2p_runner: Option<MempoolP2pRunner>,
+    pub state_sync: Option<StateSync>,
+    pub state_sync_runner: Option<StateSyncRunner>,
 }
 
 pub fn create_node_components(
@@ -42,7 +48,10 @@ pub fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
                 clients.get_mempool_shared_client().expect("Mempool Client should be available");
-            Some(create_batcher(config.batcher_config.clone(), mempool_client))
+            let l1_provider_client = clients
+                .get_l1_provider_shared_client()
+                .expect("L1 Provider Client should be available");
+            Some(create_batcher(config.batcher_config.clone(), mempool_client, l1_provider_client))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
@@ -123,14 +132,37 @@ pub fn create_node_components(
         ActiveComponentExecutionMode::Disabled => None,
     };
 
+    let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let (state_sync, state_sync_runner) =
+                create_state_sync_and_runner(config.state_sync_config.clone());
+            (Some(state_sync), Some(state_sync_runner))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            (None, None)
+        }
+    };
+
+    let l1_provider = match config.components.l1_provider.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(create_l1_provider(config.l1_provider_config.clone()))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     SequencerNodeComponents {
         batcher,
         consensus_manager,
         gateway,
         http_server,
+        l1_provider,
         mempool,
         monitoring_endpoint,
         mempool_p2p_propagator,
         mempool_p2p_runner,
+        state_sync,
+        state_sync_runner,
     }
 }

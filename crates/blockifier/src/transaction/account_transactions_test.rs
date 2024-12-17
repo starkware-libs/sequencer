@@ -17,7 +17,7 @@ use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction as ApiExecutableDeclareTransaction,
 };
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
@@ -79,7 +79,6 @@ use crate::test_utils::{
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
@@ -95,6 +94,7 @@ use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test_nonce_0,
     create_all_resource_bounds,
+    create_gas_amount_bounds_with_default_price,
     create_test_init_data,
     default_all_resource_bounds,
     default_l1_resource_bounds,
@@ -146,7 +146,9 @@ fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidR
 }
 
 #[rstest]
-fn test_rc96_holes(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
+#[case::vm(default_l1_resource_bounds())]
+#[case::gas(default_all_resource_bounds())]
+fn test_rc96_holes(block_context: BlockContext, #[case] resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -170,18 +172,21 @@ fn test_rc96_holes(block_context: BlockContext, default_all_resource_bounds: Val
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_all_resource_bounds,
+            resource_bounds: resource_bounds,
             ..tx_args
         },
     )
     .unwrap();
 
     assert!(!tx_execution_info.is_reverted());
-    assert_eq!(
-        tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
-            [&BuiltinName::range_check96],
-        24
-    );
+    if tx_execution_info.validate_call_info.unwrap().tracked_resource == TrackedResource::CairoSteps
+    {
+        assert_eq!(
+            tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
+                [&BuiltinName::range_check96],
+            24
+        );
+    }
 }
 
 #[rstest]
@@ -205,13 +210,12 @@ fn test_fee_enforcement(
                     (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
                     DEFAULT_STRK_L1_GAS_PRICE.into()
                 ),
-                GasVectorComputationMode::All => create_all_resource_bounds(
-                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L1_GAS_PRICE.into(),
-                    (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L2_GAS_PRICE.into(),
-                    (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(
+                    GasVector{
+                        l1_gas: (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                        l2_gas: (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
+                        l1_data_gas: (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
+                    },
                 ),
             },
             version,
@@ -237,13 +241,12 @@ fn test_all_bounds_combinations_enforce_fee(
     let expected_enforce_fee = l1_gas_bound + l1_data_gas_bound + l2_gas_bound > 0;
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         version: TransactionVersion::THREE,
-        resource_bounds: create_all_resource_bounds(
-            l1_gas_bound.into(),
-            DEFAULT_STRK_L1_GAS_PRICE.into(),
-            l2_gas_bound.into(),
-            DEFAULT_STRK_L2_GAS_PRICE.into(),
-            l1_data_gas_bound.into(),
-            DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        resource_bounds: create_gas_amount_bounds_with_default_price(
+            GasVector {
+                l1_gas: l1_gas_bound.into(),
+                l2_gas: l2_gas_bound.into(),
+                l1_data_gas: l1_data_gas_bound.into(),
+            },
         ),
     });
     assert_eq!(account_tx.enforce_fee(), expected_enforce_fee);
@@ -866,7 +869,9 @@ fn test_reverted_reach_steps_limit(
     )
     .unwrap();
     let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
+    let gas_0 = result.receipt.resources.computation.sierra_gas;
     let actual_fee_0 = result.receipt.fee.0;
+
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
 
@@ -882,12 +887,26 @@ fn test_reverted_reach_steps_limit(
     )
     .unwrap();
     let n_steps_1 = result.receipt.resources.computation.total_charged_steps();
+    let gas_1 = result.receipt.resources.computation.sierra_gas;
     let actual_fee_1 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
 
     // Make sure that the n_steps and actual_fee are higher as the recursion depth increases.
-    assert!(n_steps_1 > n_steps_0);
+    let tracked_resource = result.validate_call_info.unwrap().tracked_resource;
+    match cairo_version {
+        CairoVersion::Cairo0 => {
+            assert_eq!(tracked_resource, TrackedResource::CairoSteps);
+            assert!(n_steps_1 > n_steps_0);
+        }
+        CairoVersion::Cairo1(_) => {
+            assert_eq!(tracked_resource, TrackedResource::SierraGas);
+            assert!(gas_1 > gas_0);
+            // TODO(Tzahi): adjust the steps in the test to gas for the SierraGas run (after a
+            // validate run gas limit is introduced to the code).
+            return;
+        }
+    }
     assert!(actual_fee_1 > actual_fee_0);
 
     // Calculate a recursion depth where the transaction will surely fail (not a minimal depth, as
@@ -1691,18 +1710,25 @@ fn test_initial_gas(
         resource_bounds:  default_all_resource_bounds,
         version: TransactionVersion::THREE
     });
+    let user_gas_bound = block_context.to_tx_context(&account_tx).initial_sierra_gas();
 
     let transaction_ex_info = account_tx.execute(state, &block_context).unwrap();
 
     let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
     let validate_initial_gas = validate_call_info.call.initial_gas;
-    assert_eq!(validate_initial_gas, DEFAULT_L2_GAS_MAX_AMOUNT.0);
+    assert_eq!(validate_initial_gas, block_context.versioned_constants.validate_max_sierra_gas.0);
     let validate_gas_consumed = validate_call_info.execution.gas_consumed;
     assert!(validate_gas_consumed > 0, "New Cairo1 contract should consume gas.");
 
     let default_call_info = CallInfo::default();
-    let mut prev_initial_gas = validate_initial_gas;
     let mut execute_call_info = &transaction_ex_info.execute_call_info.unwrap();
+    // Initial gas for execution is the minimum between the max execution gas and the initial gas
+    // minus the gas consumed by validate. Need to add 1 as the check is strictly less than.
+    let mut prev_initial_gas = block_context
+        .versioned_constants
+        .execute_max_sierra_gas
+        .min(user_gas_bound - GasAmount(validate_gas_consumed) + GasAmount(1))
+        .0;
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.
@@ -1729,7 +1755,7 @@ fn test_initial_gas(
                 );
                 assert_eq!(
                     curr_initial_gas,
-                    block_context.versioned_constants.default_initial_gas_cost()
+                    block_context.versioned_constants.inifite_gas_for_vm_mode()
                 );
                 started_vm_mode = true;
             }

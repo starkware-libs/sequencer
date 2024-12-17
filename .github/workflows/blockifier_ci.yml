@@ -35,7 +35,7 @@ on:
       - 'scripts/sequencer-ci.Dockerfile'
 
 env:
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:

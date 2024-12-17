@@ -24,6 +24,8 @@ pub struct ComponentConfig {
     pub mempool_p2p: ReactiveComponentExecutionConfig,
     #[validate]
     pub state_sync: ReactiveComponentExecutionConfig,
+    #[validate]
+    pub l1_provider: ReactiveComponentExecutionConfig,
 
     // Active component configs.
     #[validate]
@@ -42,6 +44,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.gateway.dump(), "gateway"),
             append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
+            append_sub_config_name(self.l1_provider.dump(), "l1_provider"),
             append_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
             append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
             append_sub_config_name(self.state_sync.dump(), "state_sync"),

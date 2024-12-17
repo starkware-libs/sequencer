@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::ThinStateDiff;
 
 use crate::errors::BatcherError;
 
@@ -86,6 +87,11 @@ pub enum SendProposalContent {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SendProposalContentResponse {
     pub response: ProposalStatus,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct DecisionReachedResponse {
+    pub state_diff: ThinStateDiff,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

@@ -23,9 +23,11 @@ use starknet_batcher::VersionedConstantsOverrides;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
+use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_state_sync::config::StateSyncConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;
@@ -50,6 +52,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "consensus_manager_config.consensus_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
+                "state_sync_config.storage_config.db_config.chain_id",
+                "state_sync_config.network_config.chain_id",
             ]),
         ),
         (
@@ -120,9 +124,13 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
     #[validate]
+    pub l1_provider_config: L1ProviderConfig,
+    #[validate]
     pub mempool_p2p_config: MempoolP2pConfig,
     #[validate]
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
+    #[validate]
+    pub state_sync_config: StateSyncConfig,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
@@ -143,6 +151,8 @@ impl SerializeConfig for SequencerNodeConfig {
                 self.monitoring_endpoint_config.dump(),
                 "monitoring_endpoint_config",
             ),
+            append_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
+            append_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()

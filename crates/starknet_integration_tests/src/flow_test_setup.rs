@@ -10,12 +10,11 @@ use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
+use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
-use starknet_task_executor::tokio_executor::TokioExecutor;
 use tempfile::TempDir;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tracing::{debug, instrument};
 
@@ -24,6 +23,7 @@ use crate::utils::{
     create_chain_info,
     create_config,
     create_consensus_manager_configs_and_channels,
+    create_mempool_p2p_configs,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -31,8 +31,6 @@ const SEQUENCER_1: usize = 1;
 const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 
 pub struct FlowTestSetup {
-    // TODO(Tsabary): Remove this field.
-    pub task_executor: TokioExecutor,
     pub sequencer_0: SequencerSetup,
     pub sequencer_1: SequencerSetup,
 
@@ -43,37 +41,38 @@ pub struct FlowTestSetup {
 impl FlowTestSetup {
     #[instrument(skip(tx_generator), level = "debug")]
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
-        let handle = Handle::current();
-        let task_executor = TokioExecutor::new(handle);
         let chain_info = create_chain_info();
 
         let accounts = tx_generator.accounts();
-        let (mut consensus_manager_configs, consensus_proposals_channels) =
+        let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
+        let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
+            2] = consensus_manager_configs.try_into().unwrap();
 
-        // Take the first config for every sequencer node, and create nodes one after the other in
-        // order to make sure the ports are not overlapping.
-        let sequencer_0_consensus_manager_config = consensus_manager_configs.remove(0);
+        let mempool_p2p_configs =
+            create_mempool_p2p_configs(SEQUENCER_INDICES.len(), chain_info.chain_id.clone());
+        let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config]: [MempoolP2pConfig;
+            2] = mempool_p2p_configs.try_into().unwrap();
+
+        // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = SequencerSetup::new(
             accounts.clone(),
             SEQUENCER_0,
             chain_info.clone(),
-            &task_executor,
             sequencer_0_consensus_manager_config,
+            sequencer_0_mempool_p2p_config,
         )
         .await;
-
-        let sequencer_1_consensus_manager_config = consensus_manager_configs.remove(0);
         let sequencer_1 = SequencerSetup::new(
             accounts,
             SEQUENCER_1,
             chain_info,
-            &task_executor,
             sequencer_1_consensus_manager_config,
+            sequencer_1_mempool_p2p_config,
         )
         .await;
 
-        Self { task_executor, sequencer_0, sequencer_1, consensus_proposals_channels }
+        Self { sequencer_0, sequencer_1, consensus_proposals_channels }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
@@ -91,6 +90,7 @@ pub struct SequencerSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
     pub rpc_storage_file_handle: TempDir,
+    pub state_sync_storage_file_handle: TempDir,
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
@@ -99,16 +99,13 @@ pub struct SequencerSetup {
 }
 
 impl SequencerSetup {
-    #[instrument(
-        skip(accounts, chain_info, task_executor, consensus_manager_config),
-        level = "debug"
-    )]
+    #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<Contract>,
         sequencer_index: usize,
         chain_info: ChainInfo,
-        task_executor: &TokioExecutor,
         consensus_manager_config: ConsensusManagerConfig,
+        mempool_p2p_config: MempoolP2pConfig,
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
@@ -125,7 +122,9 @@ impl SequencerSetup {
             chain_info,
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
+            storage_for_test.state_sync_storage_config,
             consensus_manager_config,
+            mempool_p2p_config,
         )
         .await;
 
@@ -138,7 +137,7 @@ impl SequencerSetup {
 
         // Build and run the sequencer node.
         let sequencer_node_future = run_component_servers(servers);
-        let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+        let sequencer_node_handle = tokio::spawn(sequencer_node_future);
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
@@ -150,6 +149,7 @@ impl SequencerSetup {
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
+            state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             sequencer_node_handle,
             config,
         }
