@@ -56,6 +56,7 @@ const Configuration = {
             'starknet_client',
             'starknet_committer',
             'starknet_consensus_manager',
+            'starknet_class_manager_types',
             'starknet_gateway',
             'starknet_gateway_types',
             'starknet_http_server',
