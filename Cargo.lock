@@ -10399,6 +10399,7 @@ dependencies = [
  "papyrus_network",
  "papyrus_protobuf",
  "serde",
+ "starknet_api",
  "starknet_batcher_types",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
