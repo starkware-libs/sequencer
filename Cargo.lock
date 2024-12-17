@@ -10704,7 +10704,6 @@ dependencies = [
  "starknet_sierra_compile",
  "starknet_state_sync",
  "starknet_state_sync_types",
- "thiserror",
  "tokio",
  "tracing",
  "validator",

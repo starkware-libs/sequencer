@@ -1,6 +1,5 @@
-use std::io;
 use std::path::PathBuf;
-use std::process::{ExitStatus, Stdio};
+use std::process::Stdio;
 
 use infra_utils::command::create_shell_command;
 use infra_utils::path::resolve_project_relative_path;
@@ -9,48 +8,6 @@ use tokio::task::{self, JoinHandle};
 use tracing::{error, info};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
-
-#[cfg(test)]
-#[path = "compilation_test.rs"]
-mod compilation_test;
-
-#[derive(thiserror::Error, Debug)]
-pub enum NodeCompilationError {
-    #[error(transparent)]
-    IO(#[from] io::Error),
-    #[error("Exit status: {0}.")]
-    Status(ExitStatus),
-}
-
-/// Compiles the node using `cargo build` for testing purposes.
-async fn compile_node() -> io::Result<ExitStatus> {
-    info!(
-        "Compiling the starknet_sequencer_node binary, expected destination: \
-         {NODE_EXECUTABLE_PATH}"
-    );
-
-    // Run `cargo build` to compile the project
-    let compilation_result = create_shell_command("cargo")
-        .arg("build")
-        .arg("--bin")
-        .arg("starknet_sequencer_node")
-        .arg("--quiet")
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .status()
-        .await?;
-
-    info!("Compilation result: {:?}", compilation_result);
-    Ok(compilation_result)
-}
-
-pub async fn compile_node_result() -> Result<(), NodeCompilationError> {
-    match compile_node().await {
-        Ok(status) if status.success() => Ok(()),
-        Ok(status) => Err(NodeCompilationError::Status(status)),
-        Err(e) => Err(NodeCompilationError::IO(e)),
-    }
-}
 
 pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
     task::spawn(async move {

@@ -6,7 +6,7 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
-use starknet_sequencer_node::test_utils::compilation::{get_node_executable_path, spawn_run_node};
+use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
