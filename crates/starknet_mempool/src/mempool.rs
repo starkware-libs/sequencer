@@ -171,7 +171,7 @@ impl Mempool {
             self.state.stage(tx_reference)?;
         }
 
-        tracing::debug!(
+        tracing::info!(
             "Returned {} out of {n_txs} transactions, ready for sequencing.",
             eligible_tx_references.len()
         );
@@ -201,6 +201,7 @@ impl Mempool {
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
+        tracing::debug!("Adding transaction to mempool: {tx:?}.");
         let tx_reference = TransactionReference::new(&tx);
         self.validate_incoming_tx(tx_reference)?;
 
