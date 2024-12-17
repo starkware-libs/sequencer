@@ -12,6 +12,7 @@ use super::exceeds_event_size_limit;
 use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{
     CallEntryPoint,
     ConstructorContext,
@@ -164,7 +165,8 @@ impl<'state> SyscallHandlerBase<'state> {
 
     pub fn replace_class(&mut self, class_hash: ClassHash) -> SyscallResult<()> {
         // Ensure the class is declared (by reading it), and of type V1.
-        let compiled_class = self.state.get_compiled_class(class_hash)?;
+        let compiled_class: RunnableCompiledClass =
+            self.state.get_compiled_class(class_hash)?.into();
 
         if !is_cairo1(&compiled_class) {
             return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
