@@ -39,6 +39,9 @@ use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 
+pub const ACCOUNT_ID_0: AccountId = 0;
+pub const ACCOUNT_ID_1: AccountId = 1;
+
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
     // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
@@ -172,9 +175,6 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 pub fn create_txs_for_integration_test(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
-    const ACCOUNT_ID_0: AccountId = 0;
-    const ACCOUNT_ID_1: AccountId = 1;
-
     // Create RPC transactions.
     let account0_invoke_nonce1 =
         tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(2);
