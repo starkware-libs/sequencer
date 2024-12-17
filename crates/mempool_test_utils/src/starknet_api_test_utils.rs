@@ -212,7 +212,7 @@ impl MultiAccountTransactionGenerator {
 
     /// Registers a new account with the given contract, assuming it is already deployed.
     /// Note: the state should reflect it if the account is already deployed.
-    pub fn register_deployed_account(&mut self, account_contract: FeatureContract) {
+    pub fn register_deployed_account(&mut self, account_contract: FeatureContract) -> AccountId {
         let new_account_id = self.account_tx_generators.len();
         let salt = ContractAddressSalt(new_account_id.into());
         let (account_tx_generator, _default_deploy_account_tx) = AccountTransactionGenerator::new(
@@ -222,6 +222,7 @@ impl MultiAccountTransactionGenerator {
             true,
         );
         self.account_tx_generators.push(account_tx_generator);
+        new_account_id
     }
 
     /// Registers a new undeployed account with the given contract.
@@ -229,7 +230,8 @@ impl MultiAccountTransactionGenerator {
         &mut self,
         account_contract: FeatureContract,
         contract_address_salt: ContractAddressSalt,
-    ) {
+    ) -> AccountId {
+        let new_account_id = self.account_tx_generators.len();
         let (account_tx_generator, _default_deploy_account_tx) = AccountTransactionGenerator::new(
             account_contract,
             self.nonce_manager.clone(),
@@ -237,6 +239,7 @@ impl MultiAccountTransactionGenerator {
             false,
         );
         self.account_tx_generators.push(account_tx_generator);
+        new_account_id
     }
 
     pub fn account_with_id_mut(
