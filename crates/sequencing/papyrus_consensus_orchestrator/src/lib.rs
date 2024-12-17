@@ -7,3 +7,8 @@
 pub mod papyrus_consensus_context;
 #[allow(missing_docs)]
 pub mod sequencer_consensus_context;
+
+/// Centralized and decentralized communication types and functionallity.
+// TODO(dvir): delte this when using the types in consensus.
+#[allow(dead_code)]
+mod cende;
