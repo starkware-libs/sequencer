@@ -30,6 +30,8 @@ use starknet_integration_tests::utils::{
 };
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
+use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -100,6 +102,13 @@ async fn setup(
     (config, broadcast_channels)
 }
 
+async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
+    let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
+    let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+
+    is_alive_test_client.await_alive(5000, 50).await.expect("Node should be alive.");
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
@@ -114,9 +123,7 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
     let _sequencer_node_handle = tokio::spawn(sequencer_node_future);
 
     // Wait for server to spin up and for p2p to discover other peer.
-    // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
-    // flakiness.
-    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+    wait_for_sequencer_node(&config).await;
 
     let mut expected_txs = HashSet::new();
 
@@ -150,9 +157,7 @@ async fn test_mempool_receives_tx_from_other_peer(
     let sequencer_node_future = run_component_servers(servers);
     let _sequencer_node_handle = tokio::spawn(sequencer_node_future);
     // Wait for server to spin up and for p2p to discover other peer.
-    // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
-    // flakiness.
-    tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+    wait_for_sequencer_node(&config).await;
 
     let mut expected_txs = HashSet::new();
 
