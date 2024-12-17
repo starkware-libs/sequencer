@@ -39,8 +39,6 @@ use starknet_sequencer_node::config::component_execution_config::{
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
-use starknet_task_executor::tokio_executor::TokioExecutor;
-use tokio::runtime::Handle;
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -105,8 +103,6 @@ async fn setup(
 #[rstest]
 #[tokio::test]
 async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
-    let handle = Handle::current();
-    let task_executor = TokioExecutor::new(handle);
     let (config, mut broadcast_channels) = setup(&tx_generator).await;
     let (_clients, servers) = create_node_modules(&config);
 
@@ -115,7 +111,7 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
 
     // Build and run the sequencer node.
     let sequencer_node_future = run_component_servers(servers);
-    let _sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+    let _sequencer_node_handle = tokio::spawn(sequencer_node_future);
 
     // Wait for server to spin up and for p2p to discover other peer.
     // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
@@ -147,14 +143,12 @@ async fn test_mempool_receives_tx_from_other_peer(
     const RECEIVED_TX_POLL_INTERVAL: u64 = 100; // milliseconds between calls to read received txs from the broadcast channel
     const TXS_RETRIVAL_TIMEOUT: u64 = 2000; // max milliseconds spent polling the received txs before timing out
 
-    let handle = Handle::current();
-    let task_executor = TokioExecutor::new(handle);
     let (config, mut broadcast_channels) = setup(&tx_generator).await;
     let (clients, servers) = create_node_modules(&config);
     let mempool_client = clients.get_mempool_shared_client().unwrap();
     // Build and run the sequencer node.
     let sequencer_node_future = run_component_servers(servers);
-    let _sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+    let _sequencer_node_handle = tokio::spawn(sequencer_node_future);
     // Wait for server to spin up and for p2p to discover other peer.
     // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
     // flakiness.

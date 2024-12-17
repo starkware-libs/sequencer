@@ -14,9 +14,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
-use starknet_task_executor::tokio_executor::TokioExecutor;
 use tempfile::TempDir;
-use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tracing::{debug, instrument};
 
@@ -33,8 +31,6 @@ const SEQUENCER_1: usize = 1;
 const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 
 pub struct FlowTestSetup {
-    // TODO(Tsabary): Remove this field.
-    pub task_executor: TokioExecutor,
     pub sequencer_0: SequencerSetup,
     pub sequencer_1: SequencerSetup,
 
@@ -45,8 +41,6 @@ pub struct FlowTestSetup {
 impl FlowTestSetup {
     #[instrument(skip(tx_generator), level = "debug")]
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
-        let handle = Handle::current();
-        let task_executor = TokioExecutor::new(handle);
         let chain_info = create_chain_info();
 
         let accounts = tx_generator.accounts();
@@ -65,7 +59,6 @@ impl FlowTestSetup {
             accounts.clone(),
             SEQUENCER_0,
             chain_info.clone(),
-            &task_executor,
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
         )
@@ -74,13 +67,12 @@ impl FlowTestSetup {
             accounts,
             SEQUENCER_1,
             chain_info,
-            &task_executor,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
         )
         .await;
 
-        Self { task_executor, sequencer_0, sequencer_1, consensus_proposals_channels }
+        Self { sequencer_0, sequencer_1, consensus_proposals_channels }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
@@ -107,15 +99,11 @@ pub struct SequencerSetup {
 }
 
 impl SequencerSetup {
-    #[instrument(
-        skip(accounts, chain_info, task_executor, consensus_manager_config),
-        level = "debug"
-    )]
+    #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<Contract>,
         sequencer_index: usize,
         chain_info: ChainInfo,
-        task_executor: &TokioExecutor,
         consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
     ) -> Self {
@@ -149,7 +137,7 @@ impl SequencerSetup {
 
         // Build and run the sequencer node.
         let sequencer_node_future = run_component_servers(servers);
-        let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+        let sequencer_node_handle = tokio::spawn(sequencer_node_future);
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
