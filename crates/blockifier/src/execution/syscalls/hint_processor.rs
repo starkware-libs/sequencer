@@ -662,8 +662,9 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
     ) -> HintExecutionResult {
         let hint = hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)?;
         match hint {
-            Hint::Core(hint) => execute_core_hint_base(vm, exec_scopes, hint),
+            Hint::Core(hint) => execute_core_hint_base(vm, exec_scopes, hint, false),
             Hint::Starknet(hint) => self.execute_next_syscall(vm, hint),
+            Hint::External(_) => todo!("Handle External Hints."),
         }
     }
 
