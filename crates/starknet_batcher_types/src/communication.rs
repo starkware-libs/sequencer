@@ -20,6 +20,7 @@ use thiserror::Error;
 use crate::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -74,7 +75,10 @@ pub trait BatcherClient: Send + Sync {
     async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
-    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
+    async fn decision_reached(
+        &self,
+        input: DecisionReachedInput,
+    ) -> BatcherClientResult<DecisionReachedResponse>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -97,7 +101,7 @@ pub enum BatcherResponse {
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
-    DecisionReached(BatcherResult<()>),
+    DecisionReached(BatcherResult<DecisionReachedResponse>),
     AddSyncBlock(BatcherResult<()>),
 }
 
@@ -171,7 +175,10 @@ where
         )
     }
 
-    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
+    async fn decision_reached(
+        &self,
+        input: DecisionReachedInput,
+    ) -> BatcherClientResult<DecisionReachedResponse> {
         let request = BatcherRequest::DecisionReached(input);
         let response = self.send(request).await;
         handle_response_variants!(
