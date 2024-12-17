@@ -28,6 +28,10 @@ type StreamKey = (PeerId, StreamId);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
+// Use this struct for each inbound stream.
+// Drop the struct when:
+// (1) receiver on the other end is dropped,
+// (2) fin message is received and all messages are sent.
 #[derive(Debug, Clone)]
 struct StreamData<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + 'static,
@@ -178,13 +182,37 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         }
     }
 
-    fn inbound_send(data: &mut StreamData<T>, message: StreamMessage<T>) {
+    fn inbound_send(data: &mut StreamData<T>, message: StreamMessage<T>) -> bool {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
-            sender.try_send(content).expect("Send should succeed");
+            match sender.try_send(content) {
+                Ok(_) => {}
+                Err(e) => {
+                    if e.is_disconnected() {
+                        warn!(
+                            "Sender is disconnected, dropping the message. StreamId: {}, \
+                             MessageId: {}",
+                            message.stream_id, message.message_id
+                        );
+                        return false;
+                    } else if e.is_full() {
+                        // TODO(guyn): replace panic with more graceful error handling
+                        panic!(
+                            "Sender is full, dropping the message. StreamId: {}, MessageId: {}",
+                            message.stream_id, message.message_id
+                        );
+                    } else {
+                        // TODO(guyn): replace panic with more graceful error handling
+                        panic!("Unexpected error: {:?}", e);
+                    }
+                }
+            };
             data.next_message_id += 1;
+            return true;
         }
+        // A Fin message is not sent. This is a no-op, can safely return true.
+        true
     }
 
     // Send the message to the network.
@@ -225,6 +253,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                 return;
             }
         };
+
         let peer_id = metadata.originator_id;
         let stream_id = message.stream_id;
         let key = (peer_id, stream_id);
@@ -280,10 +309,13 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         // This means we can just send the message without buffering it.
         match message_id.cmp(&data.next_message_id) {
             Ordering::Equal => {
-                Self::inbound_send(data, message);
-                Self::process_buffer(data);
+                // success will be false if the receiver is closed.
+                let mut success = Self::inbound_send(data, message);
+                if success {
+                    success = Self::process_buffer(data);
+                }
 
-                if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+                if data.message_buffer.is_empty() && data.fin_message_id.is_some() || !success {
                     data.sender.close_channel();
                     self.inbound_stream_data.remove(&key);
                 }
@@ -323,9 +355,12 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
 
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
-    fn process_buffer(data: &mut StreamData<T>) {
+    fn process_buffer(data: &mut StreamData<T>) -> bool {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            Self::inbound_send(data, message);
+            if !Self::inbound_send(data, message) {
+                return false;
+            }
         }
+        true
     }
 }
