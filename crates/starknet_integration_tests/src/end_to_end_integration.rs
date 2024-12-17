@@ -78,6 +78,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
     info!("Sending {n_txs} txs.");
     let tx_hashes = send_account_txs(tx_generator, ACCOUNT_ID_0, n_txs, send_rpc_tx_fn).await;
+    assert_eq!(tx_hashes.len(), n_txs);
 
     info!("Awaiting until {EXPECTED_BLOCK_NUMBER} blocks have been created.");
 
@@ -98,7 +99,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     );
 
     info!("Verifying tx sender account nonce.");
-    let expected_nonce_value = tx_hashes.len() + 1;
+    let expected_nonce_value = n_txs + 1;
     let expected_nonce =
         Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);

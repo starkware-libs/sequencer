@@ -232,7 +232,7 @@ pub async fn send_account_txs<'a, Fut>(
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_account_txs(tx_generator, n_txs, account_id);
+    let rpc_txs = create_account_txs(tx_generator, account_id, n_txs);
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
