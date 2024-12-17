@@ -16,7 +16,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
-use starknet_integration_tests::flow_test_setup::FlowTestSetup;
+use starknet_integration_tests::flow_test_setup::{FlowTestSetup, SequencerSetup};
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
@@ -42,6 +42,11 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         std::time::Duration::from_secs(50);
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
+
+    tokio::join!(
+        wait_for_sequencer_node(&mock_running_system.sequencer_0),
+        wait_for_sequencer_node(&mock_running_system.sequencer_1),
+    );
 
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
@@ -91,6 +96,10 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         .await
         .expect("listen to broadcasted messages should finish in time");
     }
+}
+
+async fn wait_for_sequencer_node(sequencer: &SequencerSetup) {
+    sequencer.is_alive_test_client.await_alive(5000, 50).await.expect("Node should be alive.");
 }
 
 async fn listen_to_broadcasted_messages(

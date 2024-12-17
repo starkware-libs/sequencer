@@ -11,6 +11,8 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
+use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -96,6 +98,9 @@ pub struct SequencerSetup {
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
 
     pub config: SequencerNodeConfig,
+
+    // Monitoring client.
+    pub is_alive_test_client: IsAliveClient,
 }
 
 impl SequencerSetup {
@@ -129,8 +134,10 @@ impl SequencerSetup {
         .await;
 
         debug!("Sequencer config: {:#?}", config);
-
         let (_clients, servers) = create_node_modules(&config);
+
+        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
+        let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -138,11 +145,6 @@ impl SequencerSetup {
         // Build and run the sequencer node.
         let sequencer_node_future = run_component_servers(servers);
         let sequencer_node_handle = tokio::spawn(sequencer_node_future);
-
-        // Wait for server to spin up.
-        // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
-        // flakiness.
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         Self {
             sequencer_index,
@@ -152,6 +154,7 @@ impl SequencerSetup {
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             sequencer_node_handle,
             config,
+            is_alive_test_client,
         }
     }
 
