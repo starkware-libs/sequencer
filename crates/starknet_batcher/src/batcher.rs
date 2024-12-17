@@ -360,12 +360,11 @@ impl Batcher {
             self.active_height = None;
         }
 
-        let SyncBlock { state_diff, transaction_hashes, .. } = sync_block;
+        let SyncBlock { state_diff, transaction_hashes, block_number: height } = sync_block;
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         let tx_hashes = transaction_hashes.into_iter().collect();
 
-        // TODO(Arni): Assert the input `sync_block` corresponds to this `height`.
-        self.commit_proposal_and_block(state_diff, address_to_nonce, tx_hashes).await
+        self.commit_proposal_and_block(Some(height), state_diff, address_to_nonce, tx_hashes).await
     }
 
     #[instrument(skip(self), err)]
@@ -383,19 +382,31 @@ impl Batcher {
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
 
-        self.commit_proposal_and_block(state_diff.clone(), address_to_nonce, tx_hashes).await?;
+        // TODO(Arni): Get the height from the proposal output or from the proposal id. Pass it to
+        // commit proposal and block. set the variable as non-optional.
+        self.commit_proposal_and_block(None, state_diff.clone(), address_to_nonce, tx_hashes)
+            .await?;
         Ok(DecisionReachedResponse { state_diff })
     }
 
     async fn commit_proposal_and_block(
         &mut self,
+        proposed_height: Option<BlockNumber>,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
-        // TODO: Keep the height from start_height or get it from the input.
         let height = self.get_height_from_storage()?;
+        if let Some(proposed_height) = proposed_height {
+            if height != proposed_height {
+                panic!(
+                    "Proposed height {} does not match the current height {}.",
+                    proposed_height, height
+                );
+            }
+        }
         info!("Committing block at height {} and notifying mempool of the block.", height);
+
         trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
