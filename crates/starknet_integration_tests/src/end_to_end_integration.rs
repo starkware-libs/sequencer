@@ -62,10 +62,11 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
-    match integration_test_setup.is_alive_test_client.await_alive(5000, 50).await {
-        Ok(_) => {}
-        Err(_) => panic!("Node is not alive."),
-    }
+    integration_test_setup
+        .is_alive_test_client
+        .await_alive(5000, 50)
+        .await
+        .expect("Node should be alive.");
 
     info!("Running integration test simulator.");
 
@@ -84,10 +85,9 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
         papyrus_storage::open_storage(integration_test_setup.batcher_storage_config)
             .expect("Failed to open batcher's storage");
 
-    match await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader).await {
-        Ok(_) => {}
-        Err(_) => panic!("Did not reach expected block number."),
-    }
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader)
+        .await
+        .expect("Block number should have been reached.");
 
     info!("Shutting the node down.");
     node_run_handle.abort();
