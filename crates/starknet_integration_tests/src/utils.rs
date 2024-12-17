@@ -157,7 +157,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     tx_generator
 }
 
-fn create_txs_for_integration_test(
+pub fn create_txs_for_integration_test(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     const ACCOUNT_ID_0: AccountId = 0;
@@ -202,14 +202,19 @@ where
 /// list of transaction hashes, in the order they are expected to be in the mempool.
 pub async fn run_integration_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
+    create_rpc_txs_fn: impl Fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
+    test_tx_hashes_fn: impl Fn(&[TransactionHash]) -> Vec<TransactionHash>,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_txs_for_integration_test(tx_generator);
+    let rpc_txs = create_rpc_txs_fn(tx_generator);
     let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    test_tx_hashes_fn(&tx_hashes)
+}
 
+pub fn test_tx_hashes_for_integration_test(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     // Return the transaction hashes in the order they should be given by the mempool:
     // Transactions from the same account are ordered by nonce; otherwise, higher tips are given
     // priority.
