@@ -25,8 +25,10 @@ use starknet_integration_tests::utils::{
     create_gateway_config,
     create_http_server_config,
     create_integration_test_tx_generator,
+    create_txs_for_integration_test,
     run_integration_test_scenario,
     test_rpc_state_reader_config,
+    test_tx_hashes_for_integration_test,
 };
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
@@ -128,10 +130,15 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
     let mut expected_txs = HashSet::new();
 
     // Create and send transactions.
-    let _tx_hashes = run_integration_test_scenario(&mut tx_generator, &mut |tx: RpcTransaction| {
-        expected_txs.insert(tx.clone()); // push the sent tx to the expected_txs list
-        add_tx_http_client.assert_add_tx_success(tx)
-    })
+    let _tx_hashes = run_integration_test_scenario(
+        &mut tx_generator,
+        create_txs_for_integration_test,
+        &mut |tx: RpcTransaction| {
+            expected_txs.insert(tx.clone()); // push the sent tx to the expected_txs list
+            add_tx_http_client.assert_add_tx_success(tx)
+        },
+        test_tx_hashes_for_integration_test,
+    )
     .await;
 
     while !expected_txs.is_empty() {
@@ -161,10 +168,15 @@ async fn test_mempool_receives_tx_from_other_peer(
 
     let mut expected_txs = HashSet::new();
 
-    let _tx_hashes = run_integration_test_scenario(&mut tx_generator, &mut |tx: RpcTransaction| {
-        expected_txs.insert(tx.clone());
-        ready(TransactionHash::default()) // using the default value because we don't use the hash anyways.
-    })
+    let _tx_hashes = run_integration_test_scenario(
+        &mut tx_generator,
+        create_txs_for_integration_test,
+        &mut |tx: RpcTransaction| {
+            expected_txs.insert(tx.clone());
+            ready(TransactionHash::default()) // using the default value because we don't use the hash anyways.
+        },
+        test_tx_hashes_for_integration_test,
+    )
     .await;
     for tx in &expected_txs {
         broadcast_channels
