@@ -8,6 +8,7 @@ use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsen
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, StreamMessage};
+use starknet_api::block::BlockNumber;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
@@ -63,6 +64,19 @@ impl ConsensusManager {
         let (outbound_internal_sender, inbound_internal_receiver, mut stream_handler_task_handle) =
             StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
+        let observer_height =
+            self.batcher_client.get_height().await.map(|h| h.height).map_err(|e| {
+                error!("Failed to get height from batcher: {:?}", e);
+                ConsensusError::InternalNetworkError(
+                    "Failed to get height from batcher".to_string(),
+                )
+            })?;
+        let active_height = if self.config.consensus_config.start_height == observer_height {
+            observer_height
+        } else {
+            BlockNumber(observer_height.0 + 1)
+        };
+
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
             outbound_internal_sender,
@@ -74,9 +88,8 @@ impl ConsensusManager {
         let mut network_handle = tokio::task::spawn(network_manager.run());
         let consensus_task = papyrus_consensus::run_consensus(
             context,
-            self.config.consensus_config.start_height,
-            // TODO(Asmaa): replace with the correct value.
-            self.config.consensus_config.start_height,
+            active_height,
+            observer_height,
             self.config.consensus_config.validator_id,
             self.config.consensus_config.consensus_delay,
             self.config.consensus_config.timeouts.clone(),
