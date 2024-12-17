@@ -7383,6 +7383,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]
