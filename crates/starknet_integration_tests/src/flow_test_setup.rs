@@ -33,8 +33,8 @@ const SEQUENCER_1: usize = 1;
 const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 
 pub struct FlowTestSetup {
-    pub sequencer_0: SequencerSetup,
-    pub sequencer_1: SequencerSetup,
+    pub sequencer_0: FlowSequencerSetup,
+    pub sequencer_1: FlowSequencerSetup,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
@@ -57,7 +57,7 @@ impl FlowTestSetup {
             2] = mempool_p2p_configs.try_into().unwrap();
 
         // Create nodes one after the other in order to make sure the ports are not overlapping.
-        let sequencer_0 = SequencerSetup::new(
+        let sequencer_0 = FlowSequencerSetup::new(
             accounts.clone(),
             SEQUENCER_0,
             chain_info.clone(),
@@ -65,7 +65,8 @@ impl FlowTestSetup {
             sequencer_0_mempool_p2p_config,
         )
         .await;
-        let sequencer_1 = SequencerSetup::new(
+
+        let sequencer_1 = FlowSequencerSetup::new(
             accounts,
             SEQUENCER_1,
             chain_info,
@@ -82,7 +83,7 @@ impl FlowTestSetup {
     }
 }
 
-pub struct SequencerSetup {
+pub struct FlowSequencerSetup {
     /// Used to differentiate between different sequencer nodes.
     pub sequencer_index: usize,
 
@@ -103,7 +104,7 @@ pub struct SequencerSetup {
     pub is_alive_test_client: IsAliveClient,
 }
 
-impl SequencerSetup {
+impl FlowSequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<Contract>,

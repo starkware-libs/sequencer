@@ -1,4 +1,5 @@
 use infra_utils::run_until::run_until;
+use infra_utils::tracing::{CustomLogger, TraceLevel};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -8,6 +9,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
+use tokio::join;
 use tracing::info;
 
 use crate::integration_test_setup::IntegrationTestSetup;
@@ -43,7 +45,12 @@ async fn await_block(
     let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
     let get_latest_block_number_closure = || async move { get_latest_block_number(storage_reader) };
 
-    run_until(interval, max_attempts, get_latest_block_number_closure, condition, None)
+    let logger = CustomLogger::new(
+        TraceLevel::Info,
+        Some("Waiting for storage to include block".to_string()),
+    );
+
+    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
         .ok_or(())
 }
@@ -58,20 +65,22 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     // Creating the storage for the test.
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
-    info!("Running sequencer node.");
-    let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
+    let node_0_run_handle =
+        spawn_run_node(integration_test_setup.sequencer_0.node_config_path.clone());
+    let node_1_run_handle =
+        spawn_run_node(integration_test_setup.sequencer_1.node_config_path.clone());
 
-    // Wait for the node to start.
-    integration_test_setup
-        .is_alive_test_client
-        .await_alive(5000, 50)
-        .await
-        .expect("Node should be alive.");
+    info!("Running sequencers.");
+    let (node_0_run_task, node_1_run_task) = join!(node_0_run_handle, node_1_run_handle);
+
+    // Wait for the nodes to start.
+    integration_test_setup.await_alive(5000, 50).await;
 
     info!("Running integration test simulator.");
 
-    let send_rpc_tx_fn =
-        &mut |rpc_tx| integration_test_setup.add_tx_http_client.assert_add_tx_success(rpc_tx);
+    let send_rpc_tx_fn = &mut |rpc_tx| {
+        integration_test_setup.sequencer_0.add_tx_http_client.assert_add_tx_success(rpc_tx)
+    };
 
     const ACCOUNT_ID_0: AccountId = 0;
     let n_txs = 50;
@@ -83,19 +92,26 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     info!("Awaiting until {EXPECTED_BLOCK_NUMBER} blocks have been created.");
 
     let (batcher_storage_reader, _) =
-        papyrus_storage::open_storage(integration_test_setup.batcher_storage_config)
+        papyrus_storage::open_storage(integration_test_setup.sequencer_0.batcher_storage_config)
             .expect("Failed to open batcher's storage");
 
-    await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader)
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 30, &batcher_storage_reader)
         .await
         .expect("Block number should have been reached.");
 
-    info!("Shutting the node down.");
-    node_run_handle.abort();
-    let res = node_run_handle.await;
+    info!("Shutting node 0 down.");
+    node_0_run_task.abort();
+    let res = node_0_run_task.await;
     assert!(
-        res.expect_err("Node should have been stopped.").is_cancelled(),
-        "Node should have been stopped."
+        res.expect_err("Node 0 should have been stopped.").is_cancelled(),
+        "Node 0 should have been stopped."
+    );
+    info!("Shutting node 1 down.");
+    node_1_run_task.abort();
+    let res = node_1_run_task.await;
+    assert!(
+        res.expect_err("Node 1 should have been stopped.").is_cancelled(),
+        "Node 1 should have been stopped."
     );
 
     info!("Verifying tx sender account nonce.");
