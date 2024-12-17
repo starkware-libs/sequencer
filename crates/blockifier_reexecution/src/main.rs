@@ -8,6 +8,7 @@ use blockifier_reexecution::state_reader::utils::{
     guess_chain_id_from_node_url,
     reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
+    FULL_RESOURCES_DIR,
 };
 use clap::{Args, Parser, Subcommand};
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -20,7 +21,6 @@ use starknet_gateway::config::RpcStateReaderConfig;
 
 const BUCKET: &str = "reexecution_artifacts";
 const RESOURCES_DIR: &str = "/resources";
-const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
 const FILE_NAME: &str = "/reexecution_data.json";
 const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
 
@@ -145,7 +145,7 @@ enum Command {
 fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber> {
     block_numbers
         .map(|block_numbers| block_numbers.into_iter().map(BlockNumber).collect())
-        .unwrap_or(get_block_numbers_for_reexecution())
+        .unwrap_or_else(get_block_numbers_for_reexecution)
 }
 
 #[derive(Debug, Args)]

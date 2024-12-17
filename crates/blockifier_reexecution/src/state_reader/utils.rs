@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
+use std::fs::read_to_string;
 use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
@@ -13,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::test_utils::read_json_file;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
@@ -26,6 +26,8 @@ use crate::state_reader::offline_state_reader::{
 };
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
+
+pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -306,8 +308,11 @@ macro_rules! assert_eq_state_diff {
 /// There is block number for each Starknet Version (starting v0.13)
 /// And some additional block with specific transactions.
 pub fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
+    let file_path = FULL_RESOURCES_DIR.to_string() + "/block_numbers_for_reexecution.json";
     let block_numbers_examples: HashMap<String, u64> =
-        serde_json::from_value(read_json_file("block_numbers_for_reexecution.json"))
-            .expect("Failed to deserialize block header");
+        serde_json::from_str(&read_to_string(file_path.clone()).expect(
+            &("Failed to read the block_numbers_for_reexecution file at ".to_string() + &file_path),
+        ))
+        .expect("Failed to deserialize block header");
     block_numbers_examples.values().cloned().map(BlockNumber).collect()
 }
