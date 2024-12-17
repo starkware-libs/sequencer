@@ -13,6 +13,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -368,7 +369,10 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
+    pub async fn decision_reached(
+        &mut self,
+        input: DecisionReachedInput,
+    ) -> BatcherResult<DecisionReachedResponse> {
         let proposal_id = input.proposal_id;
         let proposal_output = self
             .proposal_manager
@@ -379,7 +383,8 @@ impl Batcher {
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
 
-        self.commit_proposal_and_block(state_diff, address_to_nonce, tx_hashes).await
+        self.commit_proposal_and_block(state_diff, address_to_nonce, tx_hashes).await?;
+        Ok(DecisionReachedResponse {})
     }
 
     async fn commit_proposal_and_block(

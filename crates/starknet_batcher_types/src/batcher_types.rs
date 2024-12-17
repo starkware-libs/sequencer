@@ -89,6 +89,9 @@ pub struct SendProposalContentResponse {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct DecisionReachedResponse {}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProposalStatus {
     Processing,
     // Only sent in response to `Finish`.
