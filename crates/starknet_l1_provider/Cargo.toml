@@ -16,6 +16,7 @@ papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_l1_provider_types.workspace = true
+starknet_mempool.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

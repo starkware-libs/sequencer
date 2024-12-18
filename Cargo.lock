@@ -10542,6 +10542,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_l1_provider_types",
+ "starknet_mempool",
  "starknet_sequencer_infra",
  "thiserror",
  "tracing",
