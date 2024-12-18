@@ -6,6 +6,8 @@ use syn::parse::{Parse, ParseStream, Result};
 use syn::{
     parse_macro_input,
     DeriveInput,
+    Expr,
+    ExprArray,
     ExprLit,
     Ident,
     ItemFn,
@@ -319,4 +321,57 @@ pub fn gen_field_names_and_cli_args_fn(_attr: TokenStream, item: TokenStream) ->
     };
 
     gen.into()
+}
+
+/// This macro generates a code that spawns all the servers and waits in tokio::select! for them.
+/// macro gets as input an array of tuples, where each tuple contains the handle to the server and  
+/// a server name to be logged in case the server stops.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use papyrus_proc_macros::run_servers;
+/// use tokio;
+/// use starknet_sequencer_node::servers::get_server_future;
+///
+/// pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
+///     let result = run_servers!([
+///         (servers.local_servers.batcher, "Local Batcher"),
+///         (servers.remote_servers.batcher, "Remote Batcher"),
+///     ]);
+///    
+///     Ok(result?)
+/// }
+/// ```
+#[proc_macro]
+pub fn run_servers(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ExprArray);
+    let handles = input.elems;
+
+    let mut select_cases = quote! {};
+    for handle in handles.iter() {
+        if let Expr::Tuple(tuple) = handle {
+            let handle_expr = &tuple.elems[0];
+            let message = &tuple.elems[1];
+            if let Expr::Lit(expr_lit) = message {
+                if let syn::Lit::Str(lit_str) = &expr_lit.lit {
+                    select_cases = quote! {
+                        #select_cases
+                        res = tokio::spawn(get_server_future(#handle_expr)) => {
+                            error!("{} Server stopped.", #lit_str);
+                            res?
+                        },
+                    };
+                }
+            }
+        }
+    }
+
+    let expanded = quote! {
+        tokio::select! {
+            #select_cases
+        }
+    };
+
+    TokenStream::from(expanded)
 }
