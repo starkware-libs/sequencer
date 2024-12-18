@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sequencer-node-deployment
-  namespace: test
+  namespace: sequencer-node
 spec:
   replicas: 1
   selector:
