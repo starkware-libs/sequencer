@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
@@ -15,6 +16,7 @@ use super::{
 };
 use crate::state::cached_state::{CachedState, StorageEntry};
 use crate::state::state_api::{State, StateReader};
+use crate::state::stateful_compression::{AliasCompressor, CompressionError};
 use crate::test_utils::dict_state_reader::DictStateReader;
 
 static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
@@ -187,4 +189,58 @@ fn test_read_only_state(#[values(0, 2)] n_existing_aliases: u8) {
         HashMap::new()
     };
     assert_eq!(storage_diff, expected_storage_diff);
+}
+
+/// Tests the range of alias keys that should be compressed.
+#[test]
+fn test_alias_compressor() {
+    let alias = Felt::from(500_u16);
+
+    let high_key = 200_u16;
+    let high_storage_key = StorageKey::from(high_key);
+    let high_contract_address = ContractAddress::from(high_key);
+
+    let no_aliasing_key = 50_u16;
+    let no_aliasing_storage_key = StorageKey::from(no_aliasing_key);
+    let no_aliasing_contract_address = ContractAddress::from(no_aliasing_key);
+
+    let no_compression_contract_address = ContractAddress::from(10_u16);
+
+    let mut state_reader = DictStateReader::default();
+    insert_to_alias_contract(&mut state_reader.storage_view, high_storage_key, alias);
+    let alias_compressor =
+        AliasCompressor { state: &state_reader, alias_contract_address: *ALIAS_CONTRACT_ADDRESS };
+
+    assert_eq!(
+        alias_compressor.compress_address(&high_contract_address).unwrap(),
+        ContractAddress::try_from(alias).unwrap(),
+    );
+    assert_eq!(
+        alias_compressor.compress_address(&no_aliasing_contract_address).unwrap(),
+        no_aliasing_contract_address,
+    );
+
+    assert_eq!(
+        alias_compressor.compress_storage_key(&high_storage_key, &high_contract_address).unwrap(),
+        StorageKey::try_from(alias).unwrap(),
+    );
+    assert_eq!(
+        alias_compressor
+            .compress_storage_key(&no_aliasing_storage_key, &high_contract_address)
+            .unwrap(),
+        no_aliasing_storage_key,
+    );
+    assert_eq!(
+        alias_compressor
+            .compress_storage_key(&high_storage_key, &no_compression_contract_address)
+            .unwrap(),
+        high_storage_key,
+    );
+
+    let missed_key = 300_u16;
+    let err = alias_compressor.compress_address(&ContractAddress::from(missed_key));
+    assert_matches!(
+        err,
+        Err(CompressionError::MissedAlias(key)) if key == missed_key.into()
+    );
 }
