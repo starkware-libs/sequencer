@@ -12,10 +12,8 @@ use starknet_types_core::felt::Felt;
 use tracing::info;
 
 use crate::integration_test_setup::IntegrationTestSetup;
+use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
-
-// TODO(Tsabary): create an enum that maps test names to unique indices, replace constants.
-const END_TO_END_INTEGRATION_TEST_UNIQUE_ID: u16 = 0;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -67,7 +65,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     // Creating the storage for the test.
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(
         &tx_generator,
-        END_TO_END_INTEGRATION_TEST_UNIQUE_ID,
+        TestIdentifier::EndToEndIntegrationTest.into(),
     )
     .await;
 
