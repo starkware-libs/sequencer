@@ -263,7 +263,7 @@ impl PyBlockExecutor {
         &mut self,
     ) -> NativeBlockifierResult<(PyStateDiff, PyVisitedSegmentsMapping, Py<PyBytes>)> {
         log::debug!("Finalizing execution...");
-        let (commitment_state_diff, visited_pcs, block_weights) = self.tx_executor().finalize()?;
+        let (commitment_state_diff, _, visited_pcs, block_weights) = self.tx_executor().finalize()?;
         let visited_pcs = visited_pcs
             .into_iter()
             .map(|(class_hash, class_visited_pcs_vec)| {
