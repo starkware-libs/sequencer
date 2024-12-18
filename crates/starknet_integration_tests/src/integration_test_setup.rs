@@ -68,7 +68,10 @@ impl IntegrationTestSetup {
         .await;
 
         let (mut consensus_manager_configs, _consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
+            create_consensus_manager_configs_and_channels(
+                SEQUENCER_INDICES.len(),
+                &mut available_ports,
+            );
         let mut mempool_p2p_configs =
             create_mempool_p2p_configs(SEQUENCER_INDICES.len(), chain_info.chain_id.clone());
 
