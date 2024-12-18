@@ -72,8 +72,11 @@ impl IntegrationTestSetup {
                 SEQUENCER_INDICES.len(),
                 &mut available_ports,
             );
-        let mut mempool_p2p_configs =
-            create_mempool_p2p_configs(SEQUENCER_INDICES.len(), chain_info.chain_id.clone());
+        let mut mempool_p2p_configs = create_mempool_p2p_configs(
+            SEQUENCER_INDICES.len(),
+            chain_info.chain_id.clone(),
+            &mut available_ports,
+        );
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_config(
