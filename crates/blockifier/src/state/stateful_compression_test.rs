@@ -66,10 +66,10 @@ fn test_alias_updater(
     #[case] expected_alias_keys: Vec<Felt>,
     #[values(0, 2)] n_existing_aliases: u8,
 ) {
-    let mut state = initial_state(n_existing_aliases);
+    let state = initial_state(n_existing_aliases);
 
     // Insert the keys into the alias contract updater and finalize the updates.
-    let mut alias_contract_updater = AliasUpdater::new(&mut state).unwrap();
+    let mut alias_contract_updater = AliasUpdater::new(&state).unwrap();
     for key in keys {
         alias_contract_updater.insert_alias(&StorageKey::try_from(key).unwrap()).unwrap();
     }
