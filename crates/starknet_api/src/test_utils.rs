@@ -7,9 +7,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
 use starknet_types_core::felt::Felt;
 
-use crate::block::BlockNumber;
+use crate::block::{BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::RpcTransaction;
+use crate::transaction::fields::Fee;
 use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
@@ -113,3 +115,25 @@ pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
     // Serialize back to pretty JSON string
     to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }
+
+// V3 transactions:
+pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 9));
+pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
+pub const MAX_L2_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L2_GAS_PRICE;
+pub const MAX_L1_DATA_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_DATA_GAS_PRICE;
+
+pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Fri.
+pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of Fri.
+pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
+
+// Deprecated transactions:
+pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);

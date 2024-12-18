@@ -4,6 +4,7 @@ use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -22,7 +23,7 @@ use crate::fee::fee_checks::FeeCheckError;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
+use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
