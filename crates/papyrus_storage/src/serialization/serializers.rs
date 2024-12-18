@@ -347,6 +347,7 @@ auto_storage_serde! {
         DeprecatedContractClass = 3,
         TransactionOutput = 4,
         Transaction = 5,
+        Event = 6,
     }
     pub struct PaymasterData(pub Vec<Felt>);
     pub struct PoseidonHash(pub Felt);
