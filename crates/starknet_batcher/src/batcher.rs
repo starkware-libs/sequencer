@@ -364,7 +364,7 @@ impl Batcher {
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         let tx_hashes = transaction_hashes.into_iter().collect();
 
-        self.commit_proposal_and_block(Some(height), state_diff, address_to_nonce, tx_hashes).await
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
     }
 
     #[instrument(skip(self), err)]
@@ -381,29 +381,30 @@ impl Batcher {
             .map_err(|_| BatcherError::InternalError)?;
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
+        self.commit_proposal_and_block(
+            input.height,
+            state_diff.clone(),
+            address_to_nonce,
+            tx_hashes,
+        )
+        .await?;
 
-        // TODO(Arni): Get the height from the proposal output or from the proposal id. Pass it to
-        // commit proposal and block. set the variable as non-optional.
-        self.commit_proposal_and_block(None, state_diff.clone(), address_to_nonce, tx_hashes)
-            .await?;
         Ok(DecisionReachedResponse { state_diff })
     }
 
     async fn commit_proposal_and_block(
         &mut self,
-        proposed_height: Option<BlockNumber>,
+        proposed_height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
         let height = self.get_height_from_storage()?;
-        if let Some(proposed_height) = proposed_height {
-            if height != proposed_height {
-                panic!(
-                    "Proposed height {} does not match the current height {}.",
-                    proposed_height, height
-                );
-            }
+        if height != proposed_height {
+            panic!(
+                "Proposed height {} does not match the current height {}.",
+                proposed_height, height
+            );
         }
         info!("Committing block at height {} and notifying mempool of the block.", height);
         trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
@@ -417,6 +418,7 @@ impl Batcher {
             error!("Failed to commit block to mempool: {}", mempool_err);
             // TODO: Should we rollback the state diff and return an error?
         }
+
         Ok(())
     }
 

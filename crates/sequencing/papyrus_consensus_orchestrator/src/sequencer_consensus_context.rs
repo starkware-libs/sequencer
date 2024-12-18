@@ -289,7 +289,7 @@ impl ConsensusContext for SequencerConsensusContext {
         block: ProposalContentId,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
-        let height = precommits[0].height;
+        let height = BlockNumber(precommits[0].height);
         info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
 
         // TODO(matan): Broadcast the decision to the network.
@@ -300,10 +300,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 .valid_proposals
                 .lock()
                 .expect("Lock on active proposals was poisoned due to a previous panic");
-            proposal_id = proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().1;
-            proposals.retain(|&h, _| h > BlockNumber(height));
+            proposal_id = proposals.get(&height).unwrap().get(&block).unwrap().1;
+            proposals.retain(|&h, _| h > height);
         }
-        self.batcher.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
+        self.batcher.decision_reached(DecisionReachedInput { proposal_id, height }).await.unwrap();
 
         Ok(())
     }

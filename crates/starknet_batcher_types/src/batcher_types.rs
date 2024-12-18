@@ -114,6 +114,7 @@ pub struct StartHeightInput {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
+    pub height: BlockNumber,
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;
