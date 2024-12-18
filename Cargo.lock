@@ -10481,6 +10481,7 @@ dependencies = [
  "axum",
  "hyper 0.14.30",
  "infra_utils",
+ "metrics 0.21.1",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
