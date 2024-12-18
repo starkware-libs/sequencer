@@ -55,8 +55,6 @@ message ProposalInit {
 
 message TransactionBatch {
     repeated Transaction transactions = 1;
-    // TODO(guyn): remove this once we know how to calculate hashes
-    repeated Felt252 tx_hashes = 2;
 }
 
 message ProposalFin {
