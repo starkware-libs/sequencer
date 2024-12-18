@@ -274,17 +274,25 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
     }
 }
 
-/// Spawns a papyrus rpc server for given state reader.
+/// Spawns a papyrus rpc server for given state reader and chain id.
 /// Returns the address of the rpc server.
 pub async fn spawn_test_rpc_state_reader(
     storage_reader: StorageReader,
     chain_id: ChainId,
 ) -> SocketAddr {
-    let rpc_config = RpcConfig {
-        chain_id,
-        server_address: get_available_socket().await.to_string(),
-        ..Default::default()
-    };
+    let socket = get_available_socket().await;
+    spawn_test_rpc_state_reader_with_socket(storage_reader, chain_id, socket).await;
+    socket
+}
+
+/// Spawns a papyrus rpc server for given state reader, chain id, and socket address.
+pub async fn spawn_test_rpc_state_reader_with_socket(
+    storage_reader: StorageReader,
+    chain_id: ChainId,
+    socket: SocketAddr,
+) -> SocketAddr {
+    let rpc_config =
+        RpcConfig { chain_id, server_address: socket.to_string(), ..Default::default() };
     let (addr, handle) = run_server(
         &rpc_config,
         Arc::new(RwLock::new(None)),
