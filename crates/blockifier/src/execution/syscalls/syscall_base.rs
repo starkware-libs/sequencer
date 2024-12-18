@@ -99,7 +99,7 @@ impl<'state> SyscallHandlerBase<'state> {
                         .expect(
                             "Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.",
                         );
-                    return Err(SyscallExecutionError::SyscallError {
+                    return Err(SyscallExecutionError::Revert {
                         error_data: vec![out_of_range_error],
                     });
                 }
@@ -266,7 +266,7 @@ impl<'state> SyscallHandlerBase<'state> {
             raw_retdata.push(
                 Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?,
             );
-            return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata });
+            return Err(SyscallExecutionError::Revert { error_data: raw_retdata });
         }
 
         Ok(raw_retdata)
@@ -282,7 +282,7 @@ impl<'state> SyscallHandlerBase<'state> {
         let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
 
         if remainder != 0 {
-            return Err(SyscallExecutionError::SyscallError {
+            return Err(SyscallExecutionError::Revert {
                 error_data: vec![
                     Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
                         .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
@@ -298,7 +298,7 @@ impl<'state> SyscallHandlerBase<'state> {
             let out_of_gas_error = Felt::from_hex(OUT_OF_GAS_ERROR)
                 .expect("Failed to parse OUT_OF_GAS_ERROR hex string");
 
-            return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_gas_error] });
+            return Err(SyscallExecutionError::Revert { error_data: vec![out_of_gas_error] });
         }
         *remaining_gas -= gas_cost;
 
