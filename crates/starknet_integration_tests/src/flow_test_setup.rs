@@ -13,6 +13,7 @@ use starknet_http_server::test_utils::HttpTestClient;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -41,7 +42,10 @@ pub struct FlowTestSetup {
 
 impl FlowTestSetup {
     #[instrument(skip(tx_generator), level = "debug")]
-    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+    pub async fn new_from_tx_generator(
+        tx_generator: &MultiAccountTransactionGenerator,
+        test_unique_index: u16,
+    ) -> Self {
         let chain_info = create_chain_info();
 
         let accounts = tx_generator.accounts();
@@ -62,6 +66,7 @@ impl FlowTestSetup {
             chain_info.clone(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
+            AvailablePorts::new(test_unique_index, 0),
         )
         .await;
         let sequencer_1 = SequencerSetup::new(
@@ -70,6 +75,7 @@ impl FlowTestSetup {
             chain_info,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
+            AvailablePorts::new(test_unique_index, 1),
         )
         .await;
 
@@ -108,6 +114,7 @@ impl SequencerSetup {
         chain_info: ChainInfo,
         consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
+        mut available_ports: AvailablePorts,
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
@@ -120,6 +127,7 @@ impl SequencerSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, _required_params) = create_config(
+            &mut available_ports,
             sequencer_index,
             chain_info,
             rpc_server_addr,

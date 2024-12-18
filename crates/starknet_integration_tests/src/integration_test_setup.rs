@@ -74,6 +74,7 @@ impl IntegrationTestSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_config(
+            &mut available_ports,
             SEQUENCER_INDEX,
             chain_info,
             rpc_server_addr,
