@@ -7503,6 +7503,7 @@ dependencies = [
  "replace_with",
  "serde",
  "starknet_api",
+ "starknet_sequencer_infra",
  "thiserror",
  "tokio",
  "tokio-retry",

@@ -12,6 +12,7 @@ use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
 use papyrus_common::tcp::find_n_free_ports;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 
 use super::{
     BroadcastTopicClient,
@@ -177,9 +178,12 @@ pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
     configs
 }
 
+// TODO(Tsabary): remove #[allow(unused_variables)].
+#[allow(unused_variables)]
 pub fn create_network_configs_connected_to_broadcast_channels<T>(
     n_configs: usize,
     topic: Topic,
+    available_ports: &mut AvailablePorts,
 ) -> (Vec<NetworkConfig>, BroadcastTopicChannels<T>)
 where
     T: TryFrom<Bytes> + 'static,
