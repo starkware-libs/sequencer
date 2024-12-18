@@ -294,16 +294,17 @@ impl ConsensusContext for SequencerConsensusContext {
 
         // TODO(matan): Broadcast the decision to the network.
 
+        let height = BlockNumber(height);
         let proposal_id;
         {
             let mut proposals = self
                 .valid_proposals
                 .lock()
                 .expect("Lock on active proposals was poisoned due to a previous panic");
-            proposal_id = proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().1;
-            proposals.retain(|&h, _| h > BlockNumber(height));
+            proposal_id = proposals.get(&height).unwrap().get(&block).unwrap().1;
+            proposals.retain(|&h, _| h > height);
         }
-        self.batcher.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
+        self.batcher.decision_reached(DecisionReachedInput { proposal_id, height }).await.unwrap();
 
         Ok(())
     }

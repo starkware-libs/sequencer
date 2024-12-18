@@ -555,8 +555,10 @@ async fn decision_reached() {
 
     let mut batcher = create_batcher(mock_dependencies);
 
-    let response =
-        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    let response = batcher
+        .decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID, height: INITIAL_HEIGHT })
+        .await
+        .unwrap();
     assert_eq!(response.state_diff, test_state_diff());
 }
 
@@ -573,8 +575,9 @@ async fn decision_reached_no_executed_proposal() {
         .return_once(|_| async move { None }.boxed());
 
     let mut batcher = create_batcher(MockDependencies { proposal_manager, ..Default::default() });
-    let decision_reached_result =
-        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
+    let decision_reached_result = batcher
+        .decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID, height: INITIAL_HEIGHT })
+        .await;
     assert_eq!(decision_reached_result, Err(expected_error));
 }
 
