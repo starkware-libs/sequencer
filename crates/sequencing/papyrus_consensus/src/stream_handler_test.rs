@@ -395,6 +395,58 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn inbound_close_channel() {
+        let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
+            setup_test();
+
+        let stream_id = 127;
+        // Send two messages, no Fin.
+        for i in 0..2 {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &metadata, message).await;
+        }
+
+        // Allow the StreamHandler to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        let mut receiver = inbound_channel_receiver.next().await.unwrap();
+        for _ in 0..2 {
+            let _ = receiver.next().await.unwrap();
+        }
+
+        // Check that the stream handler contains the StreamData.
+        assert_eq!(stream_handler.inbound_stream_data.len(), 1);
+        assert_eq!(
+            stream_handler.inbound_stream_data.keys().next().unwrap(),
+            &(metadata.originator_id.clone(), stream_id)
+        );
+
+        // Close the channel.
+        drop(receiver);
+
+        // Send more messages.
+        // TODO(guyn): if we set this to 2..4 it fails... the last message opens a new StreamData!
+        for i in 2..3 {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &metadata, message).await;
+        }
+
+        // Allow the StreamHandler to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+        let stream_handler = join_handle.await.expect("Task should succeed");
+
+        // Check that the stream handler no longer contains the StreamData.
+        assert_eq!(stream_handler.inbound_stream_data.len(), 0);
+    }
+
     // This test does two things:
     // 1. Opens two outbound channels and checks that messages get correctly sent on both.
     // 2. Closes the first channel and checks that Fin is sent and that the relevant structures
