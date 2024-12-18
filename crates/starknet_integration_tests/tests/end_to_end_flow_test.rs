@@ -17,6 +17,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::{FlowTestSetup, SequencerSetup};
+use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
@@ -27,9 +28,6 @@ use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
 const LAST_HEIGHT: BlockNumber = BlockNumber(2);
-
-// TODO(Tsabary): create an enum that maps test names to unique indices, replace constants.
-const END_TO_END_FLOW_TEST_UNIQUE_ID: u16 = 1;
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -44,8 +42,11 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(50);
     // Setup.
-    let mut mock_running_system =
-        FlowTestSetup::new_from_tx_generator(&tx_generator, END_TO_END_FLOW_TEST_UNIQUE_ID).await;
+    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(
+        &tx_generator,
+        TestIdentifier::EndToEndFlowTest.into(),
+    )
+    .await;
 
     tokio::join!(
         wait_for_sequencer_node(&mock_running_system.sequencer_0),
