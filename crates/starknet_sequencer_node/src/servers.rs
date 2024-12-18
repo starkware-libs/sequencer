@@ -76,24 +76,23 @@ pub struct SequencerNodeServers {
 ///
 /// # Arguments
 ///
-/// * `$execution_mode` - A reference to the component's execution mode, of type
-///   `&ReactiveComponentExecutionMode`.
-/// * `$local_client` - The local client to be used for the remote server initialization if the
-///   execution mode is `Remote`.
-/// * `$config` - The configuration for the remote server.
+/// * `$execution_mode` - Component execution mode reference.
+/// * `$local_client_getter` - Local client getter function, used for the remote server
+///   initialization if needed.
+/// * `$config` - Remote server configuration.
 ///
 /// # Returns
 ///
 /// An `Option<Box<RemoteComponentServer<LocalClientType, RequestType, ResponseType>>>` containing
 /// the remote server if the execution mode is Remote, or None if the execution mode is Disabled,
-/// LocalExecutionWithRemoteEnabled or LocalExecutionWithRemoteDisabled.
+/// LocalExecutionWithRemoteEnabled, or LocalExecutionWithRemoteDisabled.
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// let batcher_remote_server = create_remote_server!(
 ///     &config.components.batcher.execution_mode,
-///     clients.get_gateway_local_client(),
+///     || {clients.get_gateway_local_client()},
 ///     config.remote_server_config
 /// );
 /// match batcher_remote_server {
@@ -103,10 +102,10 @@ pub struct SequencerNodeServers {
 /// ```
 #[macro_export]
 macro_rules! create_remote_server {
-    ($execution_mode:expr, $local_client:expr, $remote_server_config:expr) => {
+    ($execution_mode:expr, $local_client_getter:expr, $remote_server_config:expr) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let local_client = $local_client
+                let local_client = $local_client_getter()
                     .expect("Local client should be set for inbound remote connections.");
                 let remote_server_config = $remote_server_config
                     .as_ref()
@@ -265,44 +264,39 @@ pub fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
-    let batcher_client = clients.get_batcher_local_client();
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
-        batcher_client,
+        || { clients.get_batcher_local_client() },
         config.components.batcher.remote_server_config
     );
 
-    let gateway_client = clients.get_gateway_local_client();
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
-        gateway_client,
+        || { clients.get_gateway_local_client() },
         config.components.gateway.remote_server_config
     );
 
-    let l1_provider_client = clients.get_l1_provider_local_client();
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
-        l1_provider_client,
+        || { clients.get_l1_provider_local_client() },
         config.components.l1_provider.remote_server_config
     );
 
-    let mempool_client = clients.get_mempool_local_client();
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
-        mempool_client,
+        || { clients.get_mempool_local_client() },
         config.components.mempool.remote_server_config
     );
 
-    let mempool_p2p_propagator_client = clients.get_mempool_p2p_propagator_local_client();
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
-        mempool_p2p_propagator_client,
+        || { clients.get_mempool_p2p_propagator_local_client() },
         config.components.mempool_p2p.remote_server_config
     );
-    let state_sync_client = clients.get_state_sync_local_client();
+
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
-        state_sync_client,
+        || { clients.get_state_sync_local_client() },
         config.components.state_sync.remote_server_config
     );
 
