@@ -528,29 +528,17 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> SyscallResult<Relocatable> {
-        let block_info = &self.base.context.tx_context.block_context.block_info;
-        let block_timestamp = block_info.block_timestamp.0;
-        let block_number = block_info.block_number.0;
-        let versioned_constants = self.base.context.versioned_constants();
-        let block_data: Vec<Felt> = if self.is_validate_mode() {
-            // Round down to the nearest multiple of validate_block_number_rounding.
-            let validate_block_number_rounding =
-                versioned_constants.get_validate_block_number_rounding();
-            let rounded_block_number =
-                (block_number / validate_block_number_rounding) * validate_block_number_rounding;
-            // Round down to the nearest multiple of validate_timestamp_rounding.
-            let validate_timestamp_rounding = versioned_constants.get_validate_timestamp_rounding();
-            let rounded_timestamp =
-                (block_timestamp / validate_timestamp_rounding) * validate_timestamp_rounding;
-
-            vec![Felt::from(rounded_block_number), Felt::from(rounded_timestamp), Felt::ZERO]
-        } else {
-            vec![
-                Felt::from(block_number),
-                Felt::from(block_timestamp),
-                *block_info.sequencer_address.0.key(),
-            ]
+        let block_info = match self.base.context.execution_mode {
+            ExecutionMode::Execute => self.base.context.tx_context.block_context.block_info(),
+            ExecutionMode::Validate => {
+                &self.base.context.tx_context.block_context.block_info_for_validate()
+            }
         };
+        let block_data = vec![
+            Felt::from(block_info.block_number.0),
+            Felt::from(block_info.block_timestamp.0),
+            Felt::from(block_info.sequencer_address),
+        ];
         let (block_info_segment_start_ptr, _) = self.allocate_data_segment(vm, &block_data)?;
 
         Ok(block_info_segment_start_ptr)
