@@ -345,10 +345,12 @@ fn test_get_txs_with_nonce_gap() {
 // `add_tx` tests.
 
 #[rstest]
-fn test_add_tx(mut mempool: Mempool) {
+fn test_add_tx_insertion_sorted_by_priority(mut mempool: Mempool) {
     // Setup.
     let input_tip_50 =
         add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 50);
+    // The following transactions test a scenario with a higher tip and lower hash, covering
+    // both primary and secondary priority.
     let input_tip_100 =
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1, tip: 100);
     let input_tip_80 =
@@ -362,11 +364,8 @@ fn test_add_tx(mut mempool: Mempool) {
     // Assert: transactions are ordered by priority.
     let expected_queue_txs =
         [&input_tip_100.tx, &input_tip_80.tx, &input_tip_50.tx].map(TransactionReference::new);
-    let expected_pool_txs = [input_tip_50.tx, input_tip_100.tx, input_tip_80.tx];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -465,27 +464,6 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
-    // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tx_hash: 1, address: "0x0", tip: 2);
-    // Create a transaction with identical tip, it should be allowed through since the priority
-    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tx_hash: 2, address: "0x1", tip: 1);
-
-    // Test.
-    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Assert: ensure that the transaction with the higher tip is prioritized higher.
-    let expected_queue_txs =
-        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
