@@ -14,7 +14,7 @@ use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
-use crate::state::stateful_compression::allocate_aliases_in_storage;
+use crate::state::stateful_compression::{allocate_aliases_in_storage, compress, CompressionError};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
@@ -34,9 +34,17 @@ pub enum TransactionExecutorError {
     StateError(#[from] StateError),
     #[error(transparent)]
     TransactionExecutionError(#[from] TransactionExecutionError),
+    #[error(transparent)]
+    CompressionError(#[from] CompressionError),
 }
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
+
+pub struct BlockExecutionSummary {
+    pub state_diff: CommitmentStateDiff,
+    pub compressed_state_diff: Option<CommitmentStateDiff>,
+    pub bouncer_weights: BouncerWeights,
+}
 
 /// A transaction executor, used for building a single block.
 pub struct TransactionExecutor<S: StateReader> {
@@ -140,21 +148,30 @@ impl<S: StateReader> TransactionExecutor<S> {
 
     /// Returns the state diff and the block weights.
     // TODO(Yoav): Consume "self".
-    pub fn finalize(&mut self) -> TransactionExecutorResult<(CommitmentStateDiff, BouncerWeights)> {
+    pub fn finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
         let block_state = self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR);
+        let alias_contract_address = self
+            .block_context
+            .versioned_constants
+            .os_constants
+            .os_contract_addresses
+            .alias_contract_address();
         if self.block_context.versioned_constants.enable_stateful_compression {
-            allocate_aliases_in_storage(
-                block_state,
-                self.block_context
-                    .versioned_constants
-                    .os_constants
-                    .os_contract_addresses
-                    .alias_contract_address(),
-            )?;
+            allocate_aliases_in_storage(block_state, alias_contract_address)?;
         }
         let state_diff = block_state.to_state_diff()?.state_maps;
-        Ok((state_diff.into(), *self.bouncer.get_accumulated_weights()))
+        let compressed_state_diff =
+            if self.block_context.versioned_constants.enable_stateful_compression {
+                Some(compress(&state_diff, block_state, alias_contract_address)?.into())
+            } else {
+                None
+            };
+        Ok(BlockExecutionSummary {
+            state_diff: state_diff.into(),
+            compressed_state_diff,
+            bouncer_weights: *self.bouncer.get_accumulated_weights(),
+        })
     }
 }
 
