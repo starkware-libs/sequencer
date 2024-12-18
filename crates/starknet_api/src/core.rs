@@ -354,6 +354,10 @@ pub const PATRICIA_KEY_UPPER_BOUND: &str =
     "0x800000000000000000000000000000000000000000000000000000000000000";
 
 impl PatriciaKey {
+    pub const ZERO: Self = Self(StarkHash::ZERO);
+    pub const ONE: Self = Self(StarkHash::ONE);
+    pub const TWO: Self = Self(StarkHash::TWO);
+
     pub fn key(&self) -> &StarkHash {
         &self.0
     }

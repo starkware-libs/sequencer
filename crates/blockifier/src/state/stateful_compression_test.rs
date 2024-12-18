@@ -18,7 +18,7 @@ fn insert_to_alias_contract(
     key: StorageKey,
     value: Felt,
 ) {
-    storage.insert((*ALIAS_CONTRACT_ADDRESS, key), value);
+    storage.insert((ALIAS_CONTRACT_ADDRESS, key), value);
 }
 
 fn initial_state(n_existing_aliases: u8) -> CachedState<DictStateReader> {
@@ -27,7 +27,7 @@ fn initial_state(n_existing_aliases: u8) -> CachedState<DictStateReader> {
         let high_alias_key = INITIAL_AVAILABLE_ALIAS * Felt::TWO;
         insert_to_alias_contract(
             &mut state_reader.storage_view,
-            *ALIAS_COUNTER_STORAGE_KEY,
+            ALIAS_COUNTER_STORAGE_KEY,
             INITIAL_AVAILABLE_ALIAS + Felt::from(n_existing_aliases),
         );
         for i in 0..n_existing_aliases {
@@ -89,7 +89,7 @@ fn test_alias_updater(
     if !expected_alias_keys.is_empty() || n_existing_aliases == 0 {
         insert_to_alias_contract(
             &mut expected_storage_diff,
-            *ALIAS_COUNTER_STORAGE_KEY,
+            ALIAS_COUNTER_STORAGE_KEY,
             expected_next_alias,
         );
     }
