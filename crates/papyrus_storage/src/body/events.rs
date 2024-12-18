@@ -265,8 +265,8 @@ where
         key: (ContractAddress, EventIndex),
     ) -> StorageResult<EventIterByContractAddress<'env, 'txn>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let events_table = self.open_table(&self.tables.events)?;
-        let mut cursor = events_table.cursor(&self.txn)?;
+        let emitter_to_events_table = self.open_table(&self.tables.emitter_to_events)?;
+        let mut cursor = emitter_to_events_table.cursor(&self.txn)?;
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
         {
