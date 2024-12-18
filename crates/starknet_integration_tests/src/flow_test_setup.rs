@@ -17,7 +17,6 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use tempfile::TempDir;
-use tokio::task::JoinHandle;
 use tracing::{debug, instrument};
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
@@ -94,9 +93,7 @@ pub struct SequencerSetup {
     pub rpc_storage_file_handle: TempDir,
     pub state_sync_storage_file_handle: TempDir,
 
-    // Handle of the sequencer node.
-    pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
-
+    // Node configuration.
     pub config: SequencerNodeConfig,
 
     // Monitoring client.
@@ -142,9 +139,8 @@ impl SequencerSetup {
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        // Build and run the sequencer node.
-        let sequencer_node_future = run_component_servers(servers);
-        let sequencer_node_handle = tokio::spawn(sequencer_node_future);
+        // Run the sequencer node.
+        tokio::spawn(run_component_servers(servers));
 
         Self {
             sequencer_index,
@@ -152,7 +148,6 @@ impl SequencerSetup {
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
-            sequencer_node_handle,
             config,
             is_alive_test_client,
         }

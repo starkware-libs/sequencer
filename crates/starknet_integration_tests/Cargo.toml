@@ -9,7 +9,6 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-anyhow.workspace = true
 assert_matches.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
