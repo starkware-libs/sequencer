@@ -16,6 +16,7 @@ use tracing::{error, info, instrument};
 
 use crate::config::HttpServerConfig;
 use crate::errors::HttpServerRunError;
+use crate::metrics::{init_metrics, record_added_transaction, record_added_transaction_status};
 
 #[cfg(test)]
 #[path = "http_server_test.rs"]
@@ -36,6 +37,7 @@ pub struct AppState {
 impl HttpServer {
     pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
         let app_state = AppState { gateway_client };
+        init_metrics();
         HttpServer { config, app_state }
     }
 
@@ -55,6 +57,8 @@ impl HttpServer {
     }
 }
 
+// TODO(Tsabary): add a test for the module metrics.
+
 // HttpServer handlers.
 
 #[instrument(skip(app_state))]
@@ -62,12 +66,14 @@ async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
-    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx.clone(), message_metadata: None };
+    record_added_transaction();
+    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
 
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
         error!("Failed to process tx: {}", join_err);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     });
+    record_added_transaction_status(add_tx_result.is_ok());
 
     add_tx_result_as_json(add_tx_result)
 }
