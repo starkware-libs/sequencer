@@ -1,5 +1,8 @@
 use assert_matches::assert_matches;
-use blockifier::blockifier::transaction_executor::TransactionExecutorError;
+use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutorError,
+};
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
@@ -262,11 +265,12 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            expected_block_artifacts_copy.commitment_state_diff,
-            expected_block_artifacts_copy.visited_segments_mapping,
-            expected_block_artifacts_copy.bouncer_weights,
-        ))
+        Ok(BlockExecutionSummary {
+            state_diff: expected_block_artifacts_copy.commitment_state_diff,
+            compressed_state_diff: None,
+            visited_segments: expected_block_artifacts_copy.visited_segments_mapping,
+            bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
+        })
     });
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs]);
@@ -295,11 +299,12 @@ fn set_close_block_expectations(
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            output_block_artifacts.commitment_state_diff,
-            output_block_artifacts.visited_segments_mapping,
-            output_block_artifacts.bouncer_weights,
-        ))
+        Ok(BlockExecutionSummary {
+            state_diff: output_block_artifacts.commitment_state_diff,
+            compressed_state_diff: None,
+            visited_segments: output_block_artifacts.visited_segments_mapping,
+            bouncer_weights: output_block_artifacts.bouncer_weights,
+        })
     });
     output_block_artifacts_copy
 }
