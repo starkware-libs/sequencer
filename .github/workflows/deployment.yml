@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - main-v[0-9].**
+      - idan/main/sequencer-deployment-ci
     tags:
       - v[0-9].**
     # TODO(Dori, 1/9/2024): Decide when exactly native-blockifier artifacts will be built. Until
@@ -24,6 +25,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.10'
+      
       - name: black all files
         run: |
           python3 -m pip install black
