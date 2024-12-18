@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
-use blockifier::abi::constants;
 use pyo3::prelude::*;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::fields::{Calldata, Fee};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{constants, TransactionHash};
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_utils::{from_py_felts, py_attr, PyFelt};

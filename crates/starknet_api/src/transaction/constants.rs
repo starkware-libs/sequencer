@@ -2,7 +2,11 @@ use std::sync::LazyLock;
 
 use starknet_types_core::felt::Felt;
 
+use super::TransactionVersion;
 use crate::core::ascii_as_felt;
+
+// The version is considered 0 for L1-Handler transaction hash calculation purposes.
+pub const L1_HANDLER_VERSION: TransactionVersion = TransactionVersion::ZERO;
 
 pub const EXECUTE_ENTRY_POINT_NAME: &str = "__execute__";
 pub const TRANSFER_ENTRY_POINT_NAME: &str = "transfer";
