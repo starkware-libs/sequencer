@@ -1,9 +1,3 @@
-use starknet_api::transaction::TransactionVersion;
-use starknet_types_core::felt::Felt;
-
-// The version is considered 0 for L1-Handler transaction hash calculation purposes.
-pub const L1_HANDLER_VERSION: TransactionVersion = TransactionVersion(Felt::ZERO);
-
 // OS-related constants.
 pub const L1_TO_L2_MSG_HEADER_SIZE: usize = 5;
 pub const L2_TO_L1_MSG_HEADER_SIZE: usize = 3;

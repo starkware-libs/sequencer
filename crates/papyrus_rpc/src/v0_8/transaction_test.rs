@@ -16,7 +16,7 @@ use starknet_api::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use starknet_api::transaction::{L1HandlerTransaction, Transaction, TransactionVersion};
+use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
 use starknet_client::writer::objects::transaction as client_transaction;
 
@@ -38,7 +38,7 @@ use super::{
 lazy_static::lazy_static! {
     // A transaction from MAINNET with tx hash 0x439e12f67962c353182d72b4af12c3f11eaba4b36e552aebcdcd6db66971bdb.
     static ref L1_HANDLER_TX: L1HandlerTransaction = L1HandlerTransaction {
-        version: TransactionVersion::ZERO,
+        version: L1HandlerTransaction::VERSION,
         nonce: nonce!(0x18e94d),
         contract_address: contract_address!(
             "0x73314940630fd6dcda0d772d4c972c4e0a9946bef9dabf4ef84eda8ef542b82"
