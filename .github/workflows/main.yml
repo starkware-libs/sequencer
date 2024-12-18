@@ -86,7 +86,7 @@ jobs:
       - name: "Run taplo"
         run: scripts/taplo.sh
       - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
+        run: cargo machete
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
