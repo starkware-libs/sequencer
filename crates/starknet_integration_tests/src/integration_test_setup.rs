@@ -11,7 +11,7 @@ use starknet_sequencer_infra::test_utils::AvailablePorts;
 use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
-use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use crate::state_reader::{spawn_test_rpc_state_reader_with_socket, StorageTestSetup};
 use crate::utils::{
     create_chain_info,
     create_config,
@@ -53,16 +53,17 @@ impl IntegrationTestSetup {
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
     ) -> Self {
-        let available_ports = AvailablePorts::new(test_unique_index, 0);
+        let mut available_ports = AvailablePorts::new(test_unique_index, 0);
 
         let chain_info = create_chain_info();
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(tx_generator.accounts(), &chain_info);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(
+        let rpc_server_addr = spawn_test_rpc_state_reader_with_socket(
             storage_for_test.rpc_storage_reader,
             chain_info.chain_id.clone(),
+            available_ports.get_next_local_host_socket(),
         )
         .await;
 
