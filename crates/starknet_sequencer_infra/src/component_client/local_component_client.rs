@@ -3,7 +3,7 @@ use infra_utils::type_name::short_type_name;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};
-use tracing::info;
+use tracing::warn;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
@@ -102,7 +102,7 @@ where
     Response: Send + Sync,
 {
     fn drop(&mut self) {
-        info!("Dropping local client {}.", short_type_name::<Self>());
+        warn!("Dropping {}.", short_type_name::<Self>());
     }
 }
 

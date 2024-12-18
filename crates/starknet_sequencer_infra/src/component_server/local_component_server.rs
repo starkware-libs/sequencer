@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use async_trait::async_trait;
 use infra_utils::type_name::short_type_name;
 use tokio::sync::mpsc::Receiver;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::component_definitions::{
     ComponentRequestAndResponseSender,
@@ -200,6 +200,18 @@ where
     fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
         self.component = component;
         Ok(())
+    }
+}
+
+impl<Component, Request, Response, LocalServerType> Drop
+    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    fn drop(&mut self) {
+        warn!("Dropping {}.", short_type_name::<Self>());
     }
 }
 
