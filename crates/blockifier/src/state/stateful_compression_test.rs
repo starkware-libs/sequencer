@@ -277,8 +277,8 @@ fn test_read_only_state(#[values(0, 2)] n_existing_aliases: u8) {
 }
 
 /// Tests the range of alias keys that should be compressed.
-#[test]
-fn test_alias_compressor() {
+#[rstest]
+fn test_alias_compressor(#[values(true, false)] new_aliases_allocated: bool) {
     let alias = Felt::from(500_u16);
 
     let high_key = 200_u16;
@@ -291,10 +291,18 @@ fn test_alias_compressor() {
 
     let no_compression_contract_address = ContractAddress::from(10_u16);
 
-    let mut state_reader = DictStateReader::default();
-    insert_to_alias_contract(&mut state_reader.storage_view, high_storage_key, alias);
-    let alias_compressor =
-        AliasCompressor { state: &state_reader, alias_contract_address: *ALIAS_CONTRACT_ADDRESS };
+    let (state_reader, new_aliases) = if new_aliases_allocated {
+        let mut state_reader = DictStateReader::default();
+        insert_to_alias_contract(&mut state_reader.storage_view, high_storage_key, alias);
+        (state_reader, HashMap::new())
+    } else {
+        (DictStateReader::default(), vec![(high_storage_key, alias)].into_iter().collect())
+    };
+    let alias_compressor = AliasCompressor {
+        state: &state_reader,
+        alias_contract_address: *ALIAS_CONTRACT_ADDRESS,
+        new_aliases,
+    };
 
     assert_eq!(
         alias_compressor.compress_address(&high_contract_address).unwrap(),
