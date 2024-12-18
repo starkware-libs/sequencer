@@ -62,9 +62,6 @@ jobs:
           git diff --exit-code Cargo.lock
 
       # Run code style on PR.
-      - name: "Run rustfmt pull request"
-        if: github.event_name == 'pull_request'
-        run: ci/bin/python scripts/run_tests.py --command rustfmt --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
@@ -73,9 +70,11 @@ jobs:
         run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
 
       # Run code style on push.
-      - name: "Run rustfmt on push"
-        if: github.event_name == 'push'
-        run: ci/bin/python scripts/run_tests.py --command rustfmt
+      - name: "Run rustfmt"
+        # The nightly here is coupled with the one in install_rust/action.yml.
+        # If we move the install here we can use a const.
+        run: cargo +nightly-2024-04-29 fmt --all -- --check
+
       - name: "Run clippy on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command clippy
