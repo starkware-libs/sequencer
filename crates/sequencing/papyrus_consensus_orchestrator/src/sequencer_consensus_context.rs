@@ -54,8 +54,8 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
-use tokio::sync::Notify;
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, trace, warn, Instrument};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
@@ -104,7 +104,7 @@ pub struct SequencerConsensusContext {
     // Building proposals are not tracked as active, as consensus can't move on to the next
     // height/round until building is done. Context only works on proposals for the
     // current round.
-    active_proposal: Option<(Arc<Notify>, JoinHandle<()>)>,
+    active_proposal: Option<(CancellationToken, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals:
         BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalContentId, ProposalFin)>)>,
@@ -399,15 +399,15 @@ impl SequencerConsensusContext {
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
 
-        let notify = Arc::new(Notify::new());
-        let notify_clone = Arc::clone(&notify);
+        let token = CancellationToken::new();
+        let token_clone = token.clone();
         let chain_id = self.chain_id.clone();
         let mut content = Vec::new();
 
         let handle = tokio::spawn(async move {
             let (built_block, received_fin) = loop {
                 tokio::select! {
-                    _ = notify_clone.notified() => {
+                    _ = token_clone.cancelled() => {
                         warn!("Proposal interrupted: {:?}", proposal_id);
                         batcher_abort_proposal(batcher.as_ref(), proposal_id).await;
                         return;
@@ -443,12 +443,12 @@ impl SequencerConsensusContext {
                 warn!("Failed to send proposal content ids");
             }
         });
-        self.active_proposal = Some((notify, handle));
+        self.active_proposal = Some((token, handle));
     }
 
     fn interrupt_active_proposal(&self) {
-        if let Some((notify, _)) = &self.active_proposal {
-            notify.notify_one();
+        if let Some((token, _)) = &self.active_proposal {
+            token.cancel();
         }
     }
 }
