@@ -19,11 +19,9 @@ type AliasKey = StorageKey;
 const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked("0x80");
 
 // The address of the alias contract.
-static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
-    LazyLock::new(|| ContractAddress(PatriciaKey::try_from(Felt::TWO).unwrap()));
+const ALIAS_CONTRACT_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::TWO);
 // The storage key of the alias counter in the alias contract.
-static ALIAS_COUNTER_STORAGE_KEY: LazyLock<StorageKey> =
-    LazyLock::new(|| StorageKey(PatriciaKey::try_from(Felt::ZERO).unwrap()));
+const ALIAS_COUNTER_STORAGE_KEY: StorageKey = StorageKey(PatriciaKey::ZERO);
 // The minimal value for a key to be allocated an alias. Smaller keys are serialized as is (their
 // alias is identical to the key).
 static MIN_VALUE_FOR_ALIAS_ALLOC: LazyLock<PatriciaKey> =
@@ -39,7 +37,7 @@ struct AliasUpdater<'a, S: StateReader> {
 impl<'a, S: StateReader> AliasUpdater<'a, S> {
     fn new(state: &'a CachedState<S>) -> StateResult<Self> {
         let stored_counter =
-            state.get_storage_at(*ALIAS_CONTRACT_ADDRESS, *ALIAS_COUNTER_STORAGE_KEY)?;
+            state.get_storage_at(ALIAS_CONTRACT_ADDRESS, ALIAS_COUNTER_STORAGE_KEY)?;
         Ok(Self {
             state,
             new_aliases: HashMap::new(),
@@ -50,7 +48,7 @@ impl<'a, S: StateReader> AliasUpdater<'a, S> {
     /// Inserts the alias key to the updates if it's not already aliased.
     fn insert_alias(&mut self, alias_key: &AliasKey) -> StateResult<()> {
         if alias_key.0 >= *MIN_VALUE_FOR_ALIAS_ALLOC
-            && self.state.get_storage_at(*ALIAS_CONTRACT_ADDRESS, *alias_key)? == Felt::ZERO
+            && self.state.get_storage_at(ALIAS_CONTRACT_ADDRESS, *alias_key)? == Felt::ZERO
             && !self.new_aliases.contains_key(alias_key)
         {
             let alias_to_allocate = match self.next_free_alias {
@@ -68,18 +66,18 @@ impl<'a, S: StateReader> AliasUpdater<'a, S> {
     fn finalize_updates(mut self) -> HashMap<StorageEntry, Felt> {
         match self.next_free_alias {
             None => {
-                self.new_aliases.insert(*ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS);
+                self.new_aliases.insert(ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS);
             }
             Some(alias) => {
                 if !self.new_aliases.is_empty() {
-                    self.new_aliases.insert(*ALIAS_COUNTER_STORAGE_KEY, alias);
+                    self.new_aliases.insert(ALIAS_COUNTER_STORAGE_KEY, alias);
                 }
             }
         }
 
         self.new_aliases
             .into_iter()
-            .map(|(key, alias)| ((*ALIAS_CONTRACT_ADDRESS, key), alias))
+            .map(|(key, alias)| ((ALIAS_CONTRACT_ADDRESS, key), alias))
             .collect()
     }
 }
