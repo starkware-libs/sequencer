@@ -2,7 +2,8 @@
 pub enum TestIdentifier {
     EndToEndIntegrationTest,
     EndToEndFlowTest,
-    MempoolP2pFlowTest,
+    MempoolSendsTxToOtherPeerTest,
+    MempoolReceivesTxFromOtherPeerTest,
 }
 
 impl From<TestIdentifier> for u16 {
@@ -10,7 +11,8 @@ impl From<TestIdentifier> for u16 {
         match variant {
             TestIdentifier::EndToEndIntegrationTest => 0,
             TestIdentifier::EndToEndFlowTest => 1,
-            TestIdentifier::MempoolP2pFlowTest => 2,
+            TestIdentifier::MempoolSendsTxToOtherPeerTest => 2,
+            TestIdentifier::MempoolReceivesTxFromOtherPeerTest => 3,
         }
     }
 }

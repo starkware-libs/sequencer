@@ -40,10 +40,10 @@ impl AvailablePorts {
         let test_offset: u16 =
             test_unique_index * MAX_NUMBER_OF_INSTANCES_PER_TEST * PORTS_PER_INSTANCE;
         let instance_in_test_offset: u16 = instance_index * PORTS_PER_INSTANCE;
-        let base_port = BASE_PORT + test_offset + instance_in_test_offset;
-        let max_port: u16 = base_port + PORTS_PER_INSTANCE;
+        let current_port = BASE_PORT + test_offset + instance_in_test_offset;
+        let max_port: u16 = current_port + PORTS_PER_INSTANCE;
 
-        AvailablePorts { current_port: base_port, max_port }
+        AvailablePorts { current_port, max_port }
     }
 
     pub fn get_next_port(&mut self) -> u16 {
@@ -52,6 +52,10 @@ impl AvailablePorts {
         assert!(self.current_port < self.max_port, "Exceeded available ports.");
 
         port
+    }
+
+    pub fn get_next_ports(&mut self, n: usize) -> Vec<u16> {
+        std::iter::repeat_with(|| self.get_next_port()).take(n).collect()
     }
 
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
