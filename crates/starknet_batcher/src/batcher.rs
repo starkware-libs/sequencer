@@ -384,14 +384,18 @@ impl Batcher {
             self.abort_active_height().await;
             self.active_height = None;
         }
-
-        let SyncBlock { state_diff, transaction_hashes, .. } = sync_block;
-        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        let tx_hashes = transaction_hashes.into_iter().collect();
-
-        // TODO(Arni): Assert the input `sync_block` corresponds to this `height`.
         let height = self.get_height_from_storage()?;
-        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
+        if height != sync_block.block_number {
+            panic!(
+                "Synced block height {} does not match the current height {}.",
+                sync_block.block_number, height
+            );
+        }
+        let address_to_nonce = sync_block.state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        let tx_hashes = sync_block.transaction_hashes.into_iter().collect();
+
+        self.commit_proposal_and_block(height, sync_block.state_diff, address_to_nonce, tx_hashes)
+            .await
     }
 
     #[instrument(skip(self), err)]
