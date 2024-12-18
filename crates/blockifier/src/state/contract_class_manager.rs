@@ -153,6 +153,16 @@ impl ContractClassManager {
         self.contract_caches.set_casm(class_hash, compiled_class);
     }
 
+    #[cfg(feature = "cairo_native")]
+    pub fn run_cairo_native(&self) -> bool {
+        self.config.run_cairo_native
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn wait_on_native_compilation(&self) -> bool {
+        self.config.wait_on_native_compilation
+    }
+
     /// Clear the contract caches.
     pub fn clear(&mut self) {
         self.contract_caches.clear();
