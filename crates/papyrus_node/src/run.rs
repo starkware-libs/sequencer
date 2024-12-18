@@ -28,7 +28,7 @@ use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_rpc::run_server;
 use papyrus_storage::storage_metrics::update_storage_metrics;
 use papyrus_storage::{open_storage, StorageReader, StorageWriter};
-use papyrus_sync::sources::base_layer::{BaseLayerSourceError, EthereumBaseLayerSource};
+use papyrus_sync::sources::base_layer::EthereumBaseLayerSource;
 use papyrus_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, SyncConfig};
@@ -242,8 +242,7 @@ async fn run_sync(
             .map_err(CentralError::ClientCreation)?;
     let pending_source =
         PendingSource::new(central_config, VERSION_FULL).map_err(CentralError::ClientCreation)?;
-    let base_layer_source = EthereumBaseLayerSource::new(base_layer_config)
-        .map_err(|e| BaseLayerSourceError::BaseLayerSourceCreationError(e.to_string()))?;
+    let base_layer_source = EthereumBaseLayerSource::new(base_layer_config);
     let sync = StateSync::new(
         sync_config,
         shared_highest_block,
