@@ -408,13 +408,13 @@ impl SequencerConsensusContext {
             let (built_block, received_fin) = loop {
                 tokio::select! {
                     _ = notify_clone.notified() => {
-                        // TODO(Asmaa): Tell the batcher to abort.
                         warn!("Proposal interrupted: {:?}", proposal_id);
+                        batcher_abort_proposal(batcher.as_ref(), proposal_id).await;
                         return;
                     }
                     _ = tokio::time::sleep(timeout) => {
-                        // TODO(Asmaa): Tell the batcher to abort.
                         warn!("Validation timed out");
+                        batcher_abort_proposal(batcher.as_ref(), proposal_id).await;
                         return;
                     }
                     proposal_part = content_receiver.next() => {
@@ -425,8 +425,8 @@ impl SequencerConsensusContext {
                             }
                             HandledProposalPart::Continue => {continue;}
                             HandledProposalPart::Failed(fail_reason) => {
-                                // TODO(Asmaa): Tell the batcher to abort.
                                 warn!("Failed to handle proposal part: {proposal_id:?}, {fail_reason}");
+                                batcher_abort_proposal(batcher.as_ref(), proposal_id).await;
                                 return;
                             }
                         }
@@ -599,4 +599,12 @@ async fn handle_proposal_part(
         }
         _ => panic!("Invalid proposal part: {:?}", proposal_part),
     }
+}
+
+async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: ProposalId) {
+    let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
+    batcher
+        .send_proposal_content(input)
+        .await
+        .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
 }
