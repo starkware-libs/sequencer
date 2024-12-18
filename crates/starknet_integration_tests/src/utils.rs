@@ -31,7 +31,7 @@ use starknet_gateway::config::{
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_infra::test_utils::{get_available_socket, AvailablePorts};
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
@@ -45,9 +45,13 @@ pub fn create_chain_info() -> ChainInfo {
     chain_info
 }
 
+// TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
 // TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
 // the config.
+#[allow(clippy::too_many_arguments)]
+#[allow(unused_variables)]
 pub async fn create_config(
+    available_ports: &mut AvailablePorts,
     sequencer_index: usize,
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,

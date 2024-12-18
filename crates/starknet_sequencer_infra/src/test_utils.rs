@@ -16,6 +16,7 @@ const _: () = {
     );
 };
 
+#[derive(Debug)]
 pub struct AvailablePorts {
     current_port: u16,
     max_port: u16,

@@ -15,7 +15,7 @@ use crate::integration_test_setup::IntegrationTestSetup;
 use crate::utils::send_account_txs;
 
 // TODO(Tsabary): create an enum that maps test names to unique indices, replace constants.
-const TEST_UNIQUE_INDEX: u16 = 0;
+const END_TO_END_INTEGRATION_TEST_UNIQUE_ID: u16 = 0;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -65,8 +65,11 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
 
     info!("Running integration test setup.");
     // Creating the storage for the test.
-    let integration_test_setup =
-        IntegrationTestSetup::new_from_tx_generator(&tx_generator, TEST_UNIQUE_INDEX).await;
+    let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(
+        &tx_generator,
+        END_TO_END_INTEGRATION_TEST_UNIQUE_ID,
+    )
+    .await;
 
     info!("Running sequencer node.");
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
