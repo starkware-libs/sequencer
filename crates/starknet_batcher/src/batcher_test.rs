@@ -433,6 +433,20 @@ async fn add_sync_block() {
 
 #[rstest]
 #[tokio::test]
+#[should_panic(expected = "Synced block height 4 does not match the current height 3.")]
+async fn add_sync_block_mismatch_block_number() {
+    let mut batcher = create_batcher(MockDependencies::default());
+
+    let sync_block = SyncBlock {
+        block_number: INITIAL_HEIGHT.unchecked_next(),
+        state_diff: Default::default(),
+        transaction_hashes: Default::default(),
+    };
+    batcher.add_sync_block(sync_block).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
 async fn decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
     let expected_proposal_output =
