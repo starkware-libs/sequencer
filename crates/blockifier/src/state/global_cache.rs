@@ -21,6 +21,13 @@ pub enum CachedCasm {
     WithoutSierra(RunnableCompiledClass),
     WithSierra(RunnableCompiledClass, Arc<SierraContractClass>),
 }
+impl CachedCasm {
+    pub fn casm(&self) -> RunnableCompiledClass {
+        match self {
+            CachedCasm::WithoutSierra(casm) | CachedCasm::WithSierra(casm, _) => casm.clone(),
+        }
+    }
+}
 
 #[cfg(feature = "cairo_native")]
 #[derive(Debug, Clone)]
