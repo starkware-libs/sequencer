@@ -9,8 +9,8 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use super::{
-    compress,
     allocate_aliases_in_storage,
+    compress,
     Alias,
     AliasKey,
     AliasUpdater,
@@ -267,7 +267,6 @@ fn test_read_only_state(#[values(0, 2)] n_existing_aliases: u8) {
     state.get_class_hash_at(ContractAddress::from(0x202_u16)).unwrap();
     allocate_aliases_in_storage(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap();
     let storage_diff = state.to_state_diff().unwrap().state_maps.storage;
-
 
     let expected_storage_diff = if n_existing_aliases == 0 {
         HashMap::from([(
