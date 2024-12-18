@@ -185,9 +185,9 @@ mod tests {
         );
         let range: Vec<u64> = (1..6).collect();
         let keys: Vec<u64> = stream_handler.inbound_stream_data[&(peer_id, stream_id)]
-            .clone()
             .message_buffer
-            .into_keys()
+            .keys()
+            .copied()
             .collect();
         assert!(do_vecs_match_unordered(&keys, &range));
 
@@ -255,20 +255,14 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         let values = [(peer_id.clone(), 1), (peer_id.clone(), 10), (peer_id.clone(), 127)];
-        assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
-        );
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id1)]
                 .message_buffer
-                .clone()
-                .into_keys()
+                .keys()
+                .copied()
                 .collect::<Vec<_>>(),
             &(1..10).collect::<Vec<_>>()
         ));
@@ -277,8 +271,8 @@ mod tests {
         assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id2)]
                 .message_buffer
-                .clone()
-                .into_keys()
+                .keys()
+                .copied()
                 .collect::<Vec<_>>(),
             &(1..6).collect::<Vec<_>>()
         ));
@@ -287,8 +281,8 @@ mod tests {
         assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id3)]
                 .message_buffer
-                .clone()
-                .into_keys()
+                .keys()
+                .copied()
                 .collect::<Vec<_>>(),
             &(1..10).collect::<Vec<_>>()
         ));
@@ -329,13 +323,7 @@ mod tests {
 
         // stream_id1 should be gone
         let values = [(peer_id.clone(), 1), (peer_id.clone(), 10)];
-        assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
-        );
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
@@ -356,13 +344,7 @@ mod tests {
 
         // Stream_id2 should also be gone.
         let values = [(peer_id.clone(), 1)];
-        assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
-        );
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
@@ -381,13 +363,7 @@ mod tests {
 
         // Stream_id3 should still be there, because we didn't send a fin.
         let values = [(peer_id.clone(), 1)];
-        assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
-        );
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // But the buffer should be empty, as we've successfully drained it all.
         assert!(
