@@ -19,6 +19,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,
@@ -32,6 +33,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -47,7 +49,6 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     create_integration_test_tx_generator()
 }
 
-// TODO(Shahak/AlonLukatch): add available_ports to the setup function.
 // TODO(Shahak/AlonLukatch): remove code duplication with FlowTestSetup.
 async fn setup(
     tx_generator: &MultiAccountTransactionGenerator,
@@ -55,6 +56,7 @@ async fn setup(
     let accounts = tx_generator.accounts();
     let chain_info = create_chain_info();
     let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+    let mut available_ports = AvailablePorts::new(TestIdentifier::MempoolP2pFlowTest.into(), 0);
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr = spawn_test_rpc_state_reader(
@@ -88,6 +90,7 @@ async fn setup(
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
             1,
             Topic::new(MEMPOOL_TOPIC),
+            &mut available_ports,
         );
     let network_config = network_configs.pop().unwrap();
     let mempool_p2p_config = MempoolP2pConfig { network_config, ..Default::default() };
