@@ -32,7 +32,7 @@ const CHANNEL_BUFFER_LENGTH: usize = 100;
 // Drop the struct when:
 // (1) receiver on the other end is dropped,
 // (2) fin message is received and all messages are sent.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct StreamData<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + 'static,
 > {
