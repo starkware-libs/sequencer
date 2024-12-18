@@ -21,57 +21,6 @@ use url::Url;
 
 use crate::BaseLayerContract;
 
-#[derive(thiserror::Error, Debug)]
-pub enum EthereumBaseLayerError {
-    #[error(transparent)]
-    Contract(#[from] alloy_contract::Error),
-    #[error(transparent)]
-    FeltParseError(#[from] felt::FromStrError),
-    #[error(transparent)]
-    RpcError(#[from] RpcError<TransportErrorKind>),
-    #[error(transparent)]
-    Serde(#[from] serde_json::Error),
-    #[error(transparent)]
-    TypeError(#[from] alloy_sol_types::Error),
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub struct EthereumBaseLayerConfig {
-    pub node_url: Url,
-    pub starknet_contract_address: EthereumContractAddress,
-}
-
-impl SerializeConfig for EthereumBaseLayerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_required_param(
-                "node_url",
-                SerializationType::String,
-                "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
-                "starknet_contract_address",
-                &self.starknet_contract_address.to_string(),
-                "Starknet contract address in ethereum.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-impl Default for EthereumBaseLayerConfig {
-    fn default() -> Self {
-        let starknet_contract_address =
-            "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
-
-        Self {
-            node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
-            starknet_contract_address,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct EthereumBaseLayerContract {
     contract: ContractInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
@@ -123,5 +72,56 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             BlockNumber(sol_data::Uint::<64>::abi_decode(&state_block_number, true)?),
             BlockHash(StarkHash::from_hex(&state_block_hash.to_string())?),
         )))
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum EthereumBaseLayerError {
+    #[error(transparent)]
+    Contract(#[from] alloy_contract::Error),
+    #[error(transparent)]
+    FeltParseError(#[from] felt::FromStrError),
+    #[error(transparent)]
+    RpcError(#[from] RpcError<TransportErrorKind>),
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
+    #[error(transparent)]
+    TypeError(#[from] alloy_sol_types::Error),
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct EthereumBaseLayerConfig {
+    pub node_url: Url,
+    pub starknet_contract_address: EthereumContractAddress,
+}
+
+impl SerializeConfig for EthereumBaseLayerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_required_param(
+                "node_url",
+                SerializationType::String,
+                "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+                ParamPrivacyInput::Private,
+            ),
+            ser_param(
+                "starknet_contract_address",
+                &self.starknet_contract_address.to_string(),
+                "Starknet contract address in ethereum.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for EthereumBaseLayerConfig {
+    fn default() -> Self {
+        let starknet_contract_address =
+            "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
+
+        Self {
+            node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
+            starknet_contract_address,
+        }
     }
 }
