@@ -3,18 +3,19 @@ use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use super::{
+    compress,
     state_diff_with_alias_allocation,
     AliasUpdater,
     ALIAS_COUNTER_STORAGE_KEY,
     INITIAL_AVAILABLE_ALIAS,
     MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
 };
-use crate::state::cached_state::{CachedState, StorageEntry};
+use crate::state::cached_state::{CachedState, StateMaps, StorageEntry};
 use crate::state::state_api::{State, StateReader};
 use crate::state::stateful_compression::{AliasCompressor, CompressionError};
 use crate::test_utils::dict_state_reader::DictStateReader;
@@ -244,4 +245,68 @@ fn test_alias_compressor() {
         err,
         Err(CompressionError::MissedAlias(key)) if key == missed_key.into()
     );
+}
+
+#[test]
+fn test_compression() {
+    let state_reader = DictStateReader {
+        storage_view: (200_u16..206)
+            .map(|x| ((*ALIAS_CONTRACT_ADDRESS, StorageKey::from(x)), Felt::from(x + 100)))
+            .collect(),
+        ..Default::default()
+    };
+
+    // State diff with values that should not be compressed.
+    let base_state_diff = StateMaps {
+        nonces: vec![(ContractAddress::from(30_u16), Nonce(Felt::ONE))].into_iter().collect(),
+        class_hashes: vec![(ContractAddress::from(31_u16), ClassHash(Felt::ONE))]
+            .into_iter()
+            .collect(),
+        storage: vec![((ContractAddress::from(10_u16), StorageKey::from(205_u16)), Felt::TWO)]
+            .into_iter()
+            .collect(),
+        compiled_class_hashes: vec![(ClassHash(Felt::ONE), CompiledClassHash(Felt::ZERO))]
+            .into_iter()
+            .collect(),
+        declared_contracts: vec![(ClassHash(Felt::THREE), true)].into_iter().collect(),
+    };
+
+    let compressed_base_state_diff =
+        compress(&base_state_diff, &state_reader, *ALIAS_CONTRACT_ADDRESS).unwrap();
+    assert_eq!(compressed_base_state_diff, base_state_diff);
+
+    // Add to the state diff values that should be compressed.
+    let mut state_diff = base_state_diff.clone();
+    state_diff.extend(&StateMaps {
+        nonces: vec![(ContractAddress::from(200_u16), Nonce(Felt::ZERO))].into_iter().collect(),
+        class_hashes: vec![(ContractAddress::from(201_u16), ClassHash(Felt::ZERO))]
+            .into_iter()
+            .collect(),
+        storage: vec![
+            ((ContractAddress::from(202_u16), StorageKey::from(203_u16)), Felt::ZERO),
+            ((ContractAddress::from(32_u16), StorageKey::from(204_u16)), Felt::ONE),
+        ]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    });
+
+    let mut expected_compressed_state_diff = base_state_diff.clone();
+    expected_compressed_state_diff.extend(&StateMaps {
+        nonces: vec![(ContractAddress::from(300_u16), Nonce(Felt::ZERO))].into_iter().collect(),
+        class_hashes: vec![(ContractAddress::from(301_u16), ClassHash(Felt::ZERO))]
+            .into_iter()
+            .collect(),
+        storage: vec![
+            ((ContractAddress::from(302_u16), StorageKey::from(303_u16)), Felt::ZERO),
+            ((ContractAddress::from(32_u16), StorageKey::from(304_u16)), Felt::ONE),
+        ]
+        .into_iter()
+        .collect(),
+        ..Default::default()
+    });
+
+    let compressed_state_diff =
+        compress(&state_diff, &state_reader, *ALIAS_CONTRACT_ADDRESS).unwrap();
+    assert_eq!(compressed_state_diff, expected_compressed_state_diff);
 }
