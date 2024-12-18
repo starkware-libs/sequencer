@@ -7,6 +7,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
@@ -32,6 +33,8 @@ pub struct IntegrationTestSetup {
     pub batcher_storage_config: StorageConfig,
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
+    // Available ports for the test.
+    pub available_ports: AvailablePorts,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -46,7 +49,12 @@ pub struct IntegrationTestSetup {
 }
 
 impl IntegrationTestSetup {
-    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+    pub async fn new_from_tx_generator(
+        tx_generator: &MultiAccountTransactionGenerator,
+        test_unique_index: u16,
+    ) -> Self {
+        let available_ports = AvailablePorts::new(test_unique_index, 0);
+
         let chain_info = create_chain_info();
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(tx_generator.accounts(), &chain_info);
@@ -95,6 +103,7 @@ impl IntegrationTestSetup {
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage,
             rpc_storage_handle: storage_for_test.rpc_storage_handle,
+            available_ports,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
