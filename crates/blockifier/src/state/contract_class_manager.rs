@@ -131,6 +131,10 @@ impl ContractClassManager {
         self.contract_caches.set_casm(class_hash, compiled_class);
     }
 
+    pub fn run_cairo_native(&self) -> bool {
+        self.config.run_cairo_native
+    }
+
     /// Clear the contract caches.
     pub fn clear(&mut self) {
         self.contract_caches.clear();
