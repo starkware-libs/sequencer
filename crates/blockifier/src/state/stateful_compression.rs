@@ -3,9 +3,12 @@ use std::sync::LazyLock;
 
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
+use thiserror::Error;
 
 use super::cached_state::{CachedState, StateMaps, StorageEntry};
+use super::errors::StateError;
 use super::state_api::{StateReader, StateResult};
 
 #[cfg(test)]
@@ -14,6 +17,17 @@ pub mod stateful_compression_test;
 
 type Alias = Felt;
 type AliasKey = StorageKey;
+
+#[derive(Debug, Error)]
+pub enum CompressionError {
+    #[error("Missing key in alias contract: {:#064x}", ***.0)]
+    MissedAlias(AliasKey),
+    #[error(transparent)]
+    StateError(#[from] StateError),
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
+}
+pub type CompressionResult<T> = Result<T, CompressionError>;
 
 // The initial alias available for allocation.
 const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked("0x80");
@@ -125,5 +139,44 @@ impl<'a, S: StateReader> AliasUpdater<'a, S> {
             .into_iter()
             .map(|(key, alias)| ((self.alias_contract_address, key), alias))
             .collect()
+    }
+}
+
+/// Replaces contact addresses and storage keys with aliases.
+#[allow(dead_code)]
+struct AliasCompressor<'a, S: StateReader> {
+    state: &'a S,
+    alias_contract_address: ContractAddress,
+}
+
+impl<S: StateReader> AliasCompressor<'_, S> {
+    fn compress_address(
+        &self,
+        contract_address: &ContractAddress,
+    ) -> CompressionResult<ContractAddress> {
+        if contract_address.0 >= *MIN_VALUE_FOR_ALIAS_ALLOC {
+            Ok(self.get_alias(StorageKey(contract_address.0))?.try_into()?)
+        } else {
+            Ok(*contract_address)
+        }
+    }
+
+    fn compress_storage_key(
+        &self,
+        storage_key: &StorageKey,
+        contact_address: &ContractAddress,
+    ) -> CompressionResult<StorageKey> {
+        if storage_key.0 >= *MIN_VALUE_FOR_ALIAS_ALLOC
+            && contact_address > &*MAX_NON_COMPRESSED_CONTRACT_ADDRESS
+        {
+            Ok(self.get_alias(*storage_key)?.try_into()?)
+        } else {
+            Ok(*storage_key)
+        }
+    }
+
+    fn get_alias(&self, alias_key: AliasKey) -> CompressionResult<Alias> {
+        let alias = self.state.get_storage_at(self.alias_contract_address, alias_key)?;
+        if alias == Felt::ZERO { Err(CompressionError::MissedAlias(alias_key)) } else { Ok(alias) }
     }
 }
