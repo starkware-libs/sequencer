@@ -173,16 +173,24 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        // Get the receiver for the stream.
-        let mut receiver = inbound_channel_receiver.next().await.unwrap();
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver.try_next().is_err());
+        // No receiver should be created yet.
+        assert!(inbound_channel_receiver.try_next().is_err());
 
         assert_eq!(stream_handler.inbound_stream_data.len(), 1);
         assert_eq!(
             stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
             5
         );
+        // Still waiting for message 0.
+        assert_eq!(
+            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].next_message_id,
+            0
+        );
+        // Has a receiver, waiting to be sent when message 0 is received.
+        assert!(
+            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].receiver.is_some()
+        );
+
         let range: Vec<u64> = (1..6).collect();
         let keys: Vec<u64> = stream_handler.inbound_stream_data[&(peer_id, stream_id)]
             .message_buffer
@@ -202,6 +210,9 @@ mod tests {
 
         let stream_handler = join_handle.await.expect("Task should succeed");
         assert!(stream_handler.inbound_stream_data.is_empty());
+
+        // Get the receiver for the stream.
+        let mut receiver = inbound_channel_receiver.next().await.unwrap();
 
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -287,23 +298,8 @@ mod tests {
             &(1..10).collect::<Vec<_>>()
         ));
 
-        // Get the receiver for the first stream.
-        let mut receiver1 = inbound_channel_receiver.next().await.unwrap();
-
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver1.try_next().is_err());
-
-        // Get the receiver for the second stream.
-        let mut receiver2 = inbound_channel_receiver.next().await.unwrap();
-
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver2.try_next().is_err());
-
-        // Get the receiver for the third stream.
-        let mut receiver3 = inbound_channel_receiver.next().await.unwrap();
-
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver3.try_next().is_err());
+        // None of the streams should have emitted a receiver yet.
+        assert!(inbound_channel_receiver.try_next().is_err());
 
         // Send the last message on stream_id1:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id1, 0, false)).await;
@@ -313,6 +309,9 @@ mod tests {
             let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
+
+        // Get the receiver for the first stream.
+        let mut receiver1 = inbound_channel_receiver.next().await.unwrap();
 
         // Should be able to read all the messages for stream_id1.
         for _ in 0..9 {
@@ -334,6 +333,9 @@ mod tests {
             stream_handler
         });
 
+        // Get the receiver for the second stream.
+        let mut receiver2 = inbound_channel_receiver.next().await.unwrap();
+
         // Should be able to read all the messages for stream_id2.
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -354,6 +356,9 @@ mod tests {
             let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
+
+        // Get the receiver for the first stream.
+        let mut receiver3 = inbound_channel_receiver.next().await.unwrap();
 
         let stream_handler = join_handle.await.expect("Task should succeed");
         for _ in 0..10 {
