@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -546,7 +546,9 @@ pub fn create_batcher(
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
-        global_class_hash_to_class: GlobalContractCache::new(config.global_contract_cache_size),
+        contract_class_manager: ContractClassManager::start(
+            config.contract_class_manager_config.clone(),
+        ),
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
