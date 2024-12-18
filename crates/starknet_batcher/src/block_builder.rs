@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
     TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
@@ -167,12 +168,12 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
+        let BlockExecutionSummary { state_diff, visited_segments, bouncer_weights, .. } =
             self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
-            commitment_state_diff,
-            visited_segments_mapping,
+            commitment_state_diff: state_diff,
+            visited_segments_mapping: visited_segments,
             bouncer_weights,
             l2_gas_used,
         })
