@@ -50,6 +50,8 @@ use crate::types::{
 ///   messages.
 /// - `proposal_receiver`: The channel to receive proposals from the network. Proposals are
 ///   represented as streams (ProposalInit, Content.*, ProposalFin).
+const NEW_RECEIVER_TIMEOUT: Duration = Duration::from_millis(100);
+
 // TODO(dvir): add test for this.
 // TODO(Asmaa): Update documentation when we update for the real sync.
 #[instrument(skip_all, level = "info")]
@@ -203,7 +205,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         context, height, &mut shc, message, broadcast_channels).await?
                 },
                 Some(content_receiver) = proposal_receiver.next() => {
-                    self.handle_proposal(context, height, &mut shc, content_receiver).await?
+                    match tokio::time::timeout(NEW_RECEIVER_TIMEOUT, self.handle_proposal(context, height, &mut shc, content_receiver)).await {
+                        Ok(res) => res?,
+                        Err(_) => {
+                            panic!("Proposal receiver timed out while waiting for first message. ");
+                        }
+                    }
                 },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
