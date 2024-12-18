@@ -55,13 +55,19 @@ pub struct ContractClassManager {
     /// disabled.
     #[cfg(feature = "cairo_native")]
     sender: Option<SyncSender<CompilationRequest>>,
+    /// The sierra-to-native compiler.
+    #[cfg(feature = "cairo_native")]
+    compiler: Option<Arc<dyn SierraToNativeCompiler>>,
 }
 
 impl ContractClassManager {
     /// Creates a new contract class manager and spawns a thread that listens for compilation
     /// requests and processes them (a.k.a. the compilation worker).
     /// Returns the contract class manager.
-    /// NOTE: If native compilation is disabled, the compilation worker is not spawned.
+    /// NOTE: the compilation worker is not spawned if one of the following conditions is met:
+    /// 1. The feature `cairo_native` is not enabled.
+    /// 2. `config.run_cairo_native` is `false`.
+    /// 3. `config.wait_on_native_compilation` is `true`.
     pub fn start(config: ContractClassManagerConfig) -> ContractClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let contract_caches = ContractCaches::new(config.contract_cache_size);
@@ -71,29 +77,60 @@ impl ContractClassManager {
         {
             if !config.run_cairo_native {
                 // Native compilation is disabled - no need to start the compilation worker.
-                return ContractClassManager { config, contract_caches, sender: None };
+                return ContractClassManager {
+                    config,
+                    contract_caches,
+                    sender: None,
+                    compiler: None,
+                };
             }
+
+            let compiler_config = SierraToCasmCompilationConfig::default();
+            let compiler = Arc::new(CommandLineCompiler::new(compiler_config));
+            if config.wait_on_native_compilation {
+                // Compilation requests are processed synchronously. No need to start the worker.
+                return ContractClassManager {
+                    config,
+                    contract_caches,
+                    sender: None,
+                    compiler: Some(compiler),
+                };
+            }
+
             let (sender, receiver) = sync_channel(CHANNEL_SIZE);
 
             std::thread::spawn({
                 let contract_caches = contract_caches.clone();
-                let compiler_config = SierraToCasmCompilationConfig::default();
-                let compiler = CommandLineCompiler::new(compiler_config);
-
+                let compiler = compiler.clone();
                 move || run_compilation_worker(contract_caches, receiver, compiler)
             });
 
-            ContractClassManager { config, contract_caches, sender: Some(sender) }
+            ContractClassManager {
+                config,
+                contract_caches,
+                sender: Some(sender),
+                compiler: Some(compiler),
+            }
         }
     }
 
-    /// Sends a compilation request to the compilation worker. Does not block the sender. Logs an
-    /// error if the channel is full.
+    /// Sends a compilation request. Two cases:
+    /// 1. If `config.wait_on_native_compilation` is `true`, sends the request to the compilation
+    ///    worker. Does not block the sender. Logs an error if the channel is full.
+    /// 2. Otherwise, processes the request synchronously, blocking the sender until the request is
+    ///    processed.
     #[cfg(feature = "cairo_native")]
     pub fn send_compilation_request(&self, request: CompilationRequest) {
         assert!(self.config.run_cairo_native, "Native compilation is disabled.");
-        let sender = self.sender.as_ref().expect("Compilation channel not available.");
         self.cache_request_contracts(&request);
+        if self.config.wait_on_native_compilation {
+            // Compilation requests are processed synchronously. No need to go through the channel.
+            let compiler = self.compiler.as_ref().expect("Compiler not available.");
+            process_compilation_request(self.contract_caches.clone(), compiler.clone(), request);
+            return;
+        }
+
+        let sender = self.sender.as_ref().expect("Compilation channel not available.");
         // TODO(Avi, 15/12/2024): Check for duplicated requests.
         sender.try_send(request).unwrap_or_else(|err| match err {
             TrySendError::Full((class_hash, _, _)) => {
@@ -162,27 +199,38 @@ impl ContractClassManager {
 fn run_compilation_worker(
     contract_caches: ContractCaches,
     receiver: Receiver<CompilationRequest>,
-    compiler: impl SierraToNativeCompiler,
+    compiler: Arc<dyn SierraToNativeCompiler>,
 ) {
     info!("Compilation worker started.");
-    for (class_hash, sierra, casm) in receiver.iter() {
-        if contract_caches.get_native(&class_hash).is_some() {
-            // The contract class is already compiled to native - skip the compilation.
-            continue;
-        }
-        let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
-        let compilation_result = compiler.compile_to_native(sierra_for_compilation);
-        match compilation_result {
-            Ok(executor) => {
-                let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
-                contract_caches
-                    .set_native(class_hash, CachedCairoNative::Compiled(native_compiled_class));
-            }
-            Err(err) => {
-                error!("Error compiling contract class: {}", err);
-                contract_caches.set_native(class_hash, CachedCairoNative::CompilationFailed);
-            }
-        }
+    for compilation_request in receiver.iter() {
+        process_compilation_request(contract_caches.clone(), compiler.clone(), compilation_request);
     }
     info!("Compilation worker terminated.");
+}
+
+/// Processes a compilation request and caches the compiled class in the contract caches.
+#[cfg(feature = "cairo_native")]
+fn process_compilation_request(
+    contract_caches: ContractCaches,
+    compiler: Arc<dyn SierraToNativeCompiler>,
+    compilation_request: CompilationRequest,
+) {
+    let (class_hash, sierra, casm) = compilation_request;
+    if contract_caches.get_native(&class_hash).is_some() {
+        // The contract class is already compiled to native - skip the compilation.
+        return;
+    }
+    let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
+    let compilation_result = compiler.compile_to_native(sierra_for_compilation);
+    match compilation_result {
+        Ok(executor) => {
+            let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
+            contract_caches
+                .set_native(class_hash, CachedCairoNative::Compiled(native_compiled_class));
+        }
+        Err(err) => {
+            error!("Error compiling contract class: {}", err);
+            contract_caches.set_native(class_hash, CachedCairoNative::CompilationFailed);
+        }
+    }
 }
