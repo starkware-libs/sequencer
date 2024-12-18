@@ -54,6 +54,10 @@ impl AvailablePorts {
         port
     }
 
+    pub fn get_next_ports(&mut self, n: usize) -> Vec<u16> {
+        (0..n).map(|_| self.get_next_port()).collect()
+    }
+
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
     }

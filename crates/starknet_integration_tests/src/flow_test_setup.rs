@@ -58,8 +58,11 @@ impl FlowTestSetup {
         let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
             2] = consensus_manager_configs.try_into().unwrap();
 
-        let mempool_p2p_configs =
-            create_mempool_p2p_configs(SEQUENCER_INDICES.len(), chain_info.chain_id.clone());
+        let mempool_p2p_configs = create_mempool_p2p_configs(
+            SEQUENCER_INDICES.len(),
+            chain_info.chain_id.clone(),
+            &mut available_ports,
+        );
         let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config]: [MempoolP2pConfig;
             2] = mempool_p2p_configs.try_into().unwrap();
 

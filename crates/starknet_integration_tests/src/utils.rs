@@ -138,8 +138,12 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
     RpcStateReaderConfig::from_url(format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"))
 }
 
-pub fn create_mempool_p2p_configs(n_mempools: usize, chain_id: ChainId) -> Vec<MempoolP2pConfig> {
-    create_connected_network_configs(n_mempools)
+pub fn create_mempool_p2p_configs(
+    n_mempools: usize,
+    chain_id: ChainId,
+    available_ports: &mut AvailablePorts,
+) -> Vec<MempoolP2pConfig> {
+    create_connected_network_configs(n_mempools, available_ports)
         .into_iter()
         .map(|mut network_config| {
             network_config.chain_id = chain_id.clone();
