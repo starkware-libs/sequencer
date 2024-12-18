@@ -67,7 +67,8 @@ pub async fn create_config(
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket()).await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
+    let monitoring_endpoint_config =
+        MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
     let state_sync_config = create_state_sync_config(state_sync_storage_config, sequencer_index);
 
     (
@@ -274,12 +275,6 @@ fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, seque
             + Felt::from(sequencer_index),
     )
     .unwrap();
-}
-
-fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpointConfig {
-    let mut config = MonitoringEndpointConfig::default();
-    config.port += u16::try_from(sequencer_index).unwrap();
-    config
 }
 
 pub fn create_state_sync_config(
