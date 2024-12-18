@@ -129,6 +129,21 @@ impl ContractClassManager {
         self.contract_caches.set_casm(class_hash, compiled_class);
     }
 
+    #[cfg(feature = "cairo_native")]
+    pub fn set_sierra(&self, class_hash: ClassHash, contract_class: Arc<SierraContractClass>) {
+        self.contract_caches.set_sierra(class_hash, contract_class);
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn run_cairo_native(&self) -> bool {
+        self.config.run_cairo_native
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn wait_on_native_compilation(&self) -> bool {
+        self.config.wait_on_native_compilation
+    }
+
     /// Clear the contract caches.
     pub fn clear(&mut self) {
         self.contract_caches.clear();
@@ -136,7 +151,7 @@ impl ContractClassManager {
 
     /// Caches the sierra and casm contract classes of a compilation request.
     #[cfg(feature = "cairo_native")]
-    fn cache_request_contracts(&self, request: &CompilationRequest) {
+    pub fn cache_request_contracts(&self, request: &CompilationRequest) {
         let (class_hash, sierra, casm) = request.clone();
         self.contract_caches.set_sierra(class_hash, sierra);
         self.contract_caches.set_casm(class_hash, RunnableCompiledClass::V1(casm));
