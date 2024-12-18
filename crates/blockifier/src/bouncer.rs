@@ -6,7 +6,6 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
-use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
@@ -99,7 +98,7 @@ pub struct BouncerWeights {
     pub n_events: usize,
     pub n_steps: usize,
     pub state_diff_size: usize,
-    pub sierra_gas: GasAmount,
+    pub sierra_gas: u64,
 }
 
 impl BouncerWeights {
@@ -125,7 +124,7 @@ impl BouncerWeights {
             state_diff_size: usize::MAX,
             n_events: usize::MAX,
             builtin_count: BuiltinCount::max(),
-            sierra_gas: GasAmount::MAX,
+            sierra_gas: u64::MAX,
         }
     }
 
@@ -137,7 +136,7 @@ impl BouncerWeights {
             message_segment_length: 0,
             n_steps: 0,
             state_diff_size: 0,
-            sierra_gas: GasAmount::ZERO,
+            sierra_gas: 0,
         }
     }
 }
@@ -152,7 +151,7 @@ impl Default for BouncerWeights {
             n_events: 5000,
             state_diff_size: 4000,
             builtin_count: BuiltinCount::default(),
-            sierra_gas: GasAmount(250000000),
+            sierra_gas: 250000000,
         }
     }
 }
@@ -552,7 +551,7 @@ pub fn get_tx_weights<S: StateReader>(
         n_steps: vm_resources.total_n_steps(),
         builtin_count: BuiltinCount::from(vm_resources.prover_builtins()),
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
-        sierra_gas: tx_resources.computation.sierra_gas,
+        sierra_gas: tx_resources.computation.sierra_gas.0,
     })
 }
 

@@ -4,7 +4,6 @@ use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, contract_address, storage_key};
 
@@ -43,7 +42,7 @@ fn test_block_weights_has_room() {
         n_events: 10,
         n_steps: 10,
         state_diff_size: 10,
-        sierra_gas: GasAmount(10),
+        sierra_gas: 10,
     };
 
     let bouncer_weights = BouncerWeights {
@@ -64,7 +63,7 @@ fn test_block_weights_has_room() {
         n_steps: 0,
         n_events: 2,
         state_diff_size: 7,
-        sierra_gas: GasAmount(7),
+        sierra_gas: 7,
     };
 
     assert!(max_bouncer_weights.has_room(bouncer_weights));
@@ -87,7 +86,7 @@ fn test_block_weights_has_room() {
         n_steps: 5,
         n_events: 5,
         state_diff_size: 5,
-        sierra_gas: GasAmount(5),
+        sierra_gas: 5,
     };
 
     assert!(!max_bouncer_weights.has_room(bouncer_weights_exceeds_max));
@@ -123,7 +122,7 @@ fn test_block_weights_has_room() {
         n_steps: 10,
         n_events: 10,
         state_diff_size: 10,
-        sierra_gas: GasAmount(10),
+        sierra_gas: 10,
     },
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
@@ -154,7 +153,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         n_steps: 0,
         n_events: 1,
         state_diff_size: 2,
-        sierra_gas: GasAmount(9),
+        sierra_gas: 9,
     };
 
     let state_changes_keys_to_update =
@@ -208,7 +207,7 @@ fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'stati
         n_steps: 20,
         n_events: 20,
         state_diff_size: 20,
-        sierra_gas: GasAmount(20),
+        sierra_gas: 20,
     };
     let bouncer_config = BouncerConfig { block_max_capacity };
 
@@ -230,7 +229,7 @@ fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'stati
         n_steps: 10,
         n_events: 10,
         state_diff_size: 10,
-        sierra_gas: GasAmount(10),
+        sierra_gas: 10,
     };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
