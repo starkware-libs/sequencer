@@ -23,7 +23,7 @@ use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,
     create_gateway_config,
-    create_http_server_config,
+    create_http_server_config_to_be_deprecated,
     create_integration_test_tx_generator,
     run_integration_test_scenario,
     test_rpc_state_reader_config,
@@ -47,7 +47,8 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     create_integration_test_tx_generator()
 }
 
-// TODO: remove code duplication with FlowTestSetup
+// TODO(Shahak/AlonLukatch): add available_ports to the setup function.
+// TODO(Shahak/AlonLukatch): remove code duplication with FlowTestSetup.
 async fn setup(
     tx_generator: &MultiAccountTransactionGenerator,
 ) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>) {
@@ -81,7 +82,7 @@ async fn setup(
     let batcher_config =
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;
-    let http_server_config = create_http_server_config().await;
+    let http_server_config = create_http_server_config_to_be_deprecated().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(

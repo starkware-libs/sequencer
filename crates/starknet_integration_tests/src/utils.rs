@@ -29,6 +29,7 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::create_http_server_config;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::{get_available_socket, AvailablePorts};
@@ -49,7 +50,6 @@ pub fn create_chain_info() -> ChainInfo {
 // TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
 // the config.
 #[allow(clippy::too_many_arguments)]
-#[allow(unused_variables)]
 pub async fn create_config(
     available_ports: &mut AvailablePorts,
     sequencer_index: usize,
@@ -64,7 +64,8 @@ pub async fn create_config(
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
-    let http_server_config = create_http_server_config().await;
+    let http_server_config =
+        create_http_server_config(available_ports.get_next_local_host_socket()).await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
     let state_sync_config = create_state_sync_config(state_sync_storage_config, sequencer_index);
@@ -248,7 +249,8 @@ pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
 
-pub async fn create_http_server_config() -> HttpServerConfig {
+// TODO(Tsabary): deprecate this function.
+pub async fn create_http_server_config_to_be_deprecated() -> HttpServerConfig {
     // TODO(Tsabary): use ser_generated_param.
     let socket = get_available_socket().await;
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
