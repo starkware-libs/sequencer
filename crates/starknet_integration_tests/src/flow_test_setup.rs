@@ -47,10 +47,14 @@ impl FlowTestSetup {
         test_unique_index: u16,
     ) -> Self {
         let chain_info = create_chain_info();
+        let mut available_ports = AvailablePorts::new(test_unique_index, 0);
 
         let accounts = tx_generator.accounts();
         let (consensus_manager_configs, consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
+            create_consensus_manager_configs_and_channels(
+                SEQUENCER_INDICES.len(),
+                &mut available_ports,
+            );
         let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
             2] = consensus_manager_configs.try_into().unwrap();
 
@@ -66,7 +70,7 @@ impl FlowTestSetup {
             chain_info.clone(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
-            AvailablePorts::new(test_unique_index, 0),
+            AvailablePorts::new(test_unique_index, 1),
         )
         .await;
         let sequencer_1 = SequencerSetup::new(
@@ -75,7 +79,7 @@ impl FlowTestSetup {
             chain_info,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
-            AvailablePorts::new(test_unique_index, 1),
+            AvailablePorts::new(test_unique_index, 2),
         )
         .await;
 
