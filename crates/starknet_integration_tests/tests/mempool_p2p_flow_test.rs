@@ -52,11 +52,12 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 // TODO(Shahak/AlonLukatch): remove code duplication with FlowTestSetup.
 async fn setup(
     tx_generator: &MultiAccountTransactionGenerator,
+    test_identifier: TestIdentifier,
 ) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>) {
     let accounts = tx_generator.accounts();
     let chain_info = create_chain_info();
     let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::MempoolP2pFlowTest.into(), 0);
+    let mut available_ports = AvailablePorts::new(test_identifier.into(), 0);
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr = spawn_test_rpc_state_reader(
@@ -116,7 +117,8 @@ async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
 #[rstest]
 #[tokio::test]
 async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
-    let (config, mut broadcast_channels) = setup(&tx_generator).await;
+    let (config, mut broadcast_channels) =
+        setup(&tx_generator, TestIdentifier::MempoolSendsTxToOtherPeerTest).await;
     let (_clients, servers) = create_node_modules(&config);
 
     let HttpServerConfig { ip, port } = config.http_server_config;
@@ -154,7 +156,8 @@ async fn test_mempool_receives_tx_from_other_peer(
     const RECEIVED_TX_POLL_INTERVAL: u64 = 100; // milliseconds between calls to read received txs from the broadcast channel
     const TXS_RETRIVAL_TIMEOUT: u64 = 2000; // max milliseconds spent polling the received txs before timing out
 
-    let (config, mut broadcast_channels) = setup(&tx_generator).await;
+    let (config, mut broadcast_channels) =
+        setup(&tx_generator, TestIdentifier::MempoolReceivesTxFromOtherPeerTest).await;
     let (clients, servers) = create_node_modules(&config);
     let mempool_client = clients.get_mempool_shared_client().unwrap();
     // Build and run the sequencer node.
