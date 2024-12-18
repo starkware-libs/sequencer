@@ -1,3 +1,6 @@
+#[cfg(feature = "cairo_native")]
+use std::sync::Arc;
+
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
@@ -5,6 +8,8 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
+#[cfg(feature = "cairo_native")]
+use blockifier::state::global_cache::CachedCairoNative;
 use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::{StateReader, StateResult};
 use papyrus_storage::compiled_class::CasmStorageReader;
@@ -14,7 +19,7 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -22,6 +27,8 @@ use starknet_types_core::felt::Felt;
 mod test;
 
 type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
+type GetCompiledIneerReturnType =
+    StateResult<(RunnableCompiledClass, Option<Arc<SierraContractClass>>)>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
@@ -45,10 +52,7 @@ impl PapyrusReader {
 
     /// Returns a V1 contract if found, or a V0 contract if a V1 contract is not
     /// found, or an `Error` otherwise.
-    fn get_compiled_class_inner(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class_inner(&self, class_hash: ClassHash) -> GetCompiledIneerReturnType {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -69,11 +73,11 @@ impl PapyrusReader {
                      database is inconsistent.",
                 );
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
-            let runnable_compiled = RunnableCompiledClass::V1(CompiledClassV1::try_from((
+            let runnable_casm = RunnableCompiledClass::V1(CompiledClassV1::try_from((
                 casm_compiled_class,
                 sierra_version,
             ))?);
-            return Ok(runnable_compiled);
+            return Ok((runnable_casm, Some(Arc::new(sierra))));
         }
 
         let v0_compiled_class = self
@@ -83,10 +87,52 @@ impl PapyrusReader {
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
         match v0_compiled_class {
-            Some(starknet_api_contract_class) => Ok(RunnableCompiledClass::V0(
-                CompiledClassV0::try_from(starknet_api_contract_class)?,
-            )),
+            Some(starknet_api_contract_class) => {
+                let runnable_casm = RunnableCompiledClass::V0(CompiledClassV0::try_from(
+                    starknet_api_contract_class,
+                )?);
+                Ok((runnable_casm, None))
+            }
             None => Err(StateError::UndeclaredClassHash(class_hash)),
+        }
+    }
+
+    fn get_compiled_class_non_native_flow(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableCompiledClass> {
+        let versioned_contract_class = self.contract_class_manager.get_casm(&class_hash);
+        match versioned_contract_class {
+            Some(contract_class) => match contract_class {
+                CachedCasm::WithoutSierra(casm) => Ok(casm),
+                CachedCasm::WithSierra(casm, _) => Ok(casm),
+            },
+            None => {
+                let contract_class_from_db = self.get_compiled_class_inner(class_hash)?.0;
+                self.contract_class_manager.set_casm(
+                    class_hash,
+                    CachedCasm::WithoutSierra(contract_class_from_db.clone()),
+                );
+                Ok(contract_class_from_db)
+            }
+        }
+    }
+
+    #[cfg(feature = "cairo_native")]
+    fn handle_sync_compilation(
+        &self,
+        class_hash: ClassHash,
+        casm: RunnableCompiledClass,
+    ) -> RunnableCompiledClass {
+        let cached_native = self
+            .contract_class_manager
+            .get_native(&class_hash)
+            .expect("Should have native in cache in sync compilation flow.");
+        match cached_native {
+            CachedCairoNative::Compiled(compiled_native) => {
+                RunnableCompiledClass::from(compiled_native)
+            }
+            CachedCairoNative::CompilationFailed => casm,
         }
     }
 }
@@ -133,21 +179,54 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
-        let cached_casm = self.contract_class_manager.get_casm(&class_hash);
 
-        match cached_casm {
-            None => {
-                let compiled_class_from_db = self.get_compiled_class_inner(class_hash)?;
-                self.contract_class_manager.set_casm(
-                    class_hash,
-                    CachedCasm::WithoutSierra(compiled_class_from_db.clone()),
-                );
-                Ok(compiled_class_from_db)
+        #[cfg(not(feature = "cairo_native"))]
+        return self.get_compiled_class_non_native_flow(class_hash);
+
+        #[cfg(feature = "cairo_native")]
+        {
+            // if we turned off the cairo native compilation, we use the non cairo native flow.
+            if !self.contract_class_manager.run_cairo_native() {
+                return self.get_compiled_class_non_native_flow(class_hash);
             }
-            Some(CachedCasm::WithoutSierra(casm)) => Ok(casm),
-            Some(CachedCasm::WithSierra(_, _)) => {
-                todo!("Add this flow when Sierra to Native compilation is added to PapyrusReader.")
+
+            let native_versioned_contract_class =
+                self.contract_class_manager.get_native(&class_hash);
+
+            if let Some(cached_native) = native_versioned_contract_class {
+                match cached_native {
+                    CachedCairoNative::Compiled(compiled_native) => {
+                        return Ok(RunnableCompiledClass::from(compiled_native));
+                    }
+                    // for some reason the compilation failed, we use the non cairo native flow.
+                    CachedCairoNative::CompilationFailed => {
+                        return self.get_compiled_class_non_native_flow(class_hash);
+                    }
+                }
+            };
+
+            let casm_cached = self.contract_class_manager.get_casm(&class_hash);
+            let (casm, option_sierra) = match casm_cached.clone() {
+                Some(casm) => match casm {
+                    CachedCasm::WithoutSierra(casm) => (casm, None),
+                    CachedCasm::WithSierra(casm, sierra) => (casm, Some(sierra)),
+                },
+                None => self.get_compiled_class_inner(class_hash)?,
+            };
+
+            if let Some(sierra) = option_sierra {
+                if let RunnableCompiledClass::V1(casm_v1) = casm.clone() {
+                    self.contract_class_manager
+                        .send_compilation_request((class_hash, sierra, casm_v1));
+                    if self.contract_class_manager.wait_on_native_compilation() {
+                        return Ok(self.handle_sync_compilation(class_hash, casm));
+                    }
+                } else if casm_cached.is_none() {
+                    self.contract_class_manager
+                        .set_casm(class_hash, CachedCasm::WithoutSierra(casm.clone()));
+                }
             }
+            Ok(casm)
         }
     }
 
