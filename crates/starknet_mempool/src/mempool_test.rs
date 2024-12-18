@@ -420,25 +420,21 @@ fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
+#[case::lower_nonce(0, MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) })]
+#[case::equal_nonce(1, MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) })]
+fn test_add_tx_rejects_tx_of_queued_nonce(
+    #[case] tx_nonce: u64,
+    #[case] expected_error: MempoolError,
+    mut mempool: Mempool,
+) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
     add_tx(&mut mempool, &input);
 
     // Test and assert: original transaction remains.
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
-
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
-    );
+    let invalid_input =
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: tx_nonce, account_nonce: 1);
+    add_tx_expect_error(&mut mempool, &invalid_input, expected_error);
 }
 
 #[rstest]
