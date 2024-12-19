@@ -142,31 +142,41 @@ impl FromIterator<AccountTransaction> for TransactionPool {
 }
 
 #[track_caller]
+fn builder_with_queue(
+    in_priority_queue: bool,
+    in_pending_queue: bool,
+    tx: &AccountTransaction,
+) -> MempoolContentBuilder {
+    assert!(
+        !(in_priority_queue && in_pending_queue),
+        "A transaction can be in at most one queue at a time."
+    );
+
+    let mut builder = MempoolContentBuilder::new();
+
+    if in_priority_queue {
+        builder = builder.with_priority_queue([TransactionReference::new(tx)]);
+    }
+
+    if in_pending_queue {
+        builder = builder.with_pending_queue([TransactionReference::new(tx)]);
+    }
+
+    builder
+}
+
+#[track_caller]
 fn add_tx_and_verify_replacement(
     mut mempool: Mempool,
     valid_replacement_input: AddTransactionArgs,
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
-    assert!(
-        !(in_priority_queue && in_pending_queue),
-        "A transaction can be in at most one queue at a time."
-    );
-
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
-    let mut builder = MempoolContentBuilder::new();
-
-    if in_priority_queue {
-        builder =
-            builder.with_priority_queue([TransactionReference::new(&valid_replacement_input.tx)]);
-    }
-
-    if in_pending_queue {
-        builder =
-            builder.with_pending_queue([TransactionReference::new(&valid_replacement_input.tx)]);
-    }
+    let builder =
+        builder_with_queue(in_priority_queue, in_pending_queue, &valid_replacement_input.tx);
 
     let expected_mempool_content = builder.with_pool([valid_replacement_input.tx]).build();
     expected_mempool_content.assert_eq(&mempool);
@@ -195,11 +205,6 @@ fn add_txs_and_verify_no_replacement(
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
-    assert!(
-        !(in_priority_queue && in_pending_queue),
-        "A transaction can be in at most one queue at a time."
-    );
-
     for input in invalid_replacement_inputs {
         add_tx_expect_error(
             &mut mempool,
@@ -212,15 +217,7 @@ fn add_txs_and_verify_no_replacement(
     }
 
     // Verify transaction was not replaced.
-    let mut builder = MempoolContentBuilder::new();
-
-    if in_priority_queue {
-        builder = builder.with_priority_queue([TransactionReference::new(&existing_tx)]);
-    }
-
-    if in_pending_queue {
-        builder = builder.with_pending_queue([TransactionReference::new(&existing_tx)]);
-    }
+    let builder = builder_with_queue(in_priority_queue, in_pending_queue, &existing_tx);
 
     let expected_mempool_content = builder.with_pool([existing_tx]).build();
     expected_mempool_content.assert_eq(&mempool);
@@ -607,16 +604,12 @@ fn test_fee_escalation_valid_replacement(
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tip: 90, max_l2_gas_price: 90);
-        let mut builder = MempoolContentBuilder::new().with_fee_escalation_percentage(10);
 
-        if in_priority_queue {
-            builder = builder.with_priority_queue([TransactionReference::new(&tx)]);
-        }
+        let mut builder = builder_with_queue(in_priority_queue, in_pending_queue, &tx)
+            .with_fee_escalation_percentage(10);
 
         if in_pending_queue {
-            builder = builder
-                .with_pending_queue([TransactionReference::new(&tx)])
-                .with_gas_price_threshold(1000);
+            builder = builder.with_gas_price_threshold(1000);
         }
 
         let mempool = builder.with_pool([tx]).build_into_mempool();
@@ -644,16 +637,12 @@ fn test_fee_escalation_invalid_replacement(
 ) {
     // Setup.
     let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
-    let mut builder = MempoolContentBuilder::new().with_fee_escalation_percentage(10);
 
-    if in_priority_queue {
-        builder = builder.with_priority_queue([TransactionReference::new(&existing_tx)]);
-    }
+    let mut builder = builder_with_queue(in_priority_queue, in_pending_queue, &existing_tx)
+        .with_fee_escalation_percentage(10);
 
     if in_pending_queue {
-        builder = builder
-            .with_pending_queue([TransactionReference::new(&existing_tx)])
-            .with_gas_price_threshold(1000);
+        builder = builder.with_gas_price_threshold(1000);
     }
 
     let mempool = builder.with_pool([existing_tx.clone()]).build_into_mempool();
