@@ -30,6 +30,55 @@ sol!(
     "resources/Starknet-0.10.3.4.json"
 );
 
+#[derive(Debug)]
+pub struct EthereumBaseLayerContract {
+    pub config: EthereumBaseLayerConfig,
+    pub contract: Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
+}
+
+impl EthereumBaseLayerContract {
+    pub fn new(config: EthereumBaseLayerConfig) -> Self {
+        let l1_client = ProviderBuilder::new().on_http(config.node_url.clone());
+        // This type is generated from `sol!` macro, and the `new` method assumes it is already
+        // deployed at L1, and wraps it with a type.
+        let contract = Starknet::new(config.starknet_contract_address, l1_client);
+        Self { contract, config }
+    }
+}
+
+#[async_trait]
+impl BaseLayerContract for EthereumBaseLayerContract {
+    type Error = EthereumBaseLayerError;
+
+    /// Returns the latest proved block on Ethereum, where finality determines how many
+    /// blocks back (0 = latest).
+    async fn latest_proved_block(
+        &self,
+        finality: u64,
+    ) -> EthereumBaseLayerResult<Option<(BlockNumber, BlockHash)>> {
+        let ethereum_block_number =
+            self.contract.provider().get_block_number().await?.checked_sub(finality);
+        let Some(ethereum_block_number) = ethereum_block_number else {
+            return Ok(None);
+        };
+
+        let call_state_block_number =
+            self.contract.stateBlockNumber().block(ethereum_block_number.into());
+        let call_state_block_hash =
+            self.contract.stateBlockHash().block(ethereum_block_number.into());
+
+        let (state_block_number, state_block_hash) = tokio::try_join!(
+            call_state_block_number.call_raw().into_future(),
+            call_state_block_hash.call_raw().into_future()
+        )?;
+
+        let validate = true;
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
+        Ok(Some((BlockNumber(block_number), BlockHash(StarkHash::from_bytes_be(&block_hash)))))
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
@@ -78,54 +127,5 @@ impl Default for EthereumBaseLayerConfig {
             node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
             starknet_contract_address,
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct EthereumBaseLayerContract {
-    pub config: EthereumBaseLayerConfig,
-    pub contract: Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
-}
-
-impl EthereumBaseLayerContract {
-    pub fn new(config: EthereumBaseLayerConfig) -> Self {
-        let l1_client = ProviderBuilder::new().on_http(config.node_url.clone());
-        // This type is generated from `sol!` macro, and the `new` method assumes it is already
-        // deployed at L1, and wraps it with a type.
-        let contract = Starknet::new(config.starknet_contract_address, l1_client);
-        Self { contract, config }
-    }
-}
-
-#[async_trait]
-impl BaseLayerContract for EthereumBaseLayerContract {
-    type Error = EthereumBaseLayerError;
-
-    /// Returns the latest proved block on Ethereum, where finality determines how many
-    /// blocks back (0 = latest).
-    async fn latest_proved_block(
-        &self,
-        finality: u64,
-    ) -> EthereumBaseLayerResult<Option<(BlockNumber, BlockHash)>> {
-        let ethereum_block_number =
-            self.contract.provider().get_block_number().await?.checked_sub(finality);
-        let Some(ethereum_block_number) = ethereum_block_number else {
-            return Ok(None);
-        };
-
-        let call_state_block_number =
-            self.contract.stateBlockNumber().block(ethereum_block_number.into());
-        let call_state_block_hash =
-            self.contract.stateBlockHash().block(ethereum_block_number.into());
-
-        let (state_block_number, state_block_hash) = tokio::try_join!(
-            call_state_block_number.call_raw().into_future(),
-            call_state_block_hash.call_raw().into_future()
-        )?;
-
-        let validate = true;
-        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
-        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
-        Ok(Some((BlockNumber(block_number), BlockHash(StarkHash::from_bytes_be(&block_hash)))))
     }
 }
