@@ -25,7 +25,6 @@ use papyrus_consensus::types::{
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
-    Proposal,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -251,18 +250,26 @@ impl ConsensusContext for PapyrusConsensusContext {
             .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"))
             .clone();
 
-        let proposal = Proposal {
-            height: height.0,
-            round: init.round,
-            proposer: init.proposer,
-            transactions,
-            block_hash: id,
-            valid_round: init.valid_round,
-        };
-        self.network_broadcast_client
-            .broadcast_message(ConsensusMessage::Proposal(proposal))
+        let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        self.network_proposal_sender
+            .send((init.height.0, proposal_receiver))
             .await
-            .expect("Failed to send proposal");
+            .expect("Failed to send proposal receiver");
+        proposal_sender
+            .send(ProposalPart::Init(init))
+            .await
+            .expect("Failed to send proposal init");
+        proposal_sender
+            .send(ProposalPart::Transactions(TransactionBatch {
+                transactions: transactions.clone(),
+                tx_hashes: vec![],
+            }))
+            .await
+            .expect("Failed to send transactions");
+        proposal_sender
+            .send(ProposalPart::Fin(ProposalFin { proposal_content_id: id }))
+            .await
+            .expect("Failed to send fin");
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
