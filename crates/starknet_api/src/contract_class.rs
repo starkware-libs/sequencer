@@ -116,6 +116,13 @@ impl FromStr for SierraVersion {
     }
 }
 
+#[allow(dead_code)]
+impl From<(u64, u64, u64)> for SierraVersion {
+    fn from((major, minor, patch): (u64, u64, u64)) -> Self {
+        Self::new(major, minor, patch)
+    }
+}
+
 /// All relevant information about a declared contract class, including the compiled contract class
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
