@@ -398,7 +398,7 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 
 // TODO(Elin): reconsider this test in a more realistic scenario.
 #[rstest]
-fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
+fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
     // Same hash is possible if signature is different, for example.
