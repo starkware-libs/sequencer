@@ -15,6 +15,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{debug, info, warn};
 
 use super::{P2PSyncClientError, STEP};
@@ -54,21 +55,35 @@ where
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
+    // TODO(Eitan): Remove option on return once we have a class manager component.
+    /// Returning None happens when internal blocks are disabled for this stream.
+    fn convert_sync_block_to_block_data(
+        block_number: BlockNumber,
+        sync_block: SyncBlock,
+    ) -> Option<Self::Output>;
+
     fn get_internal_block_at(
         internal_blocks_received: &mut HashMap<BlockNumber, Self::Output>,
-        internal_block_receiver: &mut Option<Receiver<(BlockNumber, Self::Output)>>,
+        internal_block_receiver: &mut Option<Receiver<(BlockNumber, SyncBlock)>>,
         current_block_number: BlockNumber,
     ) -> Option<Self::Output> {
         if let Some(block) = internal_blocks_received.remove(&current_block_number) {
             return Some(block);
         }
         let Some(internal_block_receiver) = internal_block_receiver else { return None };
-        while let Some((block_number, block_data)) = internal_block_receiver
+        while let Some((block_number, sync_block)) = internal_block_receiver
             .next()
             .now_or_never()
             .map(|now_or_never_res| now_or_never_res.expect("Internal block receiver closed"))
         {
             if block_number >= current_block_number {
+                let block_data =
+                    match Self::convert_sync_block_to_block_data(block_number, sync_block) {
+                        Some(block_data) => block_data,
+                        // If None is received then we don't use internal blocks for this stream
+                        // TODO(Eitan): Remove this once we have a class manager component.
+                        None => return None,
+                    };
                 if block_number == current_block_number {
                     return Some(block_data);
                 }
@@ -81,7 +96,7 @@ where
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
-        mut internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
+        mut internal_block_receiver: Option<Receiver<(BlockNumber, SyncBlock)>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
     ) -> BoxStream<'static, DataStreamResult>
