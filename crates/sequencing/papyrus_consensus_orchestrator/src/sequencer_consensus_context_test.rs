@@ -2,7 +2,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::vec;
 
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
@@ -43,6 +43,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_types_core::felt::Felt;
 
+use crate::cende::MockCendeContext;
 use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
@@ -70,7 +71,10 @@ struct NetworkDependencies {
     _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart>>,
 }
 
-fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDependencies) {
+fn setup(
+    batcher: MockBatcherClient,
+    cende_ambassador: MockCendeContext,
+) -> (SequencerConsensusContext, NetworkDependencies) {
     let TestSubscriberChannels { mock_network: mock_proposal_stream_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels {
@@ -91,6 +95,7 @@ fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDepen
         votes_topic_client,
         NUM_VALIDATORS,
         CHAIN_ID,
+        Arc::new(cende_ambassador),
     );
 
     let network_dependencies = NetworkDependencies {
@@ -101,8 +106,10 @@ fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDepen
     (context, network_dependencies)
 }
 
-#[tokio::test]
-async fn build_proposal() {
+// Setup for test of the `build_proposal` function.
+async fn build_proposal_setup(
+    mock_cende_context: MockCendeContext,
+) -> (oneshot::Receiver<BlockHash>, NetworkDependencies) {
     let mut batcher = MockBatcherClient::new();
     let proposal_id = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -130,12 +137,23 @@ async fn build_proposal() {
             }),
         })
     });
-    let (mut context, _network) = setup(batcher);
 
+    let (mut context, _network) = setup(batcher, mock_cende_context);
     let init = ProposalInit::default();
-    // TODO(Asmaa): Test proposal content.
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+
+    (context.build_proposal(init, TIMEOUT).await, _network)
+}
+
+// Returns a mock CendeContext that will return a successful write_prev_height_blob.
+fn success_cende_ammbassador() -> MockCendeContext {
+    let mut mock_cende = MockCendeContext::new();
+    mock_cende.expect_write_prev_height_blob().returning(|_height| {
+        let (sender, receiver) = oneshot::channel();
+        sender.send(true).unwrap();
+        receiver
+    });
+
+    mock_cende
 }
 
 #[tokio::test]
@@ -174,7 +192,7 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher);
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -221,7 +239,7 @@ async fn repropose() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher);
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -285,7 +303,7 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher);
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -371,7 +389,7 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let (mut context, _network) = setup(batcher);
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -405,4 +423,37 @@ async fn interrupt_active_proposal() {
     // Interrupt active proposal.
     assert!(fin_receiver_0.await.is_err());
     assert_eq!(fin_receiver_1.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[tokio::test]
+async fn build_proposal() {
+    // TODO(Asmaa): Test proposal content.
+    let (fin_receiver, _network) = build_proposal_setup(success_cende_ammbassador()).await;
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[tokio::test]
+async fn build_proposal_cende_failure() {
+    let mut mock_cende_context = MockCendeContext::new();
+    mock_cende_context.expect_write_prev_height_blob().times(1).returning(|_height| {
+        let (sender, receiver) = oneshot::channel();
+        sender.send(false).unwrap();
+        receiver
+    });
+
+    let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
+
+    assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+}
+
+#[tokio::test]
+async fn build_proposal_cende_incomplete() {
+    let mut mock_cende_context = MockCendeContext::new();
+    let (sender, receiver) = oneshot::channel();
+    mock_cende_context.expect_write_prev_height_blob().times(1).return_once(|_height| receiver);
+
+    let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
+
+    assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+    drop(sender);
 }
