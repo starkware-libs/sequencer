@@ -26,7 +26,7 @@ use crate::StarknetApiError;
 macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
-            self.tx.$field().clone()
+            self.tx.$field()
         })*
     };
 }
@@ -34,7 +34,7 @@ macro_rules! implement_inner_tx_getter_calls {
 macro_rules! implement_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
-            self.$field
+            self.$field.clone()
         })*
 };
 }
@@ -43,9 +43,9 @@ macro_rules! implement_account_tx_inner_getters {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
             match self {
-                AccountTransaction::Declare(tx) => tx.tx.$field().clone(),
-                AccountTransaction::DeployAccount(tx) => tx.tx.$field().clone(),
-                AccountTransaction::Invoke(tx) => tx.tx.$field().clone(),
+                AccountTransaction::Declare(tx) => tx.tx.$field(),
+                AccountTransaction::DeployAccount(tx) => tx.tx.$field(),
+                AccountTransaction::Invoke(tx) => tx.tx.$field(),
             }
         })*
     };
