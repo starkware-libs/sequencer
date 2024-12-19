@@ -110,6 +110,7 @@ async fn state_diff_basic_flow() {
     ];
 
     let mut actions = vec![
+        Action::RunP2pSync,
         // We already validate the header query content in other tests.
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];
@@ -317,6 +318,7 @@ async fn validate_state_diff_fails(
     let mut rng = get_rng();
 
     let mut actions = vec![
+        Action::RunP2pSync,
         // We already validate the header query content in other tests.
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];
