@@ -12,10 +12,10 @@ use std::task::{Context, Poll};
 use async_trait::async_trait;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
-use futures::future::{ready, BoxFuture, Ready};
+use futures::future::{BoxFuture, Ready, ready};
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
-use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
+use futures::{FutureExt, Sink, SinkExt, StreamExt, pin_mut};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
@@ -31,8 +31,8 @@ use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
-use crate::utils::{is_localhost, StreamHashMap};
-use crate::{gossipsub_impl, NetworkConfig};
+use crate::utils::{StreamHashMap, is_localhost};
+use crate::{NetworkConfig, gossipsub_impl};
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkError {
@@ -77,7 +77,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    self.broadcast_message(message.expect("A broadcast channel should not be terminated."), topic_hash);
+                    match message {
+                        Some(message) => self.broadcast_message(message, topic_hash),
+                        None => {
+                            warn!("Messages to broadcast sender was dropped for topic with hash {topic_hash}");
+                        }
+                    }
                 }
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
