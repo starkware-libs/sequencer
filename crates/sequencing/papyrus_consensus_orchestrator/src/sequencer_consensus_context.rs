@@ -18,7 +18,6 @@ use papyrus_consensus::types::{
     ProposalContentId,
     Round,
     ValidatorId,
-    DEFAULT_VALIDATOR_ID,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
@@ -28,6 +27,7 @@ use papyrus_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
     Vote,
+    DEFAULT_VALIDATOR_ID,
 };
 use starknet_api::block::{
     BlockHash,

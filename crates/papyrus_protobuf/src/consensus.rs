@@ -72,14 +72,17 @@ pub struct ProposalInit {
     pub proposer: ContractAddress,
 }
 
+/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
+// TODO(Matan): Remove this once we have a proper validator set.
+pub const DEFAULT_VALIDATOR_ID: u64 = 100;
+
 impl Default for ProposalInit {
     fn default() -> Self {
         ProposalInit {
             height: Default::default(),
             round: Default::default(),
             valid_round: Default::default(),
-            // TODO(Arni): Use DEFAULT_VALIDATOR_ID instead of 100.
-            proposer: ContractAddress::from(100_u64),
+            proposer: ContractAddress::from(DEFAULT_VALIDATOR_ID),
         }
     }
 }
