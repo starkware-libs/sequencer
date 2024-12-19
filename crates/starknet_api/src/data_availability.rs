@@ -10,6 +10,15 @@ pub enum DataAvailabilityMode {
     L2 = 1,
 }
 
+impl From<DataAvailabilityMode> for u8 {
+    fn from(mode: DataAvailabilityMode) -> u8 {
+        match mode {
+            DataAvailabilityMode::L1 => 0,
+            DataAvailabilityMode::L2 => 1,
+        }
+    }
+}
+
 /// Deserialize a `DataAvailabilityMode` from a given `Deserializer`.
 ///
 /// This implementation supports deserializing the `DataAvailabilityMode` enum from both numerical
