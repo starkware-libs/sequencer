@@ -3,11 +3,10 @@ fn compile_cairo_native_aot_runtime() {
     use std::path::PathBuf;
     use std::process::Command;
 
-    use infra_utils::compile_time_cargo_manifest_dir;
     use infra_utils::path::current_dir;
 
     let cairo_native_dir =
-        PathBuf::from(compile_time_cargo_manifest_dir!()).join(PathBuf::from("cairo_native"));
+        current_dir().expect("Failed to get current directory").join(PathBuf::from("cairo_native"));
 
     if !cairo_native_dir.exists() || !cairo_native_dir.join(".git").exists() {
         panic!(
