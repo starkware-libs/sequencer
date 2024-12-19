@@ -52,7 +52,7 @@ pub enum StreamMessageBody<T> {
     Fin,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: StreamMessageBody<T>,
     pub stream_id: u64,
@@ -60,7 +60,7 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
 }
 
 /// This message must be sent first when proposing a new block.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
@@ -70,6 +70,18 @@ pub struct ProposalInit {
     pub valid_round: Option<u32>,
     /// Address of the one who proposed the block.
     pub proposer: ContractAddress,
+}
+
+impl Default for ProposalInit {
+    fn default() -> Self {
+        ProposalInit {
+            height: Default::default(),
+            round: Default::default(),
+            valid_round: Default::default(),
+            // TODO(Arni): Use DEFAULT_VALIDATOR_ID instead of 100.
+            proposer: ContractAddress::from(100_u64),
+        }
+    }
 }
 
 /// There is one or more batches of transactions in a proposed block.

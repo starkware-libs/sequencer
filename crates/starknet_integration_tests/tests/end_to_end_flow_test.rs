@@ -115,9 +115,8 @@ async fn listen_to_broadcasted_messages(
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
         height: expected_height,
-        round: 0,
-        valid_round: None,
         proposer: expected_proposer_id,
+        ..Default::default()
     };
     let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
 

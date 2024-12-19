@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
+use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -36,12 +36,7 @@ const TEST_CHANNEL_SIZE: usize = 10;
 async fn build_proposal() {
     let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_header_without_hash.block_number;
-    let proposal_init = ProposalInit {
-        height: block_number,
-        round: 0,
-        proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-        valid_round: None,
-    };
+    let proposal_init = ProposalInit { height: block_number, ..Default::default() };
     // TODO(Asmaa): Test proposal content.
     let fin_receiver = papyrus_context.build_proposal(proposal_init, Duration::MAX).await;
 
@@ -68,9 +63,7 @@ async fn validate_proposal_success() {
 
     let fin = papyrus_context
         .validate_proposal(
-            block_number,
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit { height: block_number, ..Default::default() },
             Duration::MAX,
             validate_receiver,
         )
@@ -99,9 +92,7 @@ async fn validate_proposal_fail() {
 
     let fin = papyrus_context
         .validate_proposal(
-            block_number,
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit { height: block_number, ..Default::default() },
             Duration::MAX,
             validate_receiver,
         )

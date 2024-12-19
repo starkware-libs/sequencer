@@ -112,7 +112,7 @@ fn convert_proposal_init_to_vec_u8_and_back() {
 
     let proposal_init = ProposalInit::get_test_instance(&mut rng);
 
-    let bytes_data: Vec<u8> = proposal_init.clone().into();
+    let bytes_data: Vec<u8> = proposal_init.into();
     let res_data = ProposalInit::try_from(bytes_data).unwrap();
     assert_eq!(proposal_init, res_data);
 }
