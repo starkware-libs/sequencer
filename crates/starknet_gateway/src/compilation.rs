@@ -39,11 +39,12 @@ impl GatewayCompiler {
         let rpc_contract_class = &tx.contract_class;
         let cairo_lang_contract_class = into_contract_class_for_compilation(rpc_contract_class);
 
-        let casm_contract_class = self.compile(cairo_lang_contract_class)?;
-
         let sierra_version =
             SierraVersion::extract_from_program(&rpc_contract_class.sierra_program)
                 .map_err(|e| GatewaySpecError::UnexpectedError { data: (e.to_string()) })?;
+
+        let casm_contract_class =
+            (self.compile(cairo_lang_contract_class)?, sierra_version.clone());
 
         Ok(ClassInfo {
             contract_class: ContractClass::V1(casm_contract_class),

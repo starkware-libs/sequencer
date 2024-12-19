@@ -58,7 +58,7 @@ pub fn execute_entry_point_call_wrapper(
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
     let current_tracked_resource = compiled_class.tracked_resource(
-        &context.versioned_constants().min_compiler_version_for_sierra_gas,
+        &context.versioned_constants().min_sierra_version_for_sierra_gas,
         context.tracked_resource_stack.last(),
     );
     if current_tracked_resource == TrackedResource::CairoSteps {
