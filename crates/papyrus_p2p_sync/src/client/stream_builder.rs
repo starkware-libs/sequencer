@@ -59,7 +59,6 @@ where
         _internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
-        stop_sync_at_block_number: Option<BlockNumber>,
     ) -> BoxStream<'static, DataStreamResult>
     where
         TQuery: From<Query> + Send + 'static,
@@ -134,12 +133,6 @@ where
                     }
                     info!("Added {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                     current_block_number = current_block_number.unchecked_next();
-                    if stop_sync_at_block_number.is_some_and(|stop_sync_at_block_number| {
-                        current_block_number >= stop_sync_at_block_number
-                    }) {
-                        info!("{:?} hit the stop sync block number.", Self::TYPE_DESCRIPTION);
-                        return;
-                    }
                 }
 
                 // Consume the None message signaling the end of the query.

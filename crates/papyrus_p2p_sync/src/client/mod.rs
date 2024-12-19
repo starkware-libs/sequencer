@@ -24,7 +24,7 @@ use futures::Stream;
 use header::HeaderStreamBuilder;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_config::converters::deserialize_milliseconds_to_duration;
-use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::sync::{
@@ -62,12 +62,11 @@ pub struct P2PSyncClientConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
-    pub stop_sync_at_block_number: Option<BlockNumber>,
 }
 
 impl SerializeConfig for P2PSyncClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([
+        BTreeMap::from_iter([
             ser_param(
                 "num_headers_per_query",
                 &self.num_headers_per_query,
@@ -106,16 +105,7 @@ impl SerializeConfig for P2PSyncClientConfig {
                 "Size of the buffer for read from the storage and for incoming responses.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        config.extend(ser_optional_param(
-            &self.stop_sync_at_block_number,
-            BlockNumber(1000),
-            "stop_sync_at_block_number",
-            "Stops the sync at given block number and closes the node cleanly. Used to run \
-             profiling on the node.",
-            ParamPrivacyInput::Public,
-        ));
-        config
+        ])
     }
 }
 
@@ -131,7 +121,6 @@ impl Default for P2PSyncClientConfig {
             wait_period_for_new_data: Duration::from_millis(50),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
-            stop_sync_at_block_number: None,
         }
     }
 }
@@ -190,7 +179,6 @@ impl P2PSyncClientChannels {
             None,
             config.wait_period_for_new_data,
             config.num_headers_per_query,
-            config.stop_sync_at_block_number,
         );
 
         let state_diff_stream = StateDiffStreamBuilder::create_stream(
@@ -199,7 +187,6 @@ impl P2PSyncClientChannels {
             None,
             config.wait_period_for_new_data,
             config.num_block_state_diffs_per_query,
-            config.stop_sync_at_block_number,
         );
 
         let transaction_stream = TransactionStreamFactory::create_stream(
@@ -208,7 +195,6 @@ impl P2PSyncClientChannels {
             None,
             config.wait_period_for_new_data,
             config.num_block_transactions_per_query,
-            config.stop_sync_at_block_number,
         );
 
         let class_stream = ClassStreamBuilder::create_stream(
@@ -217,7 +203,6 @@ impl P2PSyncClientChannels {
             None,
             config.wait_period_for_new_data,
             config.num_block_classes_per_query,
-            config.stop_sync_at_block_number,
         );
 
         header_stream.merge(state_diff_stream).merge(transaction_stream).merge(class_stream)
