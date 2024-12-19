@@ -13,10 +13,10 @@ use papyrus_network::network_manager::test_utils::{
     create_network_configs_connected_to_broadcast_channels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage, DEFAULT_VALIDATOR_ID};
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -56,7 +56,7 @@ pub async fn create_config(
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
-    set_validator_id(&mut consensus_manager_config, sequencer_index);
+    let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
@@ -81,7 +81,7 @@ pub async fn create_config(
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
-            validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
+            validator_id,
         },
     )
 }
@@ -111,7 +111,7 @@ pub fn create_consensus_manager_configs_and_channels(
             consensus_config: ConsensusConfig {
                 start_height: BlockNumber(1),
 		// TODO(Matan, Dan): Set the right amount
-                consensus_delay: Duration::from_secs(5),
+                consensus_delay: Duration::from_secs(15),
                 network_config,
                 num_validators: u64::try_from(n_managers).unwrap(),
                 timeouts: timeouts.clone(),
@@ -262,12 +262,17 @@ pub fn create_batcher_config(
     }
 }
 
-fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, sequencer_index: usize) {
-    consensus_manager_config.consensus_config.validator_id = ValidatorId::try_from(
+fn set_validator_id(
+    consensus_manager_config: &mut ConsensusManagerConfig,
+    sequencer_index: usize,
+) -> ValidatorId {
+    let validator_id = ValidatorId::try_from(
         Felt::from(consensus_manager_config.consensus_config.validator_id)
             + Felt::from(sequencer_index),
     )
     .unwrap();
+    consensus_manager_config.consensus_config.validator_id = validator_id;
+    validator_id
 }
 
 fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpointConfig {
