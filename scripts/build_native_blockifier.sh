@@ -8,7 +8,7 @@ function clean() {
 }
 
 function init_submodule() {
-    echo "Initializing submodule..."
+    echo "Initializing submodule...."
     git submodule update --init --recursive
 }
 
