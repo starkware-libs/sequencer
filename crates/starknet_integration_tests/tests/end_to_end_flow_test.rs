@@ -33,7 +33,7 @@ use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(3);
+const LAST_HEIGHT: BlockNumber = BlockNumber(4);
 const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
 
 #[fixture]
@@ -59,6 +59,14 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let n_heights = next_height.iter_up_to(LAST_HEIGHT.unchecked_next()).count();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
+
+    let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
+    // We use only the first sequencer's gateway to test that the mempools are syncing.
+    let sequencer_to_add_txs = *sequencers.first().unwrap();
+    let mut expected_proposer_iter = sequencers.iter().cycle();
+    // We start at height 1, so we need to skip the proposer of the initial height.
+    expected_proposer_iter.next().unwrap();
+
     let expected_content_ids = [
         Felt::from_hex_unchecked(
             "0x457e9172b9c70fb4363bb3ff31bf778d8f83828184a9a3f9badadc497f2b954",
@@ -69,20 +77,39 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         Felt::from_hex_unchecked(
             "0x36e1f3e0c71b77474494a5baa0a04a4e406626141eba2b2944e4b568f70ff48",
         ),
+        Felt::from_hex_unchecked("0x0"),
     ];
 
-    let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
-    // We use only the first sequencer's gateway to test that the mempools are syncing.
-    let sequencer_to_add_txs = *sequencers.first().unwrap();
-    let mut expected_proposer_iter = sequencers.iter().cycle();
-    // We start at height 1, so we need to skip the proposer of the initial height.
-    expected_proposer_iter.next().unwrap();
+    let create_rpc_txs_scenarios = [
+        create_txs_for_integration_test,
+        create_txs_for_integration_test,
+        fund_new_account,
+        deploy_account,
+    ];
 
-    let create_rpc_txs_scenarios =
-        [create_txs_for_integration_test, create_txs_for_integration_test, fund_new_account];
+    let test_tx_hashes_scenarios = [
+        test_tx_hashes_for_integration_test,
+        test_tx_hashes_for_integration_test,
+        test_funding,
+        test_deploy_account,
+    ];
+    // TODO(yair): In the next block, mark the new account as deployed.
 
-    let test_tx_hashes_scenarios =
-        [test_tx_hashes_for_integration_test, test_tx_hashes_for_integration_test, test_funding];
+    assert_eq!(
+        n_heights,
+        expected_content_ids.len(),
+        "Expected the same number of heights and content ids"
+    );
+    assert_eq!(
+        n_heights,
+        create_rpc_txs_scenarios.len(),
+        "Expected the same number of heights and scenarios"
+    );
+    assert_eq!(
+        n_heights,
+        test_tx_hashes_scenarios.len(),
+        "Expected the same number of heights and scenarios"
+    );
 
     assert_eq!(
         n_heights,
@@ -244,7 +271,18 @@ fn fund_new_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<
     vec![funding_tx]
 }
 
-fn test_funding(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash>{
+fn test_funding(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
+    tx_hashes.to_vec()
+}
+
+fn deploy_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
+    let undeployed_account_tx_generator = tx_generator.account_tx_generators().last_mut().unwrap();
+    let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
+    vec![deploy_tx]
+}
+
+fn test_deploy_account(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
     tx_hashes.to_vec()
 }
