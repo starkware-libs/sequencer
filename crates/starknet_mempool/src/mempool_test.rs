@@ -142,16 +142,21 @@ impl FromIterator<AccountTransaction> for TransactionPool {
 }
 
 #[track_caller]
+fn assert_valid_queue_combination(in_priority_queue: bool, in_pending_queue: bool) {
+    assert!(
+        !(in_priority_queue && in_pending_queue),
+        "A transaction can be in at most one queue at a time."
+    );
+}
+
+#[track_caller]
 fn add_tx_and_verify_replacement(
     mut mempool: Mempool,
     valid_replacement_input: AddTransactionArgs,
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
-    assert!(
-        !(in_priority_queue && in_pending_queue),
-        "A transaction can be in at most one queue at a time."
-    );
+    assert_valid_queue_combination(in_priority_queue, in_pending_queue);
 
     add_tx(&mut mempool, &valid_replacement_input);
 
@@ -195,10 +200,7 @@ fn add_txs_and_verify_no_replacement(
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
-    assert!(
-        !(in_priority_queue && in_pending_queue),
-        "A transaction can be in at most one queue at a time."
-    );
+    assert_valid_queue_combination(in_priority_queue, in_pending_queue);
 
     for input in invalid_replacement_inputs {
         add_tx_expect_error(
