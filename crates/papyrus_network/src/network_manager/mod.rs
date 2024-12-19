@@ -629,7 +629,7 @@ impl NetworkManager {
         } = config;
 
         let listen_addresses = vec![
-            // TODO: uncomment once quic transpot works.
+            // TODO: uncomment once quic transport works.
             // format!("/ip4/0.0.0.0/udp/{quic_port}/quic-v1"),
             format!("/ip4/0.0.0.0/tcp/{tcp_port}"),
         ];
