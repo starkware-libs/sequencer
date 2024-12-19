@@ -24,6 +24,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
 use starknet_api::block::{Block, BlockHash};
+use test_case::test_case;
 
 use crate::papyrus_consensus_context::PapyrusConsensusContext;
 
@@ -44,8 +45,10 @@ async fn build_proposal() {
     assert_eq!(fin, block.header.block_hash);
 }
 
+#[test_case(true ; "repropose")]
+#[test_case(false ; "dont_repropose")]
 #[tokio::test]
-async fn validate_proposal_success() {
+async fn validate_proposal_success(repropose: bool) {
     let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_header_without_hash.block_number;
 
@@ -72,6 +75,12 @@ async fn validate_proposal_success() {
         .unwrap();
 
     assert_eq!(fin.0, block.header.block_hash);
+    if repropose {
+        let proposal_init = ProposalInit { height: block_number, ..Default::default() };
+        // Context checks if the proposal exists in `self.valid_proposals` for retrieval and
+        // streaming. The user doesn't interact or see what's done with it.
+        papyrus_context.repropose(block.header.block_hash, proposal_init).await;
+    }
 }
 
 #[tokio::test]
