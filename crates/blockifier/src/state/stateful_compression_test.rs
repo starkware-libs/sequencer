@@ -1,16 +1,20 @@
 use std::collections::HashMap;
 
 use rstest::rstest;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use super::{
+    state_diff_with_alias_allocation,
     AliasUpdater,
     ALIAS_CONTRACT_ADDRESS,
     ALIAS_COUNTER_STORAGE_KEY,
     INITIAL_AVAILABLE_ALIAS,
+    MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
 };
 use crate::state::cached_state::{CachedState, StorageEntry};
+use crate::state::state_api::{State, StateReader};
 use crate::test_utils::dict_state_reader::DictStateReader;
 
 fn insert_to_alias_contract(
@@ -94,5 +98,88 @@ fn test_alias_updater(
         );
     }
 
+    assert_eq!(storage_diff, expected_storage_diff);
+}
+
+#[test]
+fn test_iterate_aliases() {
+    let mut state = initial_state(0);
+    state
+        .set_storage_at(ContractAddress::from(0x201_u16), StorageKey::from(0x307_u16), Felt::ONE)
+        .unwrap();
+    state
+        .set_storage_at(ContractAddress::from(0x201_u16), StorageKey::from(0x309_u16), Felt::TWO)
+        .unwrap();
+    state
+        .set_storage_at(ContractAddress::from(0x201_u16), StorageKey::from(0x304_u16), Felt::THREE)
+        .unwrap();
+    state
+        .set_storage_at(
+            *MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
+            StorageKey::from(0x301_u16),
+            Felt::ONE,
+        )
+        .unwrap();
+    state.get_class_hash_at(ContractAddress::from(0x202_u16)).unwrap();
+    state.set_class_hash_at(ContractAddress::from(0x202_u16), ClassHash(Felt::ONE)).unwrap();
+    state.increment_nonce(ContractAddress::from(0x200_u16)).unwrap();
+
+    let storage_diff = state_diff_with_alias_allocation(&mut state).unwrap().storage;
+    assert_eq!(
+        storage_diff,
+        vec![
+            (
+                (ALIAS_CONTRACT_ADDRESS, ALIAS_COUNTER_STORAGE_KEY),
+                INITIAL_AVAILABLE_ALIAS + Felt::from(6_u8)
+            ),
+            ((ALIAS_CONTRACT_ADDRESS, StorageKey::from(0x200_u16)), INITIAL_AVAILABLE_ALIAS),
+            (
+                (ALIAS_CONTRACT_ADDRESS, StorageKey::from(0x304_u16)),
+                INITIAL_AVAILABLE_ALIAS + Felt::ONE
+            ),
+            (
+                (ALIAS_CONTRACT_ADDRESS, StorageKey::from(0x307_u16)),
+                INITIAL_AVAILABLE_ALIAS + Felt::TWO
+            ),
+            (
+                (ALIAS_CONTRACT_ADDRESS, StorageKey::from(0x309_u16)),
+                INITIAL_AVAILABLE_ALIAS + Felt::THREE
+            ),
+            (
+                (ALIAS_CONTRACT_ADDRESS, StorageKey::from(0x201_u16)),
+                INITIAL_AVAILABLE_ALIAS + Felt::from(4_u8)
+            ),
+            (
+                (ALIAS_CONTRACT_ADDRESS, StorageKey::from(0x202_u16)),
+                INITIAL_AVAILABLE_ALIAS + Felt::from(5_u8)
+            ),
+            ((ContractAddress::from(0x201_u16), StorageKey::from(0x304_u16)), Felt::THREE),
+            ((ContractAddress::from(0x201_u16), StorageKey::from(0x307_u16)), Felt::ONE),
+            ((ContractAddress::from(0x201_u16), StorageKey::from(0x309_u16)), Felt::TWO),
+            ((*MAX_NON_COMPRESSED_CONTRACT_ADDRESS, StorageKey::from(0x301_u16)), Felt::ONE),
+        ]
+        .into_iter()
+        .collect()
+    );
+}
+
+#[rstest]
+fn test_read_only_state(#[values(0, 2)] n_existing_aliases: u8) {
+    let mut state = initial_state(n_existing_aliases);
+    state
+        .set_storage_at(ContractAddress::from(0x200_u16), StorageKey::from(0x300_u16), Felt::ZERO)
+        .unwrap();
+    state.get_nonce_at(ContractAddress::from(0x201_u16)).unwrap();
+    state.get_class_hash_at(ContractAddress::from(0x202_u16)).unwrap();
+    let storage_diff = state_diff_with_alias_allocation(&mut state).unwrap().storage;
+
+    let expected_storage_diff = if n_existing_aliases == 0 {
+        HashMap::from([(
+            (ALIAS_CONTRACT_ADDRESS, ALIAS_COUNTER_STORAGE_KEY),
+            INITIAL_AVAILABLE_ALIAS,
+        )])
+    } else {
+        HashMap::new()
+    };
     assert_eq!(storage_diff, expected_storage_diff);
 }
