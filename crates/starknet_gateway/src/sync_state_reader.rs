@@ -3,6 +3,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use futures::executor::block_on;
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
@@ -55,8 +56,19 @@ impl BlockifierStateReader for SyncStateReader {
         Ok(res)
     }
 
-    fn get_compiled_class(&self, _class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        todo!()
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        let (contract_class, _sierra_version) =
+            block_on(self.state_sync_client.get_compiled_class(self.block_number, class_hash))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        match contract_class {
+            ContractClass::V1(casm_contract_class) => {
+                Ok(RunnableCompiledClass::V1(casm_contract_class.try_into()?))
+            }
+            ContractClass::V0(deprecated_contract_class) => {
+                Ok(RunnableCompiledClass::V0(deprecated_contract_class.try_into()?))
+            }
+        }
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
