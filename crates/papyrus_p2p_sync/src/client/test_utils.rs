@@ -53,8 +53,6 @@ pub const CLASS_DIFF_QUERY_LENGTH: u64 = 3;
 pub const TRANSACTION_QUERY_LENGTH: u64 = 3;
 pub const SLEEP_DURATION_TO_LET_SYNC_ADVANCE: Duration = Duration::from_millis(10);
 pub const WAIT_PERIOD_FOR_NEW_DATA: Duration = Duration::from_secs(1);
-pub const TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE: Duration =
-    WAIT_PERIOD_FOR_NEW_DATA.saturating_add(Duration::from_secs(1));
 
 lazy_static! {
     static ref TEST_CONFIG: P2PSyncClientConfig = P2PSyncClientConfig {
