@@ -146,24 +146,33 @@ pub fn compress<S: StateReader>(
 ) -> CompressionResult<StateMaps> {
     let alias_compressor = AliasCompressor { state, alias_contract_address };
 
-    let mut nonces = HashMap::new();
-    for (contract_address, nonce) in state_diff.nonces.iter() {
-        nonces.insert(alias_compressor.compress_address(contract_address)?, *nonce);
-    }
-    let mut class_hashes = HashMap::new();
-    for (contract_address, class_hash) in state_diff.class_hashes.iter() {
-        class_hashes.insert(alias_compressor.compress_address(contract_address)?, *class_hash);
-    }
-    let mut storage = HashMap::new();
-    for ((contract_address, key), value) in state_diff.storage.iter() {
-        storage.insert(
-            (
-                alias_compressor.compress_address(contract_address)?,
-                alias_compressor.compress_storage_key(key, contract_address)?,
-            ),
-            *value,
-        );
-    }
+    let nonces = state_diff
+        .nonces
+        .iter()
+        .map(|(contract_address, nonce)| {
+            Ok((alias_compressor.compress_address(contract_address)?, *nonce))
+        })
+        .collect::<CompressionResult<_>>()?;
+    let class_hashes = state_diff
+        .class_hashes
+        .iter()
+        .map(|(contract_address, class_hash)| {
+            Ok((alias_compressor.compress_address(contract_address)?, *class_hash))
+        })
+        .collect::<CompressionResult<_>>()?;
+    let storage = state_diff
+        .storage
+        .iter()
+        .map(|((contract_address, key), value)| {
+            Ok((
+                (
+                    alias_compressor.compress_address(contract_address)?,
+                    alias_compressor.compress_storage_key(key, contract_address)?,
+                ),
+                *value,
+            ))
+        })
+        .collect::<CompressionResult<_>>()?;
 
     Ok(StateMaps { nonces, class_hashes, storage, ..state_diff.clone() })
 }
@@ -174,7 +183,6 @@ struct AliasCompressor<'a, S: StateReader> {
     alias_contract_address: ContractAddress,
 }
 
-#[allow(dead_code)]
 impl<S: StateReader> AliasCompressor<'_, S> {
     fn compress_address(
         &self,
