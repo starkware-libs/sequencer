@@ -119,7 +119,7 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
     tx_generator.register_account(default_account);
-    tx_generator.account_with_id(0).generate_executable_invoke()
+    tx_generator.account_with_id_mut(0).generate_executable_invoke()
 }
 
 pub fn generate_deploy_account_with_salt(
@@ -162,9 +162,9 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// tx_generator.register_account_for_flow_test(some_account_type.clone());
 /// tx_generator.register_account_for_flow_test(some_account_type);
 ///
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id_mut(1).generate_invoke_with_tip(3);
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
@@ -194,8 +194,20 @@ impl MultiAccountTransactionGenerator {
         default_deploy_account_tx
     }
 
-    pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
+    pub fn account_with_id_mut(
+        &mut self,
+        account_id: AccountId,
+    ) -> &mut AccountTransactionGenerator {
         self.account_tx_generators.get_mut(account_id).unwrap_or_else(|| {
+            panic!(
+                "{account_id:?} not found! This number should be an index of an account in the \
+                 initialization array. "
+            )
+        })
+    }
+
+    pub fn account_with_id(&self, account_id: AccountId) -> &AccountTransactionGenerator {
+        self.account_tx_generators.get(account_id).unwrap_or_else(|| {
             panic!(
                 "{account_id:?} not found! This number should be an index of an account in the \
                  initialization array. "
@@ -280,7 +292,7 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_tx_args)
     }
 
-    pub fn sender_address(&mut self) -> ContractAddress {
+    pub fn sender_address(&self) -> ContractAddress {
         self.account.sender_address
     }
 
