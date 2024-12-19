@@ -260,6 +260,54 @@ fn create_local_servers(
     }
 }
 
+impl LocalServers {
+    async fn run(self) -> anyhow::Result<()> {
+        let local_batcher_future = get_server_future(self.batcher);
+        let local_gateway_future = get_server_future(self.gateway);
+        let local_l1_provider_future = get_server_future(self.l1_provider);
+        let local_mempool_future = get_server_future(self.mempool);
+        let local_mempool_p2p_propagator_future = get_server_future(self.mempool_p2p_propagator);
+        let local_state_sync_future = get_server_future(self.state_sync);
+
+        let local_batcher_handle = tokio::spawn(local_batcher_future);
+        let local_gateway_handle = tokio::spawn(local_gateway_future);
+        let local_l1_provider_handle = tokio::spawn(local_l1_provider_future);
+        let local_mempool_handle = tokio::spawn(local_mempool_future);
+        let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
+        let local_state_sync_handle = tokio::spawn(local_state_sync_future);
+
+        let result = tokio::select! {
+            res = local_batcher_handle => {
+                error!("Local Batcher Server stopped: {:?}", res);
+                res?
+            }
+            res = local_gateway_handle => {
+                error!("Local Gateway Server stopped: {:?}", res);
+                res?
+            }
+            res = local_l1_provider_handle => {
+                error!("Local L1 Provider Server stopped: {:?}", res);
+                res?
+            }
+            res = local_mempool_handle => {
+                error!("Local Mempool Server stopped: {:?}", res);
+                res?
+            }
+            res = local_mempool_p2p_propagator_handle => {
+                error!("Local Mempool P2P Propagator Server stopped: {:?}", res);
+                res?
+            }
+            res = local_state_sync_handle => {
+                error!("Local State Sync Server stopped: {:?}", res);
+                res?
+            }
+        };
+        error!("Local servers ended with unexpected Ok.");
+
+        Ok(result?)
+    }
+}
+
 pub fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
@@ -310,6 +358,55 @@ pub fn create_remote_servers(
     }
 }
 
+impl RemoteServers {
+    async fn run(self) -> anyhow::Result<()> {
+        let remote_batcher_future = get_server_future(self.batcher);
+        let remote_gateway_future = get_server_future(self.gateway);
+        let remote_l1_provider_future = get_server_future(self.l1_provider);
+        let remote_mempool_future = get_server_future(self.mempool);
+        let remote_mempool_p2p_propagator_future = get_server_future(self.mempool_p2p_propagator);
+        let remote_state_sync_future = get_server_future(self.state_sync);
+
+        let remote_batcher_handle = tokio::spawn(remote_batcher_future);
+        let remote_gateway_handle = tokio::spawn(remote_gateway_future);
+        let remote_l1_provider_handle = tokio::spawn(remote_l1_provider_future);
+        let remote_mempool_handle = tokio::spawn(remote_mempool_future);
+        let remote_mempool_p2p_propagator_handle =
+            tokio::spawn(remote_mempool_p2p_propagator_future);
+        let remote_state_sync_handle = tokio::spawn(remote_state_sync_future);
+
+        let result = tokio::select! {
+            res = remote_batcher_handle => {
+                error!("Remote Batcher Server stopped: {:?}", res);
+                res?
+            }
+            res = remote_gateway_handle => {
+                error!("Remote Gateway Server stopped: {:?}", res);
+                res?
+            }
+            res = remote_l1_provider_handle => {
+                error!("Remote L1 Provider Server stopped: {:?}", res);
+                res?
+            }
+            res = remote_mempool_handle => {
+                error!("Remote Mempool Server stopped: {:?}", res);
+                res?
+            }
+            res = remote_mempool_p2p_propagator_handle => {
+                error!("Remote Mempool P2P Propagator Server stopped: {:?}", res);
+                res?
+            }
+            res = remote_state_sync_handle => {
+                error!("Remote State Sync Server stopped: {:?}", res);
+                res?
+            }
+        };
+        error!("Remote servers ended with unexpected Ok.");
+
+        Ok(result?)
+    }
+}
+
 fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
@@ -346,6 +443,48 @@ fn create_wrapper_servers(
     }
 }
 
+impl WrapperServers {
+    async fn run(self) -> anyhow::Result<()> {
+        let consensus_manager_future = get_server_future(self.consensus_manager);
+        let http_server_future = get_server_future(self.http_server);
+        let monitoring_endpoint_future = get_server_future(self.monitoring_endpoint);
+        let mempool_p2p_runner_future = get_server_future(self.mempool_p2p_runner);
+        let state_sync_runner_future = get_server_future(self.state_sync_runner);
+
+        let consensus_manager_handle = tokio::spawn(consensus_manager_future);
+        let http_server_handle = tokio::spawn(http_server_future);
+        let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
+        let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
+        let state_sync_runner_handle = tokio::spawn(state_sync_runner_future);
+
+        let result = tokio::select! {
+            res = consensus_manager_handle => {
+                error!("Consensus Manager Server stopped: {:?}", res);
+                res?
+            }
+            res = http_server_handle => {
+                error!("Http Server stopped: {:?}", res);
+                res?
+            }
+            res = monitoring_endpoint_handle => {
+                error!("Monitoring Endpoint Server stopped: {:?}", res);
+                res?
+            }
+            res = mempool_p2p_runner_handle => {
+                error!("Mempool P2P Runner Server stopped: {:?}", res);
+                res?
+            }
+            res = state_sync_runner_handle => {
+                error!("State Sync Runner Server stopped: {:?}", res);
+                res?
+            }
+        };
+        error!("Wrapper servers ended with unexpected Ok.");
+
+        Ok(result?)
+    }
+}
+
 pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
@@ -360,141 +499,28 @@ pub fn create_node_servers(
     SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
-// TODO(Nadin): refactor this function to reduce code duplication.
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
-    // Batcher servers.
-    let local_batcher_future = get_server_future(servers.local_servers.batcher);
-    let remote_batcher_future = get_server_future(servers.remote_servers.batcher);
-
-    // Consensus Manager server.
-    let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
-
-    // Gateway servers.
-    let local_gateway_future = get_server_future(servers.local_servers.gateway);
-    let remote_gateway_future = get_server_future(servers.remote_servers.gateway);
-
-    // HttpServer server.
-    let http_server_future = get_server_future(servers.wrapper_servers.http_server);
-
-    // Mempool servers.
-    let local_mempool_future = get_server_future(servers.local_servers.mempool);
-    let remote_mempool_future = get_server_future(servers.remote_servers.mempool);
-
-    // Sequencer Monitoring server.
-    let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
-
-    // MempoolP2pPropagator servers.
-    let local_mempool_p2p_propagator_future =
-        get_server_future(servers.local_servers.mempool_p2p_propagator);
-    let remote_mempool_p2p_propagator_future =
-        get_server_future(servers.remote_servers.mempool_p2p_propagator);
-
-    // MempoolP2pRunner server.
-    let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
-
-    // StateSync servers.
-    let local_state_sync_future = get_server_future(servers.local_servers.state_sync);
-    let remote_state_sync_future = get_server_future(servers.remote_servers.state_sync);
-
-    // StateSyncRunner server.
-    let state_sync_runner_future = get_server_future(servers.wrapper_servers.state_sync_runner);
-
-    // L1Provider server.
-    let local_l1_provider_future = get_server_future(servers.local_servers.l1_provider);
-    let remote_l1_provider_future = get_server_future(servers.remote_servers.l1_provider);
-
-    // Start servers.
-    let local_batcher_handle = tokio::spawn(local_batcher_future);
-    let remote_batcher_handle = tokio::spawn(remote_batcher_future);
-    let consensus_manager_handle = tokio::spawn(consensus_manager_future);
-    let local_gateway_handle = tokio::spawn(local_gateway_future);
-    let remote_gateway_handle = tokio::spawn(remote_gateway_future);
-    let http_server_handle = tokio::spawn(http_server_future);
-    let local_mempool_handle = tokio::spawn(local_mempool_future);
-    let remote_mempool_handle = tokio::spawn(remote_mempool_future);
-    let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
-    let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
-    let remote_mempool_p2p_propagator_handle = tokio::spawn(remote_mempool_p2p_propagator_future);
-    let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
-    let local_state_sync_handle = tokio::spawn(local_state_sync_future);
-    let remote_state_sync_handle = tokio::spawn(remote_state_sync_future);
-    let state_sync_runner_handle = tokio::spawn(state_sync_runner_future);
-    let local_l1_provider_handle = tokio::spawn(local_l1_provider_future);
-    let remote_l1_provider_handle = tokio::spawn(remote_l1_provider_future);
+    let local_servers_handle = tokio::spawn(servers.local_servers.run());
+    let remote_servers_handle = tokio::spawn(servers.remote_servers.run());
+    let wrapper_servers_handle = tokio::spawn(servers.wrapper_servers.run());
 
     let result = tokio::select! {
-        res = local_batcher_handle => {
-            error!("Local Batcher Server stopped.");
+        res = local_servers_handle => {
+            error!("Local servers stopped.");
             res?
         }
-        res = remote_batcher_handle => {
-            error!("Remote Batcher Server stopped.");
+        res = remote_servers_handle => {
+            error!("Remote servers stopped.");
             res?
         }
-        res = consensus_manager_handle => {
-            error!("Consensus Manager Server stopped.");
-            res?
-        }
-        res = local_gateway_handle => {
-            error!("Local Gateway Server stopped.");
-            res?
-        }
-        res = remote_gateway_handle => {
-            error!("Remote Gateway Server stopped.");
-            res?
-        }
-        res = http_server_handle => {
-            error!("Http Server stopped.");
-            res?
-        }
-        res = local_mempool_handle => {
-            error!("Local Mempool Server stopped.");
-            res?
-        }
-        res = remote_mempool_handle => {
-            error!("Remote Mempool Server stopped.");
-            res?
-        }
-        res = monitoring_endpoint_handle => {
-            error!("Monitoring Endpoint Server stopped.");
-            res?
-        }
-        res = local_mempool_p2p_propagator_handle => {
-            error!("Local Mempool P2P Propagator Server stopped.");
-            res?
-        }
-        res = remote_mempool_p2p_propagator_handle => {
-            error!("Remote Mempool P2P Propagator Server stopped.");
-            res?
-        }
-        res = mempool_p2p_runner_handle => {
-            error!("Mempool P2P Runner Server stopped.");
-            res?
-        }
-        res = local_state_sync_handle => {
-            error!("Local State Sync Server stopped.");
-            res?
-        }
-        res = remote_state_sync_handle => {
-            error!("Remote State Sync Server stopped.");
-            res?
-        }
-        res = state_sync_runner_handle => {
-            error!("State Sync Runner Server stopped.");
-            res?
-        }
-        res = local_l1_provider_handle => {
-            error!("Local L1 Provider Server stopped.");
-            res?
-        }
-        res = remote_l1_provider_handle => {
-            error!("Remote L1 Provider Server stopped.");
+        res = wrapper_servers_handle => {
+            error!("Wrapper servers stopped.");
             res?
         }
     };
-    error!("Servers ended with unexpected Ok.");
+    error!("Servers ended unexpectedly.");
 
-    Ok(result?)
+    result
 }
 
 pub fn get_server_future(
