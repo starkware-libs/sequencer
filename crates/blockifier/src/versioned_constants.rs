@@ -176,6 +176,7 @@ fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(remote = "Self")]
 pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
@@ -404,6 +405,72 @@ impl VersionedConstants {
     }
 }
 
+impl<'de> Deserialize<'de> for VersionedConstants {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut versioned_constants = Self::deserialize(deserializer)?;
+
+        let syscall_gas_costs = &(versioned_constants.os_constants.gas_costs.syscalls);
+        if syscall_gas_costs == &SyscallGasCosts::default() {
+            let syscalls = SyscallGasCosts {
+                call_contract: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::CallContract),
+                deploy: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Deploy),
+                get_block_hash: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::GetBlockHash),
+                get_execution_info: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::GetExecutionInfo),
+                library_call: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::LibraryCall),
+                replace_class: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::ReplaceClass),
+                storage_read: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::StorageRead),
+                storage_write: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::StorageWrite),
+                get_class_hash_at: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::GetClassHashAt),
+                emit_event: versioned_constants.get_syscall_gas_cost(&SyscallSelector::EmitEvent),
+                send_message_to_l1: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::SendMessageToL1),
+                secp256k1_add: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1Add),
+                secp256k1_get_point_from_x: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1GetPointFromX),
+                secp256k1_get_xy: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1GetXy),
+                secp256k1_mul: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul),
+                secp256k1_new: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1New),
+                secp256r1_add: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1Add),
+                secp256r1_get_point_from_x: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1GetPointFromX),
+                secp256r1_get_xy: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1GetXy),
+                secp256r1_mul: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1Mul),
+                secp256r1_new: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1New),
+                keccak: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Keccak),
+                keccak_round_cost: 180000,
+                sha256_process_block: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
+            };
+
+            Arc::get_mut(&mut versioned_constants.os_constants)
+                .expect("Failed to get mutable reference")
+                .gas_costs
+                .syscalls = syscalls;
+        }
+
+        Ok(versioned_constants)
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
@@ -587,7 +654,7 @@ impl<'de> Deserialize<'de> for OsResources {
     }
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: u64,
     pub deploy: u64,
@@ -781,10 +848,14 @@ impl TryFrom<&OsConstantsRawJson> for GasCosts {
         let base: BaseGasCosts = serde_json::from_value(base_value)?;
         let builtins_value: Value = serde_json::to_value(&raw_json_data.parse_builtin()?)?;
         let builtins: BuiltinGasCosts = serde_json::from_value(builtins_value)?;
-        let syscalls_value: Value =
-            serde_json::to_value(&raw_json_data.parse_syscalls(&base, &builtins)?)?;
-        let syscalls: SyscallGasCosts = serde_json::from_value(syscalls_value)?;
-        Ok(GasCosts { base, builtins, syscalls })
+        if (raw_json_data.raw_json_file_as_dict).contains_key("syscall_gas_costs") {
+            let syscalls_value: Value =
+                serde_json::to_value(&raw_json_data.parse_syscalls(&base, &builtins)?)?;
+            let syscalls: SyscallGasCosts = serde_json::from_value(syscalls_value)?;
+            Ok(GasCosts { base, builtins, syscalls })
+        } else {
+            Ok(GasCosts { base, builtins, syscalls: SyscallGasCosts::default() })
+        }
     }
 }
 
