@@ -21,6 +21,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::compiler_version::VersionId;
 
+pub mod bench_test_setup;
+
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
 
