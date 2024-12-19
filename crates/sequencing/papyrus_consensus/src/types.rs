@@ -25,10 +25,6 @@ pub type ValidatorId = ContractAddress;
 pub type Round = u32;
 pub type ProposalContentId = BlockHash;
 
-/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
-// TODO(Matan): Remove this once we have a proper validator set.
-pub const DEFAULT_VALIDATOR_ID: u64 = 100;
-
 /// Interface for consensus to call out to the node.
 ///
 /// Function calls should be assumed to not be cancel safe.

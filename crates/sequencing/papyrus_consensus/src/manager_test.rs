@@ -20,6 +20,7 @@ use papyrus_protobuf::consensus::{
     ProposalInit,
     ProposalPart,
     Vote,
+    DEFAULT_VALIDATOR_ID,
 };
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -29,14 +30,7 @@ use tokio::sync::Notify;
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init};
-use crate::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalContentId,
-    Round,
-    ValidatorId,
-    DEFAULT_VALIDATOR_ID,
-};
+use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
