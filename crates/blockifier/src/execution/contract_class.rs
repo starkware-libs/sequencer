@@ -115,9 +115,7 @@ impl RunnableCompiledClass {
             Self::V0(class) => class.estimate_casm_hash_computation_resources(),
             Self::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
-            Self::V1Native(_) => {
-                todo!("Use casm to estimate casm hash computation resources")
-            }
+            Self::V1Native(class) => class.casm().estimate_casm_hash_computation_resources(),
         }
     }
 
@@ -133,17 +131,6 @@ impl RunnableCompiledClass {
             #[cfg(feature = "cairo_native")]
             Self::V1Native(_) => {
                 panic!("get_visited_segments is not supported for native contracts.")
-            }
-        }
-    }
-
-    pub fn bytecode_length(&self) -> usize {
-        match self {
-            Self::V0(class) => class.bytecode_length(),
-            Self::V1(class) => class.bytecode_length(),
-            #[cfg(feature = "cairo_native")]
-            Self::V1Native(_) => {
-                todo!("implement bytecode_length for native contracts.")
             }
         }
     }
