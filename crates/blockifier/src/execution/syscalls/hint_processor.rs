@@ -125,8 +125,8 @@ pub enum SyscallExecutionError {
     StateError(#[from] StateError),
     #[error(transparent)]
     VirtualMachineError(#[from] VirtualMachineError),
-    #[error("Syscall error.")]
-    SyscallError { error_data: Vec<Felt> },
+    #[error("Syscall revert.")]
+    Revert { error_data: Vec<Felt> },
 }
 
 #[derive(Debug, Error)]
@@ -480,7 +480,7 @@ impl<'a> SyscallHintProcessor<'a> {
             Ok(response) => {
                 SyscallResponseWrapper::Success { gas_counter: remaining_gas, response }
             }
-            Err(SyscallExecutionError::SyscallError { error_data: data }) => {
+            Err(SyscallExecutionError::Revert { error_data: data }) => {
                 SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
             }
             Err(error) => return Err(error.into()),

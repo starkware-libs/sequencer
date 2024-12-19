@@ -116,7 +116,7 @@ impl<'state> NativeSyscallHandler<'state> {
         }
 
         match error {
-            SyscallExecutionError::SyscallError { error_data } => error_data,
+            SyscallExecutionError::Revert { error_data } => error_data,
             error => {
                 assert!(
                     self.unrecoverable_error.is_none(),
