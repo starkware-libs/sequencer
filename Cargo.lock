@@ -10443,6 +10443,7 @@ dependencies = [
  "starknet_mempool_types",
  "starknet_sequencer_infra",
  "starknet_sierra_compile",
+ "starknet_state_sync_types",
  "thiserror",
  "tokio",
  "tracing",
