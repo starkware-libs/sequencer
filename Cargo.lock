@@ -7394,6 +7394,7 @@ dependencies = [
 name = "papyrus_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "async-trait",
  "blockifier",
  "chrono",
@@ -7407,8 +7408,10 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "rstest",
  "serde",
  "serde_json",
+ "serde_repr",
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
