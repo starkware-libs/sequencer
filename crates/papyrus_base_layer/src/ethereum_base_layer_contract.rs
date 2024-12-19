@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 use std::future::IntoFuture;
 
-use alloy_contract::{ContractInstance, Interface};
 use alloy_dyn_abi::SolType;
 use alloy_json_rpc::RpcError;
 pub(crate) use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_sol_types::sol_data;
+use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
 use async_trait::async_trait;
@@ -20,6 +19,16 @@ use starknet_types_core::felt;
 use url::Url;
 
 use crate::BaseLayerContract;
+
+type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
+
+// Wraps the Starknet contract with a type that implements its interface, and is aware of its
+// events.
+sol!(
+    #[sol(rpc)]
+    Starknet,
+    "resources/Starknet-0.10.3.4.json"
+);
 
 #[derive(thiserror::Error, Debug)]
 pub enum EthereumBaseLayerError {
@@ -74,22 +83,17 @@ impl Default for EthereumBaseLayerConfig {
 
 #[derive(Debug)]
 pub struct EthereumBaseLayerContract {
-    contract: ContractInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
+    pub config: EthereumBaseLayerConfig,
+    pub contract: Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
 }
 
 impl EthereumBaseLayerContract {
-    pub fn new(config: EthereumBaseLayerConfig) -> Result<Self, EthereumBaseLayerError> {
-        let client = ProviderBuilder::new().on_http(config.node_url);
-
-        // The solidity contract was pre-compiled, and only the relevant functions were kept.
-        let abi = serde_json::from_str(include_str!("core_contract_latest_block.abi"))?;
-        Ok(Self {
-            contract: ContractInstance::new(
-                config.starknet_contract_address,
-                client,
-                Interface::new(abi),
-            ),
-        })
+    pub fn new(config: EthereumBaseLayerConfig) -> Self {
+        let l1_client = ProviderBuilder::new().on_http(config.node_url.clone());
+        // This type is generated from `sol!` macro, and the `new` method assumes it is already
+        // deployed at L1, and wraps it with a type.
+        let contract = Starknet::new(config.starknet_contract_address, l1_client);
+        Self { contract, config }
     }
 }
 
@@ -102,7 +106,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     async fn latest_proved_block(
         &self,
         finality: u64,
-    ) -> Result<Option<(BlockNumber, BlockHash)>, Self::Error> {
+    ) -> EthereumBaseLayerResult<Option<(BlockNumber, BlockHash)>> {
         let ethereum_block_number =
             self.contract.provider().get_block_number().await?.checked_sub(finality);
         let Some(ethereum_block_number) = ethereum_block_number else {
@@ -110,18 +114,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         };
 
         let call_state_block_number =
-            self.contract.function("stateBlockNumber", &[])?.block(ethereum_block_number.into());
+            self.contract.stateBlockNumber().block(ethereum_block_number.into());
         let call_state_block_hash =
-            self.contract.function("stateBlockHash", &[])?.block(ethereum_block_number.into());
+            self.contract.stateBlockHash().block(ethereum_block_number.into());
 
         let (state_block_number, state_block_hash) = tokio::try_join!(
             call_state_block_number.call_raw().into_future(),
             call_state_block_hash.call_raw().into_future()
         )?;
 
-        Ok(Some((
-            BlockNumber(sol_data::Uint::<64>::abi_decode(&state_block_number, true)?),
-            BlockHash(StarkHash::from_hex(&state_block_hash.to_string())?),
-        )))
+        let validate = true;
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
+        Ok(Some((BlockNumber(block_number), BlockHash(StarkHash::from_bytes_be(&block_hash)))))
     }
 }

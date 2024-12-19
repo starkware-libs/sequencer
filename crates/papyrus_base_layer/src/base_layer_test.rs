@@ -24,7 +24,7 @@ async fn latest_proved_block_ethereum() {
         node_url: node_handle.0.endpoint().parse().unwrap(),
         starknet_contract_address,
     };
-    let contract = EthereumBaseLayerContract::new(config).unwrap();
+    let contract = EthereumBaseLayerContract::new(config);
 
     let first_sn_state_update = (BlockNumber(100), BlockHash(felt!("0x100")));
     let second_sn_state_update = (BlockNumber(200), BlockHash(felt!("0x200")));
