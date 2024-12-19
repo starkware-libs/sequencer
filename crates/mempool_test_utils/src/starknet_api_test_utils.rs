@@ -266,6 +266,10 @@ impl MultiAccountTransactionGenerator {
     pub fn accounts(&self) -> Vec<Contract> {
         self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).copied().collect()
     }
+
+    pub fn account_tx_generators(&mut self) -> &mut Vec<AccountTransactionGenerator> {
+        &mut self.account_tx_generators
+    }
 }
 
 /// Manages transaction generation for a single account.
