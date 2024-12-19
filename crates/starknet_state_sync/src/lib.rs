@@ -8,12 +8,8 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
-use starknet_state_sync_types::communication::{
-    StateSyncRequest,
-    StateSyncResponse,
-    StateSyncResult,
-};
-use starknet_state_sync_types::state_sync_types::SyncBlock;
+use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
+use starknet_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
 
 use crate::config::StateSyncConfig;
 use crate::runner::StateSyncRunner;
