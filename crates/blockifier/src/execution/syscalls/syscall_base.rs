@@ -84,24 +84,38 @@ impl<'state> SyscallHandlerBase<'state> {
     }
 
     pub fn get_block_hash(&self, requested_block_number: u64) -> SyscallResult<Felt> {
-        let execution_mode = self.context.execution_mode;
-        if execution_mode == ExecutionMode::Validate {
-            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-                syscall_name: "get_block_hash".to_string(),
-                execution_mode,
-            });
-        }
-
+        // Note: we take the actual block number (and not the rounded one for validate)
+        // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
         let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
 
         if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
             || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
         {
-            let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
-                .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
-            return Err(SyscallExecutionError::SyscallError {
-                error_data: vec![out_of_range_error],
-            });
+            // Requested block is too recent.
+            match self.context.execution_mode {
+                ExecutionMode::Execute => {
+                    // Revert the syscall.
+                    let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
+                        .expect(
+                            "Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.",
+                        );
+                    return Err(SyscallExecutionError::SyscallError {
+                        error_data: vec![out_of_range_error],
+                    });
+                }
+                ExecutionMode::Validate => {
+                    // In this case, the transaction must be **rejected** to avoid the following
+                    // attack:
+                    //   * query a given block in validate,
+                    //   * if reverted - ignore, if succeeded - panic.
+                    //   * in the gateway, the queried block is (actual_latest - 9),
+                    //   * while in the sequencer, the queried block can be further than that.
+                    return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                        syscall_name: "get_block_hash on recent blocks".to_string(),
+                        execution_mode: ExecutionMode::Validate,
+                    });
+                }
+            }
         }
 
         let key = StorageKey::try_from(Felt::from(requested_block_number))?;

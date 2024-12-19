@@ -2075,7 +2075,7 @@ fn test_validate_accounts_tx(
         let error = account_tx.execute(state, block_context).unwrap_err();
         check_tx_execution_error_for_custom_hint!(
             &error,
-            "Unauthorized syscall get_block_hash in execution mode Validate.",
+            "Unauthorized syscall get_block_hash on recent blocks in execution mode Validate.",
             validate_constructor,
         );
     }
