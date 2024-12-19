@@ -174,7 +174,6 @@ struct AliasCompressor<'a, S: StateReader> {
     alias_contract_address: ContractAddress,
 }
 
-#[allow(dead_code)]
 impl<S: StateReader> AliasCompressor<'_, S> {
     fn compress_address(
         &self,
