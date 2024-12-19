@@ -12,8 +12,8 @@ use starknet_api::transaction::{
 };
 
 use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
+    ConsensusMessage, // TODO: remove this
+    Proposal,         // TODO: remove this
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -51,11 +51,11 @@ fn add_gas_values_to_transaction(transactions: &mut [Transaction]) {
 fn convert_stream_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    // Test that we can convert a StreamMessage with a ConsensusMessage message to bytes and back.
-    let mut stream_message: StreamMessage<ConsensusMessage> =
+    // Test that we can convert a StreamMessage with a ProposalPart message to bytes and back.
+    let mut stream_message: StreamMessage<ProposalPart> =
         StreamMessage::get_test_instance(&mut rng);
 
-    if let StreamMessageBody::Content(ConsensusMessage::Proposal(proposal)) =
+    if let StreamMessageBody::Content(ProposalPart::Transactions(proposal)) =
         &mut stream_message.message
     {
         add_gas_values_to_transaction(&mut proposal.transactions);
