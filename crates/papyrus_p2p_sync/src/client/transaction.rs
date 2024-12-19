@@ -5,8 +5,10 @@ use papyrus_protobuf::sync::DataOrFin;
 use papyrus_storage::body::{BodyStorageReader, BodyStorageWriter};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockBody, BlockNumber};
-use starknet_api::transaction::FullTransaction;
+use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::stream_builder::{
     BadPeerError,
@@ -83,5 +85,22 @@ impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError> {
         storage_reader.begin_ro_txn()?.get_body_marker()
+    }
+
+    fn convert_sync_block_to_block_data(
+        block_number: BlockNumber,
+        sync_block: SyncBlock,
+    ) -> Option<(BlockBody, BlockNumber)> {
+        let num_transactions = sync_block.transaction_hashes.len();
+        let mut rng = get_rng();
+        let block_body = BlockBody {
+            transaction_hashes: sync_block.transaction_hashes,
+            transaction_outputs: vec![
+                TransactionOutput::get_test_instance(&mut rng);
+                num_transactions
+            ],
+            transactions: vec![Transaction::get_test_instance(&mut rng); num_transactions],
+        };
+        Some((block_body, block_number))
     }
 }
