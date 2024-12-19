@@ -11,6 +11,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::stream_builder::{
     BadPeerError,
@@ -128,5 +129,13 @@ impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError> {
         storage_reader.begin_ro_txn()?.get_class_marker()
+    }
+
+    // TODO(Eitan): Implement this function once we have a class manager component.
+    fn convert_sync_block_to_block_data(
+        _block_number: BlockNumber,
+        _sync_block: SyncBlock,
+    ) -> Option<(DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber)> {
+        None
     }
 }

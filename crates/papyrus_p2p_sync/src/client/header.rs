@@ -7,7 +7,15 @@ use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_protobuf::sync::{DataOrFin, SignedBlockHeader};
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
+use starknet_api::hash::StarkHash;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::debug;
 
 use super::stream_builder::{
@@ -111,5 +119,26 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError> {
         storage_reader.begin_ro_txn()?.get_header_marker()
+    }
+
+    // TODO(Eitan): Use real header once SyncBlock contains data required by full nodes
+    // TODO(Eitan): Fill this with real header once SyncBlock has it.
+    fn convert_sync_block_to_block_data(
+        block_number: BlockNumber,
+        sync_block: SyncBlock,
+    ) -> Option<SignedBlockHeader> {
+        Some(SignedBlockHeader {
+            block_header: BlockHeader {
+                block_hash: BlockHash(StarkHash::from(block_number.0)),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number,
+                    ..Default::default()
+                },
+                state_diff_length: Some(sync_block.state_diff.len()),
+                n_transactions: sync_block.transaction_hashes.len(),
+                ..Default::default()
+            },
+            signatures: vec![BlockSignature::default()],
+        })
     }
 }
