@@ -2,7 +2,6 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
-    VersionedRunnableCompiledClass,
 };
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
@@ -48,8 +47,7 @@ impl PapyrusReader {
     fn get_compiled_class_inner(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<VersionedRunnableCompiledClass> {
-        // TODO(AVIV): Return RunnableCompiledClass.
+    ) -> StateResult<RunnableCompiledClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -72,9 +70,9 @@ impl PapyrusReader {
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
             let runnable_compiled = RunnableCompiledClass::V1(CompiledClassV1::try_from((
                 casm_compiled_class,
-                sierra_version.clone(),
+                sierra_version,
             ))?);
-            return Ok(VersionedRunnableCompiledClass::Cairo1((runnable_compiled, sierra_version)));
+            return Ok(runnable_compiled);
         }
 
         let v0_compiled_class = self
@@ -84,8 +82,8 @@ impl PapyrusReader {
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
         match v0_compiled_class {
-            Some(starknet_api_contract_class) => Ok(VersionedRunnableCompiledClass::Cairo0(
-                CompiledClassV0::try_from(starknet_api_contract_class)?.into(),
+            Some(starknet_api_contract_class) => Ok(RunnableCompiledClass::V0(
+                CompiledClassV0::try_from(starknet_api_contract_class)?,
             )),
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
@@ -134,16 +132,15 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
-        let versioned_contract_class = self.contract_class_manager.get_casm(&class_hash);
+        let contract_class = self.contract_class_manager.get_casm(&class_hash);
 
-        match versioned_contract_class {
-            Some(contract_class) => Ok(RunnableCompiledClass::from(contract_class)),
+        match contract_class {
+            Some(contract_class) => Ok(contract_class),
             None => {
-                let versioned_contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
+                let contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
                 // The class was declared in a previous (finalized) state; update the global cache.
-                self.contract_class_manager
-                    .set_casm(class_hash, versioned_contract_class_from_db.clone());
-                Ok(RunnableCompiledClass::from(versioned_contract_class_from_db))
+                self.contract_class_manager.set_casm(class_hash, contract_class_from_db.clone());
+                Ok(contract_class_from_db)
             }
         }
     }

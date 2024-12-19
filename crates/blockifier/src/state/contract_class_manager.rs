@@ -7,8 +7,6 @@ use std::sync::Arc;
 use cached::Cached;
 #[cfg(feature = "cairo_native")]
 use log::{error, info};
-#[cfg(feature = "cairo_native")]
-use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
 #[cfg(feature = "cairo_native")]
 use starknet_api::state::SierraContractClass;
@@ -22,9 +20,9 @@ use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use starknet_sierra_compile::SierraToNativeCompiler;
 
 use crate::blockifier::config::ContractClassManagerConfig;
-use crate::execution::contract_class::VersionedRunnableCompiledClass;
 #[cfg(feature = "cairo_native")]
-use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
+use crate::execution::contract_class::CompiledClassV1;
+use crate::execution::contract_class::RunnableCompiledClass;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 #[cfg(feature = "cairo_native")]
@@ -122,12 +120,12 @@ impl ContractClassManager {
     }
 
     /// Returns the casm compiled class for the given class hash, if it exists in cache.
-    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<VersionedRunnableCompiledClass> {
+    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
         self.contract_caches.get_casm(class_hash)
     }
 
     /// Sets the casm compiled class for the given class hash in the cache.
-    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: VersionedRunnableCompiledClass) {
+    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: RunnableCompiledClass) {
         self.contract_caches.set_casm(class_hash, compiled_class);
     }
 
@@ -140,13 +138,8 @@ impl ContractClassManager {
     #[cfg(feature = "cairo_native")]
     fn cache_request_contracts(&self, request: &CompilationRequest) {
         let (class_hash, sierra, casm) = request.clone();
-        let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
         self.contract_caches.set_sierra(class_hash, sierra);
-        let cached_casm = VersionedRunnableCompiledClass::Cairo1((
-            RunnableCompiledClass::from(casm),
-            sierra_version,
-        ));
-        self.contract_caches.set_casm(class_hash, cached_casm);
+        self.contract_caches.set_casm(class_hash, RunnableCompiledClass::V1(casm));
     }
 
     #[cfg(any(feature = "testing", test))]
