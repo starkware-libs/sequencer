@@ -10,7 +10,6 @@ use papyrus_protobuf::consensus::{
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
-use tokio;
 
 use super::SingleHeightConsensus;
 use crate::config::TimeoutsConfig;
