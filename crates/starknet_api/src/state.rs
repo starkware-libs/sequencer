@@ -247,7 +247,7 @@ impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for Sierra
     }
 }
 
-/// An entry point of a [ContractClass](`crate::state::ContractClass`).
+/// An entry point of a [SierraContractClass](`SierraContractClass`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct EntryPoint {
     pub function_idx: FunctionIndex,
