@@ -2,6 +2,7 @@ pub mod config;
 pub mod propagator;
 pub mod runner;
 
+use futures::FutureExt;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_gateway_types::communication::SharedGatewayClient;
@@ -31,7 +32,7 @@ pub fn create_p2p_propagator_and_runner(
     let network_future = network_manager.run();
     let mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client.clone());
     let mempool_p2p_runner = MempoolP2pRunner::new(
-        Box::pin(network_future),
+        network_future.boxed(),
         broadcasted_messages_receiver,
         broadcast_topic_client,
         gateway_client,
