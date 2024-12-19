@@ -47,8 +47,12 @@ impl BlockifierStateReader for SyncStateReader {
         Ok(res)
     }
 
-    fn get_nonce_at(&self, _contract_address: ContractAddress) -> StateResult<Nonce> {
-        todo!()
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        let res =
+            block_on(self.state_sync_client.get_nonce_at(self.block_number, contract_address))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        Ok(res)
     }
 
     fn get_compiled_class(&self, _class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {

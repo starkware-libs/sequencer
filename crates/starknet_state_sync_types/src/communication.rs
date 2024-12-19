@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_sequencer_infra::component_client::{
     ClientError,
@@ -44,7 +44,12 @@ pub trait StateSyncClient: Send + Sync {
         storage_key: StorageKey,
     ) -> StateSyncClientResult<Felt>;
 
-    // TODO: Add get_nonce_at for StateSyncReader
+    async fn get_nonce_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<Nonce>;
+
     // TODO: Add get_compiled_class for StateSyncReader
     // TODO: Add get_class_hash_at for StateSyncReader
     // TODO: Add get_compiled_class_hash for StateSyncReader
@@ -73,6 +78,7 @@ pub enum StateSyncRequest {
     GetBlock(BlockNumber),
     AddNewBlock(BlockNumber, SyncBlock),
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
+    GetNonceAt(BlockNumber, ContractAddress),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -80,6 +86,7 @@ pub enum StateSyncResponse {
     GetBlock(StateSyncResult<Option<SyncBlock>>),
     AddNewBlock(StateSyncResult<()>),
     GetStorageAt(StateSyncResult<Felt>),
+    GetNonceAt(StateSyncResult<Nonce>),
 }
 
 #[async_trait]
@@ -123,6 +130,21 @@ impl StateSyncClient for LocalStateSyncClient {
             StateSyncError
         )
     }
+
+    async fn get_nonce_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<Nonce> {
+        let request = StateSyncRequest::GetNonceAt(block_number, contract_address);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetNonceAt,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
 }
 
 #[async_trait]
@@ -162,6 +184,21 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(
             StateSyncResponse,
             GetStorageAt,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
+
+    async fn get_nonce_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<Nonce> {
+        let request = StateSyncRequest::GetNonceAt(block_number, contract_address);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetNonceAt,
             StateSyncClientError,
             StateSyncError
         )
