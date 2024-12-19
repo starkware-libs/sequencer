@@ -41,9 +41,8 @@ impl PreambleType {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct EntryPointErrorFrame {
     pub depth: usize,
     pub preamble_type: PreambleType,
@@ -75,9 +74,8 @@ impl From<&EntryPointErrorFrame> for String {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct VmExceptionFrame {
     pub pc: Relocatable,
     pub error_attr_value: Option<String>,
@@ -100,9 +98,8 @@ impl From<&VmExceptionFrame> for String {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, PartialEq, derive_more::From)]
+#[derive(Debug, PartialEq, derive_more::From, Clone)]
 pub enum ErrorStackSegment {
     EntryPoint(EntryPointErrorFrame),
     Cairo1RevertSummary(Cairo1RevertSummary),
@@ -148,9 +145,8 @@ impl Display for ErrorStackHeader {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct ErrorStack {
     pub header: ErrorStackHeader,
     pub stack: Vec<ErrorStackSegment>,
