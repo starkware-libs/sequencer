@@ -47,6 +47,7 @@ pub fn create_chain_info() -> ChainInfo {
 
 // TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
 // the config.
+// take mock_system_mode as an arg and return vector of configs.
 pub async fn create_config(
     sequencer_index: usize,
     chain_info: ChainInfo,

@@ -13,4 +13,6 @@ async fn main() {
 
     // Run end to end integration test.
     end_to_end_integration(tx_generator).await;
+
+    // end_to_end_integration(tx_generator, MockSystemMode::Remote).await;
 }

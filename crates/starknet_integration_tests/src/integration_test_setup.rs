@@ -27,6 +27,7 @@ pub struct IntegrationTestSetup {
     // Client for checking liveness of the sequencer node.
     pub is_alive_test_client: IsAliveClient,
     // Path to the node configuration file.
+    // change it to be vec of dumped paths
     pub node_config_path: PathBuf,
     // Storage reader for the batcher.
     pub batcher_storage_config: StorageConfig,
@@ -64,6 +65,7 @@ impl IntegrationTestSetup {
             create_mempool_p2p_configs(SEQUENCER_INDICES.len(), chain_info.chain_id.clone());
 
         // Derive the configuration for the sequencer node.
+        // create vec of configs for each sequencer
         let (config, required_params) = create_config(
             SEQUENCER_INDEX,
             chain_info,
@@ -76,6 +78,7 @@ impl IntegrationTestSetup {
         .await;
 
         let node_config_dir_handle = tempdir().unwrap();
+        // iterate over the configs and dump it to a file. create a vec of dumped paths
         let node_config_path = dump_config_file_changes(
             &config,
             required_params,
