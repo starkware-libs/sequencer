@@ -7355,6 +7355,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror",
+ "tracing",
  "validator",
 ]
 
