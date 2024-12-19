@@ -1,24 +1,17 @@
-use std::sync::Arc;
-
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::block::GasPrice;
 use crate::core::CompiledClassHash;
 use crate::execution_resources::GasAmount;
-use crate::rpc_transaction::{
-    DataAvailabilityMode,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcTransaction,
-};
+use crate::rpc_transaction::{DataAvailabilityMode, RpcTransaction};
 use crate::state::SierraContractClass;
 use crate::test_utils::declare::{rpc_declare_tx, DeclareTxArgs};
+use crate::test_utils::deploy_account::{rpc_deploy_account_tx, DeployAccountTxArgs};
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
-    Calldata,
     ContractAddressSalt,
     PaymasterData,
     ResourceBounds,
@@ -56,22 +49,22 @@ fn create_declare_tx() -> RpcTransaction {
     )
 }
 
-fn create_deploy_account_v3() -> RpcDeployAccountTransaction {
-    RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
-        resource_bounds: create_resource_bounds_for_testing(),
-        tip: Tip::default(),
-        contract_address_salt: ContractAddressSalt(felt!("0x23")),
+fn create_deploy_account_tx() -> RpcTransaction {
+    rpc_deploy_account_tx(DeployAccountTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+        contract_address_salt: ContractAddressSalt(felt!("0x1")),
         class_hash: class_hash!("0x2"),
-        constructor_calldata: Calldata(Arc::new(vec![Felt::ZERO])),
-        nonce: nonce!(60),
-        signature: TransactionSignature(vec![Felt::TWO]),
+        constructor_calldata: calldata![felt!("0x1")],
+        nonce: nonce!(1),
+        signature: TransactionSignature(vec![felt!("0x1")]),
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         fee_data_availability_mode: DataAvailabilityMode::L1,
-        paymaster_data: PaymasterData(vec![Felt::TWO, Felt::ZERO]),
+        paymaster_data: PaymasterData(vec![felt!("0x2"), felt!("0x0")]),
+        ..Default::default()
     })
 }
 
-fn create_rpc_invoke_tx() -> RpcTransaction {
+fn create_invoke_tx() -> RpcTransaction {
     rpc_invoke_tx(InvokeTxArgs {
         resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
         calldata: calldata![felt!("0x1"), felt!("0x2")],
@@ -86,8 +79,8 @@ fn create_rpc_invoke_tx() -> RpcTransaction {
 // Test the custom serde/deserde of RPC transactions.
 #[rstest]
 #[case(create_declare_tx())]
-#[case(RpcTransaction::DeployAccount(create_deploy_account_v3()))]
-#[case(create_rpc_invoke_tx())]
+#[case(create_deploy_account_tx())]
+#[case(create_invoke_tx())]
 fn test_rpc_transactions(#[case] tx: RpcTransaction) {
     let serialized = serde_json::to_string(&tx).unwrap();
     let deserialized: RpcTransaction = serde_json::from_str(&serialized).unwrap();
