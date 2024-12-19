@@ -19,7 +19,9 @@ use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::{FlowTestSetup, SequencerSetup};
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
+    create_txs_for_integration_test,
     run_integration_test_scenario,
+    test_tx_hashes_for_integration_test,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;
@@ -49,6 +51,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     );
 
     let next_height = INITIAL_HEIGHT.unchecked_next();
+    let n_heights = next_height.iter_up_to(LAST_HEIGHT.unchecked_next()).count();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let expected_content_ids = [
         Felt::from_hex_unchecked(
@@ -66,15 +69,44 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // We start at height 1, so we need to skip the proposer of the initial height.
     expected_proposer_iter.next().unwrap();
 
+    let create_rpc_txs_scenarios =
+        [create_txs_for_integration_test, create_txs_for_integration_test];
+
+    let test_tx_hashes_scenarios =
+        [test_tx_hashes_for_integration_test, test_tx_hashes_for_integration_test];
+
+    assert_eq!(
+        n_heights,
+        expected_content_ids.len(),
+        "Expected the same number of heights and content ids"
+    );
+    assert_eq!(
+        n_heights,
+        create_rpc_txs_scenarios.len(),
+        "Expected the same number of heights and scenarios"
+    );
+    assert_eq!(
+        n_heights,
+        test_tx_hashes_scenarios.len(),
+        "Expected the same number of heights and scenarios"
+    );
+
     // Build multiple heights to ensure heights are committed.
-    for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
+    for (height, expected_content_id, create_rpc_txs_fn, test_tx_hashes_fn) in itertools::izip!(
+        heights_to_build,
+        expected_content_ids,
+        create_rpc_txs_scenarios.iter(),
+        test_tx_hashes_scenarios.iter(),
+    ) {
         debug!("Starting height {}.", height);
         // Create and send transactions.
-        let expected_batched_tx_hashes =
-            run_integration_test_scenario(&mut tx_generator, &mut |tx| {
-                sequencer_to_add_txs.assert_add_tx_success(tx)
-            })
-            .await;
+        let expected_batched_tx_hashes = run_integration_test_scenario(
+            &mut tx_generator,
+            create_rpc_txs_fn,
+            &mut |tx| sequencer_to_add_txs.assert_add_tx_success(tx),
+            test_tx_hashes_fn,
+        )
+        .await;
         let expected_validator_id = expected_proposer_iter
             .next()
             .unwrap()
