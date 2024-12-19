@@ -47,6 +47,7 @@ async fn class_basic_flow() {
     ];
 
     let mut actions = vec![
+        Action::RunP2pSync,
         // We already validate the header query content in other tests.
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];
