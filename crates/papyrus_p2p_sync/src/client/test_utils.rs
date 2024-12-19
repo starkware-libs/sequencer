@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
+use futures::channel::mpsc;
 use futures::future::BoxFuture;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::test_utils::{
@@ -41,6 +42,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::FullTransaction;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
 
 use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
@@ -136,6 +138,9 @@ pub enum DataType {
 pub enum Action {
     /// Get a header query from the sync and run custom validations on it.
     ReceiveQuery(Box<dyn FnOnce(Query)>, DataType),
+    /// Sends an internal block to the storage.
+    #[allow(dead_code)]
+    SendInternalBlock(BlockNumber, SyncBlock),
     /// Send a header as a response to a query we got from ReceiveQuery. Will panic if didn't call
     /// ReceiveQuery with DataType::Header before.
     SendHeader(DataOrFin<SignedBlockHeader>),
@@ -188,12 +193,13 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         transaction_sender,
         class_sender,
     };
+    let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
-        futures::stream::pending().boxed(),
+        internal_block_receiver.boxed(),
     );
 
     let mut headers_current_query_responses_manager = None;
@@ -233,6 +239,9 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                             }
                         };
                         validate_query_fn(query);
+                    }
+                    Action::SendInternalBlock(block_number, sync_block) => {
+                        internal_block_sender.send((block_number, sync_block)).await.unwrap();
                     }
                     Action::SendHeader(header_or_fin) => {
                         let responses_manager = headers_current_query_responses_manager.as_mut()
