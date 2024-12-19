@@ -307,12 +307,11 @@ impl CompiledClassV1 {
         get_visited_segments(&self.bytecode_segment_lengths, &mut reversed_visited_pcs, &mut 0)
     }
 
-    pub fn try_from_json_string(raw_contract_class: &str) -> Result<CompiledClassV1, ProgramError> {
+    pub fn try_from_json_string(
+        (raw_contract_class, sierra_version): (&str, SierraVersion),
+    ) -> Result<CompiledClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        // TODO(Aviv): Use Sierra version received from Python state reader.
-        let sierra_version = SierraVersion::DEPRECATED;
         let contract_class = CompiledClassV1::try_from((casm_contract_class, sierra_version))?;
-
         Ok(contract_class)
     }
 }
