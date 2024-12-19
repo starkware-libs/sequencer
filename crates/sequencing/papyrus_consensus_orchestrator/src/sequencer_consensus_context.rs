@@ -58,6 +58,8 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, trace, warn, Instrument};
 
+use crate::cende::{BlobParameters, CendeContext};
+
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
     eth_gas_prices: GasPriceVector {
@@ -113,6 +115,7 @@ pub struct SequencerConsensusContext {
     vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
     // Used to convert Transaction to ExecutableTransaction.
     chain_id: ChainId,
+    cende_ambassador: Arc<dyn CendeContext>,
 }
 
 impl SequencerConsensusContext {
@@ -122,6 +125,7 @@ impl SequencerConsensusContext {
         vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
         chain_id: ChainId,
+        cende_ambassador: Arc<dyn CendeContext>,
     ) -> Self {
         Self {
             batcher,
@@ -138,6 +142,7 @@ impl SequencerConsensusContext {
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
             chain_id,
+            cende_ambassador,
         }
     }
 }
@@ -151,6 +156,8 @@ impl ConsensusContext for SequencerConsensusContext {
         proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
+        let writing_blob_succeeded =
+            self.cende_ambassador.write_prev_height_blob(proposal_init.height);
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
         debug!(
@@ -214,6 +221,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     batcher,
                     valid_proposals,
                     proposal_sender,
+                    writing_blob_succeeded,
                     fin_sender,
                 )
                 .await;
@@ -312,7 +320,13 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_id = proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().1;
             proposals.retain(|&h, _| h > BlockNumber(height));
         }
+        // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
+        // build a blob.
         self.batcher.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
+        // TODO(dvir): pass here real `BlobParameters` info.
+        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
+        // `prepare_blob_for_next_height` is called with the correct parameters.
+        self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::default()).await;
 
         Ok(())
     }
@@ -468,6 +482,7 @@ async fn stream_build_proposal(
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
+    mut writing_blob_succeeded: oneshot::Receiver<bool>,
     fin_sender: oneshot::Sender<ProposalContentId>,
 ) {
     let mut content = Vec::new();
@@ -513,6 +528,18 @@ async fn stream_build_proposal(
                     height
                 );
                 debug!("Broadcasting proposal fin: {proposal_content_id:?}");
+
+                // If the blob writing operation to Aerospike doesn't return a success status, we
+                // can't finish the proposal.
+                let Ok(Some(succeeded)) = writing_blob_succeeded.try_recv() else {
+                    debug!("Writing blob to Aerospike didn't return in time.");
+                    return;
+                };
+                if !succeeded {
+                    debug!("Writing blob to Aerospike failed.");
+                    return;
+                }
+
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_content_id }))
                     .await
