@@ -203,6 +203,7 @@ async fn wrong_block_number() {
     run_test(
         HashMap::from([(DataType::Header, 1)]),
         vec![
+            Action::RunP2pSync,
             // We already validate the query content in other tests.
             Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
             Action::SendHeader(DataOrFin(Some(random_header(
