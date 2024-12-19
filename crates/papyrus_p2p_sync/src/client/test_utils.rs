@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
@@ -156,10 +157,18 @@ pub enum Action {
     CheckStorage(Box<dyn FnOnce(StorageReader) -> BoxFuture<'static, ()>>),
     /// Check that a report was sent on the current header query.
     ValidateReportSent(DataType),
+    /// Run the P2P sync client.
+    RunP2pSync,
+}
+
+impl PartialEq for Action {
+    fn eq(&self, other: &Self) -> bool {
+        matches!((self, other), (Action::RunP2pSync, Action::RunP2pSync))
+    }
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
-pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Action>) {
+pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, mut actions: Vec<Action>) {
     let p2p_sync_config = P2PSyncClientConfig {
         num_headers_per_query: max_query_lengths.get(&DataType::Header).cloned().unwrap_or(1),
         num_block_state_diffs_per_query: max_query_lengths
@@ -188,18 +197,21 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         transaction_sender,
         class_sender,
     };
-    let p2p_sync = P2PSyncClient::new(
+    let mut p2p_sync = Some(P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
         futures::stream::pending().boxed(),
-    );
+    ));
 
     let mut headers_current_query_responses_manager = None;
     let mut state_diff_current_query_responses_manager = None;
     let mut transaction_current_query_responses_manager = None;
     let mut class_current_query_responses_manager = None;
+    if !actions.contains(&Action::RunP2pSync) {
+        actions.insert(0, Action::RunP2pSync);
+    }
 
     tokio::select! {
         _ = async {
@@ -286,13 +298,17 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                                 data type");
                         responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
                     }
+                    Action::RunP2pSync => {
+                        let p2p_sync = p2p_sync.take().expect("Called RunP2pSync twice");
+                        tokio::spawn(
+                            async move {
+                            p2p_sync.run().await.unwrap();
+                            panic!("P2P sync client finished running");
+                        });
+                    }
                 }
             }
         } => {},
-        sync_result = p2p_sync.run() => {
-            sync_result.unwrap();
-            panic!("P2P sync aborted with no failure.");
-        }
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");
         }
