@@ -26,6 +26,7 @@ validator.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
+libp2p.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_network_types = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
