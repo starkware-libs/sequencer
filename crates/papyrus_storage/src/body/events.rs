@@ -60,12 +60,25 @@ use starknet_api::transaction::{
     TransactionOutput,
 };
 
-use super::TransactionMetadataTable;
-use crate::body::{EventsTableKey, TransactionIndex};
+use super::{
+    update_marker,
+    EmitterEventsTable,
+    FileOffsetsTable,
+    TransactionHashToIdxTable,
+    TransactionMetadataTable,
+};
+use crate::body::{EmitterEventsTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, RO};
-use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
+use crate::db::{DbTransaction, TransactionKind, RO, RW};
+use crate::{
+    FileHandlers,
+    OffsetKind,
+    StorageResult,
+    StorageScope,
+    StorageTxn,
+    TransactionMetadata,
+};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -144,7 +157,7 @@ pub struct EventIterByContractAddress<'env, 'txn> {
     file_handles: &'txn FileHandlers<RO>,
     // This value is the next entry in the events table to search for relevant events. If it is
     // None there are no more events.
-    next_entry_in_event_table: Option<EventsTableKey>,
+    next_entry_in_event_table: Option<EmitterEventsTableKey>,
     // Queue of events to return from the iterator. When this queue is empty, we need to fetch more
     // events.
     events_queue: VecDeque<((ContractAddress, EventIndex), EventContent)>,
@@ -359,7 +372,92 @@ fn get_events_from_tx(
 
 /// A cursor of the events table.
 type EventsTableCursor<'txn> =
-    DbCursor<'txn, RO, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+    DbCursor<'txn, RO, EmitterEventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+
+pub trait EventsStorageWriter
+where
+    Self: Sized,
+{
+    /// Appends the events of an entire block to the storage.
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self>;
+
+    /// Reverts the events of an entire block from the storage and returns the removed data.
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)>;
+}
+
+impl EventsStorageWriter for StorageTxn<'_, RW> {
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        update_marker(&self.txn, &markers_table, block_number)?;
+
+        if self.scope != StorageScope::StateOnly {
+            let emitter_to_events_table = self.open_table(&self.tables.emitter_to_events)?;
+            let transaction_hash_to_idx_table =
+                self.open_table(&self.tables.transaction_hash_to_idx)?;
+            let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+            let file_offset_table = self.open_table(&self.tables.file_offset)?;
+
+            write_events(
+                &block_events,
+                &self.txn,
+                &self.file_handlers,
+                &file_offset_table,
+                &transaction_hash_to_idx_table,
+                &transaction_metadata_table,
+                &emitter_to_events_table,
+                block_number,
+            )?;
+        }
+        Ok(self)
+    }
+
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)> {
+        todo!()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_events<'env>(
+    block_events: Vec<Vec<Event>>,
+    txn: &DbTransaction<'env, RW>,
+    file_handlers: &FileHandlers<RW>,
+    file_offset_table: &'env FileOffsetsTable<'env>,
+    transaction_hash_to_idx_table: &'env TransactionHashToIdxTable<'env>,
+    transaction_metadata_table: &'env TransactionMetadataTable<'env>,
+    events_table: &'env EmitterEventsTable<'env>,
+    block_number: BlockNumber,
+) -> StorageResult<()> {
+    for (index, transaction_events) in block_events.into_iter().enumerate() {
+        let transaction_index = TransactionIndex(block_number, EventOffsetInBlock(index));
+        let events_location =
+            file_offset_table.get(txn, &OffsetKind::Event)?.unwrap_or_else(|| {
+                panic!("Events location not found for transaction index: {transaction_index:?}")
+            });
+
+        for (event_index, event) in transaction_events.into_iter().enumerate() {
+            let key = (
+                event.from_address,
+                EventIndex(transaction_index, EventIndexInTransactionOutput(event_index)),
+            );
+            events_table.put(txn, &key, &event.content)?;
+        }
+    }
+    StorageResult::Ok(())
+}
