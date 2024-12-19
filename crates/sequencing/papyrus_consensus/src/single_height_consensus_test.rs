@@ -1,7 +1,12 @@
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit};
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    DEFAULT_VALIDATOR_ID,
+};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -12,7 +17,7 @@ use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockProposalPart, MockTestContext, TestBlock};
-use crate::types::{ConsensusError, ValidatorId, DEFAULT_VALIDATOR_ID};
+use crate::types::{ConsensusError, ValidatorId};
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();

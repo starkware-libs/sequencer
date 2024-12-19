@@ -12,13 +12,13 @@ use papyrus_config::converters::{
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::NetworkConfig;
+use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use validator::Validate;
 
-use super::types::ValidatorId;
-use crate::types::DEFAULT_VALIDATOR_ID;
+use crate::types::ValidatorId;
 
 const CONSENSUS_TCP_PORT: u16 = 10100;
 const CONSENSUS_QUIC_PORT: u16 = 10101;

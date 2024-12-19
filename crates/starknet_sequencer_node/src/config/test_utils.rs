@@ -1,7 +1,7 @@
 use std::vec::Vec; // Used by #[gen_field_names_fn].
 
-use papyrus_consensus::types::DEFAULT_VALIDATOR_ID;
 use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
+use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use starknet_api::core::{ChainId, ContractAddress};
 
 use crate::config::node_config::node_command;

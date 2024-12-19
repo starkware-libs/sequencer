@@ -7,13 +7,13 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::types::{ValidatorId, DEFAULT_VALIDATOR_ID};
+use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     create_network_configs_connected_to_broadcast_channels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage, DEFAULT_VALIDATOR_ID};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
