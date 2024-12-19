@@ -64,7 +64,6 @@ lazy_static! {
         num_block_classes_per_query: CLASS_DIFF_QUERY_LENGTH,
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         buffer_size: BUFFER_SIZE,
-        stop_sync_at_block_number: None,
     };
 }
 pub(crate) type HeaderTestPayload =
@@ -174,7 +173,6 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         num_block_classes_per_query: max_query_lengths.get(&DataType::Class).cloned().unwrap_or(1),
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         buffer_size: BUFFER_SIZE,
-        stop_sync_at_block_number: None,
     };
     let buffer_size = p2p_sync_config.buffer_size;
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
