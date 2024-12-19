@@ -68,9 +68,6 @@ jobs:
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-      - name: "Run cargo doc pull request"
-        if: github.event_name == 'pull_request'
-        run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
 
       # Run code style on push.
       - name: "Run rustfmt on push"
@@ -79,14 +76,29 @@ jobs:
       - name: "Run clippy on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command clippy
-      - name: "Run cargo doc on push"
-        if: github.event_name == 'push'
-        run: ci/bin/python scripts/run_tests.py --command doc
 
       - name: "Run taplo"
         run: scripts/taplo.sh
       - name: Run Machete (detect unused dependencies)
         run: cargo machete
+
+  rustdoc:
+    runs-on: starkware-ubuntu-latest-medium
+    env:
+      # Note that cargo doc requires RUSTDOCFLAGS, not RUSTFLAGS.
+      RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.9'
+      - uses: ./.github/actions/bootstrap
+      - name: "Run cargo doc pull request"
+        if: github.event_name == 'pull_request'
+        run: python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+      - name: "Run cargo doc on push"
+        if: github.event_name == 'push'
+        run: python scripts/run_tests.py --command doc
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
