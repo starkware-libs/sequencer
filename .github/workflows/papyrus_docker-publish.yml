@@ -1,4 +1,4 @@
-<!-- name: Papyrus-Docker-Publish
+name: Papyrus-Docker-Publish
 
 on:
   workflow_dispatch:
