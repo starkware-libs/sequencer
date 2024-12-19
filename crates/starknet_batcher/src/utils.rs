@@ -67,8 +67,7 @@ pub(crate) fn deadline_as_instant(
     let time_to_deadline = deadline - chrono::Utc::now();
     let as_duration =
         time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
-    // TODO(Matan): this is a temporary solution to the timeout issue.
-    Ok((std::time::Instant::now() + (as_duration / 2)).into())
+    Ok((std::time::Instant::now() + as_duration).into())
 }
 
 pub(crate) fn verify_block_input(
