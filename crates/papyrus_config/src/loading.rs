@@ -14,7 +14,8 @@ use clap::Command;
 use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
+use serde_json::{json, to_string_pretty, Map, Value};
+use tracing::info;
 
 use crate::validators::validate_path_exists;
 use crate::{
@@ -33,6 +34,11 @@ use crate::{
 pub fn load<T: for<'a> Deserialize<'a>>(
     config_map: &BTreeMap<ParamPath, Value>,
 ) -> Result<T, ConfigError> {
+    if let Ok(pretty_config) = to_string_pretty(&config_map) {
+        info!("config_map: {}", pretty_config);
+    } else {
+        info!("Failed to pretty-print config_map");
+    }
     let mut nested_map = json!({});
     for (param_path, value) in config_map {
         let mut entry = &mut nested_map;
