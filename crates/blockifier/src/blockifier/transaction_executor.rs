@@ -169,7 +169,14 @@ impl<S: StateReader> TransactionExecutor<S> {
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
         let mut block_state = self.block_state.take().expect(BLOCK_STATE_ACCESS_ERR);
         let state_diff = if self.block_context.versioned_constants.enable_stateful_compression {
-            state_diff_with_alias_allocation(&mut block_state)?
+            state_diff_with_alias_allocation(
+                &mut block_state,
+                self.block_context
+                    .versioned_constants
+                    .os_constants
+                    .os_contract_addresses
+                    .alias_contract_address(),
+            )?
         } else {
             block_state.to_state_diff()?.state_maps
         };
