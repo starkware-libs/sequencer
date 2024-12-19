@@ -18,32 +18,36 @@ pub struct TestBlock {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct MockProposalPart(pub u64);
+pub enum TestProposalPart {
+    Init(ProposalInit),
+}
 
-impl From<ProposalInit> for MockProposalPart {
+impl From<ProposalInit> for TestProposalPart {
     fn from(init: ProposalInit) -> Self {
-        MockProposalPart(init.height.0)
+        TestProposalPart::Init(init)
     }
 }
 
-impl TryFrom<MockProposalPart> for ProposalInit {
+impl TryFrom<TestProposalPart> for ProposalInit {
     type Error = ProtobufConversionError;
-    fn try_from(part: MockProposalPart) -> Result<Self, Self::Error> {
-        Ok(ProposalInit { height: BlockNumber(part.0), ..Default::default() })
+    fn try_from(part: TestProposalPart) -> Result<Self, Self::Error> {
+        let TestProposalPart::Init(init) = part;
+        Ok(init)
     }
 }
 
-impl From<MockProposalPart> for Vec<u8> {
-    fn from(part: MockProposalPart) -> Vec<u8> {
-        vec![u8::try_from(part.0).expect("Invalid MockProposalPart conversion")]
+impl From<TestProposalPart> for Vec<u8> {
+    fn from(part: TestProposalPart) -> Vec<u8> {
+        let TestProposalPart::Init(init) = part;
+        init.into()
     }
 }
 
-impl TryFrom<Vec<u8>> for MockProposalPart {
+impl TryFrom<Vec<u8>> for TestProposalPart {
     type Error = ProtobufConversionError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(MockProposalPart(value[0].into()))
+        Ok(TestProposalPart::Init(value.try_into()?))
     }
 }
 
@@ -53,7 +57,7 @@ mock! {
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type ProposalPart = MockProposalPart;
+        type ProposalPart = TestProposalPart;
 
         async fn build_proposal(
             &mut self,
@@ -65,7 +69,7 @@ mock! {
             &mut self,
             init: ProposalInit,
             timeout: Duration,
-            content: mpsc::Receiver<MockProposalPart>
+            content: mpsc::Receiver<TestProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
 
         async fn repropose(
