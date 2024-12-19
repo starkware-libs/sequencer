@@ -16,7 +16,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
-use starknet_integration_tests::flow_test_setup::{FlowTestSetup, SequencerSetup};
+use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
@@ -98,7 +98,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     }
 }
 
-async fn wait_for_sequencer_node(sequencer: &SequencerSetup) {
+async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
     sequencer.is_alive_test_client.await_alive(5000, 50).await.expect("Node should be alive.");
 }
 
