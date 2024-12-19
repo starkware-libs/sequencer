@@ -14,6 +14,7 @@ use fs2::FileExt;
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
 use papyrus_common::tcp::find_free_port;
+use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use tokio::process::Command as TokioCommand;
 
 lazy_static! {
@@ -40,7 +41,8 @@ struct Node {
 impl Node {
     fn new(validator_id: usize, monitoring_gateway_server_port: u16, cmd: String) -> Self {
         Node {
-            validator_id,
+            validator_id: validator_id
+                + usize::try_from(DEFAULT_VALIDATOR_ID).expect("Conversion failed"),
             monitoring_gateway_server_port,
             cmd,
             process: None,
@@ -269,12 +271,12 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     let mut cmd = format!(
         "RUST_LOG=papyrus_consensus=debug,papyrus=info target/release/run_consensus \
          --network.#is_none false --base_layer.node_url {} --storage.db_config.path_prefix {} \
-         --consensus.#is_none false --consensus.validator_id 0x{} --consensus.num_validators {} \
+         --consensus.#is_none false --consensus.validator_id 0x{:x} --consensus.num_validators {} \
          --network.tcp_port {} --rpc.server_address 127.0.0.1:{} \
          --monitoring_gateway.server_address 127.0.0.1:{} --collect_metrics true ",
         papyrus_args.base_layer_node_url,
         data_dir,
-        i,
+        i + usize::try_from(DEFAULT_VALIDATOR_ID).expect("Conversion failed"),
         papyrus_args.num_validators,
         tcp_port,
         find_free_port(),
