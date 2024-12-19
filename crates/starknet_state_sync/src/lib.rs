@@ -3,9 +3,12 @@ pub mod runner;
 
 use async_trait::async_trait;
 use papyrus_storage::body::BodyStorageReader;
+use papyrus_storage::db::TransactionKind;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::StorageReader;
+use papyrus_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::{ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::state::{StateNumber, StorageKey};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_state_sync_types::communication::{
@@ -13,7 +16,9 @@ use starknet_state_sync_types::communication::{
     StateSyncResponse,
     StateSyncResult,
 };
+use starknet_state_sync_types::errors::StateSyncError;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
+use starknet_types_core::felt::Felt;
 
 use crate::config::StateSyncConfig;
 use crate::runner::StateSyncRunner;
@@ -39,6 +44,13 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::AddNewBlock(_block_number, _sync_block) => {
                 todo!()
             }
+            StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key) => {
+                StateSyncResponse::GetStorageAt(self.get_storage_at(
+                    block_number,
+                    contract_address,
+                    storage_key,
+                ))
+            }
         }
     }
 }
@@ -58,6 +70,46 @@ impl StateSync {
 
         Ok(None)
     }
+
+    fn get_storage_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+        storage_key: StorageKey,
+    ) -> StateSyncResult<Felt> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        verify_synced_up_to(&txn, block_number)?;
+
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let state_reader = txn.get_state_reader()?;
+        let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
+
+        // If the contract is not deployed, res will be 0. Checking if that's the case so
+        // that we'll return an error instead.
+        // Contract address 0x1 is a special address, it stores the block
+        // hashes. Contracts are not deployed to this address.
+        if res == Felt::default() && contract_address != BLOCK_HASH_TABLE_ADDRESS {
+            // check if the contract exists
+            state_reader
+                .get_class_hash_at(state_number, &contract_address)?
+                .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        };
+
+        Ok(res)
+    }
+}
+
+fn verify_synced_up_to<Mode: TransactionKind>(
+    txn: &StorageTxn<'_, Mode>,
+    block_number: BlockNumber,
+) -> Result<(), StateSyncError> {
+    if let Some(latest_block_number) = txn.get_state_marker()?.prev() {
+        if latest_block_number >= block_number {
+            return Ok(());
+        }
+    }
+
+    Err(StateSyncError::BlockNotFound(block_number))
 }
 
 pub type LocalStateSyncServer =

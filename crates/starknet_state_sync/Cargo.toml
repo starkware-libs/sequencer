@@ -16,6 +16,7 @@ papyrus_network.workspace = true
 papyrus_p2p_sync.workspace = true
 papyrus_storage.workspace = true
 serde.workspace = true
+starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra.workspace = true
 starknet_state_sync_types.workspace = true
