@@ -25,6 +25,10 @@ use validator::Validate;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
+#[cfg(test)]
+#[path = "l1_scraper_tests.rs"]
+pub mod l1_scraper_tests;
+
 pub struct L1Scraper<B: BaseLayerContract> {
     pub config: L1ScraperConfig,
     pub base_layer: B,

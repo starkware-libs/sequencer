@@ -1,0 +1,156 @@
+use std::sync::Arc;
+
+use alloy_node_bindings::{Anvil, AnvilInstance};
+use alloy_primitives::U256;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
+use rstest::{fixture, rstest};
+use starknet_api::core::{EntryPointSelector, Nonce};
+use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
+use starknet_api::hash::StarkHash;
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
+use starknet_api::{calldata, contract_address, felt};
+use starknet_l1_provider_types::Event;
+
+use crate::event_identifiers_to_track;
+use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
+use crate::test_utils::FakeL1ProviderClient;
+
+// TODO: move to global test_utils crate and use everywhere instead of relying on the
+// confusing `#[ignore]` api to mark slow tests.
+fn in_ci() -> bool {
+    std::env::var("CI").is_ok()
+}
+
+// Default funded account, there are more fixed funded accounts,
+// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
+const DEFAULT_ANVIL_ACCOUNT_ADDRESS: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+
+#[fixture]
+// Spin up Anvil instance, a local Ethereum node, dies when dropped.
+fn anvil() -> AnvilInstance {
+    Anvil::new().spawn()
+}
+
+// TODO: Replace EthereumBaseLayerContract with a mock that has a provider initialized with
+// `with_recommended_fillers`, in order to be able to create txs from non-default users.
+async fn scraper(
+    anvil: &AnvilInstance,
+) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
+    if !in_ci() {
+        return;
+    }
+
+    let fake_client = Arc::new(FakeL1ProviderClient::default());
+    let config = EthereumBaseLayerConfig {
+        node_url: anvil.endpoint_url(),
+        starknet_contract_address: DEFAULT_ANVIL_DEPLOY_ADDRESS.parse().unwrap(),
+    };
+    let base_layer = EthereumBaseLayerContract::new(config);
+
+    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
+    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
+
+    let scraper = L1Scraper::new(
+        L1ScraperConfig::default(),
+        fake_client.clone(),
+        base_layer,
+        event_identifiers_to_track(),
+    );
+
+    (scraper, fake_client)
+}
+
+#[rstest]
+#[tokio::test]
+// TODO: extract setup stuff into test helpers once more tests are added and patterns emerge.
+async fn txs_happy_flow(anvil: AnvilInstance) {
+    // Setup.
+    let (mut scraper, fake_client) = scraper(&anvil).await;
+
+    // Test.
+    // Scrape multiple events.
+    let l2_contract_address = "0x12";
+    let l2_entry_point = "0x34";
+
+    let [message_to_l2_0, message_to_l2_1] =
+        [vec![U256::from(1_u8), U256::from(2_u8)], vec![U256::from(3_u8), U256::from(4_u8)]].map(
+            |payload| {
+                scraper.base_layer.contract.sendMessageToL2(
+                    l2_contract_address.parse().unwrap(),
+                    l2_entry_point.parse().unwrap(),
+                    payload,
+                )
+            },
+        );
+
+    // Send the transactions.
+    for msg in &[message_to_l2_0, message_to_l2_1] {
+        msg.send().await.unwrap().get_receipt().await.unwrap();
+    }
+
+    let expected_version = TransactionVersion(StarkHash::ZERO);
+    let expected_internal_l1_tx = L1HandlerTransaction {
+        version: expected_version,
+        nonce: Nonce(felt!(0_u64)),
+        contract_address: contract_address!(l2_contract_address),
+        entry_point_selector: EntryPointSelector(felt!(l2_entry_point)),
+        calldata: calldata![
+            StarkHash::from_hex_unchecked(DEFAULT_ANVIL_ACCOUNT_ADDRESS),
+            felt!(1_u8),
+            felt!(2_u8)
+        ],
+    };
+    let expected_chain_id = &scraper.config.chain_id;
+    let tx = ExecutableL1HandlerTransaction {
+        tx_hash: expected_internal_l1_tx
+            .calculate_transaction_hash(expected_chain_id, &expected_version)
+            .unwrap(),
+        tx: expected_internal_l1_tx,
+        paid_fee_on_l1: Fee(0),
+    };
+    let first_expected_log = Event::L1HandlerTransaction(tx.clone());
+    let expected_internal_l1_tx_2 = L1HandlerTransaction {
+        nonce: Nonce(felt!(1_u64)),
+        calldata: calldata![
+            StarkHash::from_hex_unchecked(DEFAULT_ANVIL_ACCOUNT_ADDRESS),
+            felt!(3_u8),
+            felt!(4_u8)
+        ],
+        ..tx.tx
+    };
+    let second_expected_log = Event::L1HandlerTransaction(ExecutableL1HandlerTransaction {
+        tx_hash: expected_internal_l1_tx_2
+            .calculate_transaction_hash(expected_chain_id, &expected_version)
+            .unwrap(),
+        tx: expected_internal_l1_tx_2,
+        ..tx
+    });
+
+    // Assert.
+    scraper.fetch_events().await.unwrap();
+    fake_client.assert_add_events_received_with(&[first_expected_log, second_expected_log]);
+
+    // Previous events had been scraped, should no longer appear.
+    scraper.fetch_events().await.unwrap();
+    fake_client.assert_add_events_received_with(&[]);
+}
+
+#[tokio::test]
+#[ignore = "Not yet implemented: generate an l1 and an cancel event for that tx, also check an \
+            abort for a different tx"]
+async fn cancel_l1_handlers() {}
+
+#[tokio::test]
+#[ignore = "Not yet implemented: check that when the scraper resets all txs from the last T time
+are processed"]
+async fn reset() {}
+
+#[tokio::test]
+#[ignore = "Not yet implemented: check successful consume."]
+async fn consume() {}
