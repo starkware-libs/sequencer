@@ -30,11 +30,13 @@ pub enum ValidationStatus {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum L1ProviderRequest {
     GetTransactions(usize),
+    AddEvents(Vec<Event>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum L1ProviderResponse {
     GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
+    AddEvents(L1ProviderResult<()>),
 }
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
@@ -43,6 +45,7 @@ pub enum L1ProviderResponse {
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
     async fn get_txs(&self, n_txs: usize) -> L1ProviderClientResult<Vec<L1HandlerTransaction>>;
+    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
     async fn validate(&self, _tx_hash: TransactionHash)
     -> L1ProviderClientResult<ValidationStatus>;
 }
@@ -63,6 +66,19 @@ where
             L1ProviderError
         )
     }
+
+    #[instrument(skip(self))]
+    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::AddEvents(events);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            L1ProviderResponse,
+            AddEvents,
+            L1ProviderClientError,
+            L1ProviderError
+        )
+    }
+
     async fn validate(
         &self,
         _tx_hash: TransactionHash,
