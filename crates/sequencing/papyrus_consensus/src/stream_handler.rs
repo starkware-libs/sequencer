@@ -40,18 +40,22 @@ struct StreamData<
     // Last message ID. If None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
     max_message_id_received: MessageId,
+    // Keep the receiver until it is time to send it to the application.
+    receiver: Option<mpsc::Receiver<T>>,
     sender: mpsc::Sender<T>,
     // A buffer for messages that were received out of order.
     message_buffer: HashMap<MessageId, StreamMessage<T>>,
 }
 
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
-    fn new(sender: mpsc::Sender<T>) -> Self {
+    fn new() -> Self {
+        let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
         StreamData {
             next_message_id: 0,
             fin_message_id: None,
             max_message_id_received: 0,
             sender,
+            receiver: Some(receiver),
             message_buffer: HashMap::new(),
         }
     }
@@ -187,6 +191,13 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
+            if message.message_id == 0 {
+                // TODO(guyn): consider the expect in both cases.
+                // If this is the first message, send the receiver to the application.
+                let receiver = data.receiver.take().expect("Receiver should exist");
+                // Send the receiver to the application.
+                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
+            }
             match sender.try_send(content) {
                 Ok(_) => {}
                 Err(e) => {
@@ -265,10 +276,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
             Vacant(_) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
-                let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
-                // TODO(guyn): reconsider the "expect" here.
-                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
-                StreamData::new(sender)
+                StreamData::new()
             }
         };
         if let Some(data) = self.handle_message_inner(message, metadata, data) {
