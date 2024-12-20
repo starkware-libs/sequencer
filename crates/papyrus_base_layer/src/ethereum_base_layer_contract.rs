@@ -104,17 +104,19 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
     Contract(#[from] alloy_contract::Error),
+    #[error("{0}")]
+    FeeOutOfRange(alloy_primitives::ruint::FromUintError<u128>),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
-    #[error(transparent)]
-    TypeError(#[from] alloy_sol_types::Error),
     #[error("{0}")]
     StarknetApiParsingError(StarknetApiError),
+    #[error(transparent)]
+    TypeError(#[from] alloy_sol_types::Error),
     #[error("{0:?}")]
     UnhandledL1Event(alloy_primitives::Log),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
