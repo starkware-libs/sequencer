@@ -54,6 +54,8 @@ async fn await_block(
         .ok_or(())
 }
 
+// pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator,
+// mock_system_mpde: MockSystemMode) {
 pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
@@ -65,6 +67,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
     info!("Running sequencer node.");
+    // iterate over dumped paths and spawn a node for each
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
