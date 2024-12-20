@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_types_core::felt;
 use url::Url;
@@ -55,10 +55,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     async fn latest_proved_block(
         &self,
         finality: u64,
-    ) -> EthereumBaseLayerResult<Option<(BlockNumber, BlockHash)>> {
-        let ethereum_block_number =
-            self.contract.provider().get_block_number().await?.checked_sub(finality);
-        let Some(ethereum_block_number) = ethereum_block_number else {
+    ) -> EthereumBaseLayerResult<Option<BlockHashAndNumber>> {
+        let Some(ethereum_block_number) = self.latest_l1_block_number(finality).await? else {
             return Ok(None);
         };
 
@@ -75,7 +73,14 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let validate = true;
         let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
         let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
-        Ok(Some((BlockNumber(block_number), BlockHash(StarkHash::from_bytes_be(&block_hash)))))
+        Ok(Some(BlockHashAndNumber {
+            number: BlockNumber(block_number),
+            hash: BlockHash(StarkHash::from_bytes_be(&block_hash)),
+        }))
+    }
+
+    async fn latest_l1_block_number(&self, finality: u64) -> EthereumBaseLayerResult<Option<u64>> {
+        Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
     }
 }
 

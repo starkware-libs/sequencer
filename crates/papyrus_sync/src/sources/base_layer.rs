@@ -39,6 +39,7 @@ impl<
         let finality = 0;
         self.latest_proved_block(finality)
             .await
+            .map(|block| block.map(|block| (block.number, block.hash)))
             .map_err(|e| BaseLayerSourceError::BaseLayerContractError(Box::new(e)))
     }
 }
