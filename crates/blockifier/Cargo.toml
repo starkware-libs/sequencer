@@ -10,7 +10,7 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cairo_native"]
+cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cairo_native", "dep:sierra-emu"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
@@ -30,6 +30,7 @@ cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-native = { workspace = true, optional = true }
+sierra-emu = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
