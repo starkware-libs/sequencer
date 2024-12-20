@@ -24,7 +24,6 @@ use papyrus_consensus::types::{
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -47,7 +46,7 @@ const CHANNEL_SIZE: usize = 100;
 
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
-    network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+    network_broadcast_client: BroadcastTopicClient<Vote>,
     network_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
     validators: Vec<ValidatorId>,
     sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
@@ -60,7 +59,7 @@ pub struct PapyrusConsensusContext {
 impl PapyrusConsensusContext {
     pub fn new(
         storage_reader: StorageReader,
-        network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+        network_broadcast_client: BroadcastTopicClient<Vote>,
         network_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         num_validators: u64,
         sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
@@ -280,7 +279,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         *self.validators.first().expect("there should be at least one validator")
     }
 
-    async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+    async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
         self.network_broadcast_client.broadcast_message(message).await?;
         Ok(())
