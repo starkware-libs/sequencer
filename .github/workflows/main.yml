@@ -117,6 +117,9 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: npm install -g ganache@7.4.3
+      # Note: Anvil's not on crates.io, so we have to install from git, which moonrepo doesn't know
+      # how to cache, so we're forced to reinstall it every time :(
+      - run: cargo install --git https://github.com/foundry-rs/foundry anvil --locked
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |
