@@ -17,6 +17,7 @@ clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
 infra_utils.workspace = true
+papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
 papyrus_proc_macros = { workspace = true, optional = true }
 papyrus_protobuf.workspace = true
