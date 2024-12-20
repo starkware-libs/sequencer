@@ -19,7 +19,6 @@ ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
 class BaseCommand(Enum):
     TEST = "test"
     CODECOV = "codecov"
-    RUSTFMT = "rustfmt"
     CLIPPY = "clippy"
     DOC = "doc"
 
@@ -39,9 +38,6 @@ class BaseCommand(Enum):
                 "--output-path",
                 "codecov.json",
             ] + package_args
-        elif self == BaseCommand.RUSTFMT:
-            fmt_args = package_args if len(package_args) > 0 else ["--all"]
-            return ["scripts/rust_fmt.sh"] + fmt_args + ["--", "--check"]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
             return ["cargo", "clippy"] + clippy_args + ["--all-targets"]
