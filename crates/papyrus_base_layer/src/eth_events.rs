@@ -48,8 +48,18 @@ impl TryFrom<Log> for L1Event {
                 };
                 Ok(L1Event::LogMessageToL2 { tx, fee })
             }
-            Starknet::StarknetEvents::ConsumedMessageToL1(_event) => {
-                todo!()
+            Starknet::StarknetEvents::ConsumedMessageToL1(event) => {
+                Ok(L1Event::ConsumedMessageToL1 {
+                    from_address: felt_from_u256(event.fromAddress)
+                        .try_into()
+                        .map_err(EthereumBaseLayerError::StarknetApiParsingError)?,
+                    to_address: felt_from_eth_address(event.toAddress)
+                        .try_into()
+                        .map_err(EthereumBaseLayerError::StarknetApiParsingError)?,
+                    payload: Calldata(Arc::new(
+                        event.payload.iter().map(|&x| felt_from_u256(x)).collect(),
+                    )),
+                })
             }
             Starknet::StarknetEvents::MessageToL2Canceled(event) => {
                 Ok(L1Event::MessageToL2Canceled(event.try_into()?))
