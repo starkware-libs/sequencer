@@ -6,6 +6,7 @@ use std::vec::Vec;
 
 use clap::Command;
 use infra_utils::path::resolve_project_relative_path;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -124,6 +125,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub consensus_manager_config: ConsensusManagerConfig,
     #[validate]
+    pub base_layer_config: EthereumBaseLayerConfig,
+    #[validate]
     pub gateway_config: GatewayConfig,
     #[validate]
     pub http_server_config: HttpServerConfig,
@@ -152,6 +155,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
+            append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
             append_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
