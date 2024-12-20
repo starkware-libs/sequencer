@@ -163,8 +163,8 @@ static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
 #[fixture]
-fn inifite_gas_for_vm_mode() -> u64 {
-    VERSIONED_CONSTANTS.inifite_gas_for_vm_mode()
+fn infinite_gas_for_vm_mode() -> u64 {
+    VERSIONED_CONSTANTS.infinite_gas_for_vm_mode()
 }
 
 #[fixture]
@@ -547,7 +547,7 @@ fn test_invoke_tx(
     let expected_execute_call = CallEntryPoint {
         entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
         initial_gas: match account_cairo_version {
-            CairoVersion::Cairo0 => versioned_constants.inifite_gas_for_vm_mode(),
+            CairoVersion::Cairo0 => versioned_constants.infinite_gas_for_vm_mode(),
             CairoVersion::Cairo1(_) => expected_initial_execution_gas,
         },
         ..expected_validated_call
@@ -580,7 +580,7 @@ fn test_invoke_tx(
         storage_address: test_contract_address,
         caller_address: sender_address,
         call_type: CallType::Call,
-        initial_gas: versioned_constants.inifite_gas_for_vm_mode(),
+        initial_gas: versioned_constants.infinite_gas_for_vm_mode(),
     };
 
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
