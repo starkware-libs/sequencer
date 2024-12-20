@@ -1,0 +1,34 @@
+name: Main-CI-Nightly
+on:
+    pull_request:
+        types:
+            - opened
+            - reopened
+            - synchronize
+            - auto_merge_enabled
+            - edited
+
+env:
+    RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+
+jobs:
+    codecov:
+        runs-on: starkware-ubuntu-latest-large
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+            - uses: ./.github/actions/bootstrap
+            - name: Install cargo-llvm-cov
+              uses: taiki-e/install-action@cargo-llvm-cov
+
+            - name: "Run codecov"
+              run: cargo llvm-cov --codecov --output-path codecov.json
+              env:
+                  SEED: 0
+
+            - name: Upload coverage to Codecov
+              uses: codecov/codecov-action@v5
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  verbose: true
