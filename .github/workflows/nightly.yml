@@ -1,0 +1,29 @@
+name: Main-CI-Nightly
+on:
+  schedule:
+    - cron: "0 0 * * *" # Runs at 00:00 UTC every day
+  workflow_dispatch:
+
+env:
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+
+jobs:
+  codecov:
+    runs-on: starkware-ubuntu-latest-large
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+      - run: npm install -g ganache@7.4.3
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: "Run codecov"
+        run: cargo llvm-cov --codecov --output-path codecov.json
+        env:
+          SEED: 0
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
