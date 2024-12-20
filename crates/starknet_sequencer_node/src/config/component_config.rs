@@ -33,6 +33,8 @@ pub struct ComponentConfig {
     #[validate]
     pub http_server: ActiveComponentExecutionConfig,
     #[validate]
+    pub l1_scraper: ActiveComponentExecutionConfig,
+    #[validate]
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 
@@ -45,6 +47,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
             append_sub_config_name(self.l1_provider.dump(), "l1_provider"),
+            append_sub_config_name(self.l1_scraper.dump(), "l1_scraper"),
             append_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
             append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
             append_sub_config_name(self.state_sync.dump(), "state_sync"),
@@ -64,6 +67,7 @@ impl ComponentConfig {
             mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
+            l1_scraper: ActiveComponentExecutionConfig::disabled(),
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
