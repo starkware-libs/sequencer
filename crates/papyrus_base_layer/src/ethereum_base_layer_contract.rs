@@ -118,6 +118,8 @@ pub enum EthereumBaseLayerError {
     StarknetApiParsingError(StarknetApiError),
     #[error("{0:?}")]
     UnhandledL1Event(alloy_primitives::Log),
+    #[error("{0}")]
+    FeeOutOfRange(alloy_primitives::ruint::FromUintError<u128>),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
