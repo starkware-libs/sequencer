@@ -59,6 +59,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "consensus.chain_id",
                 "consensus.network_config.chain_id",
+                "l1_scraper_config.chain_id",
                 "network.chain_id",
                 "rpc.chain_id",
                 "storage.db_config.chain_id",
