@@ -18,7 +18,7 @@ pub type LockedClassCache<'a, T> = MutexGuard<'a, ContractLRUCache<T>>;
 pub struct GlobalContractCache<T: Clone>(pub Arc<Mutex<ContractLRUCache<T>>>);
 
 #[cfg(feature = "cairo_native")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CachedCairoNative {
     Compiled(NativeCompiledClassV1),
     CompilationFailed,

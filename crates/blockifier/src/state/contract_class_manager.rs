@@ -31,9 +31,14 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::global_cache::CachedCairoNative;
 use crate::state::global_cache::ContractCaches;
 
-#[cfg(feature = "cairo_native")]
+#[cfg(all(not(test), feature = "cairo_native"))]
 const CHANNEL_SIZE: usize = 1000;
 
+#[cfg(all(test, feature = "cairo_native"))]
+const CHANNEL_SIZE: usize = 10;
+#[cfg(all(test, feature = "cairo_native"))]
+#[path = "contract_class_manager_test.rs"]
+mod contract_class_manager_test;
 /// Represents a request to compile a sierra contract class to a native compiled class.
 ///
 /// # Fields:
@@ -63,17 +68,32 @@ impl ContractClassManager {
     /// Returns the contract class manager.
     /// NOTE: If native compilation is disabled, the compilation worker is not spawned.
     pub fn start(config: ContractClassManagerConfig) -> ContractClassManager {
+        #[cfg(not(feature = "cairo_native"))]
+        let channel_size = 0; //TODO (AvivG): Consider other implementation- perhaps cleaner?
+        #[cfg(feature = "cairo_native")]
+        let channel_size = CHANNEL_SIZE;
+
+        Self::start_with_channel_size(config, channel_size)
+    }
+
+    pub fn start_with_channel_size(
+        config: ContractClassManagerConfig,
+        channel_size: usize,
+    ) -> ContractClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let contract_caches = ContractCaches::new(config.contract_cache_size);
         #[cfg(not(feature = "cairo_native"))]
-        return ContractClassManager { contract_caches };
+        {
+            let _ = channel_size;
+            return ContractClassManager { contract_caches };
+        }
         #[cfg(feature = "cairo_native")]
         {
             if !config.run_cairo_native {
                 // Native compilation is disabled - no need to start the compilation worker.
                 return ContractClassManager { config, contract_caches, sender: None };
             }
-            let (sender, receiver) = sync_channel(CHANNEL_SIZE);
+            let (sender, receiver) = sync_channel(channel_size);
 
             std::thread::spawn({
                 let contract_caches = contract_caches.clone();
