@@ -1,17 +1,25 @@
+use std::any::type_name;
+use std::collections::BTreeMap;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use papyrus_base_layer::constants::EventIdentifier;
 use papyrus_base_layer::{BaseLayerContract, L1Event};
 use papyrus_config::converters::deserialize_seconds_to_duration;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
 use starknet_api::StarknetApiError;
+use starknet_l1_provider_types::errors::L1ProviderClientError;
 use starknet_l1_provider_types::{Event, SharedL1ProviderClient};
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::errors::ComponentError;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::error;
+use tracing::{error, info};
 use validator::Validate;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
@@ -71,11 +79,13 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .map(|event| self.event_from_raw_l1_event(event))
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
 
+        self.l1_provider_client.add_events(events).await?;
         self.last_block_number_processed = latest_l1_block_number + 1;
-        todo!("send {events:?} to provider");
+
+        Ok(())
     }
 
-    async fn _run(&mut self) -> L1ScraperResult<(), B> {
+    async fn run(&mut self) -> L1ScraperResult<(), B> {
         loop {
             sleep(self.config.polling_interval).await;
             // TODO: retry.
@@ -97,6 +107,14 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 todo!()
             }
         }
+    }
+}
+
+#[async_trait]
+impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
+        info!("Starting component {}.", type_name::<Self>());
+        self.run().await.map_err(|_| ComponentError::InternalComponentError)
     }
 }
 
@@ -122,10 +140,43 @@ impl Default for L1ScraperConfig {
     }
 }
 
+impl SerializeConfig for L1ScraperConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "l1_block_to_start_scraping_from",
+                &0,
+                "Last L1 block number processed by the scraper",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "finality",
+                &0,
+                "Number of blocks to wait for finality",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "polling_interval",
+                &self.polling_interval.as_secs(),
+                "Interval in Seconds between each scraping attempt of L1.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
     BaseLayer(T::Error),
+    #[error(transparent)]
+    NetworkError(#[from] L1ProviderClientError),
     #[error("Failed to calculate hash: {0}")]
     HashCalculationError(StarknetApiError),
 }

@@ -439,6 +439,36 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "components.l1_scraper.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Enabled"
+  },
+  "components.l1_scraper.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.l1_scraper.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.l1_scraper.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.l1_scraper.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.l1_scraper.remote_client_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -858,6 +888,26 @@
     "description": "Interval in milliseconds between each scraping attempt of L1.",
     "privacy": "Public",
     "value": 100
+  },
+  "l1_scraper_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "l1_scraper_config.finality": {
+    "description": "Number of blocks to wait for finality",
+    "privacy": "Public",
+    "value": 0
+  },
+  "l1_scraper_config.l1_block_to_start_scraping_from": {
+    "description": "Last L1 block number processed by the scraper",
+    "privacy": "Public",
+    "value": 0
+  },
+  "l1_scraper_config.polling_interval": {
+    "description": "Interval in Seconds between each scraping attempt of L1.",
+    "privacy": "Public",
+    "value": 1
   },
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",

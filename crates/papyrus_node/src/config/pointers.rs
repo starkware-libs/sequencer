@@ -62,6 +62,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "network.chain_id",
                 "rpc.chain_id",
                 "storage.db_config.chain_id",
+                "l1_scraper_config.chain_id",
             ])
         ),
         (
