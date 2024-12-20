@@ -95,6 +95,7 @@ pub async fn create_node_config(
             validator_id,
             // TODO(dvir): change this to real value when add recorder to integration tests.
             recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
+            base_layer_config_fieldseperator_node_url: Url::parse("http://localhost:8545").unwrap(),
         },
     )
 }

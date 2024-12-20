@@ -17,6 +17,7 @@ clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
 infra_utils.workspace = true
+papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
@@ -43,8 +44,9 @@ starknet_state_sync.workspace = true
 starknet_state_sync_types.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-url = { workspace = true, optional = true }
+url = { workspace = true, features = ["serde"], optional = true }
 validator.workspace = true
+
 
 [dev-dependencies]
 assert_matches.workspace = true

@@ -18,6 +18,9 @@ pub struct RequiredParams {
     pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
+    // FIXME: workaround for base layer required param.
+    #[serde(rename = "base_layer_config.node_url")]
+    pub base_layer_config_fieldseperator_node_url: Url,
 }
 
 impl RequiredParams {
@@ -28,6 +31,7 @@ impl RequiredParams {
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
             recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
+            base_layer_config_fieldseperator_node_url: Url::parse("http://localhost:8545").unwrap(),
         }
     }
 
