@@ -32,8 +32,8 @@ impl TryFrom<Log> for L1Event {
             Starknet::StarknetEvents::MessageToL2Canceled(event) => {
                 Ok(L1Event::MessageToL2Canceled(event.try_into()?))
             }
-            Starknet::StarknetEvents::MessageToL2CancellationStarted(_event) => {
-                todo!()
+            Starknet::StarknetEvents::MessageToL2CancellationStarted(event) => {
+                Ok(L1Event::MessageToL2CancellationStarted(event.try_into()?))
             }
             _ => Err(EthereumBaseLayerError::UnhandledL1Event(log)),
         }
@@ -44,6 +44,20 @@ impl TryFrom<Starknet::MessageToL2Canceled> for EventData {
     type Error = EthereumBaseLayerError;
 
     fn try_from(event: Starknet::MessageToL2Canceled) -> EthereumBaseLayerResult<Self> {
+        create_l1_event_data(
+            event.fromAddress,
+            event.toAddress,
+            event.selector,
+            &event.payload,
+            event.nonce,
+        )
+    }
+}
+
+impl TryFrom<Starknet::MessageToL2CancellationStarted> for EventData {
+    type Error = EthereumBaseLayerError;
+
+    fn try_from(event: Starknet::MessageToL2CancellationStarted) -> EthereumBaseLayerResult<Self> {
         create_l1_event_data(
             event.fromAddress,
             event.toAddress,
