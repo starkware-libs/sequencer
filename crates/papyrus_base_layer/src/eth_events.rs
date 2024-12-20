@@ -1,10 +1,13 @@
+use std::iter::once;
 use std::sync::Arc;
 
 use alloy_primitives::{Address as EthereumContractAddress, U256};
 use alloy_rpc_types_eth::Log;
 use alloy_sol_types::SolEventInterface;
 use starknet_api::core::{EntryPointSelector, Nonce};
-use starknet_api::transaction::fields::Calldata;
+use starknet_api::hash::StarkHash;
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::transaction::{L1HandlerTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
 use crate::ethereum_base_layer_contract::{
@@ -23,8 +26,24 @@ impl TryFrom<Log> for L1Event {
 
         let event = Starknet::StarknetEvents::decode_log(&log, validate)?.data;
         match event {
-            Starknet::StarknetEvents::LogMessageToL2(_event) => {
-                todo!()
+            Starknet::StarknetEvents::LogMessageToL2(event) => {
+                let fee =
+                    Fee(event.fee.try_into().map_err(EthereumBaseLayerError::FeeOutOfRange)?);
+                let mut event_data = EventData::try_from(event)?;
+                let payload_inner = Arc::get_mut(&mut event_data.payload.0).expect(
+                    "The event data is the only owner and was initialized in the previous line",
+                );
+                // Prepend the L1 sender address to the calldata.
+                payload_inner.insert(0, event_data.from_address.into());
+
+                let tx = L1HandlerTransaction {
+                    version: L1HandlerTransaction::VERSION,
+                    contract_address: event_data.to_address,
+                    entry_point_selector: event_data.entry_point_selector,
+                    nonce: event_data.nonce,
+                    calldata: event_data.payload,
+                };
+                Ok(L1Event::LogMessageToL2 { tx, fee })
             }
             Starknet::StarknetEvents::ConsumedMessageToL2(_event) => {
                 todo!()
@@ -64,6 +83,20 @@ impl TryFrom<Starknet::MessageToL2CancellationStarted> for EventData {
             event.selector,
             &event.payload,
             event.nonce,
+        )
+    }
+}
+
+impl TryFrom<Starknet::LogMessageToL2> for EventData {
+    type Error = EthereumBaseLayerError;
+
+    fn try_from(decoded: Starknet::LogMessageToL2) -> EthereumBaseLayerResult<Self> {
+        create_l1_event_data(
+            decoded.fromAddress,
+            decoded.toAddress,
+            decoded.selector,
+            &decoded.payload,
+            decoded.nonce,
         )
     }
 }
