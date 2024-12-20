@@ -170,7 +170,7 @@ impl CallEntryPoint {
     ) -> EntryPointExecutionResult<CallInfo> {
         let execution_result = self.execute(state, context, remaining_gas);
         if let Ok(call_info) = &execution_result {
-            // If the execution of the outer call failed, revert the transction.
+            // If the execution of the outer call failed, revert the transaction.
             if call_info.execution.failed {
                 return Err(EntryPointExecutionError::ExecutionFailed {
                     error_trace: extract_trailing_cairo1_revert_trace(
@@ -221,7 +221,7 @@ pub struct EntryPointExecutionContext {
     // The call stack of tracked resources from the first entry point to the current.
     pub tracked_resource_stack: Vec<TrackedResource>,
 
-    // Information for reverting the state (inludes the revert info of the callers).
+    // Information for reverting the state (includes the revert info of the callers).
     pub revert_infos: ExecutionRevertInfo,
 }
 
