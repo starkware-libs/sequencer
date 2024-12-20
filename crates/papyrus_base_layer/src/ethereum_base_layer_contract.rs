@@ -11,13 +11,14 @@ use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
 use async_trait::async_trait;
-use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use url::Url;
+use validator::Validate;
 
 use crate::{BaseLayerContract, L1Event};
 
@@ -122,7 +123,7 @@ pub enum EthereumBaseLayerError {
     FeeOutOfRange(alloy_primitives::ruint::FromUintError<u128>),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
@@ -131,9 +132,9 @@ pub struct EthereumBaseLayerConfig {
 impl SerializeConfig for EthereumBaseLayerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_required_param(
+            ser_param(
                 "node_url",
-                SerializationType::String,
+                &self.node_url.to_string(),
                 "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
                 ParamPrivacyInput::Private,
             ),
@@ -153,7 +154,7 @@ impl Default for EthereumBaseLayerConfig {
             "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4".parse().unwrap();
 
         Self {
-            node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
+            node_url: "https://mainnet.infura.io/v3/your_api_key".parse().unwrap(),
             starknet_contract_address,
         }
     }

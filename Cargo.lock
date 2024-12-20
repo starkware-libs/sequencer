@@ -7317,6 +7317,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "validator",
 ]
 
 [[package]]
@@ -10718,6 +10719,7 @@ dependencies = [
  "futures",
  "infra_utils",
  "mempool_test_utils",
+ "papyrus_base_layer",
  "papyrus_config",
  "papyrus_proc_macros",
  "papyrus_protobuf",
