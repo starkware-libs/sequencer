@@ -43,8 +43,8 @@ impl TryFrom<Log> for L1Event {
                 };
                 Ok(L1Event::LogMessageToL2 { tx, fee })
             }
-            Starknet::StarknetEvents::ConsumedMessageToL2(_event) => {
-                todo!()
+            Starknet::StarknetEvents::ConsumedMessageToL2(event) => {
+                Ok(L1Event::ConsumedMessageToL2(event.try_into()?))
             }
             Starknet::StarknetEvents::MessageToL2Canceled(event) => {
                 Ok(L1Event::MessageToL2Canceled(event.try_into()?))
@@ -95,6 +95,20 @@ impl TryFrom<Starknet::LogMessageToL2> for EventData {
             decoded.selector,
             &decoded.payload,
             decoded.nonce,
+        )
+    }
+}
+
+impl TryFrom<Starknet::ConsumedMessageToL2> for EventData {
+    type Error = EthereumBaseLayerError;
+
+    fn try_from(event: Starknet::ConsumedMessageToL2) -> EthereumBaseLayerResult<Self> {
+        create_l1_event_data(
+            event.fromAddress,
+            event.toAddress,
+            event.selector,
+            &event.payload,
+            event.nonce,
         )
     }
 }
