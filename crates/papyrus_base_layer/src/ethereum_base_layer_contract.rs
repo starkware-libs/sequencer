@@ -3,9 +3,10 @@ use std::future::IntoFuture;
 
 use alloy_dyn_abi::SolType;
 use alloy_json_rpc::RpcError;
-pub(crate) use alloy_primitives::Address as EthereumContractAddress;
+use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_rpc_types_eth::{BlockNumberOrTag, Filter as EthEventFilter};
 use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
@@ -15,12 +16,12 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, Serialized
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_types_core::felt;
+use starknet_api::StarknetApiError;
 use url::Url;
 
 use crate::{BaseLayerContract, L1Event};
 
-type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
+pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
@@ -81,11 +82,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     async fn events(
         &self,
-        _from_block: u64,
-        _until_block: u64,
-        _event_identifiers: &[&str],
+        from_block: u64,
+        until_block: u64,
+        events: &[&str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
-        todo!("Implmeneted in a subsequent commit")
+        let filter = EthEventFilter::new()
+            .from_block(BlockNumberOrTag::Number(from_block))
+            .events(events)
+            .to_block(until_block);
+
+        let matching_logs = self.contract.provider().get_logs(&filter).await?;
+        // Convert logs to L1Events.
+        matching_logs.into_iter().map(TryInto::try_into).collect()
     }
 
     async fn latest_l1_block_number(&self, finality: u64) -> EthereumBaseLayerResult<Option<u64>> {
@@ -98,13 +106,13 @@ pub enum EthereumBaseLayerError {
     #[error(transparent)]
     Contract(#[from] alloy_contract::Error),
     #[error(transparent)]
-    FeltParseError(#[from] felt::FromStrError),
-    #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error(transparent)]
-    Serde(#[from] serde_json::Error),
-    #[error(transparent)]
     TypeError(#[from] alloy_sol_types::Error),
+    #[error("{0}")]
+    StarknetApiParsingError(StarknetApiError),
+    #[error("{0:?}")]
+    UnhandledL1Event(alloy_primitives::Log),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
