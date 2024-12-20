@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::future::IntoFuture;
+use std::ops::RangeInclusive;
 
 use alloy_dyn_abi::SolType;
 use alloy_json_rpc::RpcError;
 use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_types_eth::{BlockNumberOrTag, Filter as EthEventFilter};
+use alloy_rpc_types_eth::Filter as EthEventFilter;
 use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
@@ -83,14 +84,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     async fn events(
         &self,
-        from_block: u64,
-        until_block: u64,
+        block_range: RangeInclusive<u64>,
         events: &[&str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
-        let filter = EthEventFilter::new()
-            .from_block(BlockNumberOrTag::Number(from_block))
-            .events(events)
-            .to_block(until_block);
+        let filter = EthEventFilter::new().select(block_range).events(events);
 
         let matching_logs = self.contract.provider().get_logs(&filter).await?;
         matching_logs.into_iter().map(TryInto::try_into).collect()
