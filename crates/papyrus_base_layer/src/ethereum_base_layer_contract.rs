@@ -18,7 +18,7 @@ use starknet_api::hash::StarkHash;
 use starknet_types_core::felt;
 use url::Url;
 
-use crate::BaseLayerContract;
+use crate::{BaseLayerContract, StarknetEvent};
 
 type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
@@ -77,6 +77,15 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             number: BlockNumber(block_number),
             hash: BlockHash(StarkHash::from_bytes_be(&block_hash)),
         }))
+    }
+
+    async fn events(
+        &self,
+        _from_block: u64,
+        _until_block: u64,
+        _event_identifiers: Vec<&str>,
+    ) -> EthereumBaseLayerResult<Vec<StarknetEvent>> {
+        todo!("Implmeneted in a subsequent commit")
     }
 
     async fn latest_l1_block_number(&self, finality: u64) -> EthereumBaseLayerResult<Option<u64>> {
