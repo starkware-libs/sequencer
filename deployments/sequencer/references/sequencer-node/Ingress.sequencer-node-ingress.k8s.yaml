@@ -10,7 +10,7 @@ metadata:
   labels:
     app: sequencer-node
   name: sequencer-node-ingress
-  namespace: test
+  namespace: sequencer-node
 spec:
   rules:
     - host: test.gcp-integration.sw-dev.io
