@@ -54,4 +54,17 @@ jobs:
           fail_ci_if_error: true
           version: "v0.1.15"
 
+  rustdoc:
+      runs-on: starkware-ubuntu-latest-large
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+        - uses: ./.github/actions/bootstrap
+
+        - name: Build Documentation
+          run: cargo doc --all --no-deps
+          env:
+            # Note that cargo doc requires RUSTDOCFLAGS, not RUSTFLAGS.
+            RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
