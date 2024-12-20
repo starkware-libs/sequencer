@@ -254,9 +254,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-primitives"
-version = "0.8.7"
+version = "0.8.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ecb848c43f6b06ae3de2e4a67496cbbabd78ae87db0f1248934f15d76192c6a"
+checksum = "6259a506ab13e1d658796c31e6e39d2e2ee89243bcc505ddc613b35732e0a430"
 dependencies = [
  "alloy-rlp",
  "bytes",
@@ -316,9 +316,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rlp"
-version = "0.3.8"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26154390b1d205a4a7ac7352aa2eb4f81f391399d4e2f546fb81a2f8bb383f62"
+checksum = "f542548a609dca89fcd72b3b9f355928cf844d4363c5eed9c5273a3dd225e097"
 dependencies = [
  "alloy-rlp-derive",
  "arrayvec",
@@ -327,9 +327,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rlp-derive"
-version = "0.3.8"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d0f2d905ebd295e7effec65e5f6868d153936130ae718352771de3e7d03c75c"
+checksum = "5a833d97bf8a5f0f878daf2c8451fff7de7f9de38baa5a45d936ec718d81255a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2735,9 +2735,9 @@ checksum = "32b13ea120a812beba79e34316b3942a857c86ec1593cb34f27bb28272ce2cca"
 
 [[package]]
 name = "const-hex"
-version = "1.13.1"
+version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0121754e84117e65f9d90648ee6aa4882a6e63110307ab73967a4c5e7e69e586"
+checksum = "4b0485bab839b018a8f1723fc5391819fea5f8f0f32288ef8a735fd096b6160c"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -7300,6 +7300,7 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-rpc-types-eth",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -7310,7 +7311,6 @@ dependencies = [
  "papyrus_config",
  "pretty_assertions",
  "serde",
- "serde_json",
  "starknet-types-core",
  "starknet_api",
  "tar",
