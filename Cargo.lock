@@ -7298,6 +7298,7 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-rpc-types-eth",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
