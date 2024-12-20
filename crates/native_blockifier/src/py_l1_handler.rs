@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use blockifier::abi::constants;
 use pyo3::prelude::*;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -22,7 +21,7 @@ impl TryFrom<PyL1HandlerTransaction> for starknet_api::transaction::L1HandlerTra
     type Error = NativeBlockifierInputError;
     fn try_from(tx: PyL1HandlerTransaction) -> Result<Self, Self::Error> {
         Ok(Self {
-            version: constants::L1_HANDLER_VERSION,
+            version: starknet_api::transaction::L1HandlerTransaction::VERSION,
             nonce: Nonce(tx.nonce.0),
             contract_address: ContractAddress::try_from(tx.contract_address.0)?,
             entry_point_selector: EntryPointSelector(tx.entry_point_selector.0),
