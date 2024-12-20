@@ -18,6 +18,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
 use url::Url;
+use validator::Validate;
 
 use crate::{BaseLayerContract, L1Event};
 
@@ -122,7 +123,7 @@ pub enum EthereumBaseLayerError {
     FeeOutOfRange(alloy_primitives::ruint::FromUintError<u128>),
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
