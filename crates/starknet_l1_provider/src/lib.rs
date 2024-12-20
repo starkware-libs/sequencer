@@ -1,5 +1,6 @@
 pub mod communication;
 pub mod errors;
+pub mod l1_scraper;
 
 #[cfg(test)]
 pub mod test_utils;
