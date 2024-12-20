@@ -6,9 +6,18 @@ use hyper::client::HttpConnector;
 use hyper::Client;
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
+use thiserror::Error;
 use tracing::info;
 
-use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};
+use crate::monitoring_endpoint::{ALIVE, METRICS, MONITORING_PREFIX};
+
+// TODO(Tsabary): rename IsAliveClient to MonitoringClient.
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+pub enum MonitoringClientError {
+    #[error(transparent)]
+    ConnectionError(#[from] hyper::Error),
+}
 
 /// Client for querying 'alive' status of an http server.
 pub struct IsAliveClient {
@@ -45,6 +54,34 @@ impl IsAliveClient {
             .await
             .ok_or(())
             .map(|_| ())
+    }
+
+    pub async fn get_metrics(&self) -> Result<(), MonitoringClientError> {
+        let response = self
+            .client
+            .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
+            .await?;
+
+        // assert_eq!(response.status(), StatusCode::OK);
+        // let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        // let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+        // let expected_prefix = format!(
+        //     "# HELP {metric_name} {metric_help}\n# TYPE {metric_name} counter\n{metric_name} \
+        //      {metric_value}\n\n"
+        // );
+        // assert!(body_string.starts_with(&expected_prefix));
+
+        // if !response.status().is_success() {
+        //     return Err(());
+        // }
+
+        // let body = hyper::body::to_bytes(response.into_body())
+        //     .await
+        //     .map_err(|_| ())?
+        //     .to_vec();
+
+        // info!("Metrics: {:?}", String::from_utf8(body).unwrap());
+        Ok(())
     }
 }
 

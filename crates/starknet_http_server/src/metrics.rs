@@ -1,5 +1,6 @@
 use metrics::{absolute_counter, describe_counter, register_counter};
 
+// TODO(Tsabary): add tests for metrics.
 const ADDED_TRANSACTIONS_TOTAL: (&str, &str, u64) =
     ("ADDED_TRANSACTIONS_TOTAL", "Total number of transactions added", 0);
 const ADDED_TRANSACTIONS_SUCCESS: (&str, &str, u64) =
