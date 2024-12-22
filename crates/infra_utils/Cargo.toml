@@ -10,6 +10,9 @@ description = "Infrastructure utility."
 workspace = true
 
 [dependencies]
+metrics-exporter-prometheus.workspace = true
+num-traits.workspace = true
+regex.workspace = true
 tokio = { workspace = true, features = ["process", "time"] }
 tracing.workspace = true
 
