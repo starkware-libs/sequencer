@@ -85,12 +85,14 @@ pub fn execute_entry_point_call_wrapper(
                 });
             }
             update_remaining_gas(remaining_gas, &call_info);
+            println!("here with remaining gas: {}", remaining_gas);
             Ok(call_info)
         }
         Err(EntryPointExecutionError::PreExecutionError(
             PreExecutionError::EntryPointNotFound(_)
             | PreExecutionError::NoEntryPointOfTypeFound(_),
-        )) if context.versioned_constants().enable_reverts => Ok(CallInfo {
+        )) if context.versioned_constants().enable_reverts => {
+            Ok(CallInfo {
             call: orig_call,
             execution: CallExecution {
                 retdata: Retdata(vec![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]),
@@ -100,7 +102,7 @@ pub fn execute_entry_point_call_wrapper(
             },
             tracked_resource: current_tracked_resource,
             ..CallInfo::default()
-        }),
+        })}
         Err(err) => Err(err),
     }
 }
