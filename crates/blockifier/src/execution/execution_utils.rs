@@ -136,6 +136,20 @@ pub fn execute_entry_point_call(
                     context,
                 )
             } else {
+                let storage_class_hash = state.get_class_hash_at(call.storage_address)?;
+                if storage_class_hash == ClassHash::default() {
+                    return Err(PreExecutionError::UninitializedStorageAddress(
+                        call.storage_address,
+                    )
+                    .into());
+                };
+                log::debug!(
+                    "Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, Class \
+                     Hash: {}.",
+                    context.tx_context.block_context.block_info.block_number,
+                    context.tx_context.tx_info.transaction_hash(),
+                    call.class_hash.expect("Missing Class Hash")
+                );
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,
