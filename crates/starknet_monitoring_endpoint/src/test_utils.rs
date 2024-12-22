@@ -6,9 +6,23 @@ use hyper::client::HttpConnector;
 use hyper::Client;
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
+use metrics_exporter_prometheus::PrometheusHandle;
+use thiserror::Error;
 use tracing::info;
 
-use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};
+use crate::monitoring_endpoint::{ALIVE, METRICS, MONITORING_PREFIX};
+
+// TODO(Tsabary): rename IsAliveClient to MonitoringClient.
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+pub enum MonitoringClientError {
+    // #[error(transparent)]
+    // ConnectionError(#[from] hyper::Error),
+    #[error("Failed to connect, error details: {}", connection_error)]
+    ConnectionError { connection_error: String },
+    #[error("Erroneous status: {}", status)]
+    ResponseStatusError { status: String },
+}
 
 /// Client for querying 'alive' status of an http server.
 pub struct IsAliveClient {
@@ -45,6 +59,27 @@ impl IsAliveClient {
             .await
             .ok_or(())
             .map(|_| ())
+    }
+
+    pub async fn get_metrics(&self, _metric_name: &str) -> Result<(), MonitoringClientError> {
+        let response = self
+            .client
+            .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
+            .await
+            .map_err(|err| MonitoringClientError::ConnectionError {
+                connection_error: err.to_string(),
+            })?;
+
+        if !response.status().is_success() {
+            return Err(MonitoringClientError::ResponseStatusError {
+                status: format!("{:?}", response.status()),
+            });
+        }
+
+        let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+        info!("Metrics: {:?}", body_string);
+        Ok(())
     }
 }
 
