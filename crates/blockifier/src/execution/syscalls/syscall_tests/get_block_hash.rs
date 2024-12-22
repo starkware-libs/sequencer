@@ -20,7 +20,9 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 use crate::versioned_constants::VersionedConstants;
 
-fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
+pub fn initialize_state(
+    test_contract: FeatureContract,
+) -> (CachedState<DictStateReader>, Felt, Felt) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
