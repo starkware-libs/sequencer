@@ -152,7 +152,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
 
     // The default VersionedConstants is used in the execute_directly call bellow.
     let tracked_resource = test_contract.get_runnable_class().tracked_resource(
-        &VersionedConstants::create_for_testing().min_compiler_version_for_sierra_gas,
+        &VersionedConstants::create_for_testing().min_sierra_version_for_sierra_gas,
         None,
     );
 
