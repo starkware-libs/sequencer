@@ -28,16 +28,15 @@ pub mod gateway_test;
 
 pub struct Gateway {
     pub config: GatewayConfig,
-    pub business_logic: GatewayBusinessLogic,
+    pub business_logic: Arc<GatewayBusinessLogic>,
     pub mempool_client: SharedMempoolClient,
 }
 
-#[derive(Clone)]
 pub struct GatewayBusinessLogic {
-    pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
+    pub stateless_tx_validator: StatelessTransactionValidator,
+    pub stateful_tx_validator: StatefulTransactionValidator,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
-    pub gateway_compiler: Arc<GatewayCompiler>,
+    pub gateway_compiler: GatewayCompiler,
     pub chain_info: ChainInfo,
 }
 
@@ -49,17 +48,17 @@ impl Gateway {
         mempool_client: SharedMempoolClient,
     ) -> Self {
         let business_logic = GatewayBusinessLogic {
-            stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+            stateless_tx_validator: StatelessTransactionValidator {
                 config: config.stateless_tx_validator_config.clone(),
-            }),
-            stateful_tx_validator: Arc::new(StatefulTransactionValidator {
+            },
+            stateful_tx_validator: StatefulTransactionValidator {
                 config: config.stateful_tx_validator_config.clone(),
-            }),
+            },
             state_reader_factory,
-            gateway_compiler: Arc::new(gateway_compiler),
+            gateway_compiler,
             chain_info: config.chain_info.clone(),
         };
-        Self { config: config.clone(), business_logic, mempool_client }
+        Self { config: config.clone(), business_logic: Arc::new(business_logic), mempool_client }
     }
 
     #[instrument(skip(self), ret)]
@@ -95,7 +94,7 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    business_logic: GatewayBusinessLogic,
+    business_logic: Arc<GatewayBusinessLogic>,
     tx: RpcTransaction,
 }
 
@@ -112,7 +111,7 @@ impl ProcessTxBlockingTask {
 
         let executable_tx = compile_contract_and_build_executable_tx(
             self.tx,
-            self.business_logic.gateway_compiler.as_ref(),
+            &self.business_logic.gateway_compiler,
             &self.business_logic.chain_info.chain_id,
         )?;
 
