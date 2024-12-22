@@ -113,7 +113,6 @@ where
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO(guyn): add option to display when message is Fin and doesn't have content (PR #1048)
         if let StreamMessageBody::Content(message) = &self.message {
             let message: Vec<u8> = message.clone().into();
             write!(
