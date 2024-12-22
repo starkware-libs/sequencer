@@ -64,6 +64,7 @@ pub enum DeprecatedSyscallSelector {
     GetTxInfo,
     GetTxSignature,
     Keccak,
+    KeccakRound,
     Sha256ProcessBlock,
     LibraryCall,
     LibraryCallL1Handler,
