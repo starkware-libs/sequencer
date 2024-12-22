@@ -12,6 +12,8 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::transaction::test_utils::versioned_constants;
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
@@ -29,6 +31,9 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_address = entry_point_call.storage_address;
+    let storege_cost =
+        VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.storage_write;
+    println!("storege_cost: {}", storege_cost);
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {

@@ -462,6 +462,9 @@ impl<'a> SyscallHintProcessor<'a> {
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
 
+        println!("required_gas in hint proccesor: {}", required_gas);
+        println!("gas_counter in hint proccesor: {}", gas_counter);
+
         if gas_counter < required_gas {
             //  Out of gas failure.
             let out_of_gas_error =
