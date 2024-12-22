@@ -5,17 +5,11 @@ use std::path::PathBuf;
 
 use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use serde_json::{json, Map, Value};
-use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
-};
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
-    ReactiveComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
@@ -110,48 +104,17 @@ fn strip_config_prefix(input: &str) -> &str {
         .unwrap_or(input)
 }
 
-// TODO(Nadin): Refactor the following functions to be static methods of
-// ReactiveComponentExecutionConfig.
-pub fn get_disabled_component_config() -> ReactiveComponentExecutionConfig {
-    ReactiveComponentExecutionConfig {
-        execution_mode: ReactiveComponentExecutionMode::Disabled,
-        local_server_config: None,
-        remote_client_config: None,
-        remote_server_config: None,
-    }
-}
-
-pub fn get_remote_component_config(socket: SocketAddr) -> ReactiveComponentExecutionConfig {
-    ReactiveComponentExecutionConfig {
-        execution_mode: ReactiveComponentExecutionMode::Remote,
-        local_server_config: None,
-        remote_client_config: Some(RemoteClientConfig { socket, ..RemoteClientConfig::default() }),
-        remote_server_config: None,
-    }
-}
-
-pub fn get_local_with_remote_enabled_component_config(
-    socket: SocketAddr,
-) -> ReactiveComponentExecutionConfig {
-    ReactiveComponentExecutionConfig {
-        execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
-        local_server_config: Some(LocalServerConfig::default()),
-        remote_client_config: None,
-        remote_server_config: Some(RemoteServerConfig { socket }),
-    }
-}
-
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::default(),
-        gateway: get_remote_component_config(gateway_socket),
+        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
         monitoring_endpoint: Default::default(),
-        batcher: get_disabled_component_config(),
+        batcher: ReactiveComponentExecutionConfig::disabled(),
         consensus_manager: ActiveComponentExecutionConfig::disabled(),
-        mempool: get_disabled_component_config(),
-        mempool_p2p: get_disabled_component_config(),
-        state_sync: get_disabled_component_config(),
-        l1_provider: get_disabled_component_config(),
+        mempool: ReactiveComponentExecutionConfig::disabled(),
+        mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
+        state_sync: ReactiveComponentExecutionConfig::disabled(),
+        l1_provider: ReactiveComponentExecutionConfig::disabled(),
     }
 }
 
@@ -159,7 +122,7 @@ pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> Compon
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),
-        gateway: get_local_with_remote_enabled_component_config(gateway_socket),
+        gateway: ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket),
         ..ComponentConfig::default()
     }
 }
