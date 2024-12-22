@@ -28,11 +28,16 @@ pub mod gateway_test;
 
 pub struct Gateway {
     pub config: GatewayConfig,
+    pub business_logic: GatewayBusinessLogic,
+    pub mempool_client: SharedMempoolClient,
+}
+
+#[derive(Clone)]
+pub struct GatewayBusinessLogic {
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub gateway_compiler: Arc<GatewayCompiler>,
-    pub mempool_client: SharedMempoolClient,
     pub chain_info: ChainInfo,
 }
 
@@ -43,8 +48,7 @@ impl Gateway {
         gateway_compiler: GatewayCompiler,
         mempool_client: SharedMempoolClient,
     ) -> Self {
-        Self {
-            config: config.clone(),
+        let business_logic = GatewayBusinessLogic {
             stateless_tx_validator: Arc::new(StatelessTransactionValidator {
                 config: config.stateless_tx_validator_config.clone(),
             }),
@@ -53,9 +57,9 @@ impl Gateway {
             }),
             state_reader_factory,
             gateway_compiler: Arc::new(gateway_compiler),
-            mempool_client,
             chain_info: config.chain_info.clone(),
-        }
+        };
+        Self { config: config.clone(), business_logic, mempool_client }
     }
 
     #[instrument(skip(self), ret)]
@@ -91,36 +95,25 @@ impl Gateway {
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
-    stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    stateful_tx_validator: Arc<StatefulTransactionValidator>,
-    state_reader_factory: Arc<dyn StateReaderFactory>,
-    gateway_compiler: Arc<GatewayCompiler>,
-    chain_info: ChainInfo,
+    business_logic: GatewayBusinessLogic,
     tx: RpcTransaction,
 }
 
 impl ProcessTxBlockingTask {
     pub fn new(gateway: &Gateway, tx: RpcTransaction) -> Self {
-        Self {
-            stateless_tx_validator: gateway.stateless_tx_validator.clone(),
-            stateful_tx_validator: gateway.stateful_tx_validator.clone(),
-            state_reader_factory: gateway.state_reader_factory.clone(),
-            gateway_compiler: gateway.gateway_compiler.clone(),
-            chain_info: gateway.chain_info.clone(),
-            tx,
-        }
+        Self { business_logic: gateway.business_logic.clone(), tx }
     }
 
     fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
         // TODO(Arni, 1/5/2024): Perform congestion control.
 
         // Perform stateless validations.
-        self.stateless_tx_validator.validate(&self.tx)?;
+        self.business_logic.stateless_tx_validator.validate(&self.tx)?;
 
         let executable_tx = compile_contract_and_build_executable_tx(
             self.tx,
-            self.gateway_compiler.as_ref(),
-            &self.chain_info.chain_id,
+            self.business_logic.gateway_compiler.as_ref(),
+            &self.business_logic.chain_info.chain_id,
         )?;
 
         // Perfom post compilation validations.
@@ -130,16 +123,17 @@ impl ProcessTxBlockingTask {
             }
         }
 
-        let mut validator = self
-            .stateful_tx_validator
-            .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
+        let mut validator = self.business_logic.stateful_tx_validator.instantiate_validator(
+            self.business_logic.state_reader_factory.as_ref(),
+            &self.business_logic.chain_info,
+        )?;
         let address = executable_tx.contract_address();
         let nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
 
-        self.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
+        self.business_logic.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
