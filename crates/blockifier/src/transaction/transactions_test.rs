@@ -469,7 +469,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 112080,
+        execute_gas_consumed: 102610,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -2344,7 +2344,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(6120);
+    let gas_consumed = GasAmount(6050);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2376,11 +2376,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 17899_u32.into(),
+            l1_gas: 17898_u32.into(),
             l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19593_u32.into()),
+        false => GasVector::from_l1_gas(19592_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {

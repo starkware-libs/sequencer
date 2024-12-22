@@ -480,6 +480,8 @@ fn get_call_result(
     // TODO(spapini): Validate implicits.
 
     let gas = &return_result[0];
+    dbg!(gas);
+    dbg!(syscall_handler.base.call.initial_gas);
     let MaybeRelocatable::Int(gas) = gas else {
         return Err(PostExecutionError::MalformedReturnData {
             error_message: "Error extracting return data.".to_string(),
@@ -500,6 +502,9 @@ fn get_call_result(
         TrackedResource::CairoSteps => 0,
         TrackedResource::SierraGas => syscall_handler.base.call.initial_gas - gas,
     };
+    dbg!(gas_consumed);
+    dbg!(tracked_resource);
+    dbg!(syscall_handler.base.call.entry_point_selector);
     Ok(CallResult {
         failed,
         retdata: read_execution_retdata(runner, retdata_size, retdata_start)?,
