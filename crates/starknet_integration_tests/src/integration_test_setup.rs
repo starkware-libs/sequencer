@@ -27,13 +27,8 @@ use crate::utils::{
     create_mempool_p2p_configs,
 };
 
-const SEQUENCER_0: usize = 0;
-const SEQUENCER_1: usize = 1;
-const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
-
 pub struct IntegrationTestSetup {
-    pub sequencer_0: IntegrationSequencerSetup,
-    pub sequencer_1: IntegrationSequencerSetup,
+    pub sequencers: Vec<IntegrationSequencerSetup>,
 
     // TODO: To validate test results instead of reading storage - delete this and use monitoring
     // or use this.
@@ -43,6 +38,7 @@ pub struct IntegrationTestSetup {
 
 impl IntegrationTestSetup {
     pub async fn new_from_tx_generator(
+        n_sequencers: usize,
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
     ) -> Self {
@@ -51,55 +47,40 @@ impl IntegrationTestSetup {
         let accounts = tx_generator.accounts();
 
         let (mut consensus_manager_configs, consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(
-                SEQUENCER_INDICES.len(),
-                &mut available_ports,
-            );
+            create_consensus_manager_configs_and_channels(n_sequencers, &mut available_ports);
         let mut mempool_p2p_configs = create_mempool_p2p_configs(
-            SEQUENCER_INDICES.len(),
+            n_sequencers,
             chain_info.chain_id.clone(),
             &mut available_ports,
         );
 
-        let sequencer_0_consensus_manager_config = consensus_manager_configs.remove(0);
-        let sequencer_0_mempool_p2p_config = mempool_p2p_configs.remove(0);
-        let sequencer_0 = IntegrationSequencerSetup::new(
-            accounts.clone(),
-            SEQUENCER_0,
-            chain_info.clone(),
-            sequencer_0_consensus_manager_config,
-            sequencer_0_mempool_p2p_config,
-            &mut available_ports,
-        )
-        .await;
+        let mut sequencers = vec![];
+        for sequencer_id in 0..n_sequencers {
+            let consensus_manager_config = consensus_manager_configs.remove(0);
+            let mempool_p2p_config = mempool_p2p_configs.remove(0);
+            let sequencer = IntegrationSequencerSetup::new(
+                accounts.clone(),
+                sequencer_id,
+                chain_info.clone(),
+                consensus_manager_config,
+                mempool_p2p_config,
+                &mut available_ports,
+            )
+            .await;
+            sequencers.push(sequencer);
+        }
 
-        let sequencer_1_consensus_manager_config = consensus_manager_configs.remove(0);
-        let sequencer_1_mempool_p2p_config = mempool_p2p_configs.remove(0);
-        let sequencer_1 = IntegrationSequencerSetup::new(
-            accounts.clone(),
-            SEQUENCER_1,
-            chain_info.clone(),
-            sequencer_1_consensus_manager_config,
-            sequencer_1_mempool_p2p_config,
-            &mut available_ports,
-        )
-        .await;
-
-        Self { sequencer_0, sequencer_1, consensus_proposals_channels }
+        Self { sequencers, consensus_proposals_channels }
     }
 
     pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        self.sequencer_0
-            .is_alive_test_client
-            .await_alive(interval, max_attempts)
-            .await
-            .expect("Node 0 should be alive.");
-
-        self.sequencer_1
-            .is_alive_test_client
-            .await_alive(interval, max_attempts)
-            .await
-            .expect("Node 1 should be alive.");
+        for (sequencer_index, sequencer) in self.sequencers.iter().enumerate() {
+            sequencer
+                .is_alive_test_client
+                .await_alive(interval, max_attempts)
+                .await
+                .unwrap_or_else(|_| panic!("Node {} should be alive.", sequencer_index));
+        }
     }
 }
 

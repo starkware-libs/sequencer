@@ -9,12 +9,13 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
-use tokio::join;
 use tracing::info;
 
 use crate::integration_test_setup::IntegrationTestSetup;
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
+
+const N_SEQUENCERS: usize = 2;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -65,18 +66,18 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     info!("Running integration test setup.");
     // Creating the storage for the test.
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(
+        N_SEQUENCERS,
         &tx_generator,
         TestIdentifier::EndToEndIntegrationTest.into(),
     )
     .await;
 
-    let node_0_run_handle =
-        spawn_run_node(integration_test_setup.sequencer_0.node_config_path.clone());
-    let node_1_run_handle =
-        spawn_run_node(integration_test_setup.sequencer_1.node_config_path.clone());
-
     info!("Running sequencers.");
-    let (node_0_run_task, node_1_run_task) = join!(node_0_run_handle, node_1_run_handle);
+    let node_run_tasks = integration_test_setup
+        .sequencers
+        .iter()
+        .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
+        .collect::<Vec<_>>();
 
     // Wait for the nodes to start.
     integration_test_setup.await_alive(5000, 50).await;
@@ -84,7 +85,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     info!("Running integration test simulator.");
 
     let send_rpc_tx_fn = &mut |rpc_tx| {
-        integration_test_setup.sequencer_0.add_tx_http_client.assert_add_tx_success(rpc_tx)
+        integration_test_setup.sequencers[0].add_tx_http_client.assert_add_tx_success(rpc_tx)
     };
 
     const ACCOUNT_ID_0: AccountId = 0;
@@ -96,26 +97,17 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
 
     info!("Awaiting until {EXPECTED_BLOCK_NUMBER} blocks have been created.");
 
-    let (batcher_storage_reader, _) =
-        papyrus_storage::open_storage(integration_test_setup.sequencer_0.batcher_storage_config)
-            .expect("Failed to open batcher's storage");
+    let (batcher_storage_reader, _) = papyrus_storage::open_storage(
+        integration_test_setup.sequencers[0].batcher_storage_config.clone(),
+    )
+    .expect("Failed to open batcher's storage");
 
     await_block(5000, EXPECTED_BLOCK_NUMBER, 30, &batcher_storage_reader)
         .await
         .expect("Block number should have been reached.");
 
     info!("Shutting down nodes.");
-    node_0_run_task.abort();
-    node_1_run_task.abort();
-    let (res_0, res_1) = join!(node_0_run_task, node_1_run_task);
-    assert!(
-        res_0.expect_err("Node 0 should have been stopped.").is_cancelled(),
-        "Node 0 should have been stopped."
-    );
-    assert!(
-        res_1.expect_err("Node 1 should have been stopped.").is_cancelled(),
-        "Node 1 should have been stopped."
-    );
+    node_run_tasks.iter().for_each(|task| task.abort());
 
     info!("Verifying tx sender account nonce.");
     let expected_nonce_value = n_txs + 1;
