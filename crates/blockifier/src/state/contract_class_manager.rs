@@ -21,6 +21,7 @@ use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 #[cfg(feature = "cairo_native")]
 use starknet_sierra_compile::SierraToNativeCompiler;
 
+use super::global_cache::CachedCasm;
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::execution::contract_class::VersionedRunnableCompiledClass;
 #[cfg(feature = "cairo_native")]
@@ -93,7 +94,6 @@ impl ContractClassManager {
     pub fn send_compilation_request(&self, request: CompilationRequest) {
         assert!(self.config.run_cairo_native, "Native compilation is disabled.");
         let sender = self.sender.as_ref().expect("Compilation channel not available.");
-        self.cache_request_contracts(&request);
         // TODO(Avi, 15/12/2024): Check for duplicated requests.
         sender.try_send(request).unwrap_or_else(|err| match err {
             TrySendError::Full((class_hash, _, _)) => {
@@ -115,38 +115,19 @@ impl ContractClassManager {
         self.contract_caches.get_native(class_hash)
     }
 
-    /// Returns the Sierra contract class for the given class hash, if it exists in cache.
-    #[cfg(feature = "cairo_native")]
-    pub fn get_sierra(&self, class_hash: &ClassHash) -> Option<Arc<SierraContractClass>> {
-        self.contract_caches.get_sierra(class_hash)
-    }
-
     /// Returns the casm compiled class for the given class hash, if it exists in cache.
-    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<VersionedRunnableCompiledClass> {
+    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<CachedCasm> {
         self.contract_caches.get_casm(class_hash)
     }
 
     /// Sets the casm compiled class for the given class hash in the cache.
-    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: VersionedRunnableCompiledClass) {
+    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: CachedCasm) {
         self.contract_caches.set_casm(class_hash, compiled_class);
     }
 
     /// Clear the contract caches.
     pub fn clear(&mut self) {
         self.contract_caches.clear();
-    }
-
-    /// Caches the sierra and casm contract classes of a compilation request.
-    #[cfg(feature = "cairo_native")]
-    fn cache_request_contracts(&self, request: &CompilationRequest) {
-        let (class_hash, sierra, casm) = request.clone();
-        let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
-        self.contract_caches.set_sierra(class_hash, sierra);
-        let cached_casm = VersionedRunnableCompiledClass::Cairo1((
-            RunnableCompiledClass::from(casm),
-            sierra_version,
-        ));
-        self.contract_caches.set_casm(class_hash, cached_casm);
     }
 
     #[cfg(any(feature = "testing", test))]
