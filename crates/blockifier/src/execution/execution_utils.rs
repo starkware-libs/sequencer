@@ -136,6 +136,11 @@ pub fn execute_entry_point_call(
                     context,
                 )
             } else {
+                log::debug!(
+                    "Using Cairo Native execution. Block ID: {}, Transaction Hash: {}",
+                    context.tx_context.block_context.block_info.block_number,
+                    context.tx_context.tx_info.transaction_hash()
+                );
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,
