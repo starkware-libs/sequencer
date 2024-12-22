@@ -34,7 +34,7 @@ impl ComponentStarter for StateSyncRunner {
             }
             result = &mut self.p2p_sync_client_future => return result.map_err(|_| ComponentError::InternalComponentError),
             () = &mut self.p2p_sync_server_future => {
-                return Err(ComponentError::InternalComponentError);
+                return Ok(());
             }
         }
     }

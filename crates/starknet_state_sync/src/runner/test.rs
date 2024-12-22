@@ -27,13 +27,13 @@ fn run_returns_when_sync_client_future_returns() {
 }
 
 #[test]
-fn run_returns_error_when_sync_server_future_returns() {
+fn run_returns_when_sync_server_future_returns() {
     let network_future = pending().boxed();
     let p2p_sync_client_future = pending().boxed();
     let p2p_sync_server_future = ready(()).boxed();
     let mut state_sync_runner =
         StateSyncRunner { network_future, p2p_sync_client_future, p2p_sync_server_future };
-    state_sync_runner.start().now_or_never().unwrap().unwrap_err();
+    state_sync_runner.start().now_or_never().unwrap().unwrap();
 }
 
 #[test]
