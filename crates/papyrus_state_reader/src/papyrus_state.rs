@@ -5,6 +5,7 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
+use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::{StateReader, StateResult};
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
@@ -132,15 +133,19 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
-        let contract_class = self.contract_class_manager.get_casm(&class_hash);
+        let cached_casm = self.contract_class_manager.get_casm(&class_hash);
 
-        match contract_class {
-            Some(contract_class) => Ok(contract_class),
+        match cached_casm {
             None => {
-                let contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
-                // The class was declared in a previous (finalized) state; update the global cache.
-                self.contract_class_manager.set_casm(class_hash, contract_class_from_db.clone());
-                Ok(contract_class_from_db)
+                let compiled_class_from_db = self.get_compiled_class_inner(class_hash)?;
+                self.contract_class_manager.set_casm(class_hash, CachedCasm::WithoutSierra(compiled_class_from_db.clone()));
+                Ok(compiled_class_from_db)
+            }
+            Some(CachedCasm::WithoutSierra(casm)) => {
+                Ok(casm)
+            }
+            Some(CachedCasm::WithSierra(_,_)) => {
+                todo!("Add this flow when Sierra to Native compilation is added to PapyrusReader.")
             }
         }
     }
