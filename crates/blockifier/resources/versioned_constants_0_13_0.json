@@ -308,6 +308,11 @@
                 "n_memory_holes": 0,
                 "n_steps": 381
             },
+            "KeccakRound": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 0
+            },
             "LibraryCall": {
                 "builtin_instance_counter": {
                     "range_check_builtin": 19
