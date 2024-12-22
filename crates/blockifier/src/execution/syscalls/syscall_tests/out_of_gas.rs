@@ -3,38 +3,49 @@ use starknet_api::{calldata, felt};
 use test_case::test_case;
 
 use crate::abi::constants::MAX_POSSIBLE_SIERRA_GAS;
+#[cfg(feature = "cairo_native")]
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_STORAGE_READ_WRITE_TEST;
+use crate::execution::syscalls::syscall_tests::constants;
+use crate::execution::syscalls::syscall_tests::get_block_hash::initialize_state;
+use crate::execution::syscalls::{syscall_base, SyscallSelector};
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
+#[cfg(feature = "cairo_native")]
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+#[cfg(feature = "cairo_native")]
+use crate::test_utils::BALANCE;
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1};
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
 fn test_out_of_gas(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
+    let (mut state, block_number, _block_hash) = initialize_state(test_contract);
 
-    let key = felt!(1234_u16);
-    let value = felt!(18_u8);
-    let calldata = calldata![key, value];
+    let calldata = calldata![block_number];
     let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_get_block_hash"),
         calldata,
-        entry_point_selector: selector_from_name("test_storage_read_write"),
-        initial_gas: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 1,
+        initial_gas: constants::REQUIRED_GAS_GET_BLOCK_HAS_TEST - 1,
         ..trivial_external_entry_point_new(test_contract)
     };
-    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+
+    let gas_costs = VersionedConstants::create_for_testing().os_constants.gas_costs;
+    let get_block_hash_gas_cost =
+        gas_costs.syscalls.get_syscall_gas_cost(&SyscallSelector::GetBlockHash)?;
+    let syscall_base_gas_cost = gas_costs.base.get_base_gas_cost("syscall_base_gas_cost");
+
+    let syscall_required_gas = get_block_hash_gas_cost - syscall_base_gas_cost;
+    let call_info = entry_point_call.clone().execute_directly(&mut state).unwrap();
     assert_eq!(
         call_info.execution,
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 70,
+            gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HAS_TEST - syscall_required_gas,
             failed: true,
             ..Default::default()
         }

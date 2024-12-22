@@ -20,7 +20,9 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 use crate::versioned_constants::VersionedConstants;
 
-fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
+pub fn initialize_state(
+    test_contract: FeatureContract,
+) -> (CachedState<DictStateReader>, Felt, Felt) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -53,7 +55,10 @@ fn positive_flow(runnable_version: RunnableCairo1) {
 
     assert_eq!(
         entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 5220, ..CallExecution::from_retdata(retdata![block_hash]) }
+        CallExecution {
+            gas_consumed: REQUIRED_GAS_GET_BLOCK_HAS_TEST,
+            ..CallExecution::from_retdata(retdata![block_hash])
+        }
     );
 }
 
