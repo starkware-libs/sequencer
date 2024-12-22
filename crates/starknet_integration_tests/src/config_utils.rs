@@ -105,17 +105,11 @@ fn strip_config_prefix(input: &str) -> &str {
 }
 
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
-    ComponentConfig {
-        http_server: ActiveComponentExecutionConfig::default(),
-        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
-        monitoring_endpoint: Default::default(),
-        batcher: ReactiveComponentExecutionConfig::disabled(),
-        consensus_manager: ActiveComponentExecutionConfig::disabled(),
-        mempool: ReactiveComponentExecutionConfig::disabled(),
-        mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-        state_sync: ReactiveComponentExecutionConfig::disabled(),
-        l1_provider: ReactiveComponentExecutionConfig::disabled(),
-    }
+    let mut config = ComponentConfig::disabled();
+    config.http_server = ActiveComponentExecutionConfig::default();
+    config.gateway = ReactiveComponentExecutionConfig::remote(gateway_socket);
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
 }
 
 pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
