@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
@@ -7,6 +9,12 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
+use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
+};
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use starknet_types_core::felt::Felt;
 use tracing::info;
@@ -103,4 +111,35 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
         Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
     assert_eq!(nonce, expected_nonce);
+}
+
+pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+    ComponentConfig {
+        http_server: ActiveComponentExecutionConfig::default(),
+        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
+        monitoring_endpoint: Default::default(),
+        batcher: ReactiveComponentExecutionConfig::disabled(),
+        consensus_manager: ActiveComponentExecutionConfig::disabled(),
+        mempool: ReactiveComponentExecutionConfig::disabled(),
+        mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
+        state_sync: ReactiveComponentExecutionConfig::disabled(),
+        l1_provider: ReactiveComponentExecutionConfig::disabled(),
+    }
+}
+
+async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+    ComponentConfig {
+        http_server: ActiveComponentExecutionConfig::disabled(),
+        monitoring_endpoint: Default::default(),
+        gateway: ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket),
+        ..ComponentConfig::default()
+    }
+}
+
+pub async fn get_remote_flow_test_config() -> Vec<ComponentConfig> {
+    let gateway_socket = get_available_socket().await;
+    vec![
+        get_http_only_component_config(gateway_socket).await,
+        get_non_http_component_config(gateway_socket).await,
+    ]
 }
