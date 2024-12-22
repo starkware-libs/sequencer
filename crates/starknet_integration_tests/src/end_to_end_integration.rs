@@ -70,13 +70,15 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     )
     .await;
 
-    let node_0_run_handle =
-        spawn_run_node(integration_test_setup.sequencer_0.node_config_path.clone());
-    let node_1_run_handle =
-        spawn_run_node(integration_test_setup.sequencer_1.node_config_path.clone());
+    let node_configs = vec![
+        integration_test_setup.sequencer_0.node_config_path.clone(),
+        integration_test_setup.sequencer_1.node_config_path.clone(),
+    ];
+
+    let run_handles: Vec<_> = node_configs.into_iter().map(spawn_run_node).collect();
 
     info!("Running sequencers.");
-    let (node_0_run_task, node_1_run_task) = join!(node_0_run_handle, node_1_run_handle);
+    let run_tasks = futures::future::join_all(run_handles).await;
 
     // Wait for the nodes to start.
     integration_test_setup.await_alive(5000, 50).await;
@@ -105,17 +107,22 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
         .expect("Block number should have been reached.");
 
     info!("Shutting down nodes.");
-    node_0_run_task.abort();
-    node_1_run_task.abort();
-    let (res_0, res_1) = join!(node_0_run_task, node_1_run_task);
-    assert!(
-        res_0.expect_err("Node 0 should have been stopped.").is_cancelled(),
-        "Node 0 should have been stopped."
-    );
-    assert!(
-        res_1.expect_err("Node 1 should have been stopped.").is_cancelled(),
-        "Node 1 should have been stopped."
-    );
+    for task in &run_tasks {
+        task.abort();
+    }
+    let results = futures::future::join_all(run_tasks).await;
+    results
+    .into_iter()
+    .enumerate()
+    .for_each(|(i, result)| {
+        assert!(
+            result
+                .expect_err(format!("Node {} should have been stopped.", i).as_str())
+                .is_cancelled(),
+            "Node {} should have been stopped.",
+            i
+        );
+    });
 
     info!("Verifying tx sender account nonce.");
     let expected_nonce_value = n_txs + 1;
