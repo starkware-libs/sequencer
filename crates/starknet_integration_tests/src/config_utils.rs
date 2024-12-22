@@ -105,29 +105,22 @@ fn strip_config_prefix(input: &str) -> &str {
 }
 
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
-    ComponentConfig {
-        http_server: ActiveComponentExecutionConfig::default(),
-        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
-        monitoring_endpoint: Default::default(),
-        batcher: ReactiveComponentExecutionConfig::disabled(),
-        consensus_manager: ActiveComponentExecutionConfig::disabled(),
-        mempool: ReactiveComponentExecutionConfig::disabled(),
-        mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-        state_sync: ReactiveComponentExecutionConfig::disabled(),
-        l1_provider: ReactiveComponentExecutionConfig::disabled(),
-    }
+    let mut config = ComponentConfig::disabled();
+    config.http_server = ActiveComponentExecutionConfig::default();
+    config.gateway = ReactiveComponentExecutionConfig::remote(gateway_socket);
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
 }
 
 pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
-    ComponentConfig {
-        http_server: ActiveComponentExecutionConfig::disabled(),
-        monitoring_endpoint: Default::default(),
-        gateway: ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket),
-        ..ComponentConfig::default()
-    }
+    let mut config = ComponentConfig::default();
+    config.http_server = ActiveComponentExecutionConfig::disabled();
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
 }
 
-pub async fn get_remote_flow_test_config() -> Vec<ComponentConfig> {
+pub async fn get_remote_test_config() -> Vec<ComponentConfig> {
     let gateway_socket = get_available_socket().await;
     vec![
         get_http_only_component_config(gateway_socket).await,
