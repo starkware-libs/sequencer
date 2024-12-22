@@ -136,6 +136,7 @@ pub fn execute_entry_point_call(
                     context,
                 )
             } else {
+                log::info!("Using Cairo Native execution.");
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,
