@@ -169,11 +169,8 @@ impl GasVector {
     /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this discount
     /// function does nothing.
     /// Panics on overflow.
+    /// Does not take L2 gas into account - this must be handled separately.
     pub fn to_discounted_l1_gas(&self, gas_prices: &GasPriceVector) -> GasAmount {
-        if self.l2_gas.0 > 0 {
-            // TODO(Yoni, 10/12/2024): convert L2 gas as well.
-            todo!();
-        }
         let l1_data_gas_fee = self
             .l1_data_gas
             .checked_mul(gas_prices.l1_data_gas_price.into())

@@ -85,7 +85,7 @@ use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector};
+use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{
     estimate_minimal_gas_vector,
     get_da_gas_cost,
@@ -1388,7 +1388,9 @@ fn test_actual_fee_gt_resource_bounds(
     // Create new gas bounds that are lower than the actual gas.
     let (expected_fee, overdraft_resource_bounds) = match gas_mode {
         GasVectorComputationMode::NoL2Gas => {
-            let l1_gas_bound = GasAmount(actual_gas.to_discounted_l1_gas(gas_prices).0 - 1);
+            let l1_gas_bound = GasAmount(
+                actual_gas.to_l1_gas_for_fee(gas_prices, &block_context.versioned_constants).0 - 1,
+            );
             (
                 GasVector::from_l1_gas(l1_gas_bound).cost(gas_prices),
                 l1_resource_bounds(l1_gas_bound, gas_prices.l1_gas_price.into()),
