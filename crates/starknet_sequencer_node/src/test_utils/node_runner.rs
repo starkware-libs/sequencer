@@ -9,7 +9,7 @@ use tracing::{error, info, instrument};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
-pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
+pub fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
     task::spawn(async move {
         info!("Running the node from its spawned task.");
         let _node_run_result = spawn_node_child_process(node_config_path).
