@@ -2354,7 +2354,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: initial_gas_amount_from_block_context(Some(block_context)).0,
+            initial_gas: block_context.versioned_constants.execute_max_sierra_gas.0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
