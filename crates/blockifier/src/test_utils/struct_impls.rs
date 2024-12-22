@@ -39,6 +39,7 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 use crate::versioned_constants::{
+    BaseGasCosts,
     GasCosts,
     OsConstants,
     VersionedConstants,
@@ -119,6 +120,19 @@ impl GasCosts {
         update_json_value(&mut os_constants, subset_of_os_constants);
         let os_constants: OsConstants = serde_json::from_value(os_constants).unwrap();
         os_constants.gas_costs
+    }
+}
+
+impl BaseGasCosts {
+    pub fn get_base_gas_cost(&self, key: &str) -> u64 {
+        match key {
+            "step_gas_cost" => self.step_gas_cost,
+            "memory_hole_gas_cost" => self.memory_hole_gas_cost,
+            "default_initial_gas_cost" => self.default_initial_gas_cost,
+            "entry_point_initial_budget" => self.entry_point_initial_budget,
+            "syscall_base_gas_cost" => self.syscall_base_gas_cost,
+            _ => panic!("Key {} is not a base gas cost", key),
+        }
     }
 }
 
