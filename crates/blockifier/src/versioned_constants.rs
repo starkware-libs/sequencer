@@ -456,7 +456,8 @@ impl<'de> Deserialize<'de> for VersionedConstants {
                 secp256r1_new: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::Secp256r1New),
                 keccak: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Keccak),
-                keccak_round_cost: 180000,
+                keccak_round_cost: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::KeccakRound),
                 sha256_process_block: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
             };
@@ -691,6 +692,7 @@ impl SyscallGasCosts {
             SyscallSelector::GetBlockHash => self.get_block_hash,
             SyscallSelector::GetExecutionInfo => self.get_execution_info,
             SyscallSelector::GetClassHashAt => self.get_class_hash_at,
+            SyscallSelector::KeccakRound => self.keccak_round_cost,
             SyscallSelector::Keccak => self.keccak,
             SyscallSelector::Sha256ProcessBlock => self.sha256_process_block,
             SyscallSelector::LibraryCall => self.library_call,
@@ -736,6 +738,19 @@ pub struct BaseGasCosts {
     // Compiler gas costs.
     pub entry_point_initial_budget: u64,
     pub syscall_base_gas_cost: u64,
+}
+
+impl BaseGasCosts {
+    pub fn get_base_gas_cost(&self, field: &str) -> u64 {
+        match field {
+            "step_gas_cost" => self.step_gas_cost,
+            "memory_hole_gas_cost" => self.memory_hole_gas_cost,
+            "default_initial_gas_cost" => self.default_initial_gas_cost,
+            "entry_point_initial_budget" => self.entry_point_initial_budget,
+            "syscall_base_gas_cost" => self.syscall_base_gas_cost,
+            _ => panic!("Invalid field name: {}", field),
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
