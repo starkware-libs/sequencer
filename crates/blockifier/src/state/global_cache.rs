@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use cached::{Cached, SizedCache};
 use starknet_api::core::ClassHash;
-#[cfg(feature = "cairo_native")]
 use starknet_api::state::SierraContractClass;
 
 use crate::execution::contract_class::RunnableCompiledClass;
@@ -16,6 +15,12 @@ pub type LockedClassCache<'a, T> = MutexGuard<'a, ContractLRUCache<T>>;
 // inter-language sharing when `blockifier` compiles as a shared library.
 // TODO(Yoni, 1/1/2025): consider defining CachedStateReader.
 pub struct GlobalContractCache<T: Clone>(pub Arc<Mutex<ContractLRUCache<T>>>);
+
+#[derive(Debug, Clone)]
+pub enum CachedCasm {
+    WithoutSierra(RunnableCompiledClass),
+    WithSierra(RunnableCompiledClass, Arc<SierraContractClass>),
+}
 
 #[cfg(feature = "cairo_native")]
 #[derive(Debug, Clone)]
@@ -52,19 +57,17 @@ impl<T: Clone> GlobalContractCache<T> {
 
 #[derive(Clone)]
 pub struct ContractCaches {
-    pub casm_cache: GlobalContractCache<RunnableCompiledClass>,
+    pub casm_cache: GlobalContractCache<CachedCasm>,
     #[cfg(feature = "cairo_native")]
     pub native_cache: GlobalContractCache<CachedCairoNative>,
-    #[cfg(feature = "cairo_native")]
-    pub sierra_cache: GlobalContractCache<Arc<SierraContractClass>>,
 }
 
 impl ContractCaches {
-    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
+    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<CachedCasm> {
         self.casm_cache.get(class_hash)
     }
 
-    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: RunnableCompiledClass) {
+    pub fn set_casm(&self, class_hash: ClassHash, compiled_class: CachedCasm) {
         self.casm_cache.set(class_hash, compiled_class);
     }
 
@@ -78,23 +81,11 @@ impl ContractCaches {
         self.native_cache.set(class_hash, contract_executor);
     }
 
-    #[cfg(feature = "cairo_native")]
-    pub fn get_sierra(&self, class_hash: &ClassHash) -> Option<Arc<SierraContractClass>> {
-        self.sierra_cache.get(class_hash)
-    }
-
-    #[cfg(feature = "cairo_native")]
-    pub fn set_sierra(&self, class_hash: ClassHash, contract_class: Arc<SierraContractClass>) {
-        self.sierra_cache.set(class_hash, contract_class);
-    }
-
     pub fn new(cache_size: usize) -> Self {
         Self {
             casm_cache: GlobalContractCache::new(cache_size),
             #[cfg(feature = "cairo_native")]
             native_cache: GlobalContractCache::new(cache_size),
-            #[cfg(feature = "cairo_native")]
-            sierra_cache: GlobalContractCache::new(cache_size),
         }
     }
 
@@ -102,7 +93,5 @@ impl ContractCaches {
         self.casm_cache.clear();
         #[cfg(feature = "cairo_native")]
         self.native_cache.clear();
-        #[cfg(feature = "cairo_native")]
-        self.sierra_cache.clear();
     }
 }
