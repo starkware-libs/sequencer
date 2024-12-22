@@ -456,7 +456,8 @@ impl<'de> Deserialize<'de> for VersionedConstants {
                 secp256r1_new: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::Secp256r1New),
                 keccak: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Keccak),
-                keccak_round_cost: 180000,
+                keccak_round_cost: versioned_constants
+                    .get_syscall_gas_cost(&SyscallSelector::KeccakRound),
                 sha256_process_block: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
             };
@@ -691,6 +692,7 @@ impl SyscallGasCosts {
             SyscallSelector::GetBlockHash => self.get_block_hash,
             SyscallSelector::GetExecutionInfo => self.get_execution_info,
             SyscallSelector::GetClassHashAt => self.get_class_hash_at,
+            SyscallSelector::KeccakRound => self.keccak_round_cost,
             SyscallSelector::Keccak => self.keccak,
             SyscallSelector::Sha256ProcessBlock => self.sha256_process_block,
             SyscallSelector::LibraryCall => self.library_call,
