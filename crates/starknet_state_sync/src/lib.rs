@@ -7,9 +7,10 @@ use futures::SinkExt;
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::TransactionKind;
+use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageReader, StorageTxn};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHeader, BlockNumber};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
@@ -72,6 +73,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                 StateSyncResponse::GetCompiledClassDeprecated(
                     self.get_compiled_class_deprecated(block_number, class_hash),
                 )
+            }
+            StateSyncRequest::GetBlockHeader(block_number) => {
+                StateSyncResponse::GetBlockHeader(self.get_block_header(block_number))
             }
         }
     }
@@ -191,6 +195,21 @@ impl StateSync {
             .get_deprecated_class_definition_at(state_number, &class_hash)?
             .ok_or(StateSyncError::ClassNotFound(class_hash))?;
         Ok(ContractClass::V0(deprecated_compiled_contract_class))
+    }
+
+    fn get_block_header(&self, block_number: BlockNumber) -> StateSyncResult<BlockHeader> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        let latest_block_number = txn.get_header_marker()?.prev();
+        if latest_block_number.is_none_or(|latest_block_number| latest_block_number < block_number)
+        {
+            return Err(StateSyncError::BlockNotFound(block_number));
+        }
+
+        let block_header = txn
+            .get_block_header(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
+
+        Ok(block_header)
     }
 }
 

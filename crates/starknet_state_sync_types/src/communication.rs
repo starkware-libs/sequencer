@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHeader, BlockNumber};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -65,8 +65,12 @@ pub trait StateSyncClient: Send + Sync {
         class_hash: ClassHash,
     ) -> StateSyncClientResult<ContractClass>;
 
+    async fn get_block_header(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockHeader>;
+
     // TODO: Add get_compiled_class_hash for StateSyncReader
-    // TODO: Add get_block_info for StateSyncReader
 }
 
 #[derive(Clone, Debug, Error)]
@@ -92,6 +96,7 @@ pub enum StateSyncRequest {
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
     GetCompiledClassDeprecated(BlockNumber, ClassHash),
+    GetBlockHeader(BlockNumber),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -102,6 +107,7 @@ pub enum StateSyncResponse {
     GetNonceAt(StateSyncResult<Nonce>),
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetCompiledClassDeprecated(StateSyncResult<ContractClass>),
+    GetBlockHeader(StateSyncResult<BlockHeader>),
 }
 
 #[async_trait]
@@ -190,6 +196,19 @@ impl StateSyncClient for LocalStateSyncClient {
             StateSyncError
         )
     }
+    async fn get_block_header(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockHeader> {
+        let request = StateSyncRequest::GetBlockHeader(block_number);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetBlockHeader,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
 }
 
 #[async_trait]
@@ -274,6 +293,20 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(
             StateSyncResponse,
             GetCompiledClassDeprecated,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
+
+    async fn get_block_header(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<BlockHeader> {
+        let request = StateSyncRequest::GetBlockHeader(block_number);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetBlockHeader,
             StateSyncClientError,
             StateSyncError
         )

@@ -1,10 +1,12 @@
+use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use futures::executor::block_on;
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockInfo, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_types_core::felt::Felt;
@@ -28,8 +30,36 @@ impl SyncStateReader {
 
 impl MempoolStateReader for SyncStateReader {
     fn get_block_info(&self) -> StateResult<BlockInfo> {
-        todo!()
+        let block_header: BlockHeader =
+            block_on(self.state_sync_client.get_block_header(self.block_number))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+        let block_header_without_hash = block_header.block_header_without_hash;
+
+        let block_info = BlockInfo {
+            block_number: block_header_without_hash.block_number,
+            sequencer_address: block_header_without_hash.sequencer.0,
+            block_timestamp: block_header_without_hash.timestamp,
+            gas_prices: validated_gas_prices(
+                parse_gas_price(block_header_without_hash.l1_gas_price.price_in_wei)?,
+                parse_gas_price(block_header_without_hash.l1_gas_price.price_in_fri)?,
+                parse_gas_price(block_header_without_hash.l1_data_gas_price.price_in_wei)?,
+                parse_gas_price(block_header_without_hash.l1_data_gas_price.price_in_fri)?,
+                parse_gas_price(block_header_without_hash.l2_gas_price.price_in_wei)?,
+                parse_gas_price(block_header_without_hash.l2_gas_price.price_in_fri)?,
+            ),
+            use_kzg_da: matches!(
+                block_header_without_hash.l1_da_mode,
+                L1DataAvailabilityMode::Blob
+            ),
+        };
+
+        Ok(block_info)
     }
+}
+
+fn parse_gas_price(gas_price: GasPrice) -> Result<NonzeroGasPrice, StateError> {
+    NonzeroGasPrice::new(gas_price)
+        .map_err(|_| StateError::StateReadError(format!("Failed to parse gas price {}", gas_price)))
 }
 
 impl BlockifierStateReader for SyncStateReader {
