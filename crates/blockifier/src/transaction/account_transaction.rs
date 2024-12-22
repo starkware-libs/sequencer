@@ -35,6 +35,7 @@ use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
     get_sequencer_balance_keys,
     verify_can_pay_committed_bounds,
+    GasVectorToL1GasForFee,
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
@@ -275,7 +276,10 @@ impl AccountTransaction {
                     ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
                         l1_gas_resource_bounds,
-                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context.get_gas_prices()),
+                        minimal_gas_amount_vector.to_l1_gas_for_fee(
+                            tx_context.get_gas_prices(),
+                            &tx_context.block_context.versioned_constants,
+                        ),
                         block_info.gas_prices.l1_gas_price(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
