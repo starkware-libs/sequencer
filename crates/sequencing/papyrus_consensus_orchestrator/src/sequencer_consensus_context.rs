@@ -331,7 +331,7 @@ impl ConsensusContext for SequencerConsensusContext {
             self.current_height = Some(height);
             assert_eq!(round, 0);
             self.current_round = round;
-            self.interrupt_active_proposal();
+            self.interrupt_active_proposal().await;
             self.queued_proposals.clear();
             self.active_proposal = None;
             // The Batcher must be told when we begin to work on a new height. The implicit model is
@@ -349,7 +349,7 @@ impl ConsensusContext for SequencerConsensusContext {
             return;
         }
         assert!(round > self.current_round);
-        self.interrupt_active_proposal();
+        self.interrupt_active_proposal().await;
         self.current_round = round;
         let mut to_process = None;
         while let Some(entry) = self.queued_proposals.first_entry() {
@@ -465,9 +465,10 @@ impl SequencerConsensusContext {
         self.active_proposal = Some((token, handle));
     }
 
-    fn interrupt_active_proposal(&self) {
-        if let Some((token, _)) = &self.active_proposal {
+    async fn interrupt_active_proposal(&mut self) {
+        if let Some((token, handle)) = self.active_proposal.take() {
             token.cancel();
+            handle.await.expect("Proposal task panicked");
         }
     }
 }

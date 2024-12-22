@@ -343,6 +343,13 @@ async fn interrupt_active_proposal() {
         .withf(|input| input.proposal_id == ProposalId(0))
         .returning(|_| Ok(()));
     batcher
+        .expect_send_proposal_content()
+        .withf(|input| {
+            input.proposal_id == ProposalId(0) && input.content == SendProposalContent::Abort
+        })
+        .times(1)
+        .returning(move |_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
+    batcher
         .expect_validate_block()
         .times(1)
         .withf(|input| input.proposal_id == ProposalId(1))
