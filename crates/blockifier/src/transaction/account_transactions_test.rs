@@ -68,7 +68,11 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
+use crate::fee::fee_utils::{
+    get_fee_by_gas_vector,
+    get_sequencer_balance_keys,
+    GasVectorToL1GasForFee,
+};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::state::cached_state::{StateChangesCount, StateChangesCountForFee, TransactionalState};
 use crate::state::state_api::{State, StateReader};
@@ -558,7 +562,9 @@ fn test_max_fee_limit_validate(
                     };
                     let gas_prices = tx_context.get_gas_prices();
                     l1_resource_bounds(
-                        estimated_min_gas_usage_vector.to_discounted_l1_gas(gas_prices),
+                        estimated_min_gas_usage_vector.to_l1_gas_for_fee(
+                            gas_prices, &tx_context.block_context.versioned_constants
+                        ),
                         gas_prices.l1_gas_price.into(),
                     )
                 }
