@@ -27,7 +27,8 @@ pub trait StateSyncClient: Send + Sync {
         block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>>;
 
-    // Add a new block to the sync storage from another component within the same node.
+    /// Notify the sync that a new block has been created within the node so that other peers can
+    /// learn about it through sync.
     async fn add_new_block(
         &self,
         block_number: BlockNumber,
