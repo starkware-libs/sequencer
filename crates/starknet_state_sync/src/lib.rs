@@ -2,17 +2,21 @@ pub mod config;
 pub mod runner;
 
 use async_trait::async_trait;
+use blockifier::blockifier::block::validated_gas_prices;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::TransactionKind;
+use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageReader, StorageTxn};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::StarknetApiResult;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
@@ -72,6 +76,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                 StateSyncResponse::GetCompiledClassDeprecated(
                     self.get_compiled_class_deprecated(block_number, class_hash),
                 )
+            }
+            StateSyncRequest::GetBlockInfo(block_number) => {
+                StateSyncResponse::GetBlockInfo(self.get_block_info(block_number))
             }
         }
     }
@@ -192,6 +199,35 @@ impl StateSync {
             .ok_or(StateSyncError::ClassNotFound(class_hash))?;
         Ok(ContractClass::V0(deprecated_compiled_contract_class))
     }
+
+    fn get_block_info(&self, block_number: BlockNumber) -> StateSyncResult<Option<BlockInfo>> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+
+        if let Some(block_header) = txn.get_block_header(block_number)? {
+            let block_header_without_hash = block_header.block_header_without_hash;
+            let block_info = BlockInfo {
+                block_number: block_header_without_hash.block_number,
+                sequencer_address: block_header_without_hash.sequencer.0,
+                block_timestamp: block_header_without_hash.timestamp,
+                gas_prices: validated_gas_prices(
+                    parse_gas_price(block_header_without_hash.l1_gas_price.price_in_wei)?,
+                    parse_gas_price(block_header_without_hash.l1_gas_price.price_in_fri)?,
+                    parse_gas_price(block_header_without_hash.l1_data_gas_price.price_in_wei)?,
+                    parse_gas_price(block_header_without_hash.l1_data_gas_price.price_in_fri)?,
+                    parse_gas_price(block_header_without_hash.l2_gas_price.price_in_wei)?,
+                    parse_gas_price(block_header_without_hash.l2_gas_price.price_in_fri)?,
+                ),
+                use_kzg_da: matches!(
+                    block_header_without_hash.l1_da_mode,
+                    L1DataAvailabilityMode::Blob
+                ),
+            };
+
+            return Ok(Some(block_info));
+        }
+
+        Ok(None)
+    }
 }
 
 fn verify_synced_up_to<Mode: TransactionKind>(
@@ -205,6 +241,10 @@ fn verify_synced_up_to<Mode: TransactionKind>(
     }
 
     Err(StateSyncError::BlockNotFound(block_number))
+}
+
+fn parse_gas_price(gas_price: GasPrice) -> StarknetApiResult<NonzeroGasPrice> {
+    NonzeroGasPrice::new(gas_price)
 }
 
 pub type LocalStateSyncServer =
