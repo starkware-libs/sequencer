@@ -12,20 +12,22 @@ use starknet_api::block::{
 };
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::InvokeTransaction;
+use starknet_api::executable_transaction::{DeployAccountTransaction, InvokeTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
+    ContractAddressSalt,
     ResourceBounds,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{InvokeTransactionV3, TransactionHash};
+use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3, TransactionHash};
 use starknet_api::{contract_address, felt, storage_key};
 
 use super::{
     CentralBlockInfo,
+    CentralDeployAccountTransaction,
     CentralInvokeTransaction,
     CentralResourcePrice,
     CentralStateDiff,
@@ -35,6 +37,7 @@ use super::{
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
+pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx.json";
 
 fn central_state_diff() -> CentralStateDiff {
     // TODO(yael): compute the CentralStateDiff with into().
@@ -74,7 +77,7 @@ fn central_state_diff() -> CentralStateDiff {
     }
 }
 
-fn central_invoke_transaction_json() -> Value {
+fn central_invoke_tx_json() -> Value {
     let invoke_tx = InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
             resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
@@ -111,9 +114,52 @@ fn central_invoke_transaction_json() -> Value {
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
+fn central_deploy_account_tx_json() -> Value {
+    let deploy_account_tx = DeployAccountTransaction {
+        tx: starknet_api::transaction::DeployAccountTransaction::V3(DeployAccountTransactionV3 {
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: ResourceBounds {
+                    max_amount: GasAmount(1),
+                    max_price_per_unit: GasPrice(1),
+                },
+                l2_gas: ResourceBounds::default(),
+                l1_data_gas: ResourceBounds::default(),
+            }),
+            signature: Default::default(),
+            nonce: Default::default(),
+            tip: Default::default(),
+            paymaster_data: Default::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+
+            class_hash: ClassHash(felt!(
+                "0x1b5a0b09f23b091d5d1fa2f660ddfad6bcfce607deba23806cd7328ccfb8ee9"
+            )),
+            contract_address_salt: ContractAddressSalt(felt!(2_u8)),
+            constructor_calldata: Default::default(),
+        }),
+        tx_hash: TransactionHash(felt!(
+            "0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"
+        )),
+        contract_address: contract_address!(
+            "0x4c2e031b0ddaa38e06fd9b1bf32bff739965f9d64833006204c67cbc879a57c"
+        ),
+    };
+
+    let central_transaction_written = CentralTransactionWritten {
+        tx: CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
+            deploy_account_tx.into(),
+        )),
+        time_created: 1734601616,
+    };
+
+    serde_json::to_value(central_transaction_written).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(serde_json::to_value(central_state_diff()).unwrap(), CENTRAL_STATE_DIFF_JSON_PATH)]
-#[case::invoke_tx(central_invoke_transaction_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
+#[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
+#[case::deploy_account_tx(central_deploy_account_tx_json(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
