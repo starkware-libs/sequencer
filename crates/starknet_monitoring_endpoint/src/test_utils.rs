@@ -1,14 +1,30 @@
 use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
 
 use axum::body::Body;
 use axum::http::Request;
 use hyper::client::HttpConnector;
 use hyper::Client;
+use infra_utils::metrics::parse_numeric_metric;
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
+use num_traits::Num;
+use thiserror::Error;
 use tracing::info;
 
-use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};
+use crate::monitoring_endpoint::{ALIVE, METRICS, MONITORING_PREFIX};
+
+// TODO(Tsabary): rename IsAliveClient to MonitoringClient.
+
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
+pub enum MonitoringClientError {
+    #[error("Failed to connect, error details: {}", connection_error)]
+    ConnectionError { connection_error: String },
+    #[error("Erroneous status: {}", status)]
+    ResponseStatusError { status: String },
+    #[error("Missing metric name: {}", metric_name)]
+    MetricNotFound { metric_name: String },
+}
 
 /// Client for querying 'alive' status of an http server.
 pub struct IsAliveClient {
@@ -45,6 +61,35 @@ impl IsAliveClient {
             .await
             .ok_or(())
             .map(|_| ())
+    }
+
+    pub async fn get_metric<T: Num + FromStr>(
+        &self,
+        metric_name: &str,
+    ) -> Result<T, MonitoringClientError> {
+        // Query the server for metrics.
+        let response = self
+            .client
+            .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
+            .await
+            .map_err(|err| MonitoringClientError::ConnectionError {
+                connection_error: err.to_string(),
+            })?;
+
+        // Check response status.
+        if !response.status().is_success() {
+            return Err(MonitoringClientError::ResponseStatusError {
+                status: format!("{:?}", response.status()),
+            });
+        }
+
+        // Parse the response body.
+        let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+
+        // Extract and return the metric value, or a suitable error.
+        parse_numeric_metric::<T>(&body_string, metric_name)
+            .ok_or(MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() })
     }
 }
 
