@@ -11,11 +11,17 @@ use starknet_api::block::{
 };
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction, Transaction};
+use starknet_api::executable_transaction::{
+    AccountTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    Transaction,
+};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
+    ContractAddressSalt,
     PaymasterData,
     Tip,
     TransactionSignature,
@@ -101,6 +107,13 @@ impl From<(CommitmentStateDiff, BlockInfo, StarknetVersion)> for CentralStateDif
     }
 }
 
+fn into_u8(data_availability_mode: DataAvailabilityMode) -> u8 {
+    match data_availability_mode {
+        DataAvailabilityMode::L1 => 0,
+        DataAvailabilityMode::L2 => 1,
+    }
+}
+
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct CentralInvokeTransactionV3 {
     pub sender_address: ContractAddress,
@@ -136,13 +149,6 @@ impl From<InvokeTransaction> for CentralInvokeTransactionV3 {
     }
 }
 
-fn into_u8(data_availability_mode: DataAvailabilityMode) -> u8 {
-    match data_availability_mode {
-        DataAvailabilityMode::L1 => 0,
-        DataAvailabilityMode::L2 => 1,
-    }
-}
-
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "version")]
 pub enum CentralInvokeTransaction {
@@ -151,18 +157,65 @@ pub enum CentralInvokeTransaction {
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
+pub struct CentralDeployAccountTransactionV3 {
+    pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub constructor_calldata: Calldata,
+    pub nonce_data_availability_mode: u8,
+    pub fee_data_availability_mode: u8,
+    pub paymaster_data: PaymasterData,
+    pub hash_value: TransactionHash,
+    pub sender_address: ContractAddress,
+}
+
+impl From<DeployAccountTransaction> for CentralDeployAccountTransactionV3 {
+    fn from(tx: DeployAccountTransaction) -> CentralDeployAccountTransactionV3 {
+        CentralDeployAccountTransactionV3 {
+            resource_bounds: tx.resource_bounds(),
+            tip: tx.tip(),
+            signature: tx.signature(),
+            nonce: tx.nonce(),
+            class_hash: tx.class_hash(),
+            contract_address_salt: tx.contract_address_salt(),
+            constructor_calldata: tx.constructor_calldata(),
+            nonce_data_availability_mode: into_u8(tx.nonce_data_availability_mode()),
+            fee_data_availability_mode: into_u8(tx.fee_data_availability_mode()),
+            paymaster_data: tx.paymaster_data(),
+            hash_value: tx.tx_hash(),
+            sender_address: tx.contract_address,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "version")]
+pub enum CentralDeployAccountTransaction {
+    #[serde(rename = "0x3")]
+    V3(CentralDeployAccountTransactionV3),
+}
+
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum CentralTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
     Invoke(CentralInvokeTransaction),
+    #[serde(rename = "DEPLOY_ACCOUNT")]
+    DeployAccount(CentralDeployAccountTransaction),
 }
 
 impl From<Transaction> for CentralTransaction {
     fn from(tx: Transaction) -> CentralTransaction {
         match tx {
             Transaction::Account(AccountTransaction::Invoke(invoke_tx)) => {
-                CentralTransaction::Invoke(CentralInvokeTransaction::V3(
-                    CentralInvokeTransactionV3::from(invoke_tx),
+                CentralTransaction::Invoke(CentralInvokeTransaction::V3(invoke_tx.into()))
+            }
+            Transaction::Account(AccountTransaction::DeployAccount(deploy_tx)) => {
+                CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
+                    deploy_tx.into(),
                 ))
             }
             Transaction::Account(_) => unimplemented!(),
