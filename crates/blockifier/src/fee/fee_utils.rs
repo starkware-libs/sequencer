@@ -6,7 +6,7 @@ use num_bigint::BigUint;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::execution_resources::{to_discounted_l1_gas, GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas};
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource};
@@ -41,7 +41,12 @@ impl GasVectorToL1GasForFee for GasVector {
         versioned_constants: &VersionedConstants,
     ) -> GasAmount {
         // Discounted gas converts data gas to L1 gas. Add L2 gas using conversion ratio.
-        let discounted_l1_gas = self.to_discounted_l1_gas(gas_prices);
+        let discounted_l1_gas = to_discounted_l1_gas(
+            gas_prices.l1_gas_price,
+            gas_prices.l1_data_gas_price.into(),
+            self.l1_gas,
+            self.l1_data_gas,
+        );
         discounted_l1_gas
             .checked_add(versioned_constants.sierra_gas_to_l1_gas_amount_round_up(self.l2_gas))
             .unwrap_or_else(|| {
