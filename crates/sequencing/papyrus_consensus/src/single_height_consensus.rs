@@ -508,7 +508,10 @@ impl SingleHeightConsensus {
         round: Round,
         valid_round: Option<Round>,
     ) {
-        let proposal_id = proposal_id.expect("StateMachine should not propose a None proposal_id");
+        let Some(proposal_id) = proposal_id else {
+            warn!("Build proposal failed");
+            return;
+        };
         let Some(valid_round) = valid_round else {
             // newly built so just streamed
             return;
