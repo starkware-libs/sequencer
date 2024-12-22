@@ -22,6 +22,7 @@ use thiserror::Error;
 use crate::errors::StateSyncError;
 use crate::state_sync_types::{StateSyncResult, SyncBlock};
 
+#[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
