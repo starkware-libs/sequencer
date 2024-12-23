@@ -1735,6 +1735,7 @@ fn test_initial_gas(
         .execute_max_sierra_gas
         .min(user_gas_bound - GasAmount(validate_gas_consumed) + GasAmount(1))
         .0;
+
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.

@@ -205,10 +205,10 @@ pub fn trivial_external_entry_point_with_address(
         code_address: Some(contract_address),
         storage_address: contract_address,
         initial_gas: VersionedConstants::create_for_testing()
-            .os_constants
-            .gas_costs
-            .base
-            .default_initial_gas_cost,
+        .os_constants
+        .gas_costs
+        .base
+        .default_initial_gas_cost,
         ..Default::default()
     }
 }
