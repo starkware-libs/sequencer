@@ -78,9 +78,9 @@ type TransactionMetadataTable<'env> =
     TableHandle<'env, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
 type TransactionHashToIdxTable<'env> =
     TableHandle<'env, TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>;
-type EventsTableKey = (ContractAddress, TransactionIndex);
-type EventsTable<'env> =
-    TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+type AddressToTxIndexTableKey = (ContractAddress, TransactionIndex);
+type AddressToTxIndexTable<'env> =
+    TableHandle<'env, AddressToTxIndexTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -348,7 +348,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
         update_marker(&self.txn, &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
-            let events_table = self.open_table(&self.tables.events)?;
+            let address_to_tx_index_table = self.open_table(&self.tables.address_to_tx_index)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
@@ -361,7 +361,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 &file_offset_table,
                 &transaction_hash_to_idx_table,
                 &transaction_metadata_table,
-                &events_table,
+                &address_to_tx_index_table,
                 block_number,
             )?;
         }
@@ -397,7 +397,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let events_table = self.open_table(&self.tables.events)?;
+            let address_to_tx_index_table = self.open_table(&self.tables.address_to_tx_index)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?
@@ -416,7 +416,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
 
                 for event in tx_output.events().iter() {
-                    events_table.delete(&self.txn, &(event.from_address, tx_index))?;
+                    address_to_tx_index_table.delete(&self.txn, &(event.from_address, tx_index))?;
                 }
                 transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
                 transaction_metadata_table.delete(&self.txn, &tx_index)?;
@@ -440,7 +440,7 @@ fn write_transactions<'env>(
     file_offset_table: &'env FileOffsetsTable<'env>,
     transaction_hash_to_idx_table: &'env TransactionHashToIdxTable<'env>,
     transaction_metadata_table: &'env TransactionMetadataTable<'env>,
-    events_table: &'env EventsTable<'env>,
+    address_to_tx_index_table: &'env AddressToTxIndexTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
     for (index, ((tx, tx_output), tx_hash)) in block_body
@@ -454,7 +454,7 @@ fn write_transactions<'env>(
         let transaction_index = TransactionIndex(block_number, tx_offset_in_block);
         let tx_location = file_handlers.append_transaction(tx);
         let tx_output_location = file_handlers.append_transaction_output(tx_output);
-        write_events(tx_output, txn, events_table, transaction_index)?;
+        write_events(tx_output, txn, address_to_tx_index_table, transaction_index)?;
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
         transaction_metadata_table.append(
             txn,
@@ -480,7 +480,7 @@ fn write_transactions<'env>(
 fn write_events<'env>(
     tx_output: &TransactionOutput,
     txn: &DbTransaction<'env, RW>,
-    events_table: &'env EventsTable<'env>,
+    events_table: &'env AddressToTxIndexTable<'env>,
     transaction_index: TransactionIndex,
 ) -> StorageResult<()> {
     let mut contract_addresses_set = HashSet::new();
