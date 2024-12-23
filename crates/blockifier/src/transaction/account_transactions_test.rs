@@ -1848,6 +1848,7 @@ fn test_call_contract_that_panics(
     let mut nonce_manager = NonceManager::default();
 
     let new_class_hash = test_contract.get_class_hash();
+    let to_panic = true.into();
 
     let calldata = [
         *FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
@@ -1857,6 +1858,7 @@ fn test_call_contract_that_panics(
         selector_from_name(inner_selector).0,
         felt!(1_u8),
         new_class_hash.0,
+        to_panic,
     ];
 
     // Invoke a function that changes the state and reverts.
