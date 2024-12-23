@@ -217,6 +217,7 @@ impl<'state> SyscallHandlerBase<'state> {
             storage_address: deployed_contract_address,
             caller_address: deployer_address,
         };
+
         let call_info = execute_deployment(
             self.state,
             self.context,

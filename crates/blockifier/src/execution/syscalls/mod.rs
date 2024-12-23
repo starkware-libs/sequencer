@@ -169,6 +169,7 @@ pub fn call_contract(
             execution_mode: syscall_handler.execution_mode(),
         });
     }
+
     let entry_point = CallEntryPoint {
         class_hash: None,
         code_address: Some(storage_address),

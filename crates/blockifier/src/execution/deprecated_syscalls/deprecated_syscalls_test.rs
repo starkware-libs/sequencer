@@ -113,12 +113,15 @@ fn test_nested_library_call() {
         felt!(key),                       // Calldata: address.
         felt!(value)                      // Calldata: value.
     ];
+    let vesrioned_const = VersionedConstants::create_for_testing();
+    let initial_gas = vesrioned_const.os_constants.gas_costs.base.default_initial_gas_cost;
 
     // Create expected call info tree.
     let main_entry_point = CallEntryPoint {
         entry_point_selector: selector_from_name("test_nested_library_call"),
         calldata: main_entry_point_calldata,
         class_hash: Some(test_contract.get_class_hash()),
+        initial_gas,
         ..trivial_external_entry_point_new(test_contract)
     };
     let nested_storage_entry_point = CallEntryPoint {
@@ -127,6 +130,7 @@ fn test_nested_library_call() {
         class_hash: Some(test_contract.get_class_hash()),
         code_address: None,
         call_type: CallType::Delegate,
+        initial_gas,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -141,6 +145,7 @@ fn test_nested_library_call() {
         class_hash: Some(test_contract.get_class_hash()),
         code_address: None,
         call_type: CallType::Delegate,
+        initial_gas,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
@@ -235,6 +240,8 @@ fn test_call_contract() {
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
 
+    let vesrioned_const = VersionedConstants::create_for_testing();
+    let initial_gas = vesrioned_const.os_constants.gas_costs.base.default_initial_gas_cost;
     let expected_execution = CallExecution { retdata: retdata![value], ..Default::default() };
     let expected_inner_call_info = CallInfo {
         call: CallEntryPoint {
@@ -242,6 +249,7 @@ fn test_call_contract() {
             entry_point_selector: inner_entry_point_selector,
             calldata: inner_calldata,
             caller_address: test_address,
+            initial_gas,
             ..trivial_external_entry_point
         },
         execution: expected_execution.clone(),
@@ -260,6 +268,7 @@ fn test_call_contract() {
             class_hash: Some(test_contract.get_class_hash()),
             entry_point_selector: outer_entry_point_selector,
             calldata,
+            initial_gas,
             ..trivial_external_entry_point
         },
         execution: expected_execution,

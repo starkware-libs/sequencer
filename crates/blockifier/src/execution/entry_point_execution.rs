@@ -27,7 +27,11 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
     SEGMENT_ARENA_BUILTIN_SIZE,
 };
-use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
+use crate::execution::syscalls::hint_processor::{
+    SyscallExecutionError,
+    SyscallHintProcessor,
+    OUT_OF_GAS_ERROR,
+};
 use crate::state::state_api::State;
 use crate::versioned_constants::GasCosts;
 
@@ -61,6 +65,8 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let tracked_resource =
         *context.tracked_resource_stack.last().expect("Unexpected empty tracked resource.");
+    let enable_reverts = context.versioned_constants().enable_reverts;
+    let entry_point_initial_budget = context.gas_costs().base.entry_point_initial_budget;
     let VmExecutionContext {
         mut runner,
         mut syscall_handler,
@@ -75,7 +81,26 @@ pub fn execute_entry_point_call(
         initial_syscall_ptr,
         &mut syscall_handler.read_only_segments,
         &entry_point,
+        entry_point_initial_budget,
+        &tracked_resource,
+        enable_reverts,
     )?;
+    // if enable_reverts {
+    //     return Ok(CallInfo {
+    //         call: orig_call,
+    //         execution: CallExecution {
+    //             retdata: Retdata(vec![out_of_gas_error]),
+    //             failed: true,
+    //             gas_consumed: 0,
+    //             ..CallExecution::default()
+    //         },
+    //         tracked_resource,
+    //         ..CallInfo::default()
+    //     });
+    // } else {
+    //     return Err(PreExecutionError::OutOfGas(out_of_gas_error.to_string()));
+    // }
+
     let n_total_args = args.len();
 
     // Execute.
@@ -180,6 +205,9 @@ pub fn prepare_call_arguments(
     initial_syscall_ptr: Relocatable,
     read_only_segments: &mut ReadOnlySegments,
     entrypoint: &EntryPointV1,
+    entry_point_initial_budget: u64,
+    tracked_resource: &TrackedResource,
+    enable_reverts: bool,
 ) -> Result<Args, PreExecutionError> {
     let mut args: Args = vec![];
 
@@ -208,8 +236,18 @@ pub fn prepare_call_arguments(
         }
         return Err(PreExecutionError::InvalidBuiltin(*builtin_name));
     }
+    // Include the initial entry point budget in the initial gas calculation.
+    let initial_gas = call.initial_gas - entry_point_initial_budget;
+
+    if initial_gas < 0 {
+        //  Out of gas failure.
+        let out_of_gas_error =
+            Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
+        return Err(PreExecutionError::OutOfGas); //out_of_gas_error.to_string()
+    }
+
     // Push gas counter.
-    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas))));
+    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(initial_gas))));
     // Push syscall ptr.
     args.push(CairoArg::Single(MaybeRelocatable::from(initial_syscall_ptr)));
 

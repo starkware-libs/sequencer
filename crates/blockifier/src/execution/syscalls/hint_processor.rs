@@ -27,7 +27,7 @@ use thiserror::Error;
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
-use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
@@ -146,6 +146,19 @@ pub enum EmitEventError {
          events: {max_n_emitted_events}."
     )]
     ExceedsMaxNumberOfEmittedEvents { n_emitted_events: usize, max_n_emitted_events: usize },
+}
+
+impl From<SyscallExecutionError> for PreExecutionError {
+    fn from(_error: SyscallExecutionError) -> Self {
+        PreExecutionError::OutOfGas //TODO (AvivG): Add a better conversion for error message.
+        // (error.to_string())
+    }
+}
+
+impl From<SyscallExecutionError> for EntryPointExecutionError {
+    fn from(error: SyscallExecutionError) -> Self {
+        EntryPointExecutionError::InternalError(error.to_string()) //TODO (AvivG): Add a better conversion for error message.
+    }
 }
 
 // Needed for custom hint implementations (in our case, syscall hints) which must comply with the
