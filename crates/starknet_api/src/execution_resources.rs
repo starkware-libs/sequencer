@@ -15,7 +15,7 @@ use crate::transaction::fields::{Fee, Resource};
         derive_more::SubAssign,
         derive_more::Sub,
         derive_more::Add,
-        derive_more::AddAssign,
+        derive_more::AddAssign
     )
 )]
 #[derive(

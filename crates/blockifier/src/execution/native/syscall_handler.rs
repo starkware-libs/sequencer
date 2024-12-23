@@ -295,6 +295,9 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
 
+        // Refund initial budget to caller's remaining gas (paid by inner entry point).
+        *remaining_gas += self.gas_costs().base.entry_point_initial_budget;
+
         let entry_point = CallEntryPoint {
             class_hash: Some(class_hash),
             code_address: None,
@@ -333,6 +336,9 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         }
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+
+        // Refund initial budget to caller's remaining gas (paid by inner entry point).
+        *remaining_gas += self.gas_costs().base.entry_point_initial_budget;
 
         let entry_point = CallEntryPoint {
             class_hash: None,

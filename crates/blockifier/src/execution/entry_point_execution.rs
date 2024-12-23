@@ -257,7 +257,7 @@ pub fn prepare_call_arguments(
         return Err(PreExecutionError::InvalidBuiltin(*builtin_name));
     }
     // Push gas counter.
-    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas))));
+    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas - 10000)))); //-10000 AvivG : Noa is here
     // Push syscall ptr.
     args.push(CairoArg::Single(MaybeRelocatable::from(initial_syscall_ptr)));
 
@@ -285,6 +285,7 @@ pub fn run_entry_point(
     let verify_secure = false;
     let args: Vec<&CairoArg> = args.iter().collect();
     runner.run_from_entrypoint(
+        // AvivG entering vm.
         entry_point.pc(),
         &args,
         verify_secure,
@@ -460,7 +461,7 @@ fn get_call_result(
     syscall_handler: &SyscallHintProcessor<'_>,
     tracked_resource: &TrackedResource,
 ) -> Result<CallResult, PostExecutionError> {
-    let return_result = runner.vm.get_return_values(5)?;
+    let return_result = runner.vm.get_return_values(5)?; //AvivG: return from VM?
     // Corresponds to the Cairo 1.0 enum:
     // enum PanicResult<Array::<felt>> { Ok: Array::<felt>, Err: Array::<felt>, }.
     let [failure_flag, retdata_start, retdata_end]: &[MaybeRelocatable; 3] =
@@ -480,6 +481,7 @@ fn get_call_result(
     // TODO(spapini): Validate implicits.
 
     let gas = &return_result[0];
+
     let MaybeRelocatable::Int(gas) = gas else {
         return Err(PostExecutionError::MalformedReturnData {
             error_message: "Error extracting return data.".to_string(),
@@ -490,15 +492,22 @@ fn get_call_result(
     })?;
 
     if gas > syscall_handler.base.call.initial_gas {
+        // AvivG hereeeeeeeeeeeeee
+        // gas = initial - consumed + 10000 --> gas after run encapsulates 10000gas that where
+        // automatically.
         return Err(PostExecutionError::MalformedReturnData {
             error_message: format!("Unexpected remaining gas: {gas}."),
         });
     }
-
-    let gas_consumed = match tracked_resource {
+    // let entry_point_initial_budget =
+    // syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+    // println!("initial gas:{} final:{} to add:{}", syscall_handler.base.call.initial_gas, gas,
+    // entry_point_initial_budget);
+    let gas_consumed = match tracked_resource { //AvivG this value can NOT be negative
         // Do not count Sierra gas in CairoSteps mode.
         TrackedResource::CairoSteps => 0,
-        TrackedResource::SierraGas => syscall_handler.base.call.initial_gas - gas,
+        TrackedResource::SierraGas => syscall_handler.base.call.initial_gas - gas, //AvivG: you buddy are paing for extra 10000 gas
+        //- entry_point_initial_budget,
     };
     Ok(CallResult {
         failed,
