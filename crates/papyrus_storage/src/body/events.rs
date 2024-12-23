@@ -53,19 +53,29 @@ use std::collections::VecDeque;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
+use starknet_api::deprecated_contract_class::EventType;
 use starknet_api::transaction::{
     Event,
     EventContent,
     EventIndexInTransactionOutput,
+    TransactionOffsetInBlock,
     TransactionOutput,
 };
+use tracing::debug;
 
-use super::TransactionMetadataTable;
-use crate::body::{EventsTableKey, TransactionIndex};
+use super::{update_marker, EventsTable, FileOffsetsTable, MarkerKind, TransactionMetadataTable};
+use crate::body::{EmitterEventsTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, RO};
-use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
+use crate::db::{DbTransaction, RO, RW};
+use crate::{
+    FileHandlers,
+    OffsetKind,
+    StorageResult,
+    StorageScope,
+    StorageTxn,
+    TransactionMetadata,
+};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -144,7 +154,7 @@ pub struct EventIterByContractAddress<'env, 'txn> {
     file_handles: &'txn FileHandlers<RO>,
     // This value is the next entry in the events table to search for relevant events. If it is
     // None there are no more events.
-    next_entry_in_event_table: Option<EventsTableKey>,
+    next_entry_in_event_table: Option<EmitterEventsTableKey>,
     // Queue of events to return from the iterator. When this queue is empty, we need to fetch more
     // events.
     events_queue: VecDeque<((ContractAddress, EventIndex), EventContent)>,
@@ -359,7 +369,149 @@ fn get_events_from_tx(
 
 /// A cursor of the events table.
 type EventsTableCursor<'txn> =
-    DbCursor<'txn, RO, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+    DbCursor<'txn, RO, EmitterEventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+
+/// Interface for reading the events storage.
+pub trait EventsStorageReader {
+    /// The events marker is the block number of the first block that does not exist in the events
+    /// storage.
+    fn get_events_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Get all events for a specific block, devided by transactions.
+    fn get_block_events(&self, block_number: BlockNumber)
+    -> StorageResult<Option<Vec<Vec<Event>>>>;
+}
+
+impl EventsStorageReader for StorageTxn<'_, RW> {
+    fn get_events_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
+    }
+
+    fn get_block_events(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<Vec<Event>>>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        let mut cursor = events_table.cursor(&self.txn)?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+
+        let mut res = Vec::new();
+        while let Some((tx_index, events)) = current {
+            if tx_index.0 != block_number {
+                break;
+            }
+            res.push(events);
+            current = cursor.next()?;
+        }
+        Ok(Some(res))
+    }
+}
+
+/// Interface for updating the events storage.
+pub trait EventsStorageWriter
+where
+    Self: Sized,
+{
+    /// Appends the events of an entire block to the storage.
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self>;
+
+    /// Reverts the events of an entire block from the storage and returns the removed data.
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)>;
+}
+
+impl EventsStorageWriter for StorageTxn<'_, RW> {
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        update_marker(&self.txn, &markers_table, block_number)?;
+
+        if self.scope != StorageScope::StateOnly {
+            let events_table = self.open_table(&self.tables.events)?;
+            let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+
+            write_events(
+                block_events,
+                &self.txn,
+                &self.file_handlers,
+                &file_offset_table,
+                &events_table,
+                block_number,
+            )?;
+        }
+        Ok(self)
+    }
+
+    fn revert_events(
+        self,
+        _block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)> {
+        todo!()
+        //     let markers_table = self.open_table(&self.tables.markers)?;
+
+        //     // Assert that body marker equals the reverted block number + 1
+        //     let current_header_marker = self.get_events_marker()?;
+        //     if block_number
+        //         .next()
+        //         .filter(|next_block_number| current_header_marker == *next_block_number)
+        //         .is_none()
+        //     {
+        //         debug!(
+        //             "Attempt to revert a non-existing / old block {}. Returning without an
+        // action.",             block_number
+        //         );
+        //         return Ok((self, None));
+        //     }
+
+        //     let reverted_block_events = 'reverted_block_events: {
+        //         if self.scope == StorageScope::StateOnly {
+        //             break 'reverted_block_events Ok((self, None));
+        //         } else {
+        //             let events_table = self.open_table(&self.tables.events)?;
+        //             let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+        //             let block_events = events_table.get_block_events(&self.txn, block_number)?;
+        //             if let Some(block_events) = block_events {
+        //                 events_table.remove_block_events(&self.txn, block_number)?;
+        //                 file_offset_table.remove_block_events(&self.txn, block_number)?;
+        //                 Some(block_events)
+        //             } else {
+        //                 None
+        //             }
+        //         }
+        //     };
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_events<'env>(
+    block_events: Vec<Vec<Event>>,
+    txn: &DbTransaction<'env, RW>,
+    file_handlers: &FileHandlers<RW>,
+    file_offset_table: &'env FileOffsetsTable<'env>,
+    events_table: &'env EventsTable<'env>,
+    block_number: BlockNumber,
+) -> StorageResult<()> {
+    for (index, transaction_events) in block_events.iter().enumerate() {
+        let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(index));
+        let event_offset = file_handlers.append_events(&transaction_events.clone());
+        events_table.append(txn, &transaction_index, transaction_events)?;
+        if index == block_events.len() - 1 {
+            file_offset_table.upsert(txn, &OffsetKind::Event, &event_offset.next_offset())?;
+        }
+    }
+    StorageResult::Ok(())
+}

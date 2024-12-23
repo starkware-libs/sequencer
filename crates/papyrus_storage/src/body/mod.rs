@@ -50,6 +50,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
+    Event,
     Transaction,
     TransactionHash,
     TransactionOffsetInBlock,
@@ -60,6 +61,7 @@ use tracing::debug;
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::{
     FileHandlers,
     MarkerKind,
@@ -78,9 +80,12 @@ type TransactionMetadataTable<'env> =
     TableHandle<'env, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
 type TransactionHashToIdxTable<'env> =
     TableHandle<'env, TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>;
-type EventsTableKey = (ContractAddress, TransactionIndex);
+type EmitterEventsTableKey = (ContractAddress, TransactionIndex);
+type EmitterEventsTable<'env> =
+    TableHandle<'env, EmitterEventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+type EventsTableKey = TransactionIndex;
 type EventsTable<'env> =
-    TableHandle<'env, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+    TableHandle<'env, EventsTableKey, VersionZeroWrapper<Vec<Event>>, SimpleTable>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -440,7 +445,7 @@ fn write_transactions<'env>(
     file_offset_table: &'env FileOffsetsTable<'env>,
     transaction_hash_to_idx_table: &'env TransactionHashToIdxTable<'env>,
     transaction_metadata_table: &'env TransactionMetadataTable<'env>,
-    events_table: &'env EventsTable<'env>,
+    events_table: &'env EmitterEventsTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
     for (index, ((tx, tx_output), tx_hash)) in block_body
@@ -454,7 +459,7 @@ fn write_transactions<'env>(
         let transaction_index = TransactionIndex(block_number, tx_offset_in_block);
         let tx_location = file_handlers.append_transaction(tx);
         let tx_output_location = file_handlers.append_transaction_output(tx_output);
-        write_events(tx_output, txn, events_table, transaction_index)?;
+        write_emitter_events(tx_output, txn, events_table, transaction_index)?;
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
         transaction_metadata_table.append(
             txn,
@@ -477,10 +482,10 @@ fn write_transactions<'env>(
 }
 
 // This function assumes that the `transaction_index` is the last index used to call it.
-fn write_events<'env>(
+fn write_emitter_events<'env>(
     tx_output: &TransactionOutput,
     txn: &DbTransaction<'env, RW>,
-    events_table: &'env EventsTable<'env>,
+    emitter_events_table: &'env EmitterEventsTable<'env>,
     transaction_index: TransactionIndex,
 ) -> StorageResult<()> {
     let mut contract_addresses_set = HashSet::new();
@@ -493,7 +498,26 @@ fn write_events<'env>(
         let key = (contract_address, transaction_index);
         // Here, we use the function assumption; the append will fail if an older transaction_index
         // is a table.
-        events_table.append_greater_sub_key(txn, &key, &NoValue)?;
+        emitter_events_table.append_greater_sub_key(txn, &key, &NoValue)?;
+    }
+    Ok(())
+}
+
+fn updated_write_emitter_events<'env>(
+    transaction_events: Vec<Event>,
+    txn: &DbTransaction<'env, RW>,
+    emitter_events_table: &'env EmitterEventsTable<'env>,
+    transaction_index: TransactionIndex,
+) -> StorageResult<()> {
+    let mut contract_addresses_set = HashSet::new();
+
+    for event in transaction_events {
+        contract_addresses_set.insert(event.from_address);
+    }
+
+    for contract_address in contract_addresses_set {
+        let key = (contract_address, transaction_index);
+        emitter_events_table.append_greater_sub_key(txn, &key, &NoValue)?;
     }
     Ok(())
 }

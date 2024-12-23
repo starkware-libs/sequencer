@@ -538,7 +538,7 @@ struct_field_names! {
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
-        events: TableIdentifier<TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>,
+        events: TableIdentifier<TransactionIndex, VersionZeroWrapper<Vec<Event>>, SimpleTable>,
 
         // Version tables
         starknet_version: TableIdentifier<BlockNumber, VersionZeroWrapper<StarknetVersion>, SimpleTable>,
