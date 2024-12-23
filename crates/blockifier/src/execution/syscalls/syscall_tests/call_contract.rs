@@ -142,7 +142,7 @@ fn test_call_contract_and_than_revert(#[case] runnable_version: RunnableCairo1) 
         panic!("Expected one inner call, got {:?}", inner_call_b.inner_calls);
     };
     assert!(!inner_inner_call_c.execution.failed);
-    
+
     // Contract C events and messages should be reverted,
     // since his parent (contract B) panics.
     assert!(inner_inner_call_c.execution.events.is_empty());
@@ -150,6 +150,65 @@ fn test_call_contract_and_than_revert(#[case] runnable_version: RunnableCairo1) 
 
     // Check that the tracked resource is SierraGas to make sure that Native is running.
     for call in call_info_a.iter() {
+        assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
+    }
+}
+
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case::native(RunnableCairo1::Native))]
+#[case::vm(RunnableCairo1::Casm)]
+/// This test verifies the behavior of a contract call with inner calls where both try to change
+/// the storage, but one succeeds and the other fails (panics).
+///
+/// - Contract A call contact B.
+/// - Contract B changes the storage value from 0 to 10.
+/// - Contract A call contact C.
+/// - Contract C changes the storage value from 10 to 17 and panics.
+/// - Contract A checks that storage value == 10.
+fn test_revert_with_inner_call_and_reverted_storage(#[case] runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1), (empty_contract, 0)]);
+
+    // Call data of contract A
+    let calldata = Calldata(
+        [
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+                .get_instance_address(0)
+                .into(),
+            empty_contract.get_class_hash().0,
+        ]
+        .to_vec()
+        .into(),
+    );
+
+    // Create the entry point call to contract A.
+    let outer_entry_point_selector =
+        selector_from_name("test_revert_with_inner_call_and_reverted_storage");
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: outer_entry_point_selector,
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    // Execute.
+    let outer_call = entry_point_call.execute_directly(&mut state).unwrap();
+
+    // The outer call (contract A) should not fail.
+    assert!(!outer_call.execution.failed);
+
+    let [inner_call_to_b, inner_call_to_c] = &outer_call.inner_calls[..] else {
+        panic!("Expected two inner calls, got {:?}", outer_call.inner_calls);
+    };
+
+    // The first inner call (contract B) should not fail.
+    assert!(inner_call_to_c.execution.failed);
+    // The second inner call (contract C) should fail.
+    assert!(!inner_call_to_b.execution.failed);
+
+    // Check that the tracked resource is SierraGas to make sure that Native is running.
+    for call in outer_call.iter() {
         assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
     }
 }
