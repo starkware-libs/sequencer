@@ -58,11 +58,13 @@ pub fn execute_entry_point_call(
     let target_stack_size = stack_size_red_zone + 10 * 1024 * 1024;
     // Use `maybe_grow` and not `grow` for performance, since in happy flows, only the main call
     // should trigger the growth.
+    let initial_gas = syscall_handler.base.call.initial_gas
+        - syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
     let execution_result = stacker::maybe_grow(stack_size_red_zone, target_stack_size, || {
         compiled_class.executor.run(
             entry_point.selector.0,
             &syscall_handler.base.call.calldata.0.clone(),
-            syscall_handler.base.call.initial_gas,
+            initial_gas,
             Some(builtin_costs),
             &mut syscall_handler,
         )

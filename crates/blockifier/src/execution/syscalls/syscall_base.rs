@@ -217,6 +217,10 @@ impl<'state> SyscallHandlerBase<'state> {
             storage_address: deployed_contract_address,
             caller_address: deployer_address,
         };
+
+        // Refund initial budget to caller's remaining gas (paid by inner entry point).
+        *remaining_gas += self.context.gas_costs().base.entry_point_initial_budget; //HOw???
+
         let call_info = execute_deployment(
             self.state,
             self.context,

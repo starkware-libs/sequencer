@@ -452,6 +452,7 @@ impl AccountTransaction {
         // well known to the sequencer, so there is no need to limit its run.
         let mut remaining_gas_for_fee_transfer =
             block_context.versioned_constants.os_constants.gas_costs.base.default_initial_gas_cost;
+
         let fee_transfer_call = CallEntryPoint {
             class_hash: None,
             code_address: None,
@@ -852,6 +853,7 @@ impl ValidatableTransaction for AccountTransaction {
         let storage_address = tx_info.sender_address();
         let class_hash = state.get_class_hash_at(storage_address)?;
         let validate_selector = self.validate_entry_point_selector();
+
         let validate_call = CallEntryPoint {
             entry_point_type: EntryPointType::External,
             entry_point_selector: validate_selector,

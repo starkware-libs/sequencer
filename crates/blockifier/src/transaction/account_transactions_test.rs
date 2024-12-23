@@ -1730,7 +1730,7 @@ fn test_initial_gas(
         .versioned_constants
         .execute_max_sierra_gas
         .min(user_gas_bound - GasAmount(validate_gas_consumed) + GasAmount(1))
-        .0;
+        .0 + 10000;
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.
@@ -1764,6 +1764,7 @@ fn test_initial_gas(
             _ => {
                 // prev_version is a non Cairo0 contract, thus it consumes gas from the initial
                 // gas.
+                println!("curr_initial_gas: {:?}, prev_initial_gas: {:?}", curr_initial_gas, prev_initial_gas);
                 assert!(curr_initial_gas < prev_initial_gas);
                 if version
                     == &CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(

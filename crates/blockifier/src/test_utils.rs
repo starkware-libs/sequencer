@@ -201,14 +201,18 @@ pub fn trivial_external_entry_point_new(contract: FeatureContract) -> CallEntryP
 pub fn trivial_external_entry_point_with_address(
     contract_address: ContractAddress,
 ) -> CallEntryPoint {
+    let vesrioned_const = VersionedConstants::create_for_testing();
+    let initial_gas = vesrioned_const.os_constants
+    .gas_costs
+    .base
+    .default_initial_gas_cost +
+    // outer func automatically removes the initial gas cost
+    vesrioned_const.os_constants.gas_costs.base.entry_point_initial_budget;
+
     CallEntryPoint {
         code_address: Some(contract_address),
         storage_address: contract_address,
-        initial_gas: VersionedConstants::create_for_testing()
-            .os_constants
-            .gas_costs
-            .base
-            .default_initial_gas_cost,
+        initial_gas,
         ..Default::default()
     }
 }

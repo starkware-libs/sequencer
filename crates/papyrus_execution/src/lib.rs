@@ -238,7 +238,9 @@ pub fn execute_call(
     )?;
 
     // TODO(yair): check if this is the correct value.
+
     let mut remaining_gas = execution_config.default_initial_gas_cost;
+
     let call_entry_point = CallEntryPoint {
         class_hash: None,
         code_address: Some(*contract_address),

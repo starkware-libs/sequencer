@@ -410,12 +410,12 @@ pub fn execute_constructor_entry_point(
     let compiled_class = state.get_compiled_class(ctor_context.class_hash).map_err(|error| {
         ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
     })?;
+
     let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
         return handle_empty_constructor(&ctor_context, calldata, *remaining_gas)
             .map_err(|error| ConstructorEntryPointExecutionError::new(error, &ctor_context, None));
     };
-
     let constructor_call = CallEntryPoint {
         class_hash: None,
         code_address: ctor_context.code_address,
@@ -445,7 +445,6 @@ pub fn handle_empty_constructor(
             info: "Cannot pass calldata to a contract with no constructor.".to_string(),
         });
     }
-
     let empty_constructor_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(ctor_context.class_hash),

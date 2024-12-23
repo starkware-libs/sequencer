@@ -257,7 +257,7 @@ pub fn prepare_call_arguments(
         return Err(PreExecutionError::InvalidBuiltin(*builtin_name));
     }
     // Push gas counter.
-    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas))));
+    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas - 10000)))); //-10000 AvivG : Noa is here
     // Push syscall ptr.
     args.push(CairoArg::Single(MaybeRelocatable::from(initial_syscall_ptr)));
 
@@ -480,6 +480,7 @@ fn get_call_result(
     // TODO(spapini): Validate implicits.
 
     let gas = &return_result[0];
+
     let MaybeRelocatable::Int(gas) = gas else {
         return Err(PostExecutionError::MalformedReturnData {
             error_message: "Error extracting return data.".to_string(),
@@ -494,7 +495,6 @@ fn get_call_result(
             error_message: format!("Unexpected remaining gas: {gas}."),
         });
     }
-
     let gas_consumed = match tracked_resource {
         // Do not count Sierra gas in CairoSteps mode.
         TrackedResource::CairoSteps => 0,

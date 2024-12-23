@@ -169,6 +169,10 @@ pub fn call_contract(
             execution_mode: syscall_handler.execution_mode(),
         });
     }
+
+    // Refund initial budget to caller's remaining gas (paid by inner entry point).
+    *remaining_gas += syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+
     let entry_point = CallEntryPoint {
         class_hash: None,
         code_address: Some(storage_address),
@@ -246,6 +250,7 @@ pub fn deploy(
         request.deploy_from_zero,
         remaining_gas,
     )?;
+
     let constructor_retdata =
         create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
     syscall_handler.base.inner_calls.push(call_info);
@@ -407,6 +412,10 @@ pub fn library_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<LibraryCallResponse> {
+
+    // Refund initial budget to caller's remaining gas (paid by inner entry point).
+    *remaining_gas += syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+
     let entry_point = CallEntryPoint {
         class_hash: Some(request.class_hash),
         code_address: None,

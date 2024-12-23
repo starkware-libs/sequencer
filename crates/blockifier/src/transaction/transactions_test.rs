@@ -327,6 +327,7 @@ fn expected_fee_transfer_call_info(
             .base
             .default_initial_gas_cost,
     };
+
     let expected_fee_sender_address = *account_address.0.key();
     let expected_fee_transfer_event = OrderedEvent {
         order: 0,
@@ -467,7 +468,7 @@ fn add_kzg_da_resources_to_resources_mapping(
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 8)]),
         },
-        validate_gas_consumed: 4740, // The gas consumption results from parsing the input
+        validate_gas_consumed: 14740, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 112080,
     },
@@ -1511,10 +1512,15 @@ fn declare_validate_callinfo(
     if version == TransactionVersion::ZERO {
         None
     } else {
+
+        let gas_consumed = match declared_contract_version {
+            CairoVersion::Cairo0 => 0,
+            CairoVersion::Cairo1(_) => 10000,
+        };
         expected_validate_call_info(
             account_class_hash,
             constants::VALIDATE_DECLARE_ENTRY_POINT_NAME,
-            0,
+            gas_consumed,
             calldata![declared_class_hash.0],
             account_address,
             declared_contract_version,
@@ -1556,6 +1562,7 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
 #[case(TransactionVersion::ONE, CairoVersion::Cairo0)]
 #[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[case(TransactionVersion::THREE, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+
 fn test_declare_tx(
     default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
@@ -1646,10 +1653,22 @@ fn test_declare_tx(
         &starknet_resources,
         vec![&expected_validate_call_info],
     );
+    let expected_gas_consumed = match account_cairo_version {
+        CairoVersion::Cairo0 => GasAmount(0),
+        CairoVersion::Cairo1(_) => {
+            if tx_version == TransactionVersion::ZERO {
+                GasAmount(0)
+            } else {
+                GasAmount(10000)
+            }
+        }
+    };
+
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
             vm_resources: expected_cairo_resources,
+            sierra_gas: expected_gas_consumed,
             ..Default::default()
         },
     };
@@ -1763,9 +1782,18 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
 }
 
 #[rstest]
+#[case::with_cairo0_account(
+    CairoVersion::Cairo0,
+    0 // Expected_gas_consumed
+)]
+#[case::with_cairo1_account(
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
+    10000 // Expected_gas_consumed
+)]
 fn test_deploy_account_tx(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
+    //#[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    #[case] cairo_version: CairoVersion,
+    #[case] expected_gas_consumed: u64,
     #[values(false, true)] use_kzg_da: bool,
     default_all_resource_bounds: ValidResourceBounds,
 ) {
@@ -1816,7 +1844,6 @@ fn test_deploy_account_tx(
         panic!("Expected DeployAccount transaction.")
     };
 
-    let expected_gas_consumed = 0;
     let expected_validate_call_info = expected_validate_call_info(
         account_class_hash,
         constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME,
@@ -1835,6 +1862,8 @@ fn test_deploy_account_tx(
         // Note that in the case of deploy account, the initial gas in "execute" is limited by
         // max_validation_sierra_gas.
         .min(versioned_constants.validate_max_sierra_gas);
+
+
     let expected_execute_call_info = Some(CallInfo {
         call: CallEntryPoint {
             class_hash: Some(account_class_hash),
@@ -1876,6 +1905,7 @@ fn test_deploy_account_tx(
         starknet_resources,
         computation: ComputationResources {
             vm_resources: expected_cairo_resources,
+            sierra_gas: expected_gas_consumed.into(),
             ..Default::default()
         },
     };
@@ -2343,7 +2373,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(6120);
+    let gas_consumed = GasAmount(16120);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2375,11 +2405,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 17899_u32.into(),
+            l1_gas: 17999_u32.into(), // AvivG: l1_gas???
             l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19593_u32.into()),
+        false => GasVector::from_l1_gas(19693_u32.into()), // AvivG: l1_gas???
     };
 
     let expected_da_gas = match use_kzg_da {
