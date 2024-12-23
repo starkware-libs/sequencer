@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+#[cfg(any(feature = "testing", test))]
 use std::net::SocketAddr;
 
 use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
