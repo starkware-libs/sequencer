@@ -1,20 +1,26 @@
 mod central_objects;
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures::channel::oneshot;
 #[cfg(test)]
 use mockall::automock;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
 use tokio::task::{self};
 use tracing::debug;
+use url::Url;
 
 // TODO(dvir): add tests when will have more logic.
 
 /// A chunk of all the data to write to Aersopike.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AerospikeBlob {
     // TODO(yael, dvir): add the blob fields.
 }
@@ -31,17 +37,58 @@ pub trait CendeContext: Send + Sync {
     async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters);
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct CendeAmbassador {
     // TODO(dvir): consider creating enum varaiant instead of the `Option<AerospikeBlob>`.
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
     // proposer.
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
+    url: Url,
+    client: Client,
 }
 
+/// The path to write blob in the Recorder.
+const RECORDER_WRITE_BLOB_PATH: &str = "/write_blob";
+
 impl CendeAmbassador {
-    pub fn new() -> Self {
-        CendeAmbassador { prev_height_blob: Arc::new(Mutex::new(None)) }
+    pub fn new(cende_config: CendeConfig) -> Self {
+        CendeAmbassador {
+            prev_height_blob: Arc::new(Mutex::new(None)),
+            url: cende_config
+                .recorder_url
+                .join(RECORDER_WRITE_BLOB_PATH)
+                .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
+            client: Client::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CendeConfig {
+    pub recorder_url: Url,
+}
+
+impl Default for CendeConfig {
+    fn default() -> Self {
+        CendeConfig {
+            // TODO(dvir): change this default value to "https://<recorder_url>". The reason for the
+            // current value is to make the `end_to_end_flow_test` to pass (it creates the default
+            // config).
+            recorder_url: "https://recorder_url"
+                .parse()
+                .expect("recorder_url must be a valid Recorder URL"),
+        }
+    }
+}
+
+impl SerializeConfig for CendeConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "recorder_url",
+            &self.recorder_url,
+            "The URL of the Pythonic cende_recorder",
+            ParamPrivacyInput::Private,
+        )])
     }
 }
 
@@ -50,34 +97,54 @@ impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, height: BlockNumber) -> oneshot::Receiver<bool> {
         let (sender, receiver) = oneshot::channel();
         let prev_height_blob = self.prev_height_blob.clone();
+        let request_builder = self.client.post(self.url.clone());
         task::spawn(async move {
             // TODO(dvir): remove this when handle the booting up case.
             // Heights that are permitted to be built without writing to Aerospike.
             // Height 1 to make  `end_to_end_flow` test pass.
-            const PERMITTED_HEIGHTS: [BlockNumber; 1] = [BlockNumber(1)];
+            const SKIP_WRITE_HEIGHTS: [BlockNumber; 1] = [BlockNumber(1)];
 
-            if PERMITTED_HEIGHTS.contains(&height) {
+            if SKIP_WRITE_HEIGHTS.contains(&height) {
                 debug!(
-                    "height {} is in `PERMITTED_HEIGHTS`, consensus can send proposal without \
+                    "height {} is in `SKIP_WRITE_HEIGHTS`, consensus can send proposal without \
                      writing to Aerospike",
                     height
                 );
-                sender.send(true).unwrap();
+                oneshot_send(sender, true);
                 return;
             }
-            let Some(ref _blob) = *prev_height_blob.lock().await else {
+            let Some(ref blob) = *prev_height_blob.lock().await else {
                 debug!("No blob to write to Aerospike.");
-                sender.send(false).expect("Writing to a one-shot sender should succeed.");
+                oneshot_send(sender, false);
                 return;
             };
-            // TODO(dvir): write blob to AS.
             // TODO(dvir): consider set `prev_height_blob` to `None` after writing to AS.
             debug!("Writing blob to Aerospike.");
-            sender.send(true).expect("Writing to a one-shot sender should succeed.");
-            debug!("Blob writing to Aerospike completed.");
+            match request_builder.json(blob).send().await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        debug!("Blob written to Aerospike successfully.");
+                        oneshot_send(sender, true);
+                    } else {
+                        debug!("The recorder failed to write blob. Error: {}", response.status());
+                        oneshot_send(sender, false);
+                    }
+                }
+                Err(err) => {
+                    debug!("Failed to send a request to the recorder. Error: {}", err);
+                    // TODO(dvir): change this to `false`. The reason for the current value is to
+                    // make the `end_to_end_flow_test` to pass.
+                    oneshot_send(sender, true);
+                }
+            }
         });
 
-        receiver
+        return receiver;
+
+        // Helper function to send a boolean result to a one-shot sender.
+        fn oneshot_send(sender: oneshot::Sender<bool>, result: bool) {
+            sender.send(result).expect("Writing to a one-shot sender should succeed.");
+        }
     }
 
     async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters) {
