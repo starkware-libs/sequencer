@@ -38,6 +38,7 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
+use url::Url;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -92,6 +93,8 @@ pub async fn create_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
+            // TODO(dvir): change this to real value when add recorder to integration tests.
+            recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
         },
     )
 }
@@ -129,6 +132,7 @@ pub fn create_consensus_manager_configs_and_channels(
                 timeouts: timeouts.clone(),
                 ..Default::default()
             },
+            ..Default::default()
         })
         .collect();
 
