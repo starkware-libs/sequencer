@@ -11,6 +11,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use starknet_sequencer_infra::component_client::ClientError;
+use starknet_sequencer_infra::trace_util::configure_tracing;
 use tokio::task;
 
 use crate::config::HttpServerConfig;
@@ -40,6 +41,8 @@ async fn to_bytes(res: Response) -> Bytes {
 
 #[tokio::test]
 async fn get_metrics_test() {
+    configure_tracing().await;
+
     let prometheus_handle = PrometheusBuilder::new()
         .install_recorder()
         .expect("should be able to build the recorder and install it globally");
@@ -61,7 +64,9 @@ async fn get_metrics_test() {
                 "mock response".to_string(),
             ))),
             1 => Ok(TransactionHash::default()),
-            _ => Ok(TransactionHash::default()),
+            _ => Err(GatewayClientError::ClientError(ClientError::UnexpectedResponse(
+                "mock response".to_string(),
+            ))),
         }
     });
 
