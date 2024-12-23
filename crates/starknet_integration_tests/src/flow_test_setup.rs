@@ -14,6 +14,7 @@ use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
+use starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
@@ -189,9 +190,7 @@ pub fn create_consensus_manager_configs_and_channels(
     let channels_network_config = network_configs.pop().unwrap();
     let broadcast_channels = network_config_into_broadcast_channels(
         channels_network_config,
-        papyrus_network::gossipsub_impl::Topic::new(
-            starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-        ),
+        papyrus_network::gossipsub_impl::Topic::new(CONSENSUS_PROPOSALS_TOPIC),
     );
 
     let consensus_manager_configs =

@@ -64,10 +64,10 @@ fn required_args() -> Vec<String> {
     args
 }
 
-fn get_args(additional_args: Vec<&str>) -> Vec<String> {
+fn get_args(additional_args: impl IntoIterator<Item = impl ToString>) -> Vec<String> {
     let mut args = vec!["Papyrus".to_owned()];
-    args.append(&mut required_args());
-    args.append(&mut additional_args.into_iter().map(|s| s.to_owned()).collect());
+    args.extend(required_args());
+    args.extend(additional_args.into_iter().map(|s| s.to_string()));
     args
 }
 
@@ -75,12 +75,18 @@ fn get_args(additional_args: Vec<&str>) -> Vec<String> {
 fn load_default_config() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    NodeConfig::load_and_process(get_args(vec![])).expect("Failed to load the config.");
+    NodeConfig::load_and_process(get_args(vec!["--chain_id", "SN_MAIN"]))
+        .expect("Failed to load the config.");
 }
 
 #[test]
 fn load_http_headers() {
-    let args = get_args(vec!["--central.http_headers", "NAME_1:VALUE_1 NAME_2:VALUE_2"]);
+    let args = get_args(vec![
+        "--central.http_headers",
+        "NAME_1:VALUE_1 NAME_2:VALUE_2",
+        "--chain_id",
+        "SN_MAIN",
+    ]);
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     let config = NodeConfig::load_and_process(args).unwrap();
@@ -113,12 +119,17 @@ fn test_dump_default_config() {
 fn test_default_config_process() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    assert_eq!(NodeConfig::load_and_process(get_args(vec![])).unwrap(), NodeConfig::default());
+    assert_eq!(
+        NodeConfig::load_and_process(get_args(vec!["--chain_id", "SN_MAIN"])).unwrap(),
+        NodeConfig::default()
+    );
 }
 
 #[test]
 fn test_update_dumped_config_by_command() {
     let args = get_args(vec![
+        "--chain_id",
+        "SN_MAIN",
         "--central.retry_config.retry_max_delay_millis",
         "1234",
         "--storage.db_config.path_prefix",
