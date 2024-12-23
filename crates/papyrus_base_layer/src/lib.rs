@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockHashAndNumber;
 
 pub mod ethereum_base_layer_contract;
 
@@ -19,5 +19,7 @@ pub trait BaseLayerContract {
     async fn latest_proved_block(
         &self,
         finality: u64,
-    ) -> Result<Option<(BlockNumber, BlockHash)>, Self::Error>;
+    ) -> Result<Option<BlockHashAndNumber>, Self::Error>;
+
+    async fn latest_l1_block_number(&self, finality: u64) -> Result<Option<u64>, Self::Error>;
 }
