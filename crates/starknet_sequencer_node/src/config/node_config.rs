@@ -89,6 +89,14 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ),
             set_pointing_param_paths(&["consensus_manager_config.consensus_config.validator_id"]),
         ),
+        (
+            ser_pointer_target_required_param(
+                "recorder_url",
+                SerializationType::String,
+                "The URL of the Pythonic cende_recorder",
+            ),
+            set_pointing_param_paths(&["consensus_manager_config.cende_config.recorder_url"]),
+        ),
     ];
     let mut common_execution_config = generate_struct_pointer(
         "versioned_constants_overrides".to_owned(),
