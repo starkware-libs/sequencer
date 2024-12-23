@@ -609,6 +609,11 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "consensus_manager_config.cende_config.recorder_url": {
+    "description": "The URL of the Pythonic cende_recorder",
+    "pointer_target": "recorder_url",
+    "privacy": "Private"
+  },
   "consensus_manager_config.consensus_config.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
@@ -948,6 +953,11 @@
     "description": "The monitoring endpoint port.",
     "privacy": "Public",
     "value": 8082
+  },
+  "recorder_url": {
+    "description": "A required param! The URL of the Pythonic cende_recorder",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
   },
   "rpc_state_reader_config.json_rpc_version": {
     "description": "The json rpc version.",
