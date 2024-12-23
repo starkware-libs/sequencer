@@ -17,7 +17,7 @@ use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_node::bin_utils::build_configs;
 use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles, NETWORK_TOPIC};
 use papyrus_p2p_sync::BUFFER_SIZE;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use tokio::task::JoinHandle;
@@ -62,8 +62,9 @@ fn build_consensus(
         Topic::new(consensus_config.network_topic.clone()),
         BUFFER_SIZE,
     )?;
-    let proposal_network_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>> =
-        network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    let proposal_network_channels: BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
