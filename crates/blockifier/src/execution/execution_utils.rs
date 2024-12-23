@@ -66,7 +66,6 @@ pub fn execute_entry_point_call_wrapper(
         call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
     }
     let orig_call = call.clone();
-
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
     context.tracked_resource_stack.push(current_tracked_resource);
