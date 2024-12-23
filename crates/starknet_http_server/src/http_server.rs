@@ -69,11 +69,17 @@ async fn add_tx(
     count_added_transaction();
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
 
+    info!("Received tx: {:?}", gateway_input);
+
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
         error!("Failed to process tx: {}", join_err);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     });
+
+    info!("Add tx result: {:?}", add_tx_result);
+
     count_transaction_status(add_tx_result.is_ok());
+    info!("Updated the metrics");
 
     add_tx_result_as_json(add_tx_result)
 }
@@ -81,7 +87,11 @@ async fn add_tx(
 pub(crate) fn add_tx_result_as_json(
     result: Result<TransactionHash, GatewaySpecError>,
 ) -> HttpServerResult<Json<TransactionHash>> {
+    info!("add_tx_result_as_json");
+
     let tx_hash = result?;
+    info!("tx_hash: {:?}", tx_hash);
+
     Ok(Json(tx_hash))
 }
 
