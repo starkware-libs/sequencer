@@ -15,7 +15,7 @@ use crate::integration_test_setup::IntegrationTestSetup;
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
-const N_SEQUENCERS: usize = 2;
+const N_SEQUENCERS: usize = 4;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
