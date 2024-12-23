@@ -84,7 +84,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
                 // 'ENTRYPOINT_FAILED'.
                 felt!("0x454e545259504f494e545f4641494c4544")
             ]),
-            gas_consumed: 100980,
+            gas_consumed: 110980,
             failed: true,
             ..Default::default()
         }

@@ -233,8 +233,10 @@ fn test_call_contract() {
         calldata: calldata.clone(),
         ..trivial_external_entry_point
     };
-    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    println!("Initial gas before: {}", entry_point_call.initial_gas);
 
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    println!("Initial gas: {}", call_info.call.initial_gas);
     let expected_execution = CallExecution { retdata: retdata![value], ..Default::default() };
     let expected_inner_call_info = CallInfo {
         call: CallEntryPoint {

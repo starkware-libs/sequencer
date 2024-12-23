@@ -219,6 +219,7 @@ pub fn call_contract(
         storage_address,
         caller_address: syscall_handler.storage_address,
         call_type: CallType::Call,
+        // Question (AvivG): Should we refund initial budget to caller's remaining gas?
         initial_gas: syscall_handler.context.gas_costs().base.default_initial_gas_cost,
     };
     let retdata_segment =
