@@ -97,14 +97,30 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_revert_helper(ref self: ContractState, class_hash: ClassHash) {
+    fn test_revert_helper(ref self: ContractState, class_hash: ClassHash, to_panic: bool) {
         let dummy_span = array![0].span();
         syscalls::emit_event_syscall(dummy_span, dummy_span).unwrap_syscall();
         syscalls::replace_class_syscall(class_hash).unwrap_syscall();
         syscalls::send_message_to_l1_syscall(17.try_into().unwrap(), dummy_span).unwrap_syscall();
         self.my_storage_var.write(17);
-        panic(array!['test_revert_helper']);
+        if to_panic {
+            panic(array!['test_revert_helper']);
+        }
     }
+
+    #[external(v0)]
+    fn middle_revert_contract(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Array::<felt252>,
+    ) {
+        syscalls::call_contract_syscall(
+        contract_address, entry_point_selector, calldata.span()
+        ).unwrap_syscall();
+       panic(array!['execute_and_revert']);
+    }
+
 
     #[external(v0)]
     fn test_emit_events(
@@ -647,8 +663,12 @@ mod TestContract {
                 let inner_error = *error_span.pop_back().unwrap();
                 if entry_point_selector == selector!("bad_selector") {
                     assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'Unexpected error');
-                } else {
+                } else if entry_point_selector == selector!("test_revert_helper")  {
                     assert(inner_error == 'test_revert_helper', 'Unexpected error');
+                }
+                else {
+                    assert(entry_point_selector == selector!("middle_revert_contract"), 'Wrong Entry Point');
+                    assert(inner_error == 'execute_and_revert', 'Wrong_error');
                 }
             },
         };
