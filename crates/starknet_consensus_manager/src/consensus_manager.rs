@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use infra_utils::type_name::short_type_name;
 use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus::types::ConsensusError;
+use papyrus_consensus_orchestrator::cende::CendeAmbassador;
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
@@ -85,6 +86,7 @@ impl ConsensusManager {
             votes_broadcast_channels.broadcast_topic_client.clone(),
             self.config.consensus_config.num_validators,
             self.config.consensus_config.chain_id.clone(),
+            Arc::new(CendeAmbassador::new()),
         );
 
         let mut network_handle = tokio::task::spawn(network_manager.run());
