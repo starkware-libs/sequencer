@@ -124,7 +124,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
     assert_eq!(
         deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 164550, ..CallExecution::default() }
+        CallExecution { retdata: retdata![], gas_consumed: 174550, ..CallExecution::default() }
     );
 
     let constructor_call = &deploy_call.inner_calls[0];
@@ -136,7 +136,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             // The test contract constructor returns its first argument.
             retdata: retdata![constructor_calldata[0]],
             // This reflects the gas cost of storage write syscall.
-            gas_consumed: 4610,
+            gas_consumed: 14610,
             ..CallExecution::default()
         }
     );
