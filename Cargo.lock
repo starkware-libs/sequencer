@@ -7404,11 +7404,13 @@ dependencies = [
  "infra_utils",
  "lazy_static",
  "mockall",
+ "papyrus_config",
  "papyrus_consensus",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "reqwest 0.11.27",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -7418,6 +7420,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -10542,6 +10545,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -10759,6 +10763,7 @@ dependencies = [
  "starknet_state_sync_types",
  "tokio",
  "tracing",
+ "url",
  "validator",
 ]
 

@@ -12,10 +12,12 @@ blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+papyrus_config.workspace = true
 papyrus_consensus.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
@@ -23,6 +25,7 @@ starknet_batcher_types = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full"] }
 tokio-util.workspace = true
 tracing.workspace = true
+url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 infra_utils.workspace = true
