@@ -391,7 +391,8 @@ pub fn calldata_for_deploy_test(
 }
 
 /// Creates the calldata for the "__execute__" entry point in the featured contracts
-/// AccountWithLongValidate and AccountWithoutValidations. The format of the returned calldata is:
+/// ([`FeatureContract`]) AccountWithLongValidate and AccountWithoutValidations. The format of the
+/// returned calldata is:
 /// [
 ///     contract_address,
 ///     entry_point_name,
@@ -420,7 +421,10 @@ pub fn create_calldata(
     )
 }
 
-/// Calldata for a trivial entry point in the test contract.
+/// Calldata for a trivial entry point in the [`FeatureContract`] TestContract. The calldata is
+/// formatted for using the featured contracts AccountWithLongValidate or AccountWithoutValidations
+/// as account contract.
+/// The contract_address is the address of the called contract, an instance address of TestContract.
 pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Calldata {
     create_calldata(
         test_contract_address,
