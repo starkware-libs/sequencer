@@ -65,12 +65,11 @@ pub fn execute_entry_point_call_wrapper(
         // Override the initial gas with a high value so it won't limit the run.
         call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
     }
-    let orig_call = call.clone();
 
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
     context.tracked_resource_stack.push(current_tracked_resource);
-    let res = execute_entry_point_call(call, compiled_class, state, context);
+    let res = execute_entry_point_call(call.clone(), compiled_class, state, context);
     context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
     match res {
@@ -91,7 +90,7 @@ pub fn execute_entry_point_call_wrapper(
             PreExecutionError::EntryPointNotFound(_)
             | PreExecutionError::NoEntryPointOfTypeFound(_),
         )) if context.versioned_constants().enable_reverts => Ok(CallInfo {
-            call: orig_call,
+            call,
             execution: CallExecution {
                 retdata: Retdata(vec![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]),
                 failed: true,

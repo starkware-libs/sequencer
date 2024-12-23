@@ -114,13 +114,11 @@
         "syscall_gas_costs": {
             "call_contract": {
                 "syscall_base_gas_cost": 1,
-                "step_gas_cost": 510,
-                "entry_point_initial_budget": 1
+                "step_gas_cost": 510
             },
             "deploy": {
                 "syscall_base_gas_cost": 1,
-                "step_gas_cost": 700,
-                "entry_point_initial_budget": 1
+                "step_gas_cost": 700
             },
             "get_block_hash": {
                 "syscall_base_gas_cost": 1,
@@ -132,8 +130,7 @@
             },
             "library_call": {
                 "syscall_base_gas_cost": 1,
-                "step_gas_cost": 510,
-                "entry_point_initial_budget": 1
+                "step_gas_cost": 510
             },
             "replace_class": {
                 "syscall_base_gas_cost": 1,
