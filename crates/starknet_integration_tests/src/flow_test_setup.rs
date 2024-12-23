@@ -42,6 +42,7 @@ const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
 const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 
+const TEST_CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
 pub struct FlowTestSetup {
     pub sequencer_0: FlowSequencerSetup,
     pub sequencer_1: FlowSequencerSetup,
@@ -189,9 +190,7 @@ pub fn create_consensus_manager_configs_and_channels(
     let channels_network_config = network_configs.pop().unwrap();
     let broadcast_channels = network_config_into_broadcast_channels(
         channels_network_config,
-        papyrus_network::gossipsub_impl::Topic::new(
-            starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-        ),
+        papyrus_network::gossipsub_impl::Topic::new(TEST_CONSENSUS_PROPOSALS_TOPIC),
     );
 
     let consensus_manager_configs =
