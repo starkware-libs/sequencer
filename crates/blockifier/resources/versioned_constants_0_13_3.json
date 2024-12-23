@@ -117,12 +117,10 @@
         "validated": "VALID",
         "syscall_gas_costs": {
             "call_contract": {
-                "entry_point_initial_budget": 1,
                 "step_gas_cost": 510,
                 "syscall_base_gas_cost": 1
             },
             "deploy": {
-                "entry_point_initial_budget": 1,
                 "step_gas_cost": 700,
                 "syscall_base_gas_cost": 1
             },
@@ -143,7 +141,6 @@
             },
             "keccak_round_cost": 180000,
             "library_call": {
-                "entry_point_initial_budget": 1,
                 "step_gas_cost": 510,
                 "syscall_base_gas_cost": 1
             },

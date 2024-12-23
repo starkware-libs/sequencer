@@ -2,6 +2,7 @@ use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use stacker;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
 use crate::execution::contract_class::TrackedResource;
@@ -11,9 +12,10 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::execution::entry_point_execution::gas_consumed_without_inner_calls;
-use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
+use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
+use crate::execution::syscalls::hint_processor::OUT_OF_GAS_ERROR;
 use crate::state::state_api::State;
 
 // todo(rodrigo): add an `entry point not found` test for Native
@@ -56,13 +58,24 @@ pub fn execute_entry_point_call(
     // TODO(Aviv/Yonatan): add these numbers to overridable VC.
     let stack_size_red_zone = 160 * 1024 * 1024;
     let target_stack_size = stack_size_red_zone + 10 * 1024 * 1024;
+
+    // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal
+    // entry point code. When redepositing is used, the entry point is aware of this pre-charge
+    // and adjusts the gas counter accordingly if a smaller amount of gas is required.
+    let initial_budget = syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+    let call_initial_gas = syscall_handler
+        .base
+        .call
+        .initial_gas
+        .checked_sub(initial_budget)
+        .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
     // Use `maybe_grow` and not `grow` for performance, since in happy flows, only the main call
     // should trigger the growth.
     let execution_result = stacker::maybe_grow(stack_size_red_zone, target_stack_size, || {
         compiled_class.executor.run(
             entry_point.selector.0,
             &syscall_handler.base.call.calldata.0.clone(),
-            syscall_handler.base.call.initial_gas,
+            call_initial_gas,
             Some(builtin_costs),
             &mut syscall_handler,
         )

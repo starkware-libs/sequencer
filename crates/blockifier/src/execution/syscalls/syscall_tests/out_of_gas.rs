@@ -74,7 +74,7 @@ fn test_stack_overflow() {
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-            gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 6590,
+            gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 5380,
             failed: true,
             ..Default::default()
         }
