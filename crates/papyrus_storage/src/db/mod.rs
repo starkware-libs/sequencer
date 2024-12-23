@@ -76,6 +76,7 @@ impl Default for DbConfig {
     fn default() -> Self {
         DbConfig {
             path_prefix: PathBuf::from("./data"),
+            // TODO(guyn): should we remove the default for chain_id?
             chain_id: ChainId::Mainnet,
             enforce_file_exists: false,
             min_size: 1 << 20,    // 1MB
