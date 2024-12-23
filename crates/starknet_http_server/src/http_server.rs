@@ -67,11 +67,18 @@ async fn add_tx(
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
+    info!("Received tx: {:?}", gateway_input);
+
+
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
         HttpServerError::from(e)
     });
+
+    info!("Add tx result: {:?}", add_tx_result);
+
     record_added_transaction_status(add_tx_result.is_ok());
+    info!("Updated the metrics");
 
     add_tx_result_as_json(add_tx_result)
 }
@@ -79,7 +86,11 @@ async fn add_tx(
 pub(crate) fn add_tx_result_as_json(
     result: HttpServerResult<TransactionHash>,
 ) -> HttpServerResult<Json<TransactionHash>> {
+    info!("add_tx_result_as_json");
+
     let tx_hash = result?;
+    info!("tx_hash: {:?}", tx_hash);
+
     Ok(Json(tx_hash))
 }
 
