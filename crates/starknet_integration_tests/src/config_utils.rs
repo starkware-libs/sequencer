@@ -53,6 +53,7 @@ pub(crate) fn dump_config_file_changes(
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
         required_params.validator_id,
+        required_params.recorder_url,
     );
 
     // Create the entire mapping of the config and the pointers, without the required params.
