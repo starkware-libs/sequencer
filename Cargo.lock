@@ -10466,7 +10466,6 @@ name = "starknet_gateway_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "axum",
  "enum-assoc",
  "mockall",
  "papyrus_network_types",
@@ -10488,6 +10487,7 @@ dependencies = [
  "axum",
  "hyper 0.14.30",
  "infra_utils",
+ "jsonrpsee",
  "metrics 0.21.1",
  "papyrus_config",
  "reqwest 0.11.27",
