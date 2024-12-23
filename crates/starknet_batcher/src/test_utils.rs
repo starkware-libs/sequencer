@@ -5,6 +5,7 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 
@@ -37,6 +38,7 @@ impl BlockExecutionArtifacts {
             },
             visited_segments_mapping: VisitedSegmentsMapping::default(),
             bouncer_weights: BouncerWeights::empty(),
+            l2_gas_used: GasAmount::default(),
         }
     }
 }
