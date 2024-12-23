@@ -10474,6 +10474,7 @@ dependencies = [
  "axum",
  "hyper 0.14.30",
  "infra_utils",
+ "jsonrpsee",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
