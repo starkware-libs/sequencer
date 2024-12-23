@@ -214,7 +214,7 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync,
+    S: StateReader + Send + Sync + Clone,
     T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
@@ -232,13 +232,17 @@ pub fn reexecute_and_verify_correctness<
         assert_matches!(res, Ok(_));
     }
 
+    // TODO(Yoav): Return the block state after the modifications in finalize().
+    // Note that after finalizing, the block state is None.
+    let block_state = transaction_executor.block_state.clone();
+
     // Finalize block and read actual statediff.
     let (actual_state_diff, _, _) =
         transaction_executor.finalize().expect("Couldn't finalize block");
 
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
-    transaction_executor.block_state
+    block_state
 }
 
 pub fn reexecute_block_for_testing(block_number: u64) {

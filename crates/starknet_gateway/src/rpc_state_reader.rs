@@ -33,6 +33,7 @@ use crate::rpc_objects::{
 };
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
+#[derive(Clone)]
 pub struct RpcStateReader {
     pub config: RpcStateReaderConfig,
     pub block_id: BlockId,
