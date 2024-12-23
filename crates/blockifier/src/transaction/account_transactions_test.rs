@@ -112,6 +112,7 @@ use crate::transaction::test_utils::{
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
+use crate::versioned_constants::VersionedConstants;
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
@@ -1735,6 +1736,13 @@ fn test_initial_gas(
         .execute_max_sierra_gas
         .min(user_gas_bound - GasAmount(validate_gas_consumed) + GasAmount(1))
         .0;
+    // Caller is refunded for paying entry point initial budget.
+    prev_initial_gas += VersionedConstants::create_for_testing()
+        .os_constants
+        .gas_costs
+        .base
+        .entry_point_initial_budget;
+
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.

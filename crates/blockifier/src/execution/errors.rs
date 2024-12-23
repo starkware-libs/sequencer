@@ -50,6 +50,8 @@ pub enum PreExecutionError {
     UninitializedStorageAddress(ContractAddress),
     #[error("Called builtins: {0:?} are unsupported in a Cairo0 contract")]
     UnsupportedCairo0Builtin(HashSet<BuiltinName>),
+    #[error("Insufficient entry point initial gas, must be non-negative.")]
+    InsufficientEntryPointGas,
 }
 
 impl From<RunnerError> for PreExecutionError {
