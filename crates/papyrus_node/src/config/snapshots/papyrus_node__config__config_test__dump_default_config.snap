@@ -90,8 +90,8 @@ expression: dumped_default_config
     "privacy": "TemporaryValue"
   },
   "consensus.chain_id": {
-    "description": "The chain id of the Starknet chain.",
-    "value": "0x0",
+    "description": "A required param! The chain id of the Starknet chain.",
+    "param_type": "String",
     "privacy": "Public"
   },
   "consensus.consensus_delay": {
