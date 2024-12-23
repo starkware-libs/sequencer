@@ -808,6 +808,13 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             msg: format!("Transaction at location {:?} not found.", location),
         })
     }
+
+    // Returns the events at the given location or an error in case it doesn't exist.
+    fn get_events_unchecked(&self, location: LocationInFile) -> StorageResult<Vec<Event>> {
+        self.events.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("Events at location {:?} not found.", location),
+        })
+    }
 }
 
 fn open_storage_files(

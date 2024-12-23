@@ -60,8 +60,9 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionOutput,
 };
+use tracing::debug;
 
-use super::{update_marker, EventsTable, FileOffsetsTable, TransactionMetadataTable};
+use super::{update_marker, EventsTable, FileOffsetsTable, MarkerKind, TransactionMetadataTable};
 use crate::body::{AddressToTxIndexTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
@@ -374,7 +375,42 @@ type AddressToTxIndexTableCursor<'txn> =
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
 
-/// interface for updating the events in the storage.
+/// Interface for reading the events from the storage.
+pub trait EventStorageReader {
+    /// The first block number that isn't written in the events table.
+    fn get_events_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Returns the events of a specific block.
+    fn get_block_events(&self, block_number: BlockNumber)
+    -> StorageResult<Option<Vec<Vec<Event>>>>;
+}
+
+impl EventStorageReader for StorageTxn<'_, RW> {
+    fn get_events_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
+    }
+    fn get_block_events(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<Vec<Event>>>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        let mut cursor = events_table.cursor(&self.txn)?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+        let mut res = Vec::new();
+        while let Some((tx_index, events_location)) = current {
+            if tx_index.0 != block_number {
+                break;
+            }
+            res.push(self.file_handlers.get_events_unchecked(events_location)?);
+            current = cursor.next()?;
+        }
+        if res.is_empty() { Ok(None) } else { Ok(Some(res)) }
+    }
+}
+
+/// Interface for updating the events in the storage.
 pub trait EventStorageWriter
 where
     Self: Sized,
@@ -385,6 +421,12 @@ where
         block_number: BlockNumber,
         block_events: Vec<Vec<Event>>,
     ) -> StorageResult<Self>;
+
+    /// Removes the events of an entire block from the storage.
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)>;
 }
 
 impl EventStorageWriter for StorageTxn<'_, RW> {
@@ -408,6 +450,47 @@ impl EventStorageWriter for StorageTxn<'_, RW> {
             )?;
         }
         Ok(self)
+    }
+
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        // Assert that body marker equals the reverted block number + 1
+        let current_header_marker = self.get_events_marker()?;
+        if block_number
+            .next()
+            .filter(|next_block_number| current_header_marker == *next_block_number)
+            .is_none()
+        {
+            debug!(
+                "Attempt to revert a non-existing / old block {}. Returning without an action.",
+                block_number
+            );
+            return Ok((self, None));
+        }
+        let reverted_block_events = 'reverted_block_events: {
+            if self.scope == StorageScope::StateOnly {
+                break 'reverted_block_events None;
+            } else {
+                let events_table = self.open_table(&self.tables.events)?;
+                let block_events = self.get_block_events(block_number)?.unwrap_or_else(|| {
+                    panic!("Block events not found for block number: {block_number:?}")
+                });
+                // Assuming theres a vector of events for every transaction (even if empty), so
+                // the index of each item of this enumerate is the transaction index in the
+                // block.
+                for (index, _) in block_events.iter().enumerate() {
+                    let transaction_index =
+                        TransactionIndex(block_number, TransactionOffsetInBlock(index));
+                    events_table.delete(&self.txn, &transaction_index)?;
+                }
+                Some(block_events)
+            }
+        };
+        markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
+        Ok((self, reverted_block_events))
     }
 }
 
