@@ -138,14 +138,51 @@ impl<'a, S: StateReader> AliasUpdater<'a, S> {
     }
 }
 
+/// Compresses the state diff by replacing the addresses and storage keys with aliases.
+pub fn compress<S: StateReader>(
+    state_diff: &StateMaps,
+    state: &S,
+    alias_contract_address: ContractAddress,
+) -> CompressionResult<StateMaps> {
+    let alias_compressor = AliasCompressor { state, alias_contract_address };
+
+    let nonces = state_diff
+        .nonces
+        .iter()
+        .map(|(contract_address, nonce)| {
+            Ok((alias_compressor.compress_address(contract_address)?, *nonce))
+        })
+        .collect::<CompressionResult<_>>()?;
+    let class_hashes = state_diff
+        .class_hashes
+        .iter()
+        .map(|(contract_address, class_hash)| {
+            Ok((alias_compressor.compress_address(contract_address)?, *class_hash))
+        })
+        .collect::<CompressionResult<_>>()?;
+    let storage = state_diff
+        .storage
+        .iter()
+        .map(|((contract_address, key), value)| {
+            Ok((
+                (
+                    alias_compressor.compress_address(contract_address)?,
+                    alias_compressor.compress_storage_key(key, contract_address)?,
+                ),
+                *value,
+            ))
+        })
+        .collect::<CompressionResult<_>>()?;
+
+    Ok(StateMaps { nonces, class_hashes, storage, ..state_diff.clone() })
+}
+
 /// Replaces contact addresses and storage keys with aliases.
-#[allow(dead_code)]
 struct AliasCompressor<'a, S: StateReader> {
     state: &'a S,
     alias_contract_address: ContractAddress,
 }
 
-#[allow(dead_code)]
 impl<S: StateReader> AliasCompressor<'_, S> {
     fn compress_address(
         &self,
