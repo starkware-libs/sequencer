@@ -1757,7 +1757,7 @@ fn test_initial_gas(
                 );
                 assert_eq!(
                     curr_initial_gas,
-                    block_context.versioned_constants.inifite_gas_for_vm_mode()
+                    block_context.versioned_constants.infinite_gas_for_vm_mode()
                 );
                 started_vm_mode = true;
             }
