@@ -5,7 +5,7 @@ use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
-use papyrus_storage::StorageConfig;
+use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -15,8 +15,10 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
 use tempfile::{tempdir, TempDir};
-use tracing::instrument;
+use tokio::task::JoinHandle;
+use tracing::{info, instrument};
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::{spawn_test_rpc_state_reader_with_socket, StorageTestSetup};
@@ -27,13 +29,9 @@ use crate::utils::{
     create_mempool_p2p_configs,
 };
 
-const SEQUENCER_0: usize = 0;
-const SEQUENCER_1: usize = 1;
-const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
-
 pub struct IntegrationTestSetup {
-    pub sequencer_0: IntegrationSequencerSetup,
-    pub sequencer_1: IntegrationSequencerSetup,
+    pub sequencers: Vec<IntegrationSequencerSetup>,
+    pub sequencer_run_handles: Vec<JoinHandle<()>>,
 
     // TODO: To validate test results instead of reading storage - delete this and use monitoring
     // or use this.
@@ -42,7 +40,8 @@ pub struct IntegrationTestSetup {
 }
 
 impl IntegrationTestSetup {
-    pub async fn new_from_tx_generator(
+    pub async fn run(
+        n_sequencers: usize,
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
     ) -> Self {
@@ -51,55 +50,64 @@ impl IntegrationTestSetup {
         let accounts = tx_generator.accounts();
 
         let (mut consensus_manager_configs, consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(
-                SEQUENCER_INDICES.len(),
-                &mut available_ports,
-            );
+            create_consensus_manager_configs_and_channels(n_sequencers, &mut available_ports);
         let mut mempool_p2p_configs = create_mempool_p2p_configs(
-            SEQUENCER_INDICES.len(),
+            n_sequencers,
             chain_info.chain_id.clone(),
             &mut available_ports,
         );
 
-        let sequencer_0_consensus_manager_config = consensus_manager_configs.remove(0);
-        let sequencer_0_mempool_p2p_config = mempool_p2p_configs.remove(0);
-        let sequencer_0 = IntegrationSequencerSetup::new(
-            accounts.clone(),
-            SEQUENCER_0,
-            chain_info.clone(),
-            sequencer_0_consensus_manager_config,
-            sequencer_0_mempool_p2p_config,
-            &mut available_ports,
-        )
-        .await;
+        let mut sequencers = vec![];
+        for sequencer_id in 0..n_sequencers {
+            let consensus_manager_config = consensus_manager_configs.remove(0);
+            let mempool_p2p_config = mempool_p2p_configs.remove(0);
+            let sequencer = IntegrationSequencerSetup::new(
+                accounts.clone(),
+                sequencer_id,
+                chain_info.clone(),
+                consensus_manager_config,
+                mempool_p2p_config,
+                &mut available_ports,
+            )
+            .await;
+            sequencers.push(sequencer);
+        }
 
-        let sequencer_1_consensus_manager_config = consensus_manager_configs.remove(0);
-        let sequencer_1_mempool_p2p_config = mempool_p2p_configs.remove(0);
-        let sequencer_1 = IntegrationSequencerSetup::new(
-            accounts.clone(),
-            SEQUENCER_1,
-            chain_info.clone(),
-            sequencer_1_consensus_manager_config,
-            sequencer_1_mempool_p2p_config,
-            &mut available_ports,
-        )
-        .await;
+        info!("Running sequencers.");
+        let sequencer_run_handles = sequencers
+            .iter()
+            .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
+            .collect::<Vec<_>>();
 
-        Self { sequencer_0, sequencer_1, consensus_proposals_channels }
+        Self { sequencers, sequencer_run_handles, consensus_proposals_channels }
     }
 
     pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        self.sequencer_0
-            .is_alive_test_client
-            .await_alive(interval, max_attempts)
-            .await
-            .expect("Node 0 should be alive.");
+        for (sequencer_index, sequencer) in self.sequencers.iter().enumerate() {
+            sequencer
+                .is_alive_test_client
+                .await_alive(interval, max_attempts)
+                .await
+                .unwrap_or_else(|_| panic!("Node {} should be alive.", sequencer_index));
+        }
+    }
 
-        self.sequencer_1
-            .is_alive_test_client
-            .await_alive(interval, max_attempts)
-            .await
-            .expect("Node 1 should be alive.");
+    pub async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+        self.sequencers[0].assert_add_tx_success(rpc_tx).await
+    }
+
+    pub fn batcher_storage_reader(&self) -> StorageReader {
+        let (batcher_storage_reader, _) =
+            papyrus_storage::open_storage(self.sequencers[0].batcher_storage_config.clone())
+                .expect("Failed to open batcher's storage");
+        batcher_storage_reader
+    }
+
+    pub fn shutdown_nodes(&self) {
+        self.sequencer_run_handles.iter().for_each(|handle| {
+            assert!(!handle.is_finished(), "Node should still be running.");
+            handle.abort()
+        });
     }
 }
 
