@@ -8,6 +8,7 @@ use crate::config::node_config::node_command;
 
 /// Required parameters utility struct.
 #[gen_field_names_and_cli_args_fn]
+#[derive(Clone, Debug)]
 pub struct RequiredParams {
     pub chain_id: ChainId,
     pub eth_fee_token_address: ContractAddress,
