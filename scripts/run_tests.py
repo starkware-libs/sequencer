@@ -18,7 +18,6 @@ ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
 # Enum of base commands.
 class BaseCommand(Enum):
     TEST = "test"
-    CODECOV = "codecov"
     CLIPPY = "clippy"
     DOC = "doc"
 
@@ -29,15 +28,6 @@ class BaseCommand(Enum):
 
         if self == BaseCommand.TEST:
             return ["cargo", "test"] + package_args
-        elif self == BaseCommand.CODECOV:
-            return [
-                "cargo",
-                "llvm-cov",
-                "--codecov",
-                "-r",
-                "--output-path",
-                "codecov.json",
-            ] + package_args
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
             return ["cargo", "clippy"] + clippy_args + ["--all-targets"]
