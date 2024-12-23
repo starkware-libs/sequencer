@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{ConcurrencyConfig, ContractClassManagerConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
+use blockifier::state::contract_class_manager::CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -165,6 +166,7 @@ pub struct PyContractClassManagerConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub contract_cache_size: usize,
+    pub channel_size: usize,
 }
 
 impl Default for PyContractClassManagerConfig {
@@ -173,6 +175,7 @@ impl Default for PyContractClassManagerConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            channel_size: CHANNEL_SIZE,
         }
     }
 }
@@ -183,6 +186,7 @@ impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
             run_cairo_native: py_contract_class_manager_config.run_cairo_native,
             wait_on_native_compilation: py_contract_class_manager_config.wait_on_native_compilation,
             contract_cache_size: py_contract_class_manager_config.contract_cache_size,
+            channel_size: py_contract_class_manager_config.channel_size,
         }
     }
 }

@@ -4,6 +4,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 
+use crate::state::contract_class_manager::CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -69,6 +70,7 @@ pub struct ContractClassManagerConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub contract_cache_size: usize,
+    pub channel_size: usize,
 }
 
 impl Default for ContractClassManagerConfig {
@@ -77,6 +79,7 @@ impl Default for ContractClassManagerConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            channel_size: CHANNEL_SIZE,
         }
     }
 }
@@ -100,6 +103,12 @@ impl SerializeConfig for ContractClassManagerConfig {
                 "contract_cache_size",
                 &self.contract_cache_size,
                 "The size of the global contract cache.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "channel_size",
+                &self.channel_size,
+                "The size of the compilation request channel.",
                 ParamPrivacyInput::Public,
             ),
         ])
