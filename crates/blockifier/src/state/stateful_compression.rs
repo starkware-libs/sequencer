@@ -30,17 +30,17 @@ pub type CompressionResult<T> = Result<T, CompressionError>;
 
 // The initial alias available for allocation.
 const INITIAL_AVAILABLE_ALIAS_HEX: &str = "0x80";
-const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked(INITIAL_AVAILABLE_ALIAS_HEX);
+pub const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked(INITIAL_AVAILABLE_ALIAS_HEX);
 
 // The storage key of the alias counter in the alias contract.
-const ALIAS_COUNTER_STORAGE_KEY: StorageKey = StorageKey(PatriciaKey::ZERO);
+pub const ALIAS_COUNTER_STORAGE_KEY: StorageKey = StorageKey(PatriciaKey::ZERO);
 // The maximal contract address for which aliases are not used and all keys are serialized as is,
 // without compression.
-const MAX_NON_COMPRESSED_CONTRACT_ADDRESS: ContractAddress =
+pub const MAX_NON_COMPRESSED_CONTRACT_ADDRESS: ContractAddress =
     ContractAddress(PatriciaKey::from_hex_unchecked("0xf"));
 // The minimal value for a key to be allocated an alias. Smaller keys are serialized as is (their
 // alias is identical to the key).
-const MIN_VALUE_FOR_ALIAS_ALLOC: PatriciaKey =
+pub const MIN_VALUE_FOR_ALIAS_ALLOC: PatriciaKey =
     PatriciaKey::from_hex_unchecked(INITIAL_AVAILABLE_ALIAS_HEX);
 
 /// Allocates aliases for the new addresses and storage keys in the alias contract.
