@@ -170,65 +170,29 @@ impl ConsensusContext for SequencerConsensusContext {
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
-
         let batcher = Arc::clone(&self.batcher);
         let valid_proposals = Arc::clone(&self.valid_proposals);
-
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
-        let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
-            .expect("Can't convert timeout to chrono::Duration");
-        let now = chrono::Utc::now();
-        let build_proposal_input = ProposeBlockInput {
-            proposal_id,
-            // TODO: Discuss with batcher team passing std Duration instead.
-            deadline: now + batcher_timeout,
-            // TODO: This is not part of Milestone 1.
-            retrospective_block_hash: Some(BlockHashAndNumber {
-                number: BlockNumber::default(),
-                hash: BlockHash::default(),
-            }),
-            // TODO(Dan, Matan): Fill block info.
-            block_info: BlockInfo {
-                block_number: proposal_init.height,
-                gas_prices: TEMPORARY_GAS_PRICES,
-                block_timestamp: BlockTimestamp(
-                    now.timestamp().try_into().expect("Failed to convert timestamp"),
-                ),
-                use_kzg_da: true,
-                sequencer_address: proposal_init.proposer,
-            },
-        };
-        // TODO: Should we be returning an error?
-        // I think this implies defining an error type in this crate and moving the trait definition
-        // here also.
-        debug!("Initiating build proposal: {build_proposal_input:?}");
-        batcher
-            .propose_block(build_proposal_input)
-            .await
-            .expect("Failed to initiate proposal build");
-        debug!("Broadcasting proposal init: {proposal_init:?}");
-        let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let (proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
         let stream_id = proposal_init.height.0;
         self.outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
             .expect("Failed to send proposal receiver");
-        proposal_sender
-            .send(ProposalPart::Init(proposal_init))
-            .await
-            .expect("Failed to send proposal init");
+
         tokio::spawn(
             async move {
-                stream_build_proposal(
-                    proposal_init.height,
-                    proposal_id,
+                build_proposal(
+                    timeout,
+                    proposal_init,
+                    proposal_sender,
+                    fin_sender,
                     batcher,
                     valid_proposals,
-                    proposal_sender,
+                    proposal_id,
                     cende_write_success,
-                    fin_sender,
                 )
                 .await;
             }
@@ -432,30 +396,105 @@ impl SequencerConsensusContext {
 }
 
 // Handles building a new proposal without blocking consensus:
+#[allow(clippy::too_many_arguments)]
+async fn build_proposal(
+    timeout: Duration,
+    proposal_init: ProposalInit,
+    mut proposal_sender: mpsc::Sender<ProposalPart>,
+    fin_sender: oneshot::Sender<ProposalContentId>,
+    batcher: Arc<dyn BatcherClient>,
+    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    proposal_id: ProposalId,
+    cende_write_success: oneshot::Receiver<bool>,
+) {
+    initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref()).await;
+    debug!("Broadcasting proposal init: {proposal_init:?}");
+    proposal_sender
+        .send(ProposalPart::Init(proposal_init))
+        .await
+        .expect("Failed to send proposal init");
+
+    let Some((proposal_content_id, content)) = get_proposal_content(
+        proposal_init.height,
+        proposal_id,
+        batcher.as_ref(),
+        proposal_sender,
+        cende_write_success,
+    )
+    .await
+    else {
+        return;
+    };
+
+    // Update valid_proposals before sending fin to avoid a race condition
+    // with `repropose` being called before `valid_proposals` is updated.
+    let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
+    valid_proposals
+        .entry(proposal_init.height)
+        .or_default()
+        .insert(proposal_content_id, (content, proposal_id));
+    if fin_sender.send(proposal_content_id).is_err() {
+        // Consensus may exit early (e.g. sync).
+        warn!("Failed to send proposal content id");
+    }
+}
+
+async fn initialize_build(
+    proposal_id: ProposalId,
+    proposal_init: &ProposalInit,
+    timeout: Duration,
+    batcher: &dyn BatcherClient,
+) {
+    let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
+        .expect("Can't convert timeout to chrono::Duration");
+    let now = chrono::Utc::now();
+    let build_proposal_input = ProposeBlockInput {
+        proposal_id,
+        // TODO: Discuss with batcher team passing std Duration instead.
+        deadline: now + batcher_timeout,
+        // TODO: This is not part of Milestone 1.
+        retrospective_block_hash: Some(BlockHashAndNumber {
+            number: BlockNumber::default(),
+            hash: BlockHash::default(),
+        }),
+        // TODO(Dan, Matan): Fill block info.
+        block_info: BlockInfo {
+            block_number: proposal_init.height,
+            gas_prices: TEMPORARY_GAS_PRICES,
+            block_timestamp: BlockTimestamp(
+                now.timestamp().try_into().expect("Failed to convert timestamp"),
+            ),
+            use_kzg_da: true,
+            sequencer_address: proposal_init.proposer,
+        },
+    };
+    // TODO: Should we be returning an error?
+    // I think this implies defining an error type in this crate and moving the trait definition
+    // here also.
+    debug!("Initiating build proposal: {build_proposal_input:?}");
+    batcher.propose_block(build_proposal_input).await.expect("Failed to initiate proposal build");
+}
+
 // 1. Receive chunks of content from the batcher.
 // 2. Forward these to the stream handler to be streamed out to the network.
 // 3. Once finished, receive the commitment from the batcher.
-// 4. Store the proposal for re-proposal.
-// 5. Send the commitment to the stream handler (to send fin).
-async fn stream_build_proposal(
+async fn get_proposal_content(
     height: BlockNumber,
     proposal_id: ProposalId,
-    batcher: Arc<dyn BatcherClient>,
-    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     mut cende_write_success: oneshot::Receiver<bool>,
-    fin_sender: oneshot::Sender<ProposalContentId>,
-) {
+) -> Option<(ProposalContentId, Vec<ExecutableTransaction>)> {
     let mut content = Vec::new();
     loop {
-        let response =
-            match batcher.get_proposal_content(GetProposalContentInput { proposal_id }).await {
-                Ok(response) => response,
-                Err(e) => {
-                    warn!("Failed to get proposal content: {e:?}");
-                    return;
-                }
-            };
+        // We currently want one part of the node failing to cause all components to fail. If this
+        // changes, we can simply eeturn None and consider this as a failed proposal which consensus
+        // should support.
+        let response = batcher
+            .get_proposal_content(GetProposalContentInput { proposal_id })
+            .await
+            .expect("Failed to get proposal content");
+
         match response.content {
             GetProposalContent::Txs(txs) => {
                 content.extend_from_slice(&txs[..]);
@@ -495,11 +534,11 @@ async fn stream_build_proposal(
                     }
                     Ok(Some(false)) => {
                         debug!("Writing blob to Aerospike failed.");
-                        return;
+                        return None;
                     }
                     _ => {
                         debug!("Writing blob to Aerospike didn't return in time.");
-                        return;
+                        return None;
                     }
                 }
 
@@ -507,18 +546,7 @@ async fn stream_build_proposal(
                     .send(ProposalPart::Fin(ProposalFin { proposal_content_id }))
                     .await
                     .expect("Failed to broadcast proposal fin");
-                // Update valid_proposals before sending fin to avoid a race condition
-                // with `repropose` being called before `valid_proposals` is updated.
-                let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
-                valid_proposals
-                    .entry(height)
-                    .or_default()
-                    .insert(proposal_content_id, (content, proposal_id));
-                if fin_sender.send(proposal_content_id).is_err() {
-                    // Consensus may exit early (e.g. sync).
-                    warn!("Failed to send proposal content id");
-                }
-                return;
+                return Some((proposal_content_id, content));
             }
         }
     }
