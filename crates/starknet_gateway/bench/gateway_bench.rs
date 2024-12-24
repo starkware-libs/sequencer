@@ -36,9 +36,9 @@ pub fn gateway_benchmark(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    declare_benchmark,
-    deploy_account_benchmark,
+    // declare_benchmark,
+    // deploy_account_benchmark,
     invoke_benchmark,
-    gateway_benchmark
+    // gateway_benchmark
 );
 criterion_main!(benches);
