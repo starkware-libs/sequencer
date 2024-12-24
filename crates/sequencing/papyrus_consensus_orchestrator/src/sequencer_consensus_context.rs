@@ -55,6 +55,7 @@ use starknet_batcher_types::batcher_types::{
 };
 use starknet_batcher_types::communication::BatcherClient;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
@@ -324,21 +325,40 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(matan): Broadcast the decision to the network.
 
         let proposal_id;
+        let transactions;
         {
             let mut proposals = self
                 .valid_proposals
                 .lock()
                 .expect("Lock on active proposals was poisoned due to a previous panic");
-            proposal_id = proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().1;
+            (transactions, proposal_id) =
+                proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().clone();
+
             proposals.retain(|&h, _| h > BlockNumber(height));
         }
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        self.batcher.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
+        let state_diff = self
+            .batcher
+            .decision_reached(DecisionReachedInput { proposal_id })
+            .await
+            .expect("Failed to get state diff.")
+            .state_diff;
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::default()).await;
+
+        let transaction_hashes =
+            transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
+        let sync_block =
+            SyncBlock { block_number: BlockNumber(height), state_diff, transaction_hashes };
+        let state_sync_client = self.state_sync_client.clone();
+        // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
+        state_sync_client
+            .add_new_block(BlockNumber(height), sync_block)
+            .await
+            .expect("Failed to add new block.");
 
         Ok(())
     }
