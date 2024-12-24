@@ -237,8 +237,8 @@ pub fn reexecute_and_verify_correctness<
     let block_state = transaction_executor.block_state.clone();
 
     // Finalize block and read actual statediff.
-    let (actual_state_diff, _, _) =
-        transaction_executor.finalize().expect("Couldn't finalize block");
+    let actual_state_diff =
+        transaction_executor.finalize().expect("Couldn't finalize block").state_diff;
 
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 

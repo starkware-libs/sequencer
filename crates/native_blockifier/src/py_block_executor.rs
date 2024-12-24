@@ -4,7 +4,11 @@ use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
-use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
+use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutor,
+    TransactionExecutorError,
+};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
@@ -258,25 +262,36 @@ impl PyBlockExecutor {
     /// visited segment values and the block weights.
     pub fn finalize(
         &mut self,
-    ) -> NativeBlockifierResult<(PyStateDiff, PyVisitedSegmentsMapping, Py<PyBytes>)> {
+    ) -> NativeBlockifierResult<(
+        PyStateDiff,
+        Option<PyStateDiff>,
+        PyVisitedSegmentsMapping,
+        Py<PyBytes>,
+    )> {
         log::debug!("Finalizing execution...");
-        let (commitment_state_diff, visited_pcs, block_weights) = self.tx_executor().finalize()?;
-        let visited_pcs = visited_pcs
+        let BlockExecutionSummary {
+            state_diff,
+            compressed_state_diff,
+            visited_segments,
+            bouncer_weights,
+        } = self.tx_executor().finalize()?;
+        let visited_pcs = visited_segments
             .into_iter()
             .map(|(class_hash, class_visited_pcs_vec)| {
                 (PyFelt::from(class_hash), class_visited_pcs_vec)
             })
             .collect();
-        let py_state_diff = PyStateDiff::from(commitment_state_diff);
+        let py_state_diff = PyStateDiff::from(state_diff);
+        let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
 
         let serialized_block_weights =
-            serde_json::to_vec(&block_weights).expect("Failed serializing bouncer weights.");
+            serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
         let raw_block_weights =
             Python::with_gil(|py| PyBytes::new(py, &serialized_block_weights).into());
 
         log::debug!("Finalized execution.");
 
-        Ok((py_state_diff, visited_pcs, raw_block_weights))
+        Ok((py_state_diff, py_compressed_state_diff, visited_pcs, raw_block_weights))
     }
 
     // Storage Alignment API.
