@@ -10,7 +10,6 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-futures.workspace = true
 infra_utils.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true

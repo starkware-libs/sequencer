@@ -220,9 +220,9 @@ fn spawn_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
+            config.sync_retry_interval,
             network_channels.into(),
             inbound_internal_receiver,
-            futures::stream::pending(),
         )
         .await?)
     }))
