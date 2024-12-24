@@ -30,6 +30,7 @@ mod TestContract {
     #[storage]
     struct Storage {
         my_storage_var: felt252,
+        revert_test_storage_var: felt252,
         two_counters: starknet::storage::Map<felt252, (felt252, felt252)>,
         ec_point: (felt252, felt252),
     }
@@ -635,6 +636,7 @@ mod TestContract {
     ) {
         let class_hash_before_call = syscalls::get_class_hash_at_syscall(contract_address)
             .unwrap_syscall();
+        self.revert_test_storage_var.write(7);
         match syscalls::call_contract_syscall(
             contract_address, entry_point_selector, calldata.span()
         ) {
@@ -654,6 +656,7 @@ mod TestContract {
             .unwrap_syscall();
         assert(self.my_storage_var.read() == 0, 'values should not change.');
         assert(class_hash_before_call == class_hash_after_call, 'class hash should not change.');
+        assert(self.revert_test_storage_var.read() == 7, 'test_storage_var_changed.');
     }
 
     #[external(v0)]
