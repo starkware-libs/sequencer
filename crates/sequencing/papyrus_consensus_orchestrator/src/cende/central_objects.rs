@@ -1,6 +1,6 @@
 use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::{indexmap, IndexMap};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_repr::*;
 use starknet_api::block::{
     BlockInfo,
@@ -13,6 +13,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     AccountTransaction,
+    DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
     Transaction,
@@ -37,13 +38,13 @@ use starknet_types_core::felt::Felt;
 #[path = "central_objects_test.rs"]
 mod central_objects_test;
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {
     pub price_in_wei: NonzeroGasPrice,
     pub price_in_fri: NonzeroGasPrice,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralBlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
@@ -79,7 +80,7 @@ impl From<(BlockInfo, StarknetVersion)> for CentralBlockInfo {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralStateDiff {
     pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
     pub nonces: IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, Nonce>>,
@@ -128,10 +129,25 @@ impl From<DataAvailabilityMode> for CentralDataAvailabilityMode {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(into = "(String, String, String)")]
+#[serde(from = "(String, String, String)")]
+pub struct CentralSierraVersion {
+    major: u64,
+    minor: u64,
+    patch: u64,
+}
+
+impl From<CentralSierraVersion> for (String, String, String) {
+    fn from(val: CentralSierraVersion) -> Self {
+        (format!("0x{:x}", val.major), format!("0x{:x}", val.minor), format!("0x{:x}", val.patch))
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralTransactionTimestamp(pub u64);
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralInvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -164,14 +180,14 @@ impl From<InvokeTransaction> for CentralInvokeTransactionV3 {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
 pub enum CentralInvokeTransaction {
     #[serde(rename = "0x3")]
     V3(CentralInvokeTransactionV3),
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralDeployAccountTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
@@ -206,20 +222,73 @@ impl From<DeployAccountTransaction> for CentralDeployAccountTransactionV3 {
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
 pub enum CentralDeployAccountTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeployAccountTransactionV3),
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
+pub struct CentralDeclareTransactionV3 {
+    pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub compiled_class_hash: CompiledClassHash,
+    pub sender_address: ContractAddress,
+    pub nonce_data_availability_mode: CentralDataAvailabilityMode,
+    pub fee_data_availability_mode: CentralDataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub sierra_program_size: usize,
+    pub abi_size: usize,
+    pub sierra_version: CentralSierraVersion,
+    pub hash_value: TransactionHash,
+}
+
+impl From<DeclareTransaction> for CentralDeclareTransactionV3 {
+    fn from(tx: DeclareTransaction) -> CentralDeclareTransactionV3 {
+        CentralDeclareTransactionV3 {
+            resource_bounds: tx.resource_bounds(),
+            tip: tx.tip(),
+            signature: tx.signature(),
+            nonce: tx.nonce(),
+            class_hash: tx.class_hash(),
+            compiled_class_hash: tx.compiled_class_hash(),
+            sender_address: tx.sender_address(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode().into(),
+            fee_data_availability_mode: tx.fee_data_availability_mode().into(),
+            paymaster_data: tx.paymaster_data(),
+            account_deployment_data: tx.account_deployment_data(),
+            sierra_program_size: tx.class_info.sierra_program_length,
+            abi_size: tx.class_info.abi_length,
+            sierra_version: CentralSierraVersion {
+                major: tx.class_info.sierra_version.major,
+                minor: tx.class_info.sierra_version.minor,
+                patch: tx.class_info.sierra_version.patch,
+            },
+            hash_value: tx.tx_hash,
+        }
+    }
+}
+#[derive(Debug, PartialEq, Serialize)]
+#[serde(tag = "version")]
+pub enum CentralDeclareTransaction {
+    #[serde(rename = "0x3")]
+    V3(CentralDeclareTransactionV3),
+}
+
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum CentralTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
     Invoke(CentralInvokeTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
     DeployAccount(CentralDeployAccountTransaction),
+    #[serde(rename = "DECLARE")]
+    Declare(CentralDeclareTransaction),
 }
 
 impl From<Transaction> for CentralTransaction {
@@ -235,13 +304,17 @@ impl From<Transaction> for CentralTransaction {
                     deploy_tx.into(),
                 ))
             }
-            Transaction::Account(_) => unimplemented!(),
+            Transaction::Account(AccountTransaction::Declare(declare_tx)) => {
+                CentralTransaction::Declare(CentralDeclareTransaction::V3(
+                    CentralDeclareTransactionV3::from(declare_tx),
+                ))
+            }
             Transaction::L1Handler(_) => unimplemented!(),
         }
     }
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Serialize)]
 pub struct CentralTransactionWritten {
     pub tx: CentralTransaction,
     pub time_created: CentralTransactionTimestamp,
