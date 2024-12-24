@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -152,7 +152,14 @@ impl DeclareTransaction {
         (nonce, Nonce),
         (sender_address, ContractAddress),
         (signature, TransactionSignature),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData),
+        (compiled_class_hash, CompiledClassHash),
+        (resource_bounds, ValidResourceBounds)
     );
 
     pub fn create(
