@@ -157,6 +157,8 @@ impl CallEntryPoint {
             context.n_sent_messages_to_l1,
         ));
 
+        println!("remaining_gas: {}", remaining_gas);
+
         // This is the last operation of this function.
         execute_entry_point_call_wrapper(self, compiled_class, state, context, remaining_gas)
     }
