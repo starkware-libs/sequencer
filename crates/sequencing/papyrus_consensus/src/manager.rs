@@ -62,6 +62,7 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
+    sync_retry_interval: Duration,
     mut vote_receiver: BroadcastConsensusMessageChannel,
     mut proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     mut sync_receiver: SyncReceiverT,
@@ -95,6 +96,7 @@ where
                 &mut context,
                 current_height,
                 must_observer,
+                sync_retry_interval,
                 &mut vote_receiver,
                 &mut proposal_receiver,
                 &mut sync_receiver,
@@ -162,11 +164,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
     #[instrument(skip(self, context, broadcast_channels, sync_receiver), level = "info")]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn run_height<SyncReceiverT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         must_observer: bool,
+        _sync_retry_interval: Duration,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
         sync_receiver: &mut SyncReceiverT,

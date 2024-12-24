@@ -103,6 +103,7 @@ fn build_consensus(
         consensus_config.validator_id,
         consensus_config.consensus_delay,
         consensus_config.timeouts.clone(),
+        consensus_config.sync_retry_interval,
         broadcast_channels,
         inbound_internal_receiver,
         sync_receiver,

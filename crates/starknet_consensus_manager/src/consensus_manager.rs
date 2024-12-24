@@ -97,6 +97,7 @@ impl ConsensusManager {
             self.config.consensus_config.validator_id,
             self.config.consensus_config.consensus_delay,
             self.config.consensus_config.timeouts.clone(),
+            self.config.consensus_config.sync_retry_interval,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
             futures::stream::pending(),
