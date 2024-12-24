@@ -36,6 +36,7 @@ lazy_static! {
 }
 
 const CHANNEL_SIZE: usize = 10;
+const SYNC_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
     let broadcasted_message_metadata =
@@ -119,6 +120,7 @@ async fn manager_multiple_heights_unordered() {
             &mut context,
             BlockNumber(1),
             false,
+            SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
             &mut futures::stream::pending(),
@@ -134,6 +136,7 @@ async fn manager_multiple_heights_unordered() {
             &mut context,
             BlockNumber(2),
             false,
+            SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
             &mut futures::stream::pending(),
@@ -186,6 +189,7 @@ async fn run_consensus_sync() {
             *VALIDATOR_ID,
             Duration::ZERO,
             TIMEOUTS.clone(),
+            SYNC_RETRY_INTERVAL,
             subscriber_channels.into(),
             proposal_receiver_receiver,
             &mut sync_receiver,
@@ -250,6 +254,7 @@ async fn run_consensus_sync_cancellation_safety() {
             *VALIDATOR_ID,
             Duration::ZERO,
             TIMEOUTS.clone(),
+            SYNC_RETRY_INTERVAL,
             subscriber_channels.into(),
             proposal_receiver_receiver,
             &mut sync_receiver,
@@ -334,6 +339,7 @@ async fn test_timeouts() {
                 &mut context,
                 BlockNumber(1),
                 false,
+                SYNC_RETRY_INTERVAL,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
                 &mut futures::stream::pending(),

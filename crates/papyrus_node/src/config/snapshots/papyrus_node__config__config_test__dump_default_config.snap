@@ -220,6 +220,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.sync_retry_interval": {
+    "description": "The duration (seconds) to wait before retrying a sync attempt.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
   "consensus.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "value": {

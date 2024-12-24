@@ -184,6 +184,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "consensus.sync_retry_interval": {
+    "description": "The duration (seconds) to wait before retrying a sync attempt.",
+    "privacy": "Public",
+    "value": 1.0
+  },
   "consensus.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
