@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
 use std::time::Instant;
@@ -53,6 +54,21 @@ pub struct NativeClassManager {
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
     compiler: Option<Arc<SierraToNativeCompiler>>,
+    /// Set to `true` to temporarily disabled cairo native features.
+    suspend_cairo_native: Arc<AtomicBool>,
+}
+
+impl Default for NativeClassManager {
+    fn default() -> NativeClassManager {
+        let config = ContractClassManagerConfig::default();
+        NativeClassManager {
+            cairo_native_run_config: config.cairo_native_run_config,
+            cache: RawClassCache::new(config.contract_cache_size),
+            sender: None,
+            compiler: None,
+            suspend_cairo_native: Arc::new(AtomicBool::new(false)),
+        }
+    }
 }
 
 impl NativeClassManager {
@@ -69,12 +85,7 @@ impl NativeClassManager {
         let cairo_native_run_config = config.cairo_native_run_config;
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
-            return NativeClassManager {
-                cairo_native_run_config,
-                cache,
-                sender: None,
-                compiler: None,
-            };
+            return NativeClassManager { cairo_native_run_config, cache, ..Default::default() };
         }
 
         let compiler_config = config.native_compiler_config.clone();
@@ -84,8 +95,8 @@ impl NativeClassManager {
             return NativeClassManager {
                 cairo_native_run_config,
                 cache,
-                sender: None,
                 compiler: Some(compiler),
+                ..Default::default()
             };
         }
 
@@ -103,7 +114,12 @@ impl NativeClassManager {
             }
         });
 
-        NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
+        NativeClassManager {
+            cairo_native_run_config,
+            cache,
+            sender: Some(sender),
+            ..Default::default()
+        }
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in cache.
@@ -114,10 +130,10 @@ impl NativeClassManager {
             CachedClass::V1(_, _) => {
                 // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
                 // `run_cairo_native` is false.
-                assert!(
-                    !self.wait_on_native_compilation(),
-                    "Manager did not wait on native compilation."
-                );
+                if self.wait_on_native_compilation() {
+                    // The class was cached while cairo_native was suspended. Ignore the entry.
+                    return None;
+                }
                 cached_class
             }
             CachedClass::V1Native(CachedCairoNative::Compiled(native))
@@ -202,19 +218,39 @@ impl NativeClassManager {
     }
 
     fn run_cairo_native(&self) -> bool {
+        if self.cairo_native_is_suspended() {
+            return false;
+        }
         self.cairo_native_run_config.run_cairo_native
     }
 
     fn wait_on_native_compilation(&self) -> bool {
+        if self.cairo_native_is_suspended() {
+            return false;
+        }
         self.cairo_native_run_config.wait_on_native_compilation
     }
 
     /// Determines if a contract should run with cairo native based on the whitelist.
     pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
+        if self.cairo_native_is_suspended() {
+            return false;
+        }
         match &self.cairo_native_run_config.native_classes_whitelist {
             NativeClassesWhitelist::All => true,
             NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
         }
+    }
+    pub fn suspend_cairo_native(&self) {
+        self.suspend_cairo_native.store(true, Ordering::Relaxed);
+    }
+
+    pub fn unsuspend_cairo_native(&self) {
+        self.suspend_cairo_native.store(false, Ordering::Relaxed);
+    }
+
+    pub fn cairo_native_is_suspended(&self) -> bool {
+        self.suspend_cairo_native.load(Ordering::Relaxed)
     }
 
     /// Clears the contract cache.

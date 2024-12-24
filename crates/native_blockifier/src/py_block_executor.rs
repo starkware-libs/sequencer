@@ -359,6 +359,18 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
+    #[cfg(feature = "cairo_native")]
+    /// Suspends the Cairo native code execution and compilation.
+    pub fn suspend_cairo_native(&self) {
+        self.contract_class_manager.suspend_cairo_native();
+    }
+
+    #[cfg(feature = "cairo_native")]
+    /// Unsuspends the Cairo native code execution and compilation.
+    pub fn unsuspend_cairo_native(&self) {
+        self.contract_class_manager.unsuspend_cairo_native();
+    }
+
     #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size))]
     #[staticmethod]
     fn create_for_testing(
