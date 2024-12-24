@@ -1,5 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
+use rstest_reuse::{apply, template};
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::TransactionVersion;
@@ -20,7 +21,29 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 
+#[template]
 #[rstest]
+fn cairo_version_no_native(
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
+) {
+}
+
+#[cfg(feature = "cairo_native")]
+#[template]
+#[rstest]
+fn cairo_version_with_native(
+    #[values(
+        CairoVersion::Cairo0,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+        CairoVersion::Cairo1(RunnableCairo1::Native)
+    )]
+    cairo_version: CairoVersion,
+) {
+}
+
+#[cfg_attr(not(feature = "cairo_native"), apply(cairo_version_no_native))]
+#[cfg_attr(feature = "cairo_native", apply(cairo_version_with_native))]
 #[case::validate_version_1(TransactionType::InvokeFunction, false, TransactionVersion::ONE)]
 #[case::validate_version_3(TransactionType::InvokeFunction, false, TransactionVersion::THREE)]
 #[case::validate_declare_version_1(TransactionType::Declare, false, TransactionVersion::ONE)]
@@ -37,7 +60,6 @@ fn test_tx_validator(
     block_context: BlockContext,
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
     resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
