@@ -122,7 +122,6 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     }
 
     // TODO(Eitan): Use real header once SyncBlock contains data required by full nodes
-    // TODO(Eitan): Fill this with real header once SyncBlock has it.
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
@@ -132,6 +131,12 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
                 block_hash: BlockHash(StarkHash::from(block_number.0)),
                 block_header_without_hash: BlockHeaderWithoutHash {
                     block_number,
+                    timestamp: sync_block.block_timestamp,
+                    l1_da_mode: sync_block.l1_da_mode,
+                    sequencer: sync_block.sequencer_address,
+                    l1_gas_price: sync_block.l1_gas_price,
+                    l1_data_gas_price: sync_block.l1_data_gas_price,
+                    l2_gas_price: sync_block.l2_gas_price,
                     ..Default::default()
                 },
                 state_diff_length: Some(sync_block.state_diff.len()),
