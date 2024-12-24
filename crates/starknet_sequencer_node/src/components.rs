@@ -1,8 +1,10 @@
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
-use starknet_l1_provider::{create_l1_provider, L1Provider};
+use starknet_l1_provider::l1_scraper::L1Scraper;
+use starknet_l1_provider::{create_l1_provider, event_identifiers_to_track, L1Provider};
 use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use starknet_mempool_p2p::create_p2p_propagator_and_runner;
 use starknet_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -27,6 +29,7 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
+    pub l1_scraper: Option<L1Scraper<EthereumBaseLayerContract>>,
     pub l1_provider: Option<L1Provider>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
@@ -150,11 +153,28 @@ pub fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
+    let l1_scraper = match config.components.l1_scraper.execution_mode {
+        ActiveComponentExecutionMode::Enabled => {
+            let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            let l1_scraper_config = config.l1_scraper_config.clone();
+            let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
+
+            Some(L1Scraper::new(
+                l1_scraper_config,
+                l1_provider_client,
+                base_layer,
+                event_identifiers_to_track(),
+            ))
+        }
+        ActiveComponentExecutionMode::Disabled => None,
+    };
+
     SequencerNodeComponents {
         batcher,
         consensus_manager,
         gateway,
         http_server,
+        l1_scraper,
         l1_provider,
         mempool,
         monitoring_endpoint,
