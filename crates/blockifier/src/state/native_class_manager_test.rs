@@ -164,7 +164,7 @@ fn test_send_compilation_request_channel_disconnected() {
         class_cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         compiled_class_hash_v2_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         sender: Some(sender),
-        compiler: None,
+        ..Default::default()
     };
     // Disconnect the channel by dropping the receiver.
     drop(receiver);

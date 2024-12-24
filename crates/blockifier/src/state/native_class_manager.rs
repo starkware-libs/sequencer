@@ -1,5 +1,6 @@
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
@@ -57,6 +58,23 @@ pub struct NativeClassManager {
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
     compiler: Option<Arc<SierraToNativeCompiler>>,
+    /// Set to `true` to temporarily disabled cairo native features.
+    suspend_cairo_native: Arc<AtomicBool>,
+}
+
+impl Default for NativeClassManager {
+    fn default() -> NativeClassManager {
+        let config = ContractClassManagerConfig::default();
+        NativeClassManager {
+            cairo_native_run_config: config.cairo_native_run_config,
+            class_cache: RawClassCache::new(config.contract_cache_size),
+            compiled_class_hash_v2_cache:
+                GlobalContractCache::new(config.contract_cache_size),
+            sender: None,
+            compiler: None,
+            suspend_cairo_native: Arc::new(AtomicBool::new(false)),
+        }
+    }
 }
 
 impl NativeClassManager {
@@ -78,8 +96,7 @@ impl NativeClassManager {
                 cairo_native_run_config,
                 class_cache,
                 compiled_class_hash_v2_cache,
-                sender: None,
-                compiler: None,
+                ..Default::default()
             };
         }
 
@@ -91,8 +108,8 @@ impl NativeClassManager {
                 cairo_native_run_config,
                 class_cache,
                 compiled_class_hash_v2_cache,
-                sender: None,
                 compiler: Some(compiler),
+                ..Default::default()
             };
         }
 
@@ -116,7 +133,7 @@ impl NativeClassManager {
             class_cache,
             compiled_class_hash_v2_cache,
             sender: Some(sender),
-            compiler: None,
+            ..Default::default()
         }
     }
 
@@ -128,10 +145,10 @@ impl NativeClassManager {
             CompiledClasses::V1(_, _) => {
                 // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
                 // `run_cairo_native` is false.
-                assert!(
-                    !self.wait_on_native_compilation(),
-                    "Manager did not wait on native compilation."
-                );
+                if self.wait_on_native_compilation() {
+                    // The class was cached while cairo_native was suspended. Ignore the entry.
+                    return None;
+                }
                 cached_class
             }
             CompiledClasses::V1Native(CachedCairoNative::Compiled(native))
@@ -216,19 +233,39 @@ impl NativeClassManager {
     }
 
     fn run_cairo_native(&self) -> bool {
+        if self.cairo_native_is_suspended() {
+            return false;
+        }
         self.cairo_native_run_config.run_cairo_native
     }
 
     fn wait_on_native_compilation(&self) -> bool {
+        if self.cairo_native_is_suspended() {
+            return false;
+        }
         self.cairo_native_run_config.wait_on_native_compilation
     }
 
     /// Determines if a contract should run with cairo native based on the whitelist.
     pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
+        if self.cairo_native_is_suspended() {
+            return false;
+        }
         match &self.cairo_native_run_config.native_classes_whitelist {
             NativeClassesWhitelist::All => true,
             NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
         }
+    }
+    pub fn suspend_cairo_native(&self) {
+        self.suspend_cairo_native.store(true, Ordering::Relaxed);
+    }
+
+    pub fn unsuspend_cairo_native(&self) {
+        self.suspend_cairo_native.store(false, Ordering::Relaxed);
+    }
+
+    pub fn cairo_native_is_suspended(&self) -> bool {
+        self.suspend_cairo_native.load(Ordering::Relaxed)
     }
 
     /// Clears the contract class_cache.
