@@ -3,8 +3,11 @@ name: Papyrus-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*.*.*"]
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
