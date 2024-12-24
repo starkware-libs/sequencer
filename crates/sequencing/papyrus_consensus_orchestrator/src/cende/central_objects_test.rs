@@ -10,9 +10,14 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{DeployAccountTransaction, InvokeTransaction};
+use starknet_api::executable_transaction::{
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
@@ -22,11 +27,17 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3, TransactionHash};
+use starknet_api::transaction::{
+    DeclareTransactionV3,
+    DeployAccountTransactionV3,
+    InvokeTransactionV3,
+    TransactionHash,
+};
 use starknet_api::{contract_address, felt, storage_key};
 
 use super::{
     CentralBlockInfo,
+    CentralDeclareTransaction,
     CentralDeployAccountTransaction,
     CentralInvokeTransaction,
     CentralResourcePrice,
@@ -38,6 +49,7 @@ use super::{
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
 pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx.json";
+pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 
 fn central_state_diff() -> CentralStateDiff {
     // TODO(yael): compute the CentralStateDiff with into().
@@ -156,10 +168,54 @@ fn central_deploy_account_tx_json() -> Value {
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
+fn central_declare_tx_json() -> Value {
+    let declare_tx = DeclareTransaction {
+        tx: starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: ResourceBounds {
+                    max_amount: GasAmount(1),
+                    max_price_per_unit: GasPrice(1),
+                },
+                l2_gas: ResourceBounds::default(),
+                l1_data_gas: ResourceBounds::default(),
+            }),
+            sender_address: contract_address!("0x12fd537"),
+            signature: Default::default(),
+            nonce: Nonce(felt!("0x0")),
+            tip: Default::default(),
+            paymaster_data: Default::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            account_deployment_data: Default::default(),
+            class_hash: ClassHash(felt!(
+                "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"
+            )),
+            compiled_class_hash: CompiledClassHash(felt!("0x0")),
+        }),
+        tx_hash: TransactionHash(felt!(
+            "0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"
+        )),
+        class_info: ClassInfo {
+            // The contract class is not used by the central object.
+            contract_class: ContractClass::V0(Default::default()),
+            sierra_program_length: 8844,
+            abi_length: 11237,
+            sierra_version: SierraVersion::new(1, 6, 0),
+        },
+    };
+    let central_transaction_written = CentralTransactionWritten {
+        tx: CentralTransaction::Declare(CentralDeclareTransaction::V3(declare_tx.into())),
+        time_created: 1734601649,
+    };
+
+    serde_json::to_value(central_transaction_written).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(serde_json::to_value(central_state_diff()).unwrap(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
 #[case::deploy_account_tx(central_deploy_account_tx_json(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
+#[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
