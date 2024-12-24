@@ -80,7 +80,7 @@
     "value": true
   },
   "consensus.chain_id": {
-    "description": "The chain id of the Starknet chain.",
+    "description": "A required param! The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
