@@ -175,10 +175,10 @@ impl EventIterByContractAddress<'_, '_> {
             else {
                 return Ok(None);
             };
-            let mut events_cursor = self.events_table.cursor(&self.txn)?;
+            let mut events_cursor = self.events_table.cursor(self.txn)?;
             let (_, event_location) = events_cursor
                 .lower_bound(&tx_index)?
-                .expect(&format!("Events not found for transaction index: {tx_index:?}."));
+                .unwrap_or_else(|| panic!("Events not found for transaction index: {tx_index:?}."));
             let transaction_events = self.file_handles.get_events_unchecked(event_location)?;
             // TODO(dvir): don't clone the events here. (alonl: Where are they cloned?)
             self.events_queue =
@@ -283,7 +283,7 @@ where
             let mut event_cursor = events_table.cursor(&self.txn)?;
             let (_, event_location) = event_cursor
                 .lower_bound(&tx_index)?
-                .expect(&format!("Events not found for transaction index: {tx_index:?}."));
+                .unwrap_or_else(|| panic!("Events not found for transaction index: {tx_index:?}."));
             let events = self.file_handlers.get_events_unchecked(event_location)?;
 
             // In case of we get tx_index different from the key, it means we need to start a new
@@ -416,7 +416,7 @@ impl EventStorageReader for StorageTxn<'_, RW> {
         let mut cursor = events_table.cursor(&self.txn)?;
         let current = cursor.lower_bound(transaction_index)?;
         if let Some((_, events_location)) = current {
-            return Ok(Some(self.file_handlers.get_events_unchecked(events_location)?));
+            Ok(Some(self.file_handlers.get_events_unchecked(events_location)?))
         } else {
             panic!("Transaction events not found for transaction index: {transaction_index:?}");
         }
