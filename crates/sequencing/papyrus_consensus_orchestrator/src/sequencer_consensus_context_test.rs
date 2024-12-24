@@ -41,6 +41,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
+use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;
@@ -88,8 +89,10 @@ fn setup(
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
+    let state_sync_client = MockStateSyncClient::new();
 
     let context = SequencerConsensusContext::new(
+        Arc::new(state_sync_client),
         Arc::new(batcher),
         outbound_proposal_stream_sender,
         votes_topic_client,

@@ -81,6 +81,7 @@ impl ConsensusManager {
         };
 
         let context = SequencerConsensusContext::new(
+            Arc::clone(&self.state_sync_client),
             Arc::clone(&self.batcher_client),
             outbound_internal_sender,
             votes_broadcast_channels.broadcast_topic_client.clone(),
