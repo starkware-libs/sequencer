@@ -129,6 +129,11 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.contract_class_manager_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "batcher_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",

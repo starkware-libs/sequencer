@@ -28,8 +28,7 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::global_cache::CachedCairoNative;
 use crate::state::global_cache::{CachedCasm, ContractCaches};
 
-#[cfg(feature = "cairo_native")]
-const CHANNEL_SIZE: usize = 1000;
+pub const DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE: usize = 1000;
 
 /// Represents a request to compile a sierra contract class to a native compiled class.
 ///
@@ -94,7 +93,7 @@ impl ContractClassManager {
                 };
             }
 
-            let (sender, receiver) = sync_channel(CHANNEL_SIZE);
+            let (sender, receiver) = sync_channel(DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE);
 
             std::thread::spawn({
                 let contract_caches = contract_caches.clone();
@@ -127,7 +126,7 @@ impl ContractClassManager {
                 log::error!(
                     "Compilation request channel is full (size: {}). Compilation request for \
                      class hash {} was not sent.",
-                    CHANNEL_SIZE,
+                    DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
                     class_hash
                 )
             }
