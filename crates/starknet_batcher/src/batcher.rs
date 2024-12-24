@@ -5,7 +5,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -384,8 +384,12 @@ impl Batcher {
             self.abort_active_height().await;
             self.active_height = None;
         }
-
-        let SyncBlock { state_diff, transaction_hashes, block_number } = sync_block;
+        // TODO(AlonH): Use additional data from the sync block.
+        let SyncBlock {
+            state_diff,
+            transaction_hashes,
+            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+        } = sync_block;
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         let tx_hashes = transaction_hashes.into_iter().collect();
         let height = self.get_height_from_storage()?;
