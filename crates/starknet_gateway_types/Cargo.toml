@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-axum.workspace = true
 enum-assoc.workspace = true
 mockall = { workspace = true, optional = true }
 papyrus_network_types.workspace = true
