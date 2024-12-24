@@ -348,7 +348,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
         update_marker(&self.txn, &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
-            let events_table = self.open_table(&self.tables.events)?;
+            let emitter_to_events_table = self.open_table(&self.tables.emitter_to_events)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
@@ -361,7 +361,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 &file_offset_table,
                 &transaction_hash_to_idx_table,
                 &transaction_metadata_table,
-                &events_table,
+                &emitter_to_events_table,
                 block_number,
             )?;
         }
@@ -397,7 +397,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let events_table = self.open_table(&self.tables.events)?;
+            let emitter_to_events_table = self.open_table(&self.tables.emitter_to_events)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?
@@ -416,7 +416,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
 
                 for event in tx_output.events().iter() {
-                    events_table.delete(&self.txn, &(event.from_address, tx_index))?;
+                    emitter_to_events_table.delete(&self.txn, &(event.from_address, tx_index))?;
                 }
                 transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
                 transaction_metadata_table.delete(&self.txn, &tx_index)?;
