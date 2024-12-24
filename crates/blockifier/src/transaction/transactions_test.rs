@@ -211,6 +211,7 @@ fn expected_validate_call_info(
         CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
+    let gas_consumed = gas_consumed + 10000; //AvivG adding initial entry point budget
     let charged_resources = match tracked_resource {
         TrackedResource::SierraGas => ChargedResources {
             vm_resources: ExecutionResources::default(),
@@ -268,6 +269,7 @@ fn expected_validate_call_info(
                     .unwrap_or(initial_gas_amount_from_block_context(None))
                     .min(VERSIONED_CONSTANTS.validate_max_sierra_gas)
                     .0
+                    + 10000 //AvivG adding initial entry point budget.
             }
         },
     };
@@ -325,8 +327,15 @@ fn expected_fee_transfer_call_info(
             .os_constants
             .gas_costs
             .base
-            .default_initial_gas_cost,
-    };
+            .default_initial_gas_cost
+            // + block_context
+            //     .versioned_constants
+            //     .os_constants
+            //     .gas_costs
+            //     .base
+            //     .entry_point_initial_budget,
+    }; //AvivG add initial entry point budget?
+
     let expected_fee_sender_address = *account_address.0.key();
     let expected_fee_transfer_event = OrderedEvent {
         order: 0,
@@ -548,7 +557,7 @@ fn test_invoke_tx(
         entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
         initial_gas: match account_cairo_version {
             CairoVersion::Cairo0 => versioned_constants.infinite_gas_for_vm_mode(),
-            CairoVersion::Cairo1(_) => expected_initial_execution_gas,
+            CairoVersion::Cairo1(_) => expected_initial_execution_gas + 10000,
         },
         ..expected_validated_call
     };
@@ -1619,7 +1628,7 @@ fn test_declare_tx(
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         if tx_version >= TransactionVersion::THREE {
-            Some(user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context)))
+            Some(user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context)) )
         } else {
             None
         },
@@ -1650,6 +1659,7 @@ fn test_declare_tx(
         starknet_resources,
         computation: ComputationResources {
             vm_resources: expected_cairo_resources,
+            sierra_gas: GasAmount(10000),
             ..Default::default()
         },
     };
@@ -1876,6 +1886,7 @@ fn test_deploy_account_tx(
         starknet_resources,
         computation: ComputationResources {
             vm_resources: expected_cairo_resources,
+            sierra_gas: GasAmount(10000),
             ..Default::default()
         },
     };
@@ -2343,7 +2354,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(6120);
+    let gas_consumed = GasAmount(16120);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2354,11 +2365,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: block_context.versioned_constants.execute_max_sierra_gas.0,
+            initial_gas: block_context.versioned_constants.execute_max_sierra_gas.0 + 10000, //AvivG adding initial entry point budget
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: gas_consumed.0,
+            gas_consumed: gas_consumed.0, //AvivG add initial entry point budget?
             ..Default::default()
         },
         charged_resources: ChargedResources::from_gas(gas_consumed),
@@ -2418,7 +2429,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
             vm_resources: expected_execution_resources,
-            sierra_gas: gas_consumed,
+            sierra_gas: gas_consumed, // + GasAmount(10000), //AvivG add initial entry point budget?
             ..Default::default()
         },
     };
@@ -2691,7 +2702,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
     let expected_validate_initial_gas = match account_tracked_resource {
         TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
-            versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0
+            versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0 + 10000 //AvivG adding initial entry point budget
         }
     };
 
@@ -2716,6 +2727,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
                         ),
                 )
                 .0
+                + 10000 //AvivG adding initial entry point budget
         }
     };
     assert_eq!(actual_execute_initial_gas, expected_execute_initial_gas);
@@ -2809,7 +2821,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
     let actual_execute_initial_gas =
         actual_execution_info.execute_call_info.as_ref().unwrap().call.initial_gas;
     let expected_execute_initial_gas =
-        versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0;
+        versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0 + 10000;
     assert_eq!(actual_execute_initial_gas, expected_execute_initial_gas);
 
     let actual_validate_initial_gas =
@@ -2831,6 +2843,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
                         ),
                 )
                 .0
+                + 10000 //AvivG adding initial entry point budget
         }
     };
     assert_eq!(actual_validate_initial_gas, expected_validate_initial_gas);

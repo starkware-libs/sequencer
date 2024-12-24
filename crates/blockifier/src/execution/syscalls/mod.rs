@@ -169,6 +169,10 @@ pub fn call_contract(
             execution_mode: syscall_handler.execution_mode(),
         });
     }
+
+    // Refund initial budget to caller's remaining gas (paid by inner entry point).
+    *remaining_gas += syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+
     let entry_point = CallEntryPoint {
         class_hash: None,
         code_address: Some(storage_address),
@@ -407,6 +411,10 @@ pub fn library_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<LibraryCallResponse> {
+    
+    // Refund initial budget to caller's remaining gas (paid by inner entry point).
+    *remaining_gas += syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+
     let entry_point = CallEntryPoint {
         class_hash: Some(request.class_hash),
         code_address: None,

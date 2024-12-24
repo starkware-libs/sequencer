@@ -137,6 +137,10 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
         let storage_address = tx.contract_address;
         let class_hash = state.get_class_hash_at(storage_address)?;
         let selector = tx.entry_point_selector;
+
+        // Refund initial budget to caller's remaining gas (paid by inner entry point).
+        *remaining_gas += context.gas_costs().base.entry_point_initial_budget;
+
         let execute_call = CallEntryPoint {
             entry_point_type: EntryPointType::L1Handler,
             entry_point_selector: selector,
@@ -336,6 +340,10 @@ impl<S: State> Executable<S> for InvokeTransaction {
         };
         let storage_address = context.tx_context.tx_info.sender_address();
         let class_hash = state.get_class_hash_at(storage_address)?;
+
+        // Refund initial budget to caller's remaining gas (paid by inner entry point).
+        *remaining_gas += context.gas_costs().base.entry_point_initial_budget;
+
         let execute_call = CallEntryPoint {
             entry_point_type: EntryPointType::External,
             entry_point_selector,
