@@ -114,6 +114,7 @@ pub struct FlowSequencerSetup {
     pub is_alive_test_client: IsAliveClient,
 }
 
+// Freeboot me for gateway bench test.
 impl FlowSequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
