@@ -1,6 +1,7 @@
 syntax = "proto3";
-import "p2p/proto/transaction.proto";
 import "p2p/proto/common.proto";
+import "p2p/proto/receipt.proto";
+import "p2p/proto/transaction.proto";
 
 // To be deprecated
 message Proposal {
@@ -10,6 +11,15 @@ message Proposal {
     repeated Transaction transactions = 4;
     Hash                 block_hash   = 5;
     optional uint32      valid_round  = 6;
+}
+
+message BlockInfo {
+    uint64 height = 1;
+    uint32 timestamp = 2;
+    Address proposer = 3;
+    GasVector eth_gas_prices = 4;
+    GasVector strk_gas_prices = 5;
+    bool use_kzg_data = 6;
 }
 
 message Vote {
@@ -65,11 +75,13 @@ message ProposalFin {
 // Network format:
 // 1. First message is ProposalInit
 // 2. Last message is ProposalFin
-// 3. In between can be any number of other messages.
+// 3. If the block is not empty, the second message is a BlockInfo.
+// 4. After the BlockInfo there can be any number of TransactionBatch messages.
 message ProposalPart {
     oneof message {
         ProposalInit init = 1;
         ProposalFin fin = 2;
         TransactionBatch transactions = 3;
+        BlockInfo block_info = 4;
     }
 }
