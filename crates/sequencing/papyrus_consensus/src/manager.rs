@@ -21,7 +21,7 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockNumber;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, trace};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
@@ -46,7 +46,8 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 ///   represented as streams (ProposalInit, Content.*, ProposalFin).
 // TODO(dvir): add test for this.
 // TODO(Asmaa): Update documentation when we update for the real sync.
-#[instrument(skip_all, level = "info")]
+// Always print the validator ID since some tests collate multiple consensus logs in a single file.
+#[instrument(skip_all, fields(%validator_id), level = "error")]
 #[allow(missing_docs)]
 #[allow(clippy::too_many_arguments)]
 pub async fn run_consensus<ContextT, SyncReceiverT>(
@@ -65,11 +66,10 @@ where
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
 {
     info!(
-        "Running consensus, start_active_height={}, start_observe_height={}, validator_id={}, \
-         consensus_delay={}, timeouts={:?}",
+        "Running consensus, start_active_height={}, start_observe_height={}, consensus_delay={}, \
+         timeouts={:?}",
         start_active_height,
         start_observe_height,
-        validator_id,
         consensus_delay.as_secs(),
         timeouts
     );
@@ -96,10 +96,15 @@ where
             .await?
         {
             RunHeightRes::Decision(decision) => {
+                // We expect there to be under 100 validators, so this is a reasonable number of
+                // precommits to print.
+                info!("Decision reached. {:?}", decision);
                 context.decision_reached(decision.block, decision.precommits).await?;
                 current_height = current_height.unchecked_next();
             }
             RunHeightRes::Sync(sync_height) => {
+                // TODO(Asmaa): Update log sync is updated.
+                info!("Sync to height: {}. current_height={}", sync_height, current_height);
                 metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
                 current_height = sync_height.unchecked_next();
             }
@@ -155,7 +160,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Inputs - see [`run_consensus`].
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
-    #[instrument(skip(self, context, broadcast_channels, sync_receiver), level = "info")]
+    #[instrument(skip_all)]
     pub(crate) async fn run_height<SyncReceiverT>(
         &mut self,
         context: &mut ContextT,
@@ -170,7 +175,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     {
         let validators = context.validators(height).await;
         let is_observer = must_observer || !validators.contains(&self.validator_id);
-        info!("running consensus for height {height:?} with validator set {validators:?}");
+        info!(
+            "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
+             {validators:?}"
+        );
+
         let mut shc = SingleHeightConsensus::new(
             height,
             is_observer,
@@ -226,12 +235,16 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
     }
 
+    #[instrument(skip_all)]
     async fn start_height(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
     ) -> Result<ShcReturn, ConsensusError> {
+        // Start should generate either TimeoutProposal (validator) or GetProposal (proposer). We do
+        // not enforce this since the Manager is intentionally not meant to understand consensus in
+        // detail.
         let mut tasks = match shc.start(context).await? {
             decision @ ShcReturn::Decision(_) => return Ok(decision),
             ShcReturn::Tasks(tasks) => tasks,
@@ -255,6 +268,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 
     // Handle a new proposal receiver from the network.
+    #[instrument(skip_all)]
     async fn handle_proposal(
         &mut self,
         context: &mut ContextT,
@@ -293,6 +307,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 
     // Handle a single consensus message.
+    #[instrument(skip_all)]
     async fn handle_vote(
         &mut self,
         context: &mut ContextT,
@@ -321,11 +336,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // TODO(matan): We need to figure out an actual caching strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
-        // In general I think we will want to only cache (H+1, 0) messages.
         if message.height != height.0 {
-            debug!("Received a message for a different height. {:?}", message);
             if message.height > height.0 {
+                debug!("Cache message for a future height. {:?}", message);
                 self.future_votes.entry(message.height).or_default().push(message);
+            } else {
+                trace!("Drop message from past height. {:?}", message);
             }
             return Ok(ShcReturn::Tasks(Vec::new()));
         }

@@ -171,5 +171,9 @@ pub enum ConsensusError {
     #[error("{0}")]
     SyncError(String),
     #[error("{0}")]
+    StateMachine(String),
+    #[error("Decision cannot be accepted. proposal_content_id: {0}, round: {1}, msg: {2}")]
+    InvalidDecision(ProposalContentId, Round, String),
+    #[error("{0}")]
     Other(String),
 }
