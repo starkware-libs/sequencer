@@ -95,6 +95,7 @@ pub enum StateSyncRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum StateSyncResponse {
     GetBlock(StateSyncResult<Option<SyncBlock>>),
     AddNewBlock(StateSyncResult<()>),
