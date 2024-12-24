@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -25,9 +25,13 @@ use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher_types::batcher_types::ProposalCommitment;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
 
@@ -70,6 +74,39 @@ pub struct BlockExecutionArtifacts {
     pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
+}
+
+impl BlockExecutionArtifacts {
+    pub fn address_to_nonce(&self) -> HashMap<ContractAddress, Nonce> {
+        HashMap::from_iter(
+            self.commitment_state_diff
+                .address_to_nonce
+                .iter()
+                .map(|(address, nonce)| (*address, *nonce)),
+        )
+    }
+
+    pub fn tx_hashes(&self) -> HashSet<TransactionHash> {
+        HashSet::from_iter(self.execution_infos.keys().copied())
+    }
+
+    pub fn state_diff(&self) -> ThinStateDiff {
+        let storage_diffs = self.commitment_state_diff.storage_updates.clone();
+        let nonces = self.commitment_state_diff.address_to_nonce.clone();
+        ThinStateDiff {
+            deployed_contracts: IndexMap::new(),
+            storage_diffs,
+            declared_classes: IndexMap::new(),
+            nonces,
+            // TODO: Remove this when the structure of storage diffs changes.
+            deprecated_declared_classes: Vec::new(),
+            replaced_classes: IndexMap::new(),
+        }
+    }
+
+    pub fn commitment(&self) -> ProposalCommitment {
+        ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&self.state_diff()) }
+    }
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the

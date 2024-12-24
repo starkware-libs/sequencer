@@ -43,6 +43,7 @@ use crate::block_builder::{
     BlockBuilderFactory,
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
+    BlockExecutionArtifacts,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
@@ -51,7 +52,6 @@ use crate::utils::{
     deadline_as_instant,
     proposal_status_from,
     verify_block_input,
-    ProposalOutput,
     ProposalResult,
     ProposalTask,
 };
@@ -81,7 +81,7 @@ pub struct Batcher {
     active_proposal_task: Option<ProposalTask>,
 
     // Holds all the proposals that completed execution in the current height.
-    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
+    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<BlockExecutionArtifacts>>>>,
 
     // The propose blocks transaction streams, used to stream out the proposal transactions.
     // Each stream is kept until all the transactions are streamed out, or a new height is started.
@@ -408,13 +408,17 @@ impl Batcher {
 
         let proposal_id = input.proposal_id;
         let proposal_result = self.executed_proposals.lock().await.remove(&proposal_id);
-        let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
-            proposal_result
-                .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
-                .map_err(|_| BatcherError::InternalError)?;
-
-        self.commit_proposal_and_block(height, state_diff.clone(), address_to_nonce, tx_hashes)
-            .await?;
+        let block_execution_artifacts = proposal_result
+            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
+            .map_err(|_| BatcherError::InternalError)?;
+        let state_diff = block_execution_artifacts.state_diff();
+        self.commit_proposal_and_block(
+            height,
+            state_diff.clone(),
+            block_execution_artifacts.address_to_nonce(),
+            block_execution_artifacts.tx_hashes(),
+        )
+        .await?;
         Ok(DecisionReachedResponse { state_diff })
     }
 
@@ -485,8 +489,7 @@ impl Batcher {
 
         let join_handle = tokio::spawn(
             async move {
-                let result =
-                    block_builder.build_block().await.map(ProposalOutput::from).map_err(Arc::new);
+                let result = block_builder.build_block().await.map_err(Arc::new);
 
                 // The proposal is done, clear the active proposal.
                 // Keep the proposal result only if it is the same as the active proposal.
@@ -512,9 +515,8 @@ impl Batcher {
     ) -> Option<ProposalResult<ProposalCommitment>> {
         let guard = self.executed_proposals.lock().await;
         let proposal_result = guard.get(&proposal_id);
-
         match proposal_result {
-            Some(Ok(output)) => Some(Ok(output.commitment)),
+            Some(Ok(output)) => Some(Ok(output.commitment())),
             Some(Err(e)) => Some(Err(e.clone())),
             None => None,
         }
