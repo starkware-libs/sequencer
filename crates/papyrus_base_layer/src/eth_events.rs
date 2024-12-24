@@ -62,61 +62,28 @@ impl TryFrom<Log> for L1Event {
     }
 }
 
-impl TryFrom<Starknet::MessageToL2Canceled> for EventData {
-    type Error = EthereumBaseLayerError;
+macro_rules! impl_event_data_conversion {
+    ($event_type:ty) => {
+        impl TryFrom<$event_type> for EventData {
+            type Error = EthereumBaseLayerError;
 
-    fn try_from(event: Starknet::MessageToL2Canceled) -> EthereumBaseLayerResult<Self> {
-        create_l1_event_data(
-            event.fromAddress,
-            event.toAddress,
-            event.selector,
-            &event.payload,
-            event.nonce,
-        )
-    }
+            fn try_from(event: $event_type) -> EthereumBaseLayerResult<Self> {
+                create_l1_event_data(
+                    event.fromAddress,
+                    event.toAddress,
+                    event.selector,
+                    &event.payload,
+                    event.nonce,
+                )
+            }
+        }
+    };
 }
 
-impl TryFrom<Starknet::MessageToL2CancellationStarted> for EventData {
-    type Error = EthereumBaseLayerError;
-
-    fn try_from(event: Starknet::MessageToL2CancellationStarted) -> EthereumBaseLayerResult<Self> {
-        create_l1_event_data(
-            event.fromAddress,
-            event.toAddress,
-            event.selector,
-            &event.payload,
-            event.nonce,
-        )
-    }
-}
-
-impl TryFrom<Starknet::LogMessageToL2> for EventData {
-    type Error = EthereumBaseLayerError;
-
-    fn try_from(decoded: Starknet::LogMessageToL2) -> EthereumBaseLayerResult<Self> {
-        create_l1_event_data(
-            decoded.fromAddress,
-            decoded.toAddress,
-            decoded.selector,
-            &decoded.payload,
-            decoded.nonce,
-        )
-    }
-}
-
-impl TryFrom<Starknet::ConsumedMessageToL2> for EventData {
-    type Error = EthereumBaseLayerError;
-
-    fn try_from(event: Starknet::ConsumedMessageToL2) -> EthereumBaseLayerResult<Self> {
-        create_l1_event_data(
-            event.fromAddress,
-            event.toAddress,
-            event.selector,
-            &event.payload,
-            event.nonce,
-        )
-    }
-}
+impl_event_data_conversion!(Starknet::MessageToL2Canceled);
+impl_event_data_conversion!(Starknet::MessageToL2CancellationStarted);
+impl_event_data_conversion!(Starknet::LogMessageToL2);
+impl_event_data_conversion!(Starknet::ConsumedMessageToL2);
 
 pub fn create_l1_event_data(
     from_address: EthereumContractAddress,
