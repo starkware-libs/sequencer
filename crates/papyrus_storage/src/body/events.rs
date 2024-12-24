@@ -61,7 +61,7 @@ use starknet_api::transaction::{
 };
 
 use super::TransactionMetadataTable;
-use crate::body::{EventsTableKey, TransactionIndex};
+use crate::body::{AddressToTransactionIndexTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, RO};
@@ -142,13 +142,13 @@ impl Iterator for EventIter<'_, '_> {
 pub struct EventIterByContractAddress<'env, 'txn> {
     txn: &'txn DbTransaction<'env, RO>,
     file_handles: &'txn FileHandlers<RO>,
-    // This value is the next entry in the events table to search for relevant events. If it is
-    // None there are no more events.
-    next_entry_in_event_table: Option<EventsTableKey>,
+    // This value is the next entry in the address to transaction index table to search for
+    // relevant events. If it is None there are no more events.
+    next_entry_in_address_to_transaction_index_table: Option<AddressToTransactionIndexTableKey>,
     // Queue of events to return from the iterator. When this queue is empty, we need to fetch more
     // events.
     events_queue: VecDeque<((ContractAddress, EventIndex), EventContent)>,
-    cursor: EventsTableCursor<'txn>,
+    cursor: AddressToTransactionIndexTableCursor<'txn>,
     transaction_metadata_table: TransactionMetadataTable<'env>,
 }
 
@@ -161,7 +161,9 @@ impl EventIterByContractAddress<'_, '_> {
         // Here we make sure that the events_queue is not empty. If it does we fill it with new
         // relevant events.
         if self.events_queue.is_empty() {
-            let Some((contract_address, tx_index)) = self.next_entry_in_event_table.take() else {
+            let Some((contract_address, tx_index)) =
+                self.next_entry_in_address_to_transaction_index_table.take()
+            else {
                 return Ok(None);
             };
             let tx_metadata =
@@ -174,7 +176,8 @@ impl EventIterByContractAddress<'_, '_> {
             // TODO(dvir): don't clone the events here.
             self.events_queue =
                 get_events_from_tx(tx_output.events().into(), tx_index, contract_address, 0);
-            self.next_entry_in_event_table = self.cursor.next()?.map(|(key, _)| key);
+            self.next_entry_in_address_to_transaction_index_table =
+                self.cursor.next()?.map(|(key, _)| key);
         }
 
         Ok(Some(self.events_queue.pop_front().expect("events_queue should not be empty.")))
@@ -265,8 +268,9 @@ where
         key: (ContractAddress, EventIndex),
     ) -> StorageResult<EventIterByContractAddress<'env, 'txn>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let events_table = self.open_table(&self.tables.events)?;
-        let mut cursor = events_table.cursor(&self.txn)?;
+        let address_to_transaction_index_table =
+            self.open_table(&self.tables.address_to_transaction_index)?;
+        let mut cursor = address_to_transaction_index_table.cursor(&self.txn)?;
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
         {
@@ -291,12 +295,12 @@ where
         } else {
             VecDeque::new()
         };
-        let next_entry_in_event_table = cursor.next()?.map(|(key, _)| key);
+        let next_entry_in_address_to_transaction_index_table = cursor.next()?.map(|(key, _)| key);
 
         Ok(EventIterByContractAddress {
             txn: &self.txn,
             file_handles: &self.file_handlers,
-            next_entry_in_event_table,
+            next_entry_in_address_to_transaction_index_table,
             events_queue,
             cursor,
             transaction_metadata_table,
@@ -357,9 +361,14 @@ fn get_events_from_tx(
     events
 }
 
-/// A cursor of the events table.
-type EventsTableCursor<'txn> =
-    DbCursor<'txn, RO, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+/// A cursor of the address to transaction index table.
+type AddressToTransactionIndexTableCursor<'txn> = DbCursor<
+    'txn,
+    RO,
+    AddressToTransactionIndexTableKey,
+    NoVersionValueWrapper<NoValue>,
+    CommonPrefix,
+>;
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
