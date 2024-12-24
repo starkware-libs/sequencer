@@ -5,11 +5,15 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+cairo_native = ["blockifier/cairo_native"]
+
 [lints]
 workspace = true
 
 [dependencies]
 blockifier.workspace = true
+log.workspace = true
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
