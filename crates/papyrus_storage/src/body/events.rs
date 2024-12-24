@@ -57,15 +57,31 @@ use starknet_api::transaction::{
     Event,
     EventContent,
     EventIndexInTransactionOutput,
+    TransactionOffsetInBlock,
     TransactionOutput,
 };
+use tracing::debug;
 
-use super::TransactionMetadataTable;
-use crate::body::{EventsTableKey, TransactionIndex};
+use super::{
+    update_marker,
+    AddressToTxIndexTable,
+    EventsTable,
+    FileOffsetsTable,
+    MarkerKind,
+    TransactionMetadataTable,
+};
+use crate::body::{AddressToTxIndexTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, RO};
-use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
+use crate::db::{DbTransaction, RO, RW};
+use crate::{
+    FileHandlers,
+    OffsetKind,
+    StorageResult,
+    StorageScope,
+    StorageTxn,
+    TransactionMetadata,
+};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -144,11 +160,11 @@ pub struct EventIterByContractAddress<'env, 'txn> {
     file_handles: &'txn FileHandlers<RO>,
     // This value is the next entry in the events table to search for relevant events. If it is
     // None there are no more events.
-    next_entry_in_event_table: Option<EventsTableKey>,
+    next_entry_in_address_to_tx_index_table: Option<AddressToTxIndexTableKey>,
     // Queue of events to return from the iterator. When this queue is empty, we need to fetch more
     // events.
     events_queue: VecDeque<((ContractAddress, EventIndex), EventContent)>,
-    cursor: EventsTableCursor<'txn>,
+    cursor: AddressToTxIndexTableCursor<'txn>,
     transaction_metadata_table: TransactionMetadataTable<'env>,
 }
 
@@ -161,7 +177,9 @@ impl EventIterByContractAddress<'_, '_> {
         // Here we make sure that the events_queue is not empty. If it does we fill it with new
         // relevant events.
         if self.events_queue.is_empty() {
-            let Some((contract_address, tx_index)) = self.next_entry_in_event_table.take() else {
+            let Some((contract_address, tx_index)) =
+                self.next_entry_in_address_to_tx_index_table.take()
+            else {
                 return Ok(None);
             };
             let tx_metadata =
@@ -174,7 +192,7 @@ impl EventIterByContractAddress<'_, '_> {
             // TODO(dvir): don't clone the events here.
             self.events_queue =
                 get_events_from_tx(tx_output.events().into(), tx_index, contract_address, 0);
-            self.next_entry_in_event_table = self.cursor.next()?.map(|(key, _)| key);
+            self.next_entry_in_address_to_tx_index_table = self.cursor.next()?.map(|(key, _)| key);
         }
 
         Ok(Some(self.events_queue.pop_front().expect("events_queue should not be empty.")))
@@ -265,8 +283,8 @@ where
         key: (ContractAddress, EventIndex),
     ) -> StorageResult<EventIterByContractAddress<'env, 'txn>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let events_table = self.open_table(&self.tables.events)?;
-        let mut cursor = events_table.cursor(&self.txn)?;
+        let address_to_tx_index_table = self.open_table(&self.tables.address_to_tx_index)?;
+        let mut cursor = address_to_tx_index_table.cursor(&self.txn)?;
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
         {
@@ -296,7 +314,7 @@ where
         Ok(EventIterByContractAddress {
             txn: &self.txn,
             file_handles: &self.file_handlers,
-            next_entry_in_event_table,
+            next_entry_in_address_to_tx_index_table: next_entry_in_event_table,
             events_queue,
             cursor,
             transaction_metadata_table,
@@ -358,8 +376,163 @@ fn get_events_from_tx(
 }
 
 /// A cursor of the events table.
-type EventsTableCursor<'txn> =
-    DbCursor<'txn, RO, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+type AddressToTxIndexTableCursor<'txn> =
+    DbCursor<'txn, RO, AddressToTxIndexTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+
+/// Interface for reading the events from the storage.
+pub trait EventStorageReader {
+    /// The first block number that isn't written in the events table.
+    fn get_events_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Returns the events of a specific block.
+    fn get_block_events(&self, block_number: BlockNumber)
+    -> StorageResult<Option<Vec<Vec<Event>>>>;
+}
+
+impl EventStorageReader for StorageTxn<'_, RW> {
+    fn get_events_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
+    }
+    fn get_block_events(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<Vec<Event>>>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        let mut cursor = events_table.cursor(&self.txn)?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+        let mut res = Vec::new();
+        while let Some((tx_index, events_location)) = current {
+            if tx_index.0 != block_number {
+                break;
+            }
+            res.push(self.file_handlers.get_events_unchecked(events_location)?);
+            current = cursor.next()?;
+        }
+        if res.is_empty() { Ok(None) } else { Ok(Some(res)) }
+    }
+}
+
+/// Interface for updating the events in the storage.
+pub trait EventStorageWriter
+where
+    Self: Sized,
+{
+    /// Appends the events of an entire block to the storage.
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self>;
+
+    /// Removes the events of an entire block from the storage.
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)>;
+}
+
+impl EventStorageWriter for StorageTxn<'_, RW> {
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        update_marker(&self.txn, &markers_table, block_number)?;
+        if self.scope != StorageScope::StateOnly {
+            let events_table = self.open_table(&self.tables.events)?;
+            let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+            let address_to_tx_index_table = self.open_table(&self.tables.address_to_tx_index)?;
+            write_events(
+                block_events,
+                &self.txn,
+                &self.file_handlers,
+                &file_offset_table,
+                &events_table,
+                &address_to_tx_index_table,
+                block_number,
+            )?;
+        }
+        Ok(self)
+    }
+
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        // Assert that body marker equals the reverted block number + 1
+        let current_header_marker = self.get_events_marker()?;
+        if block_number
+            .next()
+            .filter(|next_block_number| current_header_marker == *next_block_number)
+            .is_none()
+        {
+            debug!(
+                "Attempt to revert a non-existing / old block {}. Returning without an action.",
+                block_number
+            );
+            return Ok((self, None));
+        }
+        let reverted_block_events = 'reverted_block_events: {
+            if self.scope == StorageScope::StateOnly {
+                break 'reverted_block_events None;
+            } else {
+                let events_table = self.open_table(&self.tables.events)?;
+                let address_to_tx_index_table =
+                    self.open_table(&self.tables.address_to_tx_index)?;
+                let block_events = self.get_block_events(block_number)?.unwrap_or_else(|| {
+                    panic!("Block events not found for block number: {block_number:?}")
+                });
+                // Assuming theres a vector of events for every transaction (even if empty), so
+                // the index of each item of this enumerate is the transaction index in the
+                // block.
+                for (index, transaction_events) in block_events.iter().enumerate() {
+                    let transaction_index =
+                        TransactionIndex(block_number, TransactionOffsetInBlock(index));
+                    events_table.delete(&self.txn, &transaction_index)?;
+                    for event in transaction_events {
+                        address_to_tx_index_table
+                            .delete(&self.txn, &(event.from_address, transaction_index))?;
+                    }
+                }
+                Some(block_events)
+            }
+        };
+        markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
+        Ok((self, reverted_block_events))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_events<'env>(
+    block_events: Vec<Vec<Event>>,
+    txn: &DbTransaction<'env, RW>,
+    file_handlers: &FileHandlers<RW>,
+    file_offset_table: &'env FileOffsetsTable<'env>,
+    events_table: &'env EventsTable<'env>,
+    address_to_tx_index_table: &'env AddressToTxIndexTable<'env>,
+    block_number: BlockNumber,
+) -> StorageResult<()> {
+    for (index, transaction_events) in block_events.iter().enumerate() {
+        let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(index));
+        let event_offset = file_handlers.append_events(&transaction_events.clone());
+        events_table.append(txn, &transaction_index, &event_offset)?;
+        for event in transaction_events {
+            address_to_tx_index_table.insert(
+                txn,
+                &(event.from_address, transaction_index),
+                &NoValue,
+            )?;
+        }
+        if index == block_events.len() - 1 {
+            file_offset_table.upsert(txn, &OffsetKind::Events, &event_offset.next_offset())?;
+        }
+    }
+    StorageResult::Ok(())
+}

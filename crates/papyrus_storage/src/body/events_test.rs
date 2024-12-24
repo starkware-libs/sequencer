@@ -162,12 +162,12 @@ fn revert_events() {
 
     // Test events raw table.
     let txn = storage_reader.begin_ro_txn().unwrap();
-    let events_table = txn.txn.open_table(&txn.tables.events).unwrap();
+    let address_to_tx_index_table = txn.txn.open_table(&txn.tables.address_to_tx_index).unwrap();
     for (tx_idx, tx_output) in block.body.transaction_outputs.iter().enumerate() {
         let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_idx));
         for event in tx_output.events().iter() {
             assert_matches!(
-                events_table.get(&txn.txn, &(event.from_address, transaction_index)),
+                address_to_tx_index_table.get(&txn.txn, &(event.from_address, transaction_index)),
                 Ok(Some(_))
             );
         }
@@ -195,12 +195,12 @@ fn revert_events() {
     );
 
     let txn = storage_reader.begin_ro_txn().unwrap();
-    let events_table = txn.txn.open_table(&txn.tables.events).unwrap();
+    let address_to_tx_index_table = txn.txn.open_table(&txn.tables.address_to_tx_index).unwrap();
     for (tx_idx, tx_output) in block.body.transaction_outputs.iter().enumerate() {
         let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(tx_idx));
         for event in tx_output.events().iter() {
             assert_matches!(
-                events_table.get(&txn.txn, &(event.from_address, transaction_index)),
+                address_to_tx_index_table.get(&txn.txn, &(event.from_address, transaction_index)),
                 Ok(None)
             );
         }
