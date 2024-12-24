@@ -109,6 +109,53 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn write_10_to_my_storage_var(ref self: ContractState) {
+        self.my_storage_var.write(10);
+    }
+
+    /// Tests the behavior of a revert scenario with an inner contract call.
+    /// The function performs the following:
+    /// 1. Calls `write_10_to_my_storage_var` to set the storage variable to 10.
+    /// 2. Calls `test_revert_helper` with `to_panic` = true`.
+    ///    - `test_revert_helper` is expected to change the storage variable to 17 and then panic.
+    /// 3. Verifies that the `test_revert_helper`` changes are reverted,
+    /// ensuring the storage variable remains 10.
+    #[external(v0)]
+    fn test_revert_with_inner_call_and_reverted_storage(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        class_hash: ClassHash,
+    ) {
+        // Step 1: Call the contract to set the storage variable to 10.
+        syscalls::call_contract_syscall(
+            contract_address,
+            selector!("write_10_to_my_storage_var"),
+            array![].span(),
+        )
+        .unwrap_syscall();
+
+        // Step 2: Prepare the call to `test_revert_helper` with `to_panic = true`.
+        let to_panic = true;
+        let call_data = array![class_hash.into(), to_panic.into()];
+
+        // Step 3: Call `test_revert_helper` and handle the expected panic.
+        match syscalls::call_contract_syscall(
+            contract_address,
+            selector!("test_revert_helper"),
+            call_data.span(),
+        ) {
+            Result::Ok(_) => panic(array!['should_panic']),
+            Result::Err(_revert_reason) => {
+                // Verify that the changes made by the second call are reverted.
+                assert(
+                    self.my_storage_var.read() == 10,
+                    'Wrong_storage_value.',
+                );
+            }
+        }
+    }
+
+    #[external(v0)]
     fn middle_revert_contract(
         ref self: ContractState,
         contract_address: ContractAddress,
