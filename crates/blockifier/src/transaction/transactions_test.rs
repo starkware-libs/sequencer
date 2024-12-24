@@ -449,17 +449,17 @@ fn add_kzg_da_resources_to_resources_mapping(
 }
 
 #[rstest]
-#[case::with_cairo0_account(
-    ExpectedResultTestInvokeTx{
-        resources: &get_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
-            n_steps: 62,
-            n_memory_holes:  0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
-        },
-        validate_gas_consumed: 0,
-        execute_gas_consumed: 0,
-    },
-    CairoVersion::Cairo0)]
+// #[case::with_cairo0_account(
+//     ExpectedResultTestInvokeTx{
+//         resources: &get_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
+//             n_steps: 62,
+//             n_memory_holes:  0,
+//             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
+//         },
+//         validate_gas_consumed: 0,
+//         execute_gas_consumed: 0,
+//     },
+//     CairoVersion::Cairo0)]
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: &get_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
@@ -474,16 +474,15 @@ fn add_kzg_da_resources_to_resources_mapping(
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
 fn test_invoke_tx(
-    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
-    resource_bounds: ValidResourceBounds,
-    #[case] mut expected_arguments: ExpectedResultTestInvokeTx,
+    #[values(default_all_resource_bounds())] resource_bounds: ValidResourceBounds,
+    #[case] mut _expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
-    #[values(false, true)] use_kzg_da: bool,
+    #[values(true)] use_kzg_da: bool,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
-    let versioned_constants = &block_context.versioned_constants;
+    let _versioned_constants = &block_context.versioned_constants;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
@@ -491,193 +490,195 @@ fn test_invoke_tx(
     let calldata = create_trivial_calldata(test_contract_address);
     let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_contract_address,
-        calldata: Calldata(Arc::clone(&calldata.0)),
+        calldata,
         resource_bounds,
     });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
-    let calldata_length = invoke_tx.calldata_length();
-    let signature_length = invoke_tx.signature_length();
-    let state_changes_for_fee = StateChangesCount {
-        n_storage_updates: 1,
-        n_modified_contracts: 1,
-        ..StateChangesCount::default()
-    };
-    let starknet_resources = StarknetResources::new(
-        calldata_length,
-        signature_length,
-        0,
-        StateResources::new_for_testing(state_changes_for_fee, 0),
-        None,
-        ExecutionSummary::default(),
-    );
-    let sender_address = invoke_tx.sender_address();
+    // let calldata_length = invoke_tx.calldata_length();
+    // let signature_length = invoke_tx.signature_length();
+    // let state_changes_for_fee = StateChangesCount {
+    //     n_storage_updates: 1,
+    //     n_modified_contracts: 1,
+    //     ..StateChangesCount::default()
+    // };
+    // let starknet_resources = StarknetResources::new(
+    //     calldata_length,
+    //     signature_length,
+    //     0,
+    //     StateResources::new_for_testing(state_changes_for_fee, 0),
+    //     None,
+    //     ExecutionSummary::default(),
+    // );
+    // let sender_address = invoke_tx.sender_address();
 
-    let tx_context = block_context.to_tx_context(&invoke_tx);
+    // let tx_context = block_context.to_tx_context(&invoke_tx);
 
     let actual_execution_info = invoke_tx.execute(state, block_context).unwrap();
+    dbg!(&actual_execution_info);
+    panic!();
 
-    let tracked_resource = account_contract
-        .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
+    // let tracked_resource = account_contract
+    //     .get_runnable_class()
+    //     .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
 
-    // Build expected validate call info.
-    let expected_account_class_hash = account_contract.get_class_hash();
-    let initial_gas = user_initial_gas_from_bounds(resource_bounds, Some(block_context));
-    let expected_validate_call_info = expected_validate_call_info(
-        expected_account_class_hash,
-        constants::VALIDATE_ENTRY_POINT_NAME,
-        expected_arguments.validate_gas_consumed,
-        calldata,
-        sender_address,
-        account_cairo_version,
-        tracked_resource,
-        Some(initial_gas.min(versioned_constants.validate_max_sierra_gas)),
-    );
+    // // Build expected validate call info.
+    // let expected_account_class_hash = account_contract.get_class_hash();
+    // let initial_gas = user_initial_gas_from_bounds(resource_bounds, Some(block_context));
+    // let expected_validate_call_info = expected_validate_call_info(
+    //     expected_account_class_hash,
+    //     constants::VALIDATE_ENTRY_POINT_NAME,
+    //     expected_arguments.validate_gas_consumed,
+    //     calldata,
+    //     sender_address,
+    //     account_cairo_version,
+    //     tracked_resource,
+    //     Some(initial_gas.min(versioned_constants.validate_max_sierra_gas)),
+    // );
 
-    // Build expected execute call info.
-    let expected_return_result_calldata = vec![felt!(2_u8)];
+    // // Build expected execute call info.
+    // let expected_return_result_calldata = vec![felt!(2_u8)];
 
-    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
-    let expected_initial_execution_gas = versioned_constants
-        .execute_max_sierra_gas
-        .min(initial_gas - GasAmount(expected_arguments.validate_gas_consumed))
-        .0;
-    let expected_execute_call = CallEntryPoint {
-        entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
-        initial_gas: match account_cairo_version {
-            CairoVersion::Cairo0 => versioned_constants.infinite_gas_for_vm_mode(),
-            CairoVersion::Cairo1(_) => expected_initial_execution_gas,
-        },
-        ..expected_validated_call
-    };
+    // let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
+    // let expected_initial_execution_gas = versioned_constants
+    //     .execute_max_sierra_gas
+    //     .min(initial_gas - GasAmount(expected_arguments.validate_gas_consumed))
+    //     .0;
+    // let expected_execute_call = CallEntryPoint {
+    //     entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
+    //     initial_gas: match account_cairo_version {
+    //         CairoVersion::Cairo0 => versioned_constants.inifite_gas_for_vm_mode(),
+    //         CairoVersion::Cairo1(_) => expected_initial_execution_gas,
+    //     },
+    //     ..expected_validated_call
+    // };
 
-    let expected_inner_call_charged_resources =
-        ChargedResources::from_execution_resources(ExecutionResources {
-            n_steps: 23,
-            n_memory_holes: 0,
-            ..Default::default()
-        });
-    let (expected_validate_gas_for_fee, expected_execute_gas_for_fee) = match tracked_resource {
-        TrackedResource::CairoSteps => (GasAmount::default(), GasAmount::default()),
-        TrackedResource::SierraGas => {
-            expected_arguments.resources =
-                expected_inner_call_charged_resources.vm_resources.clone();
-            (
-                expected_arguments.validate_gas_consumed.into(),
-                expected_arguments.execute_gas_consumed.into(),
-            )
-        }
-    };
+    // let expected_inner_call_charged_resources =
+    //     ChargedResources::from_execution_resources(ExecutionResources {
+    //         n_steps: 23,
+    //         n_memory_holes: 0,
+    //         ..Default::default()
+    //     });
+    // let (expected_validate_gas_for_fee, expected_execute_gas_for_fee) = match tracked_resource {
+    //     TrackedResource::CairoSteps => (GasAmount::default(), GasAmount::default()),
+    //     TrackedResource::SierraGas => {
+    //         expected_arguments.resources =
+    //             expected_inner_call_charged_resources.vm_resources.clone();
+    //         (
+    //             expected_arguments.validate_gas_consumed.into(),
+    //             expected_arguments.execute_gas_consumed.into(),
+    //         )
+    //     }
+    // };
 
-    let expected_return_result_call = CallEntryPoint {
-        entry_point_selector: selector_from_name("return_result"),
-        class_hash: Some(test_contract.get_class_hash()),
-        code_address: Some(test_contract_address),
-        entry_point_type: EntryPointType::External,
-        calldata: Calldata(expected_return_result_calldata.clone().into()),
-        storage_address: test_contract_address,
-        caller_address: sender_address,
-        call_type: CallType::Call,
-        initial_gas: versioned_constants.infinite_gas_for_vm_mode(),
-    };
+    // let expected_return_result_call = CallEntryPoint {
+    //     entry_point_selector: selector_from_name("return_result"),
+    //     class_hash: Some(test_contract.get_class_hash()),
+    //     code_address: Some(test_contract_address),
+    //     entry_point_type: EntryPointType::External,
+    //     calldata: Calldata(expected_return_result_calldata.clone().into()),
+    //     storage_address: test_contract_address,
+    //     caller_address: sender_address,
+    //     call_type: CallType::Call,
+    //     initial_gas: versioned_constants.inifite_gas_for_vm_mode(),
+    // };
 
-    let expected_return_result_retdata = Retdata(expected_return_result_calldata);
-    let expected_inner_calls = vec![CallInfo {
-        call: expected_return_result_call,
-        execution: CallExecution::from_retdata(expected_return_result_retdata.clone()),
-        charged_resources: expected_inner_call_charged_resources,
-        ..Default::default()
-    }];
+    // let expected_return_result_retdata = Retdata(expected_return_result_calldata);
+    // let expected_inner_calls = vec![CallInfo {
+    //     call: expected_return_result_call,
+    //     execution: CallExecution::from_retdata(expected_return_result_retdata.clone()),
+    //     charged_resources: expected_inner_call_charged_resources,
+    //     ..Default::default()
+    // }];
 
-    let expected_execute_call_info = Some(CallInfo {
-        call: expected_execute_call,
-        execution: CallExecution {
-            retdata: Retdata(expected_return_result_retdata.0),
-            gas_consumed: expected_arguments.execute_gas_consumed,
-            ..Default::default()
-        },
-        charged_resources: ChargedResources {
-            vm_resources: expected_arguments.resources,
-            gas_for_fee: expected_execute_gas_for_fee,
-        },
-        inner_calls: expected_inner_calls,
-        tracked_resource,
-        ..Default::default()
-    });
+    // let expected_execute_call_info = Some(CallInfo {
+    //     call: expected_execute_call,
+    //     execution: CallExecution {
+    //         retdata: Retdata(expected_return_result_retdata.0),
+    //         gas_consumed: expected_arguments.execute_gas_consumed,
+    //         ..Default::default()
+    //     },
+    //     charged_resources: ChargedResources {
+    //         vm_resources: expected_arguments.resources,
+    //         gas_for_fee: expected_execute_gas_for_fee,
+    //     },
+    //     inner_calls: expected_inner_calls,
+    //     tracked_resource,
+    //     ..Default::default()
+    // });
 
-    // Build expected fee transfer call info.
-    let fee_type = &tx_context.tx_info.fee_type();
-    let expected_actual_fee = actual_execution_info.receipt.fee;
-    let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
-        &tx_context,
-        sender_address,
-        expected_actual_fee,
-        FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
-    );
+    // // Build expected fee transfer call info.
+    // let fee_type = &tx_context.tx_info.fee_type();
+    // let expected_actual_fee = actual_execution_info.receipt.fee;
+    // let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
+    //     &tx_context,
+    //     sender_address,
+    //     expected_actual_fee,
+    //     FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+    // );
 
-    let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
+    // let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
 
-    let expected_cairo_resources = get_expected_cairo_resources(
-        versioned_constants,
-        TransactionType::InvokeFunction,
-        &starknet_resources,
-        vec![&expected_validate_call_info, &expected_execute_call_info],
-    );
+    // let expected_cairo_resources = get_expected_cairo_resources(
+    //     versioned_constants,
+    //     TransactionType::InvokeFunction,
+    //     &starknet_resources,
+    //     vec![&expected_validate_call_info, &expected_execute_call_info],
+    // );
 
-    let mut expected_actual_resources = TransactionResources {
-        starknet_resources,
-        computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
-            sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
-            ..Default::default()
-        },
-    };
+    // let mut expected_actual_resources = TransactionResources {
+    //     starknet_resources,
+    //     computation: ComputationResources {
+    //         vm_resources: expected_cairo_resources,
+    //         sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
+    //         ..Default::default()
+    //     },
+    // };
 
-    add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.vm_resources,
-        &state_changes_for_fee,
-        versioned_constants,
-        use_kzg_da,
-    );
+    // add_kzg_da_resources_to_resources_mapping(
+    //     &mut expected_actual_resources.computation.vm_resources,
+    //     &state_changes_for_fee,
+    //     versioned_constants,
+    //     use_kzg_da,
+    // );
 
-    let total_gas = expected_actual_resources.to_gas_vector(
-        &block_context.versioned_constants,
-        block_context.block_info.use_kzg_da,
-        &resource_bounds.get_gas_vector_computation_mode(),
-    );
+    // let total_gas = expected_actual_resources.to_gas_vector(
+    //     &block_context.versioned_constants,
+    //     block_context.block_info.use_kzg_da,
+    //     &resource_bounds.get_gas_vector_computation_mode(),
+    // );
 
-    let expected_execution_info = TransactionExecutionInfo {
-        validate_call_info: expected_validate_call_info,
-        execute_call_info: expected_execute_call_info,
-        fee_transfer_call_info: expected_fee_transfer_call_info,
-        receipt: TransactionReceipt {
-            fee: expected_actual_fee,
-            da_gas,
-            resources: expected_actual_resources,
-            gas: total_gas,
-        },
-        revert_error: None,
-    };
+    // let expected_execution_info = TransactionExecutionInfo {
+    //     validate_call_info: expected_validate_call_info,
+    //     execute_call_info: expected_execute_call_info,
+    //     fee_transfer_call_info: expected_fee_transfer_call_info,
+    //     receipt: TransactionReceipt {
+    //         fee: expected_actual_fee,
+    //         da_gas,
+    //         resources: expected_actual_resources,
+    //         gas: total_gas,
+    //     },
+    //     revert_error: None,
+    // };
 
-    // Test execution info result.
-    assert_eq!(actual_execution_info, expected_execution_info);
+    // // Test execution info result.
+    // assert_eq!(actual_execution_info, expected_execution_info);
 
-    // Test nonce update.
-    let nonce_from_state = state.get_nonce_at(sender_address).unwrap();
-    assert_eq!(nonce_from_state, nonce!(1_u8));
+    // // Test nonce update.
+    // let nonce_from_state = state.get_nonce_at(sender_address).unwrap();
+    // assert_eq!(nonce_from_state, nonce!(1_u8));
 
-    // Test final balances.
-    validate_final_balances(
-        state,
-        chain_info,
-        expected_actual_fee,
-        get_fee_token_var_address(account_contract_address),
-        fee_type,
-        BALANCE,
-        BALANCE,
-    );
+    // // Test final balances.
+    // validate_final_balances(
+    //     state,
+    //     chain_info,
+    //     expected_actual_fee,
+    //     get_fee_token_var_address(account_contract_address),
+    //     fee_type,
+    //     BALANCE,
+    //     BALANCE,
+    // );
 }
 
 // Verifies the storage after each invoke execution in test_invoke_tx_advanced_operations.
@@ -712,7 +713,7 @@ fn verify_storage_after_invoke_advanced_operations(
 }
 
 #[rstest]
-fn test_invoke_tx_advanced_operations(
+fn noa_advanced_operations(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]

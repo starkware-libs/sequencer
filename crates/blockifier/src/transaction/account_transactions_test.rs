@@ -340,7 +340,7 @@ fn test_account_flow_test(
 #[case(TransactionVersion::ZERO)]
 #[case(TransactionVersion::ONE)]
 #[case(TransactionVersion::THREE)]
-fn test_invoke_tx_from_non_deployed_account(
+fn noa_from_non_deployed_account(
     block_context: BlockContext,
     max_fee: Fee,
     default_all_resource_bounds: ValidResourceBounds,

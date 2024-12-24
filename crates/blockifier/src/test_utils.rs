@@ -428,8 +428,8 @@ pub fn create_calldata(
 pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Calldata {
     create_calldata(
         test_contract_address,
-        "return_result",
-        &[felt!(2_u8)], // Calldata: num.
+        "empty_func",
+        &[], // Calldata: num.
     )
 }
 
