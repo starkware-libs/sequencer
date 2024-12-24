@@ -302,6 +302,11 @@ impl ConsensusContext for PapyrusConsensusContext {
         Ok(())
     }
 
+    async fn try_sync(&mut self, _height: BlockNumber) -> bool {
+        // TODO(Asmaa): Implement this.
+        false
+    }
+
     async fn set_height_and_round(&mut self, _height: BlockNumber, _round: Round) {
         // No-op
     }

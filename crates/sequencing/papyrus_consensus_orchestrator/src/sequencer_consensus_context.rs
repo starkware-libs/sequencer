@@ -55,6 +55,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
@@ -97,6 +98,7 @@ enum HandledProposalPart {
 const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 
 pub struct SequencerConsensusContext {
+    state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
@@ -127,6 +129,7 @@ pub struct SequencerConsensusContext {
 
 impl SequencerConsensusContext {
     pub fn new(
+        state_sync_client: SharedStateSyncClient,
         batcher: Arc<dyn BatcherClient>,
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
@@ -135,6 +138,7 @@ impl SequencerConsensusContext {
         cende_ambassador: Arc<dyn CendeContext>,
     ) -> Self {
         Self {
+            state_sync_client,
             batcher,
             outbound_proposal_sender,
             vote_broadcast_client,
@@ -338,6 +342,15 @@ impl ConsensusContext for SequencerConsensusContext {
         self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::default()).await;
 
         Ok(())
+    }
+
+    async fn try_sync(&mut self, height: BlockNumber) -> bool {
+        let sync_block = self.state_sync_client.get_block(height).await;
+        if let Ok(Some(sync_block)) = sync_block {
+            self.batcher.add_sync_block(sync_block).await.unwrap();
+            return true;
+        }
+        false
     }
 
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {

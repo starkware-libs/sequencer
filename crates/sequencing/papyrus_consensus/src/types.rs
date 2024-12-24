@@ -112,6 +112,10 @@ pub trait ConsensusContext {
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;
 
+    /// Attempt to learn of a decision from the sync protocol.
+    /// Returns true if a decision was learned so consensus can proceed.
+    async fn try_sync(&mut self, height: BlockNumber) -> bool;
+
     /// Update the context with the current height and round.
     /// Must be called at the beginning of each height.
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
