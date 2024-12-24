@@ -181,7 +181,8 @@ pub fn open_storage(
         deprecated_declared_classes: db_writer
             .create_simple_table("deprecated_declared_classes")?,
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
-        address_to_tx_index: db_writer.create_common_prefix_table("address_to_tx_index")?,
+        address_to_transaction_index: db_writer
+            .create_common_prefix_table("address_to_transaction_index")?,
         headers: db_writer.create_simple_table("headers")?,
         markers: db_writer.create_simple_table("markers")?,
         nonces: db_writer.create_common_prefix_table("nonces")?,
@@ -495,7 +496,7 @@ impl<Mode: TransactionKind> StorageTxn<'_, Mode> {
     ) -> StorageResult<TableHandle<'_, K, V, T>> {
         if self.scope == StorageScope::StateOnly {
             let unused_tables = [
-                self.tables.address_to_tx_index.name,
+                self.tables.address_to_transaction_index.name,
                 self.tables.transaction_hash_to_idx.name,
                 self.tables.transaction_metadata.name,
             ];
@@ -528,7 +529,7 @@ struct_field_names! {
         deprecated_declared_classes: TableIdentifier<ClassHash, VersionZeroWrapper<IndexedDeprecatedContractClass>, SimpleTable>,
         // TODO(dvir): consider use here also the CommonPrefix table type.
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
-        address_to_tx_index: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
+        address_to_transaction_index: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
         headers: TableIdentifier<BlockNumber, VersionZeroWrapper<StorageBlockHeader>, SimpleTable>,
         markers: TableIdentifier<MarkerKind, VersionZeroWrapper<BlockNumber>, SimpleTable>,
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
