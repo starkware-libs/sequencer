@@ -62,7 +62,14 @@ use starknet_api::transaction::{
 };
 use tracing::debug;
 
-use super::{update_marker, EventsTable, FileOffsetsTable, MarkerKind, TransactionMetadataTable};
+use super::{
+    update_marker,
+    AddressToTxIndexTable,
+    EventsTable,
+    FileOffsetsTable,
+    MarkerKind,
+    TransactionMetadataTable,
+};
 use crate::body::{AddressToTxIndexTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
@@ -440,12 +447,14 @@ impl EventStorageWriter for StorageTxn<'_, RW> {
         if self.scope != StorageScope::StateOnly {
             let events_table = self.open_table(&self.tables.events)?;
             let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+            let address_to_tx_index_table = self.open_table(&self.tables.address_to_tx_index)?;
             write_events(
                 block_events,
                 &self.txn,
                 &self.file_handlers,
                 &file_offset_table,
                 &events_table,
+                &address_to_tx_index_table,
                 block_number,
             )?;
         }
@@ -475,16 +484,22 @@ impl EventStorageWriter for StorageTxn<'_, RW> {
                 break 'reverted_block_events None;
             } else {
                 let events_table = self.open_table(&self.tables.events)?;
+                let address_to_tx_index_table =
+                    self.open_table(&self.tables.address_to_tx_index)?;
                 let block_events = self.get_block_events(block_number)?.unwrap_or_else(|| {
                     panic!("Block events not found for block number: {block_number:?}")
                 });
                 // Assuming theres a vector of events for every transaction (even if empty), so
                 // the index of each item of this enumerate is the transaction index in the
                 // block.
-                for (index, _) in block_events.iter().enumerate() {
+                for (index, transaction_events) in block_events.iter().enumerate() {
                     let transaction_index =
                         TransactionIndex(block_number, TransactionOffsetInBlock(index));
                     events_table.delete(&self.txn, &transaction_index)?;
+                    for event in transaction_events {
+                        address_to_tx_index_table
+                            .delete(&self.txn, &(event.from_address, transaction_index))?;
+                    }
                 }
                 Some(block_events)
             }
@@ -501,12 +516,20 @@ fn write_events<'env>(
     file_handlers: &FileHandlers<RW>,
     file_offset_table: &'env FileOffsetsTable<'env>,
     events_table: &'env EventsTable<'env>,
+    address_to_tx_index_table: &'env AddressToTxIndexTable<'env>,
     block_number: BlockNumber,
 ) -> StorageResult<()> {
     for (index, transaction_events) in block_events.iter().enumerate() {
         let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(index));
         let event_offset = file_handlers.append_events(&transaction_events.clone());
         events_table.append(txn, &transaction_index, &event_offset)?;
+        for event in transaction_events {
+            address_to_tx_index_table.insert(
+                txn,
+                &(event.from_address, transaction_index),
+                &NoValue,
+            )?;
+        }
         if index == block_events.len() - 1 {
             file_offset_table.upsert(txn, &OffsetKind::Events, &event_offset.next_offset())?;
         }
