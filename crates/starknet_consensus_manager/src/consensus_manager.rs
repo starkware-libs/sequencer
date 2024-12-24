@@ -8,7 +8,7 @@ use papyrus_consensus_orchestrator::cende::CendeAmbassador;
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
@@ -51,7 +51,7 @@ impl ConsensusManager {
             .expect("Failed to register broadcast topic");
 
         let votes_broadcast_channels = network_manager
-            .register_broadcast_topic::<ConsensusMessage>(
+            .register_broadcast_topic::<Vote>(
                 Topic::new(CONSENSUS_VOTES_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )

@@ -21,7 +21,6 @@ use papyrus_consensus::types::{
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -119,7 +118,7 @@ pub struct SequencerConsensusContext {
         BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalContentId, ProposalFin)>)>,
     outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
-    vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+    vote_broadcast_client: BroadcastTopicClient<Vote>,
     // Used to convert Transaction to ExecutableTransaction.
     chain_id: ChainId,
     cende_ambassador: Arc<dyn CendeContext>,
@@ -129,7 +128,7 @@ impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
-        vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+        vote_broadcast_client: BroadcastTopicClient<Vote>,
         num_validators: u64,
         chain_id: ChainId,
         cende_ambassador: Arc<dyn CendeContext>,
@@ -304,7 +303,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("There should be at least one validator")
     }
 
-    async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
+    async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
         self.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
