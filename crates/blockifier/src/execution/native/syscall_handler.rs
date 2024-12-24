@@ -17,6 +17,7 @@ use cairo_native::starknet::{
     U256,
 };
 use num_bigint::BigUint;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::state::StorageKey;
@@ -36,6 +37,8 @@ use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::versioned_constants::GasCosts;
 
+pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
+pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
 pub struct NativeSyscallHandler<'state> {
     pub base: Box<SyscallHandlerBase<'state>>,
 
@@ -53,19 +56,6 @@ impl<'state> NativeSyscallHandler<'state> {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
             unrecoverable_error: None,
         }
-    }
-
-    fn execute_inner_call(
-        &mut self,
-        entry_point: CallEntryPoint,
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<Retdata> {
-        let raw_retdata = self
-            .base
-            .execute_inner_call(entry_point, remaining_gas)
-            .map_err(|e| self.handle_error(remaining_gas, e))?;
-
-        Ok(Retdata(raw_retdata))
     }
 
     pub fn gas_costs(&self) -> &GasCosts {
@@ -127,6 +117,48 @@ impl<'state> NativeSyscallHandler<'state> {
                 vec![]
             }
         }
+    }
+
+    fn execute_inner_call(
+        &mut self,
+        entry_point: CallEntryPoint,
+        remaining_gas: &mut u64,
+        class_hash: ClassHash,
+    ) -> SyscallResult<Retdata> {
+        let entry_point_clone = entry_point.clone();
+        let raw_data = self.base.execute_inner_call(entry_point, remaining_gas).map_err(|e| {
+            self.handle_error(
+                remaining_gas,
+                match e {
+                    SyscallExecutionError::Revert { .. } => e,
+                    _ => {
+                        if entry_point_clone.entry_point_selector
+                            == selector_from_name(CALL_CONTRACT_SELECTOR_NAME)
+                        {
+                            e.as_call_contract_execution_error(
+                                class_hash,
+                                entry_point_clone.code_address.unwrap(),
+                                entry_point_clone.entry_point_selector,
+                            )
+                        } else if entry_point_clone.entry_point_selector
+                            == selector_from_name(LIBRARY_CALL_SELECTOR_NAME)
+                        {
+                            e.as_lib_call_execution_error(
+                                class_hash,
+                                self.base.call.storage_address,
+                                entry_point_clone.entry_point_selector,
+                            )
+                        } else {
+                            panic!(
+                                "inner call should only be called from call_contract or \
+                                 library_call"
+                            )
+                        }
+                    }
+                },
+            )
+        })?;
+        Ok(Retdata(raw_data))
     }
 
     fn get_tx_info_v1(&self) -> TxInfo {
@@ -295,11 +327,13 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
 
+        let selector = EntryPointSelector(function_selector);
+
         let entry_point = CallEntryPoint {
             class_hash: Some(class_hash),
             code_address: None,
             entry_point_type: EntryPointType::External,
-            entry_point_selector: EntryPointSelector(function_selector),
+            entry_point_selector: selector,
             calldata: wrapper_calldata,
             // The call context remains the same in a library call.
             storage_address: self.base.call.storage_address,
@@ -308,7 +342,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             initial_gas: *remaining_gas,
         };
 
-        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
+        Ok(self.execute_inner_call(entry_point, remaining_gas, class_hash)?.0)
     }
 
     fn call_contract(
@@ -322,6 +356,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let contract_address = ContractAddress::try_from(address)
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
+
+        let class_hash = self
+            .base
+            .get_class_hash_at(contract_address)
+            .map_err(|e| self.handle_error(remaining_gas, e))?;
         if self.base.context.execution_mode == ExecutionMode::Validate
             && self.base.call.storage_address != contract_address
         {
@@ -346,7 +385,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             initial_gas: *remaining_gas,
         };
 
-        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
+        Ok(self.execute_inner_call(entry_point, remaining_gas, class_hash)?.0)
     }
 
     fn storage_read(
