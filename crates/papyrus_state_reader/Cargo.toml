@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 blockifier.workspace = true
-log.workspace = true
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
