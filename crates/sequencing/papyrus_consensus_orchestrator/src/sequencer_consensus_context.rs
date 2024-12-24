@@ -57,7 +57,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::communication::BatcherClient;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, info, info_span, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
 
@@ -158,17 +158,18 @@ impl SequencerConsensusContext {
 impl ConsensusContext for SequencerConsensusContext {
     type ProposalPart = ProposalPart;
 
-    #[instrument(level = "info", skip_all, fields(proposal_init))]
+    #[instrument(skip_all)]
     async fn build_proposal(
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
-        info!("Building proposal: timeout={timeout:?}");
+        info!("Building proposal: timeout={timeout:?} proposal_init={proposal_init:?}");
         let cende_write_success =
             self.cende_ambassador.write_prev_height_blob(proposal_init.height);
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
+
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
         let valid_proposals = Arc::clone(&self.valid_proposals);
@@ -182,7 +183,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to send proposal receiver");
 
-        tokio::spawn(
+        let handle = tokio::spawn(
             async move {
                 build_proposal(
                     timeout,
@@ -196,26 +197,35 @@ impl ConsensusContext for SequencerConsensusContext {
                 )
                 .await;
             }
-            .instrument(debug_span!("consensus_build_proposal")),
+            .instrument(info_span!("spawned_build_proposal")),
         );
+
+        assert!(self.active_proposal.is_none());
+        // The cancellation token is unused since builds must complete before consensus progresses.
+        self.active_proposal = Some((CancellationToken::new(), handle));
 
         fin_receiver
     }
 
     // Note: this function does not receive ProposalInit.
     // That part is consumed by the caller, so it can know the height/round.
-    #[instrument(level = "info", skip(self, timeout, content_receiver))]
+    #[instrument(skip(self, timeout, content_receiver))]
     async fn validate_proposal(
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
-        info!("Validating proposal: timeout={timeout:?}");
         assert_eq!(Some(proposal_init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
         match proposal_init.round.cmp(&self.current_round) {
-            std::cmp::Ordering::Less => fin_receiver,
+            std::cmp::Ordering::Less => {
+                error!(
+                    "Consensus should ignore proposals from past rounds. context_round={}",
+                    self.current_round
+                );
+                fin_receiver
+            }
             std::cmp::Ordering::Greater => {
                 debug!("Queuing proposal for future round: current_round={}", self.current_round);
                 self.queued_proposals.insert(
@@ -241,9 +251,10 @@ impl ConsensusContext for SequencerConsensusContext {
         }
     }
 
+    #[instrument(skip_all)]
     async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
         let height = init.height;
-        debug!("Getting proposal for height: {height} and id: {id}");
+        info!("Reproposing: init={init:?}, id={id:?}");
         let (_transactions, _) = self
             .valid_proposals
             .lock()
@@ -268,21 +279,20 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("There should be at least one validator")
     }
 
+    #[instrument(skip_all)]
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-        debug!("Broadcasting message: {message:?}");
+        info!("Broadcasting message: {message:?}");
         self.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn decision_reached(
         &mut self,
         block: ProposalContentId,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
-
-        // TODO(matan): Broadcast the decision to the network.
 
         let proposal_id;
         {
@@ -304,8 +314,10 @@ impl ConsensusContext for SequencerConsensusContext {
         Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
+            debug!("Starting new height in Context: height: {height}, round: {round}");
             self.current_height = Some(height);
             assert_eq!(round, 0);
             self.current_round = round;
@@ -327,6 +339,7 @@ impl ConsensusContext for SequencerConsensusContext {
             return;
         }
         assert!(round > self.current_round);
+        debug!("Starting new round in Context: height: {height}, round: {round}");
         self.interrupt_active_proposal().await;
         self.current_round = round;
         let mut to_process = None;
@@ -351,7 +364,7 @@ impl ConsensusContext for SequencerConsensusContext {
 }
 
 impl SequencerConsensusContext {
-    #[instrument(level = "info", skip(self, timeout, content_receiver, fin_sender))]
+    #[instrument(skip_all)]
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
@@ -360,7 +373,7 @@ impl SequencerConsensusContext {
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
     ) {
-        info!("Validating proposal with timeout: {timeout:?}");
+        info!("Validate proposal: height={height}, timeout={timeout:?}, proposer={proposer:?}");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
@@ -369,26 +382,32 @@ impl SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
 
-        let handle = tokio::spawn(async move {
-            validate_proposal(
-                chain_id,
-                proposal_id,
-                batcher.as_ref(),
-                height,
-                proposer,
-                timeout,
-                valid_proposals,
-                content_receiver,
-                fin_sender,
-                cancel_token_clone,
-            )
-            .await
-        });
+        let handle = tokio::spawn(
+            async move {
+                validate_proposal(
+                    chain_id,
+                    proposal_id,
+                    batcher.as_ref(),
+                    height,
+                    proposer,
+                    timeout,
+                    valid_proposals,
+                    content_receiver,
+                    fin_sender,
+                    cancel_token_clone,
+                )
+                .await
+            }
+            .instrument(info_span!("spawned_validate_proposal")),
+        );
+        assert!(self.active_proposal.is_none());
         self.active_proposal = Some((cancel_token, handle));
     }
 
+    #[instrument(skip_all)]
     async fn interrupt_active_proposal(&mut self) {
         if let Some((token, handle)) = self.active_proposal.take() {
+            trace!("Cancelling active proposal");
             token.cancel();
             handle.await.expect("Proposal task panicked");
         }
@@ -516,7 +535,7 @@ async fn get_proposal_content(
             }
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
-                info!(
+                debug!(
                     "Finished building proposal {:?}: content_id = {:?}, num_txs = {:?}, height = \
                      {:?}",
                     proposal_id,
@@ -554,6 +573,7 @@ async fn get_proposal_content(
 
 // TODO(Arni): Remove the clippy when switch to ProposalInit.
 #[allow(clippy::too_many_arguments)]
+#[instrument(skip_all)]
 async fn validate_proposal(
     chain_id: ChainId,
     proposal_id: ProposalId,
@@ -652,6 +672,7 @@ async fn initiate_validation(
 // 1. Receives the proposal part from the network.
 // 2. Pass this to the batcher.
 // 3. Once finished, receive the commitment from the batcher.
+#[instrument(skip(batcher, content))]
 async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
@@ -659,6 +680,7 @@ async fn handle_proposal_part(
     content: &mut Vec<ExecutableTransaction>,
     chain_id: ChainId,
 ) -> HandledProposalPart {
+    trace!("Received proposal part.");
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
@@ -702,7 +724,7 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
-            info!(
+            debug!(
                 "Finished validating proposal {:?}: network_block_id: {:?}, batcher_block_id = \
                  {:?}, num_txs = {:?}",
                 proposal_id,
