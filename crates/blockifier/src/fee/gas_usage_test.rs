@@ -15,7 +15,7 @@ use crate::abi::constants;
 use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::get_fee_by_gas_vector;
+use crate::fee::fee_utils::{get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::fee::resources::{
     ComputationResources,
@@ -281,24 +281,42 @@ fn test_get_message_segment_length(
 fn test_discounted_gas_from_gas_vector_computation() {
     let tx_context = BlockContext::create_for_testing()
         .to_tx_context(&invoke_tx_with_default_flags(invoke_tx_args! {}));
-    let gas_usage =
-        GasVector { l1_gas: 100_u8.into(), l1_data_gas: 2_u8.into(), ..Default::default() };
-    let actual_result = gas_usage.to_discounted_l1_gas(tx_context.get_gas_prices());
+    let mut gas_usage =
+        GasVector { l1_gas: 100_u8.into(), l1_data_gas: 2_u8.into(), l2_gas: 3_u8.into() };
+    let actual_result = gas_usage.to_l1_gas_for_fee(
+        tx_context.get_gas_prices(),
+        &tx_context.block_context.versioned_constants,
+    );
+    let converted_l2_gas = tx_context
+        .block_context
+        .versioned_constants
+        .sierra_gas_to_l1_gas_amount_round_up(gas_usage.l2_gas);
 
     let result_div_ceil = gas_usage.l1_gas
         + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE.into()).unwrap())
             .checked_div_ceil(DEFAULT_ETH_L1_GAS_PRICE)
-            .unwrap();
+            .unwrap()
+        + converted_l2_gas;
     let result_div_floor = gas_usage.l1_gas
         + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE.into()).unwrap())
             .checked_div(DEFAULT_ETH_L1_GAS_PRICE)
-            .unwrap();
+            .unwrap()
+        + converted_l2_gas;
 
     assert_eq!(actual_result, result_div_ceil);
     assert_eq!(actual_result, result_div_floor + 1_u8.into());
     assert!(
         get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
             <= actual_result.checked_mul(DEFAULT_ETH_L1_GAS_PRICE.into()).unwrap()
+    );
+
+    // Make sure L2 gas has an effect.
+    gas_usage.l2_gas = 0_u8.into();
+    assert!(
+        gas_usage.to_l1_gas_for_fee(
+            tx_context.get_gas_prices(),
+            &tx_context.block_context.versioned_constants,
+        ) < actual_result
     );
 }
 
