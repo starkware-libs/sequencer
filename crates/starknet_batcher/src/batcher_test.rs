@@ -512,6 +512,7 @@ async fn add_sync_block() {
         block_number: INITIAL_HEIGHT,
         state_diff: test_state_diff(),
         transaction_hashes: test_tx_hashes().into_iter().collect(),
+        ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
 }
@@ -526,6 +527,7 @@ async fn add_sync_block_mismatch_block_number() {
         block_number: INITIAL_HEIGHT.unchecked_next(),
         state_diff: Default::default(),
         transaction_hashes: Default::default(),
+        ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
 }
