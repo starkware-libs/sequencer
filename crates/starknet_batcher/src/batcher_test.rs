@@ -45,7 +45,6 @@ use crate::block_builder::{
 };
 use crate::config::BatcherConfig;
 use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
-use crate::utils::ProposalOutput;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -55,7 +54,7 @@ const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
     BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
 fn proposal_commitment() -> ProposalCommitment {
-    ProposalOutput::from(BlockExecutionArtifacts::create_for_testing()).commitment
+    BlockExecutionArtifacts::create_for_testing().commitment()
 }
 
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
@@ -534,16 +533,15 @@ async fn add_sync_block_mismatch_block_number() {
 #[tokio::test]
 async fn decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
-    let expected_proposal_output =
-        ProposalOutput::from(BlockExecutionArtifacts::create_for_testing());
+    let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
 
     mock_dependencies
         .mempool_client
         .expect_commit_block()
         .times(1)
         .with(eq(CommitBlockArgs {
-            address_to_nonce: expected_proposal_output.nonces,
-            tx_hashes: expected_proposal_output.tx_hashes,
+            address_to_nonce: expected_artifacts.address_to_nonce(),
+            tx_hashes: expected_artifacts.tx_hashes(),
         }))
         .returning(|_| Ok(()));
 
@@ -551,7 +549,7 @@ async fn decision_reached() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(expected_proposal_output.state_diff.clone()))
+        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.state_diff()))
         .returning(|_, _| Ok(()));
 
     mock_create_builder_for_propose_block(
@@ -567,7 +565,7 @@ async fn decision_reached() {
 
     let response =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
-    assert_eq!(response.state_diff, expected_proposal_output.state_diff.clone());
+    assert_eq!(response.state_diff, expected_artifacts.state_diff());
 }
 
 #[rstest]
