@@ -31,3 +31,19 @@ pub(crate) fn contract_class_from_file<P: AsRef<Path>>(path: P) -> ContractClass
         abi: None,
     }
 }
+
+pub(crate) fn get_memory_usage_kb(pid: u32) -> std::io::Result<u64> {
+    let status = std::fs::read_to_string(format!("/proc/{pid}/status"))?;
+    for line in status.lines() {
+        if line.starts_with("VmPeak:") {
+            // Example line: "VmPeak:    123456 kB"
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if let Some(kb_str) = parts.get(1) {
+                if let Ok(kb) = kb_str.parse() {
+                    return Ok(kb);
+                }
+            }
+        }
+    }
+    Ok(0)
+}
