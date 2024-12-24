@@ -180,12 +180,10 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
-    pub execute_max_sierra_gas: GasAmount,
     pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
-    pub validate_max_sierra_gas: GasAmount,
     pub min_sierra_version_for_sierra_gas: SierraVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
@@ -253,15 +251,18 @@ impl VersionedConstants {
 
     /// Default initial gas amount when L2 gas is not provided.
     pub fn initial_gas_no_user_l2_bound(&self) -> GasAmount {
-        (self.execute_max_sierra_gas.checked_add(self.validate_max_sierra_gas))
-            .expect("The default initial gas cost should be less than the maximum gas amount.")
+        (self
+            .os_constants
+            .execute_max_sierra_gas
+            .checked_add(self.os_constants.validate_max_sierra_gas))
+        .expect("The default initial gas cost should be less than the maximum gas amount.")
     }
 
     /// Returns the maximum gas amount according to the given mode.
     pub fn sierra_gas_limit(&self, mode: &ExecutionMode) -> GasAmount {
         match mode {
-            ExecutionMode::Validate => self.validate_max_sierra_gas,
-            ExecutionMode::Execute => self.execute_max_sierra_gas,
+            ExecutionMode::Validate => self.os_constants.validate_max_sierra_gas,
+            ExecutionMode::Execute => self.os_constants.execute_max_sierra_gas,
         }
     }
 
@@ -728,13 +729,15 @@ pub struct OsConstants {
     pub gas_costs: GasCosts,
     pub validate_rounding_consts: ValidateRoundingConsts,
     pub os_contract_addresses: OsContractAddresses,
+    pub validate_max_sierra_gas: GasAmount,
+    pub execute_max_sierra_gas: GasAmount,
 }
 
 impl OsConstants {
     // List of os constants to be ignored
     // during the creation of the struct containing the base gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 30] = [
+    const ADDITIONAL_FIELDS: [&'static str; 32] = [
         "builtin_gas_costs",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -748,6 +751,7 @@ impl OsConstants {
         "error_entry_point_not_found",
         "error_out_of_gas",
         "execute_entry_point_selector",
+        "execute_max_sierra_gas",
         "l1_gas",
         "l1_gas_index",
         "l1_handler_version",
@@ -763,6 +767,7 @@ impl OsConstants {
         "validate_declare_entry_point_selector",
         "validate_deploy_entry_point_selector",
         "validate_entry_point_selector",
+        "validate_max_sierra_gas",
         "validate_rounding_consts",
         "validated",
     ];
@@ -790,8 +795,27 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
         let gas_costs = GasCosts::try_from(&raw_json_data)?;
         let validate_rounding_consts = raw_json_data.validate_rounding_consts;
         let os_contract_addresses = raw_json_data.os_contract_addresses;
-        let os_constants =
-            OsConstants { gas_costs, validate_rounding_consts, os_contract_addresses };
+        let validate_max_sierra_gas = GasAmount(serde_json::from_value(
+            raw_json_data
+                .raw_json_file_as_dict
+                .get("validate_max_sierra_gas")
+                .expect("Missing validate_max_sierra_gas")
+                .clone(),
+        )?);
+        let execute_max_sierra_gas = GasAmount(serde_json::from_value(
+            raw_json_data
+                .raw_json_file_as_dict
+                .get("execute_max_sierra_gas")
+                .expect("Missing execute_max_sierra_gas")
+                .clone(),
+        )?);
+        let os_constants = OsConstants {
+            gas_costs,
+            validate_rounding_consts,
+            os_contract_addresses,
+            validate_max_sierra_gas,
+            execute_max_sierra_gas,
+        };
         Ok(os_constants)
     }
 }

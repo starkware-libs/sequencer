@@ -1718,7 +1718,10 @@ fn test_initial_gas(
 
     let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
     let validate_initial_gas = validate_call_info.call.initial_gas;
-    assert_eq!(validate_initial_gas, block_context.versioned_constants.validate_max_sierra_gas.0);
+    assert_eq!(
+        validate_initial_gas,
+        block_context.versioned_constants.os_constants.validate_max_sierra_gas.0
+    );
     let validate_gas_consumed = validate_call_info.execution.gas_consumed;
     assert!(validate_gas_consumed > 0, "New Cairo1 contract should consume gas.");
 
@@ -1728,6 +1731,7 @@ fn test_initial_gas(
     // minus the gas consumed by validate. Need to add 1 as the check is strictly less than.
     let mut prev_initial_gas = block_context
         .versioned_constants
+        .os_constants
         .execute_max_sierra_gas
         .min(user_gas_bound - GasAmount(validate_gas_consumed) + GasAmount(1))
         .0;
