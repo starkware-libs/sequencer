@@ -5,6 +5,14 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
+    // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
+    // spawning.
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        default_panic(info);
+        std::process::exit(1);
+    }));
+
     configure_tracing().await;
     info!("Running integration test setup.");
 
