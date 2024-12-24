@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -40,6 +40,7 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 /// - `validator_id`: The ID of this node.
 /// - `consensus_delay`: delay before starting consensus; allowing the network to connect to peers.
 /// - `timeouts`: The timeouts for the consensus algorithm.
+/// - `sync_retry_interval`: The interval to wait between sync retries.
 /// - `vote_receiver`: The channels to receive votes from the network. These are self contained
 ///   messages.
 /// - `proposal_receiver`: The channel to receive proposals from the network. Proposals are
@@ -49,20 +50,19 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
 #[allow(clippy::too_many_arguments)]
-pub async fn run_consensus<ContextT, SyncReceiverT>(
+pub async fn run_consensus<ContextT>(
     mut context: ContextT,
     start_active_height: BlockNumber,
     start_observe_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
+    sync_retry_interval: Duration,
     mut vote_receiver: BroadcastVoteChannel,
     mut proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
-    mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
-    SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
 {
     info!(
         "Running consensus, start_active_height={}, start_observe_height={}, validator_id={}, \
@@ -89,9 +89,9 @@ where
                 &mut context,
                 current_height,
                 must_observer,
+                sync_retry_interval,
                 &mut vote_receiver,
                 &mut proposal_receiver,
-                &mut sync_receiver,
             )
             .await?
         {
@@ -155,20 +155,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Inputs - see [`run_consensus`].
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
-    #[instrument(skip(self, context, broadcast_channels, sync_receiver), level = "info")]
+    #[instrument(skip(self, context, broadcast_channels), level = "info")]
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn run_height<SyncReceiverT>(
+    pub(crate) async fn run_height(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         must_observer: bool,
+        sync_retry_interval: Duration,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
-        sync_receiver: &mut SyncReceiverT,
-    ) -> Result<RunHeightRes, ConsensusError>
-    where
-        SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
-    {
+    ) -> Result<RunHeightRes, ConsensusError> {
         let validators = context.validators(height).await;
         let is_observer = must_observer || !validators.contains(&self.validator_id);
         info!("running consensus for height {height:?} with validator set {validators:?}");
@@ -203,15 +200,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
                 },
-                sync_height = sync_receiver.next() => {
-                    let Some(sync_height) = sync_height else {
-                        return Err(ConsensusError::SyncError("Sync receiver closed".to_string()))
-                    };
-                    if sync_height >= height {
-                        info!("Sync to height: {}. current_height={}", sync_height, height);
-                        return Ok(RunHeightRes::Sync(sync_height));
+                _ = tokio::time::sleep(sync_retry_interval) => {
+                    if context.try_sync(height).await {
+                        return Ok(RunHeightRes::Sync(height));
                     }
-                    debug!("Ignoring sync to height: {}. current_height={}", sync_height, height);
                     continue;
                 }
             };
