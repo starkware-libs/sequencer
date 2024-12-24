@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
-use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
@@ -22,8 +19,8 @@ use crate::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use crate::gateway::Gateway;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::test_utils::MockDependencies;
 
 #[fixture]
 fn config() -> GatewayConfig {
@@ -52,28 +49,6 @@ fn mock_dependencies(
 ) -> MockDependencies {
     let mock_mempool_client = MockMempoolClient::new();
     MockDependencies { config, compiler, state_reader_factory, mock_mempool_client }
-}
-
-struct MockDependencies {
-    config: GatewayConfig,
-    compiler: GatewayCompiler,
-    state_reader_factory: TestStateReaderFactory,
-    mock_mempool_client: MockMempoolClient,
-}
-
-impl MockDependencies {
-    fn gateway(self) -> Gateway {
-        Gateway::new(
-            self.config,
-            Arc::new(self.state_reader_factory),
-            self.compiler,
-            Arc::new(self.mock_mempool_client),
-        )
-    }
-
-    fn expect_add_tx(&mut self, args: AddTransactionArgsWrapper) {
-        self.mock_mempool_client.expect_add_tx().once().with(eq(args)).return_once(|_| Ok(()));
-    }
 }
 
 type SenderAddress = ContractAddress;
