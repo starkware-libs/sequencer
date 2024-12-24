@@ -197,7 +197,9 @@ impl StateReader for PapyrusReader {
 
         #[cfg(feature = "cairo_native")]
         {
-            if !self.contract_class_manager.run_cairo_native() {
+            if !self.contract_class_manager.run_cairo_native()
+                | self.contract_class_manager.cairo_native_is_suspended()
+            {
                 // Cairo native is disabled - fetch and return the casm.
                 return self.get_casm(class_hash);
             }
