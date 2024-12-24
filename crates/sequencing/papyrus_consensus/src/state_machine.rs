@@ -133,7 +133,6 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        trace!("Handling event: {:?}", event);
         // Mimic LOC 18 in the paper; the state machine doesn't
         // handle any events until `getValue` completes.
         if self.awaiting_get_proposal {
@@ -202,6 +201,7 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        trace!("Processing event: {:?}", event);
         if self.awaiting_get_proposal {
             assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
         }
