@@ -7316,7 +7316,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "validator",
 ]
 
 [[package]]
@@ -10549,7 +10548,6 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "indexmap 2.6.0",
- "itertools 0.12.1",
  "papyrus_base_layer",
  "papyrus_config",
  "pretty_assertions",
@@ -10558,7 +10556,6 @@ dependencies = [
  "starknet_l1_provider_types",
  "starknet_sequencer_infra",
  "thiserror",
- "tokio",
  "tracing",
  "validator",
 ]
@@ -10569,7 +10566,6 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
- "papyrus_base_layer",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
@@ -10730,7 +10726,6 @@ dependencies = [
  "futures",
  "infra_utils",
  "mempool_test_utils",
- "papyrus_base_layer",
  "papyrus_config",
  "papyrus_proc_macros",
  "papyrus_protobuf",
