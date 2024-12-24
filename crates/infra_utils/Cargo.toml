@@ -16,7 +16,8 @@ tokio = { workspace = true, features = ["process", "time"] }
 tracing.workspace = true
 
 [dev-dependencies]
+nix.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-tokio = { workspace = true, features = ["macros", "rt", "sync"] }
+tokio = { workspace = true, features = ["macros", "rt", "signal", "sync"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
