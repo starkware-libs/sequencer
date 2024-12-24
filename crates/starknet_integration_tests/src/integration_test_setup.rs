@@ -27,6 +27,7 @@ use crate::utils::{
     create_config,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    IntegrationTestConfigType,
 };
 
 pub struct IntegrationTestSetup {
@@ -76,7 +77,12 @@ impl IntegrationTestSetup {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
-            .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
+            .flat_map(|sequencer| {
+                sequencer
+                    .node_config_paths
+                    .iter()
+                    .map(|config_path| spawn_run_node(config_path.clone()))
+            })
             .collect::<Vec<_>>();
 
         Self { sequencers, sequencer_run_handles, consensus_proposals_channels }
@@ -84,11 +90,12 @@ impl IntegrationTestSetup {
 
     pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
         for (sequencer_index, sequencer) in self.sequencers.iter().enumerate() {
-            sequencer
-                .is_alive_test_client
-                .await_alive(interval, max_attempts)
-                .await
-                .unwrap_or_else(|_| panic!("Node {} should be alive.", sequencer_index));
+            for client in &sequencer.is_alive_test_clients {
+                client
+                    .await_alive(interval, max_attempts)
+                    .await
+                    .unwrap_or_else(|_| panic!("Node {} should be alive.", sequencer_index));
+            }
         }
     }
 
@@ -119,9 +126,9 @@ pub struct IntegrationSequencerSetup {
     pub add_tx_http_client: HttpTestClient,
 
     // Client for checking liveness of the sequencer node.
-    pub is_alive_test_client: IsAliveClient,
+    pub is_alive_test_clients: Vec<IsAliveClient>,
     // Path to the node configuration file.
-    pub node_config_path: PathBuf,
+    pub node_config_paths: Vec<PathBuf>,
     // Storage reader for the batcher.
     pub batcher_storage_config: StorageConfig,
     // Storage reader for the state sync.
@@ -161,7 +168,7 @@ impl IntegrationSequencerSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, required_params) = create_config(
+        let (config_map, required_params) = create_config(
             available_ports,
             sequencer_index,
             chain_info,
@@ -173,31 +180,51 @@ impl IntegrationSequencerSetup {
         )
         .await;
 
+        let http_only_config = config_map
+            .get(&IntegrationTestConfigType::HttpOnly)
+            .expect("HttpOnly configuration is missing!");
+
+        let non_http_config = config_map
+            .get(&IntegrationTestConfigType::NonHttp)
+            .expect("NonHttp configuration is missing!");
+
         let node_config_dir_handle = tempdir().unwrap();
-        let node_config_path = dump_config_file_changes(
-            &config,
-            required_params,
-            node_config_dir_handle.path().to_path_buf(),
-        );
+        let node_config_paths: Vec<_> = config_map
+            .values()
+            .map(|config| {
+                dump_config_file_changes(
+                    config,
+                    required_params.clone(),
+                    node_config_dir_handle.path().to_path_buf(),
+                )
+            })
+            .collect();
 
+        //  TODO(Nadin): Refactor this code to avoid duplication.
         // Wait for the node to start.
-        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
-        let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+        let MonitoringEndpointConfig { ip, port, .. } = http_only_config.monitoring_endpoint_config;
+        let is_alive_only_http_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
+        let MonitoringEndpointConfig { ip, port, .. } = non_http_config.monitoring_endpoint_config;
+        let is_alive_non_http_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+
+        let is_alive_test_clients =
+            vec![is_alive_only_http_test_client, is_alive_non_http_test_client];
+
+        let HttpServerConfig { ip, port } = http_only_config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         Self {
             sequencer_index,
             add_tx_http_client,
-            is_alive_test_client,
+            is_alive_test_clients,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
-            batcher_storage_config: config.batcher_config.storage,
+            batcher_storage_config: non_http_config.batcher_config.storage.clone(),
             rpc_storage_handle: storage_for_test.rpc_storage_handle,
             node_config_dir_handle,
-            node_config_path,
+            node_config_paths,
             state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
-            state_sync_storage_config: config.state_sync_config.storage_config,
+            state_sync_storage_config: non_http_config.state_sync_config.storage_config.clone(),
         }
     }
 

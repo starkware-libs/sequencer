@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -38,12 +39,24 @@ use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 
+use crate::end_to_end_integration::{
+    get_http_only_component_config,
+    get_non_http_component_config,
+};
+
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
     // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
     // test.
     chain_info.chain_id = papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS.clone();
     chain_info
+}
+
+#[derive(Hash, Eq, PartialEq, Debug)]
+pub enum IntegrationTestConfigType {
+    HttpOnly,
+    NonHttp,
+    Complete,
 }
 
 // TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
@@ -59,7 +72,7 @@ pub async fn create_config(
     state_sync_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
-) -> (SequencerNodeConfig, RequiredParams) {
+) -> (HashMap<IntegrationTestConfigType, SequencerNodeConfig>, RequiredParams) {
     let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
@@ -72,18 +85,61 @@ pub async fn create_config(
     let state_sync_config =
         create_state_sync_config(state_sync_storage_config, available_ports.get_next_port());
 
-    (
+    let gateway_socket = get_available_socket().await;
+    let http_only_config = get_http_only_component_config(gateway_socket).await;
+    let non_http_config = get_non_http_component_config(gateway_socket).await;
+
+    let mut config_map = HashMap::new();
+
+    config_map.insert(
+        IntegrationTestConfigType::HttpOnly,
         SequencerNodeConfig {
-            batcher_config,
-            consensus_manager_config,
-            gateway_config,
-            http_server_config,
-            rpc_state_reader_config,
-            mempool_p2p_config,
-            monitoring_endpoint_config,
-            state_sync_config,
-            ..Default::default()
+            batcher_config: batcher_config.clone(),
+            consensus_manager_config: consensus_manager_config.clone(),
+            gateway_config: gateway_config.clone(),
+            http_server_config: http_server_config.clone(),
+            rpc_state_reader_config: rpc_state_reader_config.clone(),
+            mempool_p2p_config: mempool_p2p_config.clone(),
+            monitoring_endpoint_config: monitoring_endpoint_config.clone(),
+            components: http_only_config.clone(),
+            state_sync_config: state_sync_config.clone(),
+            ..SequencerNodeConfig::default()
         },
+    );
+
+    config_map.insert(
+        IntegrationTestConfigType::NonHttp,
+        SequencerNodeConfig {
+            batcher_config: batcher_config.clone(),
+            consensus_manager_config: consensus_manager_config.clone(),
+            gateway_config: gateway_config.clone(),
+            http_server_config: http_server_config.clone(),
+            rpc_state_reader_config: rpc_state_reader_config.clone(),
+            mempool_p2p_config: mempool_p2p_config.clone(),
+            monitoring_endpoint_config: monitoring_endpoint_config.clone(),
+            components: non_http_config.clone(),
+            state_sync_config: state_sync_config.clone(),
+            ..SequencerNodeConfig::default()
+        },
+    );
+
+    config_map.insert(
+        IntegrationTestConfigType::Complete,
+        SequencerNodeConfig {
+            batcher_config: batcher_config.clone(),
+            consensus_manager_config: consensus_manager_config.clone(),
+            gateway_config: gateway_config.clone(),
+            http_server_config: http_server_config.clone(),
+            rpc_state_reader_config: rpc_state_reader_config.clone(),
+            mempool_p2p_config: mempool_p2p_config.clone(),
+            monitoring_endpoint_config: monitoring_endpoint_config.clone(),
+            state_sync_config: state_sync_config.clone(),
+            ..SequencerNodeConfig::default()
+        },
+    );
+
+    (
+        config_map,
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,

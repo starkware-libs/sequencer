@@ -121,7 +121,7 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
     config
 }
 
-async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),

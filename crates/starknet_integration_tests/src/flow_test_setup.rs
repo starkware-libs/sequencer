@@ -26,6 +26,7 @@ use crate::utils::{
     create_config,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    IntegrationTestConfigType,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -134,7 +135,7 @@ impl FlowSequencerSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, _required_params) = create_config(
+        let (config_map, _required_params) = create_config(
             &mut available_ports,
             sequencer_index,
             chain_info,
@@ -146,8 +147,12 @@ impl FlowSequencerSetup {
         )
         .await;
 
+        let config = config_map
+            .get(&IntegrationTestConfigType::Complete)
+            .expect("IntegrationTestConfigType::Complete not found");
+
         debug!("Sequencer config: {:#?}", config);
-        let (_clients, servers) = create_node_modules(&config);
+        let (_clients, servers) = create_node_modules(config);
 
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
         let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
@@ -164,7 +169,7 @@ impl FlowSequencerSetup {
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
-            config,
+            config: config.clone(),
             is_alive_test_client,
         }
     }
