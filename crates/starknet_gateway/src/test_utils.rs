@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use mockall::predicate::eq;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -17,9 +20,14 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
+use starknet_mempool_types::communication::{AddTransactionArgsWrapper, MockMempoolClient};
 use starknet_types_core::felt::Felt;
 
+use crate::compilation::GatewayCompiler;
 use crate::compiler_version::VersionId;
+use crate::config::GatewayConfig;
+use crate::gateway::Gateway;
+use crate::state_reader_test_utils::TestStateReaderFactory;
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
@@ -134,5 +142,27 @@ pub fn rpc_tx_for_testing(
             nonce_data_availability_mode,
             fee_data_availability_mode,
         )),
+    }
+}
+
+pub(crate) struct MockDependencies {
+    pub config: GatewayConfig,
+    pub compiler: GatewayCompiler,
+    pub state_reader_factory: TestStateReaderFactory,
+    pub mock_mempool_client: MockMempoolClient,
+}
+
+impl MockDependencies {
+    pub fn gateway(self) -> Gateway {
+        Gateway::new(
+            self.config,
+            Arc::new(self.state_reader_factory),
+            self.compiler,
+            Arc::new(self.mock_mempool_client),
+        )
+    }
+
+    pub fn expect_add_tx(&mut self, args: AddTransactionArgsWrapper) {
+        self.mock_mempool_client.expect_add_tx().once().with(eq(args)).return_once(|_| Ok(()));
     }
 }
