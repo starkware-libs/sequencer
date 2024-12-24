@@ -7,6 +7,7 @@ use futures::SinkExt;
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::TransactionKind;
+use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
@@ -80,17 +81,27 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 impl StateSync {
     fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
         let txn = self.storage_reader.begin_ro_txn()?;
-        if let Some(block_transaction_hashes) = txn.get_block_transaction_hashes(block_number)? {
-            if let Some(thin_state_diff) = txn.get_state_diff(block_number)? {
-                return Ok(Some(SyncBlock {
-                    block_number,
-                    state_diff: thin_state_diff,
-                    transaction_hashes: block_transaction_hashes,
-                }));
-            }
-        }
-
-        Ok(None)
+        let block_header = txn.get_block_header(block_number)?;
+        let Some(block_transaction_hashes) = txn.get_block_transaction_hashes(block_number)? else {
+            return Ok(None);
+        };
+        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
+            return Ok(None);
+        };
+        let Some(block_header) = block_header else {
+            return Ok(None);
+        };
+        Ok(Some(SyncBlock {
+            state_diff: thin_state_diff,
+            block_number,
+            timestamp: block_header.block_header_without_hash.timestamp,
+            sequencer: block_header.block_header_without_hash.sequencer,
+            l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
+            l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
+            l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+            l1_da_mode: block_header.block_header_without_hash.l1_da_mode,
+            transaction_hashes: block_transaction_hashes,
+        }))
     }
 
     fn get_storage_at(
