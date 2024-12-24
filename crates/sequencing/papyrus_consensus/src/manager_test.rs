@@ -1,11 +1,9 @@
-use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use mockall::predicate::eq;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
@@ -16,12 +14,11 @@ use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, DEFAULT_VALIDAT
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
-use tokio::sync::Notify;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
-use crate::types::{ConsensusError, ValidatorId};
+use crate::types::ValidatorId;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -123,7 +120,6 @@ async fn manager_multiple_heights_unordered() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
-            &mut futures::stream::pending(),
         )
         .await
         .unwrap();
@@ -139,7 +135,6 @@ async fn manager_multiple_heights_unordered() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
-            &mut futures::stream::pending(),
         )
         .await
         .unwrap();
@@ -166,6 +161,12 @@ async fn run_consensus_sync() {
         decision_tx.send(()).unwrap();
         Ok(())
     });
+    context
+        .expect_try_sync()
+        .withf(move |height| *height == BlockNumber(1))
+        .times(1)
+        .returning(|_| true);
+    context.expect_try_sync().returning(|_| false);
 
     // Send messages for height 2.
     send_proposal(
@@ -180,8 +181,7 @@ async fn run_consensus_sync() {
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
 
     // Start at height 1.
-    let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
-    let consensus_handle = tokio::spawn(async move {
+    tokio::spawn(async move {
         run_consensus(
             context,
             BlockNumber(1),
@@ -192,98 +192,12 @@ async fn run_consensus_sync() {
             SYNC_RETRY_INTERVAL,
             subscriber_channels.into(),
             proposal_receiver_receiver,
-            &mut sync_receiver,
         )
         .await
     });
-
-    // Send sync for height 1.
-    sync_sender.send(BlockNumber(1)).await.unwrap();
-    // Make sure the sync is processed before the upcoming messages.
-    tokio::time::sleep(Duration::from_millis(100)).await;
 
     // Decision for height 2.
     decision_rx.await.unwrap();
-
-    // Drop the sender to close consensus and gracefully shut down.
-    drop(sync_sender);
-    assert!(matches!(consensus_handle.await.unwrap(), Err(ConsensusError::SyncError(_))));
-}
-
-// Check for cancellation safety when ignoring old heights. If the current height check was done
-// within the select branch this test would hang.
-#[tokio::test]
-async fn run_consensus_sync_cancellation_safety() {
-    let mut context = MockTestContext::new();
-    let proposal_handled = Arc::new(Notify::new());
-    let (decision_tx, decision_rx) = oneshot::channel();
-
-    // TODO(guyn): refactor this test to pass proposals through the correct channels.
-    let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
-
-    expect_validate_proposal(&mut context, Felt::ONE);
-    context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
-    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
-    let proposal_handled_clone = Arc::clone(&proposal_handled);
-    context
-        .expect_broadcast()
-        .with(eq(prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID)))
-        // May occur repeatedly due to re-broadcasting.
-        .returning(move |_| {
-            proposal_handled_clone.notify_one();
-            Ok(())
-        });
-    context.expect_broadcast().returning(move |_| Ok(()));
-    context.expect_decision_reached().return_once(|block, votes| {
-        assert_eq!(block, BlockHash(Felt::ONE));
-        assert_eq!(votes[0].height, 1);
-        decision_tx.send(()).unwrap();
-        Ok(())
-    });
-
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
-        mock_register_broadcast_topic().unwrap();
-    let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
-
-    let consensus_handle = tokio::spawn(async move {
-        run_consensus(
-            context,
-            BlockNumber(1),
-            BlockNumber(1),
-            *VALIDATOR_ID,
-            Duration::ZERO,
-            TIMEOUTS.clone(),
-            SYNC_RETRY_INTERVAL,
-            subscriber_channels.into(),
-            proposal_receiver_receiver,
-            &mut sync_receiver,
-        )
-        .await
-    });
-    let mut network_sender = mock_network.broadcasted_messages_sender;
-
-    // Send a proposal for height 1.
-    send_proposal(
-        &mut proposal_receiver_sender,
-        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
-    )
-    .await;
-    proposal_handled.notified().await;
-
-    // Send an old sync. This should not cancel the current height.
-    sync_sender.send(BlockNumber(0)).await.unwrap();
-    // Make sure the sync is processed before the upcoming messages.
-    tokio::time::sleep(Duration::from_millis(100)).await;
-
-    // Finished messages for 1
-    send(&mut network_sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
-    send(&mut network_sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
-    decision_rx.await.unwrap();
-
-    // Drop the sender to close consensus and gracefully shut down.
-    drop(sync_sender);
-    assert!(matches!(consensus_handle.await.unwrap(), Err(ConsensusError::SyncError(_))));
 }
 
 #[tokio::test]
@@ -342,7 +256,6 @@ async fn test_timeouts() {
                 SYNC_RETRY_INTERVAL,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
-                &mut futures::stream::pending(),
             )
             .await
             .unwrap();

@@ -223,7 +223,6 @@ fn spawn_consensus(
             config.sync_retry_interval,
             network_channels.into(),
             inbound_internal_receiver,
-            futures::stream::pending(),
         )
         .await?)
     }))
