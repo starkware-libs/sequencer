@@ -1,7 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
+use crate::core::{
+    calculate_contract_address,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -152,7 +159,16 @@ impl DeclareTransaction {
         (nonce, Nonce),
         (sender_address, ContractAddress),
         (signature, TransactionSignature),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        // compiled_class_hash is only supported in V2 and V3, otherwise the getter panics.
+        (compiled_class_hash, CompiledClassHash),
+        // The following fields are only supported in V3, otherwise the getter panics.
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData),
+        (resource_bounds, ValidResourceBounds)
     );
 
     pub fn create(
