@@ -52,6 +52,8 @@ pub struct SyscallHandlerBase<'state> {
     // The original storage value of the executed contract.
     // Should be moved back `context.revert_info` before executing an inner call.
     pub original_values: HashMap<StorageKey, Felt>,
+
+    revert_info_idx: usize,
 }
 
 impl<'state> SyscallHandlerBase<'state> {
@@ -60,6 +62,7 @@ impl<'state> SyscallHandlerBase<'state> {
         state: &'state mut dyn State,
         context: &'state mut EntryPointExecutionContext,
     ) -> SyscallHandlerBase<'state> {
+        let revert_info_idx = context.revert_infos.0.len() - 1;
         let original_values = std::mem::take(
             &mut context
                 .revert_infos
@@ -80,6 +83,7 @@ impl<'state> SyscallHandlerBase<'state> {
             read_class_hash_values: Vec::new(),
             accessed_contract_addresses: HashSet::new(),
             original_values,
+            revert_info_idx,
         }
     }
 
@@ -317,7 +321,7 @@ impl<'state> SyscallHandlerBase<'state> {
         self.context
             .revert_infos
             .0
-            .last_mut()
+            .get_mut(self.revert_info_idx)
             .expect("Missing contract revert info.")
             .original_values = std::mem::take(&mut self.original_values);
     }
