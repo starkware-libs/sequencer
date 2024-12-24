@@ -1,4 +1,6 @@
 #[cfg(feature = "cairo_native")]
+use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "cairo_native")]
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 #[cfg(feature = "cairo_native")]
 use std::sync::Arc;
@@ -49,13 +51,33 @@ pub struct ContractClassManager {
     cairo_native_run_config: CairoNativeRunConfig,
     /// The global cache of contract classes: casm, sierra, and native.
     contract_caches: ContractCaches,
+    #[cfg(feature = "cairo_native")]
     /// The sending half of the compilation request channel. Set to `None` if native compilation is
     /// disabled.
-    #[cfg(feature = "cairo_native")]
     sender: Option<SyncSender<CompilationRequest>>,
-    /// The sierra-to-native compiler.
     #[cfg(feature = "cairo_native")]
+    /// The sierra-to-native compiler.
     compiler: Option<Arc<dyn SierraToNativeCompiler>>,
+    #[cfg(feature = "cairo_native")]
+    /// Set to `true` to temporarily disabled cairo native features.
+    suspend_cairo_native: Arc<AtomicBool>,
+}
+
+impl Default for ContractClassManager {
+    fn default() -> ContractClassManager {
+        let config = ContractClassManagerConfig::default();
+        ContractClassManager {
+            #[cfg(feature = "cairo_native")]
+            cairo_native_run_config: config.cairo_native_run_config,
+            contract_caches: ContractCaches::new(config.contract_cache_size),
+            #[cfg(feature = "cairo_native")]
+            sender: None,
+            #[cfg(feature = "cairo_native")]
+            compiler: None,
+            #[cfg(feature = "cairo_native")]
+            suspend_cairo_native: Arc::new(AtomicBool::new(false)),
+        }
+    }
 }
 
 impl ContractClassManager {
@@ -79,8 +101,7 @@ impl ContractClassManager {
                 return ContractClassManager {
                     cairo_native_run_config: config.cairo_native_run_config,
                     contract_caches,
-                    sender: None,
-                    compiler: None,
+                    ..Default::default()
                 };
             }
 
@@ -91,8 +112,8 @@ impl ContractClassManager {
                 return ContractClassManager {
                     cairo_native_run_config,
                     contract_caches,
-                    sender: None,
                     compiler: Some(compiler),
+                    ..Default::default()
                 };
             }
 
@@ -107,7 +128,7 @@ impl ContractClassManager {
                 cairo_native_run_config,
                 contract_caches,
                 sender: Some(sender),
-                compiler: None,
+                ..Default::default()
             }
         }
     }
@@ -119,7 +140,10 @@ impl ContractClassManager {
     ///    processed.
     #[cfg(feature = "cairo_native")]
     pub fn send_compilation_request(&self, request: CompilationRequest) {
-        assert!(self.run_cairo_native(), "Native compilation is disabled.");
+        assert!(
+            self.run_cairo_native() & !self.cairo_native_is_suspended(),
+            "Native compilation is disabled."
+        );
         if self.wait_on_native_compilation() {
             // Compilation requests are processed synchronously. No need to go through the channel.
             let compiler = self.compiler.as_ref().expect("Compiler not available.");
@@ -147,6 +171,10 @@ impl ContractClassManager {
     /// Returns the native compiled class for the given class hash, if it exists in cache.
     #[cfg(feature = "cairo_native")]
     pub fn get_native(&self, class_hash: &ClassHash) -> Option<CachedCairoNative> {
+        assert!(
+            !self.cairo_native_is_suspended(),
+            "Native compiled classes cannot be obtained while Cairo native is suspended."
+        );
         self.contract_caches.get_native(class_hash)
     }
 
@@ -173,6 +201,21 @@ impl ContractClassManager {
     #[cfg(feature = "cairo_native")]
     pub fn wait_on_native_compilation(&self) -> bool {
         self.cairo_native_run_config.wait_on_native_compilation
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn suspend_cairo_native(&self) {
+        self.suspend_cairo_native.store(true, Ordering::Relaxed);
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn unsuspend_cairo_native(&self) {
+        self.suspend_cairo_native.store(false, Ordering::Relaxed);
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn cairo_native_is_suspended(&self) -> bool {
+        self.suspend_cairo_native.load(Ordering::Relaxed)
     }
 
     /// Clear the contract caches.
