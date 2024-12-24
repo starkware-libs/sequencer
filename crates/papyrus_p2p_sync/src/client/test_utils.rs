@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
+use futures::channel::mpsc;
 use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::test_utils::{
@@ -42,6 +43,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::FullTransaction;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
 
@@ -158,6 +160,9 @@ pub enum Action {
     CheckStorage(Box<dyn FnOnce(StorageReader) -> BoxFuture<'static, ()>>),
     /// Check that a report was sent on the current header query.
     ValidateReportSent(DataType),
+    /// Sends an internal block to the sync.
+    #[allow(dead_code)]
+    SendInternalBlock(BlockNumber, SyncBlock),
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
@@ -190,12 +195,13 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         transaction_sender,
         class_sender,
     };
+    let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
-        futures::stream::pending().boxed(),
+        internal_block_receiver.boxed(),
     );
 
     let mut headers_current_query_responses_manager = None;
@@ -290,6 +296,9 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                                 "Called ValidateReportSent without calling ReceiveQuery on the same
                                 data type");
                         responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
+                    }
+                    Action::SendInternalBlock(block_number, sync_block) => {
+                        internal_block_sender.send((block_number, sync_block)).await.unwrap();
                     }
                     Action::RunP2pSync => {
                         sync_future_sender.take().expect("Called RunP2pSync twice").send(()).expect("Failed to send message to run P2P sync");
