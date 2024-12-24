@@ -28,7 +28,15 @@ impl SyncStateReader {
 
 impl MempoolStateReader for SyncStateReader {
     fn get_block_info(&self) -> StateResult<BlockInfo> {
-        todo!()
+        let maybe_block_info = block_on(self.state_sync_client.get_block_info(self.block_number))
+            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        let block_info = match maybe_block_info {
+            Some(block_info) => block_info,
+            None => return Err(StateError::StateReadError("Block info not found".to_string())),
+        };
+
+        Ok(block_info)
     }
 }
 

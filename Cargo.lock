@@ -10789,6 +10789,7 @@ name = "starknet_state_sync"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "blockifier",
  "futures",
  "papyrus_config",
  "papyrus_network",
