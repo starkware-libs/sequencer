@@ -5,9 +5,7 @@ use std::str::FromStr;
 use apollo_state_reader::apollo_state::ApolloReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
-    BlockExecutionSummary,
-    TransactionExecutor,
-    TransactionExecutorError,
+    BlockExecutionSummary, TransactionExecutor, TransactionExecutorError,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -30,21 +28,14 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_objects::{
-    PyBouncerConfig,
-    PyCasmHashComputationData,
-    PyCompiledClassHashesForMigration,
-    PyConcurrencyConfig,
-    PyContractClassManagerConfig,
-    PyVersionedConstantsOverrides,
+    PyBouncerConfig, PyCasmHashComputationData, PyCompiledClassHashesForMigration,
+    PyConcurrencyConfig, PyContractClassManagerConfig, PyVersionedConstantsOverrides,
 };
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
-use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
-use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
+use crate::py_transaction::{PY_TX_PARSING_ERR, PyClassInfo, py_tx};
+use crate::py_utils::{PyFelt, int_to_chain_id, into_block_number_hash_pair};
 use crate::storage::{
-    PapyrusStorage,
-    RawDeclaredClassMapping,
-    RawDeprecatedDeclaredClassMapping,
-    Storage,
+    PapyrusStorage, RawDeclaredClassMapping, RawDeprecatedDeclaredClassMapping, Storage,
     StorageConfig,
 };
 
@@ -342,6 +333,18 @@ impl PyBlockExecutor {
     #[pyo3(signature = (block_casm_hash_v1_declares))]
     pub fn set_block_casm_hash_v1_declares_in_vc(&mut self, block_casm_hash_v1_declares: bool) {
         self.versioned_constants.block_casm_hash_v1_declares = block_casm_hash_v1_declares;
+    }
+
+    #[cfg(feature = "cairo_native")]
+    /// Suspends the Cairo native code execution and compilation.
+    pub fn suspend_cairo_native(&self) {
+        self.contract_class_manager.suspend_cairo_native();
+    }
+
+    #[cfg(feature = "cairo_native")]
+    /// Unsuspends the Cairo native code execution and compilation.
+    pub fn unsuspend_cairo_native(&self) {
+        self.contract_class_manager.unsuspend_cairo_native();
     }
 
     #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version, enable_casm_hash_migration))]
