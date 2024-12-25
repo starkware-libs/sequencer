@@ -43,6 +43,7 @@ pub trait StatefulTransactionValidatorTrait {
         skip_validate: bool,
     ) -> BlockifierStatefulValidatorResult<()>;
 
+    #[allow(dead_code)]
     fn get_nonce(
         &mut self,
         account_address: ContractAddress,
