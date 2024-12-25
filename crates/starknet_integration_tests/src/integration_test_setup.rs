@@ -25,9 +25,9 @@ use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::{spawn_test_rpc_state_reader_with_socket, StorageTestSetup};
 use crate::utils::{
     create_chain_info,
-    create_config,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    create_node_config,
 };
 
 pub struct IntegrationTestSetup {
@@ -164,7 +164,7 @@ impl IntegrationSequencerSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, required_params) = create_config(
+        let (config, required_params) = create_node_config(
             available_ports,
             sequencer_index,
             chain_info,

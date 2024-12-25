@@ -51,7 +51,7 @@ pub fn create_chain_info() -> ChainInfo {
 // TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
 // the config.
 #[allow(clippy::too_many_arguments)]
-pub async fn create_config(
+pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
     sequencer_index: usize,
     chain_info: ChainInfo,
