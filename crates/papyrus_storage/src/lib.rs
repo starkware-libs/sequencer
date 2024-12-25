@@ -681,9 +681,7 @@ struct FileHandlers<Mode: TransactionKind> {
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
-    events: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>, /* Should this point to the
-                                                                * events of a transaction or an
-                                                                * entire block? */
+    event: FileHandler<VersionZeroWrapper<Vec<Event>>, Mode>,
 }
 
 impl FileHandlers<RW> {
@@ -722,8 +720,8 @@ impl FileHandlers<RW> {
     }
 
     // Appends an event to the corresponding file and returns its location.
-    fn append_events(&self, events: &Vec<Event>) -> LocationInFile {
-        self.clone().events.append(events)
+    fn append_events(&self, events: &[Event]) -> LocationInFile {
+        self.clone().event.append(&events.to_vec())
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
@@ -736,7 +734,7 @@ impl FileHandlers<RW> {
         self.deprecated_contract_class.flush();
         self.transaction_output.flush();
         self.transaction.flush();
-        self.events.flush(); // make sure we need this
+        self.event.flush();
     }
 }
 
@@ -750,7 +748,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("deprecated_contract_class".to_string(), self.deprecated_contract_class.stats()),
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
-            ("events".to_string(), self.events.stats()), // make sure we need this
+            ("events".to_string(), self.event.stats()),
         ])
     }
 
@@ -865,7 +863,7 @@ fn open_storage_files(
         transaction_offset,
     )?;
 
-    let event_offset = table.get(&db_transaction, &OffsetKind::Events)?.unwrap_or_default();
+    let event_offset = table.get(&db_transaction, &OffsetKind::Event)?.unwrap_or_default();
     let (events_writer, events_reader) =
         open_file(mmap_file_config, db_config.path().join("events.dat"), event_offset)?;
 
@@ -877,7 +875,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_writer,
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
-            events: events_writer,
+            event: events_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -886,7 +884,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_reader,
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,
-            events: events_reader,
+            event: events_reader,
         },
     ))
 }
@@ -907,7 +905,7 @@ pub enum OffsetKind {
     /// A transaction file.
     Transaction,
     /// An events file.
-    Events,
+    Event,
 }
 
 /// A storage query. Used for benchmarking in the storage_benchmark binary.
