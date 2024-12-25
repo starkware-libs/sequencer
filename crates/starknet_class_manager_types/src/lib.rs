@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentClient;
@@ -14,7 +15,7 @@ pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
 // TODO: export.
 pub type ClassId = ClassHash;
 pub type Class = SierraContractClass;
-pub type ExecutableClass = CasmContractClass;
+pub type ExecutableClass = ContractClass;
 pub type ExecutableClassHash = CompiledClassHash;
 
 /// Serves as the class manager's shared interface.
@@ -32,6 +33,12 @@ pub trait ClassManagerClient: Send + Sync {
     async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass>;
 
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Class>;
+
+    async fn add_deprecated_class(
+        &self,
+        class_id: ClassId,
+        class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()>;
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
@@ -53,6 +60,7 @@ pub enum ClassManagerClientError {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerRequest {
     AddClass(ClassId, Class),
+    AddDeprecatedClass(ClassId, DeprecatedClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
 }
@@ -60,6 +68,7 @@ pub enum ClassManagerRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ExecutableClassHash>),
+    AddDeprecatedClass(ClassManagerResult<()>),
     GetExecutable(ClassManagerResult<ExecutableClass>),
     GetSierra(ClassManagerResult<Class>),
 }
@@ -79,6 +88,21 @@ where
         handle_response_variants!(
             ClassManagerResponse,
             AddClass,
+            ClassManagerClientError,
+            ClassManagerError
+        )
+    }
+
+    async fn add_deprecated_class(
+        &self,
+        class_id: ClassId,
+        class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()> {
+        let request = ClassManagerRequest::AddDeprecatedClass(class_id, class);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            ClassManagerResponse,
+            AddDeprecatedClass,
             ClassManagerClientError,
             ClassManagerError
         )
