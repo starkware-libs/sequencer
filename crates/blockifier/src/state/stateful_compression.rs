@@ -144,7 +144,7 @@ pub fn compress<S: StateReader>(
     state: &S,
     alias_contract_address: ContractAddress,
 ) -> CompressionResult<StateMaps> {
-    let alias_compressor = AliasCompressor { state, alias_contract_address };
+    let alias_compressor = AliasCompressor::new(state, alias_contract_address, state_diff);
 
     let nonces = state_diff
         .nonces
@@ -181,9 +181,28 @@ pub fn compress<S: StateReader>(
 struct AliasCompressor<'a, S: StateReader> {
     state: &'a S,
     alias_contract_address: ContractAddress,
+    new_aliases: HashMap<AliasKey, Alias>,
 }
 
-impl<S: StateReader> AliasCompressor<'_, S> {
+impl<'a, S: StateReader> AliasCompressor<'a, S> {
+    fn new(state: &'a S, alias_contract_address: ContractAddress, state_diff: &StateMaps) -> Self {
+        Self {
+            state,
+            alias_contract_address,
+            new_aliases: state_diff
+                .storage
+                .iter()
+                .filter_map(|((contract_address, key), value)| {
+                    if *contract_address == alias_contract_address {
+                        Some((*key, *value))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        }
+    }
+
     fn compress_address(
         &self,
         contract_address: &ContractAddress,
@@ -210,7 +229,16 @@ impl<S: StateReader> AliasCompressor<'_, S> {
     }
 
     fn get_alias(&self, alias_key: AliasKey) -> CompressionResult<Alias> {
-        let alias = self.state.get_storage_at(self.alias_contract_address, alias_key)?;
-        if alias == Felt::ZERO { Err(CompressionError::MissedAlias(alias_key)) } else { Ok(alias) }
+        match self.new_aliases.get(&alias_key) {
+            Some(alias) => Ok(*alias),
+            None => {
+                let alias = self.state.get_storage_at(self.alias_contract_address, alias_key)?;
+                if alias == Felt::ZERO {
+                    Err(CompressionError::MissedAlias(alias_key))
+                } else {
+                    Ok(alias)
+                }
+            }
+        }
     }
 }
