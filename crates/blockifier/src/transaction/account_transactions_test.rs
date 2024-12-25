@@ -1896,3 +1896,50 @@ fn test_call_contract_that_panics(
         }
     }
 }
+
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case::native(CairoVersion::Cairo1(RunnableCairo1::Native)))]
+#[case::vm(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+fn test_gas_consumed_for_revert_account_tx(
+    #[case] cairo_version: CairoVersion,
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    // TODO(Yoni): use `class_version` here once the feature contract fully supports Native.
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let account_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    let new_class_hash = test_contract.get_class_hash();
+    let to_panic = true.into();
+
+    let calldata = [new_class_hash.0, to_panic];
+
+    // Invoke a function that panics.
+    let tx_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: create_calldata(
+                test_contract_address,
+               "test_call_contract_revert",
+                &calldata
+            ),
+        nonce: nonce_manager.next(account_address)
+    };
+
+    let tx_execution_info = run_invoke_tx(
+        state,
+        &block_context,
+        invoke_tx_args! {
+            resource_bounds: default_all_resource_bounds,
+            ..tx_args
+        },
+    )
+    .unwrap();
+
+    println!("{:?}", tx_execution_info.receipt.gas);
+}

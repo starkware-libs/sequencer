@@ -175,6 +175,10 @@ impl CallEntryPoint {
         if let Ok(call_info) = &execution_result {
             // If the execution of the outer call failed, revert the transction.
             if call_info.execution.failed {
+                println!(
+                    "call_info.execution.failed: {:?} add gas consumed",
+                    call_info.execution.gas_consumed
+                );
                 return Err(EntryPointExecutionError::ExecutionFailed {
                     error_trace: extract_trailing_cairo1_revert_trace_with_consumed_gas(
                         call_info,
