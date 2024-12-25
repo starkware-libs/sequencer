@@ -292,7 +292,10 @@ pub fn gen_field_names_and_cli_args_fn(_attr: TokenStream, item: TokenStream) ->
     };
 
     // Collect the names of the struct's fields as string literals
-    let field_names = field_idents.iter().map(|ident| ident.to_string()).collect::<Vec<_>>();
+    let field_names = field_idents
+        .iter()
+        .map(|ident| ident.to_string().replace("_fieldseperator_", "."))
+        .collect::<Vec<_>>();
 
     // Generate the field_names method
     let gen = quote! {

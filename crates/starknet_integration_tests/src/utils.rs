@@ -37,6 +37,7 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
+use url::Url;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -89,6 +90,7 @@ pub async fn create_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
+            base_layer_config_fieldseperator_node_url: Url::parse("http://localhost:8545").unwrap(),
         },
     )
 }

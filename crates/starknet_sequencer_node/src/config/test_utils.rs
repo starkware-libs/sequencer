@@ -3,6 +3,7 @@ use std::vec::Vec; // Used by #[gen_field_names_fn].
 use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use starknet_api::core::{ChainId, ContractAddress};
+use url::Url;
 
 use crate::config::node_config::node_command;
 
@@ -13,6 +14,7 @@ pub struct RequiredParams {
     pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
+    pub base_layer_config_fieldseperator_node_url: Url,
 }
 
 impl RequiredParams {
@@ -22,6 +24,7 @@ impl RequiredParams {
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
+            base_layer_config_fieldseperator_node_url: Url::parse("http://localhost:8545").unwrap(),
         }
     }
 }

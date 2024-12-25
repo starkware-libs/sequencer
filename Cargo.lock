@@ -10543,6 +10543,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -10761,6 +10762,7 @@ dependencies = [
  "starknet_state_sync_types",
  "tokio",
  "tracing",
+ "url",
  "validator",
 ]
 

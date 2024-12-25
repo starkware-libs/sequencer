@@ -16,6 +16,10 @@ use tracing::info;
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
+fn replace_field_separator(s: &str) -> String {
+    s.replace("_fieldseperator_", ".")
+}
+
 /// A utility macro that takes a list of config fields and returns a json dictionary with "field
 /// name : field value" entries, where prefixed "config." name is removed from the entry key.
 ///
@@ -34,7 +38,7 @@ macro_rules! config_fields_to_json {
     ( $( $expr:expr ),+ , ) => {
         json!({
             $(
-                strip_config_prefix(stringify!($expr)): $expr
+                replace_field_separator(strip_config_prefix(stringify!($expr))): $expr
             ),+
         })
     };
@@ -53,6 +57,7 @@ pub(crate) fn dump_config_file_changes(
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
         required_params.validator_id,
+        required_params.base_layer_config_fieldseperator_node_url,
     );
 
     // Create the entire mapping of the config and the pointers, without the required params.
