@@ -303,6 +303,11 @@ impl ConsensusContext for SequencerConsensusContext {
         Ok(())
     }
 
+    async fn try_sync(&mut self, _height: BlockNumber) -> bool {
+        // TODO(Asmaa): Implement sync.
+        todo!()
+    }
+
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.current_height = Some(height);
