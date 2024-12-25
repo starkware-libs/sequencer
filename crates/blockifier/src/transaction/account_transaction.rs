@@ -260,7 +260,6 @@ impl AccountTransaction {
         &self,
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
-        // TODO(Aner): seprate to cases based on context.resource_bounds type
         let minimal_gas_amount_vector = estimate_minimal_gas_vector(
             &tx_context.block_context,
             self,
@@ -376,13 +375,11 @@ impl AccountTransaction {
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if self.execution_flags.validate {
             let limit_steps_by_resources = self.execution_flags.charge_fee;
-            // TODO(Aner): cap the gas for validation.
             let remaining_validation_gas = &mut remaining_gas
                 .limit_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
             Ok(self
                 .validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?
                 .inspect(|call_info| {
-                    // TODO(Aner): Update the gas counter.
                     remaining_gas.subtract_used_gas(call_info);
                 }))
         } else {
@@ -513,7 +510,6 @@ impl AccountTransaction {
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        // TODO(Aner): cap the gas usage for execution.
         let remaining_execution_gas =
             &mut remaining_gas.limit_usage(context.mode_sierra_gas_limit());
         Ok(match &self.tx {
@@ -524,7 +520,6 @@ impl AccountTransaction {
             Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_execution_gas),
         }?
         .inspect(|call_info| {
-            // TODO(Aner): Update the gas counter.
             remaining_gas.subtract_used_gas(call_info);
         }))
     }
