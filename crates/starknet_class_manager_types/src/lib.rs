@@ -1,7 +1,7 @@
 use async_trait::async_trait;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use starknet_sequencer_infra::component_client::ClientError;
@@ -14,7 +14,7 @@ pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
 // TODO: export.
 pub type ClassId = ClassHash;
 pub type Class = SierraContractClass;
-pub type ExecutableClass = CasmContractClass;
+pub type ExecutableClass = ContractClass;
 pub type ExecutableClassHash = CompiledClassHash;
 
 /// Serves as the class manager's shared interface.
