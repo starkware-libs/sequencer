@@ -714,6 +714,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "consensus_manager_config.consensus_config.sync_retry_interval": {
+    "description": "The duration (seconds) between sync attempts.",
+    "privacy": "Public",
+    "value": 1.0
+  },
   "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
