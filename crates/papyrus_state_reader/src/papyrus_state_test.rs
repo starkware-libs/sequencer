@@ -1,20 +1,29 @@
+use core::panic;
+use std::sync::Arc;
+
 use assert_matches::assert_matches;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::execution::call_info::CallExecution;
+#[cfg(feature = "cairo_native")]
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
+use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1};
 use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
+use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
+use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::state::{StateDiff, StorageKey};
+use starknet_api::core::{ClassHash, Nonce};
+use starknet_api::state::{StateDiff, StorageKey, ThinStateDiff};
 use starknet_api::{calldata, felt};
 
 use crate::papyrus_state::PapyrusReader;
@@ -74,5 +83,123 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
     let value_from_state = state.get_storage_at(storage_address, storage_key).unwrap();
     assert_eq!(value_from_state, value);
 
+    Ok(())
+}
+
+fn build_papyrus_state_reader_and_declare_contract(
+    class_hash: ClassHash,
+    contract: FeatureContract,
+    contract_manager_config: ContractClassManagerConfig,
+) -> papyrus_storage::StorageResult<PapyrusReader> {
+    let ((storage_reader, mut storage_writer), _) = papyrus_storage::test_utils::get_test_storage();
+    let test_compiled_class_hash = contract.get_compiled_class_hash();
+    let block_number = BlockNumber::default();
+
+    // Hack to declare the contract in the storage.
+    match contract.get_class() {
+        ContractClass::V1((casm_class, _)) => {
+            let thin_state_diff = ThinStateDiff {
+                declared_classes: IndexMap::from([(class_hash, test_compiled_class_hash)]),
+                nonces: IndexMap::from([(contract.get_instance_address(1), Nonce(1.into()))]),
+                ..Default::default()
+            };
+            storage_writer
+                .begin_rw_txn()?
+                .append_state_diff(block_number, thin_state_diff)?
+                .append_classes(block_number, &[(class_hash, &contract.get_sierra())], &[])?
+                .append_casm(&class_hash, &casm_class)?
+                .commit()?;
+        }
+
+        ContractClass::V0(deprecated_contract_class) => {
+            let thin_state_diff = ThinStateDiff {
+                deprecated_declared_classes: vec![class_hash],
+                nonces: IndexMap::from([(contract.get_instance_address(1), Nonce(1.into()))]),
+                ..Default::default()
+            };
+            storage_writer
+                .begin_rw_txn()?
+                .append_state_diff(block_number, thin_state_diff)?
+                .append_classes(block_number, &[], &[(class_hash, &deprecated_contract_class)])?
+                .commit()?;
+        }
+    }
+
+    Ok(PapyrusReader::new(
+        storage_reader,
+        BlockNumber(1),
+        ContractClassManager::start(contract_manager_config),
+    ))
+}
+
+#[rstest]
+#[case(false, false)]
+#[cfg_attr(feature = "cairo_native", case(true, false))]
+#[cfg_attr(feature = "cairo_native", case(true, true))]
+fn test_get_compiled_class(
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
+    #[values(true, false)] is_cached: bool,
+    #[case] run_cairo_native: bool,
+    #[case] wait_on_native_compilation: bool,
+) -> papyrus_storage::StorageResult<()> {
+    // sanity check
+    if wait_on_native_compilation {
+        assert!(run_cairo_native);
+    }
+    // We only cache the sierra is the contract is cairo1 and the run cairo native flag is on.
+    let cached_with_sierra = run_cairo_native && matches!(cairo_version, CairoVersion::Cairo1(_));
+    // We don't need a native contract because we only use the contract to get the casm amd sierra
+    // classes.
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let test_class_hash = test_contract.get_class_hash();
+    let contract_manager_config = ContractClassManagerConfig::create_for_testing(
+        run_cairo_native,
+        wait_on_native_compilation,
+    );
+
+    let papyrus_reader = build_papyrus_state_reader_and_declare_contract(
+        test_class_hash,
+        test_contract,
+        contract_manager_config,
+    )?;
+
+    if is_cached {
+        // Here we are testing the flow that the classes are already in the cache.
+        let casm_cashed = match cached_with_sierra {
+            true => CachedCasm::WithSierra(
+                test_contract.get_runnable_class(),
+                Arc::new(test_contract.get_sierra()),
+            ),
+            false => CachedCasm::WithoutSierra(test_contract.get_runnable_class()),
+        };
+        papyrus_reader.contract_class_manager.set_casm(test_class_hash, casm_cashed);
+    }
+
+    let compiled_class = papyrus_reader.get_compiled_class(test_class_hash).unwrap();
+
+    if wait_on_native_compilation && cached_with_sierra {
+        #[cfg(feature = "cairo_native")]
+        assert_matches!(
+            compiled_class,
+            RunnableCompiledClass::V1Native(_),
+            "When compiling cairo1 contract with the wait_on_native_compilation flag we expect to \
+             get the native class."
+        );
+    } else {
+        assert_eq!(
+            compiled_class,
+            test_contract.get_runnable_class(),
+            "get compiled class should return the correct class"
+        );
+    }
+
+    // Check that the casm cached type is as expected.
+    let cached_casm = papyrus_reader.contract_class_manager.get_casm(&test_class_hash);
+    if cached_with_sierra {
+        assert_matches!(cached_casm, Some(CachedCasm::WithSierra(_, _)));
+    } else {
+        assert_matches!(cached_casm, Some(CachedCasm::WithoutSierra(_)));
+    }
     Ok(())
 }
