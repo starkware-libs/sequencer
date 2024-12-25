@@ -10270,6 +10270,7 @@ dependencies = [
 name = "starknet_api"
 version = "0.0.0"
 dependencies = [
+ "assert-json-diff",
  "assert_matches",
  "bitvec",
  "cairo-lang-runner",
@@ -10733,7 +10734,6 @@ name = "starknet_sequencer_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "assert-json-diff",
  "assert_matches",
  "clap",
  "colored",
