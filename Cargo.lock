@@ -7706,6 +7706,7 @@ dependencies = [
  "blockifier",
  "indexmap 2.6.0",
  "papyrus_storage",
+ "rstest",
  "starknet-types-core",
  "starknet_api",
 ]
