@@ -174,6 +174,9 @@ pub enum ConsensusError {
     InternalNetworkError(String),
     #[error("{0}")]
     SyncError(String),
+    // For example the state machine and SHC are out of sync.
+    #[error("{0}")]
+    InternalInconsistency(String),
     #[error("{0}")]
     Other(String),
 }
