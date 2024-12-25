@@ -39,7 +39,7 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
-criterion = { workspace = true, features = ["html_reports"] }
+criterion = { workspace = true, features = ["async_tokio", "html_reports"] }
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
@@ -55,3 +55,4 @@ tracing-test.workspace = true
 harness = false
 name = "gateway_bench"
 path = "bench/gateway_bench.rs"
+required-features = ["testing"]

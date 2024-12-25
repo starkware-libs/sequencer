@@ -9,7 +9,8 @@
 //!
 //! Run the benchmarks using `cargo bench --bench gateway_bench`.
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use starknet_gateway::bench_test_utils::{BenchTestSetup, BenchTestSetupConfig};
 
 pub fn declare_benchmark(c: &mut Criterion) {
     c.bench_function("declares", |benchmark| benchmark.iter(|| {}));
@@ -20,7 +21,13 @@ pub fn deploy_account_benchmark(c: &mut Criterion) {
 }
 
 pub fn invoke_benchmark(c: &mut Criterion) {
-    c.bench_function("invokes", |benchmark| benchmark.iter(|| {}));
+    let tx_generator_config = BenchTestSetupConfig::default();
+    let n_txs = tx_generator_config.n_txs;
+
+    let test_setup = BenchTestSetup::new(tx_generator_config);
+    c.bench_with_input(BenchmarkId::new("invoke", n_txs), &test_setup, |b, s| {
+        b.to_async(tokio::runtime::Runtime::new().unwrap()).iter(|| s.send_txs_to_gateway());
+    });
 }
 
 pub fn gateway_benchmark(c: &mut Criterion) {
