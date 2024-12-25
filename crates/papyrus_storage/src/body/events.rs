@@ -48,7 +48,7 @@
 #[path = "events_test.rs"]
 mod events_test;
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -381,16 +381,17 @@ type AddressToTransactionIndexTableCursor<'txn> = DbCursor<
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
 
-/// interface for updating the events in the storage.
+/// Interface for updating the events in the storage.
 pub trait EventStorageWriter
 where
     Self: Sized,
 {
     /// Appends the events of an entire block to the storage.
+    // To enforce that no commit happen after a failure, we consume and return Self on success.
     fn append_events(
         self,
         block_number: BlockNumber,
-        block_events: Vec<Vec<Event>>,
+        block_events: &[&Vec<Event>],
     ) -> StorageResult<Self>;
 }
 
@@ -398,35 +399,44 @@ impl EventStorageWriter for StorageTxn<'_, RW> {
     fn append_events(
         self,
         block_number: BlockNumber,
-        block_events: Vec<Vec<Event>>,
+        block_events: &[&Vec<Event>],
     ) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
         update_marker(&self.txn, &markers_table, block_number)?;
-        if self.scope != StorageScope::StateOnly {
-            let events_table = self.open_table(&self.tables.events)?;
-            let file_offset_table = self.open_table(&self.tables.file_offsets)?;
-            let address_to_transaction_index =
-                self.open_table(&self.tables.address_to_transaction_index)?;
+        if self.scope == StorageScope::StateOnly {
+            return Ok(self);
+        }
 
-            for (index, transaction_events) in block_events.iter().enumerate() {
-                let transaction_index =
-                    TransactionIndex(block_number, TransactionOffsetInBlock(index));
-                let event_offset = self.file_handlers.append_events(&transaction_events.clone());
-                events_table.append(&self.txn, &transaction_index, &event_offset)?;
-                for even in transaction_events {
-                    address_to_transaction_index.insert(
-                        &self.txn,
-                        &(even.from_address, transaction_index),
-                        &NoValue,
-                    )?;
-                }
-                if index == block_events.len() - 1 {
-                    file_offset_table.upsert(
-                        &self.txn,
-                        &OffsetKind::Events,
-                        &event_offset.next_offset(),
-                    )?;
-                }
+        let events_table = self.open_table(&self.tables.events)?;
+        let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+        let address_to_transaction_index =
+            self.open_table(&self.tables.address_to_transaction_index)?;
+
+        for (index, &transaction_events) in block_events.iter().enumerate() {
+            let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(index));
+            let event_offset = self.file_handlers.append_events(transaction_events);
+            events_table.append(&self.txn, &transaction_index, &event_offset)?;
+
+            let mut contract_address_set = HashSet::new();
+
+            for event in transaction_events {
+                contract_address_set.insert(event.from_address);
+            }
+
+            for contract_address in contract_address_set {
+                address_to_transaction_index.insert(
+                    &self.txn,
+                    &(contract_address, transaction_index),
+                    &NoValue,
+                )?;
+            }
+
+            if index == block_events.len() - 1 {
+                file_offset_table.upsert(
+                    &self.txn,
+                    &OffsetKind::Event,
+                    &event_offset.next_offset(),
+                )?;
             }
         }
         Ok(self)
