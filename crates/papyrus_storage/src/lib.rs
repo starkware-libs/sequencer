@@ -721,8 +721,8 @@ impl FileHandlers<RW> {
     }
 
     // Appends an event to the corresponding file and returns its location.
-    fn append_events(&self, events: &Vec<Event>) -> LocationInFile {
-        self.clone().event.append(events)
+    fn append_events(&self, events: &[Event]) -> LocationInFile {
+        self.clone().event.append(&events.to_vec())
     }
 
     // TODO(dan): Consider 1. flushing only the relevant files, 2. flushing concurrently.
