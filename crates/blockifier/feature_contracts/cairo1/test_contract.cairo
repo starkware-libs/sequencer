@@ -97,14 +97,61 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_revert_helper(ref self: ContractState, class_hash: ClassHash, to_panic: bool) {
+    fn test_revert_helper(ref self: ContractState, replacement_class_hash: ClassHash, to_panic: bool) {
         let dummy_span = array![0].span();
         syscalls::emit_event_syscall(dummy_span, dummy_span).unwrap_syscall();
-        syscalls::replace_class_syscall(class_hash).unwrap_syscall();
+        syscalls::replace_class_syscall(replacement_class_hash).unwrap_syscall();
         syscalls::send_message_to_l1_syscall(17.try_into().unwrap(), dummy_span).unwrap_syscall();
         self.my_storage_var.write(17);
         if to_panic {
             panic(array!['test_revert_helper']);
+        }
+    }
+
+    #[external(v0)]
+    fn write_10_to_my_storage_var(ref self: ContractState) {
+        self.my_storage_var.write(10);
+    }
+
+    /// Tests the behavior of a revert scenario with an inner contract call.
+    /// The function performs the following:
+    /// 1. Calls `write_10_to_my_storage_var` to set the storage variable to 10.
+    /// 2. Calls `test_revert_helper` with `to_panic=true`.
+    ///    - `test_revert_helper` is expected to change the storage variable to 17 and then panic.
+    /// 3. Verifies that the `test_revert_helper` changes are reverted,
+    /// ensuring the storage variable remains 10.
+    #[external(v0)]
+    fn test_revert_with_inner_call_and_reverted_storage(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        replacement_class_hash: ClassHash,
+    ) {
+        // Step 1: Call the contract to set the storage variable to 10.
+        syscalls::call_contract_syscall(
+            contract_address,
+            selector!("write_10_to_my_storage_var"),
+            array![].span(),
+        )
+        .unwrap_syscall();
+
+        // Step 2: Prepare the call to `test_revert_helper` with `to_panic = true`.
+        let to_panic = true;
+        let call_data = array![replacement_class_hash.into(), to_panic.into()];
+
+        // Step 3: Call `test_revert_helper` and handle the expected panic.
+        match syscalls::call_contract_syscall(
+            contract_address,
+            selector!("test_revert_helper"),
+            call_data.span(),
+        ) {
+            Result::Ok(_) => panic(array!['should_panic']),
+            Result::Err(_revert_reason) => {
+                // Verify that the changes made by the second call are reverted.
+                assert(
+                    self.my_storage_var.read() == 10,
+                    'Wrong_storage_value.',
+                );
+            }
         }
     }
 
