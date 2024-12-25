@@ -487,14 +487,12 @@ impl SingleHeightConsensus {
         round: Round,
         valid_round: Option<Round>,
     ) {
-        let Some(proposal_id) = proposal_id else {
-            warn!("Build proposal failed");
-            return;
-        };
         let Some(valid_round) = valid_round else {
-            // newly built so just streamed
+            // Newly built so already streamed out.
             return;
         };
+        let proposal_id = proposal_id.expect("Reproposal must have a valid ID");
+
         let id = self
             .proposals
             .get(&valid_round)
