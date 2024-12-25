@@ -97,7 +97,6 @@ enum HandledProposalPart {
 const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 
 pub struct SequencerConsensusContext {
-    #[allow(dead_code)]
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
@@ -308,9 +307,13 @@ impl ConsensusContext for SequencerConsensusContext {
         Ok(())
     }
 
-    async fn try_sync(&mut self, _height: BlockNumber) -> bool {
-        // TODO(Asmaa): Implement sync.
-        todo!()
+    async fn try_sync(&mut self, height: BlockNumber) -> bool {
+        let sync_block = self.state_sync_client.get_block(height).await;
+        if let Ok(Some(sync_block)) = sync_block {
+            self.batcher.add_sync_block(sync_block).await.unwrap();
+            return true;
+        }
+        false
     }
 
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
