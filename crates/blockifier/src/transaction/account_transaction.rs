@@ -377,8 +377,9 @@ impl AccountTransaction {
         if self.execution_flags.validate {
             let limit_steps_by_resources = self.execution_flags.charge_fee;
             // TODO(Aner): cap the gas for validation.
-            let remaining_validation_gas = &mut remaining_gas
-                .limit_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
+            let remaining_validation_gas = &mut remaining_gas.limit_usage(
+                tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
+            );
             Ok(self
                 .validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?
                 .inspect(|call_info| {
@@ -539,7 +540,7 @@ impl AccountTransaction {
         let execute_call_info: Option<CallInfo>;
         if matches!(&self.tx, Transaction::DeployAccount(_)) {
             // Handle `DeployAccount` transactions separately, due to different order of things.
-            // Also, the execution context required form the `DeployAccount` execute phase is
+            // Also, the execution context required for the `DeployAccount` execute phase is
             // validation context.
             let mut execution_context = EntryPointExecutionContext::new_validate(
                 tx_context.clone(),

@@ -4,7 +4,6 @@
         "max_contract_bytecode_size": 61440
     },
     "invoke_tx_max_n_steps": 3000000,
-    "execute_max_sierra_gas": 10000000000,
     "max_recursion_depth": 50,
     "segment_arena_cells": true,
     "disable_cairo0_redeclaration": false,
@@ -71,6 +70,8 @@
         "validate_deploy_entry_point_selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895",
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
         "default_entry_point_selector": 0,
+        "validate_max_sierra_gas": 10000000000,
+        "execute_max_sierra_gas": 10000000000,
         "stored_block_hash_buffer": 10,
         "step_gas_cost": 100,
         "builtin_gas_costs": {
@@ -563,7 +564,6 @@
         }
     },
     "validate_max_n_steps": 1000000,
-    "validate_max_sierra_gas": 10000000000,
     "min_sierra_version_for_sierra_gas": "100.0.0",
     "vm_resource_fee_cost": {
         "builtins": {

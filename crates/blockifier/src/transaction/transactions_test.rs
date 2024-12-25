@@ -266,7 +266,7 @@ fn expected_validate_call_info(
             TrackedResource::SierraGas => {
                 user_initial_gas
                     .unwrap_or(initial_gas_amount_from_block_context(None))
-                    .min(VERSIONED_CONSTANTS.validate_max_sierra_gas)
+                    .min(VERSIONED_CONSTANTS.os_constants.validate_max_sierra_gas)
                     .0
             }
         },
@@ -533,7 +533,7 @@ fn test_invoke_tx(
         sender_address,
         account_cairo_version,
         tracked_resource,
-        Some(initial_gas.min(versioned_constants.validate_max_sierra_gas)),
+        Some(initial_gas.min(versioned_constants.os_constants.validate_max_sierra_gas)),
     );
 
     // Build expected execute call info.
@@ -541,6 +541,7 @@ fn test_invoke_tx(
 
     let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
     let expected_initial_execution_gas = versioned_constants
+        .os_constants
         .execute_max_sierra_gas
         .min(initial_gas - GasAmount(expected_arguments.validate_gas_consumed))
         .0;
@@ -1834,7 +1835,7 @@ fn test_deploy_account_tx(
     let expected_execute_initial_gas = user_initial_gas
         // Note that in the case of deploy account, the initial gas in "execute" is limited by
         // max_validation_sierra_gas.
-        .min(versioned_constants.validate_max_sierra_gas);
+        .min(versioned_constants.os_constants.validate_max_sierra_gas);
     let expected_execute_call_info = Some(CallInfo {
         call: CallEntryPoint {
             class_hash: Some(account_class_hash),
@@ -2354,7 +2355,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: block_context.versioned_constants.execute_max_sierra_gas.0,
+            initial_gas: block_context.versioned_constants.os_constants.execute_max_sierra_gas.0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
@@ -2633,7 +2634,7 @@ fn test_balance_print() {
     resource_bounds: create_gas_amount_bounds_with_default_price(
         GasVector{
             l1_gas: GasAmount(1652),
-            l2_gas: versioned_constants.validate_max_sierra_gas + GasAmount(1234567),
+            l2_gas: versioned_constants.os_constants.validate_max_sierra_gas + GasAmount(1234567),
             l1_data_gas: GasAmount(0),
         }
     ),
@@ -2691,7 +2692,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
     let expected_validate_initial_gas = match account_tracked_resource {
         TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
-            versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0
+            versioned_constants.os_constants.validate_max_sierra_gas.min(user_initial_gas).0
         }
     };
 
@@ -2703,6 +2704,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
         TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
             versioned_constants
+                .os_constants
                 .execute_max_sierra_gas
                 .min(
                     user_initial_gas
@@ -2751,7 +2753,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
     resource_bounds: create_gas_amount_bounds_with_default_price(
         GasVector{
             l1_gas: GasAmount(2203),
-            l2_gas: versioned_constants.validate_max_sierra_gas + GasAmount(1234567),
+            l2_gas: versioned_constants.os_constants.validate_max_sierra_gas + GasAmount(1234567),
             l1_data_gas: GasAmount(0),
         }
     ),
@@ -2809,7 +2811,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
     let actual_execute_initial_gas =
         actual_execution_info.execute_call_info.as_ref().unwrap().call.initial_gas;
     let expected_execute_initial_gas =
-        versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0;
+        versioned_constants.os_constants.validate_max_sierra_gas.min(user_initial_gas).0;
     assert_eq!(actual_execute_initial_gas, expected_execute_initial_gas);
 
     let actual_validate_initial_gas =
@@ -2818,6 +2820,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
         TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
             versioned_constants
+                .os_constants
                 .validate_max_sierra_gas
                 .min(
                     user_initial_gas
