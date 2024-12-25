@@ -26,7 +26,7 @@ use crate::utils::compile_contract_and_build_executable_tx;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
-struct GatewayBusinessLogic {
+pub(crate) struct GatewayBusinessLogic {
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
