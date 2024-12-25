@@ -11,7 +11,7 @@ use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockInfo;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
@@ -42,11 +42,6 @@ pub trait StatefulTransactionValidatorTrait {
         account_tx: AccountTransaction,
         skip_validate: bool,
     ) -> BlockifierStatefulValidatorResult<()>;
-
-    fn get_nonce(
-        &mut self,
-        account_address: ContractAddress,
-    ) -> BlockifierStatefulValidatorResult<Nonce>;
 }
 
 impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
@@ -56,13 +51,6 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
         skip_validate: bool,
     ) -> BlockifierStatefulValidatorResult<()> {
         self.perform_validations(account_tx, skip_validate)
-    }
-
-    fn get_nonce(
-        &mut self,
-        account_address: ContractAddress,
-    ) -> BlockifierStatefulValidatorResult<Nonce> {
-        self.get_nonce(account_address)
     }
 }
 
@@ -116,7 +104,7 @@ impl StatefulTransactionValidator {
 }
 
 // Check if validation of an invoke transaction should be skipped due to deploy_account not being
-// proccessed yet. This feature is used to improve UX for users sending deploy_account + invoke at
+// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 // once.
 fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
     match tx {
