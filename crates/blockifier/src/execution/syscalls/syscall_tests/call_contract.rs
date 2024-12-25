@@ -40,8 +40,7 @@ fn test_call_contract_that_panics(runnable_version: RunnableCairo1) {
     let to_panic = true.into();
     let outer_entry_point_selector = selector_from_name("test_call_contract_revert");
     let calldata = create_calldata(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_instance_address(0),
+        test_contract.get_instance_address(0),
         "test_revert_helper",
         &[new_class_hash.0, to_panic],
     );
@@ -95,18 +94,16 @@ fn test_call_contract_and_than_revert(#[case] runnable_version: RunnableCairo1) 
     let new_class_hash = empty_contract.get_class_hash();
     let to_panic = false.into();
 
-    // Call data of contract B
+    // Calldata of contract B
     let middle_call_data = create_calldata(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_instance_address(0),
+        test_contract.get_instance_address(0),
         "test_revert_helper",
         &[new_class_hash.0, to_panic],
     );
 
-    // Call data of contract A
+    // Calldata of contract A
     let calldata = create_calldata(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_instance_address(0),
+        test_contract.get_instance_address(0),
         "middle_revert_contract",
         &middle_call_data.0,
     );
