@@ -7414,6 +7414,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_state_sync_types",
  "test-case",
  "tokio",
  "tokio-util",
@@ -10808,12 +10809,14 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "mockall",
  "papyrus_proc_macros",
  "papyrus_storage",
  "serde",
  "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
+ "starknet_state_sync_types",
  "thiserror",
 ]
 

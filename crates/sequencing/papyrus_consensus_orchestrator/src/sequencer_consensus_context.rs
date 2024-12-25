@@ -54,6 +54,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
@@ -96,6 +97,8 @@ enum HandledProposalPart {
 const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 
 pub struct SequencerConsensusContext {
+    #[allow(dead_code)]
+    state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
@@ -126,6 +129,7 @@ pub struct SequencerConsensusContext {
 
 impl SequencerConsensusContext {
     pub fn new(
+        state_sync_client: SharedStateSyncClient,
         batcher: Arc<dyn BatcherClient>,
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<Vote>,
@@ -134,6 +138,7 @@ impl SequencerConsensusContext {
         cende_ambassador: Arc<dyn CendeContext>,
     ) -> Self {
         Self {
+            state_sync_client,
             batcher,
             outbound_proposal_sender,
             vote_broadcast_client,
