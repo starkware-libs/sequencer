@@ -1,3 +1,4 @@
+pub mod bench_test_utils;
 pub mod communication;
 pub mod compilation;
 mod compiler_version;
@@ -9,7 +10,6 @@ pub mod rpc_state_reader;
 #[cfg(test)]
 mod rpc_state_reader_test;
 pub mod state_reader;
-#[cfg(test)]
 mod state_reader_test_utils;
 mod stateful_transaction_validator;
 mod stateless_transaction_validator;
