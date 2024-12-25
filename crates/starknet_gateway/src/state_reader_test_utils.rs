@@ -57,8 +57,8 @@ pub struct TestStateReaderFactory {
 }
 
 impl StateReaderFactory for TestStateReaderFactory {
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
-        Box::new(self.state_reader.clone())
+    fn get_state_reader_from_latest_block(&self) -> StateResult<Box<dyn MempoolStateReader>> {
+        Ok(Box::new(self.state_reader.clone()))
     }
 
     fn get_state_reader(&self, _block_number: BlockNumber) -> Box<dyn MempoolStateReader> {

@@ -118,9 +118,15 @@ pub struct SyncStateReaderFactory {
 }
 
 impl StateReaderFactory for SyncStateReaderFactory {
-    // TODO(noamsp): Decide if we need this
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
-        todo!()
+    fn get_state_reader_from_latest_block(&self) -> StateResult<Box<dyn MempoolStateReader>> {
+        let latest_block_number = block_on(self.shared_state_sync_client.get_latest_block_number())
+            .map_err(|e| StateError::StateReadError(e.to_string()))?
+            .ok_or(StateError::StateReadError("Block not found, Empty state diff".to_string()))?;
+
+        Ok(Box::new(SyncStateReader::from_number(
+            self.shared_state_sync_client.clone(),
+            latest_block_number,
+        )))
     }
 
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
