@@ -248,6 +248,7 @@ pub struct Cairo1RevertSummary {
     pub header: Cairo1RevertHeader,
     pub stack: Vec<Cairo1RevertFrame>,
     pub last_retdata: Retdata,
+    pub gas_consumed: Option<u64>,
 }
 
 impl Cairo1RevertSummary {
@@ -345,6 +346,7 @@ pub fn extract_trailing_cairo1_revert_trace(
         header,
         stack: vec![],
         last_retdata: root_call.execution.retdata.clone(),
+        gas_consumed: None,
     };
     let entrypoint_failed_felt = Felt::from_hex(ENTRYPOINT_FAILED_ERROR)
         .unwrap_or_else(|_| panic!("{ENTRYPOINT_FAILED_ERROR} does not fit in a felt."));
@@ -396,7 +398,18 @@ pub fn extract_trailing_cairo1_revert_trace(
         header,
         stack: error_calls.iter().map(Cairo1RevertFrame::from).collect(),
         last_retdata: last_call.execution.retdata.clone(),
+        gas_consumed: None,
     }
+}
+
+pub fn extract_trailing_cairo1_revert_trace_with_consumed_gas(
+    root_call: &CallInfo,
+    gas_consumed: u64,
+    header: Cairo1RevertHeader,
+) -> Cairo1RevertSummary {
+    let mut summary = extract_trailing_cairo1_revert_trace(root_call, header);
+    summary.gas_consumed = Some(gas_consumed);
+    summary
 }
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.

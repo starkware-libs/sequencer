@@ -25,6 +25,7 @@ use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
     gen_tx_execution_error_trace,
@@ -691,7 +692,16 @@ impl AccountTransaction {
                 }
             }
             Err(execution_error) => {
-                let revert_receipt = get_revert_receipt();
+                let mut revert_receipt = get_revert_receipt();
+                if let TransactionExecutionError::ExecutionError {
+                    error: EntryPointExecutionError::ExecutionFailed { ref error_trace },
+                    ..
+                } = execution_error
+                {
+                    if let Some(gas_consumed) = error_trace.gas_consumed {
+                        revert_receipt.gas.l2_gas.0 += gas_consumed;
+                    }
+                }
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report = PostExecutionReport::new(
