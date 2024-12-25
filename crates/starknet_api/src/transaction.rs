@@ -948,4 +948,5 @@ pub struct TransactionOffsetInBlock(pub usize);
 #[derive(
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
+// TODO: Rename to EventIndexInTransaction.
 pub struct EventIndexInTransactionOutput(pub usize);

@@ -57,15 +57,23 @@ use starknet_api::transaction::{
     Event,
     EventContent,
     EventIndexInTransactionOutput,
+    TransactionOffsetInBlock,
     TransactionOutput,
 };
 
-use super::TransactionMetadataTable;
+use super::{update_marker, TransactionMetadataTable};
 use crate::body::{AddressToTransactionIndexTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, RO};
-use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
+use crate::db::{DbTransaction, RO, RW};
+use crate::{
+    FileHandlers,
+    OffsetKind,
+    StorageResult,
+    StorageScope,
+    StorageTxn,
+    TransactionMetadata,
+};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -372,3 +380,55 @@ type AddressToTransactionIndexTableCursor<'txn> = DbCursor<
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+
+/// interface for updating the events in the storage.
+pub trait EventStorageWriter
+where
+    Self: Sized,
+{
+    /// Appends the events of an entire block to the storage.
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self>;
+}
+
+impl EventStorageWriter for StorageTxn<'_, RW> {
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: Vec<Vec<Event>>,
+    ) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        update_marker(&self.txn, &markers_table, block_number)?;
+        if self.scope != StorageScope::StateOnly {
+            let events_table = self.open_table(&self.tables.events)?;
+            let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+            let address_to_transaction_index =
+                self.open_table(&self.tables.address_to_transaction_index)?;
+
+            for (index, transaction_events) in block_events.iter().enumerate() {
+                let transaction_index =
+                    TransactionIndex(block_number, TransactionOffsetInBlock(index));
+                let event_offset = self.file_handlers.append_events(&transaction_events.clone());
+                events_table.append(&self.txn, &transaction_index, &event_offset)?;
+                for even in transaction_events {
+                    address_to_transaction_index.insert(
+                        &self.txn,
+                        &(even.from_address, transaction_index),
+                        &NoValue,
+                    )?;
+                }
+                if index == block_events.len() - 1 {
+                    file_offset_table.upsert(
+                        &self.txn,
+                        &OffsetKind::Events,
+                        &event_offset.next_offset(),
+                    )?;
+                }
+            }
+        }
+        Ok(self)
+    }
+}
