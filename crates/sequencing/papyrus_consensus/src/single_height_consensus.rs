@@ -559,12 +559,30 @@ impl SingleHeightConsensus {
         proposal_id: ProposalContentId,
         round: Round,
     ) -> Result<ShcReturn, ConsensusError> {
+        let invalid_decision = |msg: String| {
+            ConsensusError::InternalInconsistency(format!(
+                "Invalid decision: sm_proposal_id: {:?}, round: {:?}. {}",
+                proposal_id, round, msg
+            ))
+        };
         let block = self
             .proposals
             .remove(&round)
-            .expect("StateMachine arrived at an unknown decision")
-            .expect("StateMachine should not decide on a missing proposal");
-        assert_eq!(block, proposal_id, "StateMachine block hash should match the stored block");
+            .ok_or_else(|| {
+                // No ProposalInit received for this round.
+                invalid_decision("Decided on an unknown proposal".to_string())
+            })?
+            .ok_or_else(|| {
+                // Either invalid or validations haven't yet completed.
+                invalid_decision(
+                    "Decided on a proposal which was not succesfully validated".to_string(),
+                )
+            })?;
+        if block != proposal_id {
+            return Err(invalid_decision(format!(
+                "StateMachine block hash should match the stored block. Shc.block_id: {block}"
+            )));
+        }
         let supporting_precommits: Vec<Vote> = self
             .validators
             .iter()
@@ -573,12 +591,17 @@ impl SingleHeightConsensus {
                 if vote.block_hash == Some(proposal_id) { Some(vote.clone()) } else { None }
             })
             .collect();
+        let quorum_size =
+            usize::try_from(self.state_machine.quorum_size()).expect("u32 should fit in usize");
         // TODO(matan): Check actual weights.
-        assert!(
-            supporting_precommits.len()
-                >= usize::try_from(self.state_machine.quorum_size())
-                    .expect("u32 should fit in usize")
-        );
+        if quorum_size > supporting_precommits.len() {
+            let msg = format!(
+                "Not enough supporting votes. quorum_size: {quorum_size}, num_supporting_votes: \
+                 {}. supporting_votes: {supporting_precommits:?}",
+                supporting_precommits.len(),
+            );
+            return Err(invalid_decision(msg));
+        }
         Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
     }
 }
