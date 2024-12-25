@@ -70,6 +70,8 @@ pub mod converters;
 pub mod dumping;
 pub mod loading;
 pub mod presentation;
+#[cfg(test)]
+pub mod test_utils;
 pub mod validators;
 
 /// The privacy level of a config parameter, that received as input from the configs.

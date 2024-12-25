@@ -2,13 +2,12 @@ use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 
-use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
 use infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
-use papyrus_config::SerializedParam;
+use papyrus_config::{assert_json_eq, SerializedParam};
 use rstest::rstest;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
@@ -96,17 +95,15 @@ fn test_default_config_file_is_up_to_date() {
     let from_code: serde_json::Value =
         serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
 
-    println!(
-        "{}",
+    let error_message = format!(
+        "{}\n{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
          it using the sequencer_dump_config binary."
             .purple()
-            .bold()
-    );
-    println!(
+            .bold(),
         "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
     );
-    assert_json_eq!(from_default_config_file, from_code)
+    assert_json_eq!(from_default_config_file, from_code, error_message);
 }
 
 /// Tests parsing a node config without additional args.

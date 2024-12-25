@@ -7345,6 +7345,7 @@ dependencies = [
 name = "papyrus_config"
 version = "0.0.0"
 dependencies = [
+ "assert-json-diff",
  "assert_matches",
  "clap",
  "infra_utils",
