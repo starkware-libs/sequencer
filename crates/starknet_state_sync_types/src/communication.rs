@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -22,6 +24,7 @@ use thiserror::Error;
 use crate::errors::StateSyncError;
 use crate::state_sync_types::{StateSyncResult, SyncBlock};
 
+#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
