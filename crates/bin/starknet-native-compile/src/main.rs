@@ -24,9 +24,11 @@ fn main() {
     let path = args.path;
     let output = args.output;
 
+    println!("AAAAAAAAAAAAAAAAAAA");
     let (contract_class, sierra_program) = load_sierra_program_from_file(&path);
 
     // TODO(Avi, 01/12/2024): Test different optimization levels for best performance.
+    println!("BBBBBBBBBBBBBBBBBBBB");
     let mut contract_executor = AotContractExecutor::new(
         &sierra_program,
         &contract_class.entry_points_by_type,
@@ -36,6 +38,7 @@ fn main() {
         eprintln!("Error compiling Sierra program: {}", err);
         process::exit(1);
     });
+    println!("CCCCCCCCCCCCCCCCCCCC");
     contract_executor.save(output.clone()).unwrap_or_else(|err| {
         eprintln!("Error saving compiled program: {}", err);
         process::exit(1);

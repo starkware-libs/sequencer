@@ -64,16 +64,19 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-
-        let output_file = NamedTempFile::new()?;
-        let output_file_path = output_file.path().to_str().ok_or(
+        // let output_dir =
+        //     TempDir::new().expect("Failed to create temporary compilation output directory.");
+        // let output_file = output_dir.path().join("output.so");
+        let output_file = PathBuf::from("/tmp/output-1343214.so");
+        let output_file_path = output_file.to_str().ok_or(
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
         let additional_args = [output_file_path];
+        println!("11111111111111111111");
 
         let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
-
-        Ok(AotContractExecutor::load(Path::new(&output_file_path))?)
+        let out = Ok(AotContractExecutor::load(Path::new(&output_file_path))?);
+        out
     }
 }
 
@@ -83,6 +86,7 @@ fn compile_with_args(
     additional_args: &[&str],
 ) -> Result<Vec<u8>, CompilationUtilError> {
     // Create a temporary file to store the Sierra contract class.
+    println!("222222222");
     let serialized_contract_class = serde_json::to_string(&contract_class)?;
 
     let mut temp_file = NamedTempFile::new()?;
@@ -93,13 +97,16 @@ fn compile_with_args(
 
     // Set the parameters for the compile process.
     // TODO(Arni, Avi): Setup the ulimit for the process.
+    println!("333333333");
     let mut command = Command::new(compiler_binary_path.as_os_str());
     command.arg(temp_file_path).args(additional_args);
 
     // Run the compile process.
     let compile_output = command.output()?;
+    println!("444444444");
 
     if !compile_output.status.success() {
+        println!("55555555");
         let stderr_output = String::from_utf8(compile_output.stderr)
             .unwrap_or("Failed to get stderr output".into());
         return Err(CompilationUtilError::CompilationError(stderr_output));

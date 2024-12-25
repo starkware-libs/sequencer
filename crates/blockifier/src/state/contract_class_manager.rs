@@ -211,6 +211,7 @@ fn process_compilation_request(
                 .set_native(class_hash, CachedCairoNative::Compiled(native_compiled_class));
         }
         Err(err) => {
+            println!("Error compiling contract class: {}", err);
             log::error!("Error compiling contract class: {}", err);
             contract_caches.set_native(class_hash, CachedCairoNative::CompilationFailed);
         }
