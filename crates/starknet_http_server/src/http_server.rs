@@ -72,7 +72,6 @@ async fn add_tx(
         HttpServerError::from(e)
     });
     record_added_transaction_status(add_tx_result.is_ok());
-
     add_tx_result_as_json(add_tx_result)
 }
 
