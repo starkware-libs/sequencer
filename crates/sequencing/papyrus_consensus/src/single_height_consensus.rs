@@ -253,16 +253,6 @@ impl SingleHeightConsensus {
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
 
-    async fn process_inbound_proposal<ContextT: ConsensusContext>(
-        &mut self,
-        context: &mut ContextT,
-        sm_proposal: StateMachineEvent,
-    ) -> Result<ShcReturn, ConsensusError> {
-        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-        let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
-        self.handle_state_machine_events(context, sm_events).await
-    }
-
     pub async fn handle_event<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -305,38 +295,34 @@ impl SingleHeightConsensus {
                 )]))
             }
             ShcEvent::ValidateProposal(
-                StateMachineEvent::Proposal(built_content_id, round, valid_round),
-                received_proposal_id,
+                StateMachineEvent::Proposal(built_id, round, valid_round),
+                received_fin,
             ) => {
                 // TODO(matan): Switch to signature validation.
-
-                let mut id = None;
-                if let (Some(built_content_id), Some(ProposalFin { proposal_content_id })) =
-                    (built_content_id, received_proposal_id.clone())
-                {
-                    if built_content_id == proposal_content_id {
-                        id = Some(built_content_id);
-                    }
-                }
-                if id.is_none() {
+                if built_id != received_fin.as_ref().map(|fin| fin.proposal_content_id) {
                     warn!(
                         "proposal_id built from content receiver does not match fin: {:#064x?} != \
                          {:#064x?}",
-                        built_content_id, received_proposal_id
+                        built_id, received_fin
                     );
+                    return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 // Retaining the entry for this round prevents us from receiving another proposal on
-                // this round. If the validations failed, which can be caused by a network issue, we
-                // may want to re-open ourselves to this round. The downside is that this may open
-                // us to a spam attack.
-                // TODO(Asmaa): consider revisiting this decision. Spam attacks may not be a problem
-                // given that serial proposing anyways forces us to use interrupts.
-                self.proposals.insert(round, id);
-                self.process_inbound_proposal(
-                    context,
-                    StateMachineEvent::Proposal(id, round, valid_round),
-                )
-                .await
+                // this round. While this prevents spam attacks it also prevents re-receiving after
+                // a network issue.
+                let old = self.proposals.insert(round, built_id);
+                assert!(
+                    old.expect("Should exist from init").is_none(),
+                    "Proposal already exists for this round: {:?}",
+                    round
+                );
+                let leader_fn =
+                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+                let sm_events = self.state_machine.handle_event(
+                    StateMachineEvent::Proposal(built_id, round, valid_round),
+                    &leader_fn,
+                );
+                self.handle_state_machine_events(context, sm_events).await
             }
             ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round)) => {
                 let old = self.proposals.insert(round, proposal_id);
