@@ -39,7 +39,7 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
-criterion.workspace = true
+criterion = { workspace = true, features = ["async_tokio"] }
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true

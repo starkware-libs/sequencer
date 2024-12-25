@@ -9,10 +9,23 @@
 //!
 //! Run the benchmarks using `cargo bench --bench gateway_bench`.
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use starknet_gateway::bench_test_utils::{BenchTestSetup, BenchTestSetupConfig};
 
 fn invoke_benchmark(criterion: &mut Criterion) {
-    criterion.bench_function("invokes", |benchmark| benchmark.iter(|| {}));
+    let tx_generator_config = BenchTestSetupConfig::default();
+    let n_txs = tx_generator_config.n_txs;
+
+    let test_setup = BenchTestSetup::new(tx_generator_config);
+    criterion.bench_with_input(
+        BenchmarkId::new("invoke", n_txs),
+        &test_setup,
+        |bencher, test_setup| {
+            bencher
+                .to_async(tokio::runtime::Runtime::new().unwrap())
+                .iter(|| test_setup.send_txs_to_gateway());
+        },
+    );
 }
 
 criterion_group!(benches, invoke_benchmark);
