@@ -29,7 +29,7 @@ use crate::utils::compile_contract_and_build_executable_tx;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
-struct GatewayBusinessLogic {
+pub struct GatewayBusinessLogic {
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
@@ -79,7 +79,7 @@ impl GatewayBusinessLogic {
 
 pub struct Gateway {
     pub mempool_client: SharedMempoolClient,
-    business_logic: GatewayBusinessLogic,
+    pub business_logic: GatewayBusinessLogic,
 }
 
 impl Gateway {
