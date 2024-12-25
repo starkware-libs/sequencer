@@ -15,6 +15,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
 use tempfile::{tempdir, TempDir};
 use tokio::task::JoinHandle;
@@ -41,13 +42,14 @@ pub struct IntegrationTestSetup {
 
 impl IntegrationTestSetup {
     pub async fn run(
-        n_sequencers: usize,
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
+        component_configs: Vec<ComponentConfig>,
     ) -> Self {
         let mut available_ports = AvailablePorts::new(test_unique_index, 0);
         let chain_info = create_chain_info();
         let accounts = tx_generator.accounts();
+        let n_sequencers = component_configs.len();
 
         let (mut consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(n_sequencers, &mut available_ports);
@@ -58,7 +60,7 @@ impl IntegrationTestSetup {
         );
 
         let mut sequencers = vec![];
-        for sequencer_id in 0..n_sequencers {
+        for (sequencer_id, component_config) in component_configs.iter().enumerate() {
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let sequencer = IntegrationSequencerSetup::new(
@@ -68,6 +70,7 @@ impl IntegrationTestSetup {
                 consensus_manager_config,
                 mempool_p2p_config,
                 &mut available_ports,
+                component_config.clone(),
             )
             .await;
             sequencers.push(sequencer);
@@ -148,6 +151,7 @@ impl IntegrationSequencerSetup {
         consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         available_ports: &mut AvailablePorts,
+        component_config: ComponentConfig,
     ) -> Self {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
@@ -170,6 +174,7 @@ impl IntegrationSequencerSetup {
             storage_for_test.state_sync_storage_config,
             consensus_manager_config,
             mempool_p2p_config,
+            component_config,
         )
         .await;
 
