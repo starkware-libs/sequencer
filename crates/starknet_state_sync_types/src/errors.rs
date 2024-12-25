@@ -26,6 +26,8 @@ pub enum StateSyncError {
     SendError(String),
     #[error("Unexpected starknet api error: {0}")]
     StarknetApiError(String),
+    #[error("State is empty, latest block returned None")]
+    EmptyState,
 }
 
 impl From<StorageError> for StateSyncError {

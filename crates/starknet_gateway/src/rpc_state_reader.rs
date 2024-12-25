@@ -13,6 +13,7 @@ use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_state_sync_types::communication::StateSyncClientResult;
 use starknet_types_core::felt::Felt;
 
 use crate::config::RpcStateReaderConfig;
@@ -185,8 +186,10 @@ pub struct RpcStateReaderFactory {
 }
 
 impl StateReaderFactory for RpcStateReaderFactory {
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
-        Box::new(RpcStateReader::from_latest(&self.config))
+    fn get_state_reader_from_latest_block(
+        &self,
+    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+        Ok(Box::new(RpcStateReader::from_latest(&self.config)))
     }
 
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
