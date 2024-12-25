@@ -88,7 +88,7 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 
     let mut mock_state_reader_factory = MockStateReaderFactory::new();
 
-    // Make sure stateful_validator uses the latest block in the initiall call.
+    // Make sure stateful_validator uses the latest block in the initial call.
     let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block();
     mock_state_reader_factory
         .expect_get_state_reader_from_latest_block()
