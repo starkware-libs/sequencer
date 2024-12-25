@@ -146,7 +146,8 @@ pub fn create_mempool_p2p_configs(
     chain_id: ChainId,
     available_ports: &mut AvailablePorts,
 ) -> Vec<MempoolP2pConfig> {
-    create_connected_network_configs(n_mempools, available_ports)
+    let ports = available_ports.get_next_ports(n_mempools);
+    create_connected_network_configs(ports)
         .into_iter()
         .map(|mut network_config| {
             network_config.chain_id = chain_id.clone();
