@@ -83,7 +83,6 @@ async fn manager_multiple_heights_unordered() {
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
 
-    // TODO(guyn): refactor this test to pass proposals through the correct channels.
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
         mpsc::channel(CHANNEL_SIZE);
 
@@ -149,7 +148,6 @@ async fn run_consensus_sync() {
     let mut context = MockTestContext::new();
     let (decision_tx, decision_rx) = oneshot::channel();
 
-    // TODO(guyn): refactor this test to pass proposals through the correct channels.
     let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     expect_validate_proposal(&mut context, Felt::TWO);
@@ -214,7 +212,6 @@ async fn run_consensus_sync_cancellation_safety() {
     let proposal_handled = Arc::new(Notify::new());
     let (decision_tx, decision_rx) = oneshot::channel();
 
-    // TODO(guyn): refactor this test to pass proposals through the correct channels.
     let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     expect_validate_proposal(&mut context, Felt::ONE);
@@ -287,7 +284,6 @@ async fn test_timeouts() {
         mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
 
-    // TODO(guyn): refactor this test to pass proposals through the correct channels.
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
         mpsc::channel(CHANNEL_SIZE);
 
