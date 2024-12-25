@@ -11,7 +11,6 @@ use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
-use starknet_sequencer_infra::test_utils::AvailablePorts;
 
 use super::{
     BroadcastTopicClient,
@@ -178,9 +177,8 @@ pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfi
 }
 
 pub fn create_network_configs_connected_to_broadcast_channels<T>(
-    n_configs: usize,
     topic: Topic,
-    available_ports: &mut AvailablePorts,
+    ports: Vec<u16>,
 ) -> (Vec<NetworkConfig>, BroadcastTopicChannels<T>)
 where
     T: TryFrom<Bytes> + 'static,
@@ -188,7 +186,6 @@ where
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let ports = available_ports.get_next_ports(n_configs + 1);
     let mut channels_configs = create_connected_network_configs(ports);
     let broadcast_channels = channels_configs.pop().unwrap();
 
