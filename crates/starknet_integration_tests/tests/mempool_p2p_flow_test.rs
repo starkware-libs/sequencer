@@ -17,14 +17,13 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_http_server::test_utils::HttpTestClient;
+use starknet_http_server::test_utils::{create_http_server_config, HttpTestClient};
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,
     create_gateway_config,
-    create_http_server_config_to_be_deprecated,
     create_integration_test_tx_generator,
     run_integration_test_scenario,
     test_rpc_state_reader_config,
@@ -85,7 +84,8 @@ async fn setup(
     let batcher_config =
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;
-    let http_server_config = create_http_server_config_to_be_deprecated().await;
+    let http_server_config =
+        create_http_server_config(available_ports.get_next_local_host_socket()).await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
@@ -95,6 +95,8 @@ async fn setup(
         );
     let network_config = network_configs.pop().unwrap();
     let mempool_p2p_config = MempoolP2pConfig { network_config, ..Default::default() };
+    let monitoring_endpoint_config =
+        MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
     let config = SequencerNodeConfig {
         components,
         batcher_config,
@@ -102,6 +104,7 @@ async fn setup(
         http_server_config,
         rpc_state_reader_config,
         mempool_p2p_config,
+        monitoring_endpoint_config,
         ..SequencerNodeConfig::default()
     };
     (config, broadcast_channels)
