@@ -105,13 +105,13 @@ pub fn create_consensus_manager_configs_and_channels(
     n_managers: usize,
     available_ports: &mut AvailablePorts,
 ) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+    let ports = available_ports.get_next_ports(n_managers + 1);
     let (network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels(
-            n_managers,
             papyrus_network::gossipsub_impl::Topic::new(
                 starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
             ),
-            available_ports,
+            ports,
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
 
