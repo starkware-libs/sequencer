@@ -58,6 +58,7 @@ impl PapyrusReader {
             .get_state_reader()
             .and_then(|sr| sr.get_class_definition_block_number(&class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
+
         let class_is_declared: bool = matches!(class_declaration_block_number,
                         Some(block_number) if block_number <= state_number.0);
 
