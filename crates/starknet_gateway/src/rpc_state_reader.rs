@@ -185,8 +185,8 @@ pub struct RpcStateReaderFactory {
 }
 
 impl StateReaderFactory for RpcStateReaderFactory {
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
-        Box::new(RpcStateReader::from_latest(&self.config))
+    fn get_state_reader_from_latest_block(&self) -> StateResult<Box<dyn MempoolStateReader>> {
+        Ok(Box::new(RpcStateReader::from_latest(&self.config)))
     }
 
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
