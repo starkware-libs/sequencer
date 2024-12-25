@@ -43,10 +43,9 @@ pub struct IntegrationTestSetup {
 impl IntegrationTestSetup {
     pub async fn run(
         tx_generator: &MultiAccountTransactionGenerator,
-        test_unique_index: u16,
+        mut available_ports: AvailablePorts,
         component_configs: Vec<ComponentConfig>,
     ) -> Self {
-        let mut available_ports = AvailablePorts::new(test_unique_index, 0);
         let chain_info = create_chain_info();
         let accounts = tx_generator.accounts();
         let n_sequencers = component_configs.len();

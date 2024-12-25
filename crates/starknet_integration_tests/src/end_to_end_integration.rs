@@ -9,7 +9,7 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
-use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -71,16 +71,19 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();
 
-    let component_configs = vec![ComponentConfig::default(); N_SEQUENCERS];
+    // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
+
+    let component_configs: Vec<ComponentConfig> = vec![ComponentConfig::default(); N_SEQUENCERS]
+        .into_iter()
+        .chain(get_remote_test_component_config(&mut available_ports))
+        .collect();
 
     info!("Running integration test setup.");
     // Creating the storage for the test.
-    let integration_test_setup = IntegrationTestSetup::run(
-        &tx_generator,
-        TestIdentifier::EndToEndIntegrationTest.into(),
-        component_configs,
-    )
-    .await;
+    let integration_test_setup =
+        IntegrationTestSetup::run(&tx_generator, available_ports, component_configs).await;
 
     // Wait for the nodes to start.
     integration_test_setup.await_alive(5000, 50).await;
@@ -115,7 +118,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     assert_eq!(nonce, expected_nonce);
 }
 
-pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
     config.gateway = ReactiveComponentExecutionConfig::remote(gateway_socket);
@@ -123,7 +126,7 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
     config
 }
 
-async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),
@@ -132,10 +135,10 @@ async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentC
     }
 }
 
-pub async fn get_remote_test_config() -> Vec<ComponentConfig> {
-    let gateway_socket = get_available_socket().await;
+fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec<ComponentConfig> {
+    let gateway_socket = available_ports.get_next_local_host_socket();
     vec![
-        get_http_only_component_config(gateway_socket).await,
-        get_non_http_component_config(gateway_socket).await,
+        get_http_only_component_config(gateway_socket),
+        get_non_http_component_config(gateway_socket),
     ]
 }
