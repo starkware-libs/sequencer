@@ -7546,7 +7546,6 @@ name = "papyrus_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "assert-json-diff",
  "clap",
  "colored",
  "const_format",

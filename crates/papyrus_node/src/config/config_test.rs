@@ -7,7 +7,6 @@ use std::ops::IndexMut;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use assert_json_diff::assert_json_eq;
 use colored::Colorize;
 use infra_utils::path::resolve_project_relative_path;
 use itertools::Itertools;
@@ -18,6 +17,7 @@ use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
+use starknet_api::assert_json_eq;
 use starknet_api::core::ChainId;
 use tempfile::NamedTempFile;
 use validator::Validate;
@@ -155,13 +155,13 @@ fn default_config_file_is_up_to_date() {
     let from_code: serde_json::Value =
         serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
 
-    println!(
-        "{}",
+    let error_message = format!(
+        "{}\n{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
          it using the papyrus_dump_config binary."
             .purple()
-            .bold()
+            .bold(),
+        "Diffs shown below (default config file <<>> dump of NodeConfig::default())."
     );
-    println!("Diffs shown below.");
-    assert_json_eq!(from_default_config_file, from_code)
+    assert_json_eq!(from_default_config_file, from_code, error_message);
 }
