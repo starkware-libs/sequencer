@@ -23,6 +23,7 @@ use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::fields::Fee;
 use crate::transaction::{Transaction, TransactionHash};
 
+pub mod assert_json_eq;
 pub mod declare;
 pub mod deploy_account;
 pub mod invoke;

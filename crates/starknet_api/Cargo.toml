@@ -10,6 +10,7 @@ description = "Starknet Rust types related to computation and execution."
 testing = ["infra_utils"]
 
 [dependencies]
+assert-json-diff.workspace = true
 bitvec.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
