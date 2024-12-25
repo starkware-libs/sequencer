@@ -10,7 +10,7 @@ use starknet_types_core::felt::Felt;
 
 use super::{
     compress,
-    state_diff_with_alias_allocation,
+    allocate_aliases_in_storage,
     Alias,
     AliasKey,
     AliasUpdater,
@@ -164,14 +164,16 @@ fn test_alias_updater(
     #[case] expected_alias_keys: Vec<Felt>,
     #[values(0, 2)] n_existing_aliases: u8,
 ) {
-    let state = initial_state(n_existing_aliases);
+    let mut state = initial_state(n_existing_aliases);
 
     // Insert the keys into the alias contract updater and finalize the updates.
-    let mut alias_contract_updater = AliasUpdater::new(&state, *ALIAS_CONTRACT_ADDRESS).unwrap();
+    let mut alias_contract_updater =
+        AliasUpdater::new(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap();
     for key in keys {
         alias_contract_updater.insert_alias(&StorageKey::try_from(key).unwrap()).unwrap();
     }
-    let storage_diff = alias_contract_updater.finalize_updates();
+    alias_contract_updater.finalize_updates().unwrap();
+    let storage_diff = state.to_state_diff().unwrap().state_maps.storage;
 
     // Test the new aliases.
     let mut expected_storage_diff = HashMap::new();
@@ -214,8 +216,9 @@ fn test_iterate_aliases() {
     state.set_class_hash_at(ContractAddress::from(0x202_u16), ClassHash(Felt::ONE)).unwrap();
     state.increment_nonce(ContractAddress::from(0x200_u16)).unwrap();
 
-    let storage_diff =
-        state_diff_with_alias_allocation(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap().storage;
+    allocate_aliases_in_storage(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap();
+    let storage_diff = state.to_state_diff().unwrap().state_maps.storage;
+
     assert_eq!(
         storage_diff,
         vec![
@@ -262,8 +265,9 @@ fn test_read_only_state(#[values(0, 2)] n_existing_aliases: u8) {
         .unwrap();
     state.get_nonce_at(ContractAddress::from(0x201_u16)).unwrap();
     state.get_class_hash_at(ContractAddress::from(0x202_u16)).unwrap();
-    let storage_diff =
-        state_diff_with_alias_allocation(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap().storage;
+    allocate_aliases_in_storage(&mut state, *ALIAS_CONTRACT_ADDRESS).unwrap();
+    let storage_diff = state.to_state_diff().unwrap().state_maps.storage;
+
 
     let expected_storage_diff = if n_existing_aliases == 0 {
         HashMap::from([(
