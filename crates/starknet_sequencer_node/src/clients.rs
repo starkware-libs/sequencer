@@ -62,10 +62,10 @@ pub struct SequencerNodeClients {
 /// * `$client_field` - The field name (within `self`) representing the client, which has both
 ///   `local_client` and `remote_client` as options.
 ///
-/// # Returns
+/// # Returns.
 ///
-/// An `Option<Arc<dyn ClientTrait>>` containing the available client (local_client or
-/// remote_client), wrapped in Arc. If neither exists, returns None.
+/// An Option<Arc<dyn ClientTrait>> containing the available client (local_client or remote_client),
+/// wrapped in Arc. If neither exists, returns None.
 ///
 /// # Example
 ///
