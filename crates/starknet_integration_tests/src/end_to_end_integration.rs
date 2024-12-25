@@ -71,12 +71,14 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();
 
+    let component_configs = vec![ComponentConfig::default(); N_SEQUENCERS];
+
     info!("Running integration test setup.");
     // Creating the storage for the test.
     let integration_test_setup = IntegrationTestSetup::run(
-        N_SEQUENCERS,
         &tx_generator,
         TestIdentifier::EndToEndIntegrationTest.into(),
+        component_configs,
     )
     .await;
 

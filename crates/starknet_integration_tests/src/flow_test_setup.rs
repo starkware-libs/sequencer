@@ -14,6 +14,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -133,6 +134,8 @@ impl FlowSequencerSetup {
         )
         .await;
 
+        let component_config = ComponentConfig::default();
+
         // Derive the configuration for the sequencer node.
         let (config, _required_params) = create_config(
             &mut available_ports,
@@ -143,6 +146,7 @@ impl FlowSequencerSetup {
             storage_for_test.state_sync_storage_config,
             consensus_manager_config,
             mempool_p2p_config,
+            component_config,
         )
         .await;
 
