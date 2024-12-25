@@ -43,7 +43,6 @@ use crate::storage::{
 };
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
-pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
 
 #[cfg(test)]
 #[path = "py_block_executor_test.rs"]
@@ -254,19 +253,10 @@ impl PyBlockExecutor {
         })
     }
 
-    /// Returns the state diff, a list of contract class hash with the corresponding list of
-    /// visited segment values and the block weights.
-    pub fn finalize(
-        &mut self,
-    ) -> NativeBlockifierResult<(PyStateDiff, PyVisitedSegmentsMapping, Py<PyBytes>)> {
+    /// Returns the state diff and the block weights.
+    pub fn finalize(&mut self) -> NativeBlockifierResult<(PyStateDiff, Py<PyBytes>)> {
         log::debug!("Finalizing execution...");
-        let (commitment_state_diff, visited_pcs, block_weights) = self.tx_executor().finalize()?;
-        let visited_pcs = visited_pcs
-            .into_iter()
-            .map(|(class_hash, class_visited_pcs_vec)| {
-                (PyFelt::from(class_hash), class_visited_pcs_vec)
-            })
-            .collect();
+        let (commitment_state_diff, block_weights) = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(commitment_state_diff);
 
         let serialized_block_weights =
@@ -276,7 +266,7 @@ impl PyBlockExecutor {
 
         log::debug!("Finalized execution.");
 
-        Ok((py_state_diff, visited_pcs, raw_block_weights))
+        Ok((py_state_diff, raw_block_weights))
     }
 
     // Storage Alignment API.

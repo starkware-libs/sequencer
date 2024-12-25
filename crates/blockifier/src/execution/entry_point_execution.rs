@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -61,11 +59,6 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    // Fetch the class hash from `call`.
-    let class_hash = call.class_hash.ok_or(EntryPointExecutionError::InternalError(
-        "Class hash must not be None when executing an entry point.".into(),
-    ))?;
-
     let tracked_resource =
         *context.tracked_resource_stack.last().expect("Unexpected empty tracked resource.");
     let VmExecutionContext {
@@ -90,15 +83,6 @@ pub fn execute_entry_point_call(
     let program_segment_size = bytecode_length + program_extra_data_length;
     run_entry_point(&mut runner, &mut syscall_handler, entry_point, args, program_segment_size)?;
 
-    // Collect the set PC values that were visited during the entry point execution.
-    register_visited_pcs(
-        &mut runner,
-        syscall_handler.base.state,
-        class_hash,
-        program_segment_size,
-        bytecode_length,
-    )?;
-
     Ok(finalize_execution(
         runner,
         syscall_handler,
@@ -106,38 +90,6 @@ pub fn execute_entry_point_call(
         program_extra_data_length,
         tracked_resource,
     )?)
-}
-
-// Collects the set PC values that were visited during the entry point execution.
-fn register_visited_pcs(
-    runner: &mut CairoRunner,
-    state: &mut dyn State,
-    class_hash: starknet_api::core::ClassHash,
-    program_segment_size: usize,
-    bytecode_length: usize,
-) -> EntryPointExecutionResult<()> {
-    let mut class_visited_pcs = HashSet::new();
-    // Relocate the trace, putting the program segment at address 1 and the execution segment right
-    // after it.
-    // TODO(lior): Avoid unnecessary relocation once the VM has a non-relocated `get_trace()`
-    //   function.
-    runner.relocate_trace(&[1, 1 + program_segment_size])?;
-    for trace_entry in runner.relocated_trace.as_ref().expect("Relocated trace not found") {
-        let pc = trace_entry.pc;
-        if pc < 1 {
-            return Err(EntryPointExecutionError::InternalError(format!(
-                "Invalid PC value {pc} in trace."
-            )));
-        }
-        let real_pc = pc - 1;
-        // Jumping to a PC that is not inside the bytecode is possible. For example, to obtain
-        // the builtin costs. Filter out these values.
-        if real_pc < bytecode_length {
-            class_visited_pcs.insert(real_pc);
-        }
-    }
-    state.add_visited_pcs(class_hash, &class_visited_pcs);
-    Ok(())
 }
 
 pub fn initialize_execution_context<'a>(
@@ -150,7 +102,7 @@ pub fn initialize_execution_context<'a>(
 
     // Instantiate Cairo runner.
     let proof_mode = false;
-    let trace_enabled = true;
+    let trace_enabled = false;
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
