@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 blockifier.workspace = true
 papyrus_storage.workspace = true
+rstest = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 
@@ -22,3 +23,4 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 indexmap.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
+rstest.workspace = true
