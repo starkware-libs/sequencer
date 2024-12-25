@@ -14,7 +14,7 @@ pub trait MempoolStateReader: BlockifierStateReader + Send + Sync {
 
 #[cfg_attr(test, automock)]
 pub trait StateReaderFactory: Send + Sync {
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader>;
+    fn get_state_reader_from_latest_block(&self) -> StateResult<Box<dyn MempoolStateReader>>;
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader>;
 }
 

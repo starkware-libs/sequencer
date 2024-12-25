@@ -74,6 +74,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                     self.get_compiled_class_deprecated(block_number, class_hash),
                 )
             }
+            StateSyncRequest::GetLatestBlockNumber() => {
+                StateSyncResponse::GetLatestBlockNumber(self.get_latest_block_number())
+            }
         }
     }
 }
@@ -187,6 +190,12 @@ impl StateSync {
             .get_deprecated_class_definition_at(state_number, &class_hash)?
             .ok_or(StateSyncError::ClassNotFound(class_hash))?;
         Ok(ContractClass::V0(deprecated_compiled_contract_class))
+    }
+
+    fn get_latest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        let latest_block_number = txn.get_state_marker()?.prev();
+        Ok(latest_block_number)
     }
 }
 

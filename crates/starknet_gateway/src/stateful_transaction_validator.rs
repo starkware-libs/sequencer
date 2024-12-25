@@ -133,7 +133,10 @@ fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -
 pub fn get_latest_block_info(
     state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    let state_reader = state_reader_factory.get_state_reader_from_latest_block();
+    let state_reader = state_reader_factory.get_state_reader_from_latest_block().map_err(|e| {
+        error!("Failed to get state reader from latest block: {}", e);
+        GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+    })?;
     state_reader.get_block_info().map_err(|e| {
         error!("Failed to get latest block info: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
