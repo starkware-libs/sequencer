@@ -7,14 +7,13 @@ use std::ops::IndexMut;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use assert_json_diff::assert_json_eq;
 use colored::Colorize;
 use infra_utils::path::resolve_project_relative_path;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::presentation::get_config_presentation;
-use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
+use papyrus_config::{assert_json_eq, SerializationType, SerializedContent, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
@@ -155,13 +154,13 @@ fn default_config_file_is_up_to_date() {
     let from_code: serde_json::Value =
         serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
 
-    println!(
-        "{}",
+    let error_message = format!(
+        "{}\n{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
          it using the papyrus_dump_config binary."
             .purple()
-            .bold()
+            .bold(),
+        "Diffs shown below."
     );
-    println!("Diffs shown below.");
-    assert_json_eq!(from_default_config_file, from_code)
+    assert_json_eq!(from_default_config_file, from_code, error_message)
 }

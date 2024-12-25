@@ -70,7 +70,6 @@ pub mod converters;
 pub mod dumping;
 pub mod loading;
 pub mod presentation;
-#[cfg(test)]
 pub mod test_utils;
 pub mod validators;
 
