@@ -18,16 +18,16 @@ use starknet_api::rpc_transaction::{
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::{create_http_server_config, HttpTestClient};
-use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_integration_tests::state_reader::StorageTestSetup;
 use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,
     create_gateway_config,
     create_integration_test_tx_generator,
+    create_state_sync_config,
     create_txs_for_integration_test,
     run_integration_test_scenario,
-    test_rpc_state_reader_config,
     test_tx_hashes_for_integration_test,
 };
 use starknet_mempool_p2p::config::MempoolP2pConfig;
@@ -60,22 +60,10 @@ async fn setup(
     let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
     let mut available_ports = AvailablePorts::new(test_identifier.into(), 0);
 
-    // Spawn a papyrus rpc server for a papyrus storage reader.
-    let rpc_server_addr = spawn_test_rpc_state_reader(
-        storage_for_test.rpc_storage_reader,
-        chain_info.chain_id.clone(),
-    )
-    .await;
-
     // Derive the configuration for the mempool node.
     let components = ComponentConfig {
         consensus_manager: ActiveComponentExecutionConfig::disabled(),
         batcher: ReactiveComponentExecutionConfig {
-            execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: None,
-            ..Default::default()
-        },
-        state_sync: ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: None,
             ..Default::default()
@@ -88,7 +76,10 @@ async fn setup(
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    let state_sync_config = create_state_sync_config(
+        storage_for_test.state_sync_storage_config,
+        available_ports.get_next_port(),
+    );
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
             1,
@@ -104,9 +95,9 @@ async fn setup(
         batcher_config,
         gateway_config,
         http_server_config,
-        rpc_state_reader_config,
         mempool_p2p_config,
         monitoring_endpoint_config,
+        state_sync_config,
         ..SequencerNodeConfig::default()
     };
     (config, broadcast_channels)
