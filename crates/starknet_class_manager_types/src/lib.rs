@@ -5,12 +5,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
-use starknet_api::state::SierraContractClass;
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentClient;
+use starknet_sierra_compile_types::{RawClass, SierraCompilerClientError, SierraCompilerError};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
@@ -20,8 +18,6 @@ pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
 
 // TODO: export.
 pub type ClassId = ClassHash;
-pub type Class = SierraContractClass;
-pub type ExecutableClass = ContractClass;
 pub type ExecutableClassHash = CompiledClassHash;
 
 /// Serves as the class manager's shared interface.
@@ -33,40 +29,63 @@ pub trait ClassManagerClient: Send + Sync {
     async fn add_class(
         &self,
         class_id: ClassId,
-        class: Class,
+        class: RawClass,
     ) -> ClassManagerClientResult<ExecutableClassHash>;
 
-    async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass>;
+    async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<RawClass>;
 
-    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Class>;
+    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<RawClass>;
 
     async fn add_deprecated_class(
         &self,
         class_id: ClassId,
-        class: DeprecatedClass,
+        class: RawClass,
     ) -> ClassManagerClientResult<()>;
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ClassManagerError {
-    #[error("Compilation failed: {0}")]
-    CompilationUtilError(String),
+pub enum ClassStorageError {
     #[error("Class of hash: {class_id} not found")]
     ClassNotFound { class_id: ClassId },
+    #[error("Storage error occurred: {0}")]
+    StorageError(String),
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ClassManagerError {
+    #[error("Internal client error: {0}")]
+    ClientError(String),
+    #[error(transparent)]
+    ClassStorageError(#[from] ClassStorageError),
+    #[error(transparent)]
+    SierraCompilerError(#[from] SierraCompilerError),
+}
+
+impl From<SierraCompilerClientError> for ClassManagerError {
+    fn from(error: SierraCompilerClientError) -> Self {
+        match error {
+            SierraCompilerClientError::SierraCompilerError(error) => {
+                ClassManagerError::SierraCompilerError(error)
+            }
+            SierraCompilerClientError::ClientError(error) => {
+                ClassManagerError::ClientError(error.to_string())
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Error)]
 pub enum ClassManagerClientError {
     #[error(transparent)]
-    ClientError(#[from] ClientError),
-    #[error(transparent)]
     ClassManagerError(#[from] ClassManagerError),
+    #[error(transparent)]
+    ClientError(#[from] ClientError),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerRequest {
-    AddClass(ClassId, Class),
-    AddDeprecatedClass(ClassId, DeprecatedClass),
+    AddClass(ClassId, RawClass),
+    AddDeprecatedClass(ClassId, RawClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
 }
@@ -75,8 +94,8 @@ pub enum ClassManagerRequest {
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ExecutableClassHash>),
     AddDeprecatedClass(ClassManagerResult<()>),
-    GetExecutable(ClassManagerResult<ExecutableClass>),
-    GetSierra(ClassManagerResult<Class>),
+    GetExecutable(ClassManagerResult<RawClass>),
+    GetSierra(ClassManagerResult<RawClass>),
 }
 
 #[async_trait]
@@ -87,7 +106,7 @@ where
     async fn add_class(
         &self,
         class_id: ClassId,
-        class: Class,
+        class: RawClass,
     ) -> ClassManagerClientResult<ExecutableClassHash> {
         let request = ClassManagerRequest::AddClass(class_id, class);
         handle_all_response_variants!(
@@ -102,7 +121,7 @@ where
     async fn add_deprecated_class(
         &self,
         class_id: ClassId,
-        class: DeprecatedClass,
+        class: RawClass,
     ) -> ClassManagerClientResult<()> {
         let request = ClassManagerRequest::AddDeprecatedClass(class_id, class);
         handle_all_response_variants!(
@@ -114,7 +133,7 @@ where
         )
     }
 
-    async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass> {
+    async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<RawClass> {
         let request = ClassManagerRequest::GetExecutable(class_id);
         handle_all_response_variants!(
             ClassManagerResponse,
@@ -125,7 +144,7 @@ where
         )
     }
 
-    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Class> {
+    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<RawClass> {
         let request = ClassManagerRequest::GetSierra(class_id);
         handle_all_response_variants!(
             ClassManagerResponse,

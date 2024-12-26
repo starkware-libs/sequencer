@@ -2,10 +2,27 @@ use std::env;
 use std::path::Path;
 
 use assert_matches::assert_matches;
-use cairo_lang_starknet_classes::contract_class::ContractClass;
+use bytes::Bytes;
+use cairo_lang_casm::hints::{Hint, PythonicHint};
+use cairo_lang_starknet_classes::abi::Contract;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoints,
+};
+use cairo_lang_starknet_classes::contract_class::{
+    ContractClass,
+    ContractClass as CairoLangContractClass,
+};
+use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
+use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use num_bigint::BigUint;
 use rstest::rstest;
-use starknet_infra_utils::path::resolve_project_relative_path;
+use serde::{Deserialize, Serialize};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::core::CompiledClassHash;
+use starknet_api::state::SierraContractClass;
 
 use crate::command_line_compiler::CommandLineCompiler;
 use crate::config::{
@@ -17,9 +34,9 @@ use crate::config::{
 };
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
-use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
+use crate::{SierraCompiler, SierraToCasmCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
@@ -41,7 +58,7 @@ fn get_test_contract() -> ContractClass {
     contract_class_from_file(sierra_path)
 }
 
-fn get_faulty_test_contract() -> ContractClass {
+fn get_faulty_test_contract() -> CairoLangContractClass {
     let mut contract_class = get_test_contract();
     // Truncate the sierra program to trigger an error.
     contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
@@ -114,4 +131,50 @@ fn test_max_casm_bytecode_size() {
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
         if string.contains("Code size limit exceeded.")
     );
+}
+
+// TODO: mock compiler.
+#[test]
+fn test_sierra_compiler() {
+    let inner_compiler = command_line_compiler();
+    let compiler = SierraCompiler::new(inner_compiler.clone());
+    let inner_compiler_compatible_class = get_test_contract();
+    let class = SierraContractClass::from(inner_compiler_compatible_class.clone());
+    let raw_class = serde_json::to_vec(&class).unwrap().into();
+
+    let (raw_executable_class, executable_class_hash) = compiler.compile(raw_class).unwrap();
+    dbg!(raw_executable_class.clone());
+    dbg!(raw_executable_class.as_ref());
+    // let executable_class: ContractClass =
+    //     serde_json::from_slice(raw_executable_class.as_ref()).unwrap();
+    let executable_class: CasmContractClass =
+        bincode::deserialize(raw_executable_class.as_ref()).unwrap();
+    dbg!(executable_class.clone());
+    // let expected_executable_class =
+    //     inner_compiler.compile(inner_compiler_compatible_class).unwrap();
+    // let expected_sierra_version =
+    //     SierraVersion::extract_from_program(&class.sierra_program).unwrap();
+    // let expected_executable_class =
+    //     ContractClass::V1((expected_executable_class, expected_sierra_version));
+    // assert_eq!(executable_class, expected_executable_class);
+    // assert_eq!(executable_class_hash, expected_executable_class.compiled_class_hash());
+}
+
+fn skip_if_none<T>(opt_field: &Option<T>) -> bool {
+    opt_field.is_none()
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct T {
+    #[serde(skip_serializing_if = "skip_if_none")]
+    pub x: Option<Vec<usize>>,
+}
+
+#[test]
+fn test_nested_list() {
+    let list = T { x: None };
+    let bytes: Bytes = bincode::serialize(&list).unwrap().into();
+    dbg!(bytes.clone());
+    let list: T = bincode::deserialize(bytes.as_ref()).unwrap();
+    dbg!(list);
 }

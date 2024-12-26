@@ -1,5 +1,5 @@
 [package]
-name = "starknet_class_manager_types"
+name = "starknet_class_manager"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -10,10 +10,10 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-blockifier.workspace = true
-papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
+starknet_class_manager_types.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_sierra_compile.workspace = true
 starknet_sierra_compile_types.workspace = true
-thiserror.workspace = true
+tracing.workspace = true

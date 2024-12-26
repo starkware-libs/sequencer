@@ -1496,6 +1496,15 @@ dependencies = [
 
 [[package]]
 name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "bincode"
 version = "2.0.0-rc.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f11ea1a0346b94ef188834a65c068a03aec181c94896d481d7a0a40d85b0ce95"
@@ -2524,7 +2533,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "58363ad8065ed891e3b14a8191b707677c7c7cb5b9d10030822506786d8d8108"
 dependencies = [
  "anyhow",
- "bincode",
+ "bincode 2.0.0-rc.3",
  "bitvec",
  "generic-array",
  "hashbrown 0.14.5",
@@ -10752,6 +10761,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_class_manager"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "starknet_api",
+ "starknet_class_manager_types",
+ "starknet_sequencer_infra",
+ "starknet_sierra_compile",
+ "starknet_sierra_compile_types",
+ "tracing",
+]
+
+[[package]]
 name = "starknet_class_manager_types"
 version = "0.0.0"
 dependencies = [
@@ -10761,6 +10784,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",
+ "starknet_sierra_compile_types",
  "thiserror 1.0.69",
 ]
 
@@ -11205,11 +11229,16 @@ name = "starknet_sierra_compile"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "async-trait",
+ "bincode 1.3.3",
+ "bytes",
+ "cairo-lang-casm",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
  "mempool_test_utils",
+ "num-bigint 0.4.6",
  "papyrus_config",
  "rlimit",
  "rstest",
@@ -11218,8 +11247,11 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_infra_utils",
+ "starknet_sequencer_infra",
+ "starknet_sierra_compile_types",
  "tempfile",
  "thiserror 1.0.69",
+ "tracing",
  "validator",
 ]
 
