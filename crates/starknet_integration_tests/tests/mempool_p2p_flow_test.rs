@@ -60,7 +60,7 @@ async fn setup(
     configure_tracing().await;
     let accounts = tx_generator.accounts();
     let chain_info = create_chain_info();
-    let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+    let storage_for_test = StorageTestSetup::new(accounts.to_vec(), &chain_info);
     let mut available_ports = AvailablePorts::new(test_identifier.into(), 0);
 
     // Derive the configuration for the mempool node.
