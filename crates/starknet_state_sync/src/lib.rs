@@ -8,7 +8,7 @@ use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::TransactionKind;
 use papyrus_storage::header::HeaderStorageReader;
-use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::state::{StateReader, StateStorageReader};
 use papyrus_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
@@ -109,18 +109,10 @@ impl StateSync {
 
         let state_number = StateNumber::unchecked_right_after_block(block_number);
         let state_reader = txn.get_state_reader()?;
-        let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
 
-        // If the contract is not deployed, res will be 0. Checking if that's the case so
-        // that we'll return an error instead.
-        // Contract address 0x1 is a special address, it stores the block
-        // hashes. Contracts are not deployed to this address.
-        if res == Felt::default() && contract_address != BLOCK_HASH_TABLE_ADDRESS {
-            // check if the contract exists
-            state_reader
-                .get_class_hash_at(state_number, &contract_address)?
-                .ok_or(StateSyncError::ContractNotFound(contract_address))?;
-        };
+        verify_contract_deployed(&state_reader, state_number, contract_address)?;
+
+        let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
 
         Ok(res)
     }
@@ -135,6 +127,9 @@ impl StateSync {
 
         let state_number = StateNumber::unchecked_right_after_block(block_number);
         let state_reader = txn.get_state_reader()?;
+
+        verify_contract_deployed(&state_reader, state_number, contract_address)?;
+
         let res = state_reader
             .get_nonce_at(state_number, &contract_address)?
             .ok_or(StateSyncError::ContractNotFound(contract_address))?;
@@ -206,6 +201,23 @@ fn verify_synced_up_to<Mode: TransactionKind>(
     }
 
     Err(StateSyncError::BlockNotFound(block_number))
+}
+
+fn verify_contract_deployed<Mode: TransactionKind>(
+    state_reader: &StateReader<'_, Mode>,
+    state_number: StateNumber,
+    contract_address: ContractAddress,
+) -> Result<(), StateSyncError> {
+    // Contract address 0x1 is a special address, it stores the block
+    // hashes. Contracts are not deployed to this address.
+    if contract_address != BLOCK_HASH_TABLE_ADDRESS {
+        // check if the contract is deployed
+        state_reader
+            .get_class_hash_at(state_number, &contract_address)?
+            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+    };
+
+    Ok(())
 }
 
 pub type LocalStateSyncServer =
