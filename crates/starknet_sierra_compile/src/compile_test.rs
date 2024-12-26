@@ -2,18 +2,23 @@ use std::env;
 use std::path::Path;
 
 use assert_matches::assert_matches;
-use cairo_lang_starknet_classes::contract_class::ContractClass;
+use cairo_lang_starknet_classes::abi::Contract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
+use starknet_api::contract_class::ContractClass;
+use starknet_api::core::CompiledClassHash;
+use starknet_api::state::SierraContractClass;
 
 use crate::command_line_compiler::CommandLineCompiler;
 use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
-use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
+use crate::{SierraCompiler, SierraToCasmCompiler};
 
 const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
     SierraToCasmCompilationConfig { max_bytecode_size: 81920 };
@@ -21,14 +26,14 @@ const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
 fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
-fn get_test_contract() -> ContractClass {
+fn get_test_contract() -> CairoLangContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
     contract_class_from_file(sierra_path)
 }
 
-fn get_faulty_test_contract() -> ContractClass {
+fn get_faulty_test_contract() -> CairoLangContractClass {
     let mut contract_class = get_test_contract();
     // Truncate the sierra program to trigger an error.
     contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
@@ -75,4 +80,27 @@ fn test_negative_flow_compile_sierra_to_native() {
 
     let result = compiler.compile_to_native(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
+}
+
+// TODO: mock compiler.
+#[test]
+fn test_sierra_compiler() {
+    let inner_compiler = command_line_compiler();
+    let compiler = SierraCompiler::new(inner_compiler.clone());
+    let inner_compiler_compatible_class = get_test_contract();
+    let class = SierraContractClass::from(inner_compiler_compatible_class.clone());
+    let raw_class = bincode::serialize(&class).unwrap().into();
+
+    let (raw_executable_class, executable_class_hash) = compiler.compile(raw_class).unwrap();
+    let executable_class: ContractClass = bincode::deserialize(&raw_executable_class[..]).unwrap();
+    let expected_executable_class =
+        inner_compiler.compile(inner_compiler_compatible_class).unwrap();
+    let expected_executable_class_hash =
+        CompiledClassHash(expected_executable_class.compiled_class_hash());
+
+    let ContractClass::V1((executable_class, _sierra_version)) = executable_class else {
+        panic!("Expected V1 contract class.");
+    };
+    assert_eq!(executable_class, expected_executable_class);
+    assert_eq!(executable_class_hash, expected_executable_class_hash);
 }
