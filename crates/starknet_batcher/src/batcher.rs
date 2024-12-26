@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use blockifier::execution_artifacts::BlockExecutionArtifacts;
 use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
 use mockall::automock;
@@ -43,7 +44,6 @@ use crate::block_builder::{
     BlockBuilderFactory,
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
-    BlockExecutionArtifacts,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
@@ -522,7 +522,9 @@ impl Batcher {
         let guard = self.executed_proposals.lock().await;
         let proposal_result = guard.get(&proposal_id);
         match proposal_result {
-            Some(Ok(artifacts)) => Some(Ok(artifacts.commitment())),
+            Some(Ok(artifacts)) => {
+                Some(Ok(ProposalCommitment { state_diff_commitment: artifacts.commitment() }))
+            }
             Some(Err(e)) => Some(Err(e.clone())),
             None => None,
         }

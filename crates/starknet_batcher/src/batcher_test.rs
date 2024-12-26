@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
+use blockifier::execution_artifacts::BlockExecutionArtifacts;
 use indexmap::indexmap;
 use mockall::predicate::eq;
 use rstest::rstest;
@@ -39,12 +40,16 @@ use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderError,
     BlockBuilderResult,
-    BlockExecutionArtifacts,
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
 };
 use crate::config::BatcherConfig;
-use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
+use crate::test_utils::{
+    test_txs,
+    testing_block_execution_artifacts,
+    FakeProposeBlockBuilder,
+    FakeValidateBlockBuilder,
+};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -54,7 +59,7 @@ const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
     BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
 fn proposal_commitment() -> ProposalCommitment {
-    BlockExecutionArtifacts::create_for_testing().commitment()
+    ProposalCommitment { state_diff_commitment: testing_block_execution_artifacts().commitment() }
 }
 
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
@@ -224,7 +229,7 @@ async fn consecutive_heights_success() {
         mock_create_builder_for_propose_block(
             &mut block_builder_factory,
             vec![],
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(testing_block_execution_artifacts()),
         );
     }
 
@@ -256,7 +261,7 @@ async fn consecutive_heights_success() {
 #[tokio::test]
 async fn validate_block_full_flow() {
     let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+        batcher_with_active_validate_block(Ok(testing_block_execution_artifacts())).await;
 
     let send_proposal_input_txs = SendProposalContentInput {
         proposal_id: PROPOSAL_ID,
@@ -320,7 +325,7 @@ async fn send_proposal_content_after_finish_or_abort(
     #[case] content: SendProposalContent,
 ) {
     let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+        batcher_with_active_validate_block(Ok(testing_block_execution_artifacts())).await;
 
     // End the proposal.
     let end_proposal =
@@ -338,7 +343,7 @@ async fn send_proposal_content_after_finish_or_abort(
 #[tokio::test]
 async fn send_proposal_content_abort() {
     let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+        batcher_with_active_validate_block(Ok(testing_block_execution_artifacts())).await;
 
     let send_abort_proposal =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Abort };
@@ -358,7 +363,7 @@ async fn propose_block_full_flow() {
     mock_create_builder_for_propose_block(
         &mut block_builder_factory,
         expected_streamed_txs.clone(),
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(testing_block_execution_artifacts()),
     );
 
     let mut batcher =
@@ -444,11 +449,11 @@ async fn consecutive_proposal_generation_success() {
         mock_create_builder_for_propose_block(
             &mut block_builder_factory,
             vec![],
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(testing_block_execution_artifacts()),
         );
         mock_create_builder_for_validate_block(
             &mut block_builder_factory,
-            Ok(BlockExecutionArtifacts::create_for_testing()),
+            Ok(testing_block_execution_artifacts()),
         );
     }
     let mut batcher =
@@ -475,7 +480,7 @@ async fn consecutive_proposal_generation_success() {
 #[tokio::test]
 async fn concurrent_proposals_generation_fail() {
     let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+        batcher_with_active_validate_block(Ok(testing_block_execution_artifacts())).await;
 
     // Make sure another proposal can't be generated while the first one is still active.
     let result = batcher.propose_block(propose_block_input(ProposalId(1))).await;
@@ -538,7 +543,7 @@ async fn add_sync_block_mismatch_block_number() {
 #[tokio::test]
 async fn decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
-    let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
+    let expected_artifacts = testing_block_execution_artifacts();
 
     mock_dependencies
         .mempool_client
@@ -560,7 +565,7 @@ async fn decision_reached() {
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(testing_block_execution_artifacts()),
     );
 
     let mut batcher = create_batcher(mock_dependencies);

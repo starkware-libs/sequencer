@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
+use blockifier::execution_artifacts::BlockExecutionArtifacts;
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::errors::StateError;
@@ -23,7 +24,6 @@ use crate::block_builder::{
     BlockBuilderExecutionParams,
     BlockBuilderResult,
     BlockBuilderTrait,
-    BlockExecutionArtifacts,
     FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
