@@ -1,5 +1,7 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::thread::sleep;
+use std::time::Duration;
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
@@ -49,6 +51,11 @@ impl IntegrationTestSetup {
         let chain_info = create_chain_info();
         let accounts = tx_generator.accounts();
         let n_sequencers = component_configs.len();
+        info!("Creating sequencers.");
+        info!("n_sequencers: {}", n_sequencers);
+        info!("component_configs len  is: {}", component_configs.len());
+        info!("Component configs: {:?}", component_configs);
+        sleep(Duration::from_secs(5));
 
         let (mut consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(n_sequencers, &mut available_ports);

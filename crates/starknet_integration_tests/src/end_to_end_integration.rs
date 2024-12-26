@@ -75,10 +75,14 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    let component_configs: Vec<ComponentConfig> = vec![ComponentConfig::default(); N_SEQUENCERS]
-        .into_iter()
-        .chain(get_remote_test_component_config(&mut available_ports))
-        .collect();
+    info!("Available ports: {:?}", available_ports);
+    info!("******************************************");
+    let regular_sequencers: Vec<ComponentConfig> =
+        vec![ComponentConfig::default(); N_SEQUENCERS];
+    let mut component_configs = get_remote_test_component_config(&mut available_ports);
+    component_configs.extend(regular_sequencers);
+
+    info!("Component configs: {:?}", component_configs);
 
     info!("Running integration test setup.");
     // Creating the storage for the test.
@@ -118,27 +122,38 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     assert_eq!(nonce, expected_nonce);
 }
 
-fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_http_only_component_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
-    config.gateway = ReactiveComponentExecutionConfig::remote(gateway_socket);
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
+    config.mempool = ReactiveComponentExecutionConfig::remote(mempool_socket);
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
-fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_non_http_component_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
+        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
+        mempool: ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket),
         monitoring_endpoint: Default::default(),
-        gateway: ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket),
         ..ComponentConfig::default()
     }
 }
 
-fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec<ComponentConfig> {
+pub fn get_remote_test_component_config(
+    available_ports: &mut AvailablePorts,
+) -> Vec<ComponentConfig> {
     let gateway_socket = available_ports.get_next_local_host_socket();
+    let mempool_socket = available_ports.get_next_local_host_socket();
     vec![
-        get_http_only_component_config(gateway_socket),
-        get_non_http_component_config(gateway_socket),
+        get_http_only_component_config(gateway_socket, mempool_socket),
+        get_non_http_component_config(gateway_socket, mempool_socket),
     ]
 }
