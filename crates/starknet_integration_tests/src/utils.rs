@@ -18,6 +18,7 @@ use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
@@ -41,6 +42,8 @@ use starknet_types_core::felt::Felt;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
+pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
+pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -169,6 +172,13 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     ] {
         tx_generator.register_deployed_account(account);
     }
+    // TODO(yair): This is a hack to fund the new account during the setup. Move the registration to
+    // the test body once funding is supported.
+    let new_account_id = tx_generator.register_undeployed_account(
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        NEW_ACCOUNT_SALT,
+    );
+    assert_eq!(new_account_id, UNDEPLOYED_ACCOUNT_ID);
     tx_generator
 }
 

@@ -266,6 +266,26 @@ impl MultiAccountTransactionGenerator {
     pub fn accounts(&self) -> &[AccountTransactionGenerator] {
         self.account_tx_generators.as_slice()
     }
+
+    pub fn account_tx_generators(&mut self) -> &mut Vec<AccountTransactionGenerator> {
+        &mut self.account_tx_generators
+    }
+
+    pub fn deployed_accounts(&self) -> Vec<Contract> {
+        self.account_tx_generators
+            .iter()
+            .filter_map(|tx_gen| if tx_gen.is_deployed { Some(&tx_gen.account) } else { None })
+            .copied()
+            .collect()
+    }
+
+    pub fn undeployed_accounts(&self) -> Vec<Contract> {
+        self.account_tx_generators
+            .iter()
+            .filter_map(|tx_gen| if !tx_gen.is_deployed { Some(&tx_gen.account) } else { None })
+            .copied()
+            .collect()
+    }
 }
 
 /// Manages transaction generation for a single account.
@@ -376,7 +396,7 @@ impl AccountTransactionGenerator {
              must be a deploy account transaction."
         );
         let nonce = self.next_nonce();
-        assert_ne!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
+        assert_eq!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
         let deploy_account_args = deploy_account_tx_args!(
             class_hash: self.account.class_hash(),
             resource_bounds: test_valid_resource_bounds(),
@@ -421,8 +441,10 @@ impl AccountTransactionGenerator {
             is_deployed,
             contract_address_salt,
         };
-        // Bump the account nonce after transaction creation.
-        account_tx_generator.next_nonce();
+        if is_deployed {
+            // Bump the account nonce after transaction creation.
+            account_tx_generator.next_nonce();
+        }
 
         (account_tx_generator, default_deploy_account_tx)
     }
@@ -433,7 +455,7 @@ impl AccountTransactionGenerator {
 // Note: feature contracts have their own address generating method, but it a mocked address and is
 // not related to an actual deploy account transaction, which is the way real account addresses are
 // calculated.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Contract {
     pub contract: FeatureContract,
     pub sender_address: ContractAddress,

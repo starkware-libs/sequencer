@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use futures::StreamExt;
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountTransactionGenerator,
+    Contract,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
@@ -18,7 +20,6 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::test_identifiers::TestIdentifier;
@@ -28,14 +29,14 @@ use starknet_integration_tests::utils::{
     run_integration_test_scenario,
     test_tx_hashes_for_integration_test,
     ACCOUNT_ID_0,
+    UNDEPLOYED_ACCOUNT_ID,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(3);
-const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
+const LAST_HEIGHT: BlockNumber = BlockNumber(4);
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -64,17 +65,6 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let n_heights = next_height.iter_up_to(LAST_HEIGHT.unchecked_next()).count();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
-    let expected_content_ids = [
-        Felt::from_hex_unchecked(
-            "0x58ad05a6987a675eda038663d8e7dcc8e1d91c9057dd57f16d9b3b9602fc840",
-        ),
-        Felt::from_hex_unchecked(
-            "0x79b59c5036c9427b5194796ede67bdfffed1f311a77382d715174fcfcc33003",
-        ),
-        Felt::from_hex_unchecked(
-            "0x36e1f3e0c71b77474494a5baa0a04a4e406626141eba2b2944e4b568f70ff48",
-        ),
-    ];
 
     let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
     // We use only the first sequencer's gateway to test that the mempools are syncing.
@@ -83,11 +73,59 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // We start at height 1, so we need to skip the proposer of the initial height.
     expected_proposer_iter.next().unwrap();
 
-    let create_rpc_txs_scenarios =
-        [create_txs_for_integration_test, create_txs_for_integration_test, fund_new_account];
+    let expected_content_ids = [
+        Felt::from_hex_unchecked(
+            "0x58ad05a6987a675eda038663d8e7dcc8e1d91c9057dd57f16d9b3b9602fc840",
+        ),
+        Felt::from_hex_unchecked(
+            "0x79b59c5036c9427b5194796ede67bdfffed1f311a77382d715174fcfcc33003",
+        ),
+        Felt::from_hex_unchecked(
+            "0x780d92f41f5d5bb03c2250fdfccd83420fda29844cf104fd760eec2a519516d",
+        ),
+        Felt::from_hex_unchecked(
+            "0x2724726cd6258fa82bca6bc02c871ad5f2398808b8a9f68106954f98e5cc24b",
+        ),
+    ];
 
-    let test_tx_hashes_scenarios =
-        [test_tx_hashes_for_integration_test, test_tx_hashes_for_integration_test, test_funding];
+    // TODO(yair): Register the undeployed account here instead of in the test setup once funding is
+    // implemented.
+    let undeployed_account = tx_generator.account_with_id(UNDEPLOYED_ACCOUNT_ID).account;
+    assert!(tx_generator.undeployed_accounts().contains(&undeployed_account));
+
+    type CreateRpcTxsFn = Box<dyn Fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>>;
+    let create_rpc_txs_scenarios: [CreateRpcTxsFn; 4] = [
+        Box::new(create_txs_for_integration_test),
+        Box::new(create_txs_for_integration_test),
+        Box::new(move |tx_generator: &mut MultiAccountTransactionGenerator| {
+            fund_new_account(tx_generator.account_with_id_mut(ACCOUNT_ID_0), &undeployed_account)
+        }),
+        Box::new(deploy_account),
+    ];
+
+    let test_tx_hashes_scenarios = [
+        test_tx_hashes_for_integration_test,
+        test_tx_hashes_for_integration_test,
+        test_funding,
+        test_deploy_account,
+    ];
+    // TODO(yair): In the next block, mark the new account as deployed.
+
+    assert_eq!(
+        n_heights,
+        expected_content_ids.len(),
+        "Expected the same number of heights and content ids"
+    );
+    assert_eq!(
+        n_heights,
+        create_rpc_txs_scenarios.len(),
+        "Expected the same number of heights and scenarios"
+    );
+    assert_eq!(
+        n_heights,
+        test_tx_hashes_scenarios.len(),
+        "Expected the same number of heights and scenarios"
+    );
 
     assert_eq!(
         n_heights,
@@ -237,19 +275,28 @@ async fn listen_to_broadcasted_messages(
     );
 }
 
-fn fund_new_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
-    let new_account_id = tx_generator.register_undeployed_account(
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-        NEW_ACCOUNT_SALT,
-    );
-
-    let to = tx_generator.account_with_id(new_account_id).account;
-
-    let funding_tx = tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_transfer(&to);
+fn fund_new_account(
+    funding_acount: &mut AccountTransactionGenerator,
+    to: &Contract,
+) -> Vec<RpcTransaction> {
+    let funding_tx = funding_acount.generate_transfer(to);
     vec![funding_tx]
 }
 
 fn test_funding(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
+    tx_hashes.to_vec()
+}
+
+fn deploy_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
+    assert_eq!(tx_generator.account_tx_generators().len(), UNDEPLOYED_ACCOUNT_ID + 1);
+    let undeployed_account_tx_generator = tx_generator.account_tx_generators().last_mut().unwrap();
+    assert!(!undeployed_account_tx_generator.is_deployed);
+    let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
+    vec![deploy_tx]
+}
+
+fn test_deploy_account(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
     tx_hashes.to_vec()
 }
