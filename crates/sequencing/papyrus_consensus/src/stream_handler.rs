@@ -191,13 +191,6 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
-            if message.message_id == 0 {
-                // TODO(guyn): consider the expect in both cases.
-                // If this is the first message, send the receiver to the application.
-                let receiver = data.receiver.take().expect("Receiver should exist");
-                // Send the receiver to the application.
-                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
-            }
             match sender.try_send(content) {
                 Ok(_) => {}
                 Err(e) => {
@@ -220,6 +213,13 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                     }
                 }
             };
+            if message.message_id == 0 {
+                // TODO(guyn): consider the expect in both cases.
+                // If this is the first message, send the receiver to the application.
+                let receiver = data.receiver.take().expect("Receiver should exist");
+                // Send the receiver to the application.
+                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
+            }
             data.next_message_id += 1;
             return false;
         }
