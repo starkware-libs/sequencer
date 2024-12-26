@@ -17,6 +17,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
@@ -185,7 +186,7 @@ pub struct VersionedConstants {
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
     pub validate_max_sierra_gas: GasAmount,
-    pub min_compiler_version_for_sierra_gas: CompilerVersion,
+    pub min_sierra_version_for_sierra_gas: SierraVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
@@ -265,7 +266,7 @@ impl VersionedConstants {
     }
 
     /// Returns the default initial gas for VM mode transactions.
-    pub fn inifite_gas_for_vm_mode(&self) -> u64 {
+    pub fn infinite_gas_for_vm_mode(&self) -> u64 {
         self.os_constants.gas_costs.base.default_initial_gas_cost
     }
 
@@ -386,6 +387,7 @@ impl VersionedConstants {
             .iter()
             .map(|(builtin, amount)| {
                 let builtin_cost = gas_costs
+                    .builtins
                     .get_builtin_gas_cost(builtin)
                     .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
                 builtin_cost * u64_from_usize(*amount)
@@ -660,48 +662,43 @@ impl SyscallGasCosts {
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
     pub memory_hole_gas_cost: u64,
-    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
-    // retrieving its price from the table.
-    pub range_check_gas_cost: u64,
-    // Priced builtins.
-    pub keccak_builtin_gas_cost: u64,
-    pub pedersen_gas_cost: u64,
-    pub bitwise_builtin_gas_cost: u64,
-    pub ecop_gas_cost: u64,
-    pub poseidon_gas_cost: u64,
-    pub add_mod_gas_cost: u64,
-    pub mul_mod_gas_cost: u64,
-    pub ecdsa_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
     pub default_initial_gas_cost: u64,
     // Compiler gas costs.
     pub entry_point_initial_budget: u64,
     pub syscall_base_gas_cost: u64,
-    // OS gas costs.
-    pub transaction_gas_cost: u64,
 }
 
-/// Gas cost constants. For more documentation see in core/os/constants.cairo.
 #[derive(Debug, Default, Deserialize)]
-pub struct GasCosts {
-    pub base: BaseGasCosts,
-    pub syscalls: SyscallGasCosts,
+pub struct BuiltinGasCosts {
+    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
+    // retrieving its price from the table.
+    pub range_check: u64,
+    // Priced builtins.
+    pub keccak: u64,
+    pub pedersen: u64,
+    pub bitwise: u64,
+    pub ecop: u64,
+    pub poseidon: u64,
+    pub add_mod: u64,
+    pub mul_mod: u64,
+    pub ecdsa: u64,
 }
 
-impl GasCosts {
+impl BuiltinGasCosts {
     pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
         let gas_cost = match *builtin {
-            BuiltinName::range_check => self.base.range_check_gas_cost,
-            BuiltinName::pedersen => self.base.pedersen_gas_cost,
-            BuiltinName::bitwise => self.base.bitwise_builtin_gas_cost,
-            BuiltinName::ec_op => self.base.ecop_gas_cost,
-            BuiltinName::keccak => self.base.keccak_builtin_gas_cost,
-            BuiltinName::poseidon => self.base.poseidon_gas_cost,
-            BuiltinName::range_check96 => self.base.range_check_gas_cost,
-            BuiltinName::add_mod => self.base.add_mod_gas_cost,
-            BuiltinName::mul_mod => self.base.mul_mod_gas_cost,
-            BuiltinName::ecdsa => self.base.ecdsa_gas_cost,
+            BuiltinName::range_check => self.range_check,
+            BuiltinName::pedersen => self.pedersen,
+            BuiltinName::bitwise => self.bitwise,
+            BuiltinName::ec_op => self.ecop,
+            BuiltinName::keccak => self.keccak,
+            BuiltinName::poseidon => self.poseidon,
+            BuiltinName::range_check96 => self.range_check,
+            BuiltinName::add_mod => self.add_mod,
+            BuiltinName::mul_mod => self.mul_mod,
+            BuiltinName::ecdsa => self.ecdsa,
             BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
             BuiltinName::output => {
                 return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
@@ -710,6 +707,14 @@ impl GasCosts {
 
         Ok(gas_cost)
     }
+}
+
+/// Gas cost constants. For more documentation see in core/os/constants.cairo.
+#[derive(Debug, Default, Deserialize)]
+pub struct GasCosts {
+    pub base: BaseGasCosts,
+    pub builtins: BuiltinGasCosts,
+    pub syscalls: SyscallGasCosts,
 }
 
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
@@ -726,12 +731,11 @@ pub struct OsConstants {
 }
 
 impl OsConstants {
-    // List of additinal os constants, beside the gas cost and validate rounding constants, that are
-    // not used by the blockifier but included for transparency. These constanst will be ignored
-    // during the creation of the struct containing the gas costs.
+    // List of os constants to be ignored
+    // during the creation of the struct containing the base gas costs.
 
     const ADDITIONAL_FIELDS: [&'static str; 30] = [
-        "block_hash_contract_address",
+        "builtin_gas_costs",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
         "entry_point_type_constructor",
@@ -754,13 +758,13 @@ impl OsConstants {
         "nop_entry_point_offset",
         "sierra_array_len_bound",
         "stored_block_hash_buffer",
+        "syscall_gas_costs",
         "transfer_entry_point_selector",
         "validate_declare_entry_point_selector",
         "validate_deploy_entry_point_selector",
         "validate_entry_point_selector",
         "validate_rounding_consts",
         "validated",
-        "syscall_gas_costs",
     ];
 }
 
@@ -770,9 +774,12 @@ impl TryFrom<&OsConstantsRawJson> for GasCosts {
     fn try_from(raw_json_data: &OsConstantsRawJson) -> Result<Self, Self::Error> {
         let base_value: Value = serde_json::to_value(&raw_json_data.parse_base()?)?;
         let base: BaseGasCosts = serde_json::from_value(base_value)?;
-        let syscalls_value: Value = serde_json::to_value(&raw_json_data.parse_syscalls(&base)?)?;
+        let builtins_value: Value = serde_json::to_value(&raw_json_data.parse_builtin()?)?;
+        let builtins: BuiltinGasCosts = serde_json::from_value(builtins_value)?;
+        let syscalls_value: Value =
+            serde_json::to_value(&raw_json_data.parse_syscalls(&base, &builtins)?)?;
         let syscalls: SyscallGasCosts = serde_json::from_value(syscalls_value)?;
-        Ok(GasCosts { base, syscalls })
+        Ok(GasCosts { base, builtins, syscalls })
     }
 }
 
@@ -846,13 +853,34 @@ impl OsConstantsRawJson {
     fn parse_syscalls(
         &self,
         base: &BaseGasCosts,
+        builtins: &BuiltinGasCosts,
     ) -> Result<IndexMap<String, u64>, OsConstantsSerdeError> {
         let mut gas_costs = IndexMap::new();
         let syscalls: IndexMap<String, Value> = serde_json::from_value(
             (self.raw_json_file_as_dict.get("syscall_gas_costs").unwrap()).clone(),
         )?;
         for (key, value) in syscalls {
-            self.add_to_syscalls(&key, &value, &mut gas_costs, base)?;
+            self.add_to_syscalls(&key, &value, &mut gas_costs, base, builtins)?;
+        }
+        Ok(gas_costs)
+    }
+
+    fn parse_builtin(&self) -> Result<IndexMap<String, u64>, OsConstantsSerdeError> {
+        let mut gas_costs = IndexMap::new();
+        let builtins: IndexMap<String, Value> = serde_json::from_value(
+            (self.raw_json_file_as_dict.get("builtin_gas_costs").unwrap()).clone(),
+        )?;
+        for (key, value) in builtins {
+            match value {
+                Value::Number(n) => {
+                    let cost = n.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRange {
+                        key: key.to_string(),
+                        value: n.clone(),
+                    })?;
+                    gas_costs.insert(key.to_string(), cost);
+                }
+                _ => return Err(OsConstantsSerdeError::UnhandledValueType(value.clone())),
+            }
         }
         Ok(gas_costs)
     }
@@ -925,6 +953,7 @@ impl OsConstantsRawJson {
         value: &Value,
         syscalls: &mut IndexMap<String, u64>,
         base: &BaseGasCosts,
+        builtins: &BuiltinGasCosts,
     ) -> Result<(), OsConstantsSerdeError> {
         let mut cost = 0;
         match value {
@@ -933,19 +962,18 @@ impl OsConstantsRawJson {
                     let inner_value = match inner_key.as_str() {
                         "step_gas_cost" => base.step_gas_cost,
                         "memory_hole_gas_cost" => base.memory_hole_gas_cost,
-                        "range_check_gas_cost" => base.range_check_gas_cost,
-                        "keccak_builtin_gas_cost" => base.keccak_builtin_gas_cost,
-                        "pedersen_gas_cost" => base.pedersen_gas_cost,
-                        "bitwise_builtin_gas_cost" => base.bitwise_builtin_gas_cost,
-                        "ecop_gas_cost" => base.ecop_gas_cost,
-                        "poseidon_gas_cost" => base.poseidon_gas_cost,
-                        "add_mod_gas_cost" => base.add_mod_gas_cost,
-                        "mul_mod_gas_cost" => base.mul_mod_gas_cost,
-                        "ecdsa_gas_cost" => base.ecdsa_gas_cost,
                         "default_initial_gas_cost" => base.default_initial_gas_cost,
                         "entry_point_initial_budget" => base.entry_point_initial_budget,
                         "syscall_base_gas_cost" => base.syscall_base_gas_cost,
-                        "transaction_gas_cost" => base.transaction_gas_cost,
+                        "range_check" => builtins.range_check,
+                        "keccak" => builtins.keccak,
+                        "pedersen" => builtins.pedersen,
+                        "bitwise" => builtins.bitwise,
+                        "ecop" => builtins.ecop,
+                        "poseidon" => builtins.poseidon,
+                        "add_mod" => builtins.add_mod,
+                        "mul_mod" => builtins.mul_mod,
+                        "ecdsa" => builtins.ecdsa,
                         _ => {
                             return Err(OsConstantsSerdeError::KeyNotFound {
                                 key: key.to_string(),

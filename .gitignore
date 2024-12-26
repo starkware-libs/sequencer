@@ -27,6 +27,8 @@ tmp_venv/*
 # Git hooks
 /.husky
 /.idea
+__pycache__/
+.idea/
 
 # Python artifacts.
 scripts/__pycache__

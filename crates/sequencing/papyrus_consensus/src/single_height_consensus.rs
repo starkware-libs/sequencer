@@ -17,7 +17,7 @@ use std::time::Duration;
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote, VoteType};
+use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -247,13 +247,7 @@ impl SingleHeightConsensus {
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
         let block_receiver = context
-            .validate_proposal(
-                self.height,
-                init.round,
-                init.proposer,
-                self.timeouts.proposal_timeout,
-                p2p_messages_receiver,
-            )
+            .validate_proposal(init, self.timeouts.proposal_timeout, p2p_messages_receiver)
             .await;
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
@@ -267,26 +261,6 @@ impl SingleHeightConsensus {
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
         self.handle_state_machine_events(context, sm_events).await
-    }
-
-    /// Handle messages from peer nodes.
-    #[instrument(skip_all)]
-    pub(crate) async fn handle_message<ContextT: ConsensusContext>(
-        &mut self,
-        context: &mut ContextT,
-        message: ConsensusMessage,
-    ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received message: {:?}", message);
-        match message {
-            ConsensusMessage::Proposal(_) => {
-                unimplemented!("Proposals should use `handle_proposal` due to fake streaming")
-            }
-            ConsensusMessage::Vote(vote) => {
-                let ret = self.handle_vote(context, vote).await;
-                context.set_height_and_round(self.height, self.state_machine.round()).await;
-                ret
-            }
-        }
     }
 
     pub async fn handle_event<ContextT: ConsensusContext>(
@@ -311,7 +285,7 @@ impl SingleHeightConsensus {
                 if last_vote.round > round {
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
+                context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
                     StateMachineEvent::Prevote(proposal_id, round),
@@ -324,7 +298,7 @@ impl SingleHeightConsensus {
                 if last_vote.round > round {
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
+                context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
                     StateMachineEvent::Precommit(proposal_id, round),
@@ -380,8 +354,9 @@ impl SingleHeightConsensus {
         ret
     }
 
+    /// Handle vote messages from peer nodes.
     #[instrument(skip_all)]
-    async fn handle_vote<ContextT: ConsensusContext>(
+    pub(crate) async fn handle_vote<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
         vote: Vote,
@@ -407,11 +382,7 @@ impl SingleHeightConsensus {
             Entry::Occupied(entry) => {
                 let old = entry.get();
                 if old.block_hash != vote.block_hash {
-                    return Err(ConsensusError::Equivocation(
-                        self.height,
-                        ConsensusMessage::Vote(old.clone()),
-                        ConsensusMessage::Vote(vote),
-                    ));
+                    return Err(ConsensusError::Equivocation(self.height, old.clone(), vote));
                 } else {
                     // Replay, ignore.
                     return Ok(ShcReturn::Tasks(Vec::new()));
@@ -420,7 +391,9 @@ impl SingleHeightConsensus {
         }
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
-        self.handle_state_machine_events(context, sm_events).await
+        let ret = self.handle_state_machine_events(context, sm_events).await;
+        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        ret
     }
 
     // Handle events output by the state machine.
@@ -514,11 +487,12 @@ impl SingleHeightConsensus {
         round: Round,
         valid_round: Option<Round>,
     ) {
-        let proposal_id = proposal_id.expect("StateMachine should not propose a None proposal_id");
         let Some(valid_round) = valid_round else {
-            // newly built so just streamed
+            // Newly built so already streamed out.
             return;
         };
+        let proposal_id = proposal_id.expect("Reproposal must have a valid ID");
+
         let id = self
             .proposals
             .get(&valid_round)
@@ -573,7 +547,7 @@ impl SingleHeightConsensus {
             // TODO(matan): Consider refactoring not to panic, rather log and return the error.
             panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
         }
-        context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+        context.broadcast(vote.clone()).await?;
         if last_vote.as_ref().map_or(false, |last| round < last.round) {
             return Ok(Vec::new());
         }

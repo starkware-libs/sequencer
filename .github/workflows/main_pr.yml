@@ -1,6 +1,7 @@
 name: Main-CI-PR-Flow
 
 on:
+  merge_group:
   pull_request:
     types:
       - opened

@@ -2,10 +2,10 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
-    VersionedRunnableCompiledClass,
 };
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
-use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::{StateReader, StateResult};
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
@@ -25,16 +25,16 @@ type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
+    contract_class_manager: ContractClassManager,
 }
 
 impl PapyrusReader {
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
+        contract_class_manager: ContractClassManager,
     ) -> Self {
-        Self { storage_reader, latest_block, global_class_hash_to_class }
+        Self { storage_reader, latest_block, contract_class_manager }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
@@ -48,7 +48,7 @@ impl PapyrusReader {
     fn get_compiled_class_inner(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<VersionedRunnableCompiledClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -69,10 +69,11 @@ impl PapyrusReader {
                      database is inconsistent.",
                 );
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
-            let runnable_compiled =
-                RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?);
-
-            return Ok(VersionedRunnableCompiledClass::Cairo1((runnable_compiled, sierra_version)));
+            let runnable_compiled = RunnableCompiledClass::V1(CompiledClassV1::try_from((
+                casm_compiled_class,
+                sierra_version,
+            ))?);
+            return Ok(runnable_compiled);
         }
 
         let v0_compiled_class = self
@@ -82,8 +83,8 @@ impl PapyrusReader {
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
         match v0_compiled_class {
-            Some(starknet_api_contract_class) => Ok(VersionedRunnableCompiledClass::Cairo0(
-                CompiledClassV0::try_from(starknet_api_contract_class)?.into(),
+            Some(starknet_api_contract_class) => Ok(RunnableCompiledClass::V0(
+                CompiledClassV0::try_from(starknet_api_contract_class)?,
             )),
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
@@ -132,16 +133,20 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
-        let versioned_contract_class = self.global_class_hash_to_class.get(&class_hash);
+        let cached_casm = self.contract_class_manager.get_casm(&class_hash);
 
-        match versioned_contract_class {
-            Some(contract_class) => Ok(RunnableCompiledClass::from(contract_class)),
+        match cached_casm {
             None => {
-                let versioned_contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
-                // The class was declared in a previous (finalized) state; update the global cache.
-                self.global_class_hash_to_class
-                    .set(class_hash, versioned_contract_class_from_db.clone());
-                Ok(RunnableCompiledClass::from(versioned_contract_class_from_db))
+                let compiled_class_from_db = self.get_compiled_class_inner(class_hash)?;
+                self.contract_class_manager.set_casm(
+                    class_hash,
+                    CachedCasm::WithoutSierra(compiled_class_from_db.clone()),
+                );
+                Ok(compiled_class_from_db)
+            }
+            Some(CachedCasm::WithoutSierra(casm)) => Ok(casm),
+            Some(CachedCasm::WithSierra(_, _)) => {
+                todo!("Add this flow when Sierra to Native compilation is added to PapyrusReader.")
             }
         }
     }

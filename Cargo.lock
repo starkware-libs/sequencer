@@ -423,6 +423,7 @@ version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ecbabb8fc3d75a0c2cea5215be22e7a267e3efde835b0f2a8922f5e3f5d47683"
 dependencies = [
+ "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
@@ -441,11 +442,13 @@ version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16517f2af03064485150d89746b8ffdcdbc9b6eeb3d536fb66efd7c2846fbc75"
 dependencies = [
+ "alloy-json-abi",
  "const-hex",
  "dunce",
  "heck 0.5.0",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn 2.0.90",
  "syn-solidity",
 ]
@@ -5254,7 +5257,9 @@ checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 name = "infra_utils"
 version = "0.0.0"
 dependencies = [
+ "num-traits 0.2.19",
  "pretty_assertions",
+ "regex",
  "rstest",
  "tokio",
  "tracing",
@@ -7352,6 +7357,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror",
+ "tracing",
  "validator",
 ]
 
@@ -7383,6 +7389,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]
@@ -7390,8 +7397,11 @@ name = "papyrus_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "blockifier",
  "chrono",
  "futures",
+ "indexmap 2.6.0",
+ "infra_utils",
  "lazy_static",
  "mockall",
  "papyrus_consensus",
@@ -7399,11 +7409,15 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_state_sync_types",
  "test-case",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 
@@ -7501,6 +7515,7 @@ dependencies = [
  "replace_with",
  "serde",
  "starknet_api",
+ "starknet_sequencer_infra",
  "thiserror",
  "tokio",
  "tokio-retry",
@@ -10260,6 +10275,7 @@ dependencies = [
  "infra_utils",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
+ "num-traits 0.2.19",
  "pretty_assertions",
  "primitive-types",
  "rstest",
@@ -10323,6 +10339,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_class_manager_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror",
+]
+
+[[package]]
 name = "starknet_client"
 version = "0.0.0"
 dependencies = [
@@ -10378,12 +10406,14 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "infra_utils",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_network",
  "papyrus_protobuf",
  "serde",
+ "starknet_api",
  "starknet_batcher_types",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
@@ -10402,6 +10432,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "futures",
  "mempool_test_utils",
  "mockall",
  "mockito 1.5.0",
@@ -10422,6 +10453,7 @@ dependencies = [
  "starknet_mempool_types",
  "starknet_sequencer_infra",
  "starknet_sierra_compile",
+ "starknet_state_sync_types",
  "thiserror",
  "tokio",
  "tracing",
@@ -10434,7 +10466,6 @@ name = "starknet_gateway_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "axum",
  "enum-assoc",
  "mockall",
  "papyrus_network_types",
@@ -10455,6 +10486,9 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.30",
+ "infra_utils",
+ "jsonrpsee",
+ "metrics 0.21.1",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
@@ -10472,7 +10506,6 @@ dependencies = [
 name = "starknet_integration_tests"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
@@ -10482,6 +10515,7 @@ dependencies = [
  "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_common",
+ "papyrus_config",
  "papyrus_consensus",
  "papyrus_execution",
  "papyrus_network",
@@ -10574,6 +10608,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "libp2p",
  "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
@@ -10628,10 +10663,12 @@ dependencies = [
  "infra_utils",
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
+ "num-traits 0.2.19",
  "papyrus_config",
  "pretty_assertions",
  "serde",
  "starknet_sequencer_infra",
+ "thiserror",
  "tokio",
  "tower 0.4.13",
  "tracing",
@@ -10666,6 +10703,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.30",
+ "infra_utils",
  "papyrus_config",
  "pretty_assertions",
  "rstest",
@@ -10694,8 +10732,8 @@ dependencies = [
  "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
- "papyrus_consensus",
  "papyrus_proc_macros",
+ "papyrus_protobuf",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -10757,6 +10795,7 @@ dependencies = [
  "papyrus_p2p_sync",
  "papyrus_storage",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
@@ -10769,11 +10808,15 @@ name = "starknet_state_sync_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
+ "mockall",
  "papyrus_proc_macros",
  "papyrus_storage",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
+ "starknet_state_sync_types",
  "thiserror",
 ]
 
@@ -11359,9 +11402,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.12"
+version = "0.7.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61e7c3654c13bcd040d4a03abee2c75b1d14a37b423cf5a813ceae1cc903ec6a"
+checksum = "d7fcaa8d55a2bdd6b83ace262b016eca0d79ee02818c5c1bcdf0305114081078"
 dependencies = [
  "bytes",
  "futures-core",

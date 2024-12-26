@@ -685,6 +685,12 @@ pub struct L1HandlerTransaction {
     pub calldata: Calldata,
 }
 
+impl L1HandlerTransaction {
+    /// The transaction version is considered 0 for L1-Handler transaction for hash calculation
+    /// purposes.
+    pub const VERSION: TransactionVersion = TransactionVersion::ZERO;
+}
+
 impl TransactionHasher for L1HandlerTransaction {
     fn calculate_transaction_hash(
         &self,

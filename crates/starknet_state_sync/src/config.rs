@@ -10,6 +10,8 @@ use papyrus_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+const STATE_SYNC_TCP_PORT: u16 = 12345;
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct StateSyncConfig {
     #[validate]
@@ -44,7 +46,7 @@ impl Default for StateSyncConfig {
                 ..Default::default()
             },
             p2p_sync_client_config: Default::default(),
-            network_config: Default::default(),
+            network_config: NetworkConfig { tcp_port: STATE_SYNC_TCP_PORT, ..Default::default() },
         }
     }
 }

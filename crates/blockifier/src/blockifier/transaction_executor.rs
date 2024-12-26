@@ -16,6 +16,7 @@ use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::state::stateful_compression::state_diff_with_alias_allocation;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
@@ -142,6 +143,7 @@ impl<S: StateReader> TransactionExecutor<S> {
 
     /// Returns the state diff, a list of contract class hash with the corresponding list of
     /// visited segment values and the block weights.
+    // TODO(Yoav): Consume "self".
     pub fn finalize(
         &mut self,
     ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>
@@ -166,16 +168,20 @@ impl<S: StateReader> TransactionExecutor<S> {
             .collect::<TransactionExecutorResult<_>>()?;
 
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
-        Ok((
-            self.block_state
-                .as_mut()
-                .expect(BLOCK_STATE_ACCESS_ERR)
-                .to_state_diff()?
-                .state_maps
-                .into(),
-            visited_segments,
-            *self.bouncer.get_accumulated_weights(),
-        ))
+        let mut block_state = self.block_state.take().expect(BLOCK_STATE_ACCESS_ERR);
+        let state_diff = if self.block_context.versioned_constants.enable_stateful_compression {
+            state_diff_with_alias_allocation(
+                &mut block_state,
+                self.block_context
+                    .versioned_constants
+                    .os_constants
+                    .os_contract_addresses
+                    .alias_contract_address(),
+            )?
+        } else {
+            block_state.to_state_diff()?.state_maps
+        };
+        Ok((state_diff.into(), visited_segments, *self.bouncer.get_accumulated_weights()))
     }
 }
 

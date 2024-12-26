@@ -16,7 +16,7 @@ WORKDIR /app
 COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
 
 # Copy sequencer config
-COPY config/sequencer/default_config.json /config/sequencer/
+COPY config/sequencer/default_config.json /app/config/sequencer/
 
 # Create a new user "sequencer".
 RUN set -ex; \

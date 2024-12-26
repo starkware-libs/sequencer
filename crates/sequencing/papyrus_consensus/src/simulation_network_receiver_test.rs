@@ -4,7 +4,7 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::ConsensusMessage;
+use papyrus_protobuf::consensus::Vote;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use test_case::test_case;
 
@@ -15,12 +15,10 @@ const SEED: u64 = 123;
 const DROP_PROBABILITY: f64 = 0.5;
 const INVALID_PROBABILITY: f64 = 0.5;
 
-#[test_case(true, true; "distinct_vote")]
-#[test_case(false, true; "repeat_vote")]
-#[test_case(true, false; "distinct_proposal")]
-#[test_case(false, false; "repeat_proposal")]
+#[test_case(true; "distinct_vote")]
+#[test_case(false; "repeat_vote")]
 #[tokio::test]
-async fn test_invalid(distinct_messages: bool, is_vote: bool) {
+async fn test_invalid(distinct_messages: bool) {
     let TestSubscriberChannels { subscriber_channels, mut mock_network } =
         mock_register_broadcast_topic().unwrap();
     let mut receiver = NetworkReceiver::new(
@@ -33,7 +31,7 @@ async fn test_invalid(distinct_messages: bool, is_vote: bool) {
     let mut invalid_messages = 0;
 
     for height in 0..1000 {
-        let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
+        let msg = Vote { height: if distinct_messages { height } else { 0 }, ..Default::default() };
         let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
@@ -48,12 +46,10 @@ async fn test_invalid(distinct_messages: bool, is_vote: bool) {
     assert!((400..=600).contains(&invalid_messages), "num_invalid={invalid_messages}");
 }
 
-#[test_case(true, true; "distinct_vote")]
-#[test_case(false, true; "repeat_vote")]
-#[test_case(true, false; "distinct_proposal")]
-#[test_case(false, false; "repeat_proposal")]
+#[test_case(true; "distinct_vote")]
+#[test_case(false; "repeat_vote")]
 #[tokio::test]
-async fn test_drops(distinct_messages: bool, is_vote: bool) {
+async fn test_drops(distinct_messages: bool) {
     let TestSubscriberChannels { subscriber_channels, mut mock_network } =
         mock_register_broadcast_topic().unwrap();
     let mut receiver = NetworkReceiver::new(
@@ -66,7 +62,7 @@ async fn test_drops(distinct_messages: bool, is_vote: bool) {
     let mut num_received = 0;
 
     for height in 0..1000 {
-        let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
+        let msg = Vote { height: if distinct_messages { height } else { 0 }, ..Default::default() };
         let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
@@ -81,15 +77,4 @@ async fn test_drops(distinct_messages: bool, is_vote: bool) {
         num_received += 1;
     }
     assert!((400..=600).contains(&num_received), "num_received={num_received}");
-}
-
-fn create_consensus_msg(height: u64, is_vote: bool) -> ConsensusMessage {
-    if is_vote {
-        ConsensusMessage::Vote(papyrus_protobuf::consensus::Vote { height, ..Default::default() })
-    } else {
-        ConsensusMessage::Proposal(papyrus_protobuf::consensus::Proposal {
-            height,
-            ..Default::default()
-        })
-    }
 }

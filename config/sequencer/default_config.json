@@ -129,10 +129,20 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
-  "batcher_config.global_contract_cache_size": {
-    "description": "Cache size for the global_class_hash_to_class. Initialized with this size on creation.",
+  "batcher_config.contract_class_manager_config.contract_cache_size": {
+    "description": "The size of the global contract cache.",
     "privacy": "Public",
     "value": 400
+  },
+  "batcher_config.contract_class_manager_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
   },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
@@ -704,6 +714,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "consensus_manager_config.consensus_config.sync_retry_interval": {
+    "description": "The duration (seconds) between sync attempts.",
+    "privacy": "Public",
+    "value": 1.0
+  },
   "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
@@ -1027,7 +1042,7 @@
   "state_sync_config.network_config.tcp_port": {
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
-    "value": 10000
+    "value": 12345
   },
   "state_sync_config.p2p_sync_client_config.buffer_size": {
     "description": "Size of the buffer for read from the storage and for incoming responses.",
@@ -1053,16 +1068,6 @@
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "privacy": "Public",
     "value": 10000
-  },
-  "state_sync_config.p2p_sync_client_config.stop_sync_at_block_number": {
-    "description": "Stops the sync at given block number and closes the node cleanly. Used to run profiling on the node.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.p2p_sync_client_config.stop_sync_at_block_number.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": {
     "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",

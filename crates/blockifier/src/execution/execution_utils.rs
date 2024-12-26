@@ -58,12 +58,12 @@ pub fn execute_entry_point_call_wrapper(
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
     let current_tracked_resource = compiled_class.tracked_resource(
-        &context.versioned_constants().min_compiler_version_for_sierra_gas,
+        &context.versioned_constants().min_sierra_version_for_sierra_gas,
         context.tracked_resource_stack.last(),
     );
     if current_tracked_resource == TrackedResource::CairoSteps {
         // Override the initial gas with a high value so it won't limit the run.
-        call.initial_gas = context.versioned_constants().inifite_gas_for_vm_mode();
+        call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
     }
     let orig_call = call.clone();
 
@@ -136,6 +136,13 @@ pub fn execute_entry_point_call(
                     context,
                 )
             } else {
+                log::debug!(
+                    "Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, Class \
+                     Hash: {}.",
+                    context.tx_context.block_context.block_info.block_number,
+                    context.tx_context.tx_info.transaction_hash(),
+                    call.class_hash.expect("Missing Class Hash")
+                );
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,

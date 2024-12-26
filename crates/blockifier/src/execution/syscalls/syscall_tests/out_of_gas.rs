@@ -2,7 +2,6 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
-#[cfg(feature = "cairo_native")]
 use crate::abi::constants::MAX_POSSIBLE_SIERRA_GAS;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
@@ -12,6 +11,7 @@ use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
@@ -41,6 +41,14 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
     );
 }
 
+#[test]
+fn test_total_tx_limits_less_than_max_sierra_gas() {
+    assert!(
+        VersionedConstants::create_for_testing().initial_gas_no_user_l2_bound().0
+            <= MAX_POSSIBLE_SIERRA_GAS
+    );
+}
+
 #[cfg(feature = "cairo_native")]
 #[test]
 /// Tests that Native can handle deep recursion calls without overflowing the stack.
@@ -57,7 +65,6 @@ fn test_stack_overflow() {
     let entry_point_call = CallEntryPoint {
         calldata: calldata![depth],
         entry_point_selector: selector_from_name("test_stack_overflow"),
-        // TODO(Aner): assert that the total tx limits are <= MAX_POSSIBLE_SIERRA_GAS.
         initial_gas: MAX_POSSIBLE_SIERRA_GAS,
         ..trivial_external_entry_point_new(test_contract)
     };

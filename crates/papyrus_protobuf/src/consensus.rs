@@ -1,19 +1,8 @@
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
-
-// TODO(guyn): remove this once we integrate ProposalPart everywhere.
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
-pub struct Proposal {
-    pub height: u64,
-    pub round: u32,
-    pub proposer: ContractAddress,
-    pub transactions: Vec<Transaction>,
-    pub block_hash: BlockHash,
-    pub valid_round: Option<u32>,
-}
 
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub enum VoteType {
@@ -32,27 +21,12 @@ pub struct Vote {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub enum ConsensusMessage {
-    Proposal(Proposal), // To be deprecated
-    Vote(Vote),
-}
-
-impl ConsensusMessage {
-    pub fn height(&self) -> u64 {
-        match self {
-            ConsensusMessage::Proposal(proposal) => proposal.height,
-            ConsensusMessage::Vote(vote) => vote.height,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum StreamMessageBody<T> {
     Content(T),
     Fin,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: StreamMessageBody<T>,
     pub stream_id: u64,
@@ -60,7 +34,7 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
 }
 
 /// This message must be sent first when proposing a new block.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
@@ -72,14 +46,26 @@ pub struct ProposalInit {
     pub proposer: ContractAddress,
 }
 
+/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
+// TODO(Matan): Remove this once we have a proper validator set.
+pub const DEFAULT_VALIDATOR_ID: u64 = 100;
+
+impl Default for ProposalInit {
+    fn default() -> Self {
+        ProposalInit {
+            height: Default::default(),
+            round: Default::default(),
+            valid_round: Default::default(),
+            proposer: ContractAddress::from(DEFAULT_VALIDATOR_ID),
+        }
+    }
+}
+
 /// There is one or more batches of transactions in a proposed block.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
-    // TODO(guyn): remove this once we know how to get hashes as part of the compilation.
-    /// The transaction's hashes.
-    pub tx_hashes: Vec<TransactionHash>,
 }
 
 /// The proposal is done when receiving this fin message, which contains the block hash.
@@ -127,7 +113,6 @@ where
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO(guyn): add option to display when message is Fin and doesn't have content (PR #1048)
         if let StreamMessageBody::Content(message) = &self.message {
             let message: Vec<u8> = message.clone().into();
             write!(

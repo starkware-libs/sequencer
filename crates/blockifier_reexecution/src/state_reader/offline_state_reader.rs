@@ -19,7 +19,10 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_types_core::felt::Felt;
 
-use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
+use crate::state_reader::compile::{
+    legacy_to_contract_class_v0,
+    sierra_to_versioned_contract_class_v1,
+};
 use crate::state_reader::errors::ReexecutionResult;
 use crate::state_reader::reexecution_state_reader::{
     ConsecutiveReexecutionStateReaders,
@@ -119,7 +122,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct OfflineStateReader {
     pub state_maps: StateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
@@ -157,7 +160,8 @@ impl StateReader for OfflineStateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => {
-                Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
+                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
+                Ok(casm.try_into().unwrap())
             }
             StarknetContractClass::Legacy(legacy) => {
                 Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())

@@ -2,11 +2,9 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, Ge
 use rand::Rng;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::Transaction;
 
 use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -18,18 +16,6 @@ use crate::consensus::{
 };
 
 auto_impl_get_test_instance! {
-    pub enum ConsensusMessage {
-        Proposal(Proposal) = 0,
-        Vote(Vote) = 1,
-    }
-    pub struct Proposal {
-        pub height: u64,
-        pub round: u32,
-        pub proposer: ContractAddress,
-        pub transactions: Vec<Transaction>,
-        pub block_hash: BlockHash,
-        pub valid_round: Option<u32>,
-    }
     pub struct Vote {
         pub vote_type: VoteType,
         pub height: u64,
@@ -52,7 +38,6 @@ auto_impl_get_test_instance! {
     }
     pub struct TransactionBatch {
         pub transactions: Vec<Transaction>,
-        pub tx_hashes: Vec<TransactionHash>,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
@@ -64,10 +49,12 @@ auto_impl_get_test_instance! {
 
 // The auto_impl_get_test_instance macro does not work for StreamMessage because it has
 // a generic type. TODO(guyn): try to make the macro work with generic types.
-impl GetTestInstance for StreamMessage<ConsensusMessage> {
+impl GetTestInstance for StreamMessage<ProposalPart> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         let message = if rng.gen_bool(0.5) {
-            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
+            StreamMessageBody::Content(ProposalPart::Transactions(TransactionBatch {
+                transactions: vec![Transaction::get_test_instance(rng)],
+            }))
         } else {
             StreamMessageBody::Fin
         };

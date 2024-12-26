@@ -1,10 +1,13 @@
-<!-- name: Papyrus-Docker-Publish
+name: Papyrus-Docker-Publish
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*.*.*"]
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
@@ -82,4 +85,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max -->
+          cache-to: type=gha,mode=max

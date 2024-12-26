@@ -32,6 +32,7 @@ members = [
   "crates/starknet_api",
   "crates/starknet_batcher",
   "crates/starknet_batcher_types",
+  "crates/starknet_class_manager_types",
   "crates/starknet_client",
   "crates/starknet_committer",
   "crates/starknet_consensus_manager",
@@ -217,6 +218,7 @@ starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/starknet_batcher", version = "0.0.0" }
 starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.0.0" }
+starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.0.0" }
@@ -252,6 +254,7 @@ tokio = "1.37.0"
 tokio-retry = "0.3"
 tokio-stream = "0.1.8"
 tokio-test = "0.4.4"
+tokio-util = "0.7.13"
 toml = "0.8"
 tower = "0.4.13"
 tracing = "0.1.37"
