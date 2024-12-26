@@ -239,17 +239,10 @@ fn get_rand_test_block_with_events(
     events_per_tx: usize,
     from_addresses: Option<Vec<ContractAddress>>,
     keys: Option<Vec<Vec<EventKey>>>,
-) -> Block {
-    Block {
-        header: BlockHeader::default(),
-        body: get_rand_test_body_with_events(
-            rng,
-            transaction_count,
-            events_per_tx,
-            from_addresses,
-            keys,
-        ),
-    }
+) -> (Block, Vec<Vec<Event>>) {
+    let (block_body, events) =
+        get_rand_test_body_with_events(rng, transaction_count, events_per_tx, from_addresses, keys);
+    (Block { header: BlockHeader::default(), body: block_body }, events)
 }
 
 // TODO(Dan, 01/11/2023): Remove this util once v3 tests are ready and transaction generation is
@@ -270,7 +263,7 @@ fn get_rand_test_body_with_events(
     events_per_tx: usize,
     from_addresses: Option<Vec<ContractAddress>>,
     keys: Option<Vec<Vec<EventKey>>>,
-) -> BlockBody {
+) -> (BlockBody, Vec<Vec<Event>>) {
     let mut transactions = vec![];
     let mut transaction_outputs = vec![];
     let mut transaction_hashes = vec![];
@@ -287,8 +280,9 @@ fn get_rand_test_body_with_events(
         transaction_execution_statuses.push(TransactionExecutionStatus::default());
     }
     let mut body = BlockBody { transactions, transaction_outputs, transaction_hashes };
-    for tx_output in &mut body.transaction_outputs {
-        let mut events = vec![];
+    let mut block_events = vec![];
+    for _tx_output in &mut body.transaction_outputs {
+        let mut transaction_events = vec![];
         for _ in 0..events_per_tx {
             let from_address = if let Some(ref options) = from_addresses {
                 *options.index(rng.gen_range(0..options.len()))
@@ -305,14 +299,14 @@ fn get_rand_test_body_with_events(
             } else {
                 vec![EventKey::default()]
             };
-            events.push(Event {
+            transaction_events.push(Event {
                 from_address,
                 content: EventContent { keys: final_keys, data: EventData::default() },
             });
         }
-        set_events(tx_output, events);
+        block_events.push(transaction_events);
     }
-    body
+    (body, block_events)
 }
 
 fn get_test_transaction_output(transaction: &Transaction) -> TransactionOutput {
@@ -350,16 +344,6 @@ fn get_test_transaction_output(transaction: &Transaction) -> TransactionOutput {
     }
 }
 
-fn set_events(tx: &mut TransactionOutput, events: Vec<Event>) {
-    match tx {
-        TransactionOutput::Declare(tx) => tx.events = events,
-        TransactionOutput::Deploy(tx) => tx.events = events,
-        TransactionOutput::DeployAccount(tx) => tx.events = events,
-        TransactionOutput::Invoke(tx) => tx.events = events,
-        TransactionOutput::L1Handler(tx) => tx.events = events,
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////
 // EXTERNAL FUNCTIONS - REMOVE DUPLICATIONS
 //////////////////////////////////////////////////////////////////////////
@@ -371,16 +355,17 @@ pub fn get_test_block(
     events_per_tx: Option<usize>,
     from_addresses: Option<Vec<ContractAddress>>,
     keys: Option<Vec<Vec<EventKey>>>,
-) -> Block {
+) -> (Block, Vec<Vec<Event>>) {
     let mut rng = get_rng();
     let events_per_tx = events_per_tx.unwrap_or_default();
-    get_rand_test_block_with_events(
+    let (block, events) = get_rand_test_block_with_events(
         &mut rng,
         transaction_count,
         events_per_tx,
         from_addresses,
         keys,
-    )
+    );
+    (block, events.iter().map(|slice| slice.to_vec()).collect())
 }
 
 // Returns a test block body with a variable number of transactions.
@@ -393,6 +378,7 @@ pub fn get_test_body(
     let mut rng = get_rng();
     let events_per_tx = events_per_tx.unwrap_or_default();
     get_rand_test_body_with_events(&mut rng, transaction_count, events_per_tx, from_addresses, keys)
+        .0
 }
 
 // Returns a state diff with one item in each IndexMap.

@@ -12,7 +12,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
 };
 
-use crate::body::events::{get_events_from_tx, EventIndex, EventsReader};
+use crate::body::events::{get_events_from_tx, EventIndex, EventStorageWriter, EventsReader};
 use crate::body::{BodyStorageWriter, TransactionIndex};
 use crate::db::table_types::Table;
 use crate::header::HeaderStorageWriter;
@@ -24,7 +24,9 @@ fn iter_events_by_key() {
     let ca1 = 1u32.into();
     let ca2 = 2u32.into();
     let from_addresses = vec![ca1, ca2];
-    let block = get_test_block(4, Some(3), Some(from_addresses), None);
+    let (block, events) = get_test_block(4, Some(3), Some(from_addresses), None);
+    let events_slice: Vec<&[Event]> = events.iter().map(|vec| vec.as_slice()).collect();
+    let events_slice: &[&[Event]] = events_slice.as_slice();
     let block_number = block.header.block_header_without_hash.block_number;
     storage_writer
         .begin_rw_txn()
@@ -32,6 +34,8 @@ fn iter_events_by_key() {
         .append_header(block_number, &block.header)
         .unwrap()
         .append_body(block_number, block.body.clone())
+        .unwrap()
+        .append_events(block_number, events_slice)
         .unwrap()
         .commit()
         .unwrap();
