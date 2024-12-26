@@ -624,7 +624,6 @@ impl NetworkManager {
     pub fn new(config: NetworkConfig, node_version: Option<String>) -> Self {
         let NetworkConfig {
             tcp_port,
-            quic_port: _,
             session_timeout,
             idle_connection_timeout,
             bootstrap_peer_multiaddr,
@@ -635,11 +634,8 @@ impl NetworkManager {
             peer_manager_config,
         } = config;
 
-        let listen_addresses = vec![
-            // TODO: uncomment once quic transpot works.
-            // format!("/ip4/0.0.0.0/udp/{quic_port}/quic-v1"),
-            format!("/ip4/0.0.0.0/tcp/{tcp_port}"),
-        ];
+        // TODO(shahak): Add quic transport.
+        let listen_addresses = vec![format!("/ip4/0.0.0.0/tcp/{tcp_port}")];
 
         let swarm = build_swarm(listen_addresses, idle_connection_timeout, secret_key, |key| {
             mixed_behaviour::MixedBehaviour::new(
