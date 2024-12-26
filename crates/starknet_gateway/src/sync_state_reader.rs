@@ -12,7 +12,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
-#[allow(dead_code)]
 struct SyncStateReader {
     block_number: BlockNumber,
     state_sync_client: SharedStateSyncClient,
