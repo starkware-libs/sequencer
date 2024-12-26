@@ -201,7 +201,7 @@ impl P2PSyncClientChannels {
         let class_stream = ClassStreamBuilder::create_stream(
             self.class_sender,
             storage_reader.clone(),
-            None,
+            Some(internal_blocks_receivers.class_receiver),
             config.wait_period_for_new_data,
             config.num_block_classes_per_query,
         );
@@ -268,7 +268,6 @@ pub(crate) struct InternalBlocksReceivers {
     header_receiver: Receiver<(BlockNumber, SyncBlock)>,
     state_diff_receiver: Receiver<(BlockNumber, SyncBlock)>,
     transaction_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    #[allow(dead_code)]
     class_receiver: Receiver<(BlockNumber, SyncBlock)>,
 }
 
@@ -276,7 +275,6 @@ pub struct InternalBlocksSenders {
     header_sender: Sender<(BlockNumber, SyncBlock)>,
     state_diff_sender: Sender<(BlockNumber, SyncBlock)>,
     transaction_sender: Sender<(BlockNumber, SyncBlock)>,
-    #[allow(dead_code)]
     class_sender: Sender<(BlockNumber, SyncBlock)>,
 }
 impl InternalBlocksSenders {
