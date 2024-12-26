@@ -530,14 +530,26 @@ impl SingleHeightConsensus {
             voter: self.id,
         };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
-            // TODO(matan): Consider refactoring not to panic, rather log and return the error.
-            panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
+            return Err(ConsensusError::InternalInconsistency(format!(
+                "State machine should not send repeat votes: old={:?}, new={:?}",
+                old, vote
+            )));
         }
-        context.broadcast(vote.clone()).await?;
-        if last_vote.as_ref().map_or(false, |last| round < last.round) {
-            return Ok(Vec::new());
-        }
-        *last_vote = Some(vote);
+        *last_vote = match last_vote {
+            None => Some(vote.clone()),
+            Some(last_vote) if round > last_vote.round => Some(vote.clone()),
+            Some(_) => {
+                // According to the Tendermint paper, the state machine should only vote for its
+                // current round. It should monotonicly increase its round. It should only vote once
+                // per step.
+                return Err(ConsensusError::InternalInconsistency(format!(
+                    "State machine must progress in time: last_vote: {:?} new_vote: {:?}",
+                    last_vote, vote,
+                )));
+            }
+        };
+
+        context.broadcast(vote).await?;
         Ok(vec![task])
     }
 
