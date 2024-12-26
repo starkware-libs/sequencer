@@ -155,7 +155,6 @@ pub struct P2PSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
     transaction_sender: TransactionSqmrSender,
-    #[allow(dead_code)]
     class_sender: ClassSqmrSender,
 }
 
@@ -258,8 +257,6 @@ impl P2PSyncClient {
                     data.write_to_storage(&mut storage_writer)?;
                 }
             }
-            let data = data_stream.next().await.expect("Sync data stream should never end")?;
-            data.write_to_storage(&mut storage_writer)?;
         }
     }
 }
@@ -277,6 +274,7 @@ pub struct InternalBlocksSenders {
     transaction_sender: Sender<(BlockNumber, SyncBlock)>,
     class_sender: Sender<(BlockNumber, SyncBlock)>,
 }
+
 impl InternalBlocksSenders {
     pub async fn send(
         &mut self,
@@ -299,6 +297,7 @@ impl InternalBlocksSenders {
         }
     }
 }
+
 struct InternalBlocksChannels {
     receivers: InternalBlocksReceivers,
     senders: InternalBlocksSenders,

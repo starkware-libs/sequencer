@@ -62,35 +62,32 @@ where
         sync_block: SyncBlock,
     ) -> Option<Self::Output>;
 
-    fn get_internal_block_at(
-        internal_blocks_received: &mut HashMap<BlockNumber, Self::Output>,
-        internal_block_receiver: &mut Option<Receiver<(BlockNumber, SyncBlock)>>,
+    fn get_internal_block_at<'a>(
+        internal_blocks_received: &'a mut HashMap<BlockNumber, Self::Output>,
+        internal_block_receiver: &'a mut Option<Receiver<(BlockNumber, SyncBlock)>>,
         current_block_number: BlockNumber,
-    ) -> Option<Self::Output> {
-        if let Some(block) = internal_blocks_received.remove(&current_block_number) {
-            return Some(block);
-        }
-        let Some(internal_block_receiver) = internal_block_receiver else { return None };
-        while let Some((block_number, sync_block)) = internal_block_receiver
-            .next()
-            .now_or_never()
-            .map(|now_or_never_res| now_or_never_res.expect("Internal block receiver closed"))
-        {
-            if block_number >= current_block_number {
-                let block_data =
-                    match Self::convert_sync_block_to_block_data(block_number, sync_block) {
-                        Some(block_data) => block_data,
-                        // If None is received then we don't use internal blocks for this stream
-                        // TODO(Eitan): Remove this once we have a class manager component.
-                        None => return None,
-                    };
-                if block_number == current_block_number {
-                    return Some(block_data);
-                }
-                internal_blocks_received.insert(block_number, block_data);
+    ) -> BoxFuture<'a, Option<Self::Output>> {
+        async move {
+            if let Some(block) = internal_blocks_received.remove(&current_block_number) {
+                return Some(block);
             }
+            let internal_block_receiver =
+                internal_block_receiver.as_mut().expect("Internal block receiver not set");
+            while let Some((block_number, sync_block)) = internal_block_receiver.next().await {
+                if block_number >= current_block_number {
+                    // If None is received then we don't use internal blocks for this stream
+                    // TODO(Eitan): Remove this once we have a class manager component.
+                    let block_data =
+                        Self::convert_sync_block_to_block_data(block_number, sync_block)?;
+                    if block_number == current_block_number {
+                        return Some(block_data);
+                    }
+                    internal_blocks_received.insert(block_number, block_data);
+                }
+            }
+            None
         }
-        None
+        .boxed()
     }
 
     fn create_stream<TQuery>(
@@ -125,10 +122,10 @@ where
                         limit
                     },
                 };
-
                 if let Some(block) = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number)
+                    .now_or_never().flatten()
                 {
-                    debug!("Sync received internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                    debug!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                     yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
                     current_block_number = current_block_number.unchecked_next();
                     continue 'send_query_and_parse_responses;
@@ -136,7 +133,7 @@ where
 
                 let end_block_number = current_block_number.0 + limit;
                 debug!(
-                    "Sync downloading {:?} for blocks [{}, {}) from network.",
+                    "Sync sent query for {:?} for blocks [{}, {}) from network.",
                     Self::TYPE_DESCRIPTION,
                     current_block_number.0,
                     end_block_number,
@@ -153,41 +150,54 @@ where
                         })
                     ).await?;
                 while current_block_number.0 < end_block_number {
-                    match Self::parse_data_for_block(
-                        &mut client_response_manager, current_block_number, &storage_reader
-                    ).await {
-                        Ok(Some(output)) => yield Ok(Box::<dyn BlockData>::from(Box::new(output))),
-                        Ok(None) => {
-                            debug!(
-                                "Query for {:?} on {:?} returned with partial data. Waiting {:?} before \
-                                 sending another query.",
-                                Self::TYPE_DESCRIPTION, current_block_number, wait_period_for_new_data
-                            );
-                            tokio::time::sleep(wait_period_for_new_data).await;
-                            continue 'send_query_and_parse_responses;
-                        },
-                        Err(ParseDataError::BadPeer(err)) => {
-                            warn!(
-                                "Query for {:?} on {:?} returned with bad peer error: {:?}. reporting \
-                                 peer and retrying query.",
-                                Self::TYPE_DESCRIPTION, current_block_number, err
-                            );
-                            client_response_manager.report_peer();
-                            continue 'send_query_and_parse_responses;
-                        },
-                        Err(ParseDataError::Fatal(err)) => {
-                            yield Err(err);
-                            return;
-                        },
+                    tokio::select! {
+                        res = Self::parse_data_for_block(
+                            &mut client_response_manager, current_block_number, &storage_reader
+                        ) => {
+                            match res {
+                                Ok(Some(output)) => {
+                                    info!("Added {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                                    current_block_number = current_block_number.unchecked_next();
+                                    yield Ok(Box::<dyn BlockData>::from(Box::new(output)));
+                                }
+                                Ok(None) => {
+                                    debug!(
+                                        "Query for {:?} on {:?} returned with partial data. Waiting {:?} before \
+                                         sending another query.",
+                                        Self::TYPE_DESCRIPTION, current_block_number, wait_period_for_new_data
+                                    );
+                                    tokio::time::sleep(wait_period_for_new_data).await;
+                                    continue 'send_query_and_parse_responses;
+                                },
+                                Err(ParseDataError::BadPeer(err)) => {
+                                    warn!(
+                                        "Query for {:?} on {:?} returned with bad peer error: {:?}. reporting \
+                                         peer and retrying query.",
+                                        Self::TYPE_DESCRIPTION, current_block_number, err
+                                    );
+                                    client_response_manager.report_peer();
+                                    continue 'send_query_and_parse_responses;
+                                },
+                                Err(ParseDataError::Fatal(err)) => {
+                                    yield Err(err);
+                                    return;
+                                },
+                            }
+                        }
+                        Some(block) = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number) => {
+                                debug!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                                current_block_number = current_block_number.unchecked_next();
+                                yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
+                                debug!("Network query ending at block {} for {:?} being ignored", end_block_number, Self::TYPE_DESCRIPTION);
+                                continue 'send_query_and_parse_responses;
+                            }
+                        }
                     }
-                    info!("Added {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
-                    current_block_number = current_block_number.unchecked_next();
-                }
 
                 // Consume the None message signaling the end of the query.
                 match client_response_manager.next().await {
                     Some(Ok(DataOrFin(None))) => {
-                        debug!("Query sent to network for {:?} finished", Self::TYPE_DESCRIPTION);
+                        debug!("Network query ending at block {} for {:?} finished", end_block_number, Self::TYPE_DESCRIPTION);
                     },
                     Some(_) => Err(P2PSyncClientError::TooManyResponses)?,
                     None => Err(P2PSyncClientError::ReceiverChannelTerminated {
@@ -195,8 +205,7 @@ where
                     })?,
                 }
             }
-        }
-        .boxed()
+        }.boxed()
     }
 }
 
