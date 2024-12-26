@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -8,6 +9,7 @@ use blockifier::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
+use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, Contract};
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_rpc::{run_server, RpcConfig};
@@ -195,6 +197,7 @@ fn prepare_sierra_classes(
 ) -> Vec<(ClassHash, SierraContractClass)> {
     contract_classes_to_retrieve
         .filter(|contract| !contract.cairo_version().is_cairo0())
+        .dedup_by(|c1, c2| c1.class_hash() == c2.class_hash())
         .map(|contract| (contract.class_hash(), contract.sierra()))
         .collect()
 }
@@ -202,28 +205,28 @@ fn prepare_sierra_classes(
 fn prepare_compiled_contract_classes(
     contract_classes_to_retrieve: impl Iterator<Item = Contract>,
 ) -> ContractClassesMap {
-    let mut cairo0_contract_classes = Vec::new();
-    let mut cairo1_contract_classes = Vec::new();
+    let mut cairo0_contract_classes = HashMap::new();
+    let mut cairo1_contract_classes = HashMap::new();
     for contract in contract_classes_to_retrieve {
         match contract.cairo_version() {
             CairoVersion::Cairo0 => {
-                cairo0_contract_classes.push((
+                cairo0_contract_classes.insert(
                     contract.class_hash(),
                     serde_json::from_str(&contract.raw_class()).unwrap(),
-                ));
+                );
             }
             // todo(rdr): including both Cairo1 and Native versions for now. Temporal solution to
             // avoid compilation errors when using the "cairo_native" feature
             _ => {
-                cairo1_contract_classes.push((
+                cairo1_contract_classes.insert(
                     contract.class_hash(),
                     serde_json::from_str(&contract.raw_class()).unwrap(),
-                ));
+                );
             }
         }
     }
 
-    (cairo0_contract_classes, cairo1_contract_classes)
+    (cairo0_contract_classes.into_iter().collect(), cairo1_contract_classes.into_iter().collect())
 }
 
 fn write_state_to_papyrus_storage(
