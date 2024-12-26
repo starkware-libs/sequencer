@@ -462,8 +462,7 @@ impl Batcher {
 
         let mut active_proposal = self.active_proposal.lock().await;
         if let Some(active_proposal_id) = *active_proposal {
-            // TODO(Dafna): change to a more informative error.
-            return Err(BatcherError::ServerBusy {
+            return Err(BatcherError::AnotherProposalInProgress {
                 active_proposal_id,
                 new_proposal_id: proposal_id,
             });

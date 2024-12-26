@@ -480,7 +480,7 @@ async fn concurrent_proposals_generation_fail() {
     // Make sure another proposal can't be generated while the first one is still active.
     let result = batcher.propose_block(propose_block_input(ProposalId(1))).await;
 
-    assert_matches!(result, Err(BatcherError::ServerBusy { .. }));
+    assert_matches!(result, Err(BatcherError::AnotherProposalInProgress { .. }));
 }
 
 #[rstest]

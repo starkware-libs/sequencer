@@ -31,7 +31,7 @@ pub enum BatcherError {
         active_proposal_id,
         new_proposal_id
     )]
-    ServerBusy { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
+    AnotherProposalInProgress { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
     #[error(
