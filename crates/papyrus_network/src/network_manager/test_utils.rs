@@ -14,9 +14,12 @@ use libp2p::{Multiaddr, PeerId};
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 
 use super::{
+    BroadcastReceivedMessagesConverterFn,
+    BroadcastTopicChannels,
     BroadcastTopicClient,
     BroadcastedMessageMetadata,
     GenericReceiver,
+    NetworkError,
     NetworkManager,
     ReportReceiver,
     ServerQueryManager,
@@ -26,7 +29,6 @@ use super::{
     SqmrServerReceiver,
     Topic,
 };
-use crate::network_manager::{BroadcastReceivedMessagesConverterFn, BroadcastTopicChannels};
 use crate::sqmr::Bytes;
 use crate::NetworkConfig;
 
@@ -196,9 +198,19 @@ where
 
     let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
     let broadcast_channels =
-        channels_network_manager.register_broadcast_topic(topic, BUFFER_SIZE).unwrap();
+        channels_network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
 
-    tokio::task::spawn(channels_network_manager.run());
+    tokio::task::spawn(async move {
+        let result = channels_network_manager.run().await;
+        match result {
+            Ok(()) => panic!("Network manager terminated."),
+            // The user of this function can drop the broadcast channels if they want to. In that
+            // case we should just terminate NetworkManager's run quietly.
+            Err(NetworkError::BroadcastChannelsDropped { topic_hash })
+                if topic_hash == topic.into() => {}
+            Err(err) => panic!("Network manager failed on {err:?}"),
+        }
+    });
 
     (channels_configs, broadcast_channels)
 }
