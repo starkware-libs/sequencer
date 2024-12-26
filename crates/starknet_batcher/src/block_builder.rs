@@ -6,7 +6,6 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
-    VisitedSegmentsMapping,
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
@@ -67,7 +66,6 @@ pub enum FailOnErrorCause {
 pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub commitment_state_diff: CommitmentStateDiff,
-    pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
 }
@@ -167,12 +165,10 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
-            self.executor.close_block()?;
+        let (commitment_state_diff, bouncer_weights) = self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
             commitment_state_diff,
-            visited_segments_mapping,
             bouncer_weights,
             l2_gas_used,
         })

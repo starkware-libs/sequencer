@@ -53,7 +53,6 @@ fn block_execution_artifacts(
     BlockExecutionArtifacts {
         execution_infos,
         commitment_state_diff: Default::default(),
-        visited_segments_mapping: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
         l2_gas_used,
@@ -264,7 +263,6 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok((
             expected_block_artifacts_copy.commitment_state_diff,
-            expected_block_artifacts_copy.visited_segments_mapping,
             expected_block_artifacts_copy.bouncer_weights,
         ))
     });
@@ -295,11 +293,7 @@ fn set_close_block_expectations(
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            output_block_artifacts.commitment_state_diff,
-            output_block_artifacts.visited_segments_mapping,
-            output_block_artifacts.bouncer_weights,
-        ))
+        Ok((output_block_artifacts.commitment_state_diff, output_block_artifacts.bouncer_weights))
     });
     output_block_artifacts_copy
 }

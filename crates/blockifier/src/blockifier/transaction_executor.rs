@@ -1,11 +1,9 @@
-use std::collections::{HashMap, HashSet};
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
-use starknet_api::core::ClassHash;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -39,7 +37,6 @@ pub enum TransactionExecutorError {
 }
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
-pub type VisitedSegmentsMapping = Vec<(ClassHash, Vec<usize>)>;
 
 /// A transaction executor, used for building a single block.
 pub struct TransactionExecutor<S: StateReader> {
@@ -141,32 +138,9 @@ impl<S: StateReader> TransactionExecutor<S> {
         results
     }
 
-    /// Returns the state diff, a list of contract class hash with the corresponding list of
-    /// visited segment values and the block weights.
+    /// Returns the state diff and the block weights.
     // TODO(Yoav): Consume "self".
-    pub fn finalize(
-        &mut self,
-    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>
-    {
-        // Get the visited segments of each contract class.
-        // This is done by taking all the visited PCs of each contract, and compress them to one
-        // representative for each visited segment.
-        let visited_segments = self
-            .block_state
-            .as_ref()
-            .expect(BLOCK_STATE_ACCESS_ERR)
-            .visited_pcs
-            .iter()
-            .map(|(class_hash, class_visited_pcs)| -> TransactionExecutorResult<_> {
-                let contract_class = self
-                    .block_state
-                    .as_ref()
-                    .expect(BLOCK_STATE_ACCESS_ERR)
-                    .get_compiled_class(*class_hash)?;
-                Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
-            })
-            .collect::<TransactionExecutorResult<_>>()?;
-
+    pub fn finalize(&mut self) -> TransactionExecutorResult<(CommitmentStateDiff, BouncerWeights)> {
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
         let mut block_state = self.block_state.take().expect(BLOCK_STATE_ACCESS_ERR);
         let state_diff = if self.block_context.versioned_constants.enable_stateful_compression {
@@ -181,7 +155,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         } else {
             block_state.to_state_diff()?.state_maps
         };
-        Ok((state_diff.into(), visited_segments, *self.bouncer.get_accumulated_weights()))
+        Ok((state_diff.into(), *self.bouncer.get_accumulated_weights()))
     }
 }
 
@@ -276,7 +250,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let mut tx_execution_results = Vec::new();
-        let mut visited_pcs: HashMap<ClassHash, HashSet<usize>> = HashMap::new();
         for execution_output in worker_executor.execution_outputs.iter() {
             if tx_execution_results.len() >= n_committed_txs {
                 break;
@@ -288,9 +261,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                 .expect("Output must be ready.");
             tx_execution_results
                 .push(locked_execution_output.result.map_err(TransactionExecutorError::from));
-            for (class_hash, class_visited_pcs) in locked_execution_output.visited_pcs {
-                visited_pcs.entry(class_hash).or_default().extend(class_visited_pcs);
-            }
         }
 
         let block_state_after_commit = Arc::try_unwrap(worker_executor)
@@ -301,7 +271,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                      it."
                 )
             })
-            .commit_chunk_and_recover_block_state(n_committed_txs, visited_pcs);
+            .commit_chunk_and_recover_block_state(n_committed_txs);
         self.block_state.replace(block_state_after_commit);
 
         tx_execution_results
