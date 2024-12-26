@@ -18,7 +18,10 @@ use crate::config::{GatewayConfig, RpcStateReaderConfig};
 use crate::errors::GatewayResult;
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::StatefulTransactionValidator;
+use crate::stateful_transaction_validator::{
+    StatefulTransactionValidator,
+    StatefulTransactionValidatorTrait,
+};
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::utils::compile_contract_and_build_executable_tx;
 
@@ -134,10 +137,11 @@ impl ProcessTxBlockingTask {
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
         let address = executable_tx.contract_address();
-        let nonce = validator.get_nonce(address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", address, e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })?;
+        let nonce =
+            StatefulTransactionValidatorTrait::get_nonce(&mut validator, address).map_err(|e| {
+                error!("Failed to get nonce for sender address {}: {}", address, e);
+                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            })?;
 
         self.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
