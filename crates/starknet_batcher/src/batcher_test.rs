@@ -6,7 +6,7 @@ use blockifier::abi::constants;
 use indexmap::indexmap;
 use mockall::predicate::eq;
 use rstest::rstest;
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -508,7 +508,10 @@ async fn add_sync_block() {
     let mut batcher = create_batcher(mock_dependencies);
 
     let sync_block = SyncBlock {
-        block_number: INITIAL_HEIGHT,
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: INITIAL_HEIGHT,
+            ..Default::default()
+        },
         state_diff: test_state_diff(),
         transaction_hashes: test_tx_hashes().into_iter().collect(),
     };
@@ -522,9 +525,11 @@ async fn add_sync_block_mismatch_block_number() {
     let mut batcher = create_batcher(MockDependencies::default());
 
     let sync_block = SyncBlock {
-        block_number: INITIAL_HEIGHT.unchecked_next(),
-        state_diff: Default::default(),
-        transaction_hashes: Default::default(),
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: INITIAL_HEIGHT.unchecked_next(),
+            ..Default::default()
+        },
+        ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
 }

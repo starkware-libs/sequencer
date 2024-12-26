@@ -88,6 +88,7 @@ pub type StateSyncRequestAndResponseSender =
     ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
     AddNewBlock(BlockNumber, SyncBlock),
@@ -98,6 +99,7 @@ pub enum StateSyncRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(clippy::large_enum_variant)]
 pub enum StateSyncResponse {
     GetBlock(StateSyncResult<Option<SyncBlock>>),
     AddNewBlock(StateSyncResult<()>),
