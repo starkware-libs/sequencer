@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_batcher::VersionedConstantsOverrides;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
-use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
+use starknet_gateway::config::GatewayConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
@@ -120,8 +120,6 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub http_server_config: HttpServerConfig,
     #[validate]
-    pub rpc_state_reader_config: RpcStateReaderConfig,
-    #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
     #[validate]
     pub l1_provider_config: L1ProviderConfig,
@@ -144,7 +142,6 @@ impl SerializeConfig for SequencerNodeConfig {
             ),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
-            append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
             append_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
             append_sub_config_name(
