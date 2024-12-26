@@ -1,7 +1,10 @@
 use std::net::SocketAddr;
 
 use blockifier::context::ChainInfo;
-use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountTransactionGenerator,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -66,7 +69,7 @@ impl FlowTestSetup {
 
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
-            accounts.clone(),
+            accounts.to_vec(),
             SEQUENCER_0,
             chain_info.clone(),
             sequencer_0_consensus_manager_config,
@@ -76,7 +79,7 @@ impl FlowTestSetup {
         .await;
 
         let sequencer_1 = FlowSequencerSetup::new(
-            accounts,
+            accounts.to_vec(),
             SEQUENCER_1,
             chain_info,
             sequencer_1_consensus_manager_config,
@@ -114,7 +117,7 @@ pub struct FlowSequencerSetup {
 impl FlowSequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
-        accounts: Vec<Contract>,
+        accounts: Vec<AccountTransactionGenerator>,
         sequencer_index: usize,
         chain_info: ChainInfo,
         consensus_manager_config: ConsensusManagerConfig,
