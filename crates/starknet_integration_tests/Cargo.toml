@@ -16,6 +16,7 @@ cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 infra_utils.workspace = true
+itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
@@ -48,7 +49,6 @@ url.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
-itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.workspace = true
