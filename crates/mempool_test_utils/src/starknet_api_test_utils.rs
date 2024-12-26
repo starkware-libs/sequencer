@@ -260,8 +260,8 @@ impl MultiAccountTransactionGenerator {
         })
     }
 
-    pub fn accounts(&self) -> Vec<Contract> {
-        self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).copied().collect()
+    pub fn accounts(&self) -> &[AccountTransactionGenerator] {
+        self.account_tx_generators.as_slice()
     }
 }
 
@@ -272,7 +272,7 @@ impl MultiAccountTransactionGenerator {
 /// with room for future extensions.
 ///
 /// TODO: add more transaction generation methods as needed.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct AccountTransactionGenerator {
     pub account: Contract,
     nonce_manager: SharedNonceManager,
