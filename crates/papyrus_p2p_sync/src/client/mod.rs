@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use class::ClassStreamBuilder;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
+use futures::never::Never;
 use futures::stream::BoxStream;
 use futures::{SinkExt as _, Stream};
 use header::HeaderStreamBuilder;
@@ -230,7 +231,7 @@ impl P2PSyncClient {
     }
 
     #[instrument(skip(self), level = "debug", err)]
-    pub async fn run(self) -> Result<(), P2PSyncClientError> {
+    pub async fn run(self) -> Result<Never, P2PSyncClientError> {
         info!("Starting P2P sync client");
 
         let InternalBlocksChannels {

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use futures::never::Never;
 use futures::StreamExt;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
@@ -107,7 +108,7 @@ pub struct P2PSyncServer {
 }
 
 impl P2PSyncServer {
-    pub async fn run(self) {
+    pub async fn run(self) -> Never {
         let P2PSyncServerChannels {
             mut header_receiver,
             mut state_diff_receiver,
@@ -135,14 +136,14 @@ impl P2PSyncServer {
                     );
                     register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                mayber_server_query_manager = class_receiver.next() => {
-                    let server_query_manager = mayber_server_query_manager.expect(
+                maybe_server_query_manager = class_receiver.next() => {
+                    let server_query_manager = maybe_server_query_manager.expect(
                         "Class queries sender was unexpectedly dropped."
                     );
                     register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                mayber_server_query_manager = event_receiver.next() => {
-                    let server_query_manager = mayber_server_query_manager.expect(
+                maybe_server_query_manager = event_receiver.next() => {
+                    let server_query_manager = maybe_server_query_manager.expect(
                         "Event queries sender was unexpectedly dropped."
                     );
                     register_query(self.storage_reader.clone(), server_query_manager);
