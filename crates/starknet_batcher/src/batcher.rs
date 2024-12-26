@@ -423,7 +423,10 @@ impl Batcher {
             block_execution_artifacts.tx_hashes(),
         )
         .await?;
-        Ok(DecisionReachedResponse { state_diff })
+        Ok(DecisionReachedResponse {
+            state_diff,
+            l2_gas_used: block_execution_artifacts.l2_gas_used,
+        })
     }
 
     async fn commit_proposal_and_block(

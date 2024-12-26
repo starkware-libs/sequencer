@@ -571,6 +571,7 @@ async fn decision_reached() {
     let response =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
     assert_eq!(response.state_diff, expected_artifacts.state_diff());
+    assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
 }
 
 #[rstest]
