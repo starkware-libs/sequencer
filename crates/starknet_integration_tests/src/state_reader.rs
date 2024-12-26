@@ -50,9 +50,6 @@ type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
 pub struct StorageTestSetup {
-    // TODO(Shahak): Remove rpc storage reader and handle
-    pub rpc_storage_reader: StorageReader,
-    pub rpc_storage_handle: TempDir,
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: TempDir,
     pub state_sync_storage_config: StorageConfig,
@@ -61,9 +58,6 @@ pub struct StorageTestSetup {
 
 impl StorageTestSetup {
     pub fn new(test_defined_accounts: Vec<Contract>, chain_info: &ChainInfo) -> Self {
-        let ((rpc_storage_reader, mut rpc_storage_writer), _, rpc_storage_file_handle) =
-            TestStorageBuilder::default().chain_id(chain_info.chain_id.clone()).build();
-        create_test_state(&mut rpc_storage_writer, chain_info, test_defined_accounts.clone());
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
             TestStorageBuilder::default()
                 .scope(StorageScope::StateOnly)
@@ -80,8 +74,6 @@ impl StorageTestSetup {
             .build();
         create_test_state(&mut state_sync_storage_writer, chain_info, test_defined_accounts);
         Self {
-            rpc_storage_reader,
-            rpc_storage_handle: rpc_storage_file_handle,
             batcher_storage_config,
             batcher_storage_handle: batcher_storage_file_handle,
             state_sync_storage_config,

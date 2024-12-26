@@ -1,5 +1,4 @@
 use std::future::Future;
-use std::net::SocketAddr;
 use std::time::Duration;
 
 use blockifier::context::ChainInfo;
@@ -24,7 +23,6 @@ use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{
     GatewayConfig,
-    RpcStateReaderConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -56,7 +54,6 @@ pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
     sequencer_index: usize,
     chain_info: ChainInfo,
-    rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
     state_sync_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
@@ -69,7 +66,6 @@ pub async fn create_node_config(
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let monitoring_endpoint_config =
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
     let state_sync_config =
@@ -81,7 +77,6 @@ pub async fn create_node_config(
             consensus_manager_config,
             gateway_config,
             http_server_config,
-            rpc_state_reader_config,
             mempool_p2p_config,
             monitoring_endpoint_config,
             state_sync_config,
@@ -137,12 +132,6 @@ pub fn create_consensus_manager_configs_and_channels(
         .collect();
 
     (consensus_manager_configs, broadcast_channels)
-}
-
-pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
-    // TODO(Tsabary): get the latest version from the RPC crate.
-    const RPC_SPEC_VERSION: &str = "V0_8";
-    RpcStateReaderConfig::from_url(format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"))
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
@@ -298,7 +287,7 @@ fn set_validator_id(
     validator_id
 }
 
-fn create_state_sync_config(
+pub fn create_state_sync_config(
     state_sync_storage_config: StorageConfig,
     port: u16,
 ) -> StateSyncConfig {
