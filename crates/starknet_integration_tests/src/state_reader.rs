@@ -8,7 +8,7 @@ use blockifier::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use mempool_test_utils::starknet_api_test_utils::Contract;
+use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, Contract};
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
@@ -60,7 +60,10 @@ pub struct StorageTestSetup {
 }
 
 impl StorageTestSetup {
-    pub fn new(test_defined_accounts: Vec<Contract>, chain_info: &ChainInfo) -> Self {
+    pub fn new(
+        test_defined_accounts: Vec<AccountTransactionGenerator>,
+        chain_info: &ChainInfo,
+    ) -> Self {
         let ((rpc_storage_reader, mut rpc_storage_writer), _, rpc_storage_file_handle) =
             TestStorageBuilder::default().chain_id(chain_info.chain_id.clone()).build();
         create_test_state(&mut rpc_storage_writer, chain_info, test_defined_accounts.clone());
@@ -94,7 +97,7 @@ impl StorageTestSetup {
 fn create_test_state(
     storage_writer: &mut StorageWriter,
     chain_info: &ChainInfo,
-    test_defined_accounts: Vec<Contract>,
+    test_defined_accounts: Vec<AccountTransactionGenerator>,
 ) {
     let into_contract = |contract: FeatureContract| Contract {
         contract,
@@ -123,7 +126,7 @@ fn create_test_state(
 fn initialize_papyrus_test_state(
     storage_writer: &mut StorageWriter,
     chain_info: &ChainInfo,
-    test_defined_accounts: Vec<Contract>,
+    test_defined_accounts: Vec<AccountTransactionGenerator>,
     default_test_contracts: Vec<Contract>,
     erc20_contract: Contract,
 ) {
@@ -134,8 +137,11 @@ fn initialize_papyrus_test_state(
         &erc20_contract,
     );
 
-    let contract_classes_to_retrieve =
-        test_defined_accounts.into_iter().chain(default_test_contracts).chain([erc20_contract]);
+    let contract_classes_to_retrieve = test_defined_accounts
+        .into_iter()
+        .map(|acc| acc.account)
+        .chain(default_test_contracts)
+        .chain([erc20_contract]);
     let sierra_vec: Vec<_> = prepare_sierra_classes(contract_classes_to_retrieve.clone());
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_classes_to_retrieve);
@@ -151,7 +157,7 @@ fn initialize_papyrus_test_state(
 
 fn prepare_state_diff(
     chain_info: &ChainInfo,
-    test_defined_accounts: &[Contract],
+    test_defined_accounts: &[AccountTransactionGenerator],
     default_test_contracts: &[Contract],
     erc20_contract: &Contract,
 ) -> ThinStateDiff {
@@ -169,7 +175,17 @@ fn prepare_state_diff(
     // state_diff_builder.set_contracts(accounts_defined_in_the_test).declare().fund();
     // ```
     // or use declare txs and transfers for both.
-    state_diff_builder.inject_accounts_into_state(test_defined_accounts);
+    let (deployed_accounts, undeployed_accounts): (Vec<_>, Vec<_>) =
+        test_defined_accounts.iter().partition(|account| account.is_deployed);
+
+    let deployed_accounts_contracts: Vec<_> =
+        deployed_accounts.iter().map(|acc| acc.account).collect();
+    let undeployed_accounts_contracts: Vec<_> =
+        undeployed_accounts.iter().map(|acc| acc.account).collect();
+
+    state_diff_builder.inject_deployed_accounts_into_state(deployed_accounts_contracts.as_slice());
+    state_diff_builder
+        .inject_undeployed_accounts_into_state(undeployed_accounts_contracts.as_slice());
 
     state_diff_builder.build()
 }
@@ -394,8 +410,26 @@ impl<'a> ThinStateDiffBuilder<'a> {
     }
 
     // TODO(deploy_account_support): delete method once we have batcher with execution.
-    fn inject_accounts_into_state(&mut self, accounts_defined_in_the_test: &'a [Contract]) {
-        self.set_contracts(accounts_defined_in_the_test).declare().deploy().fund();
+    fn inject_deployed_accounts_into_state(
+        &mut self,
+        deployed_accounts_defined_in_the_test: &'a [Contract],
+    ) {
+        self.set_contracts(deployed_accounts_defined_in_the_test).declare().deploy().fund();
+
+        // Set nonces as 1 in the state so that subsequent invokes can pass validation.
+        self.nonces = self
+            .deployed_contracts
+            .iter()
+            .map(|(&address, _)| (address, Nonce(Felt::ONE)))
+            .collect();
+    }
+
+    // TODO(deploy_account_support): delete method once we have batcher with execution.
+    fn inject_undeployed_accounts_into_state(
+        &mut self,
+        undeployed_accounts_defined_in_the_test: &'a [Contract],
+    ) {
+        self.set_contracts(undeployed_accounts_defined_in_the_test).declare().fund();
 
         // Set nonces as 1 in the state so that subsequent invokes can pass validation.
         self.nonces = self

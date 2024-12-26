@@ -2,7 +2,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use blockifier::context::ChainInfo;
-use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountTransactionGenerator,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::{StorageConfig, StorageReader};
@@ -63,7 +66,7 @@ impl IntegrationTestSetup {
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let sequencer = IntegrationSequencerSetup::new(
-                accounts.clone(),
+                accounts.to_vec(),
                 sequencer_id,
                 chain_info.clone(),
                 consensus_manager_config,
@@ -144,7 +147,7 @@ pub struct IntegrationSequencerSetup {
 impl IntegrationSequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
-        accounts: Vec<Contract>,
+        accounts: Vec<AccountTransactionGenerator>,
         sequencer_index: usize,
         chain_info: ChainInfo,
         consensus_manager_config: ConsensusManagerConfig,
