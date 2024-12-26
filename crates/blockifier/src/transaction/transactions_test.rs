@@ -22,7 +22,21 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{
+    NonceManager,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+    MAX_FEE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -102,18 +116,6 @@ use crate::test_utils::{
     RunnableCairo1,
     SaltManager,
     BALANCE,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-    MAX_FEE,
-    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
@@ -161,8 +163,8 @@ static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
 #[fixture]
-fn inifite_gas_for_vm_mode() -> u64 {
-    VERSIONED_CONSTANTS.inifite_gas_for_vm_mode()
+fn infinite_gas_for_vm_mode() -> u64 {
+    VERSIONED_CONSTANTS.infinite_gas_for_vm_mode()
 }
 
 #[fixture]
@@ -258,7 +260,7 @@ fn expected_validate_call_info(
         }
     };
     let initial_gas = match cairo_version {
-        CairoVersion::Cairo0 => inifite_gas_for_vm_mode(),
+        CairoVersion::Cairo0 => infinite_gas_for_vm_mode(),
         CairoVersion::Cairo1(_) => match tracked_resource {
             TrackedResource::CairoSteps => initial_gas_amount_from_block_context(None).0,
             TrackedResource::SierraGas => {
@@ -518,7 +520,7 @@ fn test_invoke_tx(
 
     let tracked_resource = account_contract
         .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
@@ -545,7 +547,7 @@ fn test_invoke_tx(
     let expected_execute_call = CallEntryPoint {
         entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
         initial_gas: match account_cairo_version {
-            CairoVersion::Cairo0 => versioned_constants.inifite_gas_for_vm_mode(),
+            CairoVersion::Cairo0 => versioned_constants.infinite_gas_for_vm_mode(),
             CairoVersion::Cairo1(_) => expected_initial_execution_gas,
         },
         ..expected_validated_call
@@ -578,7 +580,7 @@ fn test_invoke_tx(
         storage_address: test_contract_address,
         caller_address: sender_address,
         call_type: CallType::Call,
-        initial_gas: versioned_constants.inifite_gas_for_vm_mode(),
+        initial_gas: versioned_constants.infinite_gas_for_vm_mode(),
     };
 
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
@@ -1615,7 +1617,7 @@ fn test_declare_tx(
         sender_address,
         account
             .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
+            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         if tx_version >= TransactionVersion::THREE {
             Some(user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context)))
         } else {
@@ -1824,7 +1826,7 @@ fn test_deploy_account_tx(
         cairo_version,
         account
             .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
+            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         Some(user_initial_gas),
     );
 
@@ -2073,7 +2075,7 @@ fn test_validate_accounts_tx(
         let error = account_tx.execute(state, block_context).unwrap_err();
         check_tx_execution_error_for_custom_hint!(
             &error,
-            "Unauthorized syscall get_block_hash in execution mode Validate.",
+            "Unauthorized syscall get_block_hash on recent blocks in execution mode Validate.",
             validate_constructor,
         );
     }
@@ -2352,7 +2354,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: initial_gas_amount_from_block_context(Some(block_context)).0,
+            initial_gas: block_context.versioned_constants.execute_max_sierra_gas.0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
@@ -2363,7 +2365,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
         tracked_resource: test_contract
             .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
+            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         ..Default::default()
     };
 
@@ -2677,17 +2679,17 @@ fn test_invoke_max_sierra_gas_validate_execute(
 
     let account_tracked_resource = account_contract
         .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
 
     let contract_tracked_resource = test_contract.get_runnable_class().tracked_resource(
-        &versioned_constants.min_compiler_version_for_sierra_gas,
+        &versioned_constants.min_sierra_version_for_sierra_gas,
         Some(&account_tracked_resource),
     );
 
     let actual_validate_initial_gas =
         actual_execution_info.validate_call_info.as_ref().unwrap().call.initial_gas;
     let expected_validate_initial_gas = match account_tracked_resource {
-        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.inifite_gas_for_vm_mode(),
+        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
             versioned_constants.validate_max_sierra_gas.min(user_initial_gas).0
         }
@@ -2698,7 +2700,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
     let actual_execute_initial_gas =
         actual_execution_info.execute_call_info.as_ref().unwrap().call.initial_gas;
     let expected_execute_initial_gas = match account_tracked_resource {
-        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.inifite_gas_for_vm_mode(),
+        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
             versioned_constants
                 .execute_max_sierra_gas
@@ -2733,7 +2735,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
                         .gas_consumed
         );
     } else {
-        assert_eq!(actual_inner_call_initial_gas, versioned_constants.inifite_gas_for_vm_mode());
+        assert_eq!(actual_inner_call_initial_gas, versioned_constants.infinite_gas_for_vm_mode());
     };
 }
 
@@ -2800,7 +2802,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
 
     let account_tracked_resource = account
         .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
 
     let actual_execution_info = deploy_account.execute(state, &block_context).unwrap();
 
@@ -2813,7 +2815,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
     let actual_validate_initial_gas =
         actual_execution_info.validate_call_info.as_ref().unwrap().call.initial_gas;
     let expected_validate_initial_gas = match account_tracked_resource {
-        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.inifite_gas_for_vm_mode(),
+        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
         TrackedResource::SierraGas => {
             versioned_constants
                 .validate_max_sierra_gas

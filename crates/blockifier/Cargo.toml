@@ -80,6 +80,7 @@ infra_utils.workspace = true
 harness = false
 name = "blockifier_bench"
 path = "bench/blockifier_bench.rs"
+required-features = ["testing"]
 
 [[test]]
 name = "feature_contracts_compatibility_test"

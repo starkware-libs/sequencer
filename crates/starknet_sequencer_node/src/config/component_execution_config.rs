@@ -1,4 +1,6 @@
 use std::collections::BTreeMap;
+#[cfg(any(feature = "testing", test))]
+use std::net::SocketAddr;
 
 use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -60,6 +62,45 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
 
 impl Default for ReactiveComponentExecutionConfig {
     fn default() -> Self {
+        Self::local_with_remote_disabled()
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl ReactiveComponentExecutionConfig {
+    pub fn disabled() -> Self {
+        Self {
+            execution_mode: ReactiveComponentExecutionMode::Disabled,
+            local_server_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
+        }
+    }
+
+    pub fn remote(socket: SocketAddr) -> Self {
+        Self {
+            execution_mode: ReactiveComponentExecutionMode::Remote,
+            local_server_config: None,
+            remote_client_config: Some(RemoteClientConfig {
+                socket,
+                ..RemoteClientConfig::default()
+            }),
+            remote_server_config: None,
+        }
+    }
+
+    pub fn local_with_remote_enabled(socket: SocketAddr) -> Self {
+        Self {
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
+            local_server_config: Some(LocalServerConfig::default()),
+            remote_client_config: None,
+            remote_server_config: Some(RemoteServerConfig { socket }),
+        }
+    }
+}
+
+impl ReactiveComponentExecutionConfig {
+    pub fn local_with_remote_disabled() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),

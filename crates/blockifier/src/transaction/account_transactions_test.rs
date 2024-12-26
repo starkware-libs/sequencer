@@ -23,7 +23,15 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{
+    NonceManager,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+    MAX_FEE,
+};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -76,12 +84,6 @@ use crate::test_utils::{
     CompilerBasedVersion,
     RunnableCairo1,
     BALANCE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-    MAX_FEE,
 };
 use crate::transaction::account_transaction::{
     AccountTransaction,
@@ -1435,7 +1437,7 @@ fn test_count_actual_storage_changes(
         n_allocated_keys: 2,
     };
 
-    assert_eq!(expected_modified_contracts, state_changes_1.state_maps.get_modified_contracts());
+    assert_eq!(expected_modified_contracts, state_changes_1.state_maps.get_contract_addresses());
     assert_eq!(expected_storage_updates_1, state_changes_1.state_maps.storage);
     assert_eq!(state_changes_count_1, expected_state_changes_count_1);
 
@@ -1475,7 +1477,7 @@ fn test_count_actual_storage_changes(
         n_allocated_keys: 0,
     };
 
-    assert_eq!(expected_modified_contracts_2, state_changes_2.state_maps.get_modified_contracts());
+    assert_eq!(expected_modified_contracts_2, state_changes_2.state_maps.get_contract_addresses());
     assert_eq!(expected_storage_updates_2, state_changes_2.state_maps.storage);
     assert_eq!(state_changes_count_2, expected_state_changes_count_2);
 
@@ -1527,7 +1529,7 @@ fn test_count_actual_storage_changes(
 
     assert_eq!(
         expected_modified_contracts_transfer,
-        state_changes_transfer.state_maps.get_modified_contracts()
+        state_changes_transfer.state_maps.get_contract_addresses()
     );
     assert_eq!(expected_storage_update_transfer, state_changes_transfer.state_maps.storage);
     assert_eq!(state_changes_count_3, expected_state_changes_count_3);
@@ -1755,7 +1757,7 @@ fn test_initial_gas(
                 );
                 assert_eq!(
                     curr_initial_gas,
-                    block_context.versioned_constants.inifite_gas_for_vm_mode()
+                    block_context.versioned_constants.infinite_gas_for_vm_mode()
                 );
                 started_vm_mode = true;
             }

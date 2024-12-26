@@ -1,19 +1,17 @@
+import typing
+
 from services import objects, const
 from config.sequencer import SequencerDevConfig
 
 
-# replicas
-# types
-# config
-# validators
-
 cluster_name = "gcp-integration"
 replicas = 1
 
-def get_images():
+def get_images() -> typing.Dict[str, str]:
     return {
         "sequencer": "us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.11"
     }
+
 
 def get_pvc() -> objects.PersistentVolumeClaim:
     return objects.PersistentVolumeClaim(

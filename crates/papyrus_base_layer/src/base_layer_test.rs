@@ -1,5 +1,5 @@
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
 
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
@@ -24,13 +24,16 @@ async fn latest_proved_block_ethereum() {
         node_url: node_handle.0.endpoint().parse().unwrap(),
         starknet_contract_address,
     };
-    let contract = EthereumBaseLayerContract::new(config).unwrap();
+    let contract = EthereumBaseLayerContract::new(config);
 
-    let first_sn_state_update = (BlockNumber(100), BlockHash(felt!("0x100")));
-    let second_sn_state_update = (BlockNumber(200), BlockHash(felt!("0x200")));
-    let third_sn_state_update = (BlockNumber(300), BlockHash(felt!("0x300")));
+    let first_sn_state_update =
+        BlockHashAndNumber { number: BlockNumber(100), hash: BlockHash(felt!("0x100")) };
+    let second_sn_state_update =
+        BlockHashAndNumber { number: BlockNumber(200), hash: BlockHash(felt!("0x200")) };
+    let third_sn_state_update =
+        BlockHashAndNumber { number: BlockNumber(300), hash: BlockHash(felt!("0x300")) };
 
-    type Scenario = (u64, Option<(BlockNumber, BlockHash)>);
+    type Scenario = (u64, Option<BlockHashAndNumber>);
     let scenarios: Vec<Scenario> = vec![
         (0, Some(third_sn_state_update)),
         (5, Some(third_sn_state_update)),

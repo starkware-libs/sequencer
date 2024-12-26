@@ -53,3 +53,20 @@ impl SerializeConfig for ComponentConfig {
         sub_configs.into_iter().flatten().collect()
     }
 }
+
+#[cfg(any(feature = "testing", test))]
+impl ComponentConfig {
+    pub fn disabled() -> ComponentConfig {
+        ComponentConfig {
+            batcher: ReactiveComponentExecutionConfig::disabled(),
+            gateway: ReactiveComponentExecutionConfig::disabled(),
+            mempool: ReactiveComponentExecutionConfig::disabled(),
+            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
+            state_sync: ReactiveComponentExecutionConfig::disabled(),
+            l1_provider: ReactiveComponentExecutionConfig::disabled(),
+            consensus_manager: ActiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::disabled(),
+            monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
+        }
+    }
+}

@@ -11,9 +11,8 @@ use futures::{Stream, StreamExt};
 use lru::LruCache;
 use papyrus_network::network_manager::BroadcastTopicServer;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::ConsensusMessage;
+use papyrus_protobuf::consensus::Vote;
 use papyrus_protobuf::converters::ProtobufConversionError;
-use starknet_api::block::BlockHash;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use tracing::{debug, instrument};
 
@@ -25,10 +24,10 @@ use tracing::{debug, instrument};
 /// messages all the same, meaning that a dropped message would always be dropped. To avoid this we
 /// have the cache, which allows us to treat resends of a specific message differently.
 pub struct NetworkReceiver {
-    pub broadcasted_messages_receiver: BroadcastTopicServer<ConsensusMessage>,
+    pub broadcasted_messages_receiver: BroadcastTopicServer<Vote>,
     // Cache is used so that repeat sends of a message can be processed differently. For example,
     // if a message is dropped resending it should result in a new decision.
-    pub cache: LruCache<ConsensusMessage, u32>,
+    pub cache: LruCache<Vote, u32>,
     pub seed: u64,
     // Probability of dropping a message [0, 1].
     pub drop_probability: f64,
@@ -46,7 +45,7 @@ impl NetworkReceiver {
     /// - `drop_probability`: Probability of dropping a message [0, 1].
     /// - `invalid_probability`: Probability of making a message invalid [0, 1].
     pub fn new(
-        broadcasted_messages_receiver: BroadcastTopicServer<ConsensusMessage>,
+        broadcasted_messages_receiver: BroadcastTopicServer<Vote>,
         cache_size: usize,
         seed: u64,
         drop_probability: f64,
@@ -63,13 +62,13 @@ impl NetworkReceiver {
         }
     }
 
-    /// Determine how to handle a message. If None then the message is silently droppeds. If some,
+    /// Determine how to handle a message. If None then the message is silently dropped. If some,
     /// the returned message is what is sent to the consensus crate.
     ///
     /// Applies `drop_probability` followed by `invalid_probability`. So the probability of an
     /// invalid message is `(1- drop_probability) * invalid_probability`.
     #[instrument(skip(self), level = "debug")]
-    pub fn filter_msg(&mut self, msg: ConsensusMessage) -> Option<ConsensusMessage> {
+    pub fn filter_msg(&mut self, msg: Vote) -> Option<Vote> {
         let msg_hash = self.calculate_msg_hash(&msg);
 
         if self.should_drop_msg(msg_hash) {
@@ -80,7 +79,7 @@ impl NetworkReceiver {
         Some(self.maybe_invalidate_msg(msg, msg_hash))
     }
 
-    fn calculate_msg_hash(&mut self, msg: &ConsensusMessage) -> u64 {
+    fn calculate_msg_hash(&mut self, msg: &Vote) -> u64 {
         let count = if let Some(count) = self.cache.get_mut(msg) {
             *count += 1;
             *count
@@ -102,31 +101,20 @@ impl NetworkReceiver {
         prob <= self.drop_probability
     }
 
-    fn maybe_invalidate_msg(
-        &mut self,
-        mut msg: ConsensusMessage,
-        msg_hash: u64,
-    ) -> ConsensusMessage {
+    fn maybe_invalidate_msg(&mut self, mut msg: Vote, msg_hash: u64) -> Vote {
         #[allow(clippy::as_conversions)]
         if (msg_hash as f64) / (u64::MAX as f64) > self.invalid_probability {
             return msg;
         }
         debug!("Invalidating message");
         // TODO(matan): Allow for invalid votes based on signature.
-        match msg {
-            ConsensusMessage::Proposal(ref mut proposal) => {
-                proposal.block_hash = BlockHash(proposal.block_hash.0 + 1);
-            }
-            ConsensusMessage::Vote(ref mut vote) => {
-                vote.voter = ContractAddress(PatriciaKey::from(msg_hash));
-            }
-        }
+        msg.voter = ContractAddress(PatriciaKey::from(msg_hash));
         msg
     }
 }
 
 impl Stream for NetworkReceiver {
-    type Item = (Result<ConsensusMessage, ProtobufConversionError>, BroadcastedMessageMetadata);
+    type Item = (Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata);
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,

@@ -17,13 +17,13 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_http_server::test_utils::HttpTestClient;
+use starknet_http_server::test_utils::{create_http_server_config, HttpTestClient};
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,
     create_gateway_config,
-    create_http_server_config,
     create_integration_test_tx_generator,
     run_integration_test_scenario,
     test_rpc_state_reader_config,
@@ -32,6 +32,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -47,13 +48,15 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     create_integration_test_tx_generator()
 }
 
-// TODO: remove code duplication with FlowTestSetup
+// TODO(Shahak/AlonLukatch): remove code duplication with FlowTestSetup.
 async fn setup(
     tx_generator: &MultiAccountTransactionGenerator,
+    test_identifier: TestIdentifier,
 ) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>) {
     let accounts = tx_generator.accounts();
     let chain_info = create_chain_info();
     let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+    let mut available_ports = AvailablePorts::new(test_identifier.into(), 0);
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr = spawn_test_rpc_state_reader(
@@ -81,15 +84,19 @@ async fn setup(
     let batcher_config =
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;
-    let http_server_config = create_http_server_config().await;
+    let http_server_config =
+        create_http_server_config(available_ports.get_next_local_host_socket()).await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
             1,
             Topic::new(MEMPOOL_TOPIC),
+            &mut available_ports,
         );
     let network_config = network_configs.pop().unwrap();
     let mempool_p2p_config = MempoolP2pConfig { network_config, ..Default::default() };
+    let monitoring_endpoint_config =
+        MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
     let config = SequencerNodeConfig {
         components,
         batcher_config,
@@ -97,6 +104,7 @@ async fn setup(
         http_server_config,
         rpc_state_reader_config,
         mempool_p2p_config,
+        monitoring_endpoint_config,
         ..SequencerNodeConfig::default()
     };
     (config, broadcast_channels)
@@ -112,7 +120,8 @@ async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
 #[rstest]
 #[tokio::test]
 async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
-    let (config, mut broadcast_channels) = setup(&tx_generator).await;
+    let (config, mut broadcast_channels) =
+        setup(&tx_generator, TestIdentifier::MempoolSendsTxToOtherPeerTest).await;
     let (_clients, servers) = create_node_modules(&config);
 
     let HttpServerConfig { ip, port } = config.http_server_config;
@@ -150,7 +159,8 @@ async fn test_mempool_receives_tx_from_other_peer(
     const RECEIVED_TX_POLL_INTERVAL: u64 = 100; // milliseconds between calls to read received txs from the broadcast channel
     const TXS_RETRIVAL_TIMEOUT: u64 = 2000; // max milliseconds spent polling the received txs before timing out
 
-    let (config, mut broadcast_channels) = setup(&tx_generator).await;
+    let (config, mut broadcast_channels) =
+        setup(&tx_generator, TestIdentifier::MempoolReceivesTxFromOtherPeerTest).await;
     let (clients, servers) = create_node_modules(&config);
     let mempool_client = clients.get_mempool_shared_client().unwrap();
     // Build and run the sequencer node.

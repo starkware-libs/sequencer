@@ -111,14 +111,14 @@ class ServiceApp(Construct):
         )
 
 
-    def _get_config_attr(self, attribute):
+    def _get_config_attr(self, attribute) -> str | int:
         config_attr = self.node_config.get(attribute).get('value')
         if config_attr is None:
             assert f'Config attribute "{attribute}" is missing.'
         else:
             return config_attr
 
-    def _get_container_ports(self):
+    def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
         return [
             k8s.ContainerPort(
                 container_port=self._get_config_attr(port)
@@ -128,7 +128,7 @@ class ServiceApp(Construct):
     def _get_container_resources(self): # TODO: implement method to calc resources based on config
         pass
 
-    def _get_service_ports(self):
+    def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
         return [
             k8s.ServicePort(
                 name=attr.split("_")[0],
@@ -142,7 +142,7 @@ class ServiceApp(Construct):
             period_seconds: int = const.PROBE_PERIOD_SECONDS,
             failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
             timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
-    ):
+    ) -> k8s.Probe:
         path = "/monitoring/alive"
         # path = self.node_config['monitoring_path'].get("value") # TODO add monitoring path in node_config
         port = self.node_config.get('monitoring_endpoint_config.port').get("value")
@@ -171,7 +171,7 @@ class ServiceApp(Construct):
             )
         ]
 
-    def _get_volumes(self):
+    def _get_volumes(self) -> typing.List[k8s.Volume]:
         return [
             k8s.Volume(
                 name=f"{self.node.id}-config",

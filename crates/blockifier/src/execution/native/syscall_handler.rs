@@ -116,7 +116,7 @@ impl<'state> NativeSyscallHandler<'state> {
         }
 
         match error {
-            SyscallExecutionError::SyscallError { error_data } => error_data,
+            SyscallExecutionError::Revert { error_data } => error_data,
             error => {
                 assert!(
                     self.unrecoverable_error.is_none(),
@@ -146,31 +146,16 @@ impl<'state> NativeSyscallHandler<'state> {
     }
 
     fn get_block_info(&self) -> BlockInfo {
-        let block_info = &self.base.context.tx_context.block_context.block_info;
-        if self.base.context.execution_mode == ExecutionMode::Validate {
-            let versioned_constants = self.base.context.versioned_constants();
-            let block_number = block_info.block_number.0;
-            let block_timestamp = block_info.block_timestamp.0;
-            // Round down to the nearest multiple of validate_block_number_rounding.
-            let validate_block_number_rounding =
-                versioned_constants.get_validate_block_number_rounding();
-            let rounded_block_number =
-                (block_number / validate_block_number_rounding) * validate_block_number_rounding;
-            // Round down to the nearest multiple of validate_timestamp_rounding.
-            let validate_timestamp_rounding = versioned_constants.get_validate_timestamp_rounding();
-            let rounded_timestamp =
-                (block_timestamp / validate_timestamp_rounding) * validate_timestamp_rounding;
-            BlockInfo {
-                block_number: rounded_block_number,
-                block_timestamp: rounded_timestamp,
-                sequencer_address: Felt::ZERO,
+        let block_info = match self.base.context.execution_mode {
+            ExecutionMode::Execute => self.base.context.tx_context.block_context.block_info(),
+            ExecutionMode::Validate => {
+                &self.base.context.tx_context.block_context.block_info_for_validate()
             }
-        } else {
-            BlockInfo {
-                block_number: block_info.block_number.0,
-                block_timestamp: block_info.block_timestamp.0,
-                sequencer_address: Felt::from(block_info.sequencer_address),
-            }
+        };
+        BlockInfo {
+            block_number: block_info.block_number.0,
+            block_timestamp: block_info.block_timestamp.0,
+            sequencer_address: Felt::from(block_info.sequencer_address),
         }
     }
 
