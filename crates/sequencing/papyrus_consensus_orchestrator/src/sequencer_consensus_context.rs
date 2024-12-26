@@ -174,12 +174,17 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
-        let (proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
         let stream_id = proposal_init.height.0;
         self.outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
             .expect("Failed to send proposal receiver");
+
+        proposal_sender
+            .send(ProposalPart::Init(proposal_init))
+            .await
+            .expect("Failed to send proposal init");
 
         tokio::spawn(
             async move {
@@ -404,7 +409,7 @@ impl SequencerConsensusContext {
 async fn build_proposal(
     timeout: Duration,
     proposal_init: ProposalInit,
-    mut proposal_sender: mpsc::Sender<ProposalPart>,
+    proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalContentId>,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -413,11 +418,6 @@ async fn build_proposal(
 ) {
     initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref()).await;
     debug!("Broadcasting proposal init: {proposal_init:?}");
-    proposal_sender
-        .send(ProposalPart::Init(proposal_init))
-        .await
-        .expect("Failed to send proposal init");
-
     let Some((proposal_content_id, content)) = get_proposal_content(
         proposal_init.height,
         proposal_id,
