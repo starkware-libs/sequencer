@@ -9,13 +9,20 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
+    L1HandlerTransaction,
     Transaction,
 };
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -23,6 +30,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
+    Fee,
     PaymasterData,
     Tip,
     TransactionSignature,
@@ -243,6 +251,29 @@ pub enum CentralDeclareTransaction {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
+pub struct CentralL1HandlerTransaction {
+    pub contract_address: ContractAddress,
+    pub entry_point_selector: EntryPointSelector,
+    pub calldata: Calldata,
+    pub nonce: Nonce,
+    pub paid_fee_on_l1: Fee,
+    pub hash_value: TransactionHash,
+}
+
+impl From<L1HandlerTransaction> for CentralL1HandlerTransaction {
+    fn from(tx: L1HandlerTransaction) -> CentralL1HandlerTransaction {
+        CentralL1HandlerTransaction {
+            hash_value: tx.tx_hash,
+            contract_address: tx.tx.contract_address,
+            entry_point_selector: tx.tx.entry_point_selector,
+            calldata: tx.tx.calldata,
+            nonce: tx.tx.nonce,
+            paid_fee_on_l1: tx.paid_fee_on_l1,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum CentralTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
@@ -251,6 +282,8 @@ pub enum CentralTransaction {
     DeployAccount(CentralDeployAccountTransaction),
     #[serde(rename = "DECLARE")]
     Declare(CentralDeclareTransaction),
+    #[serde(rename = "L1_HANDLER")]
+    L1Handler(CentralL1HandlerTransaction),
 }
 
 impl From<Transaction> for CentralTransaction {
@@ -267,7 +300,7 @@ impl From<Transaction> for CentralTransaction {
             Transaction::Account(AccountTransaction::Declare(declare_tx)) => {
                 CentralTransaction::Declare(CentralDeclareTransaction::V3(declare_tx.into()))
             }
-            Transaction::L1Handler(_) => unimplemented!(),
+            Transaction::L1Handler(l1_handler) => CentralTransaction::L1Handler(l1_handler.into()),
         }
     }
 }
