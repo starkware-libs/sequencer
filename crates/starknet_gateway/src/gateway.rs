@@ -11,15 +11,16 @@ use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMem
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info, instrument, Span};
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{GatewayConfig, RpcStateReaderConfig};
+use crate::config::GatewayConfig;
 use crate::errors::GatewayResult;
-use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::sync_state_reader::SyncStateReaderFactory;
 use crate::utils::compile_contract_and_build_executable_tx;
 
 #[cfg(test)]
@@ -162,11 +163,11 @@ impl ProcessTxBlockingTask {
 
 pub fn create_gateway(
     config: GatewayConfig,
-    rpc_state_reader_config: RpcStateReaderConfig,
+    shared_state_sync_client: SharedStateSyncClient,
     compiler_config: SierraToCasmCompilationConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
-    let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
+    let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
     let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
 
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
