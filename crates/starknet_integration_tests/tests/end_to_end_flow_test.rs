@@ -115,7 +115,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         let expected_validator_id = expected_proposer_iter
             .next()
             .unwrap()
-            .config
+            .node_config
             .consensus_manager_config
             .consensus_config
             .validator_id;

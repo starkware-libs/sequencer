@@ -24,9 +24,9 @@ use tracing::{debug, instrument};
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{
     create_chain_info,
-    create_config,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    create_node_config,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -109,7 +109,7 @@ pub struct FlowSequencerSetup {
     pub state_sync_storage_file_handle: TempDir,
 
     // Node configuration.
-    pub config: SequencerNodeConfig,
+    pub node_config: SequencerNodeConfig,
 
     // Monitoring client.
     pub is_alive_test_client: IsAliveClient,
@@ -137,7 +137,7 @@ impl FlowSequencerSetup {
         let component_config = ComponentConfig::default();
 
         // Derive the configuration for the sequencer node.
-        let (config, _required_params) = create_config(
+        let (node_config, _required_params) = create_node_config(
             &mut available_ports,
             sequencer_index,
             chain_info,
@@ -150,13 +150,13 @@ impl FlowSequencerSetup {
         )
         .await;
 
-        debug!("Sequencer config: {:#?}", config);
-        let (_clients, servers) = create_node_modules(&config);
+        debug!("Sequencer config: {:#?}", node_config);
+        let (_clients, servers) = create_node_modules(&node_config);
 
-        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
+        let MonitoringEndpointConfig { ip, port, .. } = node_config.monitoring_endpoint_config;
         let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
+        let HttpServerConfig { ip, port } = node_config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Run the sequencer node.
@@ -168,7 +168,7 @@ impl FlowSequencerSetup {
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
-            config,
+            node_config,
             is_alive_test_client,
         }
     }
