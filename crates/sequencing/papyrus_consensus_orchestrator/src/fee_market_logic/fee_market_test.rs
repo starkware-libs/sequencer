@@ -1,4 +1,4 @@
-use crate::fee_market::{
+use crate::fee_market_logic::fee_market::{
     calculate_next_base_gas_price,
     GAS_PRICE_MAX_CHANGE_DENOMINATOR,
     MAX_BLOCK_SIZE,
