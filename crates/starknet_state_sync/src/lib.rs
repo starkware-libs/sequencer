@@ -164,11 +164,7 @@ impl StateSync {
         class_hash: ClassHash,
     ) -> StateSyncResult<ContractClass> {
         let txn = self.storage_reader.begin_ro_txn()?;
-        let latest_block_number = txn.get_compiled_class_marker()?.prev();
-        if latest_block_number.is_none_or(|latest_block_number| latest_block_number < block_number)
-        {
-            return Err(StateSyncError::BlockNotFound(block_number));
-        }
+        verify_synced_up_to(&txn, block_number)?;
 
         let state_reader = txn.get_state_reader()?;
 
