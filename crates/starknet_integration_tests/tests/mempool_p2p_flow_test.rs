@@ -35,6 +35,7 @@ use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -44,6 +45,7 @@ use starknet_sequencer_node::config::component_execution_config::{
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
+use tempfile::TempDir;
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -54,7 +56,8 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 async fn setup(
     tx_generator: &MultiAccountTransactionGenerator,
     test_identifier: TestIdentifier,
-) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>) {
+) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>, Vec<TempDir>) {
+    configure_tracing().await;
     let accounts = tx_generator.accounts();
     let chain_info = create_chain_info();
     let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
@@ -100,7 +103,11 @@ async fn setup(
         state_sync_config,
         ..SequencerNodeConfig::default()
     };
-    (config, broadcast_channels)
+    (
+        config,
+        broadcast_channels,
+        vec![storage_for_test.batcher_storage_handle, storage_for_test.state_sync_storage_handle],
+    )
 }
 
 async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
@@ -113,7 +120,7 @@ async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
 #[rstest]
 #[tokio::test]
 async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
-    let (config, mut broadcast_channels) =
+    let (config, mut broadcast_channels, _temp_dir_handles) =
         setup(&tx_generator, TestIdentifier::MempoolSendsTxToOtherPeerTest).await;
     let (_clients, servers) = create_node_modules(&config);
 
@@ -157,7 +164,7 @@ async fn test_mempool_receives_tx_from_other_peer(
     const RECEIVED_TX_POLL_INTERVAL: u64 = 100; // milliseconds between calls to read received txs from the broadcast channel
     const TXS_RETRIVAL_TIMEOUT: u64 = 2000; // max milliseconds spent polling the received txs before timing out
 
-    let (config, mut broadcast_channels) =
+    let (config, mut broadcast_channels, _temp_dir_handles) =
         setup(&tx_generator, TestIdentifier::MempoolReceivesTxFromOtherPeerTest).await;
     let (clients, servers) = create_node_modules(&config);
     let mempool_client = clients.get_mempool_shared_client().unwrap();
