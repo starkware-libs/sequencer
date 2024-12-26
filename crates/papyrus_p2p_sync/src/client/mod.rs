@@ -201,7 +201,7 @@ impl P2PSyncClientChannels {
         let class_stream = ClassStreamBuilder::create_stream(
             self.class_sender,
             storage_reader.clone(),
-            None,
+            Some(internal_blocks_receivers.class_receiver),
             config.wait_period_for_new_data,
             config.num_block_classes_per_query,
         );
