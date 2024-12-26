@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
 [dependencies]
+assert_matches.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
@@ -32,6 +33,7 @@ mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
+rstest.workspace = true
 serde_json.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
 test-case.workspace = true
