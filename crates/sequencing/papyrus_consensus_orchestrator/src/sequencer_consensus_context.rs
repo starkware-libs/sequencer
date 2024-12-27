@@ -174,6 +174,7 @@ impl ConsensusContext for SequencerConsensusContext {
             self.cende_ambassador.write_prev_height_blob(proposal_init.height);
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
+
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
         let valid_proposals = Arc::clone(&self.valid_proposals);
@@ -187,7 +188,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to send proposal receiver");
 
-        tokio::spawn(
+        let handle = tokio::spawn(
             async move {
                 build_proposal(
                     timeout,
@@ -203,6 +204,9 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             .instrument(debug_span!("consensus_build_proposal")),
         );
+        assert!(self.active_proposal.is_none());
+        // The cancellation token is unused by the spawned build.
+        self.active_proposal = Some((CancellationToken::new(), handle));
 
         fin_receiver
     }
