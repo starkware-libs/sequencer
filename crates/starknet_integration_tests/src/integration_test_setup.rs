@@ -60,6 +60,9 @@ impl IntegrationTestSetup {
 
         let mut sequencers = vec![];
         for (sequencer_id, component_config) in component_configs.iter().enumerate() {
+            info!("+++++++++++++++++++++++++++++++++++++++++++++");
+            info!("Creating sequencer {}", sequencer_id);
+            info!("component_config: {:?}", component_config);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let sequencer = IntegrationSequencerSetup::new(

@@ -79,6 +79,71 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
         .into_iter()
         .chain(get_remote_test_component_config(&mut available_ports))
         .collect();
+    info!("Available ports: {:?}", available_ports);
+    info!("******************************************");
+    // let gateway_socket = available_ports.get_next_local_host_socket();
+    // let first_sequencer_config = get_http_only_component_config(gateway_socket);
+    // let regular_sequencers: Vec<ComponentConfig> = vec![ComponentConfig::default();
+    // N_SEQUENCERS]; let mut component_configs =
+    // vec![get_non_http_component_config(gateway_socket)]; component_configs.
+    // extend(regular_sequencers);
+
+    info!("Component configs: {:?}", component_configs);
+
+    info!("Running integration test setup.");
+    // Creating the storage for the test.
+    let integration_test_setup =
+        IntegrationTestSetup::run(&tx_generator, available_ports, component_configs).await;
+
+    // Wait for the nodes to start.
+    integration_test_setup.await_alive(5000, 50).await;
+
+    info!("Running integration test simulator.");
+    let send_rpc_tx_fn = &mut |rpc_tx| integration_test_setup.send_rpc_tx_fn(rpc_tx);
+
+    const ACCOUNT_ID_0: AccountId = 0;
+    let n_txs = 50;
+    let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
+    info!("Sending {n_txs} txs.");
+    let tx_hashes = send_account_txs(tx_generator, ACCOUNT_ID_0, n_txs, send_rpc_tx_fn).await;
+    assert_eq!(tx_hashes.len(), n_txs);
+
+    info!("Awaiting until {EXPECTED_BLOCK_NUMBER} blocks have been created.");
+
+    // TODO: Consider checking all sequencer storage readers.
+    let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
+
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 30, &batcher_storage_reader)
+        .await
+        .expect("Block number should have been reached.");
+
+    info!("Shutting down nodes.");
+    integration_test_setup.shutdown_nodes();
+
+    info!("Verifying tx sender account nonce.");
+    let expected_nonce_value = n_txs + 1;
+    let expected_nonce =
+        Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
+    let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
+    assert_eq!(nonce, expected_nonce);
+}
+
+pub async fn test_remote_connection(mut tx_generator: MultiAccountTransactionGenerator) {
+    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
+
+    info!("Checking that the sequencer node executable is present.");
+    get_node_executable_path();
+
+    // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
+
+    let component_configs: Vec<ComponentConfig> =
+        get_remote_test_component_config(&mut available_ports);
+    info!("Available ports: {:?}", available_ports);
+    info!("******************************************");
+
+    info!("Component configs: {:?}", component_configs);
 
     info!("Running integration test setup.");
     // Creating the storage for the test.
@@ -135,10 +200,15 @@ fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig 
     }
 }
 
-fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec<ComponentConfig> {
+pub fn get_remote_test_component_config(
+    available_ports: &mut AvailablePorts,
+) -> Vec<ComponentConfig> {
     let gateway_socket = available_ports.get_next_local_host_socket();
-    vec![
+    let res = vec![
         get_http_only_component_config(gateway_socket),
         get_non_http_component_config(gateway_socket),
-    ]
+    ];
+    info!("##############################");
+    info!("Remote test component configs: {:?}", res);
+    res
 }

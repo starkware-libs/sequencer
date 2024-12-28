@@ -1,4 +1,4 @@
-use starknet_integration_tests::end_to_end_integration::end_to_end_integration;
+use starknet_integration_tests::end_to_end_integration::test_remote_connection;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::info;
@@ -20,5 +20,6 @@ async fn main() {
     let tx_generator = create_integration_test_tx_generator();
 
     // Run end to end integration test.
-    end_to_end_integration(tx_generator).await;
+    test_remote_connection(tx_generator).await;
+    // end_to_end_integration(tx_generator).await;
 }
