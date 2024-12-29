@@ -49,7 +49,7 @@ impl SierraToCasmCompiler for CommandLineCompiler {
         let additional_args = [
             "--add-pythonic-hints",
             "--max-bytecode-size",
-            &self.config.max_bytecode_size.to_string(),
+            &self.config.max_casm_bytecode_size.to_string(),
         ];
 
         let stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
