@@ -2882,3 +2882,33 @@ fn test_deploy_max_sierra_gas_validate_execute(
     };
     assert_eq!(actual_validate_initial_gas, expected_validate_initial_gas);
 }
+
+#[rstest]
+#[case(RunnableCairo1::Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+fn test_empty_function_flow(#[case] runnable: RunnableCairo1) {
+    let use_kzg_da = true;
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let _versioned_constants = &block_context.versioned_constants;
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(runnable));
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let account_contract_address = account_contract.get_instance_address(0);
+    let calldata = create_calldata(
+        test_contract_address,
+        "empty_function",
+        &[], // Calldata.
+    );
+    let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_contract_address,
+        calldata,
+        resource_bounds: default_all_resource_bounds(),
+    });
+
+    let execution_info = invoke_tx.execute(state, block_context).unwrap();
+    println!("{:?}", execution_info);
+    assert!(!execution_info.is_reverted());
+}
