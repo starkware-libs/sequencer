@@ -26,6 +26,7 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
     create_node_config,
+    spawn_success_recorder,
 };
 
 pub struct IntegrationTestSetup {
@@ -139,7 +140,7 @@ impl IntegrationSequencerSetup {
         accounts: Vec<Contract>,
         sequencer_index: usize,
         chain_info: ChainInfo,
-        consensus_manager_config: ConsensusManagerConfig,
+        mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         available_ports: &mut AvailablePorts,
         component_config: ComponentConfig,
@@ -154,6 +155,9 @@ impl IntegrationSequencerSetup {
             available_ports.get_next_local_host_socket(),
         )
         .await;
+
+        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
