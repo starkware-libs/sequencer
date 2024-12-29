@@ -118,27 +118,42 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     assert_eq!(nonce, expected_nonce);
 }
 
-fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_first_sequencer_component_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+    mempool_p2p_socket: SocketAddr,
+) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
-    config.gateway = ReactiveComponentExecutionConfig::remote(gateway_socket);
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
+    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
+    config.mempool_p2p =
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_p2p_socket);
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
-fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_second_sequencer_component_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+    mempool_p2p_socket: SocketAddr,
+) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),
-        gateway: ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket),
+        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
+        mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
+        mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
         ..ComponentConfig::default()
     }
 }
 
 fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec<ComponentConfig> {
     let gateway_socket = available_ports.get_next_local_host_socket();
+    let mempool_socket = available_ports.get_next_local_host_socket();
+    let mempool_p2p_socket = available_ports.get_next_local_host_socket();
     vec![
-        get_http_only_component_config(gateway_socket),
-        get_non_http_component_config(gateway_socket),
+        get_first_sequencer_component_config(gateway_socket, mempool_socket, mempool_p2p_socket),
+        get_second_sequencer_component_config(gateway_socket, mempool_socket, mempool_p2p_socket),
     ]
 }
