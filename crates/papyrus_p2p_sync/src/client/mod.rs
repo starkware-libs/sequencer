@@ -9,6 +9,8 @@ mod state_diff;
 mod state_diff_test;
 mod stream_builder;
 #[cfg(test)]
+mod test;
+#[cfg(test)]
 mod test_utils;
 mod transaction;
 #[cfg(test)]
