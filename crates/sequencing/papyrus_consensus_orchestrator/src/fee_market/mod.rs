@@ -1,8 +1,7 @@
 use std::cmp::max;
 
 #[cfg(test)]
-#[path = "fee_market_test.rs"]
-pub mod fee_market_test;
+mod test;
 
 //  This constant is used to calculate the base gas price for the next block according to EIP-1559
 // and serves as a sensitivity parameter that limits the maximum rate of change of the gas price
