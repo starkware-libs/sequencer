@@ -26,6 +26,38 @@ fn test_state_diff_hash_regression() {
 }
 
 #[test]
+fn test_different_order_gets_same_hash() {
+    let deployed_contracts = indexmap! {
+        7u64.into() => ClassHash(1u64.into()),
+        2u64.into() => ClassHash(3u64.into()),
+    };
+    let reordered_deployed_contracts = indexmap! {
+        2u64.into() => ClassHash(3u64.into()),
+        7u64.into() => ClassHash(1u64.into()),
+    };
+    let declared_classes = indexmap! {
+        ClassHash(12u64.into()) => CompiledClassHash(13u64.into()),
+        ClassHash(809u64.into()) => CompiledClassHash(15u64.into()),
+    };
+    let reordered_declared_classes = indexmap! {
+        ClassHash(809u64.into()) => CompiledClassHash(15u64.into()),
+        ClassHash(12u64.into()) => CompiledClassHash(13u64.into()),
+    };
+
+    let mut state_diff = get_state_diff();
+    state_diff.deployed_contracts = deployed_contracts;
+    state_diff.declared_classes = declared_classes;
+    let mut state_diff_reordered = state_diff.clone();
+    state_diff_reordered.deployed_contracts = reordered_deployed_contracts;
+    state_diff_reordered.declared_classes = reordered_declared_classes;
+
+    assert_eq!(
+        calculate_state_diff_hash(&state_diff),
+        calculate_state_diff_hash(&state_diff_reordered),
+    );
+}
+
+#[test]
 fn test_sorting_deployed_contracts() {
     let deployed_contracts_0 = indexmap! {
         0u64.into() => ClassHash(3u64.into()),

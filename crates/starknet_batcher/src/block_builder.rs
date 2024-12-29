@@ -92,12 +92,14 @@ impl BlockExecutionArtifacts {
 
     pub fn state_diff(&self) -> ThinStateDiff {
         // TODO(Ayelet): Remove the clones.
+        let deployed_contracts = self.commitment_state_diff.address_to_class_hash.clone();
         let storage_diffs = self.commitment_state_diff.storage_updates.clone();
+        let declared_classes = self.commitment_state_diff.class_hash_to_compiled_class_hash.clone();
         let nonces = self.commitment_state_diff.address_to_nonce.clone();
         ThinStateDiff {
-            deployed_contracts: IndexMap::new(),
+            deployed_contracts,
             storage_diffs,
-            declared_classes: IndexMap::new(),
+            declared_classes,
             nonces,
             // TODO: Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
