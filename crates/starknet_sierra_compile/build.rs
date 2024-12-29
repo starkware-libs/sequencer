@@ -15,9 +15,9 @@ fn main() {
     install_starknet_native_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
+const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.0-rc.0";
 #[cfg(feature = "cairo_native")]
-const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.4";
+const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.5";
 
 /// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
 /// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
