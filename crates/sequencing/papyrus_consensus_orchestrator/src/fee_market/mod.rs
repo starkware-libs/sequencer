@@ -9,7 +9,8 @@ mod test;
 const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 48;
 const MIN_GAS_PRICE: u64 = 100000; // In fri.
 // TODO(Mohammad): Check the exact value for maximum block size in StarkNet.
-const MAX_BLOCK_SIZE: u64 = 4000000000; // In gas units. It's equivalent to 40M gas steps, with 100 gas units per step.
+/// The maximum block size in gas units: 40M gas steps * 100 units/step.
+pub const MAX_BLOCK_SIZE: u64 = 4000000000;
 
 /// Calculate the base gas price for the next block according to EIP-1559.
 ///
