@@ -483,6 +483,26 @@ pub struct ArchivalDataGasCosts {
     pub gas_per_code_byte: ResourceCost,
 }
 
+pub struct CairoNativeStackConfig {
+    pub gas_to_stack_ratio: Ratio<usize>,
+    pub max_stack_size: usize,
+    pub min_stack_red_zone: usize,
+    pub buffer_size: usize,
+}
+
+impl CairoNativeStackConfig {
+    pub fn get_stack_size_red_zone(&self, remaining_gas: usize) -> usize {
+        std::cmp::max(
+            (self.gas_to_stack_ratio * Ratio::new(remaining_gas, 1)).to_integer(),
+            self.min_stack_red_zone,
+        )
+    }
+
+    pub fn get_target_stack_size(&self, red_zone: usize) -> usize {
+        std::cmp::min(red_zone + self.buffer_size, self.max_stack_size)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct EventLimits {
     pub max_data_length: usize,
