@@ -10,7 +10,11 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_config::{
+    ActiveComponentConfig,
+    ComponentConfig,
+    ReactiveComponentConfig,
+};
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
@@ -125,12 +129,14 @@ fn get_http_container_config(
     mempool_p2p_socket: SocketAddr,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
-    config.http_server = ActiveComponentExecutionConfig::default();
-    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
-    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
-    config.mempool_p2p =
+    config.active_components.http_server = ActiveComponentExecutionConfig::default();
+    config.reactive_components.gateway =
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
+    config.reactive_components.mempool =
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
+    config.reactive_components.mempool_p2p =
         ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_p2p_socket);
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.active_components.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
@@ -139,14 +145,18 @@ fn get_non_http_container_config(
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
 ) -> ComponentConfig {
-    ComponentConfig {
-        http_server: ActiveComponentExecutionConfig::disabled(),
-        monitoring_endpoint: Default::default(),
+    let reactive_components = ReactiveComponentConfig {
         gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
         mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
         mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
-        ..ComponentConfig::default()
-    }
+        ..ReactiveComponentConfig::default()
+    };
+    let active_components = ActiveComponentConfig {
+        http_server: ActiveComponentExecutionConfig::disabled(),
+        monitoring_endpoint: ActiveComponentExecutionConfig::enabled(),
+        ..ActiveComponentConfig::default()
+    };
+    ComponentConfig { reactive_components, active_components }
 }
 
 fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec<ComponentConfig> {

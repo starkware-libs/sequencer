@@ -35,7 +35,7 @@ use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_config::{ActiveComponentConfig, ComponentConfig, ReactiveComponentConfig};
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
@@ -69,18 +69,23 @@ async fn setup(
 
     // Derive the configuration for the mempool node.
     let components = ComponentConfig {
-        consensus_manager: ActiveComponentExecutionConfig::disabled(),
-        batcher: ReactiveComponentExecutionConfig {
-            execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: None,
+        reactive_components: ReactiveComponentConfig {
+            batcher: ReactiveComponentExecutionConfig {
+                execution_mode: ReactiveComponentExecutionMode::Disabled,
+                local_server_config: None,
+                ..Default::default()
+            },
+            state_sync: ReactiveComponentExecutionConfig {
+                execution_mode: ReactiveComponentExecutionMode::Disabled,
+                local_server_config: None,
+                ..Default::default()
+            },
             ..Default::default()
         },
-        state_sync: ReactiveComponentExecutionConfig {
-            execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: None,
+        active_components: ActiveComponentConfig {
+            consensus_manager: ActiveComponentExecutionConfig::disabled(),
             ..Default::default()
         },
-        ..Default::default()
     };
 
     let batcher_config =
