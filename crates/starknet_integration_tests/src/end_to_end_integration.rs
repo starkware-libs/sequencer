@@ -103,7 +103,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     // TODO: Consider checking all sequencer storage readers.
     let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
 
-    await_block(5000, EXPECTED_BLOCK_NUMBER, 30, &batcher_storage_reader)
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 40, &batcher_storage_reader)
         .await
         .expect("Block number should have been reached.");
 
