@@ -15,7 +15,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_config::ComponentsExecutionConfig;
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
 use tempfile::{tempdir, TempDir};
 use tokio::task::JoinHandle;
@@ -44,7 +44,7 @@ impl IntegrationTestSetup {
     pub async fn run(
         tx_generator: &MultiAccountTransactionGenerator,
         mut available_ports: AvailablePorts,
-        component_configs: Vec<ComponentConfig>,
+        component_configs: Vec<ComponentsExecutionConfig>,
     ) -> Self {
         let chain_info = create_chain_info();
         let accounts = tx_generator.accounts();
@@ -150,7 +150,7 @@ impl IntegrationSequencerSetup {
         consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         available_ports: &mut AvailablePorts,
-        component_config: ComponentConfig,
+        component_config: ComponentsExecutionConfig,
     ) -> Self {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
