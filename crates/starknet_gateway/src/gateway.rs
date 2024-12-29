@@ -15,7 +15,7 @@ use tracing::{error, info, instrument, Span};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, RpcStateReaderConfig};
-use crate::errors::GatewayResult;
+use crate::errors::{mempool_client_err_to_gw_spec_err, GatewayResult};
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -79,10 +79,7 @@ impl Gateway {
         let tx_hash = add_tx_args.tx.tx_hash();
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        self.mempool_client.add_tx(add_tx_args).await.map_err(|e| {
-            error!("Failed to send tx to mempool: {}", e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-        })?;
+        self.mempool_client.add_tx(add_tx_args).await.map_err(mempool_client_err_to_gw_spec_err)?;
         // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
         Ok(tx_hash)
     }

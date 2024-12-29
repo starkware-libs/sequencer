@@ -5,7 +5,10 @@ use starknet_api::block::GasPrice;
 use starknet_api::transaction::fields::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
 use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_types::communication::MempoolClientError;
+use starknet_mempool_types::errors::MempoolError;
 use thiserror::Error;
+use tracing::{debug, error};
 
 use crate::compiler_version::{VersionId, VersionIdError};
 use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
@@ -70,6 +73,30 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::StarknetApiError(..)
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
+            }
+        }
+    }
+}
+
+pub fn mempool_client_err_to_gw_spec_err(value: MempoolClientError) -> GatewaySpecError {
+    match value {
+        MempoolClientError::ClientError(client_error) => {
+            error!("Mempool client error: {}", client_error);
+            GatewaySpecError::UnexpectedError { data: "Internal error".to_owned() }
+        }
+        MempoolClientError::MempoolError(mempool_error) => {
+            debug!("Mempool error: {}", mempool_error);
+            match mempool_error {
+                MempoolError::DuplicateNonce { .. }
+                | MempoolError::NonceTooLarge { .. }
+                | MempoolError::NonceTooOld { .. } => GatewaySpecError::InvalidTransactionNonce,
+                MempoolError::DuplicateTransaction { .. } => GatewaySpecError::DuplicateTx,
+                MempoolError::P2pPropagatorClientError { .. }
+                | MempoolError::TransactionNotFound { .. } => {
+                    // These errors are not expected to happen within the gateway, only from other
+                    // mempool clients.
+                    unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);
+                }
             }
         }
     }
