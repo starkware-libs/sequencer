@@ -67,7 +67,9 @@ async fn main() {
                         let end_time = SystemTime::now();
                         let start_time = received_message.time;
                         let duration = match end_time.duration_since(start_time) {
+                            #[allow(clippy::as_conversions)]
                             Ok(duration) => duration.as_micros() as i128,
+                            #[allow(clippy::as_conversions)]
                             Err(_) => -(start_time.duration_since(end_time).unwrap().as_micros() as i128),
                         };
                         output_vector.push(Record {
