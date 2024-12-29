@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod cende_test;
 mod central_objects;
 
 use std::collections::BTreeMap;
@@ -17,12 +19,11 @@ use tokio::task::{self};
 use tracing::debug;
 use url::Url;
 
-// TODO(dvir): add tests when will have more logic.
-
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AerospikeBlob {
     // TODO(yael, dvir): add the blob fields.
+    block_number: BlockNumber,
 }
 
 #[cfg_attr(test, automock)]
@@ -113,6 +114,7 @@ impl CendeContext for CendeAmbassador {
                 oneshot_send(sender, true);
                 return;
             }
+
             let Some(ref blob) = *prev_height_blob.lock().await else {
                 // This case happens when restarting the node, `prev_height_blob` intial value is
                 // `None`.
@@ -120,6 +122,19 @@ impl CendeContext for CendeAmbassador {
                 oneshot_send(sender, false);
                 return;
             };
+
+            // Can happen in case the consensus got a block from the state sync and due to that not
+            // update the cende ambassador in `decision_reached` function.
+            if blob.block_number != height {
+                debug!(
+                    "Mismatch blob block number and height, can't write blob to Aerospike. Blob \
+                     block number {}, height {}",
+                    blob.block_number, height
+                );
+                oneshot_send(sender, false);
+                return;
+            }
+
             // TODO(dvir): consider set `prev_height_blob` to `None` after writing to AS.
             debug!("Writing blob to Aerospike.");
             match request_builder.json(blob).send().await {
@@ -128,15 +143,17 @@ impl CendeContext for CendeAmbassador {
                         debug!("Blob written to Aerospike successfully.");
                         oneshot_send(sender, true);
                     } else {
-                        debug!("The recorder failed to write blob. Error: {}", response.status());
+                        debug!(
+                            "The recorder failed to write blob.\nStatus code: {}\nMessage: {}",
+                            response.status(),
+                            response.text().await.unwrap_or_default()
+                        );
                         oneshot_send(sender, false);
                     }
                 }
                 Err(err) => {
                     debug!("Failed to send a request to the recorder. Error: {}", err);
-                    // TODO(dvir): change this to `false`. The reason for the current value is to
-                    // make the `end_to_end_flow_test` to pass.
-                    oneshot_send(sender, true);
+                    oneshot_send(sender, false);
                 }
             }
         });
@@ -145,7 +162,7 @@ impl CendeContext for CendeAmbassador {
 
         // Helper function to send a boolean result to a one-shot sender.
         fn oneshot_send(sender: oneshot::Sender<bool>, result: bool) {
-            sender.send(result).expect("Writing to a one-shot sender should succeed.");
+            sender.send(result).expect("Cende one-shot send failed, receiver was dropped.");
         }
     }
 
@@ -158,13 +175,14 @@ impl CendeContext for CendeAmbassador {
 
 #[derive(Clone, Debug, Default)]
 pub struct BlobParameters {
-    // TODO(dvir): add here all the information needed for creating the blob: tranasctions, classes,
-    // block info, BlockExecutionArtifacts.
+    height: BlockNumber,
+    // TODO(dvir): add here all the information needed for creating the blob: tranasctions,
+    // classes, block info, BlockExecutionArtifacts.
 }
 
 impl From<BlobParameters> for AerospikeBlob {
-    fn from(_blob_parameters: BlobParameters) -> Self {
+    fn from(blob_parameters: BlobParameters) -> Self {
         // TODO(yael): make the full creation of blob.
-        AerospikeBlob {}
+        AerospikeBlob { block_number: blob_parameters.height }
     }
 }

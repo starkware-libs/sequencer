@@ -7405,6 +7405,7 @@ dependencies = [
  "infra_utils",
  "lazy_static",
  "mockall",
+ "mockito 1.5.0",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_network",
