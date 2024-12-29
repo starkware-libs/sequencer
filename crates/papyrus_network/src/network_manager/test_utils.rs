@@ -148,11 +148,8 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-pub fn create_connected_network_configs(
-    n: usize,
-    available_ports: &mut AvailablePorts,
-) -> Vec<NetworkConfig> {
-    let mut ports = available_ports.get_next_ports(n);
+pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfig> {
+    let number_of_configs = ports.len();
     let port0 = ports.remove(0);
 
     let secret_key0 = [1u8; 32];
@@ -163,7 +160,7 @@ pub fn create_connected_network_configs(
         secret_key: Some(secret_key0.to_vec()),
         ..Default::default()
     };
-    let mut configs = Vec::with_capacity(n);
+    let mut configs = Vec::with_capacity(number_of_configs);
     configs.push(config0);
     for port in ports.iter() {
         configs.push(NetworkConfig {
@@ -191,7 +188,8 @@ where
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let mut channels_configs = create_connected_network_configs(n_configs + 1, available_ports);
+    let ports = available_ports.get_next_ports(n_configs + 1);
+    let mut channels_configs = create_connected_network_configs(ports);
     let broadcast_channels = channels_configs.pop().unwrap();
 
     let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
