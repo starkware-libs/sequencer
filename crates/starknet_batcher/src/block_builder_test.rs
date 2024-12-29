@@ -5,6 +5,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -14,6 +15,7 @@ use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -48,6 +50,15 @@ fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transact
     tokio::sync::mpsc::unbounded_channel()
 }
 
+fn into_commitment_state_diff(thin_state_diff: ThinStateDiff) -> CommitmentStateDiff {
+    CommitmentStateDiff {
+        address_to_class_hash: thin_state_diff.deployed_contracts,
+        storage_updates: thin_state_diff.storage_diffs,
+        class_hash_to_compiled_class_hash: thin_state_diff.declared_classes,
+        address_to_nonce: thin_state_diff.nonces,
+    }
+}
+
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     rejected_tx_hashes: HashSet<TransactionHash>,
@@ -56,7 +67,7 @@ fn block_execution_artifacts(
     BlockExecutionArtifacts {
         execution_infos,
         rejected_tx_hashes,
-        commitment_state_diff: Default::default(),
+        unfinalized_state_diff: Default::default(),
         visited_segments_mapping: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
@@ -268,7 +279,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok((
-            expected_block_artifacts_copy.commitment_state_diff,
+            into_commitment_state_diff(expected_block_artifacts_copy.unfinalized_state_diff),
             expected_block_artifacts_copy.visited_segments_mapping,
             expected_block_artifacts_copy.bouncer_weights,
         ))
@@ -301,7 +312,7 @@ fn set_close_block_expectations(
     let output_block_artifacts_copy = output_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok((
-            output_block_artifacts.commitment_state_diff,
+            into_commitment_state_diff(output_block_artifacts.unfinalized_state_diff),
             output_block_artifacts.visited_segments_mapping,
             output_block_artifacts.bouncer_weights,
         ))
