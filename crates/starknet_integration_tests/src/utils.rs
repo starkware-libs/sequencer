@@ -67,7 +67,7 @@ pub async fn create_node_config(
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config =
-        create_http_server_config(available_ports.get_next_local_host_socket()).await;
+        create_http_server_config(available_ports.get_next_local_host_socket());
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let monitoring_endpoint_config =
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };

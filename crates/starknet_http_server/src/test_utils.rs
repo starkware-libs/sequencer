@@ -47,6 +47,6 @@ impl HttpTestClient {
     }
 }
 
-pub async fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
+pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }

@@ -87,7 +87,7 @@ async fn setup(
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config =
-        create_http_server_config(available_ports.get_next_local_host_socket()).await;
+        create_http_server_config(available_ports.get_next_local_host_socket());
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
