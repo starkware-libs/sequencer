@@ -55,6 +55,15 @@
     "ignore_inner_event_resources": false,
     "max_recursion_depth": 50,
     "enable_reverts": false,
+    "cairo_native_stack_config": {
+        "gas_to_stack_ratio": [
+            1,
+            1
+        ],
+        "max_stack_size": 0,
+        "min_stack_red_zone": 0,
+        "buffer_size": 0
+    },
     "segment_arena_cells": false,
     "os_constants": {
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",

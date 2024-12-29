@@ -200,6 +200,9 @@ pub struct VersionedConstants {
     // Compiler settings.
     pub enable_reverts: bool,
 
+    // Native settings.
+    pub cairo_native_stack_config: CairoNativeStackConfig,
+
     // Cairo OS constants.
     // Note: if loaded from a json file, there are some assumptions made on its structure.
     // See the struct's docstring for more details.
@@ -483,11 +486,23 @@ pub struct ArchivalDataGasCosts {
     pub gas_per_code_byte: ResourceCost,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CairoNativeStackConfig {
     pub gas_to_stack_ratio: Ratio<u64>,
+    #[serde(deserialize_with = "deserialize_to_mb")]
     pub max_stack_size: u64,
+    #[serde(deserialize_with = "deserialize_to_mb")]
     pub min_stack_red_zone: u64,
+    #[serde(deserialize_with = "deserialize_to_mb")]
     pub buffer_size: u64,
+}
+
+fn deserialize_to_mb<'de, D>(deserializer: D) -> Result<u64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = u64::deserialize(deserializer)?;
+    Ok(value * 1024 * 1024)
 }
 
 impl CairoNativeStackConfig {
@@ -499,7 +514,7 @@ impl CairoNativeStackConfig {
     }
 
     pub fn get_target_stack_size(&self, red_zone: u64) -> u64 {
-        red_zone + std::cmp::min( self.buffer_size, self.max_stack_size)
+        red_zone + std::cmp::min(self.buffer_size, self.max_stack_size)
     }
 }
 
