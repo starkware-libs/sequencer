@@ -44,6 +44,7 @@ use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
+    DecisionReachedResponse,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
@@ -62,6 +63,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
+use crate::fee_market::{calculate_next_base_gas_price, MAX_BLOCK_SIZE};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
@@ -126,6 +128,7 @@ pub struct SequencerConsensusContext {
     // Used to convert Transaction to ExecutableTransaction.
     chain_id: ChainId,
     cende_ambassador: Arc<dyn CendeContext>,
+    base_gas_price: u64,
 }
 
 impl SequencerConsensusContext {
@@ -155,6 +158,8 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             chain_id,
             cende_ambassador,
+            // TODO(Ayelet): Replace placeholder with real value.
+            base_gas_price: MAX_BLOCK_SIZE / 2,
         }
     }
 }
@@ -307,12 +312,11 @@ impl ConsensusContext for SequencerConsensusContext {
         }
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let state_diff = self
+        let DecisionReachedResponse { state_diff, l2_gas_used } = self
             .batcher
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
-            .expect("Failed to get state diff.")
-            .state_diff;
+            .expect("Failed to get state diff.");
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
@@ -330,6 +334,9 @@ impl ConsensusContext for SequencerConsensusContext {
             .add_new_block(BlockNumber(height), sync_block)
             .await
             .expect("Failed to add new block.");
+
+        self.base_gas_price =
+            calculate_next_base_gas_price(self.base_gas_price, l2_gas_used.0, MAX_BLOCK_SIZE / 2);
 
         Ok(())
     }
