@@ -27,6 +27,7 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
     create_node_config,
+    spawn_success_recorder,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -117,11 +118,14 @@ impl FlowSequencerSetup {
         accounts: Vec<Contract>,
         sequencer_index: usize,
         chain_info: ChainInfo,
-        consensus_manager_config: ConsensusManagerConfig,
+        mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+
+        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let component_config = ComponentConfig::default();
 

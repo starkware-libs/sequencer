@@ -1,12 +1,17 @@
 use std::future::Future;
+use std::net::SocketAddr;
 use std::time::Duration;
 
+use axum::http::StatusCode;
+use axum::routing::post;
+use axum::Router;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::types::ValidatorId;
+use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     create_network_configs_connected_to_broadcast_channels,
@@ -64,6 +69,7 @@ pub async fn create_node_config(
     component_config: ComponentConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
     let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
+    let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
@@ -91,8 +97,7 @@ pub async fn create_node_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
-            // TODO(dvir): change this to real value when add recorder to integration tests.
-            recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
+            recorder_url,
         },
     )
 }
@@ -137,6 +142,19 @@ pub fn create_consensus_manager_configs_and_channels(
         .collect();
 
     (consensus_manager_configs, broadcast_channels)
+}
+
+// Creates a local recorder server that always returns a success status.
+pub fn spawn_success_recorder(port: u16) -> Url {
+    // [127, 0, 0, 1] is the localhost IP address.
+    let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+    tokio::spawn(async move {
+        let router = Router::new()
+            .route(RECORDER_WRITE_BLOB_PATH, post(move || async { StatusCode::OK.to_string() }));
+        axum::Server::bind(&socket_addr).serve(router.into_make_service()).await.unwrap();
+    });
+
+    Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail")
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
