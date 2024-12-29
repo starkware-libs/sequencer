@@ -16,6 +16,7 @@ futures.workspace = true
 indexmap.workspace = true
 infra_utils.workspace = true
 mempool_test_utils.workspace = true
+mockito.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true

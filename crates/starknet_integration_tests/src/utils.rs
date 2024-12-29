@@ -38,7 +38,6 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
-use url::Url;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -74,6 +73,10 @@ pub async fn create_node_config(
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
     let state_sync_config =
         create_state_sync_config(state_sync_storage_config, available_ports.get_next_port());
+    // Creates a mockito server for the recorder. The server returns a success status for each call,
+    // which means that the recorder side will not have any problems in the test.
+    let mut server = mockito::Server::new_async().await;
+    server.mock("POST", "/write_blob").with_status(200).create();
 
     (
         SequencerNodeConfig {
@@ -93,8 +96,7 @@ pub async fn create_node_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
-            // TODO(dvir): change this to real value when add recorder to integration tests.
-            recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
+            recorder_url: server.url().parse().expect("mockito server url should be valid."),
         },
     )
 }
