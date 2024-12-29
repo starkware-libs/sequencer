@@ -34,7 +34,7 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 70,
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 22140,
             failed: true,
             ..Default::default()
         }
@@ -74,7 +74,7 @@ fn test_stack_overflow() {
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-            gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 5380,
+            gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 2681170910,
             failed: true,
             ..Default::default()
         }
