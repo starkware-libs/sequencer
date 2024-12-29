@@ -7,6 +7,7 @@ use indexmap::indexmap;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -54,7 +55,11 @@ const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
     BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
 fn proposal_commitment() -> ProposalCommitment {
-    BlockExecutionArtifacts::create_for_testing().commitment()
+    ProposalCommitment {
+        state_diff_commitment: calculate_state_diff_hash(
+            &BlockExecutionArtifacts::create_for_testing().unfinalized_state_diff,
+        ),
+    }
 }
 
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
@@ -564,27 +569,42 @@ async fn successful_decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
     let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
 
+    let address_to_nonce = expected_artifacts
+        .unfinalized_state_diff
+        .nonces
+        .iter()
+        .map(|(address, nonce)| (*address, *nonce))
+        .collect();
+
     mock_dependencies
         .mempool_client
         .expect_commit_block()
         .times(1)
-        .with(eq(CommitBlockArgs {
-            address_to_nonce: expected_artifacts.address_to_nonce(),
-            rejected_tx_hashes: [].into(),
-        }))
+        .with(eq(CommitBlockArgs { address_to_nonce, rejected_tx_hashes: [].into() }))
         .returning(|_| Ok(()));
+
+    expected_artifacts.unfinalized_state_diff.deployed_contracts.keys().for_each(
+        |contract_address| {
+            mock_dependencies
+                .storage_reader
+                .expect_address_is_assigned()
+                .times(1)
+                .with(eq(*contract_address))
+                .returning(|_| Ok(false));
+        },
+    );
 
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.state_diff()))
+        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.unfinalized_state_diff.clone()))
         .returning(|_, _| Ok(()));
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.block_builder_factory,
         vec![],
-        Ok(BlockExecutionArtifacts::create_for_testing()),
+        Ok(expected_artifacts.clone()),
     );
 
     let mut batcher = create_batcher(mock_dependencies);
@@ -594,7 +614,7 @@ async fn successful_decision_reached() {
 
     let response =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
-    assert_eq!(response.state_diff, expected_artifacts.state_diff());
+    assert_eq!(response.state_diff, expected_artifacts.unfinalized_state_diff);
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
 }
 
