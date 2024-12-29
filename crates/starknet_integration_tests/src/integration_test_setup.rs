@@ -19,7 +19,7 @@ use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
-use crate::utils::create_node_config;
+use crate::utils::{create_node_config, spawn_success_recorder};
 
 pub struct SequencerSetup {
     /// Used to differentiate between different sequencer nodes.
@@ -53,13 +53,16 @@ impl SequencerSetup {
         accounts: Vec<AccountTransactionGenerator>,
         sequencer_index: usize,
         chain_info: ChainInfo,
-        consensus_manager_config: ConsensusManagerConfig,
+        mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         available_ports: &mut AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+
+        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
