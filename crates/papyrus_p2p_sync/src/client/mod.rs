@@ -4,6 +4,8 @@ mod class_test;
 mod header;
 #[cfg(test)]
 mod header_test;
+#[cfg(test)]
+mod p2p_sync_test;
 mod state_diff;
 #[cfg(test)]
 mod state_diff_test;
