@@ -2,12 +2,17 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use axum::http::StatusCode;
+use axum::routing::post;
+use axum::Router;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use papyrus_common::tcp::find_free_port;
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::types::ValidatorId;
+use papyrus_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     create_network_configs_connected_to_broadcast_channels,
@@ -93,7 +98,6 @@ pub async fn create_node_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
-            // TODO(dvir): change this to real value when add recorder to integration tests.
             recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
         },
     )
@@ -119,6 +123,8 @@ pub fn create_consensus_manager_configs_and_channels(
     timeouts.prevote_timeout *= 3;
     timeouts.proposal_timeout *= 3;
 
+    let recorder_url = spawn_success_recorder();
+
     let consensus_manager_configs = network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
@@ -132,11 +138,24 @@ pub fn create_consensus_manager_configs_and_channels(
                 timeouts: timeouts.clone(),
                 ..Default::default()
             },
-            ..Default::default()
+            cende_config: CendeConfig { recorder_url: recorder_url.clone(), },
         })
         .collect();
 
     (consensus_manager_configs, broadcast_channels)
+}
+
+// Creates a local recorder server that always returns a success status.
+fn spawn_success_recorder() -> Url {
+    // [127, 0, 0, 1] is the localhost IP address.
+    let socket_addr = ([127, 0, 0, 1], find_free_port()).into();
+    tokio::spawn(async move {
+        let router = Router::new()
+            .route(RECORDER_WRITE_BLOB_PATH, post(move || async { StatusCode::OK.to_string() }));
+        axum::Server::bind(&socket_addr).serve(router.into_make_service()).await.unwrap();
+    });
+
+    Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail")
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
