@@ -50,14 +50,24 @@ fn test_total_tx_limits_less_than_max_sierra_gas() {
 }
 
 #[cfg(feature = "cairo_native")]
-#[test]
+#[rstest::rstest]
+#[case(MAX_POSSIBLE_SIERRA_GAS, MAX_POSSIBLE_SIERRA_GAS - 6590)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 10, 349991430)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 100, 34992990)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 1000, 3498420)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 10000, 342810)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 100000, 26370)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 1000000, 0)]
+#[case(350, 0)]
+#[case(35, 0)]
+#[case(0, 0)]
 /// Tests that Native can handle deep recursion calls without overflowing the stack.
 /// Note that the recursive function must be complicated, since the compiler might transform
 /// simple recursions into loops. The tested function was manually tested with higher gas and
 /// reached stack overflow.
 ///
 /// Also, there is no need to test the VM here since it doesn't use the stack.
-fn test_stack_overflow() {
+fn test_stack_overflow(#[case] initial_gas: u64, #[case] gas_consumed: u64) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
 
@@ -65,7 +75,7 @@ fn test_stack_overflow() {
     let entry_point_call = CallEntryPoint {
         calldata: calldata![depth],
         entry_point_selector: selector_from_name("test_stack_overflow"),
-        initial_gas: MAX_POSSIBLE_SIERRA_GAS,
+        initial_gas,
         ..trivial_external_entry_point_new(test_contract)
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
@@ -74,7 +84,7 @@ fn test_stack_overflow() {
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-            gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 6590,
+            gas_consumed,
             failed: true,
             ..Default::default()
         }
