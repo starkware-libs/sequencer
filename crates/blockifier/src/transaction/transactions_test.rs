@@ -1818,6 +1818,9 @@ fn test_deploy_account_tx(
     };
 
     let expected_gas_consumed = 0;
+    let tracked_resource = account
+        .get_runnable_class()
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
     let expected_validate_call_info = expected_validate_call_info(
         account_class_hash,
         constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME,
@@ -1825,17 +1828,20 @@ fn test_deploy_account_tx(
         validate_calldata,
         deployed_account_address,
         cairo_version,
-        account
-            .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
+        tracked_resource,
         Some(user_initial_gas),
     );
 
     // Build expected execute call info.
-    let expected_execute_initial_gas = user_initial_gas
+    let expected_execute_initial_gas = match tracked_resource {
+        TrackedResource::CairoSteps => versioned_constants.infinite_gas_for_vm_mode(),
+        TrackedResource::SierraGas => {
+            user_initial_gas
         // Note that in the case of deploy account, the initial gas in "execute" is limited by
         // max_validation_sierra_gas.
-        .min(versioned_constants.os_constants.validate_max_sierra_gas);
+        .min(versioned_constants.os_constants.validate_max_sierra_gas).0
+        }
+    };
     let expected_execute_call_info = Some(CallInfo {
         call: CallEntryPoint {
             class_hash: Some(account_class_hash),
@@ -1843,9 +1849,10 @@ fn test_deploy_account_tx(
             entry_point_type: EntryPointType::Constructor,
             entry_point_selector: selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME),
             storage_address: deployed_account_address,
-            initial_gas: expected_execute_initial_gas.0,
+            initial_gas: expected_execute_initial_gas,
             ..Default::default()
         },
+        tracked_resource,
         ..Default::default()
     });
 
@@ -2810,8 +2817,12 @@ fn test_deploy_max_sierra_gas_validate_execute(
 
     let actual_execute_initial_gas =
         actual_execution_info.execute_call_info.as_ref().unwrap().call.initial_gas;
-    let expected_execute_initial_gas =
-        versioned_constants.os_constants.validate_max_sierra_gas.min(user_initial_gas).0;
+    let expected_execute_initial_gas = match account_tracked_resource {
+        TrackedResource::CairoSteps => VERSIONED_CONSTANTS.infinite_gas_for_vm_mode(),
+        TrackedResource::SierraGas => {
+            versioned_constants.os_constants.validate_max_sierra_gas.min(user_initial_gas).0
+        }
+    };
     assert_eq!(actual_execute_initial_gas, expected_execute_initial_gas);
 
     let actual_validate_initial_gas =

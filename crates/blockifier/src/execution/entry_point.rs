@@ -24,7 +24,7 @@ use starknet_types_core::felt::Felt;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::TrackedResource;
+use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
@@ -412,8 +412,14 @@ pub fn execute_constructor_entry_point(
     })?;
     let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
-        return handle_empty_constructor(&ctor_context, calldata, *remaining_gas)
-            .map_err(|error| ConstructorEntryPointExecutionError::new(error, &ctor_context, None));
+        return handle_empty_constructor(
+            compiled_class,
+            context,
+            &ctor_context,
+            calldata,
+            *remaining_gas,
+        )
+        .map_err(|error| ConstructorEntryPointExecutionError::new(error, &ctor_context, None));
     };
 
     let constructor_call = CallEntryPoint {
@@ -434,6 +440,8 @@ pub fn execute_constructor_entry_point(
 }
 
 pub fn handle_empty_constructor(
+    compiled_class: RunnableCompiledClass,
+    context: &mut EntryPointExecutionContext,
     ctor_context: &ConstructorContext,
     calldata: Calldata,
     remaining_gas: u64,
@@ -446,6 +454,15 @@ pub fn handle_empty_constructor(
         });
     }
 
+    let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
+    let initial_gas;
+    if current_tracked_resource == TrackedResource::CairoSteps {
+        // Override the initial gas with a high value to ve consistent with the behavior for the
+        // rest of the CairoSteps mode calls.
+        initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
+    } else {
+        initial_gas = remaining_gas;
+    }
     let empty_constructor_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(ctor_context.class_hash),
@@ -456,8 +473,9 @@ pub fn handle_empty_constructor(
             storage_address: ctor_context.storage_address,
             caller_address: ctor_context.caller_address,
             call_type: CallType::Call,
-            initial_gas: remaining_gas,
+            initial_gas,
         },
+        tracked_resource: current_tracked_resource,
         ..Default::default()
     };
 
