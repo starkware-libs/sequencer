@@ -7398,7 +7398,6 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
- "blockifier",
  "chrono",
  "futures",
  "indexmap 2.6.0",
