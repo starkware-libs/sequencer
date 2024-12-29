@@ -23,6 +23,15 @@
     },
     "ignore_inner_event_resources": false,
     "enable_reverts": false,
+    "cairo_native_stack_config": {
+        "gas_to_stack_ratio": [
+            1,
+            1
+        ],
+        "max_stack_size": 0,
+        "min_stack_red_zone": 0,
+        "buffer_size": 0
+    },
     "tx_event_limits": {
         "max_data_length": 1000000000,
         "max_keys_length": 1000000000,

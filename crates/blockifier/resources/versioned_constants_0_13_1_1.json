@@ -56,6 +56,15 @@
     },
     "ignore_inner_event_resources": false,
     "enable_reverts": false,
+    "cairo_native_stack_config": {
+        "gas_to_stack_ratio": [
+            1,
+            1
+        ],
+        "max_stack_size": 0,
+        "min_stack_red_zone": 0,
+        "buffer_size": 0
+    },
     "os_constants": {
         "nop_entry_point_offset": -1,
         "entry_point_type_external": 0,
