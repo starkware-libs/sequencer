@@ -1,6 +1,7 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use num_rational::Ratio;
 use stacker;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
@@ -15,6 +16,7 @@ use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, Pre
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
+use crate::versioned_constants::CairoNativeStackConfig;
 
 // todo(rodrigo): add an `entry point not found` test for Native
 pub fn execute_entry_point_call(
@@ -40,6 +42,17 @@ pub fn execute_entry_point_call(
         mul_mod: gas_costs.builtins.mul_mod,
     };
 
+    // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal
+    // entry point code. When redepositing is used, the entry point is aware of this pre-charge
+    // and adjusts the gas counter accordingly if a smaller amount of gas is required.
+    let initial_budget = syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+    let call_initial_gas = syscall_handler
+        .base
+        .call
+        .initial_gas
+        .checked_sub(initial_budget)
+        .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
+
     // Grow the stack (if it's below the red zone) to handle deep Cairo recursions -
     // when running Cairo natively, the real stack is used and could get overflowed
     // (unlike the VM where the stack is simulated in the heap as a memory segment).
@@ -53,20 +66,21 @@ pub fn execute_entry_point_call(
     // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
     // adjusting the stack size.
     // This also limits multi-threading, since each thread has its own stack.
-    // TODO(Aviv/Yonatan): add these numbers to overridable VC.
-    let stack_size_red_zone = 160 * 1024 * 1024;
-    let target_stack_size = stack_size_red_zone + 10 * 1024 * 1024;
-
-    // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal
-    // entry point code. When redepositing is used, the entry point is aware of this pre-charge
-    // and adjusts the gas counter accordingly if a smaller amount of gas is required.
-    let initial_budget = syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
-    let call_initial_gas = syscall_handler
-        .base
-        .call
-        .initial_gas
-        .checked_sub(initial_budget)
-        .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
+    // If the the free stack size is in the red zone, We will grow the stack to the
+    // target size, relative to reaming gas.
+    let stack_config = CairoNativeStackConfig {
+        // TODO(Aviv): Take it from VC.
+        gas_to_stack_ratio: Ratio::new(1, 20),
+        max_stack_size: 200 * 1024 * 1024,
+        min_stack_red_zone: 2 * 1024 * 1024,
+        buffer_size: 5 * 1024 * 1024,
+    };
+    let stack_size_red_zone = stack_config.get_stack_size_red_zone(call_initial_gas);
+    let target_stack_size =
+        usize::try_from(stack_config.get_target_stack_size(stack_size_red_zone))
+            .unwrap_or_else(|e| panic!("Failed to convert target stack size to usize: {}", e));
+    let stack_size_red_zone = usize::try_from(stack_size_red_zone)
+        .unwrap_or_else(|e| panic!("Failed to convert stack size red zone to usize: {}", e));
     // Use `maybe_grow` and not `grow` for performance, since in happy flows, only the main call
     // should trigger the growth.
     let execution_result = stacker::maybe_grow(stack_size_red_zone, target_stack_size, || {
