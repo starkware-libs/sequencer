@@ -158,7 +158,8 @@ use crate::{
     check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
-
+const DECLARE_REDEPOSIT_AMOUNT: u64 = 6860;
+const DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: u64 = 6360;
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
@@ -467,9 +468,9 @@ fn add_kzg_da_resources_to_resources_mapping(
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 8)]),
         },
-        validate_gas_consumed: 14740, // The gas consumption results from parsing the input
+        validate_gas_consumed: 11690, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 112080,
+        execute_gas_consumed: 111210,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -1521,7 +1522,7 @@ fn declare_validate_callinfo(
                     .os_constants
                     .gas_costs
                     .base
-                    .entry_point_initial_budget
+                    .entry_point_initial_budget - DECLARE_REDEPOSIT_AMOUNT
             }
         };
         expected_validate_call_info(
@@ -1577,6 +1578,7 @@ fn test_declare_tx(
     #[case] empty_contract_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
+
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
     let empty_contract = FeatureContract::Empty(empty_contract_version);
@@ -1671,7 +1673,7 @@ fn test_declare_tx(
             if tx_version == TransactionVersion::ZERO {
                 GasAmount(0)
             } else {
-                GasAmount(initial_gas)
+                GasAmount(initial_gas - DECLARE_REDEPOSIT_AMOUNT)
             }
         }
     };
@@ -1797,7 +1799,7 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
 #[case::with_cairo0_account(CairoVersion::Cairo0, 0)]
 #[case::with_cairo1_account(
     CairoVersion::Cairo1(RunnableCairo1::Casm),
-    VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget
+    VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
 )]
 fn test_deploy_account_tx(
     #[case] cairo_version: CairoVersion,
@@ -2386,7 +2388,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(16120);
+    let gas_consumed = GasAmount(17020);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2418,11 +2420,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 17999_u32.into(),
+            l1_gas: 18008_u32.into(),
             l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19693_u32.into()),
+        false => GasVector::from_l1_gas(19702_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {
