@@ -26,6 +26,7 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
     create_node_config,
+    spawn_success_recorder,
 };
 
 pub struct IntegrationTestSetup {
@@ -144,7 +145,7 @@ impl IntegrationSequencerSetup {
         accounts: Vec<Contract>,
         sequencer_index: usize,
         chain_info: ChainInfo,
-        consensus_manager_config: ConsensusManagerConfig,
+        mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         available_ports: &mut AvailablePorts,
         component_config: ComponentConfig,
@@ -152,6 +153,20 @@ impl IntegrationSequencerSetup {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
+<<<<<<< HEAD
+=======
+        // Spawn a papyrus rpc server for a papyrus storage reader.
+        let rpc_server_addr = spawn_test_rpc_state_reader_with_socket(
+            storage_for_test.rpc_storage_reader,
+            chain_info.chain_id.clone(),
+            available_ports.get_next_local_host_socket(),
+        )
+        .await;
+
+        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
+
+>>>>>>> fdde48ea5 (refactor(sequencing): cende context, add logic and tests)
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             available_ports,
