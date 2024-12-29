@@ -374,3 +374,30 @@ fn test_tracked_resources_nested(
     assert_eq!(second_inner_call.tracked_resource, TrackedResource::SierraGas);
     assert_ne!(second_inner_call.execution.gas_consumed, 0);
 }
+
+#[rstest]
+#[case(RunnableCairo1::Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+fn test_empty_function_flow(#[case] runnable: RunnableCairo1) {
+    let outer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(outer_contract, 1)]);
+    let test_contract_address = outer_contract.get_instance_address(0);
+
+    let calldata = create_calldata(
+        test_contract_address,
+        "empty_function",
+        &[], // Calldata.
+    );
+    let outer_entry_point_selector = selector_from_name("test_call_contract");
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: outer_entry_point_selector,
+        calldata,
+        ..trivial_external_entry_point_new(outer_contract)
+    };
+
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+
+    // Contract should not fail.
+    assert!(!call_info.execution.failed);
+}
