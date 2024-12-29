@@ -7,6 +7,7 @@ use indexmap::indexmap;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -54,7 +55,11 @@ const BUILD_BLOCK_FAIL_ON_ERROR: BlockBuilderError =
     BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull);
 
 fn proposal_commitment() -> ProposalCommitment {
-    BlockExecutionArtifacts::create_for_testing().commitment()
+    ProposalCommitment {
+        state_diff_commitment: calculate_state_diff_hash(
+            &BlockExecutionArtifacts::create_for_testing().state_diff,
+        ),
+    }
 }
 
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
@@ -564,21 +569,30 @@ async fn successful_decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
     let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
 
+    let address_to_nonce = HashMap::from_iter(
+        expected_artifacts.state_diff.nonces.iter().map(|(address, nonce)| (*address, *nonce)),
+    );
+    let tx_hashes = HashSet::from_iter(expected_artifacts.execution_infos.keys().copied());
     mock_dependencies
         .mempool_client
         .expect_commit_block()
         .times(1)
-        .with(eq(CommitBlockArgs {
-            address_to_nonce: expected_artifacts.address_to_nonce(),
-            tx_hashes: expected_artifacts.tx_hashes(),
-        }))
+        .with(eq(CommitBlockArgs { address_to_nonce, tx_hashes }))
         .returning(|_| Ok(()));
+
+    let contract_address = *expected_artifacts.state_diff.deployed_contracts.keys().next().unwrap();
+    mock_dependencies
+        .storage_reader
+        .expect_address_is_assigned()
+        .times(1)
+        .with(eq(contract_address))
+        .returning(|_| Ok(false));
 
     mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.state_diff()))
+        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.state_diff.clone()))
         .returning(|_, _| Ok(()));
 
     mock_create_builder_for_propose_block(
@@ -594,7 +608,8 @@ async fn successful_decision_reached() {
 
     let response =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
-    assert_eq!(response.state_diff, expected_artifacts.state_diff());
+    assert_eq!(response.state_diff, expected_artifacts.state_diff);
+    assert!(response.state_diff.storage_diffs.keys().collect::<Vec<_>>().is_sorted());
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
 }
 
