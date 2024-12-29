@@ -33,7 +33,7 @@ use starknet_http_server::test_utils::create_http_server_config;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::{get_available_socket, AvailablePorts};
-use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_config::ComponentsExecutionConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
@@ -61,7 +61,7 @@ pub async fn create_node_config(
     state_sync_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
-    component_config: ComponentConfig,
+    component_config: ComponentsExecutionConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
     let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();

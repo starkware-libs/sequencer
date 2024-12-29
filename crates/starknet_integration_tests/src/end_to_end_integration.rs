@@ -11,9 +11,9 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::{
-    ActiveComponentConfig,
+    ActiveComponentsExecutionConfig,
     ComponentConfig,
-    ReactiveComponentConfig,
+    ReactiveComponentsExecutionConfig,
 };
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -145,16 +145,16 @@ fn get_non_http_container_config(
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
 ) -> ComponentConfig {
-    let reactive_components = ReactiveComponentConfig {
+    let reactive_components = ReactiveComponentsExecutionConfig {
         gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
         mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
         mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
-        ..ReactiveComponentConfig::default()
+        ..ReactiveComponentsExecutionConfig::default()
     };
-    let active_components = ActiveComponentConfig {
+    let active_components = ActiveComponentsExecutionConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: ActiveComponentExecutionConfig::enabled(),
-        ..ActiveComponentConfig::default()
+        ..ActiveComponentsExecutionConfig::default()
     };
     ComponentConfig { reactive_components, active_components }
 }

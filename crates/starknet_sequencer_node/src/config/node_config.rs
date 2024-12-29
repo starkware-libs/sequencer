@@ -30,7 +30,7 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use validator::Validate;
 
-use crate::config::component_config::ComponentConfig;
+use crate::config::component_config::ComponentsExecutionConfig;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
@@ -118,7 +118,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
     #[validate]
-    pub components: ComponentConfig,
+    pub components: ComponentsExecutionConfig,
     #[validate]
     pub batcher_config: BatcherConfig,
     #[validate]

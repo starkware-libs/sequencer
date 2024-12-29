@@ -12,12 +12,12 @@ use crate::config::component_execution_config::{
 
 /// The components configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct ComponentConfig {
-    pub reactive_components: ReactiveComponentConfig,
-    pub active_components: ActiveComponentConfig,
+pub struct ComponentsExecutionConfig {
+    pub reactive_components: ReactiveComponentsExecutionConfig,
+    pub active_components: ActiveComponentsExecutionConfig,
 }
 
-impl SerializeConfig for ComponentConfig {
+impl SerializeConfig for ComponentsExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
             append_sub_config_name(self.reactive_components.dump(), "reactive_components"),
@@ -29,17 +29,17 @@ impl SerializeConfig for ComponentConfig {
 }
 
 #[cfg(any(feature = "testing", test))]
-impl ComponentConfig {
-    pub fn disabled() -> ComponentConfig {
-        ComponentConfig {
-            reactive_components: ReactiveComponentConfig::disabled(),
-            active_components: ActiveComponentConfig::disabled(),
+impl ComponentsExecutionConfig {
+    pub fn disabled() -> ComponentsExecutionConfig {
+        ComponentsExecutionConfig {
+            reactive_components: ReactiveComponentsExecutionConfig::disabled(),
+            active_components: ActiveComponentsExecutionConfig::disabled(),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct ReactiveComponentConfig {
+pub struct ReactiveComponentsExecutionConfig {
     #[validate]
     pub batcher: ReactiveComponentExecutionConfig,
     #[validate]
@@ -54,7 +54,7 @@ pub struct ReactiveComponentConfig {
     pub l1_provider: ReactiveComponentExecutionConfig,
 }
 
-impl SerializeConfig for ReactiveComponentConfig {
+impl SerializeConfig for ReactiveComponentsExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
             append_sub_config_name(self.batcher.dump(), "batcher"),
@@ -70,9 +70,9 @@ impl SerializeConfig for ReactiveComponentConfig {
 }
 
 #[cfg(any(feature = "testing", test))]
-impl ReactiveComponentConfig {
-    pub fn disabled() -> ReactiveComponentConfig {
-        ReactiveComponentConfig {
+impl ReactiveComponentsExecutionConfig {
+    pub fn disabled() -> ReactiveComponentsExecutionConfig {
+        ReactiveComponentsExecutionConfig {
             batcher: ReactiveComponentExecutionConfig::disabled(),
             gateway: ReactiveComponentExecutionConfig::disabled(),
             mempool: ReactiveComponentExecutionConfig::disabled(),
@@ -84,7 +84,7 @@ impl ReactiveComponentConfig {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct ActiveComponentConfig {
+pub struct ActiveComponentsExecutionConfig {
     #[validate]
     pub consensus_manager: ActiveComponentExecutionConfig,
     #[validate]
@@ -93,7 +93,7 @@ pub struct ActiveComponentConfig {
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 
-impl SerializeConfig for ActiveComponentConfig {
+impl SerializeConfig for ActiveComponentsExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
             append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
@@ -106,9 +106,9 @@ impl SerializeConfig for ActiveComponentConfig {
 }
 
 #[cfg(any(feature = "testing", test))]
-impl ActiveComponentConfig {
-    pub fn disabled() -> ActiveComponentConfig {
-        ActiveComponentConfig {
+impl ActiveComponentsExecutionConfig {
+    pub fn disabled() -> ActiveComponentsExecutionConfig {
+        ActiveComponentsExecutionConfig {
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
