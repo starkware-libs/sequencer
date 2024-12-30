@@ -9,7 +9,6 @@ description = "Implements the consensus context and orchestrates the node's comp
 [dependencies]
 assert_matches.workspace = true
 async-trait.workspace = true
-blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
@@ -18,7 +17,7 @@ papyrus_consensus.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
-reqwest.workspace = true
+reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true

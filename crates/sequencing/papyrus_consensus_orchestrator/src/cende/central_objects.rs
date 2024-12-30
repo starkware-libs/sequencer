@@ -1,5 +1,4 @@
 use assert_matches::assert_matches;
-use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::{indexmap, IndexMap};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
@@ -17,7 +16,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     Transaction,
 };
-use starknet_api::state::StorageKey;
+use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -89,19 +88,17 @@ pub struct CentralStateDiff {
     pub block_info: CentralBlockInfo,
 }
 
-impl From<(CommitmentStateDiff, BlockInfo, StarknetVersion)> for CentralStateDiff {
+// We convert to CentralStateDiff from ThinStateDiff since this object is already sent to consensus
+// for the Sync service, otherwise we could have used the CommitmentStateDiff as well.
+impl From<(ThinStateDiff, BlockInfo, StarknetVersion)> for CentralStateDiff {
     fn from(
-        (state_diff, block_info, starknet_version): (
-            CommitmentStateDiff,
-            BlockInfo,
-            StarknetVersion,
-        ),
+        (state_diff, block_info, starknet_version): (ThinStateDiff, BlockInfo, StarknetVersion),
     ) -> CentralStateDiff {
         CentralStateDiff {
-            address_to_class_hash: state_diff.address_to_class_hash,
-            nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.address_to_nonce),
-            storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_updates),
-            declared_classes: state_diff.class_hash_to_compiled_class_hash,
+            address_to_class_hash: state_diff.deployed_contracts,
+            nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.nonces),
+            storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_diffs),
+            declared_classes: state_diff.declared_classes,
             block_info: (block_info, starknet_version).into(),
         }
     }
