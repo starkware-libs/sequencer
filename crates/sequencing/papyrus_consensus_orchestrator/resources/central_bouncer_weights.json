@@ -1,0 +1,20 @@
+{
+    "builtin_count": {
+        "add_mod": 0,
+        "bitwise": 0,
+        "ecdsa": 0,
+        "ec_op": 0,
+        "keccak": 0,
+        "mul_mod": 0,
+        "pedersen": 4948,
+        "poseidon": 54,
+        "range_check": 2301,
+        "range_check96": 0
+    },
+    "l1_gas": 0,
+    "message_segment_length": 0,
+    "n_events": 2,
+    "n_steps": 121095,
+    "state_diff_size": 45,
+    "sierra_gas": 0
+}
