@@ -23,7 +23,10 @@ use crate::integration_test_setup::IntegrationTestSetup;
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
-const N_SEQUENCERS: usize = 4;
+/// The number of "full" local sequencers that participate in the test.
+const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+/// The number of "full" remote sequencers that participate in the test.
+const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -75,10 +78,11 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    let component_configs: Vec<ComponentConfig> = vec![ComponentConfig::default(); N_SEQUENCERS]
-        .into_iter()
-        .chain(get_remote_test_component_config(&mut available_ports))
-        .collect();
+    let component_configs: Vec<ComponentConfig> =
+        vec![ComponentConfig::default(); N_CONSOLIDATED_SEQUENCERS]
+            .into_iter()
+            .chain(create_remote_node_configs(&mut available_ports, N_DISTRIBUTED_SEQUENCERS))
+            .collect();
 
     info!("Running integration test setup.");
     // Creating the storage for the test.
@@ -149,12 +153,24 @@ fn get_non_http_container_config(
     }
 }
 
-fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec<ComponentConfig> {
-    let gateway_socket = available_ports.get_next_local_host_socket();
-    let mempool_socket = available_ports.get_next_local_host_socket();
-    let mempool_p2p_socket = available_ports.get_next_local_host_socket();
-    vec![
-        get_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
-        get_non_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
-    ]
+/// Generates configurations for n nodes, where each node is split into:
+/// - An HTTP container configuration.
+/// - A non-HTTP container configuration.
+fn create_remote_node_configs(
+    available_ports: &mut AvailablePorts,
+    distributed_sequencers_num: usize,
+) -> Vec<ComponentConfig> {
+    std::iter::repeat_with(|| {
+        let gateway_socket = available_ports.get_next_local_host_socket();
+        let mempool_socket = available_ports.get_next_local_host_socket();
+        let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+
+        vec![
+            get_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
+            get_non_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
+        ]
+    })
+    .take(distributed_sequencers_num)
+    .flatten()
+    .collect()
 }
