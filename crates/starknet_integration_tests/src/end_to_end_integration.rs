@@ -23,7 +23,7 @@ use crate::integration_test_setup::IntegrationTestSetup;
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
-const N_SEQUENCERS: usize = 4;
+const N_SEQUENCERS: usize = 3;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -153,8 +153,15 @@ fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec
     let gateway_socket = available_ports.get_next_local_host_socket();
     let mempool_socket = available_ports.get_next_local_host_socket();
     let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+
+    let gateway_socket_2 = available_ports.get_next_local_host_socket();
+    let mempool_socket_2 = available_ports.get_next_local_host_socket();
+    let mempool_p2p_socket_2 = available_ports.get_next_local_host_socket();
+
     vec![
         get_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
         get_non_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
+        get_http_container_config(gateway_socket_2, mempool_socket_2, mempool_p2p_socket_2),
+        get_non_http_container_config(gateway_socket_2, mempool_socket_2, mempool_p2p_socket_2),
     ]
 }
