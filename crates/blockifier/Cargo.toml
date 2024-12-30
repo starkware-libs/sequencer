@@ -53,7 +53,7 @@ sha2.workspace = true
 stacker = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_sierra_compile = { workspace = true, optional = true }
+starknet_sierra_compile.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 tempfile.workspace = true
