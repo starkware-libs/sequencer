@@ -1,9 +1,14 @@
+#[cfg(feature = "cairo_native")]
 use std::path::PathBuf;
+#[cfg(feature = "cairo_native")]
 use std::process;
 
+#[cfg(feature = "cairo_native")]
 use cairo_lang_sierra::program::Program;
+#[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 
+#[cfg(feature = "cairo_native")]
 pub(crate) fn load_sierra_program_from_file(path: &PathBuf) -> (ContractClass, Program) {
     let raw_contract_class = std::fs::read_to_string(path).unwrap_or_else(|err| {
         eprintln!("Error reading Sierra file: {}", err);

@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "crates/bin/starknet-native-compile",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
@@ -57,8 +58,6 @@ members = [
   "workspace_tests",
 ]
 
-exclude = ["crates/bin/starknet-native-compile"]
-
 [workspace.package]
 version = "0.14.0-rc.0"
 edition = "2021"
@@ -105,6 +104,7 @@ cairo-lang-utils = "2.10.0-rc.1"
 cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "981093a" }
 cairo-vm = "=1.0.2"
 camelpaste = "0.1.0"
+cargo_metadata = "0.19.1"
 chrono = "0.4.26"
 clap = "4.5.4"
 colored = "2.1.0"

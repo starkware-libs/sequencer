@@ -15,9 +15,9 @@ fn main() {
     install_starknet_native_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
+const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.0-rc.0";
 #[cfg(feature = "cairo_native")]
-const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.5";
+const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.5-rc2";
 
 /// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
 /// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
@@ -49,13 +49,14 @@ fn install_starknet_native_compile() {
         .expect("Failed to convert the crate path to str");
     println!("cargo:rerun-if-changed={}", starknet_native_compile_crate_path_str);
 
-    let cargo_install_args = &["--path", starknet_native_compile_crate_path_str];
+    let cargo_install_args =
+        &["--path", starknet_native_compile_crate_path_str, "--features", "cairo_native"];
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
 fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
     let binary_path = binary_path(out_dir(), binary_name);
-    println!("cargo:rerun-if-changed={}", binary_path.to_str().unwrap());
+    println!("cargo:rerun-if-changed={}", binary_path.display());
 
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
