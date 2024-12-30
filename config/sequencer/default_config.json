@@ -119,6 +119,16 @@
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_cairo_native_stack_size": {
+    "description": "Maximum stack size for Cairo native execution.",
+    "pointer_target": "versioned_constants_overrides.max_cairo_native_stack_size",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.min_cairo_native_stack_red_zone": {
+    "description": "Minimum stack red zone for Cairo native execution.",
+    "pointer_target": "versioned_constants_overrides.min_cairo_native_stack_red_zone",
+    "privacy": "Public"
+  },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
@@ -769,6 +779,16 @@
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
+  "gateway_config.block_builder_config.versioned_constants_overrides.max_cairo_native_stack_size": {
+    "description": "Maximum stack size for Cairo native execution.",
+    "pointer_target": "versioned_constants_overrides.max_cairo_native_stack_size",
+    "privacy": "Public"
+  },
+  "gateway_config.block_builder_config.versioned_constants_overrides.min_cairo_native_stack_red_zone": {
+    "description": "Minimum stack red zone for Cairo native execution.",
+    "pointer_target": "versioned_constants_overrides.min_cairo_native_stack_red_zone",
+    "privacy": "Public"
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
@@ -1138,6 +1158,16 @@
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "TemporaryValue",
     "value": 10000000
+  },
+  "versioned_constants_overrides.max_cairo_native_stack_size": {
+    "description": "Maximum stack size for Cairo native execution.",
+    "privacy": "TemporaryValue",
+    "value": 200
+  },
+  "versioned_constants_overrides.min_cairo_native_stack_red_zone": {
+    "description": "Minimum stack red zone for Cairo native",
+    "privacy": "TemporaryValue",
+    "value": 2
   },
   "versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
