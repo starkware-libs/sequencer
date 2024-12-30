@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::batcher::{create_batcher, Batcher};
+use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
@@ -139,8 +142,12 @@ pub fn create_node_components(
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let (state_sync, state_sync_runner) =
-                create_state_sync_and_runner(config.state_sync_config.clone());
+            // TODO: Remove this and use the real client instead once implemented.
+            let class_manager_client = Arc::new(EmptyClassManagerClient);
+            let (state_sync, state_sync_runner) = create_state_sync_and_runner(
+                config.state_sync_config.clone(),
+                class_manager_client,
+            );
             (Some(state_sync), Some(state_sync_runner))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {

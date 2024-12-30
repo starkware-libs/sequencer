@@ -12,6 +12,7 @@ use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::stream_builder::BadPeerError;
@@ -26,13 +27,17 @@ use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 impl BlockData for (ThinStateDiff, BlockNumber) {
     #[latency_histogram("p2p_sync_state_diff_write_to_storage_latency_seconds", true)]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-    fn write_to_storage(
+    fn write_to_storage<'a>(
         self: Box<Self>,
-        storage_writer: &mut StorageWriter,
-    ) -> Result<(), StorageError> {
-        storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
-        gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER, self.1.unchecked_next().0 as f64);
-        Ok(())
+        storage_writer: &'a mut StorageWriter,
+        _class_manager_client: &'a mut SharedClassManagerClient,
+    ) -> BoxFuture<'a, Result<(), P2PSyncClientError>> {
+        async move {
+            storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
+            gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER, self.1.unchecked_next().0 as f64);
+            Ok(())
+        }
+        .boxed()
     }
 }
 
