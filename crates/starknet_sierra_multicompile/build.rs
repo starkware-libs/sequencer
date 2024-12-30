@@ -15,9 +15,10 @@ fn main() {
     install_starknet_native_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
+const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.0-rc.1";
 #[cfg(feature = "cairo_native")]
-const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.5";
+// TODO(Avi, 15/2/2025): Add test that checks the version of this constant is the workspace version.
+const REQUIRED_CAIRO_NATIVE_VERSION: &str = "v0.14.0-rc.0";
 
 /// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
 /// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
@@ -27,7 +28,7 @@ fn install_starknet_sierra_compile() {
     let binary_name = CAIRO_LANG_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_LANG_VERSION;
 
-    let cargo_install_args = &[binary_name, "--version", required_version];
+    let cargo_install_args = vec![binary_name, "--version", required_version];
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
@@ -44,18 +45,30 @@ fn install_starknet_native_compile() {
         starknet_infra_utils::path::project_path().expect("Should be able to get the project path");
 
     let starknet_native_compile_crate_path = repo_root_dir.join("crates/bin").join(binary_name);
-    let starknet_native_compile_crate_path_str = starknet_native_compile_crate_path
-        .to_str()
-        .expect("Failed to convert the crate path to str");
-    println!("cargo:rerun-if-changed={}", starknet_native_compile_crate_path_str);
+    let mut cargo_install_args: Vec<&str>;
+    if starknet_native_compile_crate_path.exists() {
+        println!("The crate {binary_name} is found locally - installing from local path.");
+        let starknet_native_compile_crate_path_str = starknet_native_compile_crate_path
+            .to_str()
+            .expect("Failed to convert the crate path to str");
+        println!("cargo:rerun-if-changed={}", starknet_native_compile_crate_path_str);
 
-    let cargo_install_args = &["--path", starknet_native_compile_crate_path_str];
+        cargo_install_args = vec!["--path", starknet_native_compile_crate_path_str];
+    } else {
+        println!("The crate {binary_name} is not found locally - installing from crates.io.");
+        cargo_install_args = vec![binary_name, "--version", required_version];
+    }
+    cargo_install_args.append(&mut vec!["--features", "cairo_native"]);
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
-fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
+fn install_compiler_binary(
+    binary_name: &str,
+    required_version: &str,
+    cargo_install_args: Vec<&str>,
+) {
     let binary_path = binary_path(out_dir(), binary_name);
-    println!("cargo:rerun-if-changed={}", binary_path.to_str().unwrap());
+    println!("cargo:rerun-if-changed={}", binary_path.display());
 
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
