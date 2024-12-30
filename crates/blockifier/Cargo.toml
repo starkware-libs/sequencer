@@ -5,6 +5,7 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "The transaction-executing component in the Starknet sequencer."
+include = ["libcairo_native_runtime.a", "src/**/*"]
 
 [lints]
 workspace = true
