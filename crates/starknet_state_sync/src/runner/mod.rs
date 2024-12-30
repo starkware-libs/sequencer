@@ -4,6 +4,7 @@ mod test;
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
 use futures::future::BoxFuture;
+use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_network::network_manager::{self, NetworkError};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientError};
@@ -21,8 +22,8 @@ use crate::config::StateSyncConfig;
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     // TODO: change client and server to requester and responder respectively
-    p2p_sync_client_future: BoxFuture<'static, Result<(), P2PSyncClientError>>,
-    p2p_sync_server_future: BoxFuture<'static, ()>,
+    p2p_sync_client_future: BoxFuture<'static, Result<Never, P2PSyncClientError>>,
+    p2p_sync_server_future: BoxFuture<'static, Never>,
 }
 
 #[async_trait]
@@ -30,11 +31,13 @@ impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
         tokio::select! {
             result = &mut self.network_future => {
-                return result.map_err(|_| ComponentError::InternalComponentError);
+                result.map_err(|_| ComponentError::InternalComponentError)
             }
-            result = &mut self.p2p_sync_client_future => return result.map_err(|_| ComponentError::InternalComponentError),
-            () = &mut self.p2p_sync_server_future => {
-                return Err(ComponentError::InternalComponentError);
+            result = &mut self.p2p_sync_client_future => {
+                result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ())
+            }
+            _never = &mut self.p2p_sync_server_future => {
+                Err(ComponentError::InternalComponentError)
             }
         }
     }
