@@ -10989,6 +10989,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
+ "starknet-types-core",
  "starknet_api",
  "starknet_gateway_types",
  "starknet_http_server",
@@ -10997,6 +10998,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "tracing-test",
  "validator",
 ]
 

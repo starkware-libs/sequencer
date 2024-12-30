@@ -21,10 +21,11 @@ reqwest = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
-starknet_gateway_types.workspace = true
+starknet_gateway_types = { workspace = true, features = ["testing"] }
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 validator.workspace = true
 
@@ -33,6 +34,6 @@ blockifier = { workspace = true, features = ["testing"] }
 mempool_test_utils.workspace = true
 metrics-exporter-prometheus.workspace = true
 serde_json.workspace = true
-starknet_gateway_types = { workspace = true, features = ["testing"] }
+starknet-types-core.workspace = true
 starknet_http_server = { workspace = true, features = ["testing"] }
-tokio = { workspace = true, features = ["rt"] }
+tracing-test.workspace = true
