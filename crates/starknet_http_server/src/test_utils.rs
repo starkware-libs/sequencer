@@ -36,9 +36,23 @@ impl HttpTestClient {
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, rpc_tx: RpcTransaction) -> Response {
+        self.add_tx_with_headers(rpc_tx, []).await
+    }
+
+    pub async fn add_tx_with_headers<I>(
+        &self,
+        rpc_tx: RpcTransaction,
+        header_members: I,
+    ) -> Response
+    where
+        I: IntoIterator<Item = (&'static str, &'static str)>,
+    {
         let tx_json = rpc_tx_to_json(&rpc_tx);
-        self.client
-            .post(format!("http://{}/add_tx", self.socket))
+        let mut request = self.client.post(format!("http://{}/add_tx", self.socket));
+        for (key, value) in header_members {
+            request = request.header(key, value);
+        }
+        request
             .header("content-type", "application/json")
             .body(Body::from(tx_json))
             .send()
