@@ -441,17 +441,14 @@ fn test_infinite_recursion(
     }
 }
 
-/// Tests that validation fails on insufficient steps if max fee is too low.
+/// Tests that validation fails on out-of-gas if L2 gas bound is too low.
 #[rstest]
-#[case::v1(TransactionVersion::ONE, default_l1_resource_bounds())]
-#[case::v3_l1_bounds_only(TransactionVersion::THREE, default_l1_resource_bounds())]
-#[case::v3_all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_max_fee_limit_validate(
     mut block_context: BlockContext,
-    #[case] version: TransactionVersion,
-    #[case] resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(true, false)] use_kzg_da: bool,
 ) {
+    let resource_bounds = default_all_resource_bounds;
     block_context.block_info.use_kzg_da = use_kzg_da;
     let chain_info = &block_context.chain_info;
     let gas_computation_mode = resource_bounds.get_gas_vector_computation_mode();
@@ -495,7 +492,7 @@ fn test_max_fee_limit_validate(
     );
     let error_trace =
         deploy_account_tx.execute(&mut state, &block_context).unwrap_err().to_string();
-    assert!(error_trace.contains("no remaining steps"));
+    assert!(error_trace.contains("Out of gas"));
     block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
 
     // Deploy grindy account successfully this time.
@@ -521,7 +518,7 @@ fn test_max_fee_limit_validate(
     let tx_args = invoke_tx_args! {
         sender_address: grindy_account_address,
         calldata: create_calldata(contract_address, "return_result", &[1000_u32.into()]),
-        version,
+        version: TransactionVersion::THREE,
         nonce: nonce_manager.next(grindy_account_address)
     };
 
@@ -979,6 +976,10 @@ fn test_n_reverted_steps(
         resource_bounds,
         sender_address: account_address,
     };
+    let tracked_resource = match cairo_version {
+        CairoVersion::Cairo1(_) => TrackedResource::SierraGas,
+        CairoVersion::Cairo0 => TrackedResource::CairoSteps,
+    };
 
     // Invoke the `recursive_fail` function with 0 iterations. This call should fail.
     let result = run_invoke_tx(
@@ -994,7 +995,8 @@ fn test_n_reverted_steps(
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
     let mut actual_resources_0 = result.receipt.resources.computation.clone();
-    let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
+    let n_units_0 =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_0 = result.receipt.fee.0;
 
     // Invoke the `recursive_fail` function with 1 iterations. This call should fail.
@@ -1011,7 +1013,7 @@ fn test_n_reverted_steps(
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
     let actual_resources_1 = result.receipt.resources.computation;
-    let n_steps_1 = actual_resources_1.total_charged_steps();
+    let n_units_1 = actual_resources_1.total_charged_computation_units(tracked_resource);
     let actual_fee_1 = result.receipt.fee.0;
 
     // Invoke the `recursive_fail` function with 2 iterations. This call should fail.
@@ -1025,29 +1027,37 @@ fn test_n_reverted_steps(
         },
     )
     .unwrap();
-    let n_steps_2 = result.receipt.resources.computation.total_charged_steps();
+    let n_units_2 =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_2 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
 
-    // Make sure that n_steps and actual_fee diffs are the same for two consecutive reverted calls.
-    assert!(n_steps_1 - n_steps_0 == n_steps_2 - n_steps_1);
-    assert!(actual_fee_1 - actual_fee_0 == actual_fee_2 - actual_fee_1);
+    // Make sure that n_units and actual_fee diffs are the same for two consecutive reverted calls.
+    assert_eq!(n_units_1 - n_units_0, n_units_2 - n_units_1);
+    assert_eq!(actual_fee_1 - actual_fee_0, actual_fee_2 - actual_fee_1);
 
     // Save the delta between two consecutive calls to be tested against a much larger recursion.
-    let single_call_steps_delta = n_steps_1 - n_steps_0;
+    let single_call_units_delta = n_units_1 - n_units_0;
     let single_call_fee_delta = actual_fee_1 - actual_fee_0;
-    assert!(single_call_steps_delta > 0);
+    assert!(single_call_units_delta > 0);
     assert!(single_call_fee_delta > 0);
 
-    // Make sure the resources in block of invocation 0 and 1 are the same, except for the number
-    // of cairo steps.
-    // TODO: Fix this check for sierra gas tracking mode.
-    if cairo_version == CairoVersion::Cairo0 {
-        actual_resources_0.n_reverted_steps += single_call_steps_delta;
-        assert_eq!(actual_resources_0, actual_resources_1);
-        actual_resources_0.vm_resources.n_steps = n_steps_0;
-    }
+    // Make sure the resources in block of invocation 0 and 1 are the same, except for tracked
+    // resource count.
+    match tracked_resource {
+        TrackedResource::CairoSteps => {
+            actual_resources_0.n_reverted_steps += single_call_units_delta;
+            assert_eq!(actual_resources_0, actual_resources_1);
+            actual_resources_0.vm_resources.n_steps = n_units_0;
+        }
+        TrackedResource::SierraGas => {
+            actual_resources_0.reverted_sierra_gas.0 +=
+                u64::try_from(single_call_units_delta).unwrap();
+            assert_eq!(actual_resources_0, actual_resources_1);
+            actual_resources_0.sierra_gas.0 = u64::try_from(n_units_0).unwrap();
+        }
+    };
 
     // Invoke the `recursive_fail` function with 100 iterations. This call should fail.
     let result = run_invoke_tx(
@@ -1060,16 +1070,26 @@ fn test_n_reverted_steps(
         },
     )
     .unwrap();
-    let n_steps_100 = result.receipt.resources.computation.total_charged_steps();
+    let n_units_100 =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_100 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
 
-    // Make sure that n_steps and actual_fee grew as expected.
-    assert!(n_steps_100 - n_steps_0 == 100 * single_call_steps_delta);
-    // TODO: Fix this check for sierra gas tracking mode.
-    if cairo_version == CairoVersion::Cairo0 {
-        assert!(actual_fee_100 - actual_fee_0 == 100 * single_call_fee_delta);
+    // Make sure that n_units and actual_fee grew as expected.
+    assert_eq!(n_units_100 - n_units_0, 100 * single_call_units_delta);
+    // When charging for sierra gas with no L2 gas user bound, due to rounding errors in converting
+    // L2 gas units to L1 gas, the fee may be a bit off.
+    match (tracked_resource, resource_bounds.get_gas_vector_computation_mode()) {
+        (TrackedResource::SierraGas, GasVectorComputationMode::NoL2Gas) => {
+            assert!(
+                100 * single_call_fee_delta - (actual_fee_100 - actual_fee_0)
+                    < 10 * single_call_fee_delta
+            );
+        }
+        _ => {
+            assert_eq!(actual_fee_100 - actual_fee_0, 100 * single_call_fee_delta);
+        }
     }
 }
 
@@ -1313,9 +1333,46 @@ fn test_insufficient_max_fee_reverts(
     )
     .unwrap();
     assert!(tx_execution_info3.is_reverted());
+    match (cairo_version, resource_used_depth1) {
+        (CairoVersion::Cairo0, _) => {
+            assert_eq!(tx_execution_info3.receipt.fee, tx_execution_info1.receipt.fee);
+            assert!(
+                tx_execution_info3.revert_error.unwrap().to_string().contains("no remaining steps")
+            );
+        }
+        (CairoVersion::Cairo1(RunnableCairo1::Casm), ValidResourceBounds::AllResources(_)) => {
+            // There is no guarantee that out of gas errors result in maximal fee charge (as in - we
+            // do not always expect the max amount of L2 gas to be charged). Assert final fee is
+            // within a sane range.
+            assert!(tx_execution_info3.revert_error.unwrap().to_string().contains("Out of gas"));
+            assert!(Fee(2 * tx_execution_info3.receipt.fee.0) >= tx_execution_info1.receipt.fee);
+        }
+        (CairoVersion::Cairo1(RunnableCairo1::Casm), ValidResourceBounds::L1Gas(l1_bound)) => {
+            // If a user supplied L1 gas bounds only, sierra gas is not limitted in proportion to
+            // the user bound; so we expect to revert in post-execution only.
+            assert!(
+                tx_execution_info3
+                    .revert_error
+                    .unwrap()
+                    .to_string()
+                    .contains("Insufficient max L1Gas")
+            );
+            assert_eq!(
+                tx_execution_info3.receipt.fee,
+                l1_bound
+                    .max_amount
+                    .checked_mul(
+                        block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).into()
+                    )
+                    .unwrap()
+            );
+        }
+        #[cfg(feature = "cairo_native")]
+        (CairoVersion::Cairo1(RunnableCairo1::Native), _) => {
+            panic!("Test not implemented for cairo native.")
+        }
+    }
     assert_eq!(tx_execution_info3.receipt.da_gas, tx_execution_info1.receipt.da_gas);
-    assert_eq!(tx_execution_info3.receipt.fee, tx_execution_info1.receipt.fee);
-    assert!(tx_execution_info3.revert_error.unwrap().to_string().contains("no remaining steps"));
 }
 
 #[rstest]
