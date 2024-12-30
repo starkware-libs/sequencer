@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_sierra_compile::config::SierraCompilationConfig;
 
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
@@ -71,6 +72,7 @@ pub struct ContractClassManagerConfig {
     pub wait_on_native_compilation: bool,
     pub contract_cache_size: usize,
     pub channel_size: usize,
+    pub compiler_config: SierraCompilationConfig,
 }
 
 impl Default for ContractClassManagerConfig {
@@ -80,13 +82,14 @@ impl Default for ContractClassManagerConfig {
             wait_on_native_compilation: false,
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            compiler_config: SierraCompilationConfig::default(),
         }
     }
 }
 
 impl SerializeConfig for ContractClassManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([
             ser_param(
                 "run_cairo_native",
                 &self.run_cairo_native,
@@ -111,6 +114,8 @@ impl SerializeConfig for ContractClassManagerConfig {
                 "The size of the compilation request channel.",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        dump.append(&mut append_sub_config_name(self.compiler_config.dump(), "compiler_config"));
+        dump
     }
 }
