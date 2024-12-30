@@ -6,7 +6,7 @@ use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 
-#[derive(Debug, Error, Serialize, Deserialize, Clone)]
+#[derive(Debug, Error, Serialize, Deserialize, Clone, PartialEq)]
 pub enum StateSyncError {
     #[error("Communication error between StateSync and StateSyncRunner")]
     RunnerCommunicationError,
