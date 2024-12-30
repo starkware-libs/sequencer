@@ -5,12 +5,13 @@ use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_protobuf::sync::DataOrFin;
-use papyrus_storage::class::{ClassStorageReader, ClassStorageWriter};
+use papyrus_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::block_data_stream_builder::{
@@ -23,22 +24,25 @@ use super::block_data_stream_builder::{
 use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
-    fn write_to_storage(
+    fn write_to_storage<'a>(
         self: Box<Self>,
-        storage_writer: &mut StorageWriter,
-    ) -> Result<(), StorageError> {
-        storage_writer
-            .begin_rw_txn()?
-            .append_classes(
-                self.2,
-                &self.0.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
-                &self
-                    .1
-                    .iter()
-                    .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
-                    .collect::<Vec<_>>(),
-            )?
-            .commit()
+        storage_writer: &'a mut StorageWriter,
+        class_manager_client: &'a mut SharedClassManagerClient,
+    ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
+        async move {
+            // TODO(noamsp): handle non fatal errors by reporting the peer instead of failing
+            for (class_hash, class) in self.0 {
+                class_manager_client.add_class(class_hash, class).await?;
+            }
+
+            for (class_hash, deprecated_class) in self.1 {
+                class_manager_client.add_deprecated_class(class_hash, deprecated_class).await?;
+            }
+
+            storage_writer.begin_rw_txn()?.update_class_manager_block_marker(&self.2)?.commit()?;
+            Ok(())
+        }
+        .boxed()
     }
 }
 
@@ -128,7 +132,7 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
     }
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError> {
-        storage_reader.begin_ro_txn()?.get_class_marker()
+        storage_reader.begin_ro_txn()?.get_class_manager_block_marker()
     }
 
     // Returning empty set because we assume that internal block's classes are already added to the

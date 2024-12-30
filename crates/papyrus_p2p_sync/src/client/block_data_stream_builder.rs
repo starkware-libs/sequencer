@@ -15,6 +15,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{debug, info, trace, warn};
 
@@ -24,11 +25,13 @@ pub type BlockDataResult = Result<Box<dyn BlockData>, P2pSyncClientError>;
 
 pub(crate) trait BlockData: Send {
     /// Write the block data to the storage.
-    fn write_to_storage(
+    // Async functions in trait don't work well with argument references
+    fn write_to_storage<'a>(
         // This is Box<Self> in order to allow using it with `Box<dyn BlockData>`.
         self: Box<Self>,
-        storage_writer: &mut StorageWriter,
-    ) -> Result<(), StorageError>;
+        storage_writer: &'a mut StorageWriter,
+        class_manager_client: &'a mut SharedClassManagerClient,
+    ) -> BoxFuture<'a, Result<(), P2pSyncClientError>>;
 }
 
 pub(crate) enum BlockNumberLimit {
