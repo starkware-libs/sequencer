@@ -14,6 +14,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -475,6 +476,21 @@ impl<'a> SyscallHintProcessor<'a> {
 
         // Execute.
         let mut remaining_gas = gas_counter - required_gas;
+
+        // To support sierra gas charge for blockifier revert flow, we track the remaining gas left
+        // before executing a syscall if the current tracked resource is gas.
+        // 1. If the syscall does not run Cairo code (i.e. not library call, not call contract, and
+        //    not a deploy), any failure will not run in the OS, so no need to charge - the value
+        //    before entering the callback is good enough to charge.
+        // 2. If the syscall runs Cairo code, but the tracked resource is steps (and not gas), the
+        //    additional charge of reverted cairo steps will cover the inner cost, and the outer
+        //    cost we track here will be the additional reverted gas.
+        // 3. If the syscall runs Cairo code and the tracked resource is gas, either the inner
+        //    failure will be a Cairo1 revert (and the gas consumed on the call info will override
+        //    the current tracked value), or we will pass through another syscall before failing -
+        //    and by induction (we will reach this point again), the gas will be charged correctly.
+        self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(remaining_gas));
+
         let original_response = execute_callback(request, vm, self, &mut remaining_gas);
         let response = match original_response {
             Ok(response) => {
