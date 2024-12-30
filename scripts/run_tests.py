@@ -33,7 +33,7 @@ class BaseCommand(Enum):
             return ["cargo", "clippy"] + clippy_args + ["--all-targets"]
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["cargo", "doc", "-r", "--document-private-items", "--no-deps"] + doc_args
+            return ["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
