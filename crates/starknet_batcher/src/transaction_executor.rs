@@ -1,9 +1,8 @@
 use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
     TransactionExecutor,
     TransactionExecutorResult,
 };
-use blockifier::bouncer::BouncerWeights;
-use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::state_api::StateReader;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -16,7 +15,7 @@ pub trait TransactionExecutorTrait: Send {
         &mut self,
         txs: &[BlockifierTransaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
-    fn close_block(&mut self) -> TransactionExecutorResult<(CommitmentStateDiff, BouncerWeights)>;
+    fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecutor<S> {
@@ -29,7 +28,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecu
     }
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
-    fn close_block(&mut self) -> TransactionExecutorResult<(CommitmentStateDiff, BouncerWeights)> {
+    fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.finalize()
     }
 }
