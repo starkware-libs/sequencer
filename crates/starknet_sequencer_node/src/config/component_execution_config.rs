@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::net::{IpAddr, Ipv4Addr};
 #[cfg(any(feature = "testing", test))]
 use std::net::SocketAddr;
 
@@ -135,7 +136,8 @@ impl SerializeConfig for ActiveComponentExecutionConfig {
 
 impl Default for ActiveComponentExecutionConfig {
     fn default() -> Self {
-        ActiveComponentExecutionConfig::enabled()
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        ActiveComponentExecutionConfig::enabled(socket)
     }
 }
 
@@ -144,8 +146,14 @@ impl ActiveComponentExecutionConfig {
         Self { execution_mode: ActiveComponentExecutionMode::Disabled, remote_client_config: None }
     }
 
-    pub fn enabled() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Enabled, remote_client_config: None }
+    pub fn enabled(socket: SocketAddr) -> Self {
+        Self {
+            execution_mode: ActiveComponentExecutionMode::Enabled,
+            remote_client_config: Some(RemoteClientConfig {
+                socket,
+                ..RemoteClientConfig::default()
+            }),
+        }
     }
 }
 

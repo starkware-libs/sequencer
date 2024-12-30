@@ -23,7 +23,7 @@ use crate::integration_test_setup::IntegrationTestSetup;
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
-const N_SEQUENCERS: usize = 4;
+const N_SEQUENCERS: usize = 2;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -123,6 +123,7 @@ fn get_http_container_config(
     gateway_socket: SocketAddr,
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
+    monitoring_endpoint_socket: SocketAddr,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
@@ -130,7 +131,8 @@ fn get_http_container_config(
     config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
     config.mempool_p2p =
         ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_p2p_socket);
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint =
+        ActiveComponentExecutionConfig::enabled(monitoring_endpoint_socket);
     config
 }
 
@@ -138,13 +140,43 @@ fn get_non_http_container_config(
     gateway_socket: SocketAddr,
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
+    monitoring_endpoint_socket: SocketAddr,
 ) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
-        monitoring_endpoint: Default::default(),
+        monitoring_endpoint: ActiveComponentExecutionConfig::enabled(monitoring_endpoint_socket),
         gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
         mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
         mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
+        ..ComponentConfig::default()
+    }
+}
+
+pub fn get_only_consensus_container_config(
+    consensus_socket: SocketAddr,
+    monitoring_endpoint_socket: SocketAddr,
+    batcher_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.consensus_manager = ActiveComponentExecutionConfig::enabled(consensus_socket);
+    config.monitoring_endpoint =
+        ActiveComponentExecutionConfig::enabled(monitoring_endpoint_socket);
+    config.batcher = ReactiveComponentExecutionConfig::remote(batcher_socket);
+    config.state_sync = ReactiveComponentExecutionConfig::remote(state_sync_socket);
+    config
+}
+
+pub fn get_non_consensus_container_config(
+    monitoring_endpoint_socket: SocketAddr,
+    batcher_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
+) -> ComponentConfig {
+    ComponentConfig {
+        consensus_manager: ActiveComponentExecutionConfig::disabled(),
+        monitoring_endpoint: ActiveComponentExecutionConfig::enabled(monitoring_endpoint_socket),
+        batcher: ReactiveComponentExecutionConfig::local_with_remote_enabled(batcher_socket),
+        state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(state_sync_socket),
         ..ComponentConfig::default()
     }
 }
@@ -153,8 +185,32 @@ fn get_remote_test_component_config(available_ports: &mut AvailablePorts) -> Vec
     let gateway_socket = available_ports.get_next_local_host_socket();
     let mempool_socket = available_ports.get_next_local_host_socket();
     let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+    let consensus_socket = available_ports.get_next_local_host_socket();
+    let batcher_socket = available_ports.get_next_local_host_socket();
+    let state_sync_socket = available_ports.get_next_local_host_socket();
+    let monitoring_endpoint_1 = available_ports.get_next_local_host_socket();
+    let monitoring_endpoint_2 = available_ports.get_next_local_host_socket();
+    let monitoring_endpoint_3 = available_ports.get_next_local_host_socket();
+    let monitoring_endpoint_4 = available_ports.get_next_local_host_socket();
     vec![
-        get_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
-        get_non_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
+        get_http_container_config(
+            gateway_socket,
+            mempool_socket,
+            mempool_p2p_socket,
+            monitoring_endpoint_1,
+        ),
+        get_non_http_container_config(
+            gateway_socket,
+            mempool_socket,
+            mempool_p2p_socket,
+            monitoring_endpoint_2,
+        ),
+        get_only_consensus_container_config(
+            consensus_socket,
+            monitoring_endpoint_3,
+            batcher_socket,
+            state_sync_socket,
+        ),
+        get_non_consensus_container_config(monitoring_endpoint_4, gateway_socket, mempool_socket),
     ]
 }
