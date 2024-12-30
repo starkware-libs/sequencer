@@ -177,11 +177,11 @@ pub fn create_txs_for_integration_test(
 
     // Create RPC transactions.
     let account0_invoke_nonce1 =
-        tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(2);
+        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(2);
     let account0_invoke_nonce2 =
-        tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(3);
+        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(3);
     let account1_invoke_nonce1 =
-        tx_generator.account_with_id(ACCOUNT_ID_1).generate_invoke_with_tip(4);
+        tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_invoke_with_tip(4);
 
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
 }
@@ -192,7 +192,7 @@ fn create_account_txs(
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
     (0..n_txs)
-        .map(|_| tx_generator.account_with_id(account_id).generate_invoke_with_tip(1))
+        .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()
 }
 
