@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
+use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
@@ -145,6 +146,8 @@ pub enum P2PSyncClientError {
     StorageError(#[from] StorageError),
     #[error(transparent)]
     SendError(#[from] SendError),
+    #[error(transparent)]
+    ClassManagerClientError(#[from] ClassManagerClientError),
 }
 
 type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
@@ -216,6 +219,7 @@ pub struct P2PSyncClient {
     storage_writer: StorageWriter,
     p2p_sync_channels: P2PSyncClientChannels,
     internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+    class_manager_client: SharedClassManagerClient,
 }
 
 impl P2PSyncClient {
@@ -225,8 +229,16 @@ impl P2PSyncClient {
         storage_writer: StorageWriter,
         p2p_sync_channels: P2PSyncClientChannels,
         internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+        class_manager_client: SharedClassManagerClient,
     ) -> Self {
-        Self { config, storage_reader, storage_writer, p2p_sync_channels, internal_blocks_receiver }
+        Self {
+            config,
+            storage_reader,
+            storage_writer,
+            p2p_sync_channels,
+            internal_blocks_receiver,
+            class_manager_client,
+        }
     }
 
     #[instrument(skip(self), level = "debug", err)]
@@ -243,6 +255,7 @@ impl P2PSyncClient {
             mut storage_writer,
             p2p_sync_channels,
             mut internal_blocks_receiver,
+            mut class_manager_client,
         } = self;
         let mut data_stream =
             p2p_sync_channels.create_stream(storage_reader, config, internal_blocks_receivers);
@@ -255,7 +268,7 @@ impl P2PSyncClient {
                 }
                 data = data_stream.next() => {
                     let data = data.expect("Sync data stream should never end")?;
-                    data.write_to_storage(&mut storage_writer)?;
+                    data.write_to_storage(&mut storage_writer, &mut class_manager_client).await?;
                 }
             }
         }
