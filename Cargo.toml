@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "crates/bin/starknet-native-compile",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
@@ -56,8 +57,6 @@ members = [
   "crates/starknet_task_executor",
   "workspace_tests",
 ]
-
-exclude = ["crates/bin/starknet-native-compile"]
 
 [workspace.package]
 version = "0.14.0-rc.0"

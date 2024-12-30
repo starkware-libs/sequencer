@@ -34,5 +34,6 @@ rstest.workspace = true
 starknet_infra_utils.path = "../starknet_infra_utils"
 
 [build-dependencies]
+starknet-native-compile.path = "../bin/starknet-native-compile"
 starknet_infra_utils.workspace = true
 tempfile.workspace = true
