@@ -27,6 +27,7 @@ use thiserror::Error;
 
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
@@ -643,8 +644,18 @@ impl ResourceTracker for SyscallHintProcessor<'_> {
         self.base.context.vm_run_resources.consumed()
     }
 
+    /// Consumes a single step (if we are in step-tracking mode).
     fn consume_step(&mut self) {
-        self.base.context.vm_run_resources.consume_step()
+        if *self
+            .base
+            .context
+            .tracked_resource_stack
+            .last()
+            .expect("When consume_step is called, tracked resource stack is initialized.")
+            == TrackedResource::CairoSteps
+        {
+            self.base.context.vm_run_resources.consume_step();
+        }
     }
 
     fn get_n_steps(&self) -> Option<usize> {
