@@ -69,7 +69,6 @@ pub trait StateSyncClient: Send + Sync {
     ) -> StateSyncClientResult<ContractClass>;
 
     // TODO: Add get_compiled_class_hash for StateSyncReader
-    // TODO: Add get_block_info for StateSyncReader
 }
 
 #[derive(Clone, Debug, Error)]
