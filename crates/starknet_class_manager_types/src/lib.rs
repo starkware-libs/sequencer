@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,7 @@ use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
 pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
+pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
 
 // TODO: export.
 pub type ClassId = ClassHash;

@@ -110,12 +110,15 @@ pub fn setup() -> TestArgs {
         transaction_sender,
         class_sender,
     };
+    // TODO: Fix this once we have a functional class manager client implementation.
+    let class_manager_client = None;
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
         futures::stream::pending().boxed(),
+        class_manager_client,
     );
     TestArgs {
         p2p_sync,
@@ -196,12 +199,15 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         class_sender,
     };
     let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
+    // TODO: Fix this once we have a functional class manager client implementation.
+    let class_manager_client = None;
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
         internal_block_receiver.boxed(),
+        class_manager_client,
     );
 
     let mut headers_current_query_responses_manager = None;

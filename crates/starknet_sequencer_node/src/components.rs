@@ -133,8 +133,12 @@ pub fn create_node_components(
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let (state_sync, state_sync_runner) =
-                create_state_sync_and_runner(config.state_sync_config.clone());
+            // TODO: Fix this once we have a functional class manager client implementation.
+            let class_manager_client = None;
+            let (state_sync, state_sync_runner) = create_state_sync_and_runner(
+                config.state_sync_config.clone(),
+                class_manager_client,
+            );
             (Some(state_sync), Some(state_sync_runner))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {

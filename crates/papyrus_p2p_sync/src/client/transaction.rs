@@ -8,6 +8,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::stream_builder::{
@@ -20,11 +21,16 @@ use super::stream_builder::{
 use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (BlockBody, BlockNumber) {
-    fn write_to_storage(
+    fn write_to_storage<'a>(
         self: Box<Self>,
-        storage_writer: &mut StorageWriter,
-    ) -> Result<(), StorageError> {
-        storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()
+        storage_writer: &'a mut StorageWriter,
+        _class_manager_client: &'a mut Option<SharedClassManagerClient>,
+    ) -> BoxFuture<'a, Result<(), P2PSyncClientError>> {
+        async move {
+            storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
+            Ok(())
+        }
+        .boxed()
     }
 }
 
