@@ -19,6 +19,7 @@ use cairo_native::starknet::{
 use num_bigint::BigUint;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
@@ -85,6 +86,20 @@ impl<'state> NativeSyscallHandler<'state> {
         }
 
         *remaining_gas -= required_gas;
+
+        // To support sierra gas charge for blockifier revert flow, we track the remaining gas left
+        // before executing a syscall if the current tracked resource is gas.
+        // 1. If the syscall does not run Cairo code (i.e. not library call, not call contract, and
+        //    not a deploy), any failure will not run in the OS, so no need to charge - the value
+        //    before entering the callback is good enough to charge.
+        // 2. If the syscall runs Cairo code, but the tracked resource is steps (and not gas), the
+        //    additional charge of reverted cairo steps will cover the inner cost, and the outer
+        //    cost we track here will be the additional reverted gas.
+        // 3. If the syscall runs Cairo code and the tracked resource is gas, either the inner
+        //    failure will be a Cairo1 revert (and the gas consumed on the call info will override
+        //    the current tracked value), or we will pass through another syscall before failing -
+        //    and by induction (we will reach this point again), the gas will be charged correctly.
+        self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(*remaining_gas));
 
         Ok(())
     }
