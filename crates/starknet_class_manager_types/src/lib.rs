@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,7 @@ use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
 pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
+pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
 
 // TODO: export.
 pub type ClassId = ClassHash;
@@ -128,5 +131,45 @@ where
             ClassManagerClientError,
             ClassManagerError
         )
+    }
+}
+
+pub struct EmptyClassManagerClient;
+
+#[async_trait]
+impl ClassManagerClient for EmptyClassManagerClient {
+    async fn add_class(
+        &self,
+        _class_id: ClassId,
+        _class: Class,
+    ) -> ClassManagerClientResult<ExecutableClassHash> {
+        Err(ClassManagerClientError::ClientError(ClientError::UnexpectedResponse(
+            "Empty class manager".to_string(),
+        )))
+    }
+
+    async fn add_deprecated_class(
+        &self,
+        _class_id: ClassId,
+        _class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()> {
+        Err(ClassManagerClientError::ClientError(ClientError::UnexpectedResponse(
+            "Empty class manager".to_string(),
+        )))
+    }
+
+    async fn get_executable(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<ExecutableClass> {
+        Err(ClassManagerClientError::ClientError(ClientError::UnexpectedResponse(
+            "Empty class manager".to_string(),
+        )))
+    }
+
+    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Class> {
+        Err(ClassManagerClientError::ClientError(ClientError::UnexpectedResponse(
+            "Empty class manager".to_string(),
+        )))
     }
 }
