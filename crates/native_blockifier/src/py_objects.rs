@@ -55,18 +55,28 @@ pub struct PyVersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_cairo_native_stack_size: u64,
+    pub min_cairo_native_stack_red_zone: u64,
 }
 
 #[pymethods]
 impl PyVersionedConstantsOverrides {
     #[new]
-    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps))]
+    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_cairo_native_stack_size, min_cairo_native_stack_red_zone))]
     pub fn create(
         validate_max_n_steps: u32,
         max_recursion_depth: usize,
         invoke_tx_max_n_steps: u32,
+        max_cairo_native_stack_size: u64,
+        min_cairo_native_stack_red_zone: u64,
     ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            max_cairo_native_stack_size,
+            min_cairo_native_stack_red_zone,
+        }
     }
 }
 
@@ -76,8 +86,16 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_cairo_native_stack_size,
+            min_cairo_native_stack_red_zone,
         } = py_versioned_constants_overrides;
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            max_cairo_native_stack_size,
+            min_cairo_native_stack_red_zone,
+        }
     }
 }
 
