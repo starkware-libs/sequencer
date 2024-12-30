@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
+use starknet_api::execution_resources::GasAmount;
 use thiserror::Error;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -132,6 +133,7 @@ impl<S: StateReader> StatefulValidator<S> {
                 &tx_context.block_context.versioned_constants,
             ),
             0,
+            GasAmount(0),
         );
 
         Ok((validate_call_info, tx_receipt))

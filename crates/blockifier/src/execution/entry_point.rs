@@ -172,6 +172,10 @@ impl CallEntryPoint {
         if let Ok(call_info) = &execution_result {
             // If the execution of the outer call failed, revert the transction.
             if call_info.execution.failed {
+                context.sierra_gas_revert_tracker.update_with_next_remaining_gas(
+                    call_info.tracked_resource,
+                    GasAmount(*remaining_gas),
+                );
                 return Err(EntryPointExecutionError::ExecutionFailed {
                     error_trace: extract_trailing_cairo1_revert_trace(
                         call_info,
@@ -183,6 +187,7 @@ impl CallEntryPoint {
 
         execution_result
     }
+
     pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
         if self.entry_point_type == EntryPointType::Constructor
             && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
@@ -200,6 +205,60 @@ pub struct ConstructorContext {
     pub code_address: Option<ContractAddress>,
     pub storage_address: ContractAddress,
     pub caller_address: ContractAddress,
+}
+
+#[derive(Debug)]
+pub struct SierraGasRevertTracker {
+    sierra_gas_consumed_so_far: GasAmount,
+    last_seen_remaining_gas: GasAmount,
+}
+
+impl SierraGasRevertTracker {
+    pub fn new_execute(initial_remaining_gas: GasAmount) -> Self {
+        Self {
+            sierra_gas_consumed_so_far: GasAmount(0),
+            last_seen_remaining_gas: initial_remaining_gas,
+        }
+    }
+
+    /// In validate, we cannot charge for reverted gas, so the values are meaningless.
+    pub fn new_validate() -> Self {
+        Self::new_execute(GasAmount::MAX)
+    }
+
+    /// Given the next remaining gas, updates the consumed gas (difference between previous and next
+    /// remaining gas) and then updates the last seen remaining gas.
+    pub fn update_with_next_remaining_gas(
+        &mut self,
+        tracked_resource: TrackedResource,
+        next_remaining_gas: GasAmount,
+    ) {
+        if tracked_resource == TrackedResource::SierraGas {
+            let next_gas_consumed =
+                self.last_seen_remaining_gas.checked_sub(next_remaining_gas).unwrap_or_else(|| {
+                    panic!(
+                        "Next remaining gas higher than last. Last seen remaining gas: {}, next \
+                         remaining gas: {next_remaining_gas}.",
+                        self.last_seen_remaining_gas
+                    )
+                });
+            self.sierra_gas_consumed_so_far = self
+                .sierra_gas_consumed_so_far
+                .checked_add(next_gas_consumed)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Sierra gas consumed overflowed. Last consumed gas: {}, extra consumed \
+                         gas: {next_gas_consumed}.",
+                        self.sierra_gas_consumed_so_far
+                    )
+                });
+            self.last_seen_remaining_gas = next_remaining_gas;
+        }
+    }
+
+    pub fn get_gas_consumed(&self) -> GasAmount {
+        self.sierra_gas_consumed_so_far
+    }
 }
 
 #[derive(Debug)]
@@ -223,6 +282,9 @@ pub struct EntryPointExecutionContext {
 
     // Information for reverting the state (inludes the revert info of the callers).
     pub revert_infos: ExecutionRevertInfo,
+
+    // Used to support charging for gas consumed in blockifier revert flow.
+    pub sierra_gas_revert_tracker: SierraGasRevertTracker,
 }
 
 impl EntryPointExecutionContext {
@@ -230,6 +292,7 @@ impl EntryPointExecutionContext {
         tx_context: Arc<TransactionContext>,
         mode: ExecutionMode,
         limit_steps_by_resources: bool,
+        sierra_gas_revert_tracker: SierraGasRevertTracker,
     ) -> Self {
         let max_steps = Self::max_steps(&tx_context, &mode, limit_steps_by_resources);
         Self {
@@ -241,6 +304,7 @@ impl EntryPointExecutionContext {
             execution_mode: mode,
             tracked_resource_stack: vec![],
             revert_infos: ExecutionRevertInfo(vec![]),
+            sierra_gas_revert_tracker,
         }
     }
 
@@ -248,11 +312,25 @@ impl EntryPointExecutionContext {
         tx_context: Arc<TransactionContext>,
         limit_steps_by_resources: bool,
     ) -> Self {
-        Self::new(tx_context, ExecutionMode::Validate, limit_steps_by_resources)
+        Self::new(
+            tx_context,
+            ExecutionMode::Validate,
+            limit_steps_by_resources,
+            SierraGasRevertTracker::new_validate(),
+        )
     }
 
-    pub fn new_invoke(tx_context: Arc<TransactionContext>, limit_steps_by_resources: bool) -> Self {
-        Self::new(tx_context, ExecutionMode::Execute, limit_steps_by_resources)
+    pub fn new_invoke(
+        tx_context: Arc<TransactionContext>,
+        limit_steps_by_resources: bool,
+        sierra_gas_revert_tracker: SierraGasRevertTracker,
+    ) -> Self {
+        Self::new(
+            tx_context,
+            ExecutionMode::Execute,
+            limit_steps_by_resources,
+            sierra_gas_revert_tracker,
+        )
     }
 
     /// Returns the maximum number of cairo steps allowed, given the max fee, gas price and the
@@ -366,6 +444,14 @@ impl EntryPointExecutionContext {
         let overhead_steps =
             self.versioned_constants().os_resources_for_tx_type(tx_type, calldata_length).n_steps;
         self.subtract_steps(validate_steps + overhead_steps)
+    }
+
+    /// Calls update_with_next_remaining_gas if the tracked resource is sierra gas.
+    pub fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {
+        if let Some(tracked_resource) = self.tracked_resource_stack.last() {
+            self.sierra_gas_revert_tracker
+                .update_with_next_remaining_gas(*tracked_resource, next_remaining_gas);
+        }
     }
 
     pub fn versioned_constants(&self) -> &VersionedConstants {
