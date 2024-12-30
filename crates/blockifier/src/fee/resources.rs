@@ -98,17 +98,11 @@ impl ComputationResources {
         })
     }
 
-    /// TODO: Delete this function, use total_charged_computation_units instead.
-    #[cfg(test)]
-    pub fn total_charged_steps(&self) -> usize {
-        self.n_reverted_steps + self.vm_resources.n_steps
-    }
-
     /// Returns total consumed + reverted units of steps or sierra gas.
     #[cfg(test)]
     pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
         match resource {
-            TrackedResource::CairoSteps => self.total_charged_steps(),
+            TrackedResource::CairoSteps => self.n_reverted_steps + self.vm_resources.n_steps,
             TrackedResource::SierraGas => {
                 usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()
             }
