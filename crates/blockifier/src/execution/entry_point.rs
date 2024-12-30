@@ -36,7 +36,7 @@ use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::usize_from_u64;
-use crate::versioned_constants::{GasCosts, VersionedConstants};
+use crate::versioned_constants::{CairoNativeStackConfig, GasCosts, VersionedConstants};
 
 #[cfg(test)]
 #[path = "entry_point_test.rs"]
@@ -223,6 +223,9 @@ pub struct EntryPointExecutionContext {
 
     // Information for reverting the state (inludes the revert info of the callers).
     pub revert_infos: ExecutionRevertInfo,
+
+    // The cairo native stack configuration.
+    pub cairo_native_stack_config: CairoNativeStackConfig,
 }
 
 impl EntryPointExecutionContext {
@@ -233,6 +236,11 @@ impl EntryPointExecutionContext {
     ) -> Self {
         let max_steps = Self::max_steps(&tx_context, &mode, limit_steps_by_resources);
         Self {
+            cairo_native_stack_config: tx_context
+                .block_context
+                .versioned_constants
+                .cairo_native_stack_config
+                .clone(),
             vm_run_resources: RunResources::new(max_steps),
             n_emitted_events: 0,
             n_sent_messages_to_l1: 0,
