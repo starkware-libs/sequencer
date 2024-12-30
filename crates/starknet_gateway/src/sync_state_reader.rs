@@ -37,16 +37,41 @@ impl MempoolStateReader for SyncStateReader {
             block_number: block_header.block_number,
             block_timestamp: block_header.timestamp,
             sequencer_address: block_header.sequencer.0,
+            // TODO: Remove unwrap_or_default after fixing end to end flow test.
             gas_prices: GasPrices {
                 eth_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_wei.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_wei.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_wei.try_into()?,
+                    l1_gas_price: block_header
+                        .l1_gas_price
+                        .price_in_wei
+                        .try_into()
+                        .unwrap_or_default(),
+                    l1_data_gas_price: block_header
+                        .l1_data_gas_price
+                        .price_in_wei
+                        .try_into()
+                        .unwrap_or_default(),
+                    l2_gas_price: block_header
+                        .l2_gas_price
+                        .price_in_wei
+                        .try_into()
+                        .unwrap_or_default(),
                 },
                 strk_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_fri.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_fri.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_fri.try_into()?,
+                    l1_gas_price: block_header
+                        .l1_gas_price
+                        .price_in_fri
+                        .try_into()
+                        .unwrap_or_default(),
+                    l1_data_gas_price: block_header
+                        .l1_data_gas_price
+                        .price_in_fri
+                        .try_into()
+                        .unwrap_or_default(),
+                    l2_gas_price: block_header
+                        .l2_gas_price
+                        .price_in_fri
+                        .try_into()
+                        .unwrap_or_default(),
                 },
             },
             use_kzg_da: match block_header.l1_da_mode {
