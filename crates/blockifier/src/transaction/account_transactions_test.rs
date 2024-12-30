@@ -842,19 +842,26 @@ fn recursive_function_calldata(
 #[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
 #[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
 #[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
-fn test_reverted_reach_steps_limit(
+fn test_reverted_reach_computation_limit(
     max_fee: Fee,
     mut block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm))
+    )]
+    cairo_version: CompilerBasedVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, cairo_version);
+        create_test_init_data(&block_context.chain_info, cairo_version.into());
+    let tracked_resource = cairo_version.own_tracked_resource();
 
-    // Limit the number of execution steps (so we quickly hit the limit).
+    // Limit the max amount of computation units (so we quickly hit the limit).
     block_context.versioned_constants.invoke_tx_max_n_steps = 6000;
+    let mut os_constants = *block_context.versioned_constants.os_constants.clone();
+    os_constants.execute_max_sierra_gas = GasAmount(600000);
+    block_context.versioned_constants.os_constants = os_constants.into();
     let recursion_base_args = invoke_tx_args! {
         max_fee,
         resource_bounds,
@@ -873,8 +880,8 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_0 = result.receipt.resources.computation.total_charged_steps();
-    let gas_0 = result.receipt.resources.computation.sierra_gas;
+    let n_units_0 =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_0 = result.receipt.fee.0;
 
     // Ensure the transaction was not reverted.
@@ -891,35 +898,33 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_1 = result.receipt.resources.computation.total_charged_steps();
-    let gas_1 = result.receipt.resources.computation.sierra_gas;
+    let n_units_1 =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_1 = result.receipt.fee.0;
     // Ensure the transaction was not reverted.
     assert!(!result.is_reverted());
 
-    // Make sure that the n_steps and actual_fee are higher as the recursion depth increases.
-    let tracked_resource = result.validate_call_info.unwrap().tracked_resource;
-    match cairo_version {
-        CairoVersion::Cairo0 => {
-            assert_eq!(tracked_resource, TrackedResource::CairoSteps);
-            assert!(n_steps_1 > n_steps_0);
-        }
-        CairoVersion::Cairo1(_) => {
-            assert_eq!(tracked_resource, TrackedResource::SierraGas);
-            assert!(gas_1 > gas_0);
-            // TODO(Tzahi): adjust the steps in the test to gas for the SierraGas run (after a
-            // validate run gas limit is introduced to the code).
-            return;
-        }
-    }
+    // Make sure that the n_units and actual_fee are higher as the recursion depth increases.
+    let validate_tracked_resource = result.validate_call_info.unwrap().tracked_resource;
+    assert_eq!(tracked_resource, validate_tracked_resource);
+    assert!(n_units_1 > n_units_0);
     assert!(actual_fee_1 > actual_fee_0);
 
     // Calculate a recursion depth where the transaction will surely fail (not a minimal depth, as
     // base costs are neglected here).
-    let steps_diff = n_steps_1 - n_steps_0;
+    let units_diff = n_units_1 - n_units_0;
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let steps_diff_as_u32: u32 = steps_diff.try_into().expect("Failed to convert usize to u32.");
-    let fail_depth = block_context.versioned_constants.invoke_tx_max_n_steps / steps_diff_as_u32;
+    let units_diff_as_u32: u32 = units_diff.try_into().expect("Failed to convert usize to u32.");
+    let fail_depth = match tracked_resource {
+        TrackedResource::CairoSteps => {
+            block_context.versioned_constants.invoke_tx_max_n_steps / units_diff_as_u32
+        }
+        TrackedResource::SierraGas => {
+            u32::try_from(block_context.versioned_constants.os_constants.execute_max_sierra_gas.0)
+                .unwrap()
+                / units_diff_as_u32
+        }
+    };
 
     // Invoke the `recurse` function with `fail_depth` iterations. This call should fail.
     let result = run_invoke_tx(
@@ -932,16 +937,19 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_fail = result.receipt.resources.computation.total_charged_steps();
+    let n_units_fail =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_fail: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
 
-    // Make sure that the failed transaction gets charged for the extra steps taken, compared with
+    // Make sure that the failed transaction gets charged for the extra computation, compared with
     // the smaller valid transaction.
 
-    // If this fail, try to increase the `invoke_tx_max_n_steps` above.
-    assert!(n_steps_fail > n_steps_1);
+    // If this assert fails, it may be due to the max computation limit being too low - i.e. this
+    // new failure cannot run long enough to consume more computation units than the "1" case.
+    // If this is the issue, try to increase the max computation limit on the block context above.
+    assert!(n_units_fail > n_units_1);
     assert!(actual_fee_fail > actual_fee_1);
 
     // Invoke the `recurse` function with `fail_depth`+1 iterations. This call should fail.
@@ -955,14 +963,15 @@ fn test_reverted_reach_steps_limit(
         },
     )
     .unwrap();
-    let n_steps_fail_next = result.receipt.resources.computation.total_charged_steps();
+    let n_units_fail_next =
+        result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
     let actual_fee_fail_next: u128 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
 
     // Test that the two reverted transactions behave the same.
-    assert!(n_steps_fail == n_steps_fail_next);
-    assert!(actual_fee_fail == actual_fee_fail_next);
+    assert_eq!(n_units_fail, n_units_fail_next);
+    assert_eq!(actual_fee_fail, actual_fee_fail_next);
 }
 
 #[rstest]
