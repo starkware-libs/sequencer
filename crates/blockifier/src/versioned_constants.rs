@@ -358,11 +358,19 @@ impl VersionedConstants {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_cairo_native_stack_size,
+            min_cairo_native_stack_red_zone,
         } = versioned_constants_overrides;
+        let cairo_native_stack_config = CairoNativeStackConfig {
+            max_stack_size: max_cairo_native_stack_size,
+            min_stack_red_zone: min_cairo_native_stack_red_zone,
+            ..Self::latest_constants().cairo_native_stack_config.clone()
+        };
         Self {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            cairo_native_stack_config,
             ..Self::latest_constants().clone()
         }
     }
@@ -1271,6 +1279,8 @@ pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_cairo_native_stack_size: u64,
+    pub min_cairo_native_stack_red_zone: u64,
 }
 
 impl Default for VersionedConstantsOverrides {
@@ -1280,6 +1290,12 @@ impl Default for VersionedConstantsOverrides {
             validate_max_n_steps: latest_versioned_constants.validate_max_n_steps,
             max_recursion_depth: latest_versioned_constants.max_recursion_depth,
             invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
+            max_cairo_native_stack_size: latest_versioned_constants
+                .cairo_native_stack_config
+                .max_stack_size,
+            min_cairo_native_stack_red_zone: latest_versioned_constants
+                .cairo_native_stack_config
+                .min_stack_red_zone,
         }
     }
 }
@@ -1303,6 +1319,18 @@ impl SerializeConfig for VersionedConstantsOverrides {
                 "invoke_tx_max_n_steps",
                 &self.invoke_tx_max_n_steps,
                 "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_cairo_native_stack_size",
+                &self.max_cairo_native_stack_size,
+                "Maximum stack size for Cairo native execution.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_cairo_native_stack_red_zone",
+                &self.min_cairo_native_stack_red_zone,
+                "Minimum stack red zone for Cairo native execution.",
                 ParamPrivacyInput::Public,
             ),
         ])
