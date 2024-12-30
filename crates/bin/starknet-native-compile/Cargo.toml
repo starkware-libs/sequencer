@@ -1,15 +1,24 @@
 [package]
 name = "starknet-native-compile"
-# The version of this crate should equal the version of cairo-native.
+# Make sure this version equals the version of `cairo-native`.
 version = "0.2.4"
-edition = "2021"
-repository = "https://github.com/starkware-libs/sequencer/"
-license = "Apache-2.0"
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "A binary that compiles Sierra into Cairo native."
+
+[features]
+cairo_native = [
+  "dep:cairo-native",
+  "dep:cairo-lang-sierra",
+  "dep:cairo-lang-starknet-classes",
+  "dep:clap",
+  "dep:serde_json",
+]
 
 [dependencies]
-# TODO(Avi, 01/02/2025): Check consistency with the blockifier.
-cairo-lang-sierra = "2.9.2"
-cairo-lang-starknet-classes = "2.9.2"
-cairo-native = "0.2.4"
-clap = { version = "4.5.4", features = ["derive"] }
-serde_json = "1.0.116"
+cairo-native = {workspace = true, optional = true}
+cairo-lang-sierra = {workspace = true, optional = true}
+cairo-lang-starknet-classes = {workspace = true, optional = true}
+clap = {workspace = true, optional = true}
+serde_json = {workspace = true, optional = true}
