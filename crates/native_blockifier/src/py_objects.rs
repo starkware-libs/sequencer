@@ -1,6 +1,7 @@
 #![allow(non_local_definitions)]
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{ConcurrencyConfig, ContractClassManagerConfig};
@@ -12,6 +13,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
+use starknet_sierra_compile::config::{SierraCompilationConfig, DEFAULT_MAX_CASM_BYTECODE_SIZE};
 
 use crate::errors::{
     InvalidNativeBlockifierInputError,
@@ -160,13 +162,49 @@ impl From<PyConcurrencyConfig> for ConcurrencyConfig {
         }
     }
 }
+#[derive(Debug, Clone, FromPyObject)]
+pub struct PySierraCompilationConfig {
+    pub path_to_sierra_to_casm_compiler: Option<String>,
+    pub path_to_sierra_to_native_compiler: Option<String>,
+    pub path_to_libcairo_native_runtime: Option<String>,
+    pub max_casm_bytecode_size: usize,
+}
 
-#[derive(Debug, Clone, Copy, FromPyObject)]
+impl Default for PySierraCompilationConfig {
+    fn default() -> Self {
+        Self {
+            path_to_sierra_to_casm_compiler: None,
+            path_to_sierra_to_native_compiler: None,
+            path_to_libcairo_native_runtime: None,
+            max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
+        }
+    }
+}
+
+impl From<PySierraCompilationConfig> for SierraCompilationConfig {
+    fn from(py_sierra_compilation_config: PySierraCompilationConfig) -> Self {
+        SierraCompilationConfig {
+            path_to_sierra_to_casm_compiler: py_sierra_compilation_config
+                .path_to_sierra_to_casm_compiler
+                .map(PathBuf::from),
+            path_to_sierra_to_native_compiler: py_sierra_compilation_config
+                .path_to_sierra_to_native_compiler
+                .map(PathBuf::from),
+            path_to_libcairo_native_runtime: py_sierra_compilation_config
+                .path_to_libcairo_native_runtime
+                .map(PathBuf::from),
+            max_casm_bytecode_size: py_sierra_compilation_config.max_casm_bytecode_size,
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromPyObject)]
 pub struct PyContractClassManagerConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub contract_cache_size: usize,
     pub channel_size: usize,
+    pub compiler_config: PySierraCompilationConfig,
 }
 
 impl Default for PyContractClassManagerConfig {
@@ -176,6 +214,7 @@ impl Default for PyContractClassManagerConfig {
             wait_on_native_compilation: false,
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            compiler_config: PySierraCompilationConfig::default(),
         }
     }
 }
@@ -187,6 +226,7 @@ impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
             wait_on_native_compilation: py_contract_class_manager_config.wait_on_native_compilation,
             contract_cache_size: py_contract_class_manager_config.contract_cache_size,
             channel_size: py_contract_class_manager_config.channel_size,
+            compiler_config: py_contract_class_manager_config.compiler_config.into(),
         }
     }
 }

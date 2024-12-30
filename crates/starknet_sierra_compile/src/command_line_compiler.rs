@@ -8,7 +8,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::config::SierraToCasmCompilationConfig;
+use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 #[cfg(feature = "cairo_native")]
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
@@ -20,22 +20,29 @@ use crate::SierraToNativeCompiler;
 
 #[derive(Clone)]
 pub struct CommandLineCompiler {
-    pub config: SierraToCasmCompilationConfig,
+    pub config: SierraCompilationConfig,
     path_to_starknet_sierra_compile_binary: PathBuf,
     #[cfg(feature = "cairo_native")]
     path_to_starknet_native_compile_binary: PathBuf,
 }
 
 impl CommandLineCompiler {
-    pub fn new(config: SierraToCasmCompilationConfig) -> Self {
+    pub fn new(config: SierraCompilationConfig) -> Self {
+        let path_to_starknet_sierra_compile_binary = match &config.path_to_sierra_to_casm_compiler {
+            Some(path) => path.clone(),
+            None => binary_path(out_dir(), CAIRO_LANG_BINARY_NAME),
+        };
+        #[cfg(feature = "cairo_native")]
+        let path_to_starknet_native_compile_binary = match &config.path_to_sierra_to_native_compiler
+        {
+            Some(path) => path.clone(),
+            None => binary_path(out_dir(), CAIRO_NATIVE_BINARY_NAME),
+        };
         Self {
             config,
-            path_to_starknet_sierra_compile_binary: binary_path(out_dir(), CAIRO_LANG_BINARY_NAME),
+            path_to_starknet_sierra_compile_binary,
             #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary: binary_path(
-                out_dir(),
-                CAIRO_NATIVE_BINARY_NAME,
-            ),
+            path_to_starknet_native_compile_binary,
         }
     }
 }
@@ -46,13 +53,15 @@ impl SierraToCasmCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_sierra_compile_binary;
-        let additional_args = [
+        let additional_args = &[
             "--add-pythonic-hints",
             "--max-bytecode-size",
-            &self.config.max_bytecode_size.to_string(),
+            &self.config.max_casm_bytecode_size.to_string(),
         ];
+        let env_vars = vec![];
 
-        let stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
+        let stdout =
+            compile_with_args(compiler_binary_path, contract_class, additional_args, env_vars)?;
         Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
     }
 }
@@ -69,9 +78,15 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let output_file_path = output_file.path().to_str().ok_or(
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
-        let additional_args = [output_file_path];
+        let additional_args = &[output_file_path];
 
-        let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
+        let mut env_vars = vec![];
+        if let Some(path) = &self.config.path_to_libcairo_native_runtime {
+            env_vars.push(("CAIRO_NATIVE_RUNTIME_LIBRARY", path.to_str().unwrap()));
+        };
+
+        let _stdout =
+            compile_with_args(compiler_binary_path, contract_class, additional_args, env_vars)?;
 
         Ok(AotContractExecutor::load(Path::new(&output_file_path))?)
     }
@@ -81,6 +96,7 @@ fn compile_with_args(
     compiler_binary_path: &Path,
     contract_class: ContractClass,
     additional_args: &[&str],
+    env_vars: Vec<(&str, &str)>,
 ) -> Result<Vec<u8>, CompilationUtilError> {
     // Create a temporary file to store the Sierra contract class.
     let serialized_contract_class = serde_json::to_string(&contract_class)?;
@@ -95,6 +111,9 @@ fn compile_with_args(
     // TODO(Arni, Avi): Setup the ulimit for the process.
     let mut command = Command::new(compiler_binary_path.as_os_str());
     command.arg(temp_file_path).args(additional_args);
+    for (name, value) in env_vars {
+        command.env(name, value);
+    }
 
     // Run the compile process.
     let compile_output = command.output()?;
