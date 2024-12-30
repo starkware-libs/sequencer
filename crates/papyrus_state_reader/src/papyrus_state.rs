@@ -144,7 +144,10 @@ impl PapyrusReader {
             CachedCairoNative::Compiled(compiled_native) => {
                 RunnableCompiledClass::from(compiled_native)
             }
-            CachedCairoNative::CompilationFailed => casm,
+            CachedCairoNative::CompilationFailed => {
+                println!("Compilation failed for class hash: {}", class_hash);
+                casm
+            },
         }
     }
 }
