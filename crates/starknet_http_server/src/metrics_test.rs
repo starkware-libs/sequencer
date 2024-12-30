@@ -1,6 +1,3 @@
-use std::net::SocketAddr;
-use std::sync::Arc;
-
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -8,16 +5,14 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_sequencer_infra::component_client::ClientError;
-use tokio::task;
 
 use crate::config::HttpServerConfig;
-use crate::http_server::HttpServer;
 use crate::metrics::{
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
 };
-use crate::test_utils::HttpTestClient;
+use crate::test_utils::http_client_server_setup;
 
 #[tokio::test]
 async fn get_metrics_test() {
@@ -39,22 +34,16 @@ async fn get_metrics_test() {
     });
 
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
-    let prometheus_handle = PrometheusBuilder::new()
-        .install_recorder()
-        .expect("should be able to build the recorder and install it globally");
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let prometheus_handle = recorder.handle();
 
+    let ip = "127.0.0.1".parse().unwrap();
     // TODO(Tsabary): replace the const port with something that is not hardcoded.
-    // Create and run the server.
-    let http_server_config = HttpServerConfig { ip: "127.0.0.1".parse().unwrap(), port: 15123 };
-    let mut http_server =
-        HttpServer::new(http_server_config.clone(), Arc::new(mock_gateway_client));
-    tokio::spawn(async move { http_server.run().await });
-
-    let HttpServerConfig { ip, port } = http_server_config;
-    let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
-
-    // Ensure the server starts running.
-    task::yield_now().await;
+    let port = 15123;
+    let http_server_config = HttpServerConfig { ip, port };
+    let add_tx_http_client =
+        http_client_server_setup(mock_gateway_client, http_server_config).await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {

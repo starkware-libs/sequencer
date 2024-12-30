@@ -2,6 +2,7 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::routing::post;
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -22,6 +23,8 @@ use crate::metrics::{init_metrics, record_added_transaction, record_added_transa
 pub mod http_server_test;
 
 pub type HttpServerResult<T> = Result<T, HttpServerError>;
+
+const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 
 pub struct HttpServer {
     pub config: HttpServerConfig,
@@ -61,6 +64,7 @@ impl HttpServer {
 #[instrument(skip(app_state))]
 async fn add_tx(
     State(app_state): State<AppState>,
+    headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
@@ -69,8 +73,18 @@ async fn add_tx(
         debug!("Error while adding transaction: {}", e);
         HttpServerError::from(e)
     });
-    record_added_transaction_status(add_tx_result.is_ok());
+
+    let region =
+        headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");
+    record_added_transactions(&add_tx_result, region);
     add_tx_result_as_json(add_tx_result)
+}
+
+fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, region: &str) {
+    if let Ok(tx_hash) = add_tx_result {
+        info!("Recorded transaction with hash: {} from region: {}", tx_hash, region);
+    }
+    record_added_transaction_status(add_tx_result.is_ok());
 }
 
 pub(crate) fn add_tx_result_as_json(
