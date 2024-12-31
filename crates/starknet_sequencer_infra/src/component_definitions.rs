@@ -30,8 +30,8 @@ pub trait ComponentRequestHandler<Request, Response> {
 #[async_trait]
 pub trait ComponentClient<Request, Response>
 where
-    Request: Send + Sync + Serialize + DeserializeOwned,
-    Response: Send + Sync + Serialize + DeserializeOwned,
+    Request: Send + Serialize + DeserializeOwned,
+    Response: Send + Serialize + DeserializeOwned,
 {
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
@@ -44,12 +44,12 @@ pub trait ComponentStarter {
     }
 }
 
-pub struct ComponentCommunication<T: Send + Sync> {
+pub struct ComponentCommunication<T: Send> {
     tx: Option<Sender<T>>,
     rx: Option<Receiver<T>>,
 }
 
-impl<T: Send + Sync> ComponentCommunication<T> {
+impl<T: Send> ComponentCommunication<T> {
     pub fn new(tx: Option<Sender<T>>, rx: Option<Receiver<T>>) -> Self {
         Self { tx, rx }
     }
@@ -65,8 +65,8 @@ impl<T: Send + Sync> ComponentCommunication<T> {
 
 pub struct ComponentRequestAndResponseSender<Request, Response>
 where
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     pub request: Request,
     pub tx: Sender<Response>,

@@ -26,8 +26,8 @@ pub type ClientResult<T> = Result<T, ClientError>;
 
 pub struct Client<Request, Response>
 where
-    Request: Send + Sync + Serialize,
-    Response: Send + Sync + DeserializeOwned,
+    Request: Send + Serialize,
+    Response: Send + DeserializeOwned,
 {
     local_client: Option<LocalComponentClient<Request, Response>>,
     remote_client: Option<RemoteComponentClient<Request, Response>>,
@@ -35,8 +35,8 @@ where
 
 impl<Request, Response> Client<Request, Response>
 where
-    Request: Send + Sync + Serialize,
-    Response: Send + Sync + DeserializeOwned,
+    Request: Send + Serialize,
+    Response: Send + DeserializeOwned,
 {
     pub fn new(
         local_client: Option<LocalComponentClient<Request, Response>>,
