@@ -22,3 +22,47 @@ pub async fn configure_tracing() {
         })
         .await;
 }
+
+pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process::id);
+
+#[macro_export]
+macro_rules! infra_event {
+    ($($arg:tt)*) => {{
+        tracing::event!(PID = *$crate::trace_util::PID, $($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! infra_trace {
+    ($($arg:tt)*) => {{
+        tracing::trace!(PID = *$crate::trace_util::PID, $($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! infra_debug {
+    ($($arg:tt)*) => {{
+        tracing::debug!(PID = *$crate::trace_util::PID, $($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! infra_info {
+    ($($arg:tt)*) => {{
+        tracing::info!(PID = *$crate::trace_util::PID, $($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! infra_warn {
+    ($($arg:tt)*) => {{
+        tracing::warn!(PID = *$crate::trace_util::PID, $($arg)*);
+    }};
+}
+
+#[macro_export]
+macro_rules! infra_error {
+    ($($arg:tt)*) => {{
+        tracing::error!(PID = *$crate::trace_util::PID, $($arg)*);
+    }};
+}
