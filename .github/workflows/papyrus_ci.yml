@@ -19,9 +19,6 @@ on:
       - 'crates/starknet_client/**'
       - 'scripts/dependencies.sh'
 
-  merge_group:
-    types: [checks_requested]
-
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
