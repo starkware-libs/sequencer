@@ -8,29 +8,33 @@ node:
   concurrentFgRequests: 50
 
 # Ethereum node URL. A value for this variable is mandatory.
-base_layer_node_url:
+base_layer_node_url: https://sepolia.infura.io/v3/02d1979ac909443b938cfc740f19708f
+
+# possible values: "StateOnly" and "FullArchive".
+storage_scope:
+  StateOnly
 
 starknet:
   # possible values: "mainnet.json, sepolia_testnet" and "sepolia_integration".
-  preset: mainnet.json
+  preset: sepolia_integration.json
 
 deployment:
   # Supported values: deployment, statefulset
-  type: deployment
+  type: statefulset
 
   # The container image
   image:
     repository: ghcr.io/starkware-libs/sequencer/papyrus
-    tag: 0.4.0
+    tag: 0.5.0-dev.0
 
   # The name of the papyrus config file. For example: my-config.json
-  # The config file must be placed under "config" folder in the chart root folder. 
+  # The config file must be placed under "config" folder in the chart root folder.
   #       ./
   #       templates/
   # --->  config/
   #       Chart.yaml
   #       values.yaml
-  configFile:
+  configFile: sepolia_integration.json
 
   # The container's pullPolicy
   pullPolicy: Always
@@ -39,14 +43,15 @@ deployment:
   annotations: {}
 
   # Set deployment nodeSelector
-  nodeSelector: {}
+  nodeSelector:
+    role: starkdex-service
 
   # Set deployment tolerations
-  tolerations: []
-  # - key: "key1"
-  #   operator: "Equal"
-  #   value: "value1"
-  #   effect: "NoSchedule"
+  tolerations:
+    - key: key
+      operator: Equal
+      effect: "NoSchedule"
+      value: starkdex-service
 
   affinity: {}
 
@@ -81,10 +86,10 @@ deployment:
   resources:
     limits:
       cpu: "1"
-      memory: 1Gi
+      memory: 16Gi
     requests:
       cpu: 500m
-      memory: 1Gi
+      memory: 6Gi
 
   ## Optionally specify extra environment variables to add to papyrus container
   env: []
@@ -117,7 +122,7 @@ p2pService:
   # If service type is ClusterIP,
   # Set static ip for the kubernetes service. Note that the ip address is not reserved and there might be a chance for ip collision.
   # See https://kubernetes.io/docs/concepts/services-networking/cluster-ip-allocation/ to understand how to avoid such case.
-  clusterIP: 
+  clusterIP:
   # If service type is LoadBalancer,
   # Set static ip for the loadbalancer. Note that a static IP needs to be reserved first in a cloud environment in order to use it.
   loadBalancerIP:
@@ -128,7 +133,7 @@ pvc:
   # Recommended size is at least 512Gi.
   size: 512Gi
   # Is is recommended to use an SSD volume (such as GKE premium-rwo).
-  storageClass: ""
+  storageClass: "premium-rwo"
   # Use an existing snapshot for the node's data. The kubernetes volumesnapshot object should
   # exist in the same namespace as the rest of the resources.
   restoreFromSnapshot:
@@ -154,10 +159,10 @@ ingress:
 # This is relevant for Grafana Operator users https://grafana.github.io/grafana-operator/docs/
 grafanaDashboard:
   # Should the GrafanaDashboard object be installed
-  enabled: false
+  enabled: true
 
 grafanaAlerts:
-  enabled: false
+  enabled: true
 
 # Backup mode
 backup:
