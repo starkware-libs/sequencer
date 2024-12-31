@@ -99,6 +99,8 @@ pub async fn create_node_config(
     )
 }
 
+// TODO(Nadin/Tsabary): refactor this function to separate the creation of network_configs and
+// broadcast_channels broadcast_channels into two distinct functions.
 pub fn create_consensus_manager_configs_and_channels(
     n_managers: usize,
     available_ports: &mut AvailablePorts,
