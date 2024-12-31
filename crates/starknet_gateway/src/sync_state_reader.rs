@@ -7,7 +7,12 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
-use starknet_state_sync_types::communication::SharedStateSyncClient;
+use starknet_state_sync_types::communication::{
+    SharedStateSyncClient,
+    StateSyncClientError,
+    StateSyncClientResult,
+};
+use starknet_state_sync_types::errors::StateSyncError;
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
@@ -118,9 +123,17 @@ pub struct SyncStateReaderFactory {
 }
 
 impl StateReaderFactory for SyncStateReaderFactory {
-    // TODO(noamsp): Decide if we need this
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
-        todo!()
+    fn get_state_reader_from_latest_block(
+        &self,
+    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+        let latest_block_number =
+            block_on(self.shared_state_sync_client.get_latest_block_number())?
+                .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
+
+        Ok(Box::new(SyncStateReader::from_number(
+            self.shared_state_sync_client.clone(),
+            latest_block_number,
+        )))
     }
 
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {

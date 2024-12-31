@@ -68,6 +68,8 @@ pub trait StateSyncClient: Send + Sync {
         class_hash: ClassHash,
     ) -> StateSyncClientResult<ContractClass>;
 
+    async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
+
     // TODO: Add get_compiled_class_hash for StateSyncReader
 }
 
@@ -95,6 +97,7 @@ pub enum StateSyncRequest {
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
     GetCompiledClassDeprecated(BlockNumber, ClassHash),
+    GetLatestBlockNumber(),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -106,6 +109,7 @@ pub enum StateSyncResponse {
     GetNonceAt(StateSyncResult<Nonce>),
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetCompiledClassDeprecated(StateSyncResult<ContractClass>),
+    GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
 }
 
 #[async_trait]
@@ -194,6 +198,17 @@ impl StateSyncClient for LocalStateSyncClient {
             StateSyncError
         )
     }
+
+    async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
+        let request = StateSyncRequest::GetLatestBlockNumber();
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetLatestBlockNumber,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
 }
 
 #[async_trait]
@@ -278,6 +293,17 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(
             StateSyncResponse,
             GetCompiledClassDeprecated,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
+
+    async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
+        let request = StateSyncRequest::GetLatestBlockNumber();
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetLatestBlockNumber,
             StateSyncClientError,
             StateSyncError
         )
