@@ -7,6 +7,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use rstest_reuse::apply;
 use starknet_api::abi::abi_utils::{
     get_fee_token_var_address,
     get_storage_var_address,
@@ -106,6 +107,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
+use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
@@ -472,6 +474,14 @@ fn add_kzg_da_resources_to_resources_mapping(
         execute_gas_consumed: 112080,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
+    ExpectedResultTestInvokeTx{
+        resources: ExecutionResources::default(),
+        validate_gas_consumed: 4740, // The gas consumption results from parsing the input
+            // arguments.
+        execute_gas_consumed: 112080,
+    },
+    CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
 fn test_invoke_tx(
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
@@ -713,11 +723,16 @@ fn verify_storage_after_invoke_advanced_operations(
 }
 
 #[rstest]
+#[case::with_cairo0_account(CairoVersion::Cairo0)]
+#[case::with_cairo1_account(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
 fn test_invoke_tx_advanced_operations(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
+    #[case] cairo_version: CairoVersion,
 ) {
     let block_context = &block_context;
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
@@ -878,19 +893,19 @@ fn test_invoke_tx_advanced_operations(
     );
 }
 
-#[rstest]
+#[apply(cairo_version)]
 #[case(TransactionVersion::ONE, FeeType::Eth)]
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_state_get_fee_token_balance(
     block_context: BlockContext,
     #[case] tx_version: TransactionVersion,
     #[case] fee_type: FeeType,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_version: CairoVersion,
+    cairo_version: CairoVersion,
 ) {
+    let account_cairo_version = cairo_version;
     let block_context = &block_context;
     let chain_info = &block_context.chain_info;
-    let account = FeatureContract::AccountWithoutValidations(account_version);
+    let account = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let account_address = account.get_instance_address(0);
@@ -977,13 +992,18 @@ fn assert_resource_bounds_exceed_balance_failure(
 }
 
 #[rstest]
+#[case::with_cairo0_account(CairoVersion::Cairo0)]
+#[case::with_cairo1_account(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
 fn test_estimate_minimal_gas_vector(
     mut block_context: BlockContext,
     #[values(true, false)] use_kzg_da: bool,
     #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
     gas_vector_computation_mode: GasVectorComputationMode,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    #[case] account_cairo_version: CairoVersion,
 ) {
     block_context.block_info.use_kzg_da = use_kzg_da;
     let block_context = &block_context;
@@ -1014,13 +1034,18 @@ fn test_estimate_minimal_gas_vector(
 }
 
 #[rstest]
+#[case::with_cairo0_account(CairoVersion::Cairo0)]
+#[case::with_cairo1_account(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
 fn test_max_fee_exceeds_balance(
     mut block_context: BlockContext,
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
     resource_bounds: ValidResourceBounds,
     #[values(true, false)] use_kzg_da: bool,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    #[case] account_cairo_version: CairoVersion,
 ) {
     block_context.block_info.use_kzg_da = use_kzg_da;
     let block_context = &block_context;
@@ -1125,11 +1150,16 @@ fn test_max_fee_exceeds_balance(
 }
 
 #[rstest]
+#[case::with_cairo0_account(CairoVersion::Cairo0)]
+#[case::with_cairo1_account(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
 fn test_insufficient_new_resource_bounds_pre_validation(
     mut block_context: BlockContext,
     #[values(true, false)] use_kzg_da: bool,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    #[case] account_cairo_version: CairoVersion,
 ) {
     block_context.block_info.use_kzg_da = use_kzg_da;
     let block_context = &block_context;
@@ -1259,10 +1289,15 @@ fn test_insufficient_new_resource_bounds_pre_validation(
 }
 
 #[rstest]
+#[case::with_cairo0_account(CairoVersion::Cairo0)]
+#[case::with_cairo1_account(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
 fn test_insufficient_deprecated_resource_bounds_pre_validation(
     block_context: BlockContext,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    #[case] account_cairo_version: CairoVersion,
 ) {
     let block_context = &block_context;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
@@ -1345,7 +1380,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     );
 }
 
-#[rstest]
+#[apply(cairo_version)]
 #[case::l1_bounds(default_l1_resource_bounds(), Resource::L1Gas)]
 #[case::all_bounds_l1_gas_overdraft(default_all_resource_bounds(), Resource::L1Gas)]
 #[case::all_bounds_l2_gas_overdraft(default_all_resource_bounds(), Resource::L2Gas)]
@@ -1354,9 +1389,9 @@ fn test_actual_fee_gt_resource_bounds(
     mut block_context: BlockContext,
     #[case] resource_bounds: ValidResourceBounds,
     #[case] overdraft_resource: Resource,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    cairo_version: CairoVersion,
 ) {
+    let account_cairo_version = cairo_version;
     let block_context = &mut block_context;
     block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     block_context.block_info.use_kzg_da = true;
@@ -1428,11 +1463,16 @@ fn test_actual_fee_gt_resource_bounds(
 }
 
 #[rstest]
+#[case::with_cairo0_account(CairoVersion::Cairo0)]
+#[case::with_cairo1_account(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
 fn test_invalid_nonce(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    #[case] account_cairo_version: CairoVersion,
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -1562,19 +1602,19 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
     }
 }
 
-#[rstest]
+#[apply(cairo_version)]
 #[case(TransactionVersion::ZERO, CairoVersion::Cairo0)]
 #[case(TransactionVersion::ONE, CairoVersion::Cairo0)]
 #[case(TransactionVersion::TWO, CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[case(TransactionVersion::THREE, CairoVersion::Cairo1(RunnableCairo1::Casm))]
 fn test_declare_tx(
     default_all_resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
+    cairo_version: CairoVersion,
     #[case] tx_version: TransactionVersion,
     #[case] empty_contract_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
+    let account_cairo_version = cairo_version;
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
     let empty_contract = FeatureContract::Empty(empty_contract_version);
@@ -1797,10 +1837,17 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
     CairoVersion::Cairo1(RunnableCairo1::Casm),
     VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget
 )]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::with_cairo1_native_account(
+        CairoVersion::Cairo1(RunnableCairo1::Native),
+        VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget
+    )
+)]
 fn test_deploy_account_tx(
     #[case] cairo_version: CairoVersion,
-    #[case] expected_gas_consumed: u64,
     #[values(false, true)] use_kzg_da: bool,
+    #[case] expected_gas_consumed: u64,
     default_all_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
@@ -2232,15 +2279,15 @@ fn test_validate_accounts_tx(
     }
 }
 
-#[rstest]
+#[apply(two_cairo_versions)]
 fn test_valid_flag(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    test_contract_cairo_version: CairoVersion,
+    cairo_version: CairoVersion,
+    other_cairo_version: CairoVersion,
 ) {
+    let account_cairo_version = cairo_version;
+    let test_contract_cairo_version = other_cairo_version;
     let block_context = &block_context;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(test_contract_cairo_version);
@@ -2568,7 +2615,7 @@ fn max_event_data() -> usize {
     VERSIONED_CONSTANTS.tx_event_limits.max_data_length
 }
 
-#[rstest]
+#[apply(cairo_version)]
 #[case::positive_flow(
     vec![felt!(1_u16); max_event_keys()],
     vec![felt!(2_u16); max_event_data()],
@@ -2605,7 +2652,6 @@ fn test_emit_event_exceeds_limit(
     #[case] event_data: Vec<Felt>,
     #[case] n_emitted_events: usize,
     #[case] expected_error: Option<EmitEventError>,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     cairo_version: CairoVersion,
 ) {
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -2662,7 +2708,7 @@ fn test_balance_print() {
     assert!(format!("{}", int) == (BigUint::from(u128::MAX) + BigUint::from(17_u128)).to_string());
 }
 
-#[rstest]
+#[apply(two_cairo_versions)]
 #[case::small_user_bounds(invoke_tx_args! {
     version: TransactionVersion::THREE,
     resource_bounds: create_gas_amount_bounds_with_default_price(
@@ -2695,11 +2741,11 @@ fn test_invoke_max_sierra_gas_validate_execute(
     block_context: BlockContext,
     versioned_constants: VersionedConstants,
     #[case] tx_args: InvokeTxArgs,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    account_cairo_version: CairoVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    contract_cairo_version: CairoVersion,
+    cairo_version: CairoVersion,
+    other_cairo_version: CairoVersion,
 ) {
+    let account_cairo_version = cairo_version;
+    let contract_cairo_version = other_cairo_version;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(contract_cairo_version);
     let chain_info = &block_context.chain_info;
@@ -2781,7 +2827,7 @@ fn test_invoke_max_sierra_gas_validate_execute(
     };
 }
 
-#[rstest]
+#[apply(cairo_version)]
 #[case::small_user_bounds(deploy_account_tx_args! {
     version: TransactionVersion::THREE,
     resource_bounds: create_gas_amount_bounds_with_default_price(
@@ -2813,7 +2859,6 @@ fn test_invoke_max_sierra_gas_validate_execute(
 fn test_deploy_max_sierra_gas_validate_execute(
     block_context: BlockContext,
     versioned_constants: VersionedConstants,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     cairo_version: CairoVersion,
     #[case] tx_args: DeployAccountTxArgs,
 ) {
