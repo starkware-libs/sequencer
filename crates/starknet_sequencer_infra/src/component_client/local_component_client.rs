@@ -65,16 +65,16 @@ use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseS
 ///   utilizing Tokio's async runtime and channels.
 pub struct LocalComponentClient<Request, Response>
 where
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
 }
 
 impl<Request, Response> LocalComponentClient<Request, Response>
 where
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     pub fn new(tx: Sender<ComponentRequestAndResponseSender<Request, Response>>) -> Self {
         Self { tx }
@@ -85,8 +85,8 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for LocalComponentClient<Request, Response>
 where
-    Request: Send + Sync + Serialize + DeserializeOwned,
-    Response: Send + Sync + Serialize + DeserializeOwned,
+    Request: Send + Serialize + DeserializeOwned,
+    Response: Send + Serialize + DeserializeOwned,
 {
     async fn send(&self, request: Request) -> ClientResult<Response> {
         let (res_tx, mut res_rx) = channel::<Response>(1);
@@ -98,8 +98,8 @@ where
 
 impl<Request, Response> Drop for LocalComponentClient<Request, Response>
 where
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     fn drop(&mut self) {
         warn!("Dropping {}.", short_type_name::<Self>());
@@ -110,8 +110,8 @@ where
 // since it'll require transactions to be cloneable.
 impl<Request, Response> Clone for LocalComponentClient<Request, Response>
 where
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     fn clone(&self) -> Self {
         Self { tx: self.tx.clone() }
