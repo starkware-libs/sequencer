@@ -749,7 +749,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
             ("deprecated_contract_class".to_string(), self.deprecated_contract_class.stats()),
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
-            ("events".to_string(), self.event.stats()),
+            ("event".to_string(), self.event.stats()),
         ])
     }
 
@@ -865,8 +865,8 @@ fn open_storage_files(
     )?;
 
     let event_offset = table.get(&db_transaction, &OffsetKind::Event)?.unwrap_or_default();
-    let (events_writer, events_reader) =
-        open_file(mmap_file_config, db_config.path().join("events.dat"), event_offset)?;
+    let (event_writer, event_reader) =
+        open_file(mmap_file_config, db_config.path().join("event.dat"), event_offset)?;
 
     Ok((
         FileHandlers {
@@ -876,7 +876,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_writer,
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
-            event: events_writer,
+            event: event_writer,
         },
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
@@ -885,7 +885,7 @@ fn open_storage_files(
             deprecated_contract_class: deprecated_contract_class_reader,
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,
-            event: events_reader,
+            event: event_reader,
         },
     ))
 }
@@ -905,7 +905,7 @@ pub enum OffsetKind {
     TransactionOutput,
     /// A transaction file.
     Transaction,
-    /// An events file.
+    /// An event file.
     Event,
 }
 
