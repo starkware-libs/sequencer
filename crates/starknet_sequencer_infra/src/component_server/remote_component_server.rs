@@ -108,8 +108,8 @@ use crate::serde_utils::SerdeWrapper;
 /// ```
 pub struct RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + 'static,
+    Response: Serialize + DeserializeOwned + Send + 'static,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
@@ -117,8 +117,8 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + Send + Sync + 'static,
-    Response: Serialize + DeserializeOwned + Debug + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Debug + Send + 'static,
+    Response: Serialize + DeserializeOwned + Debug + Send + 'static,
 {
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
@@ -173,8 +173,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
-    Response: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
+    Request: Serialize + DeserializeOwned + Send + Debug + 'static,
+    Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         let make_svc = make_service_fn(|_conn| {
@@ -196,8 +196,8 @@ where
 
 impl<Request, Response> Drop for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
-    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Request: Serialize + DeserializeOwned + Send + 'static,
+    Response: Serialize + DeserializeOwned + Send + 'static,
 {
     fn drop(&mut self) {
         warn!("Dropping {}.", short_type_name::<Self>());

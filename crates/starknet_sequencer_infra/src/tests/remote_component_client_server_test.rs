@@ -119,6 +119,7 @@ where
 {
     let socket = get_available_socket().await;
     task::spawn(async move {
+        // TODO (lev, itay): Exam/change the bounds of the T for the hadler function. 
         async fn handler<T>(
             _http_request: Request<Body>,
             body: T,
