@@ -37,34 +37,40 @@ impl IntegrationTestSetup {
     pub async fn run(
         tx_generator: &MultiAccountTransactionGenerator,
         mut available_ports: AvailablePorts,
-        component_configs: Vec<ComponentConfig>,
+        component_configs: Vec<Vec<ComponentConfig>>,
     ) -> Self {
         let chain_info = create_chain_info();
         let accounts = tx_generator.accounts();
-        let n_sequencers = component_configs.len();
+        let n_distributed_sequencers: usize =
+            component_configs.iter().map(|inner_vec| inner_vec.len()).sum();
 
-        let (mut consensus_manager_configs, _) =
-            create_consensus_manager_configs_and_channels(n_sequencers, &mut available_ports);
+        let (mut consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
+            n_distributed_sequencers,
+            &mut available_ports,
+        );
 
-        let ports = available_ports.get_next_ports(n_sequencers);
+        let ports = available_ports.get_next_ports(n_distributed_sequencers);
         let mut mempool_p2p_configs =
             create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
 
         let mut sequencers = vec![];
-        for (sequencer_id, component_config) in component_configs.iter().enumerate() {
-            let consensus_manager_config = consensus_manager_configs.remove(0);
-            let mempool_p2p_config = mempool_p2p_configs.remove(0);
-            let sequencer = IntegrationSequencerSetup::new(
-                accounts.clone(),
-                sequencer_id,
-                chain_info.clone(),
-                consensus_manager_config,
-                mempool_p2p_config,
-                &mut available_ports,
-                component_config.clone(),
-            )
-            .await;
-            sequencers.push(sequencer);
+        for (sequencer_id, component_group) in component_configs.iter().enumerate() {
+            for component_config in component_group {
+                // Declare one consensus_manager_config and one mempool_p2p_config for each group
+                let consensus_manager_config = consensus_manager_configs.remove(0);
+                let mempool_p2p_config = mempool_p2p_configs.remove(0);
+                let sequencer = IntegrationSequencerSetup::new(
+                    accounts.clone(),
+                    sequencer_id,
+                    chain_info.clone(),
+                    consensus_manager_config,
+                    mempool_p2p_config,
+                    &mut available_ports,
+                    component_config.clone(),
+                )
+                .await;
+                sequencers.push(sequencer);
+            }
         }
 
         info!("Running sequencers.");
