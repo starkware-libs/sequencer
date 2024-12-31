@@ -60,6 +60,7 @@ use tracing::debug;
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::mmap_file::LocationInFile;
 use crate::{
     FileHandlers,
     MarkerKind,
@@ -85,6 +86,9 @@ type AddressToTransactionIndexTable<'env> = TableHandle<
     NoVersionValueWrapper<NoValue>,
     CommonPrefix,
 >;
+type EventsTableKey = TransactionIndex;
+type EventsTable<'env> =
+    TableHandle<'env, EventsTableKey, VersionZeroWrapper<LocationInFile>, SimpleTable>;
 
 /// The index of a transaction in a block.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]

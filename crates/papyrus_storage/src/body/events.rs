@@ -48,7 +48,7 @@
 #[path = "events_test.rs"]
 mod events_test;
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -57,15 +57,24 @@ use starknet_api::transaction::{
     Event,
     EventContent,
     EventIndexInTransactionOutput,
+    TransactionOffsetInBlock,
     TransactionOutput,
 };
+use tracing::debug;
 
-use super::TransactionMetadataTable;
+use super::{
+    update_marker,
+    EventsTable,
+    MarkerKind,
+    TransactionMetadata,
+    TransactionMetadataTable,
+};
 use crate::body::{AddressToTransactionIndexTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, RO};
-use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
+use crate::db::{DbTransaction, RO, RW};
+use crate::mmap_file::LocationInFile;
+use crate::{FileHandlers, OffsetKind, StorageResult, StorageScope, StorageTxn};
 
 /// An identifier of an event.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
@@ -184,6 +193,52 @@ impl EventIterByContractAddress<'_, '_> {
     }
 }
 
+/// This iterator goes over the events in the order of the events table key.
+/// That is, the events iterated first by the contract address and then by the event index.
+#[allow(dead_code)]
+pub struct RefactoredEventIterByContractAddress<'env, 'txn> {
+    txn: &'txn DbTransaction<'env, RO>,
+    file_handles: &'txn FileHandlers<RO>,
+    // This value is the next entry in the address to transaction index table to search for
+    // relevant events. If it is None there are no more events.
+    next_entry_in_address_to_transaction_index_table: Option<AddressToTransactionIndexTableKey>,
+    // Queue of events to return from the iterator. When this queue is empty, we need to fetch more
+    // events.
+    events_queue: VecDeque<((ContractAddress, EventIndex), EventContent)>,
+    cursor: AddressToTransactionIndexTableCursor<'txn>,
+    events_table: EventsTable<'txn>,
+}
+
+#[allow(dead_code)]
+impl RefactoredEventIterByContractAddress<'_, '_> {
+    /// Returns the next event. If there are no more events, returns None.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`](crate::StorageError) if there was an error.
+    fn next(&mut self) -> StorageResult<Option<((ContractAddress, EventIndex), EventContent)>> {
+        // Here we make sure that the events_queue is not empty. If it does we fill it with new
+        // relevant events.
+        if self.events_queue.is_empty() {
+            let Some((contract_address, tx_index)) =
+                self.next_entry_in_address_to_transaction_index_table.take()
+            else {
+                return Ok(None);
+            };
+            let mut events_cursor = self.events_table.cursor(self.txn)?;
+            let events_current = events_cursor.lower_bound(&tx_index)?;
+            let (tx_index, events_location) = events_current
+                .unwrap_or_else(|| panic!("Events not found for transaction index: {tx_index:?}"));
+            let events = self.file_handles.get_events_unchecked(events_location)?;
+            // TODO(dvir): don't clone the events here.
+            self.events_queue = get_events_from_tx(events, tx_index, contract_address, 0);
+            self.next_entry_in_address_to_transaction_index_table =
+                self.cursor.next()?.map(|(key, _)| key);
+        }
+
+        Ok(Some(self.events_queue.pop_front().expect("events_queue should not be empty.")))
+    }
+}
+
 /// This iterator goes over the events in the order of the event index.
 /// That is, the events are iterated by the order they are emitted.
 /// First by the block number, then by the transaction offset in the block,
@@ -252,6 +307,73 @@ impl EventIterByEventIndex<'_> {
     }
 }
 
+/// This iterator goes over the events in the order of the event index.
+/// That is, the events are iterated by the order they are emitted.
+/// First by the block number, then by the transaction offset in the block,
+/// and finally, by the event index in the transaction output.
+#[allow(dead_code)]
+pub struct RefactoredEventIterByEventIndex<'txn> {
+    file_handlers: &'txn FileHandlers<RO>,
+    tx_current: Option<(TransactionIndex, Vec<Event>)>,
+    events_cursor: EventsTableCursor<'txn>,
+    event_index_in_tx_current: EventIndexInTransactionOutput,
+    to_block_number: BlockNumber,
+}
+
+#[allow(dead_code)]
+impl RefactoredEventIterByEventIndex<'_> {
+    /// Returns the next event. If there are no more events, returns None.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`](crate::StorageError) if there was an error.
+    fn next(&mut self) -> StorageResult<Option<((ContractAddress, EventIndex), EventContent)>> {
+        let Some((tx_index, transaction_events)) = &self.tx_current else { return Ok(None) };
+        let Some(Event { from_address, content }) =
+            transaction_events.get(self.event_index_in_tx_current.0)
+        else {
+            return Ok(None);
+        };
+        let key = (*from_address, EventIndex(*tx_index, self.event_index_in_tx_current));
+        // TODO(dvir): don't clone here the event content.
+        let content = content.clone();
+        self.event_index_in_tx_current.0 += 1;
+        self.find_next_event_by_event_index()?;
+        Ok(Some((key, content.clone())))
+    }
+
+    /// Finds the event that corresponds to the first event index greater than or equals to the
+    /// current event index. The current event index is composed of the transaction index of the
+    /// current transaction (tx_current) and the event index in current transaction output
+    /// (event_index_in_tx_current).
+    ///
+    /// # Errors
+    /// Returns [`StorageError`](crate::StorageError) if there was an error.
+    fn find_next_event_by_event_index(&mut self) -> StorageResult<()> {
+        while let Some((tx_index, transaction_events)) = &self.tx_current {
+            if tx_index.0 > self.to_block_number {
+                self.tx_current = None;
+                break;
+            }
+            // Checks if there's an event in the current event index.
+            if transaction_events.len() > self.event_index_in_tx_current.0 {
+                break;
+            }
+
+            // There are no more events in the current transaction, so we go over the rest of the
+            // transactions until we find an event.
+            let Some((tx_index, events_location)) = self.events_cursor.next()? else {
+                self.tx_current = None;
+                return Ok(());
+            };
+            self.tx_current =
+                Some((tx_index, self.file_handlers.get_events_unchecked(events_location)?));
+            self.event_index_in_tx_current = EventIndexInTransactionOutput(0);
+        }
+
+        Ok(())
+    }
+}
+
 impl<'txn, 'env> StorageTxn<'env, RO>
 where
     'env: 'txn,
@@ -307,6 +429,44 @@ where
         })
     }
 
+    #[allow(dead_code)]
+    fn refactored_iter_events_by_contract_address(
+        &'env self,
+        key: (ContractAddress, EventIndex),
+    ) -> StorageResult<RefactoredEventIterByContractAddress<'env, 'txn>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        let address_to_transaction_index_table =
+            self.open_table(&self.tables.address_to_transaction_index)?;
+        let mut cursor = address_to_transaction_index_table.cursor(&self.txn)?;
+        let events_queue = if let Some((contract_address, tx_index)) =
+            cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
+        {
+            let mut events_cursor = events_table.cursor(&self.txn)?;
+            let events_current = events_cursor.lower_bound(&tx_index)?;
+            let (tx_index, events_location) = events_current
+                .unwrap_or_else(|| panic!("Events not found for transaction index: {tx_index:?}"));
+            let events = self.file_handlers.get_events_unchecked(events_location)?;
+
+            // In case of we get tx_index different from the key, it means we need to start a new
+            // transaction which means the first event.
+            let start_event_index = if tx_index == key.1.0 { key.1.1.0 } else { 0 };
+            // TODO(dvir): don't clone the events here.
+            get_events_from_tx(events, tx_index, contract_address, start_event_index)
+        } else {
+            VecDeque::new()
+        };
+        let next_entry_in_address_to_transaction_index_table = cursor.next()?.map(|(key, _)| key);
+
+        Ok(RefactoredEventIterByContractAddress {
+            txn: &self.txn,
+            file_handles: &self.file_handlers,
+            next_entry_in_address_to_transaction_index_table,
+            events_queue,
+            cursor,
+            events_table,
+        })
+    }
+
     /// Returns an events iterator that iterates events by event index from the given event index.
     ///
     /// # Arguments
@@ -343,6 +503,35 @@ where
         it.find_next_event_by_event_index()?;
         Ok(it)
     }
+
+    #[allow(dead_code)]
+    fn refactored_iter_events_by_event_index(
+        &'env self,
+        event_index: EventIndex,
+        to_block_number: BlockNumber,
+    ) -> StorageResult<RefactoredEventIterByEventIndex<'txn>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        let mut events_cursor = events_table.cursor(&self.txn)?;
+        let first_transactions_events_location = events_cursor.lower_bound(&event_index.0)?;
+
+        let first_transactions_events: Option<(TransactionIndex, Vec<Event>)> =
+            match first_transactions_events_location {
+                None => None,
+                Some((tx_index, events_location)) => {
+                    Some((tx_index, self.file_handlers.get_events_unchecked(events_location)?))
+                }
+            };
+
+        let mut it = RefactoredEventIterByEventIndex {
+            file_handlers: &self.file_handlers,
+            tx_current: first_transactions_events,
+            events_cursor,
+            event_index_in_tx_current: event_index.1,
+            to_block_number,
+        };
+        it.find_next_event_by_event_index()?;
+        Ok(it)
+    }
 }
 
 fn get_events_from_tx(
@@ -372,3 +561,158 @@ type AddressToTransactionIndexTableCursor<'txn> = DbCursor<
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
     DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+
+/// A cursor of the events table.
+type EventsTableCursor<'txn> =
+    DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<LocationInFile>, SimpleTable>;
+
+/// Interface for reading the events from the storage.
+pub trait EventStorageReader {
+    /// The first block number that isn't written in the events table.
+    fn get_events_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Returns the events of a specific block.
+    fn get_block_events(&self, block_number: BlockNumber)
+    -> StorageResult<Option<Vec<Vec<Event>>>>;
+}
+
+impl EventStorageReader for StorageTxn<'_, RW> {
+    fn get_events_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
+    }
+    fn get_block_events(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<Vec<Event>>>> {
+        let events_table = self.open_table(&self.tables.events)?;
+        let mut cursor = events_table.cursor(&self.txn)?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+        let mut res = Vec::new();
+        while let Some((tx_index, events_location)) = current {
+            if tx_index.0 != block_number {
+                break;
+            }
+            res.push(self.file_handlers.get_events_unchecked(events_location)?);
+            current = cursor.next()?;
+        }
+        if res.is_empty() { Ok(None) } else { Ok(Some(res)) }
+    }
+}
+
+/// Interface for updating the events in the storage.
+pub trait EventStorageWriter
+where
+    Self: Sized,
+{
+    /// Appends the events of an entire block to the storage.
+    // To enforce that no commit happen after a failure, we consume and return Self on success.
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: &[&Vec<Event>],
+    ) -> StorageResult<Self>;
+
+    /// Removes the events of an entire block from the storage.
+    // To enforce that no commit happen after a failure, we consume and return Self on success.
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)>;
+}
+
+impl EventStorageWriter for StorageTxn<'_, RW> {
+    fn append_events(
+        self,
+        block_number: BlockNumber,
+        block_events: &[&Vec<Event>],
+    ) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        update_marker(&self.txn, &markers_table, block_number)?;
+        if self.scope == StorageScope::StateOnly {
+            return Ok(self);
+        }
+
+        let events_table = self.open_table(&self.tables.events)?;
+        let file_offset_table = self.open_table(&self.tables.file_offsets)?;
+        let address_to_transaction_index =
+            self.open_table(&self.tables.address_to_transaction_index)?;
+
+        for (index, &transaction_events) in block_events.iter().enumerate() {
+            let transaction_index = TransactionIndex(block_number, TransactionOffsetInBlock(index));
+            let event_location = self.file_handlers.append_events(transaction_events);
+            events_table.append(&self.txn, &transaction_index, &event_location)?;
+
+            let mut contract_address_set = HashSet::new();
+
+            for event in transaction_events {
+                contract_address_set.insert(event.from_address);
+            }
+
+            for contract_address in contract_address_set {
+                address_to_transaction_index.insert(
+                    &self.txn,
+                    &(contract_address, transaction_index),
+                    &NoValue,
+                )?;
+            }
+
+            if index == block_events.len() - 1 {
+                file_offset_table.upsert(
+                    &self.txn,
+                    &OffsetKind::Event,
+                    &event_location.next_offset(),
+                )?;
+            }
+        }
+        Ok(self)
+    }
+
+    fn revert_events(
+        self,
+        block_number: BlockNumber,
+    ) -> StorageResult<(Self, Option<Vec<Vec<Event>>>)> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        // Assert that body marker equals the reverted block number + 1
+        let current_header_marker = self.get_events_marker()?;
+        if block_number
+            .next()
+            .filter(|next_block_number| current_header_marker == *next_block_number)
+            .is_none()
+        {
+            debug!(
+                "Attempt to revert a non-existing / old block {}. Returning without an action.",
+                block_number
+            );
+            return Ok((self, None));
+        }
+        let reverted_block_events = 'reverted_block_events: {
+            if self.scope == StorageScope::StateOnly {
+                break 'reverted_block_events None;
+            }
+            let events_table = self.open_table(&self.tables.events)?;
+            let address_to_tx_index_table =
+                self.open_table(&self.tables.address_to_transaction_index)?;
+
+            let block_events = self.get_block_events(block_number)?.unwrap_or_else(|| {
+                panic!("Block events not found for block number: {block_number:?}")
+            });
+            // Assuming theres a vector of events for every transaction (even if empty), so
+            // the index of each item of this enumerate is the transaction index in the
+            // block.
+            for (index, transaction_events) in block_events.iter().enumerate() {
+                let transaction_index =
+                    TransactionIndex(block_number, TransactionOffsetInBlock(index));
+                events_table.delete(&self.txn, &transaction_index)?;
+                for event in transaction_events {
+                    address_to_tx_index_table
+                        .delete(&self.txn, &(event.from_address, transaction_index))?;
+                }
+            }
+            Some(block_events)
+        };
+        markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
+        Ok((self, reverted_block_events))
+    }
+}
