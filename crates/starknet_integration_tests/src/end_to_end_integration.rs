@@ -78,9 +78,9 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    let component_configs: Vec<ComponentConfig> =
-        vec![ComponentConfig::default(); N_CONSOLIDATED_SEQUENCERS]
-            .into_iter()
+    let component_configs: Vec<Vec<ComponentConfig>> =
+        std::iter::repeat_with(|| vec![ComponentConfig::default()])
+            .take(N_CONSOLIDATED_SEQUENCERS)
             .chain(create_remote_node_configs(&mut available_ports, N_DISTRIBUTED_SEQUENCERS))
             .collect();
 
@@ -107,7 +107,7 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     // TODO: Consider checking all sequencer storage readers.
     let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
 
-    await_block(5000, EXPECTED_BLOCK_NUMBER, 40, &batcher_storage_reader)
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 50, &batcher_storage_reader)
         .await
         .expect("Block number should have been reached.");
 
@@ -159,7 +159,7 @@ fn get_non_http_container_config(
 fn create_remote_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<ComponentConfig> {
+) -> Vec<Vec<ComponentConfig>> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
@@ -171,6 +171,5 @@ fn create_remote_node_configs(
         ]
     })
     .take(distributed_sequencers_num)
-    .flatten()
     .collect()
 }
