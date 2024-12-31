@@ -61,6 +61,8 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let tracked_resource =
         *context.tracked_resource_stack.last().expect("Unexpected empty tracked resource.");
+    // Extract information from the context, as it will be passed as a mutable reference.
+    let entry_point_initial_budget = context.gas_costs().base.entry_point_initial_budget;
     let VmExecutionContext {
         mut runner,
         mut syscall_handler,
@@ -75,7 +77,9 @@ pub fn execute_entry_point_call(
         initial_syscall_ptr,
         &mut syscall_handler.read_only_segments,
         &entry_point,
+        entry_point_initial_budget,
     )?;
+
     let n_total_args = args.len();
 
     // Execute.
@@ -180,6 +184,7 @@ pub fn prepare_call_arguments(
     initial_syscall_ptr: Relocatable,
     read_only_segments: &mut ReadOnlySegments,
     entrypoint: &EntryPointV1,
+    entry_point_initial_budget: u64,
 ) -> Result<Args, PreExecutionError> {
     let mut args: Args = vec![];
 
@@ -208,8 +213,15 @@ pub fn prepare_call_arguments(
         }
         return Err(PreExecutionError::InvalidBuiltin(*builtin_name));
     }
+    // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal
+    // entry point code. When redepositing is used, the entry point is aware of this pre-charge
+    // and adjusts the gas counter accordingly if a smaller amount of gas is required.
+    let call_initial_gas = call
+        .initial_gas
+        .checked_sub(entry_point_initial_budget)
+        .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
     // Push gas counter.
-    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call.initial_gas))));
+    args.push(CairoArg::Single(MaybeRelocatable::from(Felt::from(call_initial_gas))));
     // Push syscall ptr.
     args.push(CairoArg::Single(MaybeRelocatable::from(initial_syscall_ptr)));
 
