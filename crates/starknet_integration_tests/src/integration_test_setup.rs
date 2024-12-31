@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
-use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -33,11 +31,6 @@ use crate::utils::{
 pub struct IntegrationTestSetup {
     pub sequencers: Vec<IntegrationSequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
-
-    // TODO: To validate test results instead of reading storage - delete this and use monitoring
-    // or use this.
-    // Channels for consensus proposals, used for validating test results.
-    pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
 }
 
 impl IntegrationTestSetup {
@@ -50,7 +43,7 @@ impl IntegrationTestSetup {
         let accounts = tx_generator.accounts();
         let n_sequencers = component_configs.len();
 
-        let (mut consensus_manager_configs, consensus_proposals_channels) =
+        let (mut consensus_manager_configs, _consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(n_sequencers, &mut available_ports);
 
         let ports = available_ports.get_next_ports(n_sequencers);
@@ -80,7 +73,7 @@ impl IntegrationTestSetup {
             .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
             .collect::<Vec<_>>();
 
-        Self { sequencers, sequencer_run_handles, consensus_proposals_channels }
+        Self { sequencers, sequencer_run_handles }
     }
 
     pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
