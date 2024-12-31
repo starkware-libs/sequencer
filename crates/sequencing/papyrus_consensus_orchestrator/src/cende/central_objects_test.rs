@@ -24,7 +24,7 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::state::ThinStateDiff;
+use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -58,6 +58,7 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
+pub const CENTRAL_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
 
 fn central_state_diff_json() -> Value {
     let state_diff = ThinStateDiff {
@@ -270,4 +271,14 @@ fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path:
     let python_json = read_json_file(python_json_path);
 
     assert_eq!(rust_json, python_json,);
+}
+
+#[test]
+fn serialize_sierra_contract_class() {
+    let central_sierra_contract_class = read_json_file(CENTRAL_CONTRACT_CLASS_JSON_PATH);
+    let sierra_contract_class: SierraContractClass =
+        serde_json::from_value(central_sierra_contract_class.clone()).unwrap();
+    let serialized_sierra_contract_class = serde_json::to_value(&sierra_contract_class).unwrap();
+
+    assert_eq!(central_sierra_contract_class, serialized_sierra_contract_class);
 }
