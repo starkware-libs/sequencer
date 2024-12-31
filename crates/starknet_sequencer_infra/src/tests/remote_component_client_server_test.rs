@@ -119,12 +119,12 @@ where
 {
     let socket = get_available_socket().await;
     task::spawn(async move {
-        async fn handler<T>(
+        async fn handler<T1>(
             _http_request: Request<Body>,
-            body: T,
+            body: T1,
         ) -> Result<Response<Body>, hyper::Error>
         where
-            T: Serialize + DeserializeOwned + Debug + Send + Sync + Clone,
+            T1: Serialize + DeserializeOwned + Debug + Send,
         {
             Ok(Response::builder()
                 .status(StatusCode::BAD_REQUEST)
