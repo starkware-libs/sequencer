@@ -127,6 +127,7 @@ fn get_http_container_config(
     gateway_socket: SocketAddr,
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
@@ -134,6 +135,7 @@ fn get_http_container_config(
     config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
     config.mempool_p2p =
         ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_p2p_socket);
+    config.state_sync = ReactiveComponentExecutionConfig::remote(state_sync_socket);
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
@@ -142,6 +144,7 @@ fn get_non_http_container_config(
     gateway_socket: SocketAddr,
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
 ) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
@@ -149,6 +152,7 @@ fn get_non_http_container_config(
         gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
         mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
         mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
+        state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(state_sync_socket),
         ..ComponentConfig::default()
     }
 }
@@ -164,10 +168,21 @@ fn create_remote_node_configs(
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+        let state_sync_socket = available_ports.get_next_local_host_socket();
 
         vec![
-            get_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
-            get_non_http_container_config(gateway_socket, mempool_socket, mempool_p2p_socket),
+            get_http_container_config(
+                gateway_socket,
+                mempool_socket,
+                mempool_p2p_socket,
+                state_sync_socket,
+            ),
+            get_non_http_container_config(
+                gateway_socket,
+                mempool_socket,
+                mempool_p2p_socket,
+                state_sync_socket,
+            ),
         ]
     })
     .take(distributed_sequencers_num)
