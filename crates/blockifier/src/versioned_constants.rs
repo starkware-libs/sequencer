@@ -599,6 +599,18 @@ impl OsResources {
     ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
         for (syscall_selector, count) in syscall_counter {
+            if syscall_selector == &SyscallSelector::Keccak {
+                let keccak_base_resources =
+                    self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
+                        panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
+                    });
+                os_additional_resources += keccak_base_resources;
+            }
+            let syscall_selector = if syscall_selector == &SyscallSelector::Keccak {
+                &SyscallSelector::KeccakRound
+            } else {
+                syscall_selector
+            };
             let syscall_resources =
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
@@ -692,6 +704,7 @@ impl SyscallGasCosts {
             SyscallSelector::GetExecutionInfo => self.get_execution_info,
             SyscallSelector::GetClassHashAt => self.get_class_hash_at,
             SyscallSelector::Keccak => self.keccak,
+            SyscallSelector::KeccakRound => self.keccak_round_cost,
             SyscallSelector::Sha256ProcessBlock => self.sha256_process_block,
             SyscallSelector::LibraryCall => self.library_call,
             SyscallSelector::ReplaceClass => self.replace_class,
