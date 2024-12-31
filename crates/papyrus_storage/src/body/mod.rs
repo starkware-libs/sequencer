@@ -86,10 +86,7 @@ type AddressToTransactionIndexTable<'env> = TableHandle<
     NoVersionValueWrapper<NoValue>,
     CommonPrefix,
 >;
-// TODO(alonl): remove the dead code attribute.
-#[allow(dead_code)]
 type EventsTableKey = TransactionIndex;
-#[allow(dead_code)]
 type EventsTable<'env> =
     TableHandle<'env, EventsTableKey, VersionZeroWrapper<LocationInFile>, SimpleTable>;
 
