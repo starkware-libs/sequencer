@@ -6,6 +6,7 @@ use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use num_traits::Inv;
 use pretty_assertions::{assert_eq, assert_ne};
 use rstest::rstest;
+use rstest_reuse::apply;
 use starknet_api::abi::abi_utils::{
     get_fee_token_var_address,
     get_storage_var_address,
@@ -75,6 +76,10 @@ use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
+#[cfg(not(feature = "cairo_native"))]
+use crate::test_utils::test_templates::cairo_version_no_native;
+#[cfg(feature = "cairo_native")]
+use crate::test_utils::test_templates::cairo_version_with_native;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
@@ -580,13 +585,13 @@ fn test_max_fee_limit_validate(
     assert!(error_trace.contains("no remaining steps") | error_trace.contains("Out of gas"))
 }
 
-#[rstest]
+#[cfg_attr(not(feature = "cairo_native"), apply(cairo_version_no_native))]
+#[cfg_attr(feature = "cairo_native", apply(cairo_version_with_native))]
 #[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
 #[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
 #[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_recursion_depth_exceeded(
     #[case] tx_version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     cairo_version: CairoVersion,
     block_context: BlockContext,
     max_fee: Fee,
