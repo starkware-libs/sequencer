@@ -160,6 +160,30 @@ async fn batcher_with_active_validate_block(
     batcher
 }
 
+fn test_tx_hashes() -> HashSet<TransactionHash> {
+    (0..5u8).map(|i| tx_hash!(i + 12)).collect()
+}
+
+fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
+    HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
+}
+
+pub fn test_state_diff() -> ThinStateDiff {
+    ThinStateDiff {
+        storage_diffs: indexmap! {
+            4u64.into() => indexmap! {
+                5u64.into() => 6u64.into(),
+                7u64.into() => 8u64.into(),
+            },
+            9u64.into() => indexmap! {
+                10u64.into() => 11u64.into(),
+            },
+        },
+        nonces: test_contract_nonces().into_iter().collect(),
+        ..Default::default()
+    }
+}
+
 #[rstest]
 #[tokio::test]
 async fn start_height_success() {
@@ -536,7 +560,7 @@ async fn add_sync_block_mismatch_block_number() {
 
 #[rstest]
 #[tokio::test]
-async fn decision_reached() {
+async fn successful_decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
     let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
 
@@ -585,28 +609,4 @@ async fn decision_reached_no_executed_proposal() {
     let decision_reached_result =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
     assert_eq!(decision_reached_result, Err(expected_error));
-}
-
-fn test_tx_hashes() -> HashSet<TransactionHash> {
-    (0..5u8).map(|i| tx_hash!(i + 12)).collect()
-}
-
-fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
-    HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
-}
-
-pub fn test_state_diff() -> ThinStateDiff {
-    ThinStateDiff {
-        storage_diffs: indexmap! {
-            4u64.into() => indexmap! {
-                5u64.into() => 6u64.into(),
-                7u64.into() => 8u64.into(),
-            },
-            9u64.into() => indexmap! {
-                10u64.into() => 11u64.into(),
-            },
-        },
-        nonces: test_contract_nonces().into_iter().collect(),
-        ..Default::default()
-    }
 }
