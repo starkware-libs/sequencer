@@ -38,6 +38,8 @@ use crate::{gossipsub_impl, NetworkConfig};
 pub enum NetworkError {
     #[error(transparent)]
     DialError(#[from] libp2p::swarm::DialError),
+    #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
+    BroadcastChannelsDropped { topic_hash: TopicHash },
 }
 
 // TODO: Understand whats the correct thing to do here.
@@ -71,18 +73,18 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub async fn run(mut self) -> Result<(), NetworkError> {
         loop {
             tokio::select! {
-                Some(event) = self.swarm.next() => self.handle_swarm_event(event),
+                Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,
                 Some(res) = self.sqmr_inbound_response_receivers.next() => self.handle_response_for_inbound_query(res),
                 Some((protocol, client_payload)) = self.sqmr_outbound_payload_receivers.next() => {
                     self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    match message {
-                        Some(message) => self.broadcast_message(message, topic_hash),
-                        None => {
-                            warn!("Messages to broadcast sender was dropped for topic with hash {topic_hash:?}");
-                        }
-                    }
+                    self.broadcast_message(
+                        message.ok_or(NetworkError::BroadcastChannelsDropped {
+                            topic_hash: topic_hash.clone()
+                        })?,
+                        topic_hash,
+                    );
                 }
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
@@ -257,7 +259,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         })
     }
 
-    fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
+    fn handle_swarm_event(
+        &mut self,
+        event: SwarmEvent<mixed_behaviour::Event>,
+    ) -> Result<(), NetworkError> {
         #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
@@ -280,7 +285,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 );
             }
             SwarmEvent::Behaviour(event) => {
-                self.handle_behaviour_event(event);
+                self.handle_behaviour_event(event)?;
             }
             SwarmEvent::OutgoingConnectionError { connection_id, peer_id, error } => {
                 warn!(
@@ -315,28 +320,37 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 error!("Unexpected event {event:?}");
             }
         }
+        Ok(())
     }
 
-    fn handle_behaviour_event(&mut self, event: mixed_behaviour::Event) {
+    fn handle_behaviour_event(
+        &mut self,
+        event: mixed_behaviour::Event,
+    ) -> Result<(), NetworkError> {
         match event {
             mixed_behaviour::Event::ExternalEvent(external_event) => {
-                self.handle_behaviour_external_event(external_event);
+                self.handle_behaviour_external_event(external_event)?;
             }
             mixed_behaviour::Event::ToOtherBehaviourEvent(internal_event) => {
                 self.handle_to_other_behaviour_event(internal_event);
             }
         }
+        Ok(())
     }
 
-    fn handle_behaviour_external_event(&mut self, event: mixed_behaviour::ExternalEvent) {
+    fn handle_behaviour_external_event(
+        &mut self,
+        event: mixed_behaviour::ExternalEvent,
+    ) -> Result<(), NetworkError> {
         match event {
             mixed_behaviour::ExternalEvent::Sqmr(event) => {
                 self.handle_sqmr_event(event);
             }
             mixed_behaviour::ExternalEvent::GossipSub(event) => {
-                self.handle_gossipsub_behaviour_event(event);
+                self.handle_gossipsub_behaviour_event(event)?;
             }
         }
+        Ok(())
     }
 
     // TODO(shahak): Move this logic to mixed_behaviour.
@@ -488,24 +502,24 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
+    fn handle_gossipsub_behaviour_event(
+        &mut self,
+        event: gossipsub_impl::ExternalEvent,
+    ) -> Result<(), NetworkError> {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
         };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
-            error!(
+            panic!(
                 "Received a message from a topic we're not subscribed to with hash {topic_hash:?}"
             );
-            return;
         };
         let send_result = sender.try_send((message, broadcasted_message_metadata));
         if let Err(e) = send_result {
             if e.is_disconnected() {
-                warn!(
-                    "Broadcasted messages receiver was dropped for topic with hash {topic_hash:?}."
-                )
+                return Err(NetworkError::BroadcastChannelsDropped { topic_hash });
             } else if e.is_full() {
                 warn!(
                     "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
@@ -513,6 +527,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 );
             }
         }
+        Ok(())
     }
 
     fn handle_response_for_inbound_query(&mut self, res: (InboundSessionId, Option<Bytes>)) {
