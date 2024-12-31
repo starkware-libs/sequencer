@@ -21,3 +21,33 @@ fn cairo_version(
     cairo_version: CairoVersion,
 ) {
 }
+
+#[cfg(not(feature = "cairo_native"))]
+#[template]
+#[rstest]
+fn two_cairo_versions(
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version1: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version2: CairoVersion,
+) {
+}
+
+#[cfg(feature = "cairo_native")]
+#[template]
+#[rstest]
+fn two_cairo_versions(
+    #[values(
+        CairoVersion::Cairo0,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+        CairoVersion::Cairo1(RunnableCairo1::Native)
+    )]
+    cairo_version1: CairoVersion,
+    #[values(
+        CairoVersion::Cairo0,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+        CairoVersion::Cairo1(RunnableCairo1::Native)
+    )]
+    cairo_version2: CairoVersion,
+) {
+}
