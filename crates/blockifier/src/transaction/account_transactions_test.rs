@@ -581,13 +581,59 @@ fn test_max_fee_limit_validate(
 }
 
 #[rstest]
-#[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
-#[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
-#[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
+#[case::v1_cairo0(TransactionVersion::ONE, CairoVersion::Cairo0, default_all_resource_bounds())]
+#[case::l1_bounds_cairo0(
+    TransactionVersion::THREE,
+    CairoVersion::Cairo0,
+    default_l1_resource_bounds()
+)]
+#[case::all_bounds_cairo0(
+    TransactionVersion::THREE,
+    CairoVersion::Cairo0,
+    default_all_resource_bounds()
+)]
+#[case::v1_cairo1_casm(
+    TransactionVersion::ONE,
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
+    default_all_resource_bounds()
+)]
+#[case::l1_bounds_cairo1_casm(
+    TransactionVersion::THREE,
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
+    default_l1_resource_bounds()
+)]
+#[case::all_bounds_cairo1_casm(
+    TransactionVersion::THREE,
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
+    default_all_resource_bounds()
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::v1_cairo1_native(
+        TransactionVersion::ONE,
+        CairoVersion::Cairo1(RunnableCairo1::Native),
+        default_all_resource_bounds()
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::l1_bounds_cairo1_native(
+        TransactionVersion::THREE,
+        CairoVersion::Cairo1(RunnableCairo1::Native),
+        default_l1_resource_bounds()
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::all_bounds_cairo1_native(
+        TransactionVersion::THREE,
+        CairoVersion::Cairo1(RunnableCairo1::Native),
+        default_all_resource_bounds()
+    )
+)]
 fn test_recursion_depth_exceeded(
     #[case] tx_version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
+    #[case] cairo_version: CairoVersion,
     block_context: BlockContext,
     max_fee: Fee,
     #[case] resource_bounds: ValidResourceBounds,
