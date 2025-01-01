@@ -137,7 +137,8 @@ fn test_required_params_setting() {
     let expected_required_keys =
         expected_required_params.keys().cloned().collect::<HashSet<String>>();
 
-    let required_params: HashSet<String> = RequiredParams::field_names().into_iter().collect();
+    let required_params: HashSet<String> =
+        RequiredParams::create_for_testing().field_names().into_iter().collect();
     assert_eq!(required_params, expected_required_keys);
 }
 
