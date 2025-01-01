@@ -68,6 +68,8 @@ fn test_valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
+// TODO(Arni): share code with
+// `papyrus_node::config::config_test::default_config_file_is_up_to_date`.
 /// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
 /// cargo run --bin sequencer_dump_config -q
