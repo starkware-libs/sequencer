@@ -501,7 +501,7 @@ async fn add_sync_block() {
         .times(1)
         .with(eq(CommitBlockArgs {
             address_to_nonce: test_contract_nonces(),
-            tx_hashes: test_tx_hashes(),
+            rejected_tx_hashes: [].into(),
         }))
         .returning(|_| Ok(()));
 
@@ -546,7 +546,7 @@ async fn decision_reached() {
         .times(1)
         .with(eq(CommitBlockArgs {
             address_to_nonce: expected_artifacts.address_to_nonce(),
-            tx_hashes: expected_artifacts.tx_hashes(),
+            rejected_tx_hashes: [].into(),
         }))
         .returning(|_| Ok(()));
 
