@@ -13,8 +13,8 @@ USER ${USERNAME}
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
-
 COPY install_build_tools.sh .
 COPY dependencies.sh .
 
 RUN ./install_build_tools.sh
+RUN chown -R ${USERNAME} ${RUSTUP_HOME}
