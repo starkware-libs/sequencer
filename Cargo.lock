@@ -7763,6 +7763,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "clap",
+ "colored 3.0.0",
  "itertools 0.12.1",
  "lazy_static",
  "papyrus_test_utils",
@@ -7897,7 +7898,6 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
- "colored 3.0.0",
  "const_format",
  "futures",
  "futures-util",
