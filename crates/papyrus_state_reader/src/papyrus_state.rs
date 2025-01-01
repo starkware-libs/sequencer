@@ -12,6 +12,8 @@ use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedCairoNative;
 use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::{StateReader, StateResult};
+#[cfg(feature = "cairo_native")]
+use log;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
@@ -202,6 +204,7 @@ impl StateReader for PapyrusReader {
                 return self.get_casm(class_hash);
             }
 
+            log::error!("Try fetching native from cache.");
             // Try fetching native from cache.
             if let Some(cached_native) = self.contract_class_manager.get_native(&class_hash) {
                 match cached_native {
@@ -217,6 +220,7 @@ impl StateReader for PapyrusReader {
             };
 
             // Native not found in cache. Get the cached casm.
+            log::error!("Native not found in cache. Get the cached casm.");
             let cached_casm = self.get_cached_casm(class_hash)?;
 
             // If the fetched casm includes a Sierra, send a compilation request.
@@ -226,6 +230,7 @@ impl StateReader for PapyrusReader {
             match cached_casm {
                 CachedCasm::WithSierra(runnable_casm, sierra) => {
                     if let RunnableCompiledClass::V1(casm_v1) = runnable_casm.clone() {
+                        log::error!("send_compilation_request. class hash: {}", class_hash);
                         self.contract_class_manager.send_compilation_request((
                             class_hash,
                             sierra.clone(),
