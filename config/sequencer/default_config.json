@@ -80,9 +80,9 @@
     "value": 4000
   },
   "batcher_config.block_builder_config.chain_info.chain_id": {
-    "description": "The chain ID of the StarkNet chain.",
+    "description": "A required param! The chain ID of the Starknet chain.",
     "pointer_target": "chain_id",
-    "privacy": "Public"
+    "privacy": "TemporaryValue"
   },
   "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
@@ -745,9 +745,9 @@
     "privacy": "TemporaryValue"
   },
   "gateway_config.chain_info.chain_id": {
-    "description": "The chain ID of the StarkNet chain.",
+    "description": "A required param! The chain ID of the Starknet chain.",
     "pointer_target": "chain_id",
-    "privacy": "Public"
+    "privacy": "TemporaryValue"
   },
   "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
