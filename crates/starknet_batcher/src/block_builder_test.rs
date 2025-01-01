@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
@@ -18,13 +20,8 @@ use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
-    BlockBuilder,
-    BlockBuilderError,
-    BlockBuilderExecutionParams,
-    BlockBuilderResult,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    FailOnErrorCause,
+    BlockBuilder, BlockBuilderError, BlockBuilderExecutionParams, BlockBuilderResult,
+    BlockBuilderTrait, BlockExecutionArtifacts, FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
@@ -48,10 +45,12 @@ fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transact
 
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+    rejected_tx_hashes: HashSet<TransactionHash>,
 ) -> BlockExecutionArtifacts {
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_infos,
+        rejected_tx_hashes,
         commitment_state_diff: Default::default(),
         visited_segments_mapping: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
@@ -259,7 +258,8 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         tx_hash!(0)=> execution_info(),
         tx_hash!(2)=> execution_info(),
     ];
-    let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
+    let expected_block_artifacts =
+        block_execution_artifacts(execution_infos_mapping, vec![tx_hash!(1)].into_iter().collect());
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok((
@@ -285,7 +285,7 @@ fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArt
     let execution_info_len_u8 = u8::try_from(execution_info_len).unwrap();
     let execution_infos_mapping =
         (0..execution_info_len_u8).map(|i| (tx_hash!(i), execution_info())).collect();
-    block_execution_artifacts(execution_infos_mapping)
+    block_execution_artifacts(execution_infos_mapping, Default::default())
 }
 
 fn set_close_block_expectations(

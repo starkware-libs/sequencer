@@ -387,11 +387,10 @@ impl Batcher {
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
             state_diff,
-            transaction_hashes,
+            transaction_hashes: _,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
         } = sync_block;
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        let tx_hashes = transaction_hashes.into_iter().collect();
         let height = self.get_height_from_storage()?;
         if height != block_number {
             panic!(
@@ -400,7 +399,7 @@ impl Batcher {
             );
         }
 
-        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, [].into()).await
     }
 
     #[instrument(skip(self), err)]
@@ -420,7 +419,7 @@ impl Batcher {
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.tx_hashes(),
+            block_execution_artifacts.rejected_tx_hashes,
         )
         .await?;
         Ok(DecisionReachedResponse {
@@ -434,18 +433,20 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
-        tx_hashes: HashSet<TransactionHash>,
+        rejected_tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
         info!("Committing block at height {} and notifying mempool of the block.", height);
-        trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
+        trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
         // Commit the proposal to the storage and notify the mempool.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
-        let mempool_result =
-            self.mempool_client.commit_block(CommitBlockArgs { address_to_nonce, tx_hashes }).await;
+        let mempool_result = self
+            .mempool_client
+            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
+            .await;
 
         if let Err(mempool_err) = mempool_result {
             error!("Failed to commit block to mempool: {}", mempool_err);
