@@ -1,8 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
+use papyrus_config::dumping::{combine_config_map_and_pointers, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
-use serde_json::{to_value, Map, Value};
+use serde_json::{Map, Value};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 
@@ -18,6 +20,39 @@ pub struct RequiredParams {
     pub recorder_url: Url,
 }
 
+impl SerializeConfig for RequiredParams {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let members = BTreeMap::from_iter([
+            ser_param("chain_id", &self.chain_id, "Placeholder.", ParamPrivacyInput::Public),
+            ser_param(
+                "eth_fee_token_address",
+                &self.eth_fee_token_address,
+                "Placeholder.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "strk_fee_token_address",
+                &self.strk_fee_token_address,
+                "Placeholder.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validator_id",
+                &self.validator_id,
+                "Placeholder.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "Placeholder.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        vec![members].into_iter().flatten().collect()
+    }
+}
+
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
@@ -30,7 +65,9 @@ impl RequiredParams {
     }
 
     pub fn as_json(&self) -> Value {
-        to_value(self).unwrap()
+        let config_as_map = combine_config_map_and_pointers(self.dump(), &vec![], &HashSet::new())
+            .expect("Failed to combine config map.");
+        config_to_preset(&config_as_map)
     }
 
     pub fn cli_args(&self) -> Vec<String> {
