@@ -78,7 +78,7 @@ impl StateSyncRunner {
             storage_writer,
             p2p_sync_client_channels,
             new_block_receiver.boxed(),
-            class_manager_client,
+            class_manager_client.clone(),
         );
 
         let header_server_receiver = network_manager
@@ -98,7 +98,11 @@ impl StateSyncRunner {
             class_server_receiver,
             event_server_receiver,
         );
-        let p2p_sync_server = P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+        let p2p_sync_server = P2PSyncServer::new(
+            storage_reader.clone(),
+            p2p_sync_server_channels,
+            class_manager_client,
+        );
 
         let network_future = network_manager.run().boxed();
         let p2p_sync_client_future = p2p_sync_client.run().boxed();
