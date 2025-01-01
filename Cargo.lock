@@ -7318,6 +7318,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "validator",
 ]
 
 [[package]]
