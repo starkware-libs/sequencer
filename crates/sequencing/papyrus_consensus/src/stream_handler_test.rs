@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::time::Duration;
 
@@ -16,7 +17,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use prost::DecodeError;
 
-use super::{MessageId, StreamHandler};
+use super::{MessageId, StreamHandler, MAX_STREAMS_PER_PEER};
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
@@ -222,21 +223,31 @@ mod tests {
 
         assert_eq!(stream_handler.inbound_stream_data.len(), 1);
         assert_eq!(
-            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id)
+                .unwrap()
+                .message_buffer
+                .len(),
             5
         );
         // Still waiting for message 0.
         assert_eq!(
-            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].next_message_id,
+            stream_handler.inbound_stream_data[&peer_id].peek(&stream_id).unwrap().next_message_id,
             0
         );
         // Has a receiver, waiting to be sent when message 0 is received.
         assert!(
-            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].receiver.is_some()
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id)
+                .unwrap()
+                .receiver
+                .is_some()
         );
 
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> = stream_handler.inbound_stream_data[&(peer_id, stream_id)]
+        let keys: Vec<u64> = stream_handler.inbound_stream_data[&peer_id]
+            .peek(&stream_id)
+            .unwrap()
             .message_buffer
             .keys()
             .copied()
@@ -309,18 +320,16 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        let values = [
-            (peer_id.clone(), TestStreamId(1)),
-            (peer_id.clone(), TestStreamId(10)),
-            (peer_id.clone(), TestStreamId(127)),
-        ];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        let values = [TestStreamId(1), TestStreamId(10), TestStreamId(127)];
+        for item in values {
+            assert!(stream_handler.inbound_stream_data[&peer_id].contains(&item));
+        }
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match_unordered(
-            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id1)]
+            &stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id1)
+                .unwrap()
                 .message_buffer
                 .keys()
                 .copied()
@@ -330,7 +339,9 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match_unordered(
-            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id2)]
+            &stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id2)
+                .unwrap()
                 .message_buffer
                 .keys()
                 .copied()
@@ -340,7 +351,9 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match_unordered(
-            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id3)]
+            &stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id3)
+                .unwrap()
                 .message_buffer
                 .keys()
                 .copied()
@@ -371,11 +384,10 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // stream_id1 should be gone
-        let values = [(peer_id.clone(), TestStreamId(1)), (peer_id.clone(), TestStreamId(10))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
-
+        let values = [TestStreamId(1), TestStreamId(10)];
+        for item in values {
+            assert!(stream_handler.inbound_stream_data[&peer_id].contains(&item));
+        }
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
 
@@ -397,10 +409,7 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Stream_id2 should also be gone.
-        let values = [(peer_id.clone(), TestStreamId(1))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        assert!(stream_handler.inbound_stream_data[&peer_id].contains(&TestStreamId(1)));
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
@@ -421,14 +430,108 @@ mod tests {
         }
 
         // Stream_id3 should still be there, because we didn't send a fin.
-        let values = [(peer_id.clone(), TestStreamId(1))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        assert!(stream_handler.inbound_stream_data[&peer_id].contains(&TestStreamId(1)));
 
         // But the buffer should be empty, as we've successfully drained it all.
         assert!(
-            stream_handler.inbound_stream_data[&(peer_id, stream_id3)].message_buffer.is_empty()
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&TestStreamId(1))
+                .unwrap()
+                .message_buffer
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn inbound_max_streams_per_peer() {
+        let (
+            mut stream_handler,
+            mut network_sender,
+            _inbound_channel_receiver,
+            inbound_metadata,
+            _,
+            _,
+        ) = setup_test();
+        let peer_id = inbound_metadata.originator_id.clone();
+        let inbound_metadata2 = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+        let peer_id2 = inbound_metadata2.originator_id.clone();
+        let stream_ids =
+            (0..u64::try_from(MAX_STREAMS_PER_PEER).unwrap()).map(TestStreamId).collect::<Vec<_>>();
+
+        for stream_id in stream_ids.iter() {
+            for i in 0..3 {
+                let message = make_test_message(*stream_id, i, i == 9);
+                send(&mut network_sender, &inbound_metadata, message).await;
+            }
+        }
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        // All the stream IDs should be in the stream handler.
+        for stream_id in stream_ids.iter() {
+            assert!(stream_handler.inbound_stream_data[&peer_id].contains(stream_id));
+        }
+
+        // Send another stream to the same peer.
+        for i in 0..3 {
+            let message = make_test_message(TestStreamId(100), i, i == 9);
+            send(&mut network_sender, &inbound_metadata, message).await;
+        }
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        // The total number of streams should still be MAX_STREAMS_PER_PEER.
+        assert_eq!(stream_handler.inbound_stream_data[&peer_id].len(), MAX_STREAMS_PER_PEER);
+
+        // The latest stream ID should be in the stream handler.
+        assert!(stream_handler.inbound_stream_data[&peer_id].contains(&TestStreamId(100)));
+
+        // Keep a copy of the stream IDs from the stream handler (for the first peer).
+        // let stream_ids = stream_handler.inbound_stream_data[&peer_id].iter().collect::<Vec<_>>();
+        let stream_ids = stream_handler.inbound_stream_data[&peer_id]
+            .iter()
+            .map(|(k, _)| *k)
+            .collect::<HashSet<_>>();
+
+        // Send a stream from a different peer.
+        for i in 0..3 {
+            let message = make_test_message(TestStreamId(200), i, i == 9);
+            send(&mut network_sender, &inbound_metadata2, message).await;
+        }
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let stream_handler = join_handle.await.expect("Task should succeed");
+
+        // The total number of streams for the second peer should be 1.
+        assert_eq!(stream_handler.inbound_stream_data[&peer_id2].len(), 1);
+
+        // The latest stream ID should be in the stream handler for the second peer.
+        assert!(stream_handler.inbound_stream_data[&peer_id2].contains(&TestStreamId(200)));
+
+        // The stream IDs in the first peer should not change.
+        assert_eq!(
+            stream_handler.inbound_stream_data[&peer_id]
+                .iter()
+                .map(|(k, _)| *k)
+                .collect::<HashSet<_>>(),
+            stream_ids
         );
     }
 
@@ -458,10 +561,7 @@ mod tests {
 
         // Check that the stream handler contains the StreamData.
         assert_eq!(stream_handler.inbound_stream_data.len(), 1);
-        assert_eq!(
-            stream_handler.inbound_stream_data.keys().next().unwrap(),
-            &(metadata.originator_id.clone(), stream_id)
-        );
+        assert!(stream_handler.inbound_stream_data[&metadata.originator_id].contains(&stream_id));
 
         // Close the channel.
         drop(receiver);
