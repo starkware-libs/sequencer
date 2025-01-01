@@ -89,11 +89,11 @@ async fn setup(
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    let ports = available_ports.get_next_ports(2);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
-            1,
             Topic::new(MEMPOOL_TOPIC),
-            &mut available_ports,
+            ports,
         );
     let network_config = network_configs.pop().unwrap();
     let mempool_p2p_config = MempoolP2pConfig { network_config, ..Default::default() };
