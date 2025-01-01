@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use async_trait::async_trait;
 use futures::never::Never;
 use futures::StreamExt;
 use papyrus_common::pending_classes::ApiContractClass;
@@ -22,13 +23,16 @@ use papyrus_protobuf::sync::{
 };
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::class::ClassStorageReader;
+use papyrus_storage::class_manager::ClassManagerStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{db, StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
+use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use tracing::{error, info};
 
 #[cfg(test)]
@@ -56,12 +60,14 @@ pub enum P2PSyncServerError {
     SignatureNotFound { block_number: BlockNumber },
     #[error(transparent)]
     SendError(#[from] futures::channel::mpsc::SendError),
+    #[error(transparent)]
+    ClassManagerClientError(#[from] ClassManagerClientError),
 }
 
 impl P2PSyncServerError {
     pub fn should_log_in_error_level(&self) -> bool {
         match self {
-            Self::JoinError(_) | Self::SignatureNotFound { .. } | Self::SendError { .. }
+            Self::JoinError(_) | Self::SignatureNotFound { .. } | Self::SendError { .. } | Self::ClassManagerClientError { .. }
             // TODO(shahak): Consider returning false for some of the StorageError variants.
             | Self::DBInternalError { .. } => true,
             Self::BlockNumberOutOfRange { .. } | Self::BlockNotFound { .. } | Self::ClassNotFound { .. } => false,
@@ -105,6 +111,7 @@ impl P2PSyncServerChannels {
 pub struct P2PSyncServer {
     storage_reader: StorageReader,
     p2p_sync_channels: P2PSyncServerChannels,
+    class_manager_client: Option<SharedClassManagerClient>,
 }
 
 impl P2PSyncServer {
@@ -122,45 +129,50 @@ impl P2PSyncServer {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Header queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, None);
                 }
                 maybe_server_query_manager = state_diff_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "State diff queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, None);
                 }
                 maybe_server_query_manager = transaction_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Transaction queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, None);
                 }
                 maybe_server_query_manager = class_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Class queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone());
                 }
                 maybe_server_query_manager = event_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Event queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, None);
                 }
             };
         }
     }
 
-    pub fn new(storage_reader: StorageReader, p2p_sync_channels: P2PSyncServerChannels) -> Self {
-        Self { storage_reader, p2p_sync_channels }
+    pub fn new(
+        storage_reader: StorageReader,
+        p2p_sync_channels: P2PSyncServerChannels,
+        class_manager_client: Option<SharedClassManagerClient>,
+    ) -> Self {
+        Self { storage_reader, p2p_sync_channels, class_manager_client }
     }
 }
 fn register_query<Data, TQuery>(
     storage_reader: StorageReader,
     server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) where
-    Data: FetchBlockDataFromDb + Send + 'static,
+    Data: FetchBlockData + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send + Clone + Debug + 'static,
     Query: From<TQuery>,
 {
@@ -169,7 +181,9 @@ fn register_query<Data, TQuery>(
         Ok(query) => {
             info!("Sync server received a new inbound query {query:?}");
             tokio::task::spawn(async move {
-                let result = send_data_for_query(storage_reader, server_query_manager).await;
+                let result =
+                    send_data_for_query(storage_reader, server_query_manager, class_manager_client)
+                        .await;
                 if let Err(error) = result {
                     if error.should_log_in_error_level() {
                         error!("Running inbound query {query:?} failed on {error:?}");
@@ -187,17 +201,21 @@ fn register_query<Data, TQuery>(
     }
 }
 
-pub trait FetchBlockDataFromDb: Sized {
-    fn fetch_block_data_from_db(
+#[async_trait]
+pub trait FetchBlockData: Sized {
+    async fn fetch_block_data(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
+        class_manager_client: &mut Option<SharedClassManagerClient>,
     ) -> Result<Vec<Self>, P2PSyncServerError>;
 }
 
-impl FetchBlockDataFromDb for SignedBlockHeader {
-    fn fetch_block_data_from_db(
+#[async_trait]
+impl FetchBlockData for SignedBlockHeader {
+    async fn fetch_block_data(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
+        _class_manager_client: &mut Option<SharedClassManagerClient>,
     ) -> Result<Vec<Self>, P2PSyncServerError> {
         let mut header =
             txn.get_block_header(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
@@ -220,10 +238,12 @@ impl FetchBlockDataFromDb for SignedBlockHeader {
     }
 }
 
-impl FetchBlockDataFromDb for StateDiffChunk {
-    fn fetch_block_data_from_db(
+#[async_trait]
+impl FetchBlockData for StateDiffChunk {
+    async fn fetch_block_data(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
+        _class_manager_client: &mut Option<SharedClassManagerClient>,
     ) -> Result<Vec<Self>, P2PSyncServerError> {
         let thin_state_diff =
             txn.get_state_diff(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
@@ -233,10 +253,12 @@ impl FetchBlockDataFromDb for StateDiffChunk {
     }
 }
 
-impl FetchBlockDataFromDb for FullTransaction {
-    fn fetch_block_data_from_db(
+#[async_trait]
+impl FetchBlockData for FullTransaction {
+    async fn fetch_block_data(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
+        _class_manager_client: &mut Option<SharedClassManagerClient>,
     ) -> Result<Vec<Self>, P2PSyncServerError> {
         let transactions =
             txn.get_block_transactions(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
@@ -265,44 +287,91 @@ impl FetchBlockDataFromDb for FullTransaction {
     }
 }
 
-impl FetchBlockDataFromDb for (ApiContractClass, ClassHash) {
-    fn fetch_block_data_from_db(
+#[async_trait]
+impl FetchBlockData for (ApiContractClass, ClassHash) {
+    async fn fetch_block_data(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
+        class_manager_client: &mut Option<SharedClassManagerClient>,
     ) -> Result<Vec<Self>, P2PSyncServerError> {
+        let Some(class_manager_client) = class_manager_client else {
+            return depreacted_fetch_block_data_for_class(block_number, txn);
+        };
+
         let thin_state_diff =
             txn.get_state_diff(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             })?;
+
+        if block_number >= txn.get_class_manager_block_marker()? {
+            return Err(P2PSyncServerError::BlockNotFound {
+                block_hash_or_number: BlockHashOrNumber::Number(block_number),
+            });
+        }
+
         let declared_classes = thin_state_diff.declared_classes;
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
-        for class_hash in &deprecated_declared_classes {
+        for class_hash in deprecated_declared_classes {
+            let ContractClass::V0(deprecated_contract_class) =
+                class_manager_client.get_executable(class_hash).await?
+            else {
+                panic!("Unexpected class manager client error");
+            };
             result.push((
-                ApiContractClass::DeprecatedContractClass(
-                    txn.get_deprecated_class(class_hash)?
-                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
-                ),
-                *class_hash,
+                ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
+                class_hash,
             ));
         }
-        for (class_hash, _) in &declared_classes {
+
+        for (class_hash, _) in declared_classes {
             result.push((
-                ApiContractClass::ContractClass(
-                    txn.get_class(class_hash)?
-                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
-                ),
-                *class_hash,
+                ApiContractClass::ContractClass(class_manager_client.get_sierra(class_hash).await?),
+                class_hash,
             ));
         }
         Ok(result)
     }
 }
 
-impl FetchBlockDataFromDb for (Event, TransactionHash) {
-    fn fetch_block_data_from_db(
+fn depreacted_fetch_block_data_for_class(
+    block_number: BlockNumber,
+    txn: &StorageTxn<'_, db::RO>,
+) -> Result<Vec<(ApiContractClass, ClassHash)>, P2PSyncServerError> {
+    let thin_state_diff =
+        txn.get_state_diff(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
+            block_hash_or_number: BlockHashOrNumber::Number(block_number),
+        })?;
+    let declared_classes = thin_state_diff.declared_classes;
+    let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
+    let mut result = Vec::new();
+    for class_hash in &deprecated_declared_classes {
+        result.push((
+            ApiContractClass::DeprecatedContractClass(
+                txn.get_deprecated_class(class_hash)?
+                    .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+            ),
+            *class_hash,
+        ));
+    }
+    for (class_hash, _) in &declared_classes {
+        result.push((
+            ApiContractClass::ContractClass(
+                txn.get_class(class_hash)?
+                    .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+            ),
+            *class_hash,
+        ));
+    }
+    Ok(result)
+}
+
+#[async_trait]
+impl FetchBlockData for (Event, TransactionHash) {
+    async fn fetch_block_data(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
+        _class_manager_client: &mut Option<SharedClassManagerClient>,
     ) -> Result<Vec<Self>, P2PSyncServerError> {
         let transaction_outputs = txn.get_block_transaction_outputs(block_number)?.ok_or(
             P2PSyncServerError::BlockNotFound {
@@ -374,14 +443,20 @@ pub fn split_thin_state_diff(thin_state_diff: ThinStateDiff) -> Vec<StateDiffChu
 async fn send_data_for_query<Data, TQuery>(
     storage_reader: StorageReader,
     mut server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
+    mut class_manager_client: Option<SharedClassManagerClient>,
 ) -> Result<(), P2PSyncServerError>
 where
-    Data: FetchBlockDataFromDb + Send + 'static,
+    Data: FetchBlockData + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
     Query: From<TQuery>,
 {
     // If this function fails, we still want to send fin before failing.
-    let result = send_data_without_fin_for_query(&storage_reader, &mut server_query_manager).await;
+    let result = send_data_without_fin_for_query(
+        &storage_reader,
+        &mut server_query_manager,
+        &mut class_manager_client,
+    )
+    .await;
     info!("Sending fin message for inbound sync query");
     server_query_manager.send_response(DataOrFin(None)).await?;
     result
@@ -390,9 +465,10 @@ where
 async fn send_data_without_fin_for_query<Data, TQuery>(
     storage_reader: &StorageReader,
     server_query_manager: &mut ServerQueryManager<TQuery, DataOrFin<Data>>,
+    class_manager_client: &mut Option<SharedClassManagerClient>,
 ) -> Result<(), P2PSyncServerError>
 where
-    Data: FetchBlockDataFromDb + Send + 'static,
+    Data: FetchBlockData + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
     Query: From<TQuery>,
 {
@@ -414,7 +490,7 @@ where
     for block_counter in 0..query.limit {
         let block_number =
             BlockNumber(utils::calculate_block_number(&query, start_block_number, block_counter)?);
-        let data_vec = Data::fetch_block_data_from_db(block_number, &txn)?;
+        let data_vec = Data::fetch_block_data(block_number, &txn, class_manager_client).await?;
         for data in data_vec {
             // TODO: consider implement retry mechanism.
             info!("Sending response for inbound sync query");

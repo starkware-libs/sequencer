@@ -50,7 +50,7 @@ use starknet_api::transaction::{
     TransactionOutput,
 };
 
-use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};
+use super::{split_thin_state_diff, FetchBlockData, P2PSyncServer, P2PSyncServerChannels};
 use crate::server::register_query;
 const BUFFER_SIZE: usize = 10;
 const NUM_OF_BLOCKS: usize = 10;
@@ -312,7 +312,7 @@ async fn run_test<T, F, TQuery>(
     start_block_number: usize,
     start_block_type: StartBlockType,
 ) where
-    T: FetchBlockDataFromDb + std::fmt::Debug + PartialEq + Send + Sync + 'static,
+    T: FetchBlockData + std::fmt::Debug + PartialEq + Send + Sync + 'static,
     F: FnOnce(Vec<T>),
     TQuery: From<Query>
         + TryFrom<Vec<u8>, Error = ProtobufConversionError>
@@ -361,7 +361,10 @@ async fn run_test<T, F, TQuery>(
     let query = TQuery::from(query);
     let (server_query_manager, _report_sender, response_reciever) =
         create_test_server_query_manager(query);
-    register_query::<T, TQuery>(storage_reader, server_query_manager);
+
+    // TODO: Fix this once we have a functional class manager client implementation.
+    let class_manager_client = None;
+    register_query::<T, TQuery>(storage_reader, server_query_manager, class_manager_client);
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
@@ -409,8 +412,14 @@ fn setup() -> TestArgs {
         event_receiver,
     };
 
-    let p2p_sync_server =
-        super::P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+    // TODO: Fix this once we have a functional class manager client implementation.
+    let class_manager_client = None;
+
+    let p2p_sync_server = super::P2PSyncServer::new(
+        storage_reader.clone(),
+        p2p_sync_server_channels,
+        class_manager_client,
+    );
     TestArgs {
         p2p_sync_server,
         storage_reader,
