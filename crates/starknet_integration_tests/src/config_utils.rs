@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value};
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -16,46 +16,12 @@ use tracing::info;
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
-/// A utility macro that takes a list of config fields and returns a json dictionary with "field
-/// name : field value" entries, where prefixed "config." name is removed from the entry key.
-///
-/// # Example (not running, to avoid function visibility modifications):
-///
-/// use serde_json::json;
-/// struct ConfigStruct {
-///    field_1: u32,
-///    field_2: String,
-///    field_3: u32,
-/// }
-/// let config = ConfigStruct { field_1: 1, field_2: "2".to_string() , field_3: 3};
-/// let json_data = config_fields_to_json!(config.field_1, config.field_2);
-/// assert_eq!(json_data, json!({"field_1": 1, "field_2": "2"}));
-macro_rules! config_fields_to_json {
-    ( $( $expr:expr ),+ , ) => {
-        json!({
-            $(
-                strip_config_prefix(stringify!($expr)): $expr
-            ),+
-        })
-    };
-}
-
 /// Creates a config file for the sequencer node for an integration test.
 pub(crate) fn dump_config_file_changes(
     config: &SequencerNodeConfig,
     required_params: RequiredParams,
     dir: PathBuf,
 ) -> PathBuf {
-    // Dump config changes file for the sequencer node.
-    // TODO(Tsabary): auto dump the entirety of RequiredParams fields.
-    let required_params_json = config_fields_to_json!(
-        required_params.chain_id,
-        required_params.eth_fee_token_address,
-        required_params.strk_fee_token_address,
-        required_params.validator_id,
-        required_params.recorder_url,
-    );
-
     // Create the entire mapping of the config and the pointers, without the required params.
     let config_as_map = combine_config_map_and_pointers(
         config.dump(),
@@ -68,7 +34,7 @@ pub(crate) fn dump_config_file_changes(
     let mut preset = config_to_preset(&config_as_map);
 
     // Add the required params to the preset.
-    add_required_params_to_preset(&mut preset, &required_params_json);
+    add_required_params_to_preset(&mut preset, required_params.as_json());
 
     // Dump the preset to a file, return its path.
     let node_config_path = dump_json_data(preset, NODE_CONFIG_CHANGES_FILE_PATH, dir);
@@ -88,14 +54,6 @@ fn dump_json_data(json_data: Value, path: &str, dir: PathBuf) -> PathBuf {
 
     info!("Writing required config changes to: {:?}", &temp_dir_path);
     temp_dir_path
-}
-
-/// Strips the "config." and "required_params." prefixes from the input string.
-fn strip_config_prefix(input: &str) -> &str {
-    input
-        .strip_prefix("config.")
-        .or_else(|| input.strip_prefix("required_params."))
-        .unwrap_or(input)
 }
 
 /// Transforms a nested JSON dictionary object into a simplified JSON dictionary object by
@@ -154,17 +112,17 @@ fn config_to_preset(config_map: &Value) -> Value {
 /// # Panics
 /// This function panics if either `preset` or `required_params` is not a JSON dictionary object, or
 /// if the `preset` already contains a key from the `required_params`.
-fn add_required_params_to_preset(preset: &mut Value, required_params: &Value) {
+fn add_required_params_to_preset(preset: &mut Value, required_params: Value) {
     if let (Value::Object(preset_map), Value::Object(required_params_map)) =
         (preset, required_params)
     {
         for (key, value) in required_params_map {
             assert!(
-                !preset_map.contains_key(key),
+                !preset_map.contains_key(&key),
                 "Required parameter already exists in the preset: {:?}",
                 key
             );
-            preset_map.insert(key.clone(), value.clone());
+            preset_map.insert(key, value);
         }
     } else {
         panic!("Expecting JSON object dictionary objects");
