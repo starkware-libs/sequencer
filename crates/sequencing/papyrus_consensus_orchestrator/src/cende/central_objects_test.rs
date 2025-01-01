@@ -14,12 +14,13 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
+    L1HandlerTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
@@ -28,6 +29,7 @@ use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
     ResourceBounds,
     ValidResourceBounds,
 };
@@ -36,6 +38,7 @@ use starknet_api::transaction::{
     DeployAccountTransactionV3,
     InvokeTransactionV3,
     TransactionHash,
+    TransactionVersion,
 };
 use starknet_api::{contract_address, felt, storage_key};
 
@@ -52,6 +55,7 @@ pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
 pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx.json";
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
+pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 
 fn central_state_diff_json() -> Value {
     let state_diff = ThinStateDiff {
@@ -212,11 +216,36 @@ fn central_declare_tx_json() -> Value {
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
+fn central_l1_handler_tx_json() -> Value {
+    let l1_handler_tx = L1HandlerTransaction {
+        tx: starknet_api::transaction::L1HandlerTransaction {
+            version: TransactionVersion::ZERO,
+            nonce: Default::default(),
+            contract_address: contract_address!(
+                "0x14abfd58671a1a9b30de2fcd2a42e8bff2ce1096a7c70bc7995904965f277e"
+            ),
+            entry_point_selector: EntryPointSelector(felt!("0x2a")),
+            calldata: Calldata(Arc::new(vec![felt!(0_u8), felt!(1_u8)])),
+        },
+        tx_hash: TransactionHash(felt!(
+            "0xc947753befd252ca08042000cd6d783162ee2f5df87b519ddf3081b9b4b997"
+        )),
+        paid_fee_on_l1: Fee(1),
+    };
+    let central_transaction_written = CentralTransactionWritten {
+        tx: CentralTransaction::L1Handler(l1_handler_tx.into()),
+        time_created: 1734601657,
+    };
+
+    serde_json::to_value(central_transaction_written).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
 #[case::deploy_account_tx(central_deploy_account_tx_json(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
 #[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
+#[case::l1_handler_tx(central_l1_handler_tx_json(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
