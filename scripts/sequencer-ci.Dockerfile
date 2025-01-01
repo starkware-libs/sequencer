@@ -6,9 +6,9 @@ ARG USER_GID=$USER_UID
 
 RUN apt update && apt install -y sudo
 
-RUN echo "%${USERNAME}        ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers.d/developer
+RUN echo "#${USER_UID}        ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers.d/developer
 
-USER ${USERNAME}
+USER ${USER_UID}:${USER_GID}
 
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
