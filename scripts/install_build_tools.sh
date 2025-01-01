@@ -44,13 +44,8 @@ function install_pypy() {
     popd
 }
 
-function install_rust() {
-    curl https://sh.rustup.rs -sSf | sh -s -- -y
-}
-
 cd "$(dirname "$0")"
 install_common_packages
 install_pypy &
-install_rust &
 wait
 ./dependencies.sh
