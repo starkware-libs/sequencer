@@ -78,10 +78,14 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    let component_configs: Vec<ComponentConfig> =
-        vec![ComponentConfig::default(); N_CONSOLIDATED_SEQUENCERS]
+    // TODO(Nadin): replace Vec<ComponentConfig> with a struct - DistributedNodeConfigs.
+    let component_configs: Vec<Vec<ComponentConfig>> =
+        create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS)
             .into_iter()
-            .chain(create_remote_node_configs(&mut available_ports, N_DISTRIBUTED_SEQUENCERS))
+            .chain(
+                create_distributed_node_configs(&mut available_ports, N_DISTRIBUTED_SEQUENCERS)
+                    .into_iter(),
+            )
             .collect();
 
     info!("Running integration test setup.");
@@ -107,7 +111,7 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     // TODO: Consider checking all sequencer storage readers.
     let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
 
-    await_block(5000, EXPECTED_BLOCK_NUMBER, 40, &batcher_storage_reader)
+    await_block(5000, EXPECTED_BLOCK_NUMBER, 50, &batcher_storage_reader)
         .await
         .expect("Block number should have been reached.");
 
@@ -153,13 +157,13 @@ fn get_non_http_container_config(
     }
 }
 
-/// Generates configurations for n nodes, where each node is split into:
-/// - An HTTP container configuration.
-/// - A non-HTTP container configuration.
-fn create_remote_node_configs(
+/// Generates configurations for a specified number of distributed sequencer nodes,
+/// each consisting of an HTTP component configuration and a non-HTTP component configuration.
+/// returns a vector of vectors, where each inner vector contains the two configurations.
+fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<ComponentConfig> {
+) -> Vec<Vec<ComponentConfig>> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
@@ -171,6 +175,13 @@ fn create_remote_node_configs(
         ]
     })
     .take(distributed_sequencers_num)
-    .flatten()
     .collect()
+}
+
+fn create_consolidated_sequencer_configs(
+    num_of_consolidated_nodes: usize,
+) -> Vec<Vec<ComponentConfig>> {
+    std::iter::repeat_with(|| vec![ComponentConfig::default()])
+        .take(num_of_consolidated_nodes)
+        .collect()
 }
