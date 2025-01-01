@@ -70,7 +70,8 @@ impl IntegrationTestSetup {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
-            .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
+            .enumerate()
+            .map(|(i, sequencer)| spawn_run_node(sequencer.node_config_path.clone(), i))
             .collect::<Vec<_>>();
 
         Self { sequencers, sequencer_run_handles }

@@ -9,10 +9,10 @@ use tracing::{error, info, instrument};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
-pub fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
+pub fn spawn_run_node(node_config_path: PathBuf, index: usize) -> JoinHandle<()> {
     task::spawn(async move {
         info!("Running the node from its spawned task.");
-        let _node_run_result = spawn_node_child_process(node_config_path).
+        let _node_run_result = spawn_node_child_process(node_config_path, index).
             await. // awaits the completion of spawn_node_child_task.
             wait(). // runs the node until completion -- should be running indefinitely.
             await; // awaits the completion of the node.
@@ -21,15 +21,20 @@ pub fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
 }
 
 #[instrument()]
-async fn spawn_node_child_process(node_config_path: PathBuf) -> Child {
+async fn spawn_node_child_process(node_config_path: PathBuf, index: usize) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
     info!("Running the node from: {}", node_executable);
-    create_shell_command(node_executable.as_str())
-        .arg("--config_file")
-        .arg(node_config_path.to_str().unwrap())
+    let mut command = node_executable.clone();
+    command.push_str(" --config_file ");
+    command.push_str(node_config_path.to_str().unwrap());
+    command.push_str(&format!(
+        " | awk '{{print \"\\033[1;{}mNode {index} \\033[0m\"$0}}'",
+        31 + index
+    ));
+    create_shell_command("sh").arg("-c").arg(command)
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit())
         .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
