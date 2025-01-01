@@ -55,7 +55,8 @@ fn install_starknet_native_compile() {
         .expect("Failed to convert the crate path to str");
     println!("cargo:rerun-if-changed={}", starknet_native_compile_crate_path_str);
 
-    let cargo_install_args = &["--path", starknet_native_compile_crate_path_str];
+    let cargo_install_args =
+        &["--path", starknet_native_compile_crate_path_str, "--features cairo_native"];
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
