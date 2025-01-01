@@ -1,7 +1,6 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use num_rational::Ratio;
 use stacker;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
@@ -16,7 +15,6 @@ use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, Pre
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
-use crate::versioned_constants::CairoNativeStackConfig;
 
 // todo(rodrigo): add an `entry point not found` test for Native
 pub fn execute_entry_point_call(
@@ -68,13 +66,7 @@ pub fn execute_entry_point_call(
     // This also limits multi-threading, since each thread has its own stack.
     // If the the free stack size is in the red zone, We will grow the stack to the
     // target size, relative to reaming gas.
-    let stack_config = CairoNativeStackConfig {
-        // TODO(Aviv): Take it from VC.
-        gas_to_stack_ratio: Ratio::new(1, 20),
-        max_stack_size: 200 * 1024 * 1024,
-        min_stack_red_zone: 2 * 1024 * 1024,
-        buffer_size: 5 * 1024 * 1024,
-    };
+    let stack_config = &syscall_handler.base.context.cairo_native_stack_config;
     let stack_size_red_zone = stack_config.get_stack_size_red_zone(call_initial_gas);
     let target_stack_size =
         usize::try_from(stack_config.get_target_stack_size(stack_size_red_zone))
