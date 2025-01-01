@@ -58,7 +58,6 @@ pub fn execute_entry_point_call_wrapper(
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
     let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
-    println!("current_tracked_resource: {:?}", current_tracked_resource);
     if current_tracked_resource == TrackedResource::CairoSteps {
         // Override the initial gas with a high value so it won't limit the run.
         call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
