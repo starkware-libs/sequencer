@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::component_client::ClientError;
@@ -28,7 +29,7 @@ pub enum ValidationStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum L1ProviderRequest {
-    GetTransactions(usize),
+    GetTransactions { n_txs: usize, height: BlockNumber },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,9 +42,16 @@ pub enum L1ProviderResponse {
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
-    async fn get_txs(&self, n_txs: usize) -> L1ProviderClientResult<Vec<L1HandlerTransaction>>;
-    async fn validate(&self, _tx_hash: TransactionHash)
-    -> L1ProviderClientResult<ValidationStatus>;
+    async fn get_txs(
+        &self,
+        n_txs: usize,
+        height: BlockNumber,
+    ) -> L1ProviderClientResult<Vec<L1HandlerTransaction>>;
+    async fn validate(
+        &self,
+        _tx_hash: TransactionHash,
+        _height: BlockNumber,
+    ) -> L1ProviderClientResult<ValidationStatus>;
 }
 
 #[async_trait]
@@ -52,8 +60,12 @@ where
     ComponentClientType: Send + Sync + ComponentClient<L1ProviderRequest, L1ProviderResponse>,
 {
     #[instrument(skip(self))]
-    async fn get_txs(&self, n_txs: usize) -> L1ProviderClientResult<Vec<L1HandlerTransaction>> {
-        let request = L1ProviderRequest::GetTransactions(n_txs);
+    async fn get_txs(
+        &self,
+        n_txs: usize,
+        height: BlockNumber,
+    ) -> L1ProviderClientResult<Vec<L1HandlerTransaction>> {
+        let request = L1ProviderRequest::GetTransactions { n_txs, height };
         let response = self.send(request).await;
         handle_response_variants!(
             L1ProviderResponse,
@@ -65,6 +77,7 @@ where
     async fn validate(
         &self,
         _tx_hash: TransactionHash,
+        _height: BlockNumber,
     ) -> L1ProviderClientResult<ValidationStatus> {
         todo!();
     }

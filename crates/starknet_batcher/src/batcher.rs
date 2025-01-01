@@ -164,6 +164,7 @@ impl Batcher {
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
+            propose_block_input.block_info.block_number,
         );
 
         // A channel to receive the transactions included in the proposed block.
@@ -213,6 +214,7 @@ impl Batcher {
         let tx_provider = ValidateTransactionProvider {
             tx_receiver: input_tx_receiver,
             l1_provider_client: self.l1_provider_client.clone(),
+            height: validate_block_input.block_info.block_number,
         };
 
         let (block_builder, abort_signal_sender) = self
