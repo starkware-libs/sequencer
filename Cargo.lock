@@ -138,9 +138,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-dyn-abi"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41056bde53ae10ffbbf11618efbe1e0290859e5eab0fe9ef82ebdb62f12a866f"
+checksum = "b0d2ea4d7f220a19c1f8c98822026d1d26a4b75a72e1a7308d02bab1f77c9a00"
 dependencies = [
  "alloy-json-abi",
  "alloy-primitives",
@@ -150,7 +150,7 @@ dependencies = [
  "itoa",
  "serde",
  "serde_json",
- "winnow 0.6.20",
+ "winnow 0.6.21",
 ]
 
 [[package]]
@@ -195,9 +195,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-json-abi"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c357da577dfb56998d01f574d81ad7a1958d248740a7981b205d69d65a7da404"
+checksum = "e79c6b4bcc1067a7394b5b2aec7da1bd829c8c476b796c73eb14da34392a07a7"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-type-parser",
@@ -254,9 +254,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-primitives"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6259a506ab13e1d658796c31e6e39d2e2ee89243bcc505ddc613b35732e0a430"
+checksum = "0540fd0355d400b59633c27bd4b42173e59943f28e9d3376b77a24771d432d04"
 dependencies = [
  "alloy-rlp",
  "bytes",
@@ -305,11 +305,7 @@ dependencies = [
  "futures-utils-wasm",
  "lru",
  "pin-project",
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -337,11 +333,7 @@ checksum = "5a833d97bf8a5f0f878daf2c8451fff7de7f9de38baa5a45d936ec718d81255a"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -355,11 +347,7 @@ dependencies = [
  "alloy-transport-http",
  "futures",
  "pin-project",
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "serde",
  "serde_json",
  "tokio",
@@ -417,27 +405,23 @@ dependencies = [
 
 [[package]]
 name = "alloy-sol-macro"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9d64f851d95619233f74b310f12bcf16e0cbc27ee3762b6115c14a84809280a"
+checksum = "c6d1a14b4a9f6078ad9132775a2ebb465b06b387d60f7413ddc86d7bf7453408"
 dependencies = [
  "alloy-sol-macro-expander",
  "alloy-sol-macro-input",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
 name = "alloy-sol-macro-expander"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bf7ed1574b699f48bf17caab4e6e54c6d12bc3c006ab33d58b1e227c1c3559f"
+checksum = "4436b4b96d265eb17daea26eb31525c3076d024d10901e446790afbd2f7eeaf5"
 dependencies = [
  "alloy-json-abi",
  "alloy-sol-macro-input",
@@ -447,20 +431,16 @@ dependencies = [
  "proc-macro-error2",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "syn-solidity",
  "tiny-keccak",
 ]
 
 [[package]]
 name = "alloy-sol-macro-input"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c02997ccef5f34f9c099277d4145f183b422938ed5322dc57a089fe9b9ad9ee"
+checksum = "e5f58698a18b96faa8513519de112b79a96010b4ff84264ce54a217c52a8e98b"
 dependencies = [
  "alloy-json-abi",
  "const-hex",
@@ -469,29 +449,25 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "syn-solidity",
 ]
 
 [[package]]
 name = "alloy-sol-type-parser"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce13ff37285b0870d0a0746992a4ae48efaf34b766ae4c2640fa15e5305f8e73"
+checksum = "1f3d6d2c490f650c5abd65a9a583b09a8c8931c265d3a55b18a8e349dd6d9d84"
 dependencies = [
  "serde",
- "winnow 0.6.20",
+ "winnow 0.6.21",
 ]
 
 [[package]]
 name = "alloy-sol-types"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1174cafd6c6d810711b4e00383037bdb458efc4fe3dbafafa16567e0320c54d8"
+checksum = "c766e4979fc19d70057150befe8e3ea3f0c4cbc6839b8eaaa250803451692305"
 dependencies = [
  "alloy-json-abi",
  "alloy-primitives",
@@ -527,11 +503,7 @@ checksum = "a944f5310c690b62bbb3e7e5ce34527cbd36b2d18532a797af123271ce595a49"
 dependencies = [
  "alloy-json-rpc",
  "alloy-transport",
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "serde_json",
  "tower 0.5.2",
  "tracing",
@@ -625,11 +597,7 @@ dependencies = [
  "proc-macro-error",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -652,8 +620,6 @@ dependencies = [
  "hashbrown 0.13.2",
  "itertools 0.10.5",
  "num-traits",
-<<<<<<< HEAD
-=======
  "zeroize",
 ]
 
@@ -675,7 +641,6 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
  "num-traits",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "zeroize",
 ]
 
@@ -951,8 +916,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94893f1e0c6eeab764ade8dc4c0db24caf4fe7cbbaafc0eba0a9030f447b5185"
 dependencies = [
  "num-traits",
-<<<<<<< HEAD
-=======
  "rand 0.8.5",
 ]
 
@@ -963,7 +926,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "246a225cc6131e9ee4f24619af0f19d67761fff15d7ccc22e42b80846e69449a"
 dependencies = [
  "num-traits",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "rand 0.8.5",
 ]
 
@@ -1012,11 +974,7 @@ checksum = "965c2d33e53cb6b267e148a4cb0760bc01f4904c1cd4bb4002a085bb016d1490"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "synstructure",
 ]
 
@@ -1028,11 +986,7 @@ checksum = "7b18050c2cd6fe86c3a76584ef5e0baf286d038cda203eb6223df2cc413565f7"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1223,11 +1177,7 @@ checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1293,11 +1243,7 @@ checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1314,11 +1260,7 @@ checksum = "721cae7de5c34fbb2acd27e21e6d2cf7b886dce0c27388d46c4e6c47ea4318dd"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1383,11 +1325,7 @@ checksum = "3c87f3f15e7794432337fc718554eaa4dc8f04c9677a950ffe366f20a162ae42"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1558,11 +1496,7 @@ dependencies = [
  "regex",
  "rustc-hash 1.1.0",
  "shlex",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1584,11 +1518,7 @@ dependencies = [
  "regex",
  "rustc-hash 1.1.0",
  "shlex",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "which",
 ]
 
@@ -1607,9 +1537,6 @@ dependencies = [
  "regex",
  "rustc-hash 1.1.0",
  "shlex",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
 ]
 
@@ -1631,7 +1558,6 @@ dependencies = [
  "rustc-hash 2.1.0",
  "shlex",
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -1805,15 +1731,9 @@ dependencies = [
 
 [[package]]
 name = "bon"
-<<<<<<< HEAD
-version = "3.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61030e4aaccae9727cc388843dcc7ad1fb9e1ccdef5571e3e8393976b49b74ce"
-=======
 version = "3.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe7acc34ff59877422326db7d6f2d845a582b16396b6b08194942bf34c6528ab"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 dependencies = [
  "bon-macros",
  "rustversion",
@@ -1821,15 +1741,9 @@ dependencies = [
 
 [[package]]
 name = "bon-macros"
-<<<<<<< HEAD
-version = "3.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67d5d25cc9bd33120702000acc60836db15f06eabc4466230bf79dc80bd0a6ee"
-=======
 version = "3.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4159dd617a7fbc9be6a692fe69dc2954f8e6bb6bb5e4d7578467441390d77fd0"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 dependencies = [
  "darling 0.20.10",
  "ident_case",
@@ -1837,11 +1751,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -2172,11 +2082,7 @@ checksum = "0ae35a282e5f2d15f47ba6fffae5a32e8aa2f254366865339cf326e2e015b8f8"
 dependencies = [
  "cairo-lang-debug",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -2519,9 +2425,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.2.5"
+version = "0.2.5-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "152bd95e64511765b0e09783e56b24b20a9391a10a3e36e73211cb776aaef1af"
+checksum = "5e832d9687639e5e8fa0668d4144896a541b1b7391b9ce20168c674524897a2e"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2565,11 +2471,7 @@ dependencies = [
  "starknet-types-core",
  "stats_alloc",
  "tempfile",
-<<<<<<< HEAD
- "thiserror 1.0.69",
-=======
  "thiserror 2.0.9",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "tracing",
  "tracing-subscriber",
  "utf8_iter",
@@ -2577,9 +2479,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native-runtime"
-version = "0.2.5"
+version = "0.2.5-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e82cc0714a480e0663cc68dd0bd365cf457e17f6e8e51ee1a6c11d6c44905c5"
+checksum = "9d73cacb57dbe06ca622c23e47bbfc48f8b0001fc116eb244ab05c8a7a79bbf9"
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.13.0",
@@ -2661,11 +2563,10 @@ dependencies = [
 
 [[package]]
 name = "caseless"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "808dab3318747be122cb31d36de18d4d1c81277a76f8332a02b81a3d73463d7f"
+checksum = "8b6fd507454086c8edfd769ca6ada439193cdb209c7681712ef6275cccbfe5d8"
 dependencies = [
- "regex",
  "unicode-normalization",
 ]
 
@@ -2677,15 +2578,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-<<<<<<< HEAD
-version = "1.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31a0499c1dc64f458ad13872de75c0eb7e3fdb0e67964610c914b034fc5956e"
-=======
 version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d6dbb628b8f8555f86d0323c2eb39e3ec81901f4b83e091db8a6a76d316a333"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 dependencies = [
  "jobserver",
  "libc",
@@ -2832,11 +2727,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3268,11 +3159,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3320,11 +3207,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "strsim 0.11.1",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3346,11 +3229,7 @@ checksum = "d336a2a514f6ccccaa3e09b02d41d35330c07ddf03a62165fcec10bb561c7806"
 dependencies = [
  "darling_core 0.20.10",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3465,11 +3344,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version 0.4.1",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3489,11 +3364,7 @@ checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "unicode-xid",
 ]
 
@@ -3589,11 +3460,7 @@ checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3674,9 +3541,6 @@ dependencies = [
  "enum-ordinalize",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
 ]
 
@@ -3690,7 +3554,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3775,11 +3638,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3790,11 +3649,7 @@ checksum = "4f4b100e337b021ae69f3e7dd82e230452c54ff833958446c4a3854c66dc9326"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3814,11 +3669,7 @@ checksum = "a1ab991c1362ac86c61ab6f556cff143daa22e5a15e4e189df818b2fd19fe65b"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -3838,11 +3689,7 @@ checksum = "0d28318a75d4aead5c4db25382e8ef717932d0346600cacae6357eb5941bc5ff"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -4018,11 +3865,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "toml",
  "walkdir",
 ]
@@ -4040,11 +3883,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_json",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -4070,11 +3909,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.3",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "tempfile",
  "thiserror 1.0.69",
  "tiny-keccak",
@@ -4549,11 +4384,7 @@ checksum = "162ee34ebcb7c64a8abebc059ce0fee27c2262618d7b60ed8faf72fef13c3650"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -4652,11 +4483,7 @@ checksum = "43eaff6bbc0b3a878361aced5ec6a2818ee7c541c5b33b5880dfa9a86c23e9e7"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -4778,9 +4605,9 @@ dependencies = [
 
 [[package]]
 name = "good_lp"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97630e1e456d7081c524488a87d8f8f7ed0fd3100ba10c55e3cfa7add5ce05c6"
+checksum = "10efcd6c7d6f84cb5b4f9155248e0675deab9cfb92d0edbcb25cb81490b65ae7"
 dependencies = [
  "fnv",
  "microlp",
@@ -4798,11 +4625,7 @@ dependencies = [
  "google-cloud-token",
  "home",
  "jsonwebtoken 9.3.0",
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4818,11 +4641,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04f945a208886a13d07636f38fb978da371d0abc3e34bad338124b9f8c135a8f"
 dependencies = [
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -4847,11 +4666,7 @@ dependencies = [
  "percent-encoding",
  "pkcs8",
  "regex",
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "reqwest-middleware",
  "ring 0.17.8",
  "serde",
@@ -5491,11 +5306,7 @@ checksum = "1ec89e9337638ecdc08744df490b221a7399bf8d164eb52a665454e60e075ad6"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -5662,11 +5473,7 @@ checksum = "a0eb5a3343abf848c0984fe4604b2b105da9539376e24fc0a3b0007411ae4fd9"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -6613,11 +6420,7 @@ dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -6901,11 +6704,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "tblgen-alt",
  "unindent 0.2.3",
 ]
@@ -7003,11 +6802,7 @@ checksum = "38b4faf00617defe497754acde3024865bc143d44a86799b24e191ecff91354f"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -7125,11 +6920,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -7635,11 +7426,7 @@ dependencies = [
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -7735,11 +7522,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -8124,11 +7907,7 @@ dependencies = [
  "papyrus_test_utils",
  "prometheus-parse",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "tracing",
 ]
 
@@ -8533,11 +8312,7 @@ dependencies = [
  "phf_shared 0.11.2",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -8581,11 +8356,7 @@ checksum = "3c0f5fad0874fc7abcd4d750e76917eaebbecaa2c20bde22e1dbeeba8beb758c"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -8786,11 +8557,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64d1ec885c64d0457d564db4ec299b2dae3f9c02808b8ad9c3a089c591b18033"
 dependencies = [
  "proc-macro2",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -8869,11 +8636,7 @@ dependencies = [
  "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -8928,11 +8691,7 @@ checksum = "440f724eba9f6996b75d63681b0a92b06947f1457076d503a4d2e2c8f56442b8"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -8994,11 +8753,7 @@ dependencies = [
  "prost",
  "prost-types",
  "regex",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "tempfile",
 ]
 
@@ -9012,11 +8767,7 @@ dependencies = [
  "itertools 0.12.1",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -9605,15 +9356,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-<<<<<<< HEAD
-version = "0.12.9"
+version = "0.12.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a77c62af46e79de0a562e1a9849205ffcb7fc1238876e9bd743357570e04046f"
-=======
-version = "0.12.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fe060fe50f524be480214aba758c71f99f90ee8c83c5a36b5e9e1d568eb4eb3"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+checksum = "43e734407157c3c2034e0258f5e4473ddb361b1e85f95a66690d67264d7cd1da"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -9662,11 +9407,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "http 1.2.0",
-<<<<<<< HEAD
- "reqwest 0.12.9",
-=======
- "reqwest 0.12.11",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+ "reqwest 0.12.12",
  "serde",
  "thiserror 1.0.69",
  "tower-service",
@@ -9880,11 +9621,7 @@ dependencies = [
  "heck 0.4.1",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10064,15 +9801,9 @@ dependencies = [
 
 [[package]]
 name = "rustversion"
-<<<<<<< HEAD
-version = "1.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e819f2bc632f285be6d7cd36e25940d45b2391dd6d9b939e79de557f7014248"
-=======
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 
 [[package]]
 name = "rusty-fork"
@@ -10142,11 +9873,7 @@ dependencies = [
  "proc-macro-crate 3.2.0",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10180,11 +9907,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10293,30 +10016,15 @@ checksum = "cd0b0ec5f1c1ca621c432a25813d8d60c88abe6d3e08a3eb9cf37d97a0fe3d73"
 
 [[package]]
 name = "serde"
-<<<<<<< HEAD
-version = "1.0.216"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b9781016e935a97e8beecf0c933758c97a5520d32930e460142b4cd80c6338e"
-=======
 version = "1.0.217"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02fc4265df13d6fa1d00ecff087228cc0a2b5f3c0e87e258d8b94a156e984c70"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-<<<<<<< HEAD
-version = "1.0.216"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46f859dbbf73865c6627ed570e78961cd3ac92407a2d117204c49232485da55e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.91",
-=======
 version = "1.0.217"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a9bf7cf98d04a2b28aead066b7496853d4779c9cc183c440dbac457641e19a0"
@@ -10324,7 +10032,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10335,11 +10042,7 @@ checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10383,11 +10086,7 @@ checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10435,11 +10134,7 @@ dependencies = [
  "darling 0.20.10",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -10823,11 +10518,7 @@ checksum = "bbc159a1934c7be9761c237333a57febe060ace2bc9e3b337a59a37af206d19f"
 dependencies = [
  "starknet-curve 0.4.2",
  "starknet-ff",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11515,11 +11206,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11532,11 +11219,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustversion",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11578,15 +11261,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-<<<<<<< HEAD
-version = "2.0.91"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53cbcb5a243bd33b7858b1d7f4aca2153490815872d86d955d6ea29f743c035"
-=======
 version = "2.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c786062daee0d6db1132800e623df74274a0a87322d8e183338e01b3d98d058"
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11595,18 +11272,14 @@ dependencies = [
 
 [[package]]
 name = "syn-solidity"
-version = "0.8.15"
+version = "0.8.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "219389c1ebe89f8333df8bdfb871f6631c552ff399c23cac02480b6088aad8f0"
+checksum = "c74af950d86ec0f5b2ae2d7f1590bbfbcf4603a0a15742d8f98132ac4fe3efd4"
 dependencies = [
  "paste",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11632,11 +11305,7 @@ checksum = "c8af7666ab7b6390ab78131fb5b0fce11d6b7a6951602017c35fa82800708971"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11773,11 +11442,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11788,11 +11453,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "test-case-core",
 ]
 
@@ -11815,11 +11476,7 @@ checksum = "5999e24eaa32083191ba4e425deb75cdf25efefabe5aaccb7446dd0d4122a3f5"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11848,11 +11505,7 @@ checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -11863,11 +11516,7 @@ checksum = "7b50fa271071aae2e6ee85f842e2e28ba8cd2c5fb67f11fcb1fd70b276f9e7d4"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -12032,11 +11681,7 @@ checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -12166,7 +11811,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow 0.6.20",
+ "winnow 0.6.21",
 ]
 
 [[package]]
@@ -12200,10 +11845,7 @@ dependencies = [
  "futures-util",
  "pin-project-lite",
  "sync_wrapper 1.0.2",
-<<<<<<< HEAD
-=======
  "tokio",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "tower-layer",
  "tower-service",
 ]
@@ -12240,11 +11882,7 @@ checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -12327,11 +11965,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04659ddb06c87d233c566112c1c9c5b9e98256d9af50ec3bc9c8327f873a7568"
 dependencies = [
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -12713,11 +12347,7 @@ dependencies = [
  "log",
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "wasm-bindgen-shared",
 ]
 
@@ -12752,11 +12382,7 @@ checksum = "30d7a95b763d3c45903ed6c81f156801839e5ee968bb07e534c44df0fcd330c2"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -13177,9 +12803,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.6.20"
+version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
+checksum = "e6f5bb5257f2407a5425c6e749bfd9692192a73e70a6060516ac04f889087d68"
 dependencies = [
  "memchr",
 ]
@@ -13384,11 +13010,7 @@ checksum = "2380878cad4ac9aac1e2435f3eb4020e8374b5f13c296cb75b4620ff8e229154"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "synstructure",
 ]
 
@@ -13410,11 +13032,7 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -13434,11 +13052,7 @@ checksum = "595eed982f7d355beb85837f651fa22e90b3c044842dc7f2c2842c086f295808"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
  "synstructure",
 ]
 
@@ -13459,11 +13073,7 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
@@ -13485,11 +13095,7 @@ checksum = "6eafa6dfb17584ea3e2bd6e76e0cc15ad7af12b09abdd1ca55961bed9b1063c6"
 dependencies = [
  "proc-macro2",
  "quote",
-<<<<<<< HEAD
- "syn 2.0.91",
-=======
  "syn 2.0.93",
->>>>>>> db3e7c164 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
 ]
 
 [[package]]
