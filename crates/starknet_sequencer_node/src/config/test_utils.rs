@@ -1,6 +1,11 @@
 use std::collections::{BTreeMap, HashSet};
 
-use papyrus_config::dumping::{combine_config_map_and_pointers, ser_param, SerializeConfig};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    combine_config_map_and_pointers,
+    ser_param,
+    SerializeConfig,
+};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
@@ -18,6 +23,7 @@ pub struct RequiredParams {
     pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
+    pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
 }
 
 impl SerializeConfig for RequiredParams {
@@ -49,7 +55,10 @@ impl SerializeConfig for RequiredParams {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        vec![members].into_iter().flatten().collect()
+        vec![members, append_sub_config_name(self.base_layer_config.dump(), "base_layer_config")]
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 
@@ -61,6 +70,9 @@ impl RequiredParams {
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
             recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
+            base_layer_config: EthereumBaseLayerConfigRequiredParams {
+                node_url: Url::parse("https://node_url").expect("The URL is valid"),
+            },
         }
     }
 
@@ -99,6 +111,22 @@ pub fn create_test_config_load_args(required_params: RequiredParams) -> Vec<Stri
     let mut cli_args = vec![node_command().to_string()];
     cli_args.extend(required_params.cli_args());
     cli_args
+}
+
+#[derive(Serialize)]
+pub struct EthereumBaseLayerConfigRequiredParams {
+    pub node_url: Url,
+}
+
+impl SerializeConfig for EthereumBaseLayerConfigRequiredParams {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "node_url",
+            &self.node_url,
+            "Placeholder.",
+            ParamPrivacyInput::Public,
+        )])
+    }
 }
 
 /// Transforms a nested JSON dictionary object into a simplified JSON dictionary object by
