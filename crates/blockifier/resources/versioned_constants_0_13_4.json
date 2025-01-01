@@ -317,7 +317,7 @@
                 "n_memory_holes": 0
             },
             "KeccakRound": {
-                "n_steps": 381,
+                "n_steps": 281,
                 "builtin_instance_counter": {
                     "bitwise_builtin": 6,
                     "keccak_builtin": 1,
@@ -326,7 +326,7 @@
                 "n_memory_holes": 0
             },
             "Keccak": {
-                "n_steps": 0,
+                "n_steps": 100,
                 "builtin_instance_counter": {},
                 "n_memory_holes": 0
             },
