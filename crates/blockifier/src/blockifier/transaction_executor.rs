@@ -137,6 +137,7 @@ impl<S: StateReader> TransactionExecutor<S> {
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
         let mut results = Vec::new();
         for tx in txs {
+            log::error!("Executing transaction: {:?}", tx);
             match self.execute(tx) {
                 Ok(tx_execution_info) => results.push(Ok(tx_execution_info)),
                 Err(TransactionExecutorError::BlockFull) => break,
