@@ -5,9 +5,11 @@ use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::num::NonZeroUsize;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
+use lru::LruCache;
 use papyrus_network::network_manager::{
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
@@ -26,7 +28,9 @@ mod stream_handler_test;
 type PeerId = OpaquePeerId;
 type MessageId = u64;
 
+// TODO(guyn): add all of these to the config
 const CHANNEL_BUFFER_LENGTH: usize = 100;
+const MAX_STREAMS_PER_PEER: NonZeroUsize = NonZeroUsize::new(10).unwrap();
 
 /// A combination of trait bounds needed for the content of the stream.
 pub trait StreamContentTrait:
@@ -105,10 +109,10 @@ pub struct StreamHandler<StreamContent: StreamContentTrait, StreamId: StreamIdTr
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
     // This receives messages from the network.
     inbound_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
-    // A map from (peer_id, stream_id) to a struct that contains all the information
+    // A map from peer_id and stream_id to a struct that contains all the information
     // about the stream. This includes both the message buffer and some metadata
-    // (like the latest message ID).
-    inbound_stream_data: HashMap<(PeerId, StreamId), StreamData<StreamContent, StreamId>>,
+    // (like the latest message ID). The mapping is {peer_id: {stream_id: StreamData}}.
+    inbound_stream_data: HashMap<PeerId, LruCache<StreamId, StreamData<StreamContent, StreamId>>>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
@@ -313,19 +317,34 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
 
         let peer_id = metadata.originator_id.clone();
         let stream_id = message.stream_id.clone();
-        let key = (peer_id, stream_id);
 
-        let data = match self.inbound_stream_data.entry(key.clone()) {
+        let data = match self.inbound_stream_data.entry(peer_id.clone()) {
             // If data exists, remove it (it will be returned to hash map at end of function).
-            Occupied(entry) => entry.remove_entry().1,
+            Occupied(mut entry) => {
+                // If we received a message for a stream_id that we have not seen before,
+                // we need to create a new receiver for it.
+                let data = entry.get_mut().pop(&stream_id).unwrap_or_else(|| StreamData::new());
+                // If the Lru cache is left empty, remove it.
+                if entry.get().is_empty() {
+                    entry.remove();
+                }
+                data
+            }
             Vacant(_) => {
-                // If we received a message for a stream that we have not seen before,
+                // If we received a message for a peer_id that we have not seen before,
                 // we need to create a new receiver for it.
                 StreamData::new()
             }
         };
         if let Some(data) = self.handle_message_inner(message, metadata, data) {
-            self.inbound_stream_data.insert(key, data);
+            let existing_data = self
+                .inbound_stream_data
+                .entry(peer_id)
+                .or_insert_with(|| LruCache::new(MAX_STREAMS_PER_PEER))
+                .put(stream_id, data);
+            if existing_data.is_some() {
+                panic!("This stream data should have been removed from the cache!");
+            }
         }
     }
 
