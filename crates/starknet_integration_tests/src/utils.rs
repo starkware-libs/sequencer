@@ -32,7 +32,10 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
-use starknet_sequencer_node::config::test_utils::RequiredParams;
+use starknet_sequencer_node::config::test_utils::{
+    EthereumBaseLayerConfigRequiredParams,
+    RequiredParams,
+};
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use url::Url;
@@ -89,7 +92,10 @@ pub async fn create_node_config(
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
             // TODO(dvir): change this to real value when add recorder to integration tests.
-            recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
+            recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
+            base_layer_config: EthereumBaseLayerConfigRequiredParams {
+                node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+            },
         },
     )
 }

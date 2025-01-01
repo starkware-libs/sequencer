@@ -6,6 +6,7 @@ use std::vec::Vec;
 
 use clap::Command;
 use infra_utils::path::resolve_project_relative_path;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -120,6 +121,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub components: ComponentConfig,
     #[validate]
+    pub base_layer_config: EthereumBaseLayerConfig,
+    #[validate]
     pub batcher_config: BatcherConfig,
     #[validate]
     pub consensus_manager_config: ConsensusManagerConfig,
@@ -143,6 +146,7 @@ impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
+            append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
             append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(
                 self.consensus_manager_config.dump(),

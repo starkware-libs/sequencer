@@ -10741,6 +10741,7 @@ dependencies = [
  "futures",
  "infra_utils",
  "mempool_test_utils",
+ "papyrus_base_layer",
  "papyrus_config",
  "papyrus_protobuf",
  "pretty_assertions",
