@@ -16,7 +16,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use prost::DecodeError;
 
-use super::{MessageId, StreamHandler};
+use super::{MessageId, StreamHandler, MAX_STREAMS_PER_PEER};
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
@@ -56,12 +56,13 @@ impl Ord for TestStreamId {
 
 impl Display for TestStreamId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TestStreamId({})", self.0)
+        self.0.fmt(f)
     }
 }
 
-#[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use papyrus_protobuf::consensus::{IntoFromProto, ProposalInit, ProposalPart};
 
     use super::*;
@@ -74,6 +75,18 @@ mod tests {
         let content = match fin {
             true => StreamMessageBody::Fin,
             false => StreamMessageBody::Content(ProposalPart::Init(ProposalInit::default())),
+        };
+        StreamMessage { message: content, stream_id, message_id }
+    }
+
+    fn make_test_message_with_stream_id(
+        stream_id: TestStreamId,
+        message_id: MessageId,
+        fin: bool,
+    ) -> StreamMessage<TestStreamId, TestStreamId> {
+        let content = match fin {
+            true => StreamMessageBody::Fin,
+            false => StreamMessageBody::Content(stream_id),
         };
         StreamMessage { message: content, stream_id, message_id }
     }
@@ -225,21 +238,31 @@ mod tests {
 
         assert_eq!(stream_handler.inbound_stream_data.len(), 1);
         assert_eq!(
-            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id)
+                .unwrap()
+                .message_buffer
+                .len(),
             5
         );
         // Still waiting for message 0.
         assert_eq!(
-            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].next_message_id,
+            stream_handler.inbound_stream_data[&peer_id].peek(&stream_id).unwrap().next_message_id,
             0
         );
         // Has a receiver, waiting to be sent when message 0 is received.
         assert!(
-            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].receiver.is_some()
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id)
+                .unwrap()
+                .receiver
+                .is_some()
         );
 
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> = stream_handler.inbound_stream_data[&(peer_id, stream_id)]
+        let keys: Vec<u64> = stream_handler.inbound_stream_data[&peer_id]
+            .peek(&stream_id)
+            .unwrap()
             .message_buffer
             .keys()
             .copied()
@@ -312,18 +335,16 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        let values = [
-            (peer_id.clone(), TestStreamId(1)),
-            (peer_id.clone(), TestStreamId(10)),
-            (peer_id.clone(), TestStreamId(127)),
-        ];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        let values = [TestStreamId(1), TestStreamId(10), TestStreamId(127)];
+        for item in values {
+            assert!(stream_handler.inbound_stream_data[&peer_id].contains(&item));
+        }
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match_unordered(
-            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id1)]
+            &stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id1)
+                .unwrap()
                 .message_buffer
                 .keys()
                 .copied()
@@ -333,7 +354,9 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match_unordered(
-            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id2)]
+            &stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id2)
+                .unwrap()
                 .message_buffer
                 .keys()
                 .copied()
@@ -343,7 +366,9 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match_unordered(
-            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id3)]
+            &stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id3)
+                .unwrap()
                 .message_buffer
                 .keys()
                 .copied()
@@ -374,11 +399,10 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // stream_id1 should be gone
-        let values = [(peer_id.clone(), TestStreamId(1)), (peer_id.clone(), TestStreamId(10))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
-
+        let values = [TestStreamId(1), TestStreamId(10)];
+        for item in values {
+            assert!(stream_handler.inbound_stream_data[&peer_id].contains(&item));
+        }
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
 
@@ -400,10 +424,7 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Stream_id2 should also be gone.
-        let values = [(peer_id.clone(), TestStreamId(1))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        assert!(stream_handler.inbound_stream_data[&peer_id].contains(&TestStreamId(1)));
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
@@ -424,15 +445,91 @@ mod tests {
         }
 
         // Stream_id3 should still be there, because we didn't send a fin.
-        let values = [(peer_id.clone(), TestStreamId(1))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        assert!(stream_handler.inbound_stream_data[&peer_id].contains(&TestStreamId(1)));
 
         // But the buffer should be empty, as we've successfully drained it all.
         assert!(
-            stream_handler.inbound_stream_data[&(peer_id, stream_id3)].message_buffer.is_empty()
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&TestStreamId(1))
+                .unwrap()
+                .message_buffer
+                .is_empty()
         );
+    }
+
+    #[tokio::test]
+    async fn inbound_max_streams_per_peer() {
+        let (
+            mut stream_handler,
+            mut network_sender,
+            mut inbound_channel_receiver,
+            inbound_metadata,
+            _,
+            _,
+        ): (_, _, mpsc::Receiver<mpsc::Receiver<TestStreamId>>, _, _, _) = setup_test();
+
+        // Send too many streams from the same peer. Send messages 1 to 3 on all channels.
+        // Note that message 3 is Fin and doesn't get to the receiver (it closes it!).
+        // Channel 0 is the last one sent, so it should be dropped when reaching the last channel.
+        // Then send 0 on all channels, in reverse order, which will release the buffered messages.
+        // Sending in reverse order of streams will mean none of the streams 1 to
+        // MAX_STREAMS_PER_PEER will get dropped. When stream 0 gets message 0,
+        // it will be a new stream (dropping stream number MAX_STREAMS_PER_PEER) but
+        // it will only have message 0, we will not get messages 1 and 2.
+        let stream_ids = (0..u64::try_from(MAX_STREAMS_PER_PEER.get()).unwrap() + 1)
+            .map(TestStreamId)
+            .collect::<Vec<_>>();
+
+        for stream_id in stream_ids.iter() {
+            for i in 0..3 {
+                let message = make_test_message_with_stream_id(*stream_id, 3 - i, i == 0);
+                send(&mut network_sender, &inbound_metadata, message).await;
+            }
+        }
+        for stream_id in stream_ids.iter().rev() {
+            let message = make_test_message_with_stream_id(*stream_id, 0, false);
+            send(&mut network_sender, &inbound_metadata, message).await;
+        }
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let _stream_handler = join_handle.await.expect("Task should succeed");
+
+        let mut message_count = HashMap::new();
+        let mut stream_state = HashMap::new();
+        for _ in stream_ids.iter() {
+            // Get the receiver for each stream.
+            let mut receiver = inbound_channel_receiver.next().await.unwrap();
+            let mut stream_id = u64::MAX;
+            for _ in 0..3 {
+                // Make sure each channel sends the correct stream_id.
+                if let Ok(Some(message)) = receiver.try_next() {
+                    stream_id = message.0;
+                    message_count.entry(stream_id).and_modify(|e| *e += 1).or_insert(1);
+                }
+            }
+            stream_state.insert(stream_id, receiver.try_next());
+        }
+
+        // What should become of the each stream?
+        for stream_id in stream_ids.iter() {
+            match stream_id.0 {
+                0 => {
+                    // This stream was reopened, but it should only have one message, and left open.
+                    assert_eq!(message_count[&0], 1);
+                    assert!(stream_state[&0].is_err());
+                }
+                id => {
+                    // The rest of the channels should have successfully received all three
+                    // messages, and closed after receiving the Fin message.
+                    assert_eq!(message_count[&id], 3);
+                    assert!(matches!(stream_state[&id], Ok(None)));
+                }
+            }
+        }
     }
 
     #[tokio::test]
@@ -461,10 +558,7 @@ mod tests {
 
         // Check that the stream handler contains the StreamData.
         assert_eq!(stream_handler.inbound_stream_data.len(), 1);
-        assert_eq!(
-            stream_handler.inbound_stream_data.keys().next().unwrap(),
-            &(metadata.originator_id.clone(), stream_id)
-        );
+        assert!(stream_handler.inbound_stream_data[&metadata.originator_id].contains(&stream_id));
 
         // Close the channel.
         drop(receiver);
