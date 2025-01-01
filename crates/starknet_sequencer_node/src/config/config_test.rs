@@ -5,7 +5,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use assert_matches::assert_matches;
 use colored::Colorize;
-use papyrus_config::dumping::SerializeConfig;
+use papyrus_config::test_utils::assert_default_config_file_is_up_to_date;
 use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
@@ -92,44 +92,20 @@ fn test_valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
-// TODO(Arni): share code with
-// `papyrus_node::config::config_test::default_config_file_is_up_to_date`.
 /// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
 /// cargo run --bin sequencer_dump_config -q
 #[test]
 fn test_default_config_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-    let from_default_config_file: serde_json::Value =
-        serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
-
-    // Create a temporary file and dump the default config to it.
-    let mut tmp_file_path = env::temp_dir();
-    tmp_file_path.push("cfg.json");
-    SequencerNodeConfig::default()
-        .dump_to_file(
-            &CONFIG_POINTERS,
-            &CONFIG_NON_POINTERS_WHITELIST,
-            tmp_file_path.to_str().unwrap(),
-        )
-        .unwrap();
-
-    // Read the dumped config from the file.
-    let from_code: serde_json::Value =
-        serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
-
-    let error_message = format!(
-        "{}\n{}",
-        "Default config file doesn't match the default SequencerNodeConfig implementation. Please \
-         update it using the sequencer_dump_config binary."
-            .purple()
-            .bold(),
-        "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
+    assert_default_config_file_is_up_to_date::<SequencerNodeConfig>(
+        "sequencer_dump_config",
+        DEFAULT_CONFIG_PATH,
+        &CONFIG_POINTERS,
+        &CONFIG_NON_POINTERS_WHITELIST,
     );
-    assert_json_eq(&from_default_config_file, &from_code, error_message);
 }
 
+// TODO(Arni): Consider using [assert_default_config_file_is_up_to_date] for this test's test body.
 /// Test that the default preset config file is up to date.
 #[test]
 fn test_default_preset_file_is_up_to_date() {
