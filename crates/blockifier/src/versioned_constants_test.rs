@@ -46,18 +46,32 @@ fn test_versioned_constants_overrides() {
     let updated_invoke_tx_max_n_steps = versioned_constants.invoke_tx_max_n_steps + 1;
     let updated_validate_max_n_steps = versioned_constants.validate_max_n_steps + 1;
     let updated_max_recursion_depth = versioned_constants.max_recursion_depth + 1;
+    let updated_max_cairo_native_stack_size =
+        versioned_constants.cairo_native_stack_config.max_stack_size + 1;
+    let updated_min_cairo_native_stack_red_zone =
+        versioned_constants.cairo_native_stack_config.min_stack_red_zone + 1;
 
     // Create a versioned constants copy with overriden values.
     let result = VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
         validate_max_n_steps: updated_validate_max_n_steps,
         max_recursion_depth: updated_max_recursion_depth,
         invoke_tx_max_n_steps: updated_invoke_tx_max_n_steps,
+        max_cairo_native_stack_size: updated_max_cairo_native_stack_size,
+        min_cairo_native_stack_red_zone: updated_min_cairo_native_stack_red_zone,
     });
 
     // Assert the new values are used.
     assert_eq!(result.invoke_tx_max_n_steps, updated_invoke_tx_max_n_steps);
     assert_eq!(result.validate_max_n_steps, updated_validate_max_n_steps);
     assert_eq!(result.max_recursion_depth, updated_max_recursion_depth);
+    assert_eq!(
+        result.cairo_native_stack_config.max_stack_size,
+        updated_max_cairo_native_stack_size
+    );
+    assert_eq!(
+        result.cairo_native_stack_config.min_stack_red_zone,
+        updated_min_cairo_native_stack_red_zone
+    );
 }
 
 #[test]
