@@ -2,11 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
+use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -390,7 +392,6 @@ impl Batcher {
             transaction_hashes,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
         } = sync_block;
-        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         let tx_hashes = transaction_hashes.into_iter().collect();
         let height = self.get_height_from_storage()?;
         if height != block_number {
@@ -400,7 +401,7 @@ impl Batcher {
             );
         }
 
-        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
+        self.commit_proposal_and_block(height, state_diff, tx_hashes).await
     }
 
     #[instrument(skip(self), err)]
@@ -415,30 +416,53 @@ impl Batcher {
         let block_execution_artifacts = proposal_result
             .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
             .map_err(|_| BatcherError::InternalError)?;
-        let state_diff = block_execution_artifacts.state_diff();
+        let BlockExecutionArtifacts { l2_gas_used, execution_infos, mut state_diff, .. } =
+            block_execution_artifacts;
+        self.finalize_state_diff(&mut state_diff)?;
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
-            block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.tx_hashes(),
+            execution_infos.keys().copied().collect(),
         )
         .await?;
-        Ok(DecisionReachedResponse {
-            state_diff,
-            l2_gas_used: block_execution_artifacts.l2_gas_used,
-        })
+        Ok(DecisionReachedResponse { state_diff, l2_gas_used })
+    }
+
+    /// Finalizes the state diff by separating the deployed contracts from the replaced classes and
+    /// sorting the state diff fields.
+    fn finalize_state_diff(&self, state_diff: &mut ThinStateDiff) -> BatcherResult<()> {
+        let mut replaced_classes = IndexMap::new();
+        let mut deployed_contracts = IndexMap::new();
+        for (address, class_hash) in state_diff.deployed_contracts.clone() {
+            if self.storage_reader.address_is_assigned(address).map_err(|err| {
+                error!("Get class hash from storage failed: {}", err);
+                BatcherError::InternalError
+            })? {
+                replaced_classes.insert(address, ClassHash(class_hash.0));
+            } else {
+                deployed_contracts.insert(address, ClassHash(class_hash.0));
+            }
+        }
+        deployed_contracts.sort_keys();
+        replaced_classes.sort_keys();
+        state_diff.deployed_contracts = deployed_contracts;
+        state_diff.replaced_classes = replaced_classes;
+        state_diff.storage_diffs.sort_keys();
+        state_diff.declared_classes.sort_keys();
+        state_diff.nonces.sort_keys();
+        Ok(())
     }
 
     async fn commit_proposal_and_block(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-        address_to_nonce: HashMap<ContractAddress, Nonce>,
         tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
         info!("Committing block at height {} and notifying mempool of the block.", height);
         trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
 
+        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         // Commit the proposal to the storage and notify the mempool.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
@@ -522,7 +546,9 @@ impl Batcher {
         let guard = self.executed_proposals.lock().await;
         let proposal_result = guard.get(&proposal_id);
         match proposal_result {
-            Some(Ok(artifacts)) => Some(Ok(artifacts.commitment())),
+            Some(Ok(artifacts)) => Some(Ok(ProposalCommitment {
+                state_diff_commitment: calculate_state_diff_hash(&artifacts.state_diff),
+            })),
             Some(Err(e)) => Some(Err(e.clone())),
             None => None,
         }
@@ -575,11 +601,27 @@ pub fn create_batcher(
 pub trait BatcherStorageReaderTrait: Send + Sync {
     /// Returns the next height that the batcher should work on.
     fn height(&self) -> papyrus_storage::StorageResult<BlockNumber>;
+
+    /// Returns whether the given address is assigned to a contract.
+    fn address_is_assigned(&self, address: ContractAddress)
+    -> papyrus_storage::StorageResult<bool>;
 }
 
 impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
     fn height(&self) -> papyrus_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn address_is_assigned(
+        &self,
+        address: ContractAddress,
+    ) -> papyrus_storage::StorageResult<bool> {
+        let state_number = starknet_api::state::StateNumber(self.height()?);
+        Ok(self
+            .begin_ro_txn()?
+            .get_state_reader()?
+            .get_class_hash_at(state_number, &address)?
+            .is_some())
     }
 }
 
