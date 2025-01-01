@@ -575,8 +575,7 @@ fn test_commit_block_includes_all_proposed_txs() {
 
     // Test.
     let nonces = [("0x0", 4), ("0x1", 3)];
-    let tx_hashes = [1, 4];
-    commit_block(&mut mempool, nonces, tx_hashes);
+    commit_block(&mut mempool, nonces, []);
 
     // Assert.
     let pool_txs =
