@@ -2,13 +2,23 @@ use std::vec::Vec; // Used by #[gen_field_names_fn].
 
 use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use serde::Serialize;
+use serde_json::{to_value, Value};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 
 use crate::config::node_config::node_command;
 
+// Macro to convert a serializable struct to a JSON object.
+macro_rules! to_json {
+    ($struct:expr) => {
+        to_value($struct).unwrap()
+    };
+}
+
 /// Required parameters utility struct.
 #[gen_field_names_and_cli_args_fn]
+#[derive(Serialize)]
 pub struct RequiredParams {
     pub chain_id: ChainId,
     pub eth_fee_token_address: ContractAddress,
@@ -26,6 +36,10 @@ impl RequiredParams {
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
             recorder_url: Url::parse("https://recorder_url").expect("The URL is valid"),
         }
+    }
+
+    pub fn as_json(&self) -> Value {
+        to_json!(self)
     }
 }
 
