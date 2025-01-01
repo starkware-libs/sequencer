@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use blockifier::bouncer::{BouncerWeights, BuiltinCount};
 use indexmap::indexmap;
 use rstest::rstest;
 use serde_json::Value;
@@ -56,6 +57,7 @@ pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
 pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx.json";
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
+pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
 
 fn central_state_diff_json() -> Value {
     let state_diff = ThinStateDiff {
@@ -240,12 +242,30 @@ fn central_l1_handler_tx_json() -> Value {
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
+fn central_bouncer_weights_json() -> Value {
+    let bouncer_weights = BouncerWeights {
+        builtin_count: BuiltinCount {
+            pedersen: 4948,
+            poseidon: 54,
+            range_check: 2301,
+            ..BuiltinCount::empty()
+        },
+        n_events: 2,
+        n_steps: 121095,
+        state_diff_size: 45,
+        ..BouncerWeights::empty()
+    };
+
+    serde_json::to_value(bouncer_weights).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
 #[case::deploy_account_tx(central_deploy_account_tx_json(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
 #[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
 #[case::l1_handler_tx(central_l1_handler_tx_json(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
+#[case::bouncer_weights(central_bouncer_weights_json(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
