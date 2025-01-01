@@ -1522,7 +1522,8 @@ fn declare_validate_callinfo(
                     .os_constants
                     .gas_costs
                     .base
-                    .entry_point_initial_budget - DECLARE_REDEPOSIT_AMOUNT
+                    .entry_point_initial_budget
+                    - DECLARE_REDEPOSIT_AMOUNT
             }
         };
         expected_validate_call_info(
@@ -1578,7 +1579,6 @@ fn test_declare_tx(
     #[case] empty_contract_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
-
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
     let empty_contract = FeatureContract::Empty(empty_contract_version);
