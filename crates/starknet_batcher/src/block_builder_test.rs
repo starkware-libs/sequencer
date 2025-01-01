@@ -52,6 +52,7 @@ fn block_execution_artifacts(
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_infos,
+        rejected_tx_hashes: Default::default(),
         commitment_state_diff: Default::default(),
         visited_segments_mapping: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
