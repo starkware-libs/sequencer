@@ -323,6 +323,7 @@ async fn spawn_sync_client(
 fn spawn_p2p_sync_server(
     network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
+    class_manager_client: SharedClassManagerClient,
 ) -> JoinHandle<anyhow::Result<()>> {
     let Some(network_manager) = network_manager else {
         info!("P2p Sync is disabled.");
@@ -348,7 +349,8 @@ fn spawn_p2p_sync_server(
         event_server_receiver,
     );
 
-    let p2p_sync_server = P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+    let p2p_sync_server =
+        P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels, class_manager_client);
     tokio::spawn(async move {
         p2p_sync_server.run().await;
         Ok(())
@@ -411,6 +413,7 @@ async fn run_threads(
         spawn_p2p_sync_server(
             resources.maybe_network_manager.as_mut(),
             resources.storage_reader.clone(),
+            resources.class_manager_client.clone(),
         )
     };
 

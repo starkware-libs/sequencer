@@ -28,6 +28,7 @@ starknet_state_sync_types.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 starknet_class_manager_types.workspace = true
+async-trait.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
 tracing.workspace = true
