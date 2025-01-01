@@ -1,6 +1,6 @@
+use std::collections::HashSet;
 use std::vec::Vec; // Used by #[gen_field_names_fn].
 
-use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
 use serde_json::{to_value, Value};
@@ -10,7 +10,6 @@ use url::Url;
 use crate::config::node_config::node_command;
 
 /// Required parameters utility struct.
-#[gen_field_names_and_cli_args_fn]
 #[derive(Serialize)]
 pub struct RequiredParams {
     pub chain_id: ChainId,
@@ -33,6 +32,28 @@ impl RequiredParams {
 
     pub fn as_json(&self) -> Value {
         to_value(self).unwrap()
+    }
+
+    pub fn cli_args(&self) -> Vec<String> {
+        let self_as_json = self.as_json();
+        if let Value::Object(map) = self_as_json {
+            map.iter()
+                .flat_map(|(key, value)| {
+                    vec![format!("--{}", key), value.to_string().trim_matches('"').to_string()]
+                })
+                .collect()
+        } else {
+            panic!("Required params are not a JSON map object: {:?}", self_as_json);
+        }
+    }
+
+    pub fn field_names(&self) -> HashSet<String> {
+        let self_as_json = self.as_json();
+        if let Value::Object(map) = self_as_json {
+            map.keys().cloned().collect()
+        } else {
+            panic!("Required params are not a JSON map object: {:?}", self_as_json);
+        }
     }
 }
 

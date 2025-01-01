@@ -10739,7 +10739,6 @@ dependencies = [
  "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
- "papyrus_proc_macros",
  "papyrus_protobuf",
  "pretty_assertions",
  "rstest",
