@@ -1,4 +1,5 @@
 use indexmap::{IndexMap, IndexSet};
+use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -10,6 +11,7 @@ use crate::{L1Provider, ProviderState, TransactionManager};
 pub struct L1ProviderContent {
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
+    current_height: BlockNumber,
 }
 
 impl From<L1ProviderContent> for L1Provider {
@@ -20,6 +22,7 @@ impl From<L1ProviderContent> for L1Provider {
                 .map(|tm_content| tm_content.complete_to_tx_manager())
                 .unwrap_or_default(),
             state: content.state.unwrap_or_default(),
+            current_height: content.current_height,
         }
     }
 }
@@ -58,6 +61,7 @@ impl L1ProviderContentBuilder {
         L1ProviderContent {
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
+            ..Default::default()
         }
     }
 

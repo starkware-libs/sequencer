@@ -23,8 +23,8 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
     #[instrument(skip(self))]
     async fn handle_request(&mut self, request: L1ProviderRequest) -> L1ProviderResponse {
         match request {
-            L1ProviderRequest::GetTransactions(n_txs) => {
-                L1ProviderResponse::GetTransactions(self.get_txs(n_txs))
+            L1ProviderRequest::GetTransactions { n_txs, height } => {
+                L1ProviderResponse::GetTransactions(self.get_txs(n_txs, height))
             }
         }
     }
