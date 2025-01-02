@@ -8,15 +8,14 @@ node:
   concurrentFgRequests: 50
 
 # Ethereum node URL. A value for this variable is mandatory.
-base_layer_node_url: https://sepolia.infura.io/v3/02d1979ac909443b938cfc740f19708f
+base_layer_node_url: https://mainnet.infura.io/v3/02d1979ac909443b938cfc740f19708f
 
 # possible values: "StateOnly" and "FullArchive".
-storage_scope:
-  StateOnly
+storage_scope: StateOnly
 
 starknet:
   # possible values: "mainnet.json, sepolia_testnet" and "sepolia_integration".
-  preset: sepolia_integration.json
+  preset: mainnet.json
 
 deployment:
   # Supported values: deployment, statefulset
@@ -34,7 +33,7 @@ deployment:
   # --->  config/
   #       Chart.yaml
   #       values.yaml
-  configFile: sepolia_integration.json
+  # configFile: mainnet.json
 
   # The container's pullPolicy
   pullPolicy: Always
@@ -92,11 +91,13 @@ deployment:
       memory: 6Gi
 
   ## Optionally specify extra environment variables to add to papyrus container
-  env: []
+  env:
+    []
     # - name: FOO
     #   value: BAR
 
-  extraArgs: {} # Optional additional deployment args
+  extraArgs:
+    {} # Optional additional deployment args
     # foo: "bar"
 
 # Service variables for a papyrus pod.
@@ -159,10 +160,10 @@ ingress:
 # This is relevant for Grafana Operator users https://grafana.github.io/grafana-operator/docs/
 grafanaDashboard:
   # Should the GrafanaDashboard object be installed
-  enabled: true
+  enabled: false
 
 grafanaAlerts:
-  enabled: true
+  enabled: false
 
 # Backup mode
 backup:
