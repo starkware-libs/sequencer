@@ -15,8 +15,6 @@ use tracing::info;
 
 use crate::monitoring_endpoint::{ALIVE, METRICS, MONITORING_PREFIX};
 
-// TODO(Tsabary): rename IsAliveClient to MonitoringClient.
-
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum MonitoringClientError {
     #[error("Failed to connect, error details: {}", connection_error)]
@@ -28,12 +26,12 @@ pub enum MonitoringClientError {
 }
 
 /// Client for querying 'alive' status of an http server.
-pub struct IsAliveClient {
+pub struct MonitoringClient {
     socket: SocketAddr,
     client: Client<HttpConnector>,
 }
 
-impl IsAliveClient {
+impl MonitoringClient {
     pub fn new(socket: SocketAddr) -> Self {
         let client = Client::new();
         Self { socket, client }
