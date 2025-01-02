@@ -3,7 +3,7 @@ use infra_utils::tracing::{CustomLogger, TraceLevel};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::StorageReader;
+use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -21,6 +21,7 @@ use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    create_state_sync_configs,
     send_account_txs,
 };
 
@@ -171,6 +172,12 @@ pub async fn get_sequencer_setup_configs(
     let ports = available_ports.get_next_ports(n_distributed_sequencers);
     let mut mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
 
+    let mut state_sync_configs = create_state_sync_configs(
+        n_distributed_sequencers,
+        StorageConfig::default(),
+        &mut available_ports,
+    );
+
     let mut sequencers = vec![];
     for (sequencer_id, node_composition) in component_configs.iter().enumerate() {
         for component_config in node_composition {
@@ -184,6 +191,7 @@ pub async fn get_sequencer_setup_configs(
                 chain_info.clone(),
                 consensus_manager_config,
                 mempool_p2p_config,
+                state_sync_configs.remove(0),
                 &mut available_ports,
                 component_config.clone(),
             )

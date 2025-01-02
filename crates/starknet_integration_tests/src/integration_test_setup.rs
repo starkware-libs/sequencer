@@ -14,6 +14,7 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tracing::instrument;
 
@@ -48,6 +49,7 @@ pub struct SequencerSetup {
 }
 
 impl SequencerSetup {
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
@@ -55,11 +57,14 @@ impl SequencerSetup {
         chain_info: ChainInfo,
         consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
+        mut state_sync_config: StateSyncConfig,
         available_ports: &mut AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+
+        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
@@ -67,7 +72,7 @@ impl SequencerSetup {
             sequencer_index,
             chain_info,
             storage_for_test.batcher_storage_config,
-            storage_for_test.state_sync_storage_config,
+            state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
             component_config,
