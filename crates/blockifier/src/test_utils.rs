@@ -6,6 +6,7 @@ pub mod l1_handler;
 pub mod prices;
 pub mod struct_impls;
 pub mod syscall;
+pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
