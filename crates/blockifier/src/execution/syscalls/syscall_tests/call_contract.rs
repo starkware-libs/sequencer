@@ -6,12 +6,12 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
+use starknet_api::{felt, invoke_tx_args};
 use test_case::test_case;
 
 use super::constants::REQUIRED_GAS_CALL_CONTRACT_TEST;
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
@@ -27,6 +27,8 @@ use crate::test_utils::{
     RunnableCairo1,
     BALANCE,
 };
+use crate::transaction::test_utils::{default_all_resource_bounds, invoke_tx_with_default_flags};
+use crate::transaction::transactions::ExecutableTransaction;
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm;"VM")]
@@ -373,4 +375,33 @@ fn test_tracked_resources_nested(
     let second_inner_call = main_call_info.inner_calls.get(1).unwrap();
     assert_eq!(second_inner_call.tracked_resource, TrackedResource::SierraGas);
     assert_ne!(second_inner_call.execution.gas_consumed, 0);
+}
+
+#[rstest]
+#[case(RunnableCairo1::Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native))]
+fn test_empty_function_flow(#[case] runnable: RunnableCairo1) {
+    let use_kzg_da = true;
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let _versioned_constants = &block_context.versioned_constants;
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(runnable));
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable));
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let account_contract_address = account_contract.get_instance_address(0);
+    let calldata = create_calldata(
+        test_contract_address,
+        "empty_function",
+        &[], // Calldata.
+    );
+    let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_contract_address,
+        calldata,
+        resource_bounds: default_all_resource_bounds(),
+    });
+
+    let execution_info = invoke_tx.execute(state, block_context).unwrap();
+    assert!(!execution_info.is_reverted());
 }

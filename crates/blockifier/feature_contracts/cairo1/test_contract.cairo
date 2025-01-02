@@ -731,4 +731,8 @@ mod TestContract {
         let result = num;
         result
     }
+
+    #[external(v0)]
+    fn empty_function(ref self: ContractState) {
+    }
 }
