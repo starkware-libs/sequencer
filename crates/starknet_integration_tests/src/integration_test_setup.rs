@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
+use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -15,6 +16,7 @@ use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::task::JoinHandle;
 use tracing::{info, instrument};
@@ -53,6 +55,9 @@ impl IntegrationTestSetup {
         let mut mempool_p2p_configs =
             create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
 
+        let mut state_sync_configs =
+            create_state_sync_configs(n_distributed_sequencers, &mut available_ports);
+
         let mut sequencers = vec![];
         for (sequencer_id, node_composition) in component_configs.iter().enumerate() {
             for component_config in node_composition {
@@ -66,6 +71,7 @@ impl IntegrationTestSetup {
                     chain_info.clone(),
                     consensus_manager_config,
                     mempool_p2p_config,
+                    state_sync_configs.remove(0),
                     &mut available_ports,
                     component_config.clone(),
                 )
@@ -112,6 +118,25 @@ impl IntegrationTestSetup {
     }
 }
 
+fn create_state_sync_configs(
+    n_sequencers: usize,
+    available_ports: &mut AvailablePorts,
+) -> Vec<StateSyncConfig> {
+    let mut state_sync_configs = vec![];
+    let network_configs =
+        create_connected_network_configs(available_ports.get_next_ports(n_sequencers));
+    for network_config in network_configs {
+        let state_sync_storage_config = StorageConfig::default();
+        let state_sync_config = StateSyncConfig {
+            storage_config: state_sync_storage_config,
+            network_config,
+            ..Default::default()
+        };
+        state_sync_configs.push(state_sync_config);
+    }
+    state_sync_configs
+}
+
 pub struct IntegrationSequencerSetup {
     /// Used to differentiate between different sequencer nodes.
     pub sequencer_index: usize,
@@ -139,6 +164,7 @@ pub struct IntegrationSequencerSetup {
 }
 
 impl IntegrationSequencerSetup {
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<Contract>,
@@ -146,11 +172,14 @@ impl IntegrationSequencerSetup {
         chain_info: ChainInfo,
         consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
+        mut state_sync_config: StateSyncConfig,
         available_ports: &mut AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+
+        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
@@ -158,7 +187,7 @@ impl IntegrationSequencerSetup {
             sequencer_index,
             chain_info,
             storage_for_test.batcher_storage_config,
-            storage_for_test.state_sync_storage_config,
+            state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
             component_config,
