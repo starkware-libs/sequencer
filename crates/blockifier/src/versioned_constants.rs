@@ -697,6 +697,7 @@ impl<'de> Deserialize<'de> for OsResources {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: u64,
@@ -770,6 +771,7 @@ impl SyscallGasCosts {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize)]
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
@@ -782,6 +784,7 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
@@ -822,6 +825,7 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub base: BaseGasCosts,
@@ -834,6 +838,7 @@ pub struct GasCosts {
 // conversion into actual values.
 // TODO: consider encoding the * and + operations inside the json file, instead of hardcoded below
 // in the `try_from`.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize)]
 #[serde(try_from = "OsConstantsRawJson")]
 pub struct OsConstants {
@@ -1243,6 +1248,7 @@ impl TryFrom<ResourceParamsRaw> for ResourcesParams {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Copy))]
 #[derive(Clone, Debug, Deserialize)]
 pub struct ValidateRoundingConsts {
     // Flooring factor for block number in validate mode.

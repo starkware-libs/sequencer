@@ -118,6 +118,15 @@ pub enum CompilerBasedVersion {
     OldCairo1,
 }
 
+impl From<CompilerBasedVersion> for CairoVersion {
+    fn from(compiler_based_version: CompilerBasedVersion) -> Self {
+        match compiler_based_version {
+            CompilerBasedVersion::CairoVersion(version) => version,
+            CompilerBasedVersion::OldCairo1 => CairoVersion::Cairo1(RunnableCairo1::Casm),
+        }
+    }
+}
+
 impl CompilerBasedVersion {
     pub fn get_test_contract(&self) -> FeatureContract {
         match self {
