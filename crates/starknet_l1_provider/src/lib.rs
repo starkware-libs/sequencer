@@ -86,15 +86,6 @@ impl L1Provider {
         self.reset().await
     }
 
-    // TODO: this will likely change during integration with infra team.
-    pub async fn start(&self) {
-        todo!(
-            "Create a process that wakes up every config.poll_interval seconds and updates
-        internal L1 and L2 buffers according to collected L1 events and recent blocks created on
-        L2."
-        )
-    }
-
     pub async fn reset(&mut self) -> L1ProviderResult<()> {
         todo!(
             "resets internal buffers and rewinds the internal crawler _pointer_ back for ~1 \
