@@ -1,6 +1,10 @@
 use metrics::{absolute_counter, describe_counter, register_counter};
 use tracing::info;
 
+#[cfg(test)]
+#[path = "metrics_test.rs"]
+pub mod metrics_test;
+
 pub(crate) const ADDED_TRANSACTIONS_TOTAL: (&str, &str, u64) =
     ("ADDED_TRANSACTIONS_TOTAL", "Total number of transactions added", 0);
 pub(crate) const ADDED_TRANSACTIONS_SUCCESS: (&str, &str, u64) =

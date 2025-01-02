@@ -56,8 +56,6 @@ impl HttpServer {
     }
 }
 
-// TODO(Tsabary): add a test for the module metrics.
-
 // HttpServer handlers.
 
 #[instrument(skip(app_state))]
