@@ -18,16 +18,16 @@ use starknet_api::rpc_transaction::{
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::{create_http_server_config, HttpTestClient};
-use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_integration_tests::state_reader::StorageTestSetup;
 use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,
     create_gateway_config,
     create_integration_test_tx_generator,
+    create_state_sync_config,
     create_txs_for_integration_test,
     run_integration_test_scenario,
-    test_rpc_state_reader_config,
     test_tx_hashes_for_integration_test,
 };
 use starknet_mempool_p2p::config::MempoolP2pConfig;
@@ -35,6 +35,7 @@ use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -44,6 +45,7 @@ use starknet_sequencer_node::config::component_execution_config::{
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
+use tempfile::TempDir;
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -54,28 +56,17 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 async fn setup(
     tx_generator: &MultiAccountTransactionGenerator,
     test_identifier: TestIdentifier,
-) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>) {
+) -> (SequencerNodeConfig, BroadcastTopicChannels<RpcTransactionWrapper>, Vec<TempDir>) {
+    configure_tracing().await;
     let accounts = tx_generator.accounts();
     let chain_info = create_chain_info();
     let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
     let mut available_ports = AvailablePorts::new(test_identifier.into(), 0);
 
-    // Spawn a papyrus rpc server for a papyrus storage reader.
-    let rpc_server_addr = spawn_test_rpc_state_reader(
-        storage_for_test.rpc_storage_reader,
-        chain_info.chain_id.clone(),
-    )
-    .await;
-
     // Derive the configuration for the mempool node.
     let components = ComponentConfig {
         consensus_manager: ActiveComponentExecutionConfig::disabled(),
         batcher: ReactiveComponentExecutionConfig {
-            execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: None,
-            ..Default::default()
-        },
-        state_sync: ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: None,
             ..Default::default()
@@ -88,7 +79,10 @@ async fn setup(
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    let state_sync_config = create_state_sync_config(
+        storage_for_test.state_sync_storage_config,
+        available_ports.get_next_port(),
+    );
     let ports = available_ports.get_next_ports(2);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
@@ -104,12 +98,16 @@ async fn setup(
         batcher_config,
         gateway_config,
         http_server_config,
-        rpc_state_reader_config,
         mempool_p2p_config,
         monitoring_endpoint_config,
+        state_sync_config,
         ..SequencerNodeConfig::default()
     };
-    (config, broadcast_channels)
+    (
+        config,
+        broadcast_channels,
+        vec![storage_for_test.batcher_storage_handle, storage_for_test.state_sync_storage_handle],
+    )
 }
 
 async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
@@ -122,7 +120,7 @@ async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
 #[rstest]
 #[tokio::test]
 async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
-    let (config, mut broadcast_channels) =
+    let (config, mut broadcast_channels, _temp_dir_handles) =
         setup(&tx_generator, TestIdentifier::MempoolSendsTxToOtherPeerTest).await;
     let (_clients, servers) = create_node_modules(&config);
 
@@ -166,7 +164,7 @@ async fn test_mempool_receives_tx_from_other_peer(
     const RECEIVED_TX_POLL_INTERVAL: u64 = 100; // milliseconds between calls to read received txs from the broadcast channel
     const TXS_RETRIVAL_TIMEOUT: u64 = 2000; // max milliseconds spent polling the received txs before timing out
 
-    let (config, mut broadcast_channels) =
+    let (config, mut broadcast_channels, _temp_dir_handles) =
         setup(&tx_generator, TestIdentifier::MempoolReceivesTxFromOtherPeerTest).await;
     let (clients, servers) = create_node_modules(&config);
     let mempool_client = clients.get_mempool_shared_client().unwrap();

@@ -21,7 +21,7 @@ use starknet_sequencer_node::utils::create_node_modules;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
-use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
@@ -102,7 +102,6 @@ pub struct FlowSequencerSetup {
 
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
-    pub rpc_storage_file_handle: TempDir,
     pub state_sync_storage_file_handle: TempDir,
 
     // Node configuration.
@@ -124,13 +123,6 @@ impl FlowSequencerSetup {
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(
-            storage_for_test.rpc_storage_reader,
-            chain_info.chain_id.clone(),
-        )
-        .await;
-
         let component_config = ComponentConfig::default();
 
         // Derive the configuration for the sequencer node.
@@ -138,7 +130,6 @@ impl FlowSequencerSetup {
             &mut available_ports,
             sequencer_index,
             chain_info,
-            rpc_server_addr,
             storage_for_test.batcher_storage_config,
             storage_for_test.state_sync_storage_config,
             consensus_manager_config,
@@ -163,7 +154,6 @@ impl FlowSequencerSetup {
             sequencer_index,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
-            rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             node_config,
             is_alive_test_client,

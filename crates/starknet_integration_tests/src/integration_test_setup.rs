@@ -20,7 +20,7 @@ use tokio::task::JoinHandle;
 use tracing::{info, instrument};
 
 use crate::config_utils::dump_config_file_changes;
-use crate::state_reader::{spawn_test_rpc_state_reader_with_socket, StorageTestSetup};
+use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
@@ -133,8 +133,6 @@ pub struct IntegrationSequencerSetup {
     #[allow(dead_code)]
     batcher_storage_handle: TempDir,
     #[allow(dead_code)]
-    rpc_storage_handle: TempDir,
-    #[allow(dead_code)]
     node_config_dir_handle: TempDir,
     #[allow(dead_code)]
     state_sync_storage_handle: TempDir,
@@ -154,20 +152,11 @@ impl IntegrationSequencerSetup {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader_with_socket(
-            storage_for_test.rpc_storage_reader,
-            chain_info.chain_id.clone(),
-            available_ports.get_next_local_host_socket(),
-        )
-        .await;
-
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             available_ports,
             sequencer_index,
             chain_info,
-            rpc_server_addr,
             storage_for_test.batcher_storage_config,
             storage_for_test.state_sync_storage_config,
             consensus_manager_config,
@@ -196,7 +185,6 @@ impl IntegrationSequencerSetup {
             is_alive_test_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage,
-            rpc_storage_handle: storage_for_test.rpc_storage_handle,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle: storage_for_test.state_sync_storage_handle,

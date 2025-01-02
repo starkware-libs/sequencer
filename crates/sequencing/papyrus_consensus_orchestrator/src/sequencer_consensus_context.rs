@@ -35,6 +35,8 @@ use starknet_api::block::{
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
@@ -327,8 +329,19 @@ impl ConsensusContext for SequencerConsensusContext {
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
         // TODO(Asmaa/Eitan): update with the correct values.
-        let block_header_without_hash =
-            BlockHeaderWithoutHash { block_number: BlockNumber(height), ..Default::default() };
+        let l1_gas_price =
+            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+        let l1_data_gas_price =
+            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+        let l2_gas_price =
+            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+        let block_header_without_hash = BlockHeaderWithoutHash {
+            block_number: BlockNumber(height),
+            l1_gas_price,
+            l1_data_gas_price,
+            l2_gas_price,
+            ..Default::default()
+        };
         let sync_block = SyncBlock { state_diff, transaction_hashes, block_header_without_hash };
         let state_sync_client = self.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
