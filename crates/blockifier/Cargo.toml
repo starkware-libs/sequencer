@@ -14,7 +14,7 @@ cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cair
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
-testing = ["rand", "rstest", "starknet_api/testing"]
+testing = ["rand", "rstest","rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -46,6 +46,7 @@ paste.workspace = true
 phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
+rstest_reuse = {workspace = true, optional = true}
 semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -70,6 +71,7 @@ pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true
 rstest.workspace = true
+rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
