@@ -74,7 +74,7 @@ pub async fn create_node_config(
     sequencer_index: usize,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
-    state_sync_storage_config: StorageConfig,
+    state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     component_config: ComponentConfig,
@@ -88,8 +88,6 @@ pub async fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let monitoring_endpoint_config =
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
-    let state_sync_config =
-        create_state_sync_config(state_sync_storage_config, available_ports.get_next_port());
 
     (
         SequencerNodeConfig {
@@ -339,12 +337,21 @@ fn set_validator_id(
     validator_id
 }
 
-pub fn create_state_sync_config(
+pub fn create_state_sync_configs(
+    n_sequencers: usize,
     state_sync_storage_config: StorageConfig,
-    port: u16,
-) -> StateSyncConfig {
-    let mut config =
-        StateSyncConfig { storage_config: state_sync_storage_config, ..Default::default() };
-    config.network_config.tcp_port = port;
-    config
+    available_ports: &mut AvailablePorts,
+) -> Vec<StateSyncConfig> {
+    let mut state_sync_configs = vec![];
+    let network_configs =
+        create_connected_network_configs(available_ports.get_next_ports(n_sequencers));
+    for network_config in network_configs {
+        let state_sync_config = StateSyncConfig {
+            storage_config: state_sync_storage_config.clone(),
+            network_config,
+            ..Default::default()
+        };
+        state_sync_configs.push(state_sync_config);
+    }
+    state_sync_configs
 }

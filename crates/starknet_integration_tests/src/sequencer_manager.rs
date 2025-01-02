@@ -4,7 +4,7 @@ use itertools::izip;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::StorageReader;
+use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -22,6 +22,7 @@ use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    create_state_sync_configs,
     send_account_txs,
 };
 
@@ -175,6 +176,12 @@ pub async fn get_sequencer_setup_configs(
         available_ports.get_next_ports(n_distributed_sequencers + 1),
     );
 
+    let mut state_sync_configs = create_state_sync_configs(
+        n_distributed_sequencers,
+        StorageConfig::default(),
+        &mut available_ports,
+    );
+
     let mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
         available_ports.get_next_ports(n_distributed_sequencers),
@@ -195,7 +202,6 @@ pub async fn get_sequencer_setup_configs(
 
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
-
     let mut sequencers = vec![];
     for (
         ((sequencer_index, _sequencer_part_index), component_config),
@@ -209,6 +215,7 @@ pub async fn get_sequencer_setup_configs(
             chain_info.clone(),
             consensus_manager_config,
             mempool_p2p_config,
+            state_sync_configs.remove(0),
             &mut available_ports,
             component_config.clone(),
         )

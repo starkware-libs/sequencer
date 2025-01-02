@@ -30,6 +30,7 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
     create_node_config,
+    create_state_sync_configs,
     spawn_success_recorder,
 };
 
@@ -132,13 +133,21 @@ impl FlowSequencerSetup {
 
         let component_config = ComponentConfig::default();
 
+        let state_sync_config = create_state_sync_configs(
+            1,
+            storage_for_test.state_sync_storage_config,
+            &mut available_ports,
+        )
+        .pop()
+        .unwrap();
+
         // Derive the configuration for the sequencer node.
         let (node_config, _required_params) = create_node_config(
             &mut available_ports,
             sequencer_index,
             chain_info,
             storage_for_test.batcher_storage_config,
-            storage_for_test.state_sync_storage_config,
+            state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
             component_config,
