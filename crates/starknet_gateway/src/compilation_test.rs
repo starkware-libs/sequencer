@@ -41,7 +41,9 @@ fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclar
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
     assert_matches!(result.unwrap_err(), GatewaySpecError::CompilationFailed);
     let expected_compilation_error = CompilationUtilError::CompilationError(
-        "Error: Compilation failed.\n\nCaused by:\n    Code size limit exceeded.\n".to_owned(),
+        "Exit status: exit status: 1\n Stderr: Error: Compilation failed.\n\nCaused by:\n    Code \
+         size limit exceeded.\n"
+            .to_owned(),
     );
     assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
@@ -60,8 +62,9 @@ fn test_compile_contract_class_bad_sierra(
     let err = gateway_compiler.process_declare_tx(&declare_tx).unwrap_err();
     assert_eq!(err, GatewaySpecError::CompilationFailed);
 
-    let expected_compilation_error =
-        CompilationUtilError::CompilationError("Error: Invalid Sierra program.\n".to_owned());
+    let expected_compilation_error = CompilationUtilError::CompilationError(
+        "Exit status: exit status: 1\n Stderr: Error: Invalid Sierra program.\n".to_owned(),
+    );
     assert!(logs_contain(format!("Compilation failed: {:?}", expected_compilation_error).as_str()));
 }
 

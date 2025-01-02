@@ -157,12 +157,12 @@
   "batcher_config.contract_class_manager_config.compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
-    "value": 1258291200
+    "value": 5368709120
   },
   "batcher_config.contract_class_manager_config.compiler_config.max_native_bytecode_size": {
     "description": "Limitation of compiled native bytecode size.",
     "privacy": "Public",
-    "value": 20971520
+    "value": 15728640
   },
   "batcher_config.contract_class_manager_config.compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
@@ -282,12 +282,12 @@
   "compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
-    "value": 1258291200
+    "value": 5368709120
   },
   "compiler_config.max_native_bytecode_size": {
     "description": "Limitation of compiled native bytecode size.",
     "privacy": "Public",
-    "value": 20971520
+    "value": 15728640
   },
   "compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
