@@ -562,7 +562,7 @@
   "consensus_manager_config.consensus_config.network_config.peer_manager_config.unstable_timeout_millis": {
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
     "privacy": "Public",
-    "value": 1000
+    "value": 1
   },
   "consensus_manager_config.consensus_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -817,7 +817,7 @@
   "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout_millis": {
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
     "privacy": "Public",
-    "value": 1000
+    "value": 1
   },
   "mempool_p2p_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -912,7 +912,7 @@
   "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": {
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
     "privacy": "Public",
-    "value": 1000
+    "value": 1
   },
   "state_sync_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",

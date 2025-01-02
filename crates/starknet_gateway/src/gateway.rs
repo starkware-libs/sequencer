@@ -59,13 +59,13 @@ impl Gateway {
         }
     }
 
-    #[instrument(skip(self), ret)]
+    // #[instrument(skip(self), ret)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
-        info!("Processing tx");
+        // info!("Processing tx");
         let blocking_task = ProcessTxBlockingTask::new(self, tx);
         // Run the blocking task in the current span.
         let curr_span = Span::current();

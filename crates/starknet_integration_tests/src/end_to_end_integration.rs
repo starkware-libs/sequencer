@@ -20,13 +20,13 @@ use crate::sequencer_manager::{
 use crate::test_identifiers::TestIdentifier;
 
 /// The number of consolidated local sequencers that participate in the test.
-const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+const N_CONSOLIDATED_SEQUENCERS: usize = 5;
 /// The number of distributed remote sequencers that participate in the test.
-const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+const N_DISTRIBUTED_SEQUENCERS: usize = 0;
 
 pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
-    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
-    const N_TXS: usize = 50;
+    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(20);
+    const N_TXS: usize = 400;
     const SENDER_ACCOUNT: AccountId = 0;
     let sender_address = tx_generator.account_with_id(SENDER_ACCOUNT).sender_address();
 

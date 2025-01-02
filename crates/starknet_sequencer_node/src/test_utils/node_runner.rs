@@ -21,7 +21,7 @@ impl NodeRunner {
     }
 
     pub fn get_description(&self) -> String {
-        self.description.clone()
+        self.description.to_string()
     }
 }
 
@@ -46,10 +46,32 @@ async fn spawn_node_child_process(
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
+    // get sleep amount as integer from env var
     info!("Running the node from: {}", node_executable);
-    let mut node_cmd: Child = create_shell_command(node_executable.as_str())
-        .arg("--config_file")
-        .arg(node_config_path.to_str().unwrap())
+    let start_sleep_dur_env_var: u64 = std::env::var("START_SLEEP_DURATION")
+        .unwrap_or("30".to_string())
+        .parse()
+        .expect("START_SLEEP_DURATION env var not a number");
+    let sleep_dur_env_var: u64 = std::env::var("SLEEP_DURATION")
+        .unwrap_or("30".to_string())
+        .parse()
+        .expect("SLEEP_AMOUNT env var not a number");
+
+    let mut command = node_executable;
+    // let mut command = format!("sleep {} && ", if node_runner.index == 2 { env_var } else { 0 });
+    // command.push_str(&node_executable);
+    command.push_str(" --config_file ");
+    command.push_str(node_config_path.to_str().unwrap());
+    if node_runner.index == 2 {
+        command.push_str(&format!(
+            " & pid=$!; sleep {start_sleep_dur_env_var}; kill -STOP $pid; sleep \
+             {sleep_dur_env_var}; kill -CONT $pid; sleep 1000"
+        ));
+    }
+    let mut node_cmd: Child = create_shell_command("sh").arg("-c").arg(command)
+    // let mut node_cmd: Child = create_shell_command(&node_executable)
+        // .arg("--config_file")
+        // .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
         .stdout(Stdio::piped())
         .kill_on_drop(true) // Required for stopping when the handle is dropped.
