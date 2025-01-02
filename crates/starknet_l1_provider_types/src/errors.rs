@@ -20,6 +20,8 @@ pub enum L1ProviderError {
     ValidateInPendingState,
     #[error("`validate` called while in `Propose`")]
     ValidateTransactionConsensusBug,
+    #[error("Unexpected height: expected {expected}, got {got}")]
+    UnexpectedHeight { expected: u64, got: u64 },
 }
 
 impl L1ProviderError {

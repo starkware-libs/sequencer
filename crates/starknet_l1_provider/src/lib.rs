@@ -31,6 +31,7 @@ pub struct L1Provider {
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
     // and we see how well it handles consuming the L1Provider when moving between states.
     state: ProviderState,
+    current_height: u64,
 }
 
 impl L1Provider {
@@ -39,7 +40,13 @@ impl L1Provider {
     }
 
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
-    pub fn get_txs(&mut self, n_txs: usize) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
+    pub fn get_txs(
+        &mut self,
+        n_txs: usize,
+        height: u64,
+    ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
+        self.validate_height(height)?;
+
         match self.state {
             ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
             ProviderState::Pending => Err(L1ProviderError::GetTransactionsInPendingState),
@@ -50,7 +57,12 @@ impl L1Provider {
 
     /// Returns true if and only if the given transaction is both not included in an L2 block, and
     /// unconsumed on L1.
-    pub fn validate(&self, tx_hash: TransactionHash) -> L1ProviderResult<ValidationStatus> {
+    pub fn validate(
+        &self,
+        tx_hash: TransactionHash,
+        height: u64,
+    ) -> L1ProviderResult<ValidationStatus> {
+        self.validate_height(height)?;
         match self.state {
             ProviderState::Validate => Ok(self.tx_manager.tx_status(tx_hash)),
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
@@ -61,7 +73,7 @@ impl L1Provider {
 
     // TODO: when deciding on consensus, if possible, have commit_block also tell the node if it's
     // about to [optimistically-]propose or validate the next block.
-    pub fn commit_block(&mut self, _commited_txs: &[TransactionHash]) {
+    pub fn commit_block(&mut self, _commited_txs: &[TransactionHash], _height: u64) {
         todo!(
             "Purges txs from internal buffers, if was proposer clear staging buffer, 
             reset state to Pending until we get proposing/validating notice from consensus."
@@ -102,6 +114,16 @@ impl L1Provider {
              base layer errors when finding the latest block on l1 to 'subtract' 1 hour from. \
              Then, transition to Pending."
         );
+    }
+
+    fn validate_height(&mut self, height: u64) -> L1ProviderResult<()> {
+        if height != self.current_height + 1 {
+            return Err(L1ProviderError::UnexpectedHeight {
+                expected: self.current_height + 1,
+                got: height,
+            });
+        }
+        Ok(())
     }
 }
 
