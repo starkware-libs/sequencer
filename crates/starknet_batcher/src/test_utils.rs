@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ops::Range;
 
 use async_trait::async_trait;
@@ -75,6 +76,7 @@ impl BlockExecutionArtifacts {
         // Use a non-empty commitment_state_diff to make the tests more realistic.
         Self {
             execution_infos: IndexMap::default(),
+            rejected_tx_hashes: HashSet::default(),
             commitment_state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
                     contract_address!("0x7"),
