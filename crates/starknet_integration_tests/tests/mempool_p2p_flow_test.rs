@@ -25,7 +25,7 @@ use starknet_integration_tests::utils::{
     create_chain_info,
     create_gateway_config,
     create_integration_test_tx_generator,
-    create_state_sync_config,
+    create_state_sync_configs,
     create_txs_for_integration_test,
     run_integration_test_scenario,
     test_tx_hashes_for_integration_test,
@@ -79,10 +79,13 @@ async fn setup(
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let state_sync_config = create_state_sync_config(
+    let state_sync_config = create_state_sync_configs(
+        1,
         storage_for_test.state_sync_storage_config,
-        available_ports.get_next_port(),
-    );
+        &mut available_ports,
+    )
+    .pop()
+    .unwrap();
     let ports = available_ports.get_next_ports(2);
     let (mut network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
