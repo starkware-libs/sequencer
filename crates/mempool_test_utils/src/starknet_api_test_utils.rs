@@ -263,6 +263,26 @@ impl MultiAccountTransactionGenerator {
     pub fn accounts(&self) -> &[AccountTransactionGenerator] {
         self.account_tx_generators.as_slice()
     }
+
+    pub fn account_tx_generators(&mut self) -> &mut Vec<AccountTransactionGenerator> {
+        &mut self.account_tx_generators
+    }
+
+    pub fn deployed_accounts(&self) -> Vec<Contract> {
+        self.account_tx_generators
+            .iter()
+            .filter_map(|tx_gen| if tx_gen.is_deployed() { Some(&tx_gen.account) } else { None })
+            .copied()
+            .collect()
+    }
+
+    pub fn undeployed_accounts(&self) -> Vec<Contract> {
+        self.account_tx_generators
+            .iter()
+            .filter_map(|tx_gen| if !tx_gen.is_deployed() { Some(&tx_gen.account) } else { None })
+            .copied()
+            .collect()
+    }
 }
 
 /// Manages transaction generation for a single account.
@@ -417,7 +437,7 @@ impl AccountTransactionGenerator {
 // Note: feature contracts have their own address generating method, but it a mocked address and is
 // not related to an actual deploy account transaction, which is the way real account addresses are
 // calculated.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Contract {
     pub contract: FeatureContract,
     pub sender_address: ContractAddress,
