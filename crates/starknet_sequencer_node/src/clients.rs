@@ -220,49 +220,49 @@ pub fn create_node_clients(
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
     let batcher_client = create_client!(
-        &config.components.batcher.execution_mode,
+        &config.components.reactive_components.batcher.execution_mode,
         LocalBatcherClient,
         RemoteBatcherClient,
         channels.take_batcher_tx(),
-        &config.components.batcher.remote_client_config
+        &config.components.reactive_components.batcher.remote_client_config
     );
     let mempool_client = create_client!(
-        &config.components.mempool.execution_mode,
+        &config.components.reactive_components.mempool.execution_mode,
         LocalMempoolClient,
         RemoteMempoolClient,
         channels.take_mempool_tx(),
-        &config.components.mempool.remote_client_config
+        &config.components.reactive_components.mempool.remote_client_config
     );
     let gateway_client = create_client!(
-        &config.components.gateway.execution_mode,
+        &config.components.reactive_components.gateway.execution_mode,
         LocalGatewayClient,
         RemoteGatewayClient,
         channels.take_gateway_tx(),
-        &config.components.gateway.remote_client_config
+        &config.components.reactive_components.gateway.remote_client_config
     );
 
     let mempool_p2p_propagator_client = create_client!(
-        &config.components.mempool_p2p.execution_mode,
+        &config.components.reactive_components.mempool_p2p.execution_mode,
         LocalMempoolP2pPropagatorClient,
         RemoteMempoolP2pPropagatorClient,
         channels.take_mempool_p2p_propagator_tx(),
-        &config.components.mempool_p2p.remote_client_config
+        &config.components.reactive_components.mempool_p2p.remote_client_config
     );
 
     let state_sync_client = create_client!(
-        &config.components.state_sync.execution_mode,
+        &config.components.reactive_components.state_sync.execution_mode,
         LocalStateSyncClient,
         RemoteStateSyncClient,
         channels.take_state_sync_tx(),
-        &config.components.state_sync.remote_client_config
+        &config.components.reactive_components.state_sync.remote_client_config
     );
 
     let l1_provider_client = create_client!(
-        &config.components.l1_provider.execution_mode,
+        &config.components.reactive_components.l1_provider.execution_mode,
         LocalL1ProviderClient,
         RemoteL1ProviderClient,
         channels.take_l1_provider_tx(),
-        &config.components.l1_provider.remote_client_config
+        &config.components.reactive_components.l1_provider.remote_client_config
     );
 
     SequencerNodeClients {

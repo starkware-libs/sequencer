@@ -40,7 +40,7 @@ pub fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
-    let batcher = match config.components.batcher.execution_mode {
+    let batcher = match config.components.reactive_components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
@@ -52,22 +52,24 @@ pub fn create_node_components(
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
-    let consensus_manager = match config.components.consensus_manager.execution_mode {
-        ActiveComponentExecutionMode::Enabled => {
-            let batcher_client =
-                clients.get_batcher_shared_client().expect("Batcher Client should be available");
-            let state_sync_client = clients
-                .get_state_sync_shared_client()
-                .expect("State Sync Client should be available");
-            Some(ConsensusManager::new(
-                config.consensus_manager_config.clone(),
-                batcher_client,
-                state_sync_client,
-            ))
-        }
-        ActiveComponentExecutionMode::Disabled => None,
-    };
-    let gateway = match config.components.gateway.execution_mode {
+    let consensus_manager =
+        match config.components.active_components.consensus_manager.execution_mode {
+            ActiveComponentExecutionMode::Enabled => {
+                let batcher_client = clients
+                    .get_batcher_shared_client()
+                    .expect("Batcher Client should be available");
+                let state_sync_client = clients
+                    .get_state_sync_shared_client()
+                    .expect("State Sync Client should be available");
+                Some(ConsensusManager::new(
+                    config.consensus_manager_config.clone(),
+                    batcher_client,
+                    state_sync_client,
+                ))
+            }
+            ActiveComponentExecutionMode::Disabled => None,
+        };
+    let gateway = match config.components.reactive_components.gateway.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
@@ -82,7 +84,7 @@ pub fn create_node_components(
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
-    let http_server = match config.components.http_server.execution_mode {
+    let http_server = match config.components.active_components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let gateway_client =
                 clients.get_gateway_shared_client().expect("Gateway Client should be available");
@@ -92,25 +94,25 @@ pub fn create_node_components(
         ActiveComponentExecutionMode::Disabled => None,
     };
 
-    let (mempool_p2p_propagator, mempool_p2p_runner) = match config
-        .components
-        .mempool_p2p
-        .execution_mode
-    {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let gateway_client =
-                clients.get_gateway_shared_client().expect("Gateway Client should be available");
-            let (mempool_p2p_propagator, mempool_p2p_runner) =
-                create_p2p_propagator_and_runner(config.mempool_p2p_config.clone(), gateway_client);
-            (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
-        }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            (None, None)
-        }
-    };
+    let (mempool_p2p_propagator, mempool_p2p_runner) =
+        match config.components.reactive_components.mempool_p2p.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let gateway_client = clients
+                    .get_gateway_shared_client()
+                    .expect("Gateway Client should be available");
+                let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
+                    config.mempool_p2p_config.clone(),
+                    gateway_client,
+                );
+                (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
+            }
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                (None, None)
+            }
+        };
 
-    let mempool = match config.components.mempool.execution_mode {
+    let mempool = match config.components.reactive_components.mempool.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_p2p_propagator_client = clients
@@ -122,27 +124,29 @@ pub fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
-        ActiveComponentExecutionMode::Enabled => Some(create_monitoring_endpoint(
-            config.monitoring_endpoint_config.clone(),
-            VERSION_FULL,
-        )),
-        ActiveComponentExecutionMode::Disabled => None,
-    };
+    let monitoring_endpoint =
+        match config.components.active_components.monitoring_endpoint.execution_mode {
+            ActiveComponentExecutionMode::Enabled => Some(create_monitoring_endpoint(
+                config.monitoring_endpoint_config.clone(),
+                VERSION_FULL,
+            )),
+            ActiveComponentExecutionMode::Disabled => None,
+        };
 
-    let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let (state_sync, state_sync_runner) =
-                create_state_sync_and_runner(config.state_sync_config.clone());
-            (Some(state_sync), Some(state_sync_runner))
-        }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            (None, None)
-        }
-    };
+    let (state_sync, state_sync_runner) =
+        match config.components.reactive_components.state_sync.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let (state_sync, state_sync_runner) =
+                    create_state_sync_and_runner(config.state_sync_config.clone());
+                (Some(state_sync), Some(state_sync_runner))
+            }
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                (None, None)
+            }
+        };
 
-    let l1_provider = match config.components.l1_provider.execution_mode {
+    let l1_provider = match config.components.reactive_components.l1_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(create_l1_provider(config.l1_provider_config.clone()))

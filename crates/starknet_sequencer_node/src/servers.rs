@@ -221,32 +221,32 @@ fn create_local_servers(
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
     let batcher_server = create_local_server!(
-        &config.components.batcher.execution_mode,
+        &config.components.reactive_components.batcher.execution_mode,
         components.batcher,
         communication.take_batcher_rx()
     );
     let gateway_server = create_local_server!(
-        &config.components.gateway.execution_mode,
+        &config.components.reactive_components.gateway.execution_mode,
         components.gateway,
         communication.take_gateway_rx()
     );
     let l1_provider_server = create_local_server!(
-        &config.components.l1_provider.execution_mode,
+        &config.components.reactive_components.l1_provider.execution_mode,
         components.l1_provider,
         communication.take_l1_provider_rx()
     );
     let mempool_server = create_local_server!(
-        &config.components.mempool.execution_mode,
+        &config.components.reactive_components.mempool.execution_mode,
         components.mempool,
         communication.take_mempool_rx()
     );
     let mempool_p2p_propagator_server = create_local_server!(
-        &config.components.mempool_p2p.execution_mode,
+        &config.components.reactive_components.mempool_p2p.execution_mode,
         components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx()
     );
     let state_sync_server = create_local_server!(
-        &config.components.state_sync.execution_mode,
+        &config.components.reactive_components.state_sync.execution_mode,
         components.state_sync,
         communication.take_state_sync_rx()
     );
@@ -295,39 +295,39 @@ pub fn create_remote_servers(
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
     let batcher_server = create_remote_server!(
-        &config.components.batcher.execution_mode,
+        &config.components.reactive_components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
-        config.components.batcher.remote_server_config
+        config.components.reactive_components.batcher.remote_server_config
     );
 
     let gateway_server = create_remote_server!(
-        &config.components.gateway.execution_mode,
+        &config.components.reactive_components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
-        config.components.gateway.remote_server_config
+        config.components.reactive_components.gateway.remote_server_config
     );
 
     let l1_provider_server = create_remote_server!(
-        &config.components.l1_provider.execution_mode,
+        &config.components.reactive_components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
-        config.components.l1_provider.remote_server_config
+        config.components.reactive_components.l1_provider.remote_server_config
     );
 
     let mempool_server = create_remote_server!(
-        &config.components.mempool.execution_mode,
+        &config.components.reactive_components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
-        config.components.mempool.remote_server_config
+        config.components.reactive_components.mempool.remote_server_config
     );
 
     let mempool_p2p_propagator_server = create_remote_server!(
-        &config.components.mempool_p2p.execution_mode,
+        &config.components.reactive_components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
-        config.components.mempool_p2p.remote_server_config
+        config.components.reactive_components.mempool_p2p.remote_server_config
     );
 
     let state_sync_server = create_remote_server!(
-        &config.components.state_sync.execution_mode,
+        &config.components.reactive_components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
-        config.components.state_sync.remote_server_config
+        config.components.reactive_components.state_sync.remote_server_config
     );
 
     RemoteServers {
@@ -359,25 +359,25 @@ fn create_wrapper_servers(
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
     let consensus_manager_server = create_wrapper_server!(
-        &config.components.consensus_manager.execution_mode,
+        &config.components.active_components.consensus_manager.execution_mode,
         components.consensus_manager
     );
     let http_server = create_wrapper_server!(
-        &config.components.http_server.execution_mode,
+        &config.components.active_components.http_server.execution_mode,
         components.http_server
     );
 
     let monitoring_endpoint_server = create_wrapper_server!(
-        &config.components.monitoring_endpoint.execution_mode,
+        &config.components.active_components.monitoring_endpoint.execution_mode,
         components.monitoring_endpoint
     );
 
     let mempool_p2p_runner_server = create_wrapper_server!(
-        &config.components.mempool_p2p.execution_mode.clone().into(),
+        &config.components.reactive_components.mempool_p2p.execution_mode.clone().into(),
         components.mempool_p2p_runner
     );
     let state_sync_runner_server = create_wrapper_server!(
-        &config.components.state_sync.execution_mode.clone().into(),
+        &config.components.reactive_components.state_sync.execution_mode.clone().into(),
         components.state_sync_runner
     );
 
