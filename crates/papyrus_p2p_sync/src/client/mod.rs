@@ -215,7 +215,7 @@ pub struct P2PSyncClient {
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
     p2p_sync_channels: P2PSyncClientChannels,
-    internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+    internal_blocks_receiver: BoxStream<'static, SyncBlock>,
 }
 
 impl P2PSyncClient {
@@ -224,7 +224,7 @@ impl P2PSyncClient {
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
         p2p_sync_channels: P2PSyncClientChannels,
-        internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+        internal_blocks_receiver: BoxStream<'static, SyncBlock>,
     ) -> Self {
         Self { config, storage_reader, storage_writer, p2p_sync_channels, internal_blocks_receiver }
     }
@@ -250,8 +250,8 @@ impl P2PSyncClient {
         loop {
             tokio::select! {
                 maybe_internal_block = internal_blocks_receiver.next() => {
-                    let (block_number, sync_block) = maybe_internal_block.expect("Internal blocks stream should never end");
-                    internal_blocks_senders.send(block_number, sync_block).await?;
+                    let sync_block = maybe_internal_block.expect("Internal blocks stream should never end");
+                    internal_blocks_senders.send(sync_block).await?;
                 }
                 data = data_stream.next() => {
                     let data = data.expect("Sync data stream should never end")?;
@@ -263,29 +263,25 @@ impl P2PSyncClient {
 }
 
 pub(crate) struct InternalBlocksReceivers {
-    header_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    state_diff_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    transaction_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    class_receiver: Receiver<(BlockNumber, SyncBlock)>,
+    header_receiver: Receiver<SyncBlock>,
+    state_diff_receiver: Receiver<SyncBlock>,
+    transaction_receiver: Receiver<SyncBlock>,
+    class_receiver: Receiver<SyncBlock>,
 }
 
 pub struct InternalBlocksSenders {
-    header_sender: Sender<(BlockNumber, SyncBlock)>,
-    state_diff_sender: Sender<(BlockNumber, SyncBlock)>,
-    transaction_sender: Sender<(BlockNumber, SyncBlock)>,
-    class_sender: Sender<(BlockNumber, SyncBlock)>,
+    header_sender: Sender<SyncBlock>,
+    state_diff_sender: Sender<SyncBlock>,
+    transaction_sender: Sender<SyncBlock>,
+    class_sender: Sender<SyncBlock>,
 }
 
 impl InternalBlocksSenders {
-    pub async fn send(
-        &mut self,
-        block_number: BlockNumber,
-        sync_block: SyncBlock,
-    ) -> Result<(), SendError> {
-        let header_send = self.header_sender.send((block_number, sync_block.clone()));
-        let state_diff_send = self.state_diff_sender.send((block_number, sync_block.clone()));
-        let transaction_send = self.transaction_sender.send((block_number, sync_block.clone()));
-        let class_send = self.class_sender.send((block_number, sync_block));
+    pub async fn send(&mut self, sync_block: SyncBlock) -> Result<(), SendError> {
+        let header_send = self.header_sender.send(sync_block.clone());
+        let state_diff_send = self.state_diff_sender.send(sync_block.clone());
+        let transaction_send = self.transaction_sender.send(sync_block.clone());
+        let class_send = self.class_sender.send(sync_block);
         let res =
             futures::future::join4(header_send, state_diff_send, transaction_send, class_send)
                 .await;

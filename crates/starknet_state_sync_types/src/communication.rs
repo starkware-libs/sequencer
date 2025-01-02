@@ -36,11 +36,7 @@ pub trait StateSyncClient: Send + Sync {
 
     /// Notify the sync that a new block has been created within the node so that other peers can
     /// learn about it through sync.
-    async fn add_new_block(
-        &self,
-        block_number: BlockNumber,
-        sync_block: SyncBlock,
-    ) -> StateSyncClientResult<()>;
+    async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()>;
 
     async fn get_storage_at(
         &self,
@@ -92,7 +88,7 @@ pub type StateSyncRequestAndResponseSender =
 #[allow(clippy::large_enum_variant)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
-    AddNewBlock(BlockNumber, SyncBlock),
+    AddNewBlock(SyncBlock),
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
@@ -126,12 +122,8 @@ where
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
     }
 
-    async fn add_new_block(
-        &self,
-        block_number: BlockNumber,
-        sync_block: SyncBlock,
-    ) -> StateSyncClientResult<()> {
-        let request = StateSyncRequest::AddNewBlock(block_number, sync_block);
+    async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
+        let request = StateSyncRequest::AddNewBlock(sync_block);
         let response = self.send(request).await;
         handle_response_variants!(
             StateSyncResponse,

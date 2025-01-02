@@ -345,10 +345,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let sync_block = SyncBlock { state_diff, transaction_hashes, block_header_without_hash };
         let state_sync_client = self.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
-        state_sync_client
-            .add_new_block(BlockNumber(height), sync_block)
-            .await
-            .expect("Failed to add new block.");
+        state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
         self.l2_gas_price =
             calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used.0, MAX_BLOCK_SIZE / 2);

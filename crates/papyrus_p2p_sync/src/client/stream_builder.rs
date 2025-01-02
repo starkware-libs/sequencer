@@ -65,7 +65,7 @@ where
     // Async functions in trait don't work well with argument references
     fn get_internal_block_at<'a>(
         internal_blocks_received: &'a mut HashMap<BlockNumber, Self::Output>,
-        internal_block_receiver: &'a mut Option<Receiver<(BlockNumber, SyncBlock)>>,
+        internal_block_receiver: &'a mut Option<Receiver<SyncBlock>>,
         current_block_number: BlockNumber,
     ) -> BoxFuture<'a, Self::Output> {
         async move {
@@ -74,7 +74,8 @@ where
             }
             let internal_block_receiver =
                 internal_block_receiver.as_mut().expect("Internal block receiver not set");
-            while let Some((block_number, sync_block)) = internal_block_receiver.next().await {
+            while let Some(sync_block) = internal_block_receiver.next().await {
+                let block_number = sync_block.block_header_without_hash.block_number;
                 if block_number >= current_block_number {
                     // If None is received then we don't use internal blocks for this stream
                     // TODO(Eitan): Remove this once we have a class manager component.
@@ -97,7 +98,7 @@ where
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
-        mut internal_block_receiver: Option<Receiver<(BlockNumber, SyncBlock)>>,
+        mut internal_block_receiver: Option<Receiver<SyncBlock>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
     ) -> BoxStream<'static, DataStreamResult>
