@@ -49,8 +49,6 @@ pub fn create_chain_info() -> ChainInfo {
 }
 
 // TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
-// TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
-// the config.
 #[allow(clippy::too_many_arguments)]
 pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
