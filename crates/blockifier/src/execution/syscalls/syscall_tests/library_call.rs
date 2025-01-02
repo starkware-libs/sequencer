@@ -84,7 +84,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
                 // 'ENTRYPOINT_FAILED'.
                 felt!("0x454e545259504f494e545f4641494c4544")
             ]),
-            gas_consumed: 110980,
+            gas_consumed: 111580,
             failed: true,
             ..Default::default()
         }
@@ -124,7 +124,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999085960,
+        initial_gas: 9999084760,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -139,16 +139,16 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999186940,
+        initial_gas: 9999186340,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9998984320,
+        initial_gas: 9998982660,
         ..nested_storage_entry_point
     };
 
-    let storage_entry_point_gas = GasAmount(26990);
+    let storage_entry_point_gas = GasAmount(26850);
 
     // The default VersionedConstants is used in the execute_directly call bellow.
     let tracked_resource = test_contract.get_runnable_class().tracked_resource(
@@ -177,7 +177,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
             ..CallExecution::default()
         },
-        charged_resources: ChargedResources::from_gas(GasAmount(127970)),
+        charged_resources: ChargedResources::from_gas(GasAmount(128430)),
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
         ..Default::default()
@@ -197,7 +197,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..Default::default()
     };
 
-    let main_gas_consumed = 335110;
+    let main_gas_consumed = 336630;
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution {

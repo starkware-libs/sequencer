@@ -306,9 +306,9 @@
                 "n_steps": 381
             },
             "Keccak": {
-                "n_steps": 0,
                 "builtin_instance_counter": {},
-                "n_memory_holes": 0
+                "n_memory_holes": 0,
+                "n_steps": 0
             },
             "LibraryCall": {
                 "builtin_instance_counter": {
