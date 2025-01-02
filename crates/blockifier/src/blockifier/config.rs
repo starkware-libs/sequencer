@@ -84,6 +84,13 @@ impl Default for ContractClassManagerConfig {
     }
 }
 
+impl ContractClassManagerConfig {
+    #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
+    pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
+        Self { run_cairo_native, wait_on_native_compilation, ..Default::default() }
+    }
+}
+
 impl SerializeConfig for ContractClassManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
