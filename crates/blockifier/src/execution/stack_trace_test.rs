@@ -2,6 +2,7 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
+use rstest_reuse::apply;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::core::{
@@ -44,6 +45,7 @@ use crate::execution::stack_trace::{
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
+use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::{create_calldata, CairoVersion, RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::test_utils::{
@@ -556,8 +558,7 @@ Error in contract (contract address: {address_felt:#064x}, class hash: {test_con
 
 // TODO(Arni, 1/5/2024): Cover version 0 declare transaction.
 // TODO(Arni, 1/5/2024): Consider version 0 invoke.
-#[cfg(not(feature = "cairo_native"))]
-#[rstest]
+#[apply(cairo_version)]
 #[case::validate_version_1(
     TransactionType::InvokeFunction,
     VALIDATE_ENTRY_POINT_NAME,
@@ -597,67 +598,6 @@ fn test_validate_trace(
     #[case] tx_type: TransactionType,
     #[case] entry_point_name: &str,
     #[case] tx_version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
-) {
-    test_validate_trace_fn(tx_type, entry_point_name, tx_version, cairo_version);
-}
-
-#[cfg(feature = "cairo_native")]
-#[rstest]
-#[case::validate_version_1(
-    TransactionType::InvokeFunction,
-    VALIDATE_ENTRY_POINT_NAME,
-    TransactionVersion::ONE
-)]
-#[case::validate_version_3(
-    TransactionType::InvokeFunction,
-    VALIDATE_ENTRY_POINT_NAME,
-    TransactionVersion::THREE
-)]
-#[case::validate_declare_version_1(
-    TransactionType::Declare,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME,
-    TransactionVersion::ONE
-)]
-#[case::validate_declare_version_2(
-    TransactionType::Declare,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME,
-    TransactionVersion::TWO
-)]
-#[case::validate_declare_version_3(
-    TransactionType::Declare,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME,
-    TransactionVersion::THREE
-)]
-#[case::validate_deploy_version_1(
-    TransactionType::DeployAccount,
-    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
-    TransactionVersion::ONE
-)]
-#[case::validate_deploy_version_3(
-    TransactionType::DeployAccount,
-    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
-    TransactionVersion::THREE
-)]
-fn test_validate_trace(
-    #[case] tx_type: TransactionType,
-    #[case] entry_point_name: &str,
-    #[case] tx_version: TransactionVersion,
-    #[values(
-        CairoVersion::Cairo0,
-        CairoVersion::Cairo1(RunnableCairo1::Casm),
-        CairoVersion::Cairo1(RunnableCairo1::Native)
-    )]
-    cairo_version: CairoVersion,
-) {
-    test_validate_trace_fn(tx_type, entry_point_name, tx_version, cairo_version);
-}
-
-fn test_validate_trace_fn(
-    tx_type: TransactionType,
-    entry_point_name: &str,
-    tx_version: TransactionVersion,
     cairo_version: CairoVersion,
 ) {
     let create_for_account_testing = &BlockContext::create_for_account_testing();
