@@ -37,7 +37,7 @@ impl RLimit {
 
 /// A struct to hold resource limits for a process.
 /// Each limit is optional and can be set to `None` if not needed.
-struct ResourceLimits {
+pub struct ResourceLimits {
     /// A limit (in seconds) on the amount of CPU time that the process can consume.
     cpu_time: Option<RLimit>,
     /// The maximum size (in bytes) of files that the process may create.
@@ -47,7 +47,7 @@ struct ResourceLimits {
 }
 
 impl ResourceLimits {
-    fn new(
+    pub fn new(
         cpu_time: Option<u64>,
         file_size: Option<u64>,
         memory_size: Option<u64>,
@@ -75,7 +75,7 @@ impl ResourceLimits {
     }
 
     /// Set all defined resource limits for the current process. Limits set to `None` are ignored.
-    fn set(&self) -> io::Result<()> {
+    pub fn set(&self) -> io::Result<()> {
         [self.cpu_time.as_ref(), self.file_size.as_ref(), self.memory_size.as_ref()]
             .iter()
             .flatten()
@@ -86,7 +86,10 @@ impl ResourceLimits {
     /// struct into a closure that is held by the given command. The closure is executed in the
     /// child process spawned by the command, right before it invokes the `exec` system call.
     /// NOTE: This method is only implemented for Unix-like systems.
-    fn apply(self, command: &mut Command) -> &mut Command {
+    pub fn apply(self, command: &mut Command) -> &mut Command {
+        if self.cpu_time.is_none() && self.file_size.is_none() && self.memory_size.is_none() {
+            return command;
+        }
         #[cfg(unix)]
         unsafe {
             // The `pre_exec` method runs a given closure after the parent process has been forked

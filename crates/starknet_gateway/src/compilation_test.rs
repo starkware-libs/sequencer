@@ -35,7 +35,7 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
     let gateway_compiler =
         GatewayCompiler::new_command_line_compiler(SierraToCasmCompilationConfig {
-            max_bytecode_size: 1,
+            max_casm_bytecode_size: 1,
         });
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
