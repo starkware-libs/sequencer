@@ -31,6 +31,7 @@ type MessageId = u64;
 // TODO(guyn) add all of these to the config
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 const MAX_STREAMS_PER_PEER: usize = 10;
+const MAX_MESSAGES_PER_STREAM: usize = 100;
 
 /// A combination of trait bounds needed for the content of the stream.
 pub trait StreamContentTrait:
@@ -415,7 +416,10 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
                 }
             }
             Ordering::Greater => {
-                Self::store(&mut data, peer_id.clone(), stream_id.clone(), message);
+                let buffer_error = Self::store(&mut data, message);
+                if buffer_error {
+                    return None;
+                }
             }
             Ordering::Less => {
                 // TODO(guyn): replace warnings with more graceful error handling
@@ -434,26 +438,26 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     // Store an inbound message in the buffer.
     fn store(
         data: &mut StreamData<StreamContent, StreamId>,
-        peer_id: PeerId,
-        stream_id: StreamId,
         message: StreamMessage<StreamContent, StreamId>,
-    ) {
+    ) -> bool {
         let message_id = message.message_id;
-
+        let buffer_length = data.message_buffer.len();
         match data.message_buffer.entry(message_id) {
             Vacant(e) => {
+                if buffer_length >= MAX_MESSAGES_PER_STREAM {
+                    // Buffer is full, cannot save the message.
+                    // If we do not use this message, then we will not
+                    // be able to ever finish the stream, best to drop it.
+                    return true;
+                }
                 e.insert(message);
             }
             Occupied(_) => {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: \
-                     {:?}",
-                    peer_id.clone(),
-                    stream_id.clone(),
-                );
+                // Network replay, ignoring.
             }
         }
+        // If the operation successfully inserted the message, return false (no error).
+        false
     }
 
     // Tries to drain as many messages as possible from the buffer (in order),
