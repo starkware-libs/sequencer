@@ -12,7 +12,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
@@ -109,7 +109,7 @@ pub struct FlowSequencerSetup {
     pub node_config: SequencerNodeConfig,
 
     // Monitoring client.
-    pub is_alive_test_client: IsAliveClient,
+    pub monitoring_client: MonitoringClient,
 }
 
 impl FlowSequencerSetup {
@@ -151,7 +151,7 @@ impl FlowSequencerSetup {
         let (_clients, servers) = create_node_modules(&node_config);
 
         let MonitoringEndpointConfig { ip, port, .. } = node_config.monitoring_endpoint_config;
-        let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+        let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
         let HttpServerConfig { ip, port } = node_config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -166,7 +166,7 @@ impl FlowSequencerSetup {
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             node_config,
-            is_alive_test_client,
+            monitoring_client,
         }
     }
 

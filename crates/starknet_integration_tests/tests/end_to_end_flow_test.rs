@@ -136,7 +136,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
-    sequencer.is_alive_test_client.await_alive(5000, 50).await.expect("Node should be alive.");
+    sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
 }
 
 async fn listen_to_broadcasted_messages(
