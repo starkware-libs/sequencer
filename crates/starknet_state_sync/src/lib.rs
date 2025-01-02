@@ -16,6 +16,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
@@ -28,9 +29,13 @@ use crate::runner::StateSyncRunner;
 
 const BUFFER_SIZE: usize = 100000;
 
-pub fn create_state_sync_and_runner(config: StateSyncConfig) -> (StateSync, StateSyncRunner) {
+pub fn create_state_sync_and_runner(
+    config: StateSyncConfig,
+    class_manager_client: SharedClassManagerClient,
+) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
-    let (state_sync_runner, storage_reader) = StateSyncRunner::new(config, new_block_receiver);
+    let (state_sync_runner, storage_reader) =
+        StateSyncRunner::new(config, new_block_receiver, class_manager_client);
     (StateSync { storage_reader, new_block_sender }, state_sync_runner)
 }
 

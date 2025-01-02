@@ -34,6 +34,7 @@ use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, SyncConfig};
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
+use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
@@ -69,6 +70,7 @@ pub struct PapyrusResources {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
+    pub class_manager_client: SharedClassManagerClient,
 }
 
 /// Struct which allows configuring how the node will run.
@@ -101,6 +103,8 @@ impl PapyrusResources {
             ..Default::default()
         }));
         let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
+        // TODO: Remove this and use the real client instead once implemented.
+        let class_manager_client = Arc::new(EmptyClassManagerClient);
         Ok(Self {
             storage_reader,
             storage_writer,
@@ -109,6 +113,7 @@ impl PapyrusResources {
             shared_highest_block,
             pending_data,
             pending_classes,
+            class_manager_client,
         })
     }
 }
@@ -257,6 +262,7 @@ async fn run_sync(
     Ok(sync.run().await?)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn spawn_sync_client(
     maybe_network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
@@ -265,6 +271,7 @@ async fn spawn_sync_client(
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
+    class_manager_client: SharedClassManagerClient,
 ) -> JoinHandle<anyhow::Result<()>> {
     match (config.sync, config.p2p_sync) {
         (Some(_), Some(_)) => {
@@ -305,6 +312,7 @@ async fn spawn_sync_client(
                 storage_writer,
                 p2p_sync_client_channels,
                 futures::stream::pending().boxed(),
+                class_manager_client,
             );
             tokio::spawn(async move { Ok(p2p_sync.run().await.map(|_never| ())?) })
         }
@@ -417,6 +425,7 @@ async fn run_threads(
             resources.shared_highest_block,
             resources.pending_data,
             resources.pending_classes,
+            resources.class_manager_client.clone(),
         )
         .await
     };
