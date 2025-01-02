@@ -21,7 +21,7 @@ use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
 
-const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
+const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
     sierra_to_native_compiler_path: None,
     libcairo_native_runtime_path: None,
@@ -31,7 +31,7 @@ const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompila
 };
 
 fn command_line_compiler() -> CommandLineCompiler {
-    CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
+    CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
 }
 fn get_test_contract() -> ContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
