@@ -31,6 +31,7 @@ type MessageId = u64;
 // TODO(guyn) add all of these to the config
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 const MAX_STREAMS_PER_PEER: usize = 10;
+const MAX_MESSAGES_PER_STREAM: usize = 100;
 
 // Use this struct for each inbound stream.
 // Drop the struct when:
@@ -423,7 +424,11 @@ impl<
                 }
             }
             Ordering::Greater => {
-                Self::store(&mut data, peer_id.clone(), stream_id.clone(), message);
+                let buffer_error =
+                    Self::store(&mut data, peer_id.clone(), stream_id.clone(), message);
+                if buffer_error {
+                    return None;
+                }
             }
             Ordering::Less => {
                 // TODO(guyn): replace warnings with more graceful error handling
@@ -445,15 +450,19 @@ impl<
         peer_id: PeerId,
         stream_id: StreamId,
         message: StreamMessage<T, StreamId>,
-    ) {
+    ) -> bool {
         let message_id = message.message_id;
-
+        let buffer_length = data.message_buffer.len();
         match data.message_buffer.entry(message_id) {
             Vacant(e) => {
+                if buffer_length >= MAX_MESSAGES_PER_STREAM {
+                    // Buffer is full, drop the whole stream!
+                    return true;
+                }
                 e.insert(message);
             }
             Occupied(_) => {
-                // TODO(guyn): replace warnings with more graceful error handling
+                // If we receive the same message twice, we should drop it, with a warning.
                 warn!(
                     "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: \
                      {:?}",
@@ -462,6 +471,8 @@ impl<
                 );
             }
         }
+        // If the operation successfully inserted the message, return false (no error).
+        false
     }
 
     // Tries to drain as many messages as possible from the buffer (in order),
