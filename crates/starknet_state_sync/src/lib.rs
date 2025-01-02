@@ -36,7 +36,7 @@ pub fn create_state_sync_and_runner(config: StateSyncConfig) -> (StateSync, Stat
 
 pub struct StateSync {
     storage_reader: StorageReader,
-    new_block_sender: Sender<(BlockNumber, SyncBlock)>,
+    new_block_sender: Sender<SyncBlock>,
 }
 
 // TODO(shahak): Have StateSyncRunner call StateSync instead of the opposite once we stop supporting
@@ -48,14 +48,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetBlock(block_number) => {
                 StateSyncResponse::GetBlock(self.get_block(block_number))
             }
-            StateSyncRequest::AddNewBlock(block_number, sync_block) => {
-                StateSyncResponse::AddNewBlock(
-                    self.new_block_sender
-                        .send((block_number, sync_block))
-                        .await
-                        .map_err(StateSyncError::from),
-                )
-            }
+            StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
+                self.new_block_sender.send(sync_block).await.map_err(StateSyncError::from),
+            ),
             StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key) => {
                 StateSyncResponse::GetStorageAt(self.get_storage_at(
                     block_number,
