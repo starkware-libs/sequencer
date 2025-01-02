@@ -97,26 +97,23 @@ where
                 // precommits to print.
                 info!("Decision reached. {:?}", decision);
                 context.decision_reached(decision.block, decision.precommits).await?;
-                current_height = current_height.unchecked_next();
             }
-            RunHeightRes::Sync(sync_height) => {
-                info!("Sync to height: {}. current_height={}", sync_height, current_height);
+            RunHeightRes::Sync => {
+                info!("Decision learned via sync protocol.");
                 metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
-                current_height = sync_height.unchecked_next();
             }
         }
+        current_height = current_height.unchecked_next();
     }
 }
 
 /// Run height can end either when consensus reaches a decision or when we learn, via sync, of the
 /// decision.
-// TODO(Matan): Sync may change when Shahak actually implements.
 pub enum RunHeightRes {
     /// Decision reached.
     Decision(Decision),
-    /// Sync protocol returned a future height.
-    // TODO(Asmaa): Remove BlockNumber since sync is only for the current block.
-    Sync(BlockNumber),
+    /// Decision learned via sync.
+    Sync,
 }
 
 type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
@@ -207,7 +204,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 _ = tokio::time::sleep(sync_retry_interval) => {
                     if context.try_sync(height).await {
-                        return Ok(RunHeightRes::Sync(height));
+                        return Ok(RunHeightRes::Sync);
                     }
                     continue;
                 }
