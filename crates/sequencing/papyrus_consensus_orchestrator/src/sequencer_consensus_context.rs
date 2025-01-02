@@ -65,7 +65,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
-use crate::fee_market::{calculate_next_base_gas_price, MAX_BLOCK_SIZE};
+use crate::fee_market::{calculate_next_base_gas_price, MAX_BLOCK_SIZE, MIN_GAS_PRICE};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
@@ -162,8 +162,18 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             chain_id,
             cende_ambassador,
-            // TODO(Ayelet): Replace placeholder with real value.
-            l2_gas_price: MAX_BLOCK_SIZE / 2,
+            l2_gas_price: MIN_GAS_PRICE,
+        }
+    }
+
+    fn gas_prices(&self) -> GasPrices {
+        GasPrices {
+            strk_gas_prices: GasPriceVector {
+                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price.into())
+                    .expect("Failed to convert l2_gas_price to NonzeroGasPrice, should not be 0."),
+                ..TEMPORARY_GAS_PRICES.strk_gas_prices
+            },
+            ..TEMPORARY_GAS_PRICES
         }
     }
 }
@@ -196,6 +206,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .send((stream_id, proposal_receiver))
             .await
             .expect("Failed to send proposal receiver");
+        let gas_prices = self.gas_prices();
 
         let handle = tokio::spawn(
             async move {
@@ -208,6 +219,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     valid_proposals,
                     proposal_id,
                     cende_write_success,
+                    gas_prices,
                 )
                 .await;
             }
@@ -429,6 +441,7 @@ impl SequencerConsensusContext {
         let chain_id = self.chain_id.clone();
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
+        let gas_prices = self.gas_prices();
 
         let handle = tokio::spawn(async move {
             validate_proposal(
@@ -442,6 +455,7 @@ impl SequencerConsensusContext {
                 content_receiver,
                 fin_sender,
                 cancel_token_clone,
+                gas_prices,
             )
             .await
         });
@@ -467,8 +481,9 @@ async fn build_proposal(
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: oneshot::Receiver<bool>,
+    gas_prices: GasPrices,
 ) {
-    initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref()).await;
+    initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
     debug!("Broadcasting proposal init: {proposal_init:?}");
     proposal_sender
         .send(ProposalPart::Init(proposal_init))
@@ -505,6 +520,7 @@ async fn initialize_build(
     proposal_init: &ProposalInit,
     timeout: Duration,
     batcher: &dyn BatcherClient,
+    gas_prices: GasPrices,
 ) {
     let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
@@ -521,7 +537,7 @@ async fn initialize_build(
         // TODO(Dan, Matan): Fill block info.
         block_info: BlockInfo {
             block_number: proposal_init.height,
-            gas_prices: TEMPORARY_GAS_PRICES,
+            gas_prices,
             block_timestamp: BlockTimestamp(
                 now.timestamp().try_into().expect("Failed to convert timestamp"),
             ),
@@ -626,8 +642,9 @@ async fn validate_proposal(
     mut content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
     cancel_token: CancellationToken,
+    gas_prices: GasPrices,
 ) {
-    initiate_validation(batcher, proposal_id, height, proposer, timeout).await;
+    initiate_validation(batcher, proposal_id, height, proposer, timeout, gas_prices).await;
 
     let mut content = Vec::new();
     let (built_block, received_fin) = loop {
@@ -681,6 +698,7 @@ async fn initiate_validation(
     height: BlockNumber,
     proposer: ValidatorId,
     timeout: Duration,
+    gas_prices: GasPrices,
 ) {
     // Initiate the validation.
     let chrono_timeout =
@@ -697,7 +715,7 @@ async fn initiate_validation(
         // TODO(Dan, Matan): Fill block info.
         block_info: BlockInfo {
             block_number: height,
-            gas_prices: TEMPORARY_GAS_PRICES,
+            gas_prices,
             block_timestamp: BlockTimestamp(
                 now.timestamp().try_into().expect("Failed to convert timestamp"),
             ),
