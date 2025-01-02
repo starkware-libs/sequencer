@@ -33,7 +33,7 @@ use starknet_integration_tests::utils::{
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
@@ -112,9 +112,9 @@ async fn setup(
 
 async fn wait_for_sequencer_node(config: &SequencerNodeConfig) {
     let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
-    let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+    let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-    is_alive_test_client.await_alive(5000, 50).await.expect("Node should be alive.");
+    monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
 }
 
 #[rstest]

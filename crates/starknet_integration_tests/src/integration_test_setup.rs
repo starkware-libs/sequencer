@@ -14,7 +14,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
@@ -89,7 +89,7 @@ impl IntegrationTestSetup {
     pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
         for (sequencer_index, sequencer) in self.sequencers.iter().enumerate() {
             sequencer
-                .is_alive_test_client
+                .monitoring_client
                 .await_alive(interval, max_attempts)
                 .await
                 .unwrap_or_else(|_| panic!("Node {} should be alive.", sequencer_index));
@@ -123,7 +123,7 @@ pub struct IntegrationSequencerSetup {
     pub add_tx_http_client: HttpTestClient,
 
     // Client for checking liveness of the sequencer node.
-    pub is_alive_test_client: IsAliveClient,
+    pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.
     pub node_config_path: PathBuf,
     // Storage reader for the batcher.
@@ -177,7 +177,7 @@ impl IntegrationSequencerSetup {
 
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
-        let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+        let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -185,7 +185,7 @@ impl IntegrationSequencerSetup {
         Self {
             sequencer_index,
             add_tx_http_client,
-            is_alive_test_client,
+            monitoring_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage,
             node_config_dir_handle,
