@@ -6,11 +6,11 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 81920;
+pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 80 * 1024;
 // TODO(Noa): Reconsider the default values.
-pub const DEFAULT_MAX_NATIVE_BYTECODE_SIZE: usize = 20 * 1024 * 1024;
+pub const DEFAULT_MAX_NATIVE_BYTECODE_SIZE: usize = 15 * 1024 * 1024;
 pub const DEFAULT_MAX_CPU_TIME: u64 = 15;
-pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 1200 * 1024 * 1024;
+pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraCompilationConfig {
