@@ -27,50 +27,14 @@ use crate::utils::compile_contract_and_build_executable_tx;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
-struct GatewayBusinessLogic {
+pub struct Gateway {
+    pub config: GatewayConfig,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub gateway_compiler: Arc<GatewayCompiler>,
-    pub chain_info: ChainInfo,
-}
-
-impl GatewayBusinessLogic {
-    pub fn new(
-        config: GatewayConfig,
-        state_reader_factory: Arc<dyn StateReaderFactory>,
-        gateway_compiler: GatewayCompiler,
-    ) -> Self {
-        Self {
-            stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-                config: config.stateless_tx_validator_config.clone(),
-            }),
-            stateful_tx_validator: Arc::new(StatefulTransactionValidator {
-                config: config.stateful_tx_validator_config.clone(),
-            }),
-            state_reader_factory,
-            gateway_compiler: Arc::new(gateway_compiler),
-            chain_info: config.chain_info.clone(),
-        }
-    }
-
-    pub async fn add_tx(&self, tx: RpcTransaction) -> GatewayResult<AddTransactionArgs> {
-        info!("Processing tx");
-        let blocking_task = ProcessTxBlockingTask::new(self, tx);
-        // Run the blocking task in the current span.
-        let curr_span = Span::current();
-        tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
-            .await
-            .map_err(|join_err| {
-                error!("Failed to process tx: {}", join_err);
-                GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-            })?
-    }
-}
-
-pub struct Gateway {
     pub mempool_client: SharedMempoolClient,
-    business_logic: GatewayBusinessLogic,
+    pub chain_info: ChainInfo,
 }
 
 impl Gateway {
@@ -80,9 +44,19 @@ impl Gateway {
         gateway_compiler: GatewayCompiler,
         mempool_client: SharedMempoolClient,
     ) -> Self {
-        let business_logic =
-            GatewayBusinessLogic::new(config, state_reader_factory, gateway_compiler);
-        Self { business_logic, mempool_client }
+        Self {
+            config: config.clone(),
+            stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+                config: config.stateless_tx_validator_config.clone(),
+            }),
+            stateful_tx_validator: Arc::new(StatefulTransactionValidator {
+                config: config.stateful_tx_validator_config.clone(),
+            }),
+            state_reader_factory,
+            gateway_compiler: Arc::new(gateway_compiler),
+            mempool_client,
+            chain_info: config.chain_info.clone(),
+        }
     }
 
     #[instrument(skip(self), ret)]
@@ -91,8 +65,20 @@ impl Gateway {
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
-        let add_tx_args = self.business_logic.add_tx(tx).await?;
+        info!("Processing tx");
+        let blocking_task = ProcessTxBlockingTask::new(self, tx);
+        // Run the blocking task in the current span.
+        let curr_span = Span::current();
+        let add_tx_args =
+            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
+                .await
+                .map_err(|join_err| {
+                    error!("Failed to process tx: {}", join_err);
+                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+                })??;
+
         let tx_hash = add_tx_args.tx.tx_hash();
+
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
         mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
         // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
@@ -112,7 +98,7 @@ struct ProcessTxBlockingTask {
 }
 
 impl ProcessTxBlockingTask {
-    pub fn new(gateway: &GatewayBusinessLogic, tx: RpcTransaction) -> Self {
+    pub fn new(gateway: &Gateway, tx: RpcTransaction) -> Self {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
