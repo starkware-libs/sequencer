@@ -23,7 +23,7 @@ use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::storage_metrics::update_storage_metrics;
@@ -192,8 +192,9 @@ fn spawn_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    let proposal_network_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>> =
-        network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    let proposal_network_channels: BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,

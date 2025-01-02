@@ -1,3 +1,7 @@
+use std::fmt::Display;
+
+use bytes::{Buf, BufMut};
+use prost::DecodeError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
@@ -26,10 +30,13 @@ pub enum StreamMessageBody<T> {
     Fin,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct StreamMessage<
+    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+    StreamId: Into<Vec<u8>> + Clone,
+> {
     pub message: StreamMessageBody<T>,
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub message_id: u64,
 }
 
@@ -108,7 +115,7 @@ impl From<ProposalInit> for ProposalPart {
     }
 }
 
-impl<T> std::fmt::Display for StreamMessage<T>
+impl<T, StreamId: Into<Vec<u8>> + Clone + Display> std::fmt::Display for StreamMessage<T, StreamId>
 where
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 {
@@ -129,5 +136,38 @@ where
                 self.stream_id, self.message_id,
             )
         }
+    }
+}
+
+/// HeighAndRound is a tuple struct used as the StreamId for consensus and context.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HeightAndRound(pub u64, pub u32);
+
+impl TryFrom<Vec<u8>> for HeightAndRound {
+    type Error = ProtobufConversionError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        if value.len() != 12 {
+            return Err(ProtobufConversionError::DecodeError(DecodeError::new("Invalid length")));
+        }
+        let mut bytes = value.as_slice();
+        let height = bytes.get_u64();
+        let round = bytes.get_u32();
+        Ok(HeightAndRound(height, round))
+    }
+}
+
+impl From<HeightAndRound> for Vec<u8> {
+    fn from(value: HeightAndRound) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(12);
+        bytes.put_u64(value.0);
+        bytes.put_u32(value.1);
+        bytes
+    }
+}
+
+impl std::fmt::Display for HeightAndRound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(height: {}, round: {})", self.0, self.1)
     }
 }
