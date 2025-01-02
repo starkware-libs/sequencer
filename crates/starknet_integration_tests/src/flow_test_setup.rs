@@ -18,6 +18,7 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
+use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
@@ -131,7 +132,10 @@ impl FlowSequencerSetup {
             sequencer_index,
             chain_info,
             storage_for_test.batcher_storage_config,
-            storage_for_test.state_sync_storage_config,
+            StateSyncConfig {
+                storage_config: storage_for_test.state_sync_storage_config,
+                ..Default::default()
+            },
             consensus_manager_config,
             mempool_p2p_config,
             component_config,
