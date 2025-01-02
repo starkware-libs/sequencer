@@ -1,7 +1,12 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_param,
+    ser_pointer_target_required_param,
+    SerializeConfig,
+};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
@@ -178,11 +183,10 @@ impl Default for ChainInfo {
 
 impl SerializeConfig for ChainInfo {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([ser_param(
+        let members = BTreeMap::from_iter([ser_pointer_target_required_param(
             "chain_id",
-            &self.chain_id,
-            "The chain ID of the StarkNet chain.",
-            ParamPrivacyInput::Public,
+            SerializationType::String,
+            "The chain ID of the Starknet chain.",
         )]);
 
         vec![
