@@ -17,7 +17,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use prost::DecodeError;
 
-use super::{MessageId, StreamHandler, MAX_STREAMS_PER_PEER};
+use super::{MessageId, StreamHandler, MAX_MESSAGES_PER_STREAM, MAX_STREAMS_PER_PEER};
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
@@ -533,6 +533,63 @@ mod tests {
                 .collect::<HashSet<_>>(),
             stream_ids
         );
+    }
+
+    #[tokio::test]
+    async fn inbound_max_messages_per_stream() {
+        let (
+            mut stream_handler,
+            mut network_sender,
+            _inbound_channel_receiver,
+            inbound_metadata,
+            _,
+            _,
+        ) = setup_test();
+        let peer_id = inbound_metadata.originator_id.clone();
+        let stream_id = TestStreamId(127);
+        let max_messages_per_stream = u64::try_from(MAX_MESSAGES_PER_STREAM).unwrap();
+
+        // Send MAX_MESSAGES_PER_STREAM messages, without first message.
+        for i in 1..=max_messages_per_stream {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &inbound_metadata, message).await;
+        }
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        // The stream ID should be in the stream handler.
+        assert!(stream_handler.inbound_stream_data[&peer_id].contains(&stream_id));
+
+        // The message buffer should contain MAX_MESSAGES_PER_STREAM messages.
+        assert_eq!(
+            stream_handler.inbound_stream_data[&peer_id]
+                .peek(&stream_id)
+                .unwrap()
+                .message_buffer
+                .len(),
+            MAX_MESSAGES_PER_STREAM
+        );
+
+        // Send another message to the same stream.
+        let message = make_test_message(stream_id, max_messages_per_stream + 1, false);
+        send(&mut network_sender, &inbound_metadata, message).await;
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let stream_handler = join_handle.await.expect("Task should succeed");
+
+        // Stream ID should be dropped after getting too many messages.
+        assert!(stream_handler.inbound_stream_data.is_empty());
     }
 
     #[tokio::test]
