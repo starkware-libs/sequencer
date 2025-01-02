@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::net::IpAddr;
-use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -127,7 +126,7 @@ where
             .client
             .request(http_request)
             .await
-            .map_err(|e| ClientError::CommunicationFailure(Arc::new(e)))?;
+            .map_err(|err| ClientError::CommunicationFailure(err.to_string()))?;
 
         match http_response.status() {
             StatusCode::OK => get_response_body(http_response).await,
@@ -177,10 +176,10 @@ where
 {
     let body_bytes = to_bytes(response.into_body())
         .await
-        .map_err(|e| ClientError::ResponseParsingFailure(Arc::new(e)))?;
+        .map_err(|err| ClientError::ResponseParsingFailure(err.to_string()))?;
 
     SerdeWrapper::<Response>::wrapper_deserialize(&body_bytes)
-        .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
+        .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
 }
 
 // Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
