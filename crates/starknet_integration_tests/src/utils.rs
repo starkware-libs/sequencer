@@ -26,11 +26,10 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sequencer_infra::test_utils::{get_available_socket, AvailablePorts};
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
@@ -255,13 +254,6 @@ pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
 
     GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
-}
-
-// TODO(Tsabary): deprecate this function.
-pub async fn create_http_server_config_to_be_deprecated() -> HttpServerConfig {
-    // TODO(Tsabary): use ser_generated_param.
-    let socket = get_available_socket().await;
-    HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
 pub fn create_batcher_config(
