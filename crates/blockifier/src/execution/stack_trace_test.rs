@@ -935,8 +935,8 @@ Error at pc=0:{}:
 Error at pc=0:{}:
 {frame_2}
 {final_error}",
-                        execute_offset + 165,
-                        deploy_offset + 154,
+                        execute_offset + 181,
+                        deploy_offset + 168,
                     )
                 }
                 #[cfg(feature = "cairo_native")]

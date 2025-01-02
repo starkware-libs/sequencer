@@ -53,7 +53,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
 
     assert_eq!(
         entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 15220, ..CallExecution::from_retdata(retdata![block_hash]) }
+        CallExecution { gas_consumed: 15920, ..CallExecution::from_retdata(retdata![block_hash]) }
     );
 }
 

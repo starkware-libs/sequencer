@@ -99,9 +99,9 @@ jobs:
             * [Started at ${{ github.event.pull_request.updated_at }}](${{ env.WORKFLOW_LINK }})
 
       # Build artifact.
-      - uses: ./.github/actions/bootstrap
       - name: Build native blockifier
-        run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
+        run: |
+          ./build_native_in_docker.sh scripts/build_native_blockifier.sh
 
       # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
       - name: Rename shared object
