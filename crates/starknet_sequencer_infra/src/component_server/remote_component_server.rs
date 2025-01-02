@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -134,7 +133,7 @@ where
         let body_bytes = to_bytes(http_request.into_body()).await?;
 
         let http_response = match SerdeWrapper::<Request>::wrapper_deserialize(&body_bytes)
-            .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
+            .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
                 let response = local_client.send(request).await;

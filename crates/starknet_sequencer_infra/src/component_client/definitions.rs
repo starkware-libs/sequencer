@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use hyper::StatusCode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -11,11 +9,11 @@ use crate::component_definitions::ServerError;
 #[derive(Clone, Debug, Error)]
 pub enum ClientError {
     #[error("Communication error: {0}")]
-    CommunicationFailure(Arc<hyper::Error>),
+    CommunicationFailure(String),
     #[error("Could not deserialize server response: {0}")]
-    ResponseDeserializationFailure(Arc<serde_json::Error>),
+    ResponseDeserializationFailure(String),
     #[error("Could not parse the response: {0}")]
-    ResponseParsingFailure(Arc<hyper::Error>),
+    ResponseParsingFailure(String),
     #[error("Got status code: {0}, with server error: {1}")]
     ResponseError(StatusCode, ServerError),
     #[error("Got an unexpected response type: {0}")]
