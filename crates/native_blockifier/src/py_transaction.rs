@@ -165,7 +165,7 @@ pub struct PyClassInfo {
     raw_contract_class: String,
     sierra_program_length: usize,
     abi_length: usize,
-    sierra_version: (u64, u64, u64),
+    sierra_version: Option<(u64, u64, u64)>,
 }
 
 impl PyClassInfo {
@@ -184,13 +184,12 @@ impl PyClassInfo {
                 SierraVersion::from(py_class_info.sierra_version),
             )),
         };
-        let (major, minor, patch) = py_class_info.sierra_version;
 
         let class_info = ClassInfo::new(
             &contract_class,
             py_class_info.sierra_program_length,
             py_class_info.abi_length,
-            SierraVersion::new(major, minor, patch),
+            SierraVersion::from(py_class_info.sierra_version),
         )?;
         Ok(class_info)
     }

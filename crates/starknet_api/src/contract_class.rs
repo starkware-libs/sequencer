@@ -118,9 +118,12 @@ impl FromStr for SierraVersion {
     }
 }
 
-impl From<(u64, u64, u64)> for SierraVersion {
-    fn from((major, minor, patch): (u64, u64, u64)) -> Self {
-        Self::new(major, minor, patch)
+impl From<Option<(u64, u64, u64)>> for SierraVersion {
+    fn from(optional_sierra_version: Option<(u64, u64, u64)>) -> Self {
+        match optional_sierra_version {
+            Some((major, minor, patch)) => Self::new(major, minor, patch),
+            None => Self::DEPRECATED,
+        }
     }
 }
 
