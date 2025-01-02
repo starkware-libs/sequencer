@@ -112,6 +112,23 @@ mod tests {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
+    async fn run_stream_handler_with_timeout<T>(
+        mut stream_handler: StreamHandler<T, TestStreamId>,
+    ) -> StreamHandler<T, TestStreamId>
+    where
+        T: Into<Vec<u8>>
+            + TryFrom<Vec<u8>, Error = ProtobufConversionError>
+            + Clone
+            + Send
+            + 'static,
+    {
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+        join_handle.await.expect("Task should succeed")
+    }
+
     #[allow(clippy::type_complexity)]
     fn setup_test<T>() -> (
         StreamHandler<T, TestStreamId>,
@@ -189,7 +206,7 @@ mod tests {
 
     #[tokio::test]
     async fn inbound_in_order() {
-        let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
+        let (stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
             setup_test();
 
         let stream_id = TestStreamId(127);
@@ -198,11 +215,7 @@ mod tests {
             send(&mut network_sender, &metadata, message).await;
         }
 
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-        });
-
-        join_handle.await.expect("Task should succeed");
+        run_stream_handler_with_timeout(stream_handler).await;
 
         let mut receiver = inbound_channel_receiver.next().await.unwrap();
         for _ in 0..9 {
@@ -216,7 +229,7 @@ mod tests {
     #[tokio::test]
     async fn inbound_in_reverse() {
         let (
-            mut stream_handler,
+            stream_handler,
             mut network_sender,
             mut inbound_channel_receiver,
             inbound_metadata,
@@ -231,12 +244,7 @@ mod tests {
             send(&mut network_sender, &inbound_metadata, message).await;
         }
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // No receiver should be created yet.
         assert!(inbound_channel_receiver.try_next().is_err());
@@ -277,13 +285,8 @@ mod tests {
         // Now send the last message:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id, 0, false)).await;
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
-        let stream_handler = join_handle.await.expect("Task should succeed");
         assert!(stream_handler.inbound_stream_data.is_empty());
 
         // Get the receiver for the stream.
@@ -300,7 +303,7 @@ mod tests {
     #[tokio::test]
     async fn inbound_multiple_streams() {
         let (
-            mut stream_handler,
+            stream_handler,
             mut network_sender,
             mut inbound_channel_receiver,
             inbound_metadata,
@@ -333,12 +336,7 @@ mod tests {
             send(&mut network_sender, &inbound_metadata, message).await;
         }
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         let values = [TestStreamId(1), TestStreamId(10), TestStreamId(127)];
         for item in values {
@@ -387,11 +385,7 @@ mod tests {
         // Send the last message on stream_id1:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id1, 0, false)).await;
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Get the receiver for the first stream.
         let mut receiver1 = inbound_channel_receiver.next().await.unwrap();
@@ -401,7 +395,6 @@ mod tests {
             // message number 9 is Fin, so it will not be sent!
             let _ = receiver1.next().await.unwrap();
         }
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // stream_id1 should be gone
         let values = [TestStreamId(1), TestStreamId(10)];
@@ -411,11 +404,7 @@ mod tests {
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Get the receiver for the second stream.
         let mut receiver2 = inbound_channel_receiver.next().await.unwrap();
@@ -426,24 +415,17 @@ mod tests {
             let _ = receiver2.next().await.unwrap();
         }
 
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
-
         // Stream_id2 should also be gone.
         assert!(stream_handler.inbound_stream_data[&peer_id].contains(&TestStreamId(1)));
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Get the receiver for the third stream.
         let mut receiver3 = inbound_channel_receiver.next().await.unwrap();
 
-        let stream_handler = join_handle.await.expect("Task should succeed");
         for _ in 0..10 {
             // All messages are received, including number 9 which is not Fin
             let _ = receiver3.next().await.unwrap();
@@ -465,7 +447,7 @@ mod tests {
     #[tokio::test]
     async fn inbound_max_streams_per_peer() {
         let (
-            mut stream_handler,
+            stream_handler,
             mut network_sender,
             mut inbound_channel_receiver,
             inbound_metadata,
@@ -495,13 +477,8 @@ mod tests {
             let message = make_test_message_with_stream_id(*stream_id, 0, false);
             send(&mut network_sender, &inbound_metadata, message).await;
         }
-        // Run the loop for a short duration to process the messages.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
 
-        let _stream_handler = join_handle.await.expect("Task should succeed");
+        let _stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         let mut message_count = HashMap::new();
         let mut stream_state = HashMap::new();
@@ -540,7 +517,7 @@ mod tests {
     #[tokio::test]
     async fn inbound_max_messages_per_stream() {
         let (
-            mut stream_handler,
+            stream_handler,
             mut network_sender,
             mut inbound_channel_receiver,
             inbound_metadata,
@@ -560,13 +537,7 @@ mod tests {
         let message = make_test_message(stream_id, 0, false);
         send(&mut network_sender, &inbound_metadata, message).await;
 
-        // Run the loop for a short duration to process the messages.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
-
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Get the receiver for the stream, read all messages.
         let mut receiver = inbound_channel_receiver.try_next().unwrap().unwrap();
@@ -592,13 +563,7 @@ mod tests {
         let message = make_test_message(stream_id, 0, false);
         send(&mut network_sender, &inbound_metadata, message).await;
 
-        // Run the loop for a short duration to process the messages.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
-
-        let _stream_handler = join_handle.await.expect("Task should succeed");
+        let _stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Get the receiver for the stream.
         let mut receiver = inbound_channel_receiver.next().await.unwrap();
@@ -610,7 +575,7 @@ mod tests {
 
     #[tokio::test]
     async fn inbound_close_channel() {
-        let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
+        let (stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
             setup_test();
 
         let stream_id = TestStreamId(127);
@@ -620,12 +585,7 @@ mod tests {
             send(&mut network_sender, &metadata, message).await;
         }
 
-        // Allow the StreamHandler to process the messages.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         let mut receiver = inbound_channel_receiver.next().await.unwrap();
         for _ in 0..2 {
@@ -646,12 +606,7 @@ mod tests {
             send(&mut network_sender, &metadata, message).await;
         }
 
-        // Allow the StreamHandler to process the messages.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
-        let stream_handler = join_handle.await.expect("Task should succeed");
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Check that the stream handler no longer contains the StreamData.
         assert_eq!(stream_handler.inbound_stream_data.len(), 0);
@@ -664,7 +619,7 @@ mod tests {
     #[tokio::test]
     async fn outbound_multiple_streams() {
         let (
-            mut stream_handler,
+            stream_handler,
             _,
             _,
             _,
@@ -683,15 +638,10 @@ mod tests {
         let message1 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message1.clone()).await.unwrap();
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Check that message was broadcasted.
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message1));
@@ -710,16 +660,10 @@ mod tests {
         let message2 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message2.clone()).await.unwrap();
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
-
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Check that message was broadcasted.
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message2));
@@ -735,16 +679,10 @@ mod tests {
         let message3 = ProposalPart::Init(ProposalInit::default());
         sender2.send(message3.clone()).await.unwrap();
 
-        // Run the loop for a short duration to process the message.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
-
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Check that message was broadcasted.
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message3));
@@ -761,17 +699,11 @@ mod tests {
         // Close the first channel.
         sender1.close_channel();
 
-        // Run the loop for a short duration to process that the channel was closed.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_handler = run_stream_handler_with_timeout(stream_handler).await;
 
         // Check that we got a fin message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
         assert_eq!(broadcasted_message.message, StreamMessageBody::Fin);
-
-        let stream_handler = join_handle.await.expect("Task should succeed");
 
         // Check that the information about this stream is gone.
         assert_eq!(
