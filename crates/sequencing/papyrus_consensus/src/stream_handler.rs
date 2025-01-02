@@ -367,7 +367,6 @@ impl<
     ) -> Option<StreamData<T, StreamId>> {
         let peer_id = metadata.originator_id;
         let stream_id = message.stream_id.clone();
-        let key = (peer_id, stream_id);
         let message_id = message.message_id;
 
         if data.max_message_id_received < message_id {
@@ -383,8 +382,10 @@ impl<
                     // TODO(guyn): replace warnings with more graceful error handling
                     warn!(
                         "Received fin message with id that is smaller than a previous message! \
-                         key: {:?}, fin_message_id: {}, max_message_id_received: {}",
-                        key.clone(),
+                         peer_id: {:?}, stream_id: {:?}, fin_message_id: {}, \
+                         max_message_id_received: {}",
+                        peer_id.clone(),
+                        stream_id.clone(),
                         message_id,
                         data.max_message_id_received
                     );
@@ -396,9 +397,10 @@ impl<
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is bigger than the id of the fin message! key: \
-                 {:?}, message_id: {}, fin_message_id: {}",
-                key.clone(),
+                "Received message with id that is bigger than the id of the fin message! peer_id: \
+                 {:?}, stream_id: {:?}, fin_message_id: {}, max_message_id_received: {}",
+                peer_id.clone(),
+                stream_id.clone(),
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
             );
@@ -421,16 +423,15 @@ impl<
                 }
             }
             Ordering::Greater => {
-                Self::store(&mut data, key.clone(), message);
+                Self::store(&mut data, peer_id.clone(), stream_id.clone(), message);
             }
             Ordering::Less => {
                 // TODO(guyn): replace warnings with more graceful error handling
                 warn!(
                     "Received message with id that is smaller than the next message expected! \
-                     key: {:?}, message_id: {}, next_message_id: {}",
-                    key.clone(),
-                    message_id,
-                    data.next_message_id
+                     peer_id: {:?}, stream_id: {:?}, fin_message_id: {}, max_message_id_received: \
+                     {}",
+                    peer_id, stream_id, message_id, data.next_message_id
                 );
                 return None;
             }
@@ -441,7 +442,8 @@ impl<
     // Store an inbound message in the buffer.
     fn store(
         data: &mut StreamData<T, StreamId>,
-        key: (PeerId, StreamId),
+        peer_id: PeerId,
+        stream_id: StreamId,
         message: StreamMessage<T, StreamId>,
     ) {
         let message_id = message.message_id;
@@ -453,8 +455,10 @@ impl<
             Occupied(_) => {
                 // TODO(guyn): replace warnings with more graceful error handling
                 warn!(
-                    "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
-                    key, message_id
+                    "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: \
+                     {:?}",
+                    peer_id.clone(),
+                    stream_id.clone(),
                 );
             }
         }
