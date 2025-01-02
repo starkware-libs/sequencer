@@ -189,7 +189,7 @@ where
                             }
                         }
                         block = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number) => {
-                                debug!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                                info!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                                 current_block_number = current_block_number.unchecked_next();
                                 yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
                                 debug!("Network query ending at block {} for {:?} being ignored due to internal block", end_block_number, Self::TYPE_DESCRIPTION);
