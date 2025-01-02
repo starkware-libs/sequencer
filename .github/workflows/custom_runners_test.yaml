@@ -1,0 +1,10 @@
+name: Use Github App
+on:
+  workflow_dispatch:
+
+jobs:
+  hello-world:
+    runs-on: sequencer
+    steps:
+      - name: Print Hello World
+        run: echo "hello world!"
