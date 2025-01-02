@@ -3,10 +3,10 @@ import json
 import subprocess
 import sys
 
-GRAFANA_DASHBOARD_TEMPLATE_FILE_PATH = "monitoring/templates/grafana_dashboard.json"
-GRAFANA_ALERTS_TEMPLATE_FILE_PATH = "monitoring/templates/grafana_alerts.json"
-GRAFANA_DASHBOARD_DESTINATION_FILE_PATH = "helm/Monitoring/grafana_dashboard.json"
-GRAFANA_ALERTS_DESTINATION_FILE_PATH = "helm/Monitoring/grafana_alerts.json"
+GRAFANA_DASHBOARD_TEMPLATE_FILE_PATH = "Monitoring/papyrus/grafana.json"
+GRAFANA_ALERTS_TEMPLATE_FILE_PATH = "Monitoring/papyrus/alerts_grafana.json"
+GRAFANA_DASHBOARD_DESTINATION_FILE_PATH = "deployments/papyrus/helm/Monitoring/grafana_dashboard.json"
+GRAFANA_ALERTS_DESTINATION_FILE_PATH = "deployments/papyrus/helm/Monitoring/grafana_alerts.json"
 
 # TODO: Add function to deploy monitoring dashboard.
 def parse_command_line_args():
@@ -20,7 +20,7 @@ def parse_command_line_args():
     parser.add_argument("--old_version", type=str, required=False, help="Represents previous RPC version for the desired env (e.g. v0_3).")
     parser.add_argument("--new_version", type=str, required=False, help="Represents current RPC version for the desired env (e.g. v0_4).")
     parser.add_argument("--dry_run", action="store_true", default=False, help="Enabling this option will dry run the helm upgrade.",)
-    parser.add_argument("--helm_deployment_dir", type=str, required=False, default="./deployments/helm/", help="Relative path to the helm deployment directory (default is ./deployments/helm/.")
+    parser.add_argument("--helm_deployment_dir", type=str, required=False, default="./deployments/papyrus/helm/", help="Relative path to the helm deployment directory (default is ./deployments/papyrus/helm/")
 
     return parser.parse_args()
 
@@ -49,15 +49,15 @@ def main():
     if args.with_alerts:
         assert args.prometheus_uid is not None, "Must provide Prometheus UID when deploying with Grafana."
         generate_grafana_tokens(
-            grafana_namespace=args.namespace, 
-            prometheus_uid=args.prometheus_uid, 
-            template_path=GRAFANA_DASHBOARD_TEMPLATE_FILE_PATH, 
+            grafana_namespace=args.namespace,
+            prometheus_uid=args.prometheus_uid,
+            template_path=GRAFANA_DASHBOARD_TEMPLATE_FILE_PATH,
             destination_path=GRAFANA_DASHBOARD_DESTINATION_FILE_PATH
         )
         generate_grafana_tokens(
-            grafana_namespace=args.namespace, 
-            prometheus_uid=args.prometheus_uid, 
-            template_path=GRAFANA_ALERTS_TEMPLATE_FILE_PATH, 
+            grafana_namespace=args.namespace,
+            prometheus_uid=args.prometheus_uid,
+            template_path=GRAFANA_ALERTS_TEMPLATE_FILE_PATH,
             destination_path=GRAFANA_ALERTS_DESTINATION_FILE_PATH
         )
 

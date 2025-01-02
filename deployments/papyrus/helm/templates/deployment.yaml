@@ -73,6 +73,10 @@ spec:
         args:
           - --config_file
           - /app/config/papyrus/presets/{{ .Values.starknet.preset }},/app/config/papyrus/custom/config.json
+          - --storage.scope
+          - {{ .Values.storage_scope }}
+          - --base_layer.node_url
+          - {{ .Values.base_layer_node_url }}
           {{ range $key, $value := .Values.deployment.extraArgs }}
           {{- if $value }}
           - --{{ $key }}
