@@ -16,7 +16,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use prost::DecodeError;
 
-use super::{MessageId, StreamHandler, MAX_STREAMS_PER_PEER};
+use super::{MessageId, StreamHandler, MAX_MESSAGES_PER_STREAM, MAX_STREAMS_PER_PEER};
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
@@ -530,6 +530,77 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[tokio::test]
+    async fn inbound_max_messages_per_stream() {
+        let (
+            mut stream_handler,
+            mut network_sender,
+            mut inbound_channel_receiver,
+            inbound_metadata,
+            _,
+            _,
+        ) = setup_test();
+        let stream_id = TestStreamId(127);
+        let max_messages_per_stream = u64::try_from(MAX_MESSAGES_PER_STREAM).unwrap();
+
+        // Send MAX_MESSAGES_PER_STREAM messages, without first message.
+        for i in 1..=max_messages_per_stream {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &inbound_metadata, message).await;
+        }
+
+        // Send the first message, which should flush the buffer, so we receive all messages.
+        let message = make_test_message(stream_id, 0, false);
+        send(&mut network_sender, &inbound_metadata, message).await;
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        // Get the receiver for the stream, read all messages.
+        let mut receiver = inbound_channel_receiver.try_next().unwrap().unwrap();
+        for _ in 0..=max_messages_per_stream {
+            let _ = receiver.try_next().unwrap().unwrap();
+        }
+
+        // Stream should remain open.
+        assert!(receiver.try_next().is_err());
+
+        // Send MAX_MESSAGES_PER_STREAM messages, without first message.
+        for i in 1..=max_messages_per_stream {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &inbound_metadata, message).await;
+        }
+
+        // Send another message to the end of the stream (this drops the stream).
+        let message = make_test_message(stream_id, max_messages_per_stream + 1, false);
+        send(&mut network_sender, &inbound_metadata, message).await;
+
+        // Send the first message, which should flush the buffer, but it was dropped,
+        // so we will end up only getting the first message.
+        let message = make_test_message(stream_id, 0, false);
+        send(&mut network_sender, &inbound_metadata, message).await;
+
+        // Run the loop for a short duration to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+
+        let _stream_handler = join_handle.await.expect("Task should succeed");
+
+        // Get the receiver for the stream.
+        let mut receiver = inbound_channel_receiver.next().await.unwrap();
+        let _ = receiver.try_next().unwrap().unwrap();
+
+        // Stream should remain open.
+        assert!(receiver.try_next().is_err());
     }
 
     #[tokio::test]
