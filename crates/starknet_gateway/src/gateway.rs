@@ -55,7 +55,7 @@ impl GatewayBusinessLogic {
     }
 
     pub async fn add_tx(&self, tx: RpcTransaction) -> GatewayResult<AddTransactionArgs> {
-        info!("Processing tx");
+        // info!("Processing tx");
         let blocking_task = ProcessTxBlockingTask::new(self, tx);
         // Run the blocking task in the current span.
         let curr_span = Span::current();
@@ -85,7 +85,7 @@ impl Gateway {
         Self { business_logic, mempool_client }
     }
 
-    #[instrument(skip(self), ret)]
+    // #[instrument(skip(self), ret)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,

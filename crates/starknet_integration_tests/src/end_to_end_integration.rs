@@ -24,9 +24,9 @@ use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
 /// The number of consolidated local sequencers that participate in the test.
-const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+const N_CONSOLIDATED_SEQUENCERS: usize = 5;
 /// The number of distributed remote sequencers that participate in the test.
-const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+const N_DISTRIBUTED_SEQUENCERS: usize = 0;
 
 /// Reads the latest block number from the storage.
 fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
@@ -69,7 +69,7 @@ async fn await_block(
 }
 
 pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
-    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
+    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(20);
 
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();

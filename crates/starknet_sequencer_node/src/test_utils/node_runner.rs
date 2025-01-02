@@ -27,7 +27,13 @@ async fn spawn_node_child_process(node_config_path: PathBuf, index: usize) -> Ch
     let node_executable = get_node_executable_path();
 
     info!("Running the node from: {}", node_executable);
-    let mut command = node_executable.clone();
+    // get sleep amount as integer from env var
+    let env_var: u64 = std::env::var("SLEEP_DURATION")
+        .unwrap_or("30".to_string())
+        .parse()
+        .expect("SLEEP_AMOUNT env var not a number");
+    let mut command = format!("sleep {} && ", if index == 2 { env_var } else { 0 });
+    command.push_str(&node_executable);
     command.push_str(" --config_file ");
     command.push_str(node_config_path.to_str().unwrap());
     command.push_str(&format!(
