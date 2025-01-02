@@ -11,3 +11,6 @@ TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
 # https://github.com/rust-lang/rust/issues/39915#issuecomment-618726211
 [target.'cfg(all(target_os = "linux"))']
 rustflags = ["-Clink-arg=-fuse-ld=lld"]
+
+[unstable]
+bindeps = true
