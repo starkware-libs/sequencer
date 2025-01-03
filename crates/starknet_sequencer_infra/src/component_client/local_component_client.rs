@@ -12,8 +12,8 @@ use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseS
 /// receiving responses asynchronously.
 ///
 /// # Type Parameters
-/// - `Request`: The type of the request. This type must implement both `Send` and `Sync` traits.
-/// - `Response`: The type of the response. This type must implement both `Send` and `Sync` traits.
+/// - `Request`: The type of the request. This type must implement `Send`.
+/// - `Response`: The type of the response. This type must implement `Send`.
 ///
 /// # Fields
 /// - `tx`: An asynchronous sender channel for transmitting
