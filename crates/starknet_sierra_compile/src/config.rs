@@ -10,7 +10,7 @@ pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 81920;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraCompilationConfig {
-    /// Bytecode size limit.
+    /// CASM bytecode size limit.
     pub max_casm_bytecode_size: usize,
     /// Sierra-to-Native compiler binary path.
     pub sierra_to_native_compiler_path: Option<PathBuf>,
