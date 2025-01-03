@@ -13,8 +13,6 @@ use starknet_api::state::SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-#[cfg(feature = "cairo_native")]
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 #[cfg(feature = "cairo_native")]
 use starknet_sierra_compile::SierraToNativeCompiler;
@@ -81,7 +79,7 @@ impl ContractClassManager {
                 };
             }
 
-            let compiler_config = SierraToCasmCompilationConfig::default();
+            let compiler_config = config.compiler_config.clone();
             let compiler = Arc::new(CommandLineCompiler::new(compiler_config));
             if config.wait_on_native_compilation {
                 // Compilation requests are processed synchronously. No need to start the worker.

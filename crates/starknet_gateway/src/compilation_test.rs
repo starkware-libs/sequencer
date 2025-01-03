@@ -10,7 +10,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use tracing_test::traced_test;
 
@@ -18,7 +18,7 @@ use crate::compilation::GatewayCompiler;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
-    GatewayCompiler::new_command_line_compiler(SierraToCasmCompilationConfig::default())
+    GatewayCompiler::new_command_line_compiler(SierraCompilationConfig::default())
 }
 
 #[fixture]
@@ -33,10 +33,10 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
 #[traced_test]
 #[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
-    let gateway_compiler =
-        GatewayCompiler::new_command_line_compiler(SierraToCasmCompilationConfig {
-            max_bytecode_size: 1,
-        });
+    let gateway_compiler = GatewayCompiler::new_command_line_compiler(SierraCompilationConfig {
+        max_casm_bytecode_size: 1,
+        ..SierraCompilationConfig::default()
+    });
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
     assert_matches!(result.unwrap_err(), GatewaySpecError::CompilationFailed);

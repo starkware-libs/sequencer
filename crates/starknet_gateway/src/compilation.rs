@@ -6,7 +6,7 @@ use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
 use starknet_sierra_compile::SierraToCasmCompiler;
 use tracing::{debug, error};
@@ -24,7 +24,7 @@ pub struct GatewayCompiler {
 }
 
 impl GatewayCompiler {
-    pub fn new_command_line_compiler(config: SierraToCasmCompilationConfig) -> Self {
+    pub fn new_command_line_compiler(config: SierraCompilationConfig) -> Self {
         Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler::new(config)) }
     }
 
