@@ -77,8 +77,13 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let additional_args = &[output_file_path];
 
         let mut env_vars = vec![];
+        // Overrides the cairo native runtime library environment variable defined in config.toml.
         if let Some(path) = &self.config.libcairo_native_runtime_path {
-            env_vars.push(("CAIRO_NATIVE_RUNTIME_LIBRARY", path.to_str().unwrap()));
+            env_vars.push((
+                "CAIRO_NATIVE_RUNTIME_LIBRARY",
+                path.to_str()
+                    .expect("Failed to convert cairo native runtime library path to string"),
+            ));
         };
 
         let _stdout =
