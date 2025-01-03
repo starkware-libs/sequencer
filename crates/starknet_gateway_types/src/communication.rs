@@ -21,7 +21,7 @@ use crate::errors::GatewayError;
 use crate::gateway_types::{GatewayInput, GatewayResult};
 
 pub type LocalGatewayClient = LocalComponentClient<GatewayRequest, GatewayResponse>;
-pub type RemoteGatewayClient = RemoteComponentClient<GatewayRequest, GatewayResponse>;
+pub type RemoteGatewayClient = RemoteComponentClient;
 pub type GatewayClientResult<T> = Result<T, GatewayClientError>;
 pub type GatewayRequestAndResponseSender =
     ComponentRequestAndResponseSender<GatewayRequest, GatewayResponse>;
