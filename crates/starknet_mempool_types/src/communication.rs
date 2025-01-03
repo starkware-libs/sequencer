@@ -22,7 +22,7 @@ use crate::errors::MempoolError;
 use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
 pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolResponse>;
-pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
+pub type RemoteMempoolClient = RemoteComponentClient;
 pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 pub type MempoolRequestAndResponseSender =

@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::time::Duration;
 
@@ -19,23 +18,16 @@ use crate::component_definitions::{
 };
 use crate::serde_utils::SerdeWrapper;
 
-/// The `RemoteComponentClient` struct is a generic client for sending component requests and
+/// The `RemoteComponentClient` struct is a client for sending requests and
 /// receiving responses asynchronously through HTTP connection.
 ///
-/// # Type Parameters
-/// - `Request`: The type of the request. This type must implement the `serde::Serialize` trait.
-/// - `Response`: The type of the response. This type must implement the
-///   `serde::de::DeserializeOwned` (e.g. by using #[derive(Deserialize)]) trait.
-///
 /// # Fields
-/// - `uri`: URI address of the server.
-/// - `client`: The inner HTTP client that initiates the connection to the server and manages it.
+/// - `uri`: Server URI address.
+/// - `client`: Inner HTTP client.
 /// - `config`: Client configuration.
 ///
 /// # Example
 /// ```rust
-/// // Example usage of the RemoteComponentClient
-///
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_sequencer_infra::component_client::RemoteComponentClient;
@@ -68,7 +60,7 @@ use crate::serde_utils::SerdeWrapper;
 ///         idle_connections: usize::MAX,
 ///         idle_timeout: 90,
 ///     };
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config);
+///     let client = RemoteComponentClient::new(config);
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -77,28 +69,14 @@ use crate::serde_utils::SerdeWrapper;
 ///     client.send(request);
 /// }
 /// ```
-///
-/// # Notes
-/// - The `RemoteComponentClient` struct is designed to work in an asynchronous environment,
-///   utilizing Tokio's async runtime and hyper framework to send HTTP requests and receive HTTP
-///   responses.
-pub struct RemoteComponentClient<Request, Response>
-where
-    Request: Serialize,
-    Response: DeserializeOwned,
-{
+#[derive(Clone)]
+pub struct RemoteComponentClient {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     config: RemoteClientConfig,
-    _req: PhantomData<Request>,
-    _res: PhantomData<Response>,
 }
 
-impl<Request, Response> RemoteComponentClient<Request, Response>
-where
-    Request: Serialize + DeserializeOwned + Debug,
-    Response: Serialize + DeserializeOwned + Debug,
-{
+impl RemoteComponentClient {
     pub fn new(config: RemoteClientConfig) -> Self {
         let ip_address = config.socket.ip();
         let port = config.socket.port();
@@ -111,45 +89,19 @@ where
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
             .build_http();
-        Self { uri, client, config, _req: PhantomData, _res: PhantomData }
-    }
-
-    fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
-        HyperRequest::post(self.uri.clone())
-            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(serialized_request))
-            .expect("Request building should succeed")
-    }
-
-    async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
-        let http_response = self
-            .client
-            .request(http_request)
-            .await
-            .map_err(|err| ClientError::CommunicationFailure(err.to_string()))?;
-
-        match http_response.status() {
-            StatusCode::OK => get_response_body(http_response).await,
-            status_code => Err(ClientError::ResponseError(
-                status_code,
-                ServerError::RequestDeserializationFailure(
-                    "Could not deserialize server response".to_string(),
-                ),
-            )),
-        }
+        Self { uri, client, config }
     }
 }
 
 #[async_trait]
-impl<Request, Response> ComponentClient<Request, Response>
-    for RemoteComponentClient<Request, Response>
+impl<Request, Response> ComponentClient<Request, Response> for RemoteComponentClient
 where
-    Request: Send + Sync + Serialize + DeserializeOwned + Debug,
-    Response: Send + Sync + Serialize + DeserializeOwned + Debug,
+    Request: Send + Serialize + DeserializeOwned + Debug + 'static,
+    Response: Send + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
         // Serialize the request.
-        let serialized_request = SerdeWrapper::new(component_request)
+        let serialized_request = SerdeWrapper::<Request>::new(component_request)
             .wrapper_serialize()
             .expect("Request serialization should succeed");
 
@@ -157,8 +109,8 @@ where
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
         for attempt in 0..max_attempts {
-            let http_request = self.construct_http_request(serialized_request.clone());
-            let res = self.try_send(http_request).await;
+            let http_request = construct_http_request(&self.uri, serialized_request.clone());
+            let res = try_send(self.client.clone(), http_request).await;
             if res.is_ok() {
                 return res;
             }
@@ -182,20 +134,32 @@ where
         .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
 }
 
-// Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
-// since it'll require the generic Request and Response types to be cloneable.
-impl<Request, Response> Clone for RemoteComponentClient<Request, Response>
+async fn try_send<Response>(
+    client: Client<hyper::client::HttpConnector>,
+    http_request: HyperRequest<Body>,
+) -> ClientResult<Response>
 where
-    Request: Serialize,
-    Response: DeserializeOwned,
+    Response: Send + Serialize + DeserializeOwned + Debug,
 {
-    fn clone(&self) -> Self {
-        Self {
-            uri: self.uri.clone(),
-            client: self.client.clone(),
-            config: self.config.clone(),
-            _req: PhantomData,
-            _res: PhantomData,
-        }
+    let http_response = client
+        .request(http_request)
+        .await
+        .map_err(|err| ClientError::CommunicationFailure(err.to_string()))?;
+
+    match http_response.status() {
+        StatusCode::OK => get_response_body::<Response>(http_response).await,
+        status_code => Err(ClientError::ResponseError(
+            status_code,
+            ServerError::RequestDeserializationFailure(
+                "Could not deserialize server response".to_string(),
+            ),
+        )),
     }
+}
+
+fn construct_http_request(uri: &Uri, serialized_request: Vec<u8>) -> HyperRequest<Body> {
+    HyperRequest::post(uri)
+        .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+        .body(Body::from(serialized_request))
+        .expect("Request building should succeed")
 }
