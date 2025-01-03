@@ -39,8 +39,7 @@ pub trait MempoolP2pPropagatorClient: Send + Sync {
 
 pub type LocalMempoolP2pPropagatorClient =
     LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
-pub type RemoteMempoolP2pPropagatorClient =
-    RemoteComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
+pub type RemoteMempoolP2pPropagatorClient = RemoteComponentClient;
 pub type SharedMempoolP2pPropagatorClient = Arc<dyn MempoolP2pPropagatorClient>;
 pub type MempoolP2pPropagatorClientResult<T> = Result<T, MempoolP2pPropagatorClientError>;
 pub type MempoolP2pPropagatorRequestAndResponseSender =

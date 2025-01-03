@@ -52,8 +52,8 @@ use crate::tests::{
     ValueB,
 };
 
-type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
-type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
+type ComponentAClient = RemoteComponentClient;
+type ComponentBClient = RemoteComponentClient;
 
 const MAX_IDLE_CONNECTION: usize = usize::MAX;
 const IDLE_TIMEOUT: u64 = 90;
@@ -66,7 +66,7 @@ const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server respon
 const VALID_VALUE_A: ValueA = Felt::ONE;
 
 #[async_trait]
-impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
+impl ComponentAClientTrait for RemoteComponentClient {
     async fn a_get_value(&self) -> ResultA {
         match self.send(ComponentARequest::AGetValue).await? {
             ComponentAResponse::AGetValue(value) => Ok(value),
@@ -75,7 +75,7 @@ impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, Componen
 }
 
 #[async_trait]
-impl ComponentBClientTrait for RemoteComponentClient<ComponentBRequest, ComponentBResponse> {
+impl ComponentBClientTrait for RemoteComponentClient {
     async fn b_get_value(&self) -> ResultB {
         match self.send(ComponentBRequest::BGetValue).await? {
             ComponentBResponse::BGetValue(value) => Ok(value),

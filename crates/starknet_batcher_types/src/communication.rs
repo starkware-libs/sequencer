@@ -33,7 +33,7 @@ use crate::batcher_types::{
 use crate::errors::BatcherError;
 
 pub type LocalBatcherClient = LocalComponentClient<BatcherRequest, BatcherResponse>;
-pub type RemoteBatcherClient = RemoteComponentClient<BatcherRequest, BatcherResponse>;
+pub type RemoteBatcherClient = RemoteComponentClient;
 pub type BatcherClientResult<T> = Result<T, BatcherClientError>;
 pub type BatcherRequestAndResponseSender =
     ComponentRequestAndResponseSender<BatcherRequest, BatcherResponse>;
