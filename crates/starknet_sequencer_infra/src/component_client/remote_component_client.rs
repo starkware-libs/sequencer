@@ -103,8 +103,8 @@ impl RemoteComponentClient {
 #[async_trait]
 impl<Request, Response> ComponentClient<Request, Response> for RemoteComponentClient
 where
-    Request: Send + Sync + Serialize + DeserializeOwned + Debug + 'static,
-    Response: Send + Sync + Serialize + DeserializeOwned + Debug,
+    Request: Send + Serialize + DeserializeOwned + Debug + 'static,
+    Response: Send + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
         // Serialize the request.
@@ -134,7 +134,7 @@ async fn try_send<Response>(
     http_request: HyperRequest<Body>,
 ) -> ClientResult<Response>
 where
-    Response: Send + Sync + Serialize + DeserializeOwned + Debug,
+    Response: Send + Serialize + DeserializeOwned + Debug,
 {
     let http_response = client
         .request(http_request)
