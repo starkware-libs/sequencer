@@ -83,7 +83,7 @@ pub enum StateSyncClientError {
 pub type StateSyncClientResult<T> = Result<T, StateSyncClientError>;
 
 pub type LocalStateSyncClient = LocalComponentClient<StateSyncRequest, StateSyncResponse>;
-pub type RemoteStateSyncClient = RemoteComponentClient<StateSyncRequest, StateSyncResponse>;
+pub type RemoteStateSyncClient = RemoteComponentClient;
 pub type SharedStateSyncClient = Arc<dyn StateSyncClient>;
 pub type StateSyncRequestAndResponseSender =
     ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;

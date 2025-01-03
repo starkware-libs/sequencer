@@ -16,7 +16,7 @@ pub type RemoteL1ProviderServer = RemoteComponentServer<L1ProviderRequest, L1Pro
 pub type L1ProviderRequestAndResponseSender =
     ComponentRequestAndResponseSender<L1ProviderRequest, L1ProviderResponse>;
 pub type LocalL1ProviderClient = LocalComponentClient<L1ProviderRequest, L1ProviderResponse>;
-pub type RemoteL1ProviderClient = RemoteComponentClient<L1ProviderRequest, L1ProviderResponse>;
+pub type RemoteL1ProviderClient = RemoteComponentClient;
 
 #[async_trait]
 impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provider {
