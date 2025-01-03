@@ -324,6 +324,7 @@ impl VersionedConstants {
                 (BuiltinName::pedersen, ResourceCost::from_integer(1)),
                 (BuiltinName::range_check, ResourceCost::from_integer(1)),
                 (BuiltinName::ecdsa, ResourceCost::from_integer(1)),
+                (BuiltinName::keccak, ResourceCost::from_integer(1)),
                 (BuiltinName::bitwise, ResourceCost::from_integer(1)),
                 (BuiltinName::poseidon, ResourceCost::from_integer(1)),
                 (BuiltinName::output, ResourceCost::from_integer(1)),
