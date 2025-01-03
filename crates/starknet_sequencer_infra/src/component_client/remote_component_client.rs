@@ -120,24 +120,6 @@ where
             .body(Body::from(serialized_request))
             .expect("Request building should succeed")
     }
-
-    async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
-        let http_response = self
-            .client
-            .request(http_request)
-            .await
-            .map_err(|err| ClientError::CommunicationFailure(err.to_string()))?;
-
-        match http_response.status() {
-            StatusCode::OK => get_response_body(http_response).await,
-            status_code => Err(ClientError::ResponseError(
-                status_code,
-                ServerError::RequestDeserializationFailure(
-                    "Could not deserialize server response".to_string(),
-                ),
-            )),
-        }
-    }
 }
 
 #[async_trait]
@@ -158,7 +140,7 @@ where
         let max_attempts = self.config.retries + 1;
         for attempt in 0..max_attempts {
             let http_request = self.construct_http_request(serialized_request.clone());
-            let res = self.try_send(http_request).await;
+            let res = try_send(self.client.clone(), http_request).await;
             if res.is_ok() {
                 return res;
             }
@@ -167,6 +149,29 @@ where
             }
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
+    }
+}
+
+async fn try_send<Response>(
+    client: Client<hyper::client::HttpConnector>,
+    http_request: HyperRequest<Body>,
+) -> ClientResult<Response>
+where
+    Response: Send + Sync + Serialize + DeserializeOwned + Debug,
+{
+    let http_response = client
+        .request(http_request)
+        .await
+        .map_err(|err| ClientError::CommunicationFailure(err.to_string()))?;
+
+    match http_response.status() {
+        StatusCode::OK => get_response_body(http_response).await,
+        status_code => Err(ClientError::ResponseError(
+            status_code,
+            ServerError::RequestDeserializationFailure(
+                "Could not deserialize server response".to_string(),
+            ),
+        )),
     }
 }
 
