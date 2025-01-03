@@ -8,7 +8,13 @@ use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
 
 use crate::command_line_compiler::CommandLineCompiler;
-use crate::config::{SierraCompilationConfig, DEFAULT_MAX_CASM_BYTECODE_SIZE};
+use crate::config::{
+    SierraCompilationConfig,
+    DEFAULT_MAX_CASM_BYTECODE_SIZE,
+    DEFAULT_MAX_CPU_TIME,
+    DEFAULT_MAX_MEMORY_USAGE,
+    DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
+};
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
@@ -19,6 +25,9 @@ const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompila
     max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
     sierra_to_native_compiler_path: None,
     libcairo_native_runtime_path: None,
+    max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
+    max_cpu_time: DEFAULT_MAX_CPU_TIME,
+    max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
 };
 
 fn command_line_compiler() -> CommandLineCompiler {

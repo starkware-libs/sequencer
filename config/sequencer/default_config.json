@@ -149,6 +149,21 @@
     "privacy": "Public",
     "value": 81920
   },
+  "batcher_config.contract_class_manager_config.compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 15
+  },
+  "batcher_config.contract_class_manager_config.compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 1258291200
+  },
+  "batcher_config.contract_class_manager_config.compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 20971520
+  },
   "batcher_config.contract_class_manager_config.compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
     "privacy": "Public",
@@ -258,6 +273,21 @@
     "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",
     "value": 81920
+  },
+  "compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 15
+  },
+  "compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 1258291200
+  },
+  "compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 20971520
   },
   "compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
