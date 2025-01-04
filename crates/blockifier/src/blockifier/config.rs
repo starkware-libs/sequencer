@@ -68,28 +68,61 @@ impl SerializeConfig for ConcurrencyConfig {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ContractClassManagerConfig {
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
+    pub cairo_native_run_config: CairoNativeRunConfig,
     pub contract_cache_size: usize,
-    pub channel_size: usize,
-    pub compiler_config: SierraCompilationConfig,
+    pub native_compiler_config: SierraCompilationConfig,
 }
 
 impl Default for ContractClassManagerConfig {
     fn default() -> Self {
         Self {
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
+            cairo_native_run_config: CairoNativeRunConfig::default(),
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
-            channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
-            compiler_config: SierraCompilationConfig::default(),
+            native_compiler_config: SierraCompilationConfig::default(),
         }
     }
 }
 
 impl SerializeConfig for ContractClassManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
+        let mut dump = BTreeMap::from_iter([ser_param(
+            "contract_cache_size",
+            &self.contract_cache_size,
+            "The size of the global contract cache.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.append(&mut append_sub_config_name(
+            self.cairo_native_run_config.dump(),
+            "cairo_native_run_config",
+        ));
+        dump.append(&mut append_sub_config_name(
+            self.native_compiler_config.dump(),
+            "native_compiler_config",
+        ));
+        dump
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+pub struct CairoNativeRunConfig {
+    pub run_cairo_native: bool,
+    pub wait_on_native_compilation: bool,
+    pub channel_size: usize,
+}
+
+impl Default for CairoNativeRunConfig {
+    fn default() -> Self {
+        Self {
+            run_cairo_native: false,
+            wait_on_native_compilation: false,
+            channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+        }
+    }
+}
+
+impl SerializeConfig for CairoNativeRunConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
             ser_param(
                 "run_cairo_native",
                 &self.run_cairo_native,
@@ -103,19 +136,11 @@ impl SerializeConfig for ContractClassManagerConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "contract_cache_size",
-                &self.contract_cache_size,
-                "The size of the global contract cache.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
                 "channel_size",
                 &self.channel_size,
                 "The size of the compilation request channel.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        dump.append(&mut append_sub_config_name(self.compiler_config.dump(), "compiler_config"));
-        dump
+        ])
     }
 }
