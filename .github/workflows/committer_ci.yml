@@ -33,6 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/setup_native_deps
 
       - id: auth
         uses: "google-github-actions/auth@v2"
