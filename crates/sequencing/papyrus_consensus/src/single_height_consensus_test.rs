@@ -275,7 +275,7 @@ async fn vote_twice(same_vote: bool) {
     if same_vote {
         assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
     } else {
-        assert!(matches!(res, Err(ConsensusError::Equivocation(_, _, _))));
+        assert!(matches!(res, Err(ConsensusError::Equivocation(_, _))));
     }
 
     let ShcReturn::Decision(decision) = shc
