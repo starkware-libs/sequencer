@@ -1,6 +1,6 @@
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
@@ -20,7 +20,14 @@ use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    send_account_txs,
 };
+
+pub struct IntegrationTestSimulatorConfig {
+    pub sender_address: ContractAddress,
+    pub batcher_storage_reader: StorageReader,
+    pub n_txs: usize,
+}
 
 pub struct SequencerManager {
     pub sequencers: Vec<IntegrationSequencerSetup>,
@@ -103,6 +110,33 @@ impl SequencerManager {
             assert!(!handle.is_finished(), "Node should still be running.");
             handle.abort()
         });
+    }
+
+    pub async fn run_integration_test_simulator(
+        &self,
+        tx_generator: MultiAccountTransactionGenerator,
+        expected_block_number: BlockNumber,
+        n_txs: usize,
+    ) -> IntegrationTestSimulatorConfig {
+        info!("Running integration test simulator.");
+        let send_rpc_tx_fn = &mut |rpc_tx| self.send_rpc_tx_fn(rpc_tx);
+
+        const ACCOUNT_ID_0: AccountId = 0;
+        let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
+        info!("Sending {n_txs} txs.");
+        let tx_hashes = send_account_txs(tx_generator, ACCOUNT_ID_0, n_txs, send_rpc_tx_fn).await;
+        assert_eq!(tx_hashes.len(), n_txs);
+
+        info!("Awaiting until {expected_block_number} blocks have been created.");
+
+        // TODO: Consider checking all sequencer storage readers.
+        let batcher_storage_reader = self.batcher_storage_reader();
+
+        await_block(5000, expected_block_number, 50, &batcher_storage_reader)
+            .await
+            .expect("Block number should have been reached.");
+
+        IntegrationTestSimulatorConfig { sender_address, batcher_storage_reader, n_txs }
     }
 }
 
