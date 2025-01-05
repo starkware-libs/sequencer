@@ -324,20 +324,6 @@ fn maybe_fill_holes(
     Ok(())
 }
 
-/// Calculates the gas consumed in the current call.
-pub fn gas_consumed_without_inner_calls(
-    tracked_resource: &TrackedResource,
-    gas_consumed: u64,
-    inner_calls: &[CallInfo],
-) -> GasAmount {
-    GasAmount(match tracked_resource {
-        TrackedResource::CairoSteps => 0,
-        TrackedResource::SierraGas => gas_consumed
-            .checked_sub(inner_calls.iter().map(|call| call.execution.gas_consumed).sum::<u64>())
-            .expect("gas_consumed unexpectedly underflowed."),
-    })
-}
-
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
@@ -389,11 +375,7 @@ pub fn finalize_execution(
 
     let charged_resources_without_inner_calls = ChargedResources {
         vm_resources: vm_resources_without_inner_calls,
-        gas_for_fee: gas_consumed_without_inner_calls(
-            &tracked_resource,
-            call_result.gas_consumed,
-            &syscall_handler.base.inner_calls,
-        ),
+        gas_for_fee: GasAmount(call_result.gas_consumed),
     };
 
     let charged_resources = &charged_resources_without_inner_calls

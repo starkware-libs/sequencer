@@ -232,10 +232,10 @@ impl CallInfo {
     pub fn summarize_charged_resources<'a>(
         call_infos: impl Iterator<Item = &'a CallInfo>,
     ) -> ChargedResources {
-        // Note: the charged resourses of a call contains the inner call resources, unlike other
+        // Note: the charged resources of a call contains the inner call resources, unlike other
         // fields such as events and messages,
         call_infos.fold(ChargedResources::default(), |mut acc, inner_call| {
-            acc += &inner_call.charged_resources;
+            acc.vm_resources += &inner_call.charged_resources.vm_resources;
             acc
         })
     }
