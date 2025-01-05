@@ -6,6 +6,7 @@ use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_sequencer_infra::component_client::{
     ClientError,
@@ -45,6 +46,10 @@ pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>>;
+    async fn deploy_account_exists(
+        &self,
+        account_address: ContractAddress,
+    ) -> MempoolClientResult<bool>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -52,6 +57,7 @@ pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
+    DeployAccountExists(ContractAddress),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -59,6 +65,7 @@ pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<AccountTransaction>>),
+    DeployAccountExists(MempoolResult<bool>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -92,6 +99,20 @@ where
         handle_response_variants!(
             MempoolResponse,
             GetTransactions,
+            MempoolClientError,
+            MempoolError
+        )
+    }
+
+    async fn deploy_account_exists(
+        &self,
+        account_address: ContractAddress,
+    ) -> MempoolClientResult<bool> {
+        let request = MempoolRequest::DeployAccountExists(account_address);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            MempoolResponse,
+            DeployAccountExists,
             MempoolClientError,
             MempoolError
         )
