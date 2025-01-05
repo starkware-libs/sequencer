@@ -1,8 +1,10 @@
+use std::future::ready;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::vec;
 
 use futures::channel::{mpsc, oneshot};
+use futures::future::pending;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
@@ -150,12 +152,7 @@ async fn build_proposal_setup(
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
 fn success_cende_ammbassador() -> MockCendeContext {
     let mut mock_cende = MockCendeContext::new();
-    mock_cende.expect_write_prev_height_blob().returning(|_height| {
-        let (sender, receiver) = oneshot::channel();
-        sender.send(true).unwrap();
-        receiver
-    });
-
+    mock_cende.expect_write_prev_height_blob().return_once(|_height| tokio::spawn(ready(true)));
     mock_cende
 }
 
@@ -445,11 +442,9 @@ async fn build_proposal() {
 #[tokio::test]
 async fn build_proposal_cende_failure() {
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context.expect_write_prev_height_blob().times(1).returning(|_height| {
-        let (sender, receiver) = oneshot::channel();
-        sender.send(false).unwrap();
-        receiver
-    });
+    mock_cende_context
+        .expect_write_prev_height_blob()
+        .return_once(|_height| tokio::spawn(ready(false)));
 
     let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
 
@@ -459,11 +454,11 @@ async fn build_proposal_cende_failure() {
 #[tokio::test]
 async fn build_proposal_cende_incomplete() {
     let mut mock_cende_context = MockCendeContext::new();
-    let (sender, receiver) = oneshot::channel();
-    mock_cende_context.expect_write_prev_height_blob().times(1).return_once(|_height| receiver);
+    mock_cende_context
+        .expect_write_prev_height_blob()
+        .return_once(|_height| tokio::spawn(pending()));
 
     let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
 
     assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
-    drop(sender);
 }
