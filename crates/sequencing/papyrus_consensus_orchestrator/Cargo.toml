@@ -24,7 +24,7 @@ starknet_api.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
 starknet_state_sync_types = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full"] }
-tokio-util.workspace = true
+tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
 

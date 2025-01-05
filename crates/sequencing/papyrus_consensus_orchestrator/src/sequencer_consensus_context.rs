@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::{SinkExt, StreamExt};
+use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -62,6 +62,7 @@ use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
@@ -189,8 +190,9 @@ impl ConsensusContext for SequencerConsensusContext {
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
         info!("Building proposal: timeout={timeout:?}");
-        let cende_write_success =
-            self.cende_ambassador.write_prev_height_blob(proposal_init.height);
+        let cende_write_success = AbortOnDropHandle::new(
+            self.cende_ambassador.write_prev_height_blob(proposal_init.height),
+        );
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
 
@@ -478,7 +480,7 @@ async fn build_proposal(
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
-    cende_write_success: oneshot::Receiver<bool>,
+    cende_write_success: AbortOnDropHandle<bool>,
     gas_prices: GasPrices,
 ) {
     initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
@@ -558,7 +560,7 @@ async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
-    mut cende_write_success: oneshot::Receiver<bool>,
+    cende_write_success: AbortOnDropHandle<bool>,
 ) -> Option<(ProposalContentId, Vec<ExecutableTransaction>)> {
     let mut content = Vec::new();
     loop {
@@ -603,16 +605,20 @@ async fn get_proposal_content(
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
-                match cende_write_success.try_recv() {
-                    Ok(Some(true)) => {
+                match cende_write_success.now_or_never() {
+                    Some(Ok(true)) => {
                         debug!("Writing blob to Aerospike completed.");
                     }
-                    Ok(Some(false)) => {
+                    None => {
+                        debug!("Writing blob to Aerospike didn't return in time.");
+                        return None;
+                    }
+                    Some(Ok(false)) => {
                         debug!("Writing blob to Aerospike failed.");
                         return None;
                     }
-                    _ => {
-                        debug!("Writing blob to Aerospike didn't return in time.");
+                    e => {
+                        debug!("Writing blob to Aerospike failed. Error: {e:?}");
                         return None;
                     }
                 }
