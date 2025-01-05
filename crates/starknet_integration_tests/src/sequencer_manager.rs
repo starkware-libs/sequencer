@@ -44,7 +44,12 @@ impl SequencerManager {
             .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
             .collect::<Vec<_>>();
 
-        Self { sequencers, sequencer_run_handles }
+        let sequencer_manager = Self { sequencers, sequencer_run_handles };
+
+        // Wait for the nodes to start.
+        sequencer_manager.await_alive(5000, 50).await;
+
+        sequencer_manager
     }
 
     pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
