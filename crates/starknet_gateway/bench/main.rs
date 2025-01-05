@@ -9,8 +9,11 @@
 //!
 //! Run the benchmarks using `cargo bench --bench gateway_bench`.
 
+// import the Gateway test utilities.
+mod utils;
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use starknet_gateway::bench_test_utils::{BenchTestSetup, BenchTestSetupConfig};
+use utils::{BenchTestSetup, BenchTestSetupConfig};
 
 fn invoke_benchmark(criterion: &mut Criterion) {
     let tx_generator_config = BenchTestSetupConfig::default();

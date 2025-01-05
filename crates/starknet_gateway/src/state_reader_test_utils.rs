@@ -16,7 +16,7 @@ use starknet_types_core::felt::Felt;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
 #[derive(Clone)]
-pub(crate) struct TestStateReader {
+pub struct TestStateReader {
     pub block_info: BlockInfo,
     pub blockifier_state_reader: DictStateReader,
 }
@@ -53,7 +53,7 @@ impl BlockifierStateReader for TestStateReader {
     }
 }
 
-pub(crate) struct TestStateReaderFactory {
+pub struct TestStateReaderFactory {
     pub state_reader: TestStateReader,
 }
 
@@ -69,7 +69,7 @@ impl StateReaderFactory for TestStateReaderFactory {
     }
 }
 
-pub(crate) fn local_test_state_reader_factory(
+pub fn local_test_state_reader_factory(
     cairo_version: CairoVersion,
     zero_balance: bool,
 ) -> TestStateReaderFactory {

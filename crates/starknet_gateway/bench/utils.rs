@@ -9,13 +9,12 @@ use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::NonceManager;
+use starknet_gateway::compilation::GatewayCompiler;
+use starknet_gateway::config::GatewayConfig;
+use starknet_gateway::gateway::Gateway;
+use starknet_gateway::state_reader_test_utils::local_test_state_reader_factory;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-
-use crate::compilation::GatewayCompiler;
-use crate::config::GatewayConfig;
-use crate::gateway::Gateway;
-use crate::state_reader_test_utils::local_test_state_reader_factory;
 
 const N_TXS: usize = 100;
 
