@@ -7398,6 +7398,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "cairo-lang-starknet-classes",
  "chrono",
  "futures",
  "indexmap 2.6.0",

@@ -1,4 +1,6 @@
 use assert_matches::assert_matches;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::NestedIntList;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
 use starknet_api::block::{
@@ -286,5 +288,21 @@ impl From<(Transaction, u64)> for CentralTransactionWritten {
             // sufficient to take the time during the batcher run.
             time_created: timestamp,
         }
+    }
+}
+
+// Converts the CasmContractClass into a format that serializes into the python object.
+// TODO(Yael): remove allow dead code once used
+#[allow(dead_code)]
+pub fn casm_contract_class_central_format(
+    compiled_class_hash: CasmContractClass,
+) -> CasmContractClass {
+    CasmContractClass {
+        // The rust object allows these fields to be none, while in python they are mandatory.
+        bytecode_segment_lengths: Some(
+            compiled_class_hash.bytecode_segment_lengths.unwrap_or(NestedIntList::Node(vec![])),
+        ),
+        pythonic_hints: Some(compiled_class_hash.pythonic_hints.unwrap_or_default()),
+        ..compiled_class_hash
     }
 }
