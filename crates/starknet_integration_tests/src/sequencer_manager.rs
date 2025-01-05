@@ -11,7 +11,7 @@ use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_sequencer_node::test_utils::node_runner::{spawn_run_node, NodeRunner};
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -71,7 +71,10 @@ impl SequencerManager {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
-            .map(|sequencer| spawn_run_node(sequencer.node_config_path.clone()))
+            .enumerate()
+            .map(|(i, sequencer)| {
+                spawn_run_node(sequencer.node_config_path.clone(), NodeRunner::new(i))
+            })
             .collect::<Vec<_>>();
 
         Self { sequencers, sequencer_run_handles }
