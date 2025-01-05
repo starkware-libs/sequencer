@@ -16,7 +16,7 @@ use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::IntegrationSequencerSetup;
+use crate::integration_test_setup::SequencerSetup;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
@@ -24,13 +24,13 @@ use crate::utils::{
     send_account_txs,
 };
 
-pub struct SequencerManager {
-    pub sequencers: Vec<IntegrationSequencerSetup>,
+pub struct SequencerSetupManager {
+    pub sequencers: Vec<SequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
 }
 
-impl SequencerManager {
-    pub async fn run(sequencers: Vec<IntegrationSequencerSetup>) -> Self {
+impl SequencerSetupManager {
+    pub async fn run(sequencers: Vec<SequencerSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
@@ -158,7 +158,7 @@ pub async fn get_sequencer_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     mut available_ports: AvailablePorts,
     component_configs: Vec<Vec<ComponentConfig>>,
-) -> Vec<IntegrationSequencerSetup> {
+) -> Vec<SequencerSetup> {
     info!("Creating sequencer configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
@@ -179,7 +179,7 @@ pub async fn get_sequencer_configs(
             // composition
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
-            let sequencer = IntegrationSequencerSetup::new(
+            let sequencer = SequencerSetup::new(
                 accounts.to_vec(),
                 sequencer_id,
                 chain_info.clone(),
