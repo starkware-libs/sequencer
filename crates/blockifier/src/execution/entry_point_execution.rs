@@ -8,10 +8,9 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
-use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -375,8 +374,6 @@ pub fn finalize_execution(
 
     let vm_resources = &vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
-    let charged_resources =
-        ChargedResources { vm_resources, gas_for_fee: GasAmount(call_result.gas_consumed) };
     let syscall_handler_base = syscall_handler.base;
     Ok(CallInfo {
         call: syscall_handler_base.call,
@@ -389,7 +386,7 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
-        charged_resources,
+        resources: vm_resources,
         storage_read_values: syscall_handler_base.read_values,
         accessed_storage_keys: syscall_handler_base.accessed_keys,
         read_class_hash_values: syscall_handler_base.read_class_hash_values,
