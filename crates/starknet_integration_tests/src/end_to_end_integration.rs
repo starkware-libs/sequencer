@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::Nonce;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
@@ -10,10 +9,9 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
-use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::sequencer_manager::{get_account_nonce, SequencerManager};
+use crate::sequencer_manager::SequencerManager;
 use crate::test_identifiers::TestIdentifier;
 
 /// The number of consolidated local sequencers that participate in the test.
@@ -58,15 +56,8 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     info!("Shutting down nodes.");
     integration_test_setup.shutdown_nodes();
 
-    info!("Verifying tx sender account nonce.");
-    let expected_nonce_value = N_TXS + 1;
-    let expected_nonce =
-        Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
-    let nonce = get_account_nonce(
-        &simulator_config.batcher_storage_reader,
-        simulator_config.sender_address,
-    );
-    assert_eq!(nonce, expected_nonce);
+    // Verify the results.
+    simulator_config.verify_results().await;
 }
 
 // TODO(Nadin/Tsabary): find a better name for this function.

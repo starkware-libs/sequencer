@@ -12,6 +12,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -27,6 +28,17 @@ pub struct IntegrationTestSimulatorConfig {
     pub sender_address: ContractAddress,
     pub batcher_storage_reader: StorageReader,
     pub n_txs: usize,
+}
+
+impl IntegrationTestSimulatorConfig {
+    pub async fn verify_results(&self) {
+        info!("Verifying tx sender account nonce.");
+        let expected_nonce_value = self.n_txs + 1;
+        let expected_nonce =
+            Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
+        let nonce = get_account_nonce(&self.batcher_storage_reader, self.sender_address);
+        assert_eq!(nonce, expected_nonce);
+    }
 }
 
 pub struct SequencerManager {
