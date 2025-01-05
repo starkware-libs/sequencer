@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use blockifier::bouncer::{BouncerWeights, BuiltinCount};
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
 use rstest::rstest;
 use serde_json::Value;
@@ -56,6 +57,7 @@ use super::{
     CentralTransaction,
     CentralTransactionWritten,
 };
+use crate::cende::central_objects::casm_contract_class_central_format;
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -63,7 +65,10 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
-pub const CENTRAL_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
+pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
+pub const CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.casm.json";
+pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
+    "central_contract_class_default_optionals.casm.json";
 
 fn resource_bounds() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -270,10 +275,42 @@ fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path:
 
 #[test]
 fn serialize_sierra_contract_class() {
-    let central_sierra_contract_class = read_json_file(CENTRAL_CONTRACT_CLASS_JSON_PATH);
+    let central_sierra_contract_class = read_json_file(CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH);
     let sierra_contract_class: SierraContractClass =
         serde_json::from_value(central_sierra_contract_class.clone()).unwrap();
     let serialized_sierra_contract_class = serde_json::to_value(&sierra_contract_class).unwrap();
 
     assert_eq!(central_sierra_contract_class, serialized_sierra_contract_class);
+}
+
+#[test]
+fn serialize_casm_contract_class() {
+    let central_casm_contract_class = read_json_file(CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH);
+    let casm_contract_class: CasmContractClass =
+        serde_json::from_value(central_casm_contract_class.clone()).unwrap();
+    let computed_central_casm_contract_class =
+        casm_contract_class_central_format(casm_contract_class);
+    let serialized_casm_contract_class =
+        serde_json::to_value(&computed_central_casm_contract_class).unwrap();
+
+    assert_eq!(central_casm_contract_class, serialized_casm_contract_class);
+}
+
+#[test]
+fn serialize_casm_contract_class_no_optional_fields() {
+    let central_casm_contract_class =
+        read_json_file(CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH);
+    let mut casm_contract_class: CasmContractClass =
+        serde_json::from_value(central_casm_contract_class.clone()).unwrap();
+
+    // Fill the optional fields with None to simulate a contract class without optional fields.
+    casm_contract_class.pythonic_hints = None;
+    casm_contract_class.bytecode_segment_lengths = None;
+
+    let computed_central_casm_contract_class =
+        casm_contract_class_central_format(casm_contract_class);
+    let serialized_casm_contract_class =
+        serde_json::to_value(&computed_central_casm_contract_class).unwrap();
+
+    assert_eq!(central_casm_contract_class, serialized_casm_contract_class);
 }

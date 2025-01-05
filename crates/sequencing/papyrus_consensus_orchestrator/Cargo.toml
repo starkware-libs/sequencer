@@ -9,6 +9,7 @@ description = "Implements the consensus context and orchestrates the node's comp
 [dependencies]
 assert_matches.workspace = true
 async-trait.workspace = true
+cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true

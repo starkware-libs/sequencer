@@ -7670,6 +7670,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "blockifier",
+ "cairo-lang-starknet-classes",
  "chrono",
  "futures",
  "indexmap 2.7.0",
