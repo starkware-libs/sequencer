@@ -11,7 +11,6 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::entry_point_execution::gas_consumed_without_inner_calls;
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -121,14 +120,8 @@ fn create_callinfo(
 
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
 
-    let charged_resources_without_inner_calls = ChargedResources {
-        vm_resources: ExecutionResources::default(),
-        gas_for_fee: gas_consumed_without_inner_calls(
-            &TrackedResource::SierraGas,
-            gas_consumed,
-            &syscall_handler.base.inner_calls,
-        ),
-    };
+    let charged_resources_without_inner_calls =
+        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: gas_consumed };
     let charged_resources = &charged_resources_without_inner_calls
         + &CallInfo::summarize_charged_resources(syscall_handler.base.inner_calls.iter());
 
