@@ -20,7 +20,7 @@ use starknet_state_sync_types::state_sync_types::SyncBlock;
 use crate::config::StateSyncConfig;
 
 pub struct StateSyncRunner {
-    network_future: BoxFuture<'static, Result<(), NetworkError>>,
+    network_future: BoxFuture<'static, Result<Never, NetworkError>>,
     // TODO: change client and server to requester and responder respectively
     p2p_sync_client_future: BoxFuture<'static, Result<Never, P2PSyncClientError>>,
     p2p_sync_server_future: BoxFuture<'static, Never>,
@@ -31,7 +31,7 @@ impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
         tokio::select! {
             result = &mut self.network_future => {
-                result.map_err(|_| ComponentError::InternalComponentError)
+                result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ())
             }
             result = &mut self.p2p_sync_client_future => {
                 result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ())
