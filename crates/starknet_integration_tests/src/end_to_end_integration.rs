@@ -11,7 +11,11 @@ use starknet_sequencer_node::config::component_execution_config::{
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
-use crate::sequencer_manager::{get_sequencer_setup_configs, verify_results, SequencerManager};
+use crate::sequencer_manager::{
+    get_sequencer_setup_configs,
+    verify_results,
+    SequencerSetupManager,
+};
 use crate::test_identifiers::TestIdentifier;
 
 /// The number of consolidated local sequencers that participate in the test.
@@ -49,7 +53,7 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
     // invocation. Consider using the builder pattern.
-    let sequencer_manager = SequencerManager::run(sequencers_setup).await;
+    let sequencer_manager = SequencerSetupManager::run(sequencers_setup).await;
 
     // TODO(AlonH): Consider checking all sequencer storage readers.
     let batcher_storage_reader = sequencer_manager.batcher_storage_reader();
