@@ -7,7 +7,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallInfo, ChargedResources};
+use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
@@ -27,20 +27,22 @@ fn assert_charged_resource_as_expected_rec(call_info: &CallInfo) {
     let mut children_vm_resources = ExecutionResources::default();
     let mut children_gas = GasAmount(0);
     for child_call_info in inner_calls.iter() {
-        let ChargedResources { gas_for_fee, vm_resources } = &child_call_info.charged_resources;
+        let gas_consumed = GasAmount(child_call_info.execution.gas_consumed);
+        let vm_resources = &child_call_info.resources;
         children_vm_resources += vm_resources;
-        children_gas += *gas_for_fee;
+        children_gas += gas_consumed;
     }
 
-    let ChargedResources { gas_for_fee, vm_resources } = &call_info.charged_resources;
+    let gas_consumed = GasAmount(call_info.execution.gas_consumed);
+    let vm_resources = &call_info.resources;
 
     match call_info.tracked_resource {
         TrackedResource::SierraGas => {
             assert_eq!(vm_resources, &children_vm_resources);
-            assert!(gas_for_fee > &children_gas)
+            assert!(gas_consumed > children_gas)
         }
         TrackedResource::CairoSteps => {
-            assert_eq!(gas_for_fee, &children_gas);
+            assert_eq!(gas_consumed, children_gas);
             assert!(vm_resources.n_steps > children_vm_resources.n_steps)
         }
     }

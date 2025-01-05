@@ -73,7 +73,6 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
-    ChargedResources,
     ExecutionSummary,
     MessageToL1,
     OrderedEvent,
@@ -211,11 +210,8 @@ fn expected_validate_call_info(
         CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
-    let charged_resources = match tracked_resource {
-        TrackedResource::SierraGas => ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(gas_consumed),
-        },
+    let vm_resources = match tracked_resource {
+        TrackedResource::SierraGas => ExecutionResources::default(),
         TrackedResource::CairoSteps => {
             let n_range_checks = match cairo_version {
                 CairoVersion::Cairo0 => {
@@ -247,7 +243,7 @@ fn expected_validate_call_info(
                 ) => 100_usize,
                 (selector, _) => panic!("Selector {selector} is not a known validate selector."),
             };
-            let resources = ExecutionResources {
+            ExecutionResources {
                 n_steps,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(
@@ -255,8 +251,7 @@ fn expected_validate_call_info(
                     n_range_checks,
                 )]),
             }
-            .filter_unused_builtins();
-            ChargedResources::from_execution_resources(resources)
+            .filter_unused_builtins()
         }
     };
     let initial_gas = match cairo_version {
@@ -285,7 +280,7 @@ fn expected_validate_call_info(
             initial_gas,
         },
         // The account contract we use for testing has trivial `validate` functions.
-        charged_resources,
+        resources: vm_resources,
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
         tracked_resource,
         ..Default::default()
@@ -355,9 +350,7 @@ fn expected_fee_transfer_call_info(
             events: vec![expected_fee_transfer_event],
             ..Default::default()
         },
-        charged_resources: ChargedResources::from_execution_resources(
-            Prices::FeeTransfer(account_address, *fee_type).into(),
-        ),
+        resources: Prices::FeeTransfer(account_address, *fee_type).into(),
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
         storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
         accessed_storage_keys: HashSet::from_iter(vec![
@@ -380,7 +373,7 @@ fn get_expected_cairo_resources(
         versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_cairo_resources += &call_info.charged_resources.vm_resources
+            expected_cairo_resources += &call_info.resources
         };
     }
 
@@ -554,23 +547,8 @@ fn test_invoke_tx(
         ..expected_validated_call
     };
 
-    let expected_inner_call_charged_resources =
-        ChargedResources::from_execution_resources(ExecutionResources {
-            n_steps: 23,
-            n_memory_holes: 0,
-            ..Default::default()
-        });
-    let (expected_validate_gas_for_fee, expected_execute_gas_for_fee) = match tracked_resource {
-        TrackedResource::CairoSteps => (GasAmount::default(), GasAmount::default()),
-        TrackedResource::SierraGas => {
-            expected_arguments.resources =
-                expected_inner_call_charged_resources.vm_resources.clone();
-            (
-                expected_arguments.validate_gas_consumed.into(),
-                expected_arguments.execute_gas_consumed.into(),
-            )
-        }
-    };
+    let expected_inner_call_vm_resources =
+        ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() };
 
     let expected_return_result_call = CallEntryPoint {
         entry_point_selector: selector_from_name("return_result"),
@@ -588,10 +566,19 @@ fn test_invoke_tx(
     let expected_inner_calls = vec![CallInfo {
         call: expected_return_result_call,
         execution: CallExecution::from_retdata(expected_return_result_retdata.clone()),
-        charged_resources: expected_inner_call_charged_resources,
+        resources: expected_inner_call_vm_resources.clone(),
         ..Default::default()
     }];
-
+    let (expected_validate_gas_for_fee, expected_execute_gas_for_fee) = match tracked_resource {
+        TrackedResource::CairoSteps => (GasAmount::default(), GasAmount::default()),
+        TrackedResource::SierraGas => {
+            expected_arguments.resources = expected_inner_call_vm_resources;
+            (
+                expected_arguments.validate_gas_consumed.into(),
+                expected_arguments.execute_gas_consumed.into(),
+            )
+        }
+    };
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
         execution: CallExecution {
@@ -599,10 +586,7 @@ fn test_invoke_tx(
             gas_consumed: expected_arguments.execute_gas_consumed,
             ..Default::default()
         },
-        charged_resources: ChargedResources {
-            vm_resources: expected_arguments.resources,
-            gas_for_fee: expected_execute_gas_for_fee,
-        },
+        resources: expected_arguments.resources,
         inner_calls: expected_inner_calls,
         tracked_resource,
         ..Default::default()
@@ -2404,7 +2388,6 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             gas_consumed: gas_consumed.0,
             ..Default::default()
         },
-        charged_resources: ChargedResources::from_gas(gas_consumed),
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
         tracked_resource: test_contract
             .get_runnable_class()
