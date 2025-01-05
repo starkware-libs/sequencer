@@ -86,7 +86,7 @@ impl TransactionReceipt {
             computation: ComputationResources {
                 vm_resources: total_vm_resources,
                 n_reverted_steps: reverted_steps,
-                sierra_gas: charged_resources.gas_for_fee,
+                sierra_gas: charged_resources.gas_consumed,
                 reverted_sierra_gas,
             },
         };
