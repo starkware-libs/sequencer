@@ -312,8 +312,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let height = precommits[0].height;
         info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
 
-        // TODO(matan): Broadcast the decision to the network.
-
+        self.interrupt_active_proposal().await;
         let proposal_id;
         let transactions;
         {
@@ -371,6 +370,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
         let sync_block = self.state_sync_client.get_block(height).await;
         if let Ok(Some(sync_block)) = sync_block {
+            self.interrupt_active_proposal().await;
             self.batcher.add_sync_block(sync_block).await.unwrap();
             return true;
         }
@@ -382,9 +382,7 @@ impl ConsensusContext for SequencerConsensusContext {
             self.current_height = Some(height);
             assert_eq!(round, 0);
             self.current_round = round;
-            self.interrupt_active_proposal().await;
             self.queued_proposals.clear();
-            self.active_proposal = None;
             // The Batcher must be told when we begin to work on a new height. The implicit model is
             // that consensus works on a given height until it is done (either a decision is reached
             // or sync causes us to move on) and then moves on to a different height, never to
