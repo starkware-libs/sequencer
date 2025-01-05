@@ -2,12 +2,11 @@ use std::collections::HashSet;
 
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::{calldata, felt, storage_key};
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::syscalls::syscall_tests::constants::{
     REQUIRED_GAS_LIBRARY_CALL_TEST,
@@ -148,8 +147,6 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..nested_storage_entry_point
     };
 
-    let storage_entry_point_gas = GasAmount(26850);
-
     // The default VersionedConstants is used in the execute_directly call bellow.
     let tracked_resource = test_contract.get_runnable_class().tracked_resource(
         &VersionedConstants::create_for_testing().min_sierra_version_for_sierra_gas,
@@ -163,7 +160,6 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             ..CallExecution::default()
         },
-        charged_resources: ChargedResources::from_gas(storage_entry_point_gas),
         tracked_resource,
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
@@ -177,7 +173,6 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
             ..CallExecution::default()
         },
-        charged_resources: ChargedResources::from_gas(GasAmount(128430)),
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
         ..Default::default()
@@ -190,7 +185,6 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             ..CallExecution::default()
         },
-        charged_resources: ChargedResources::from_gas(storage_entry_point_gas),
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([storage_key!(key)]),
         tracked_resource,
@@ -205,7 +199,6 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: main_gas_consumed,
             ..CallExecution::default()
         },
-        charged_resources: ChargedResources::from_gas(GasAmount(main_gas_consumed)),
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
         ..Default::default()

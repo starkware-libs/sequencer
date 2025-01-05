@@ -9,11 +9,10 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::{CONSTRUCTOR_ENTRY_POINT_NAME, DEFAULT_ENTRY_POINT_SELECTOR};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
+use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
@@ -256,7 +255,6 @@ pub fn finalize_execution(
 
     let vm_resources = &vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
-    let charged_resources = ChargedResources { vm_resources, gas_for_fee: GasAmount(0) };
 
     Ok(CallInfo {
         call,
@@ -269,7 +267,7 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
-        charged_resources,
+        resources: vm_resources,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
         ..Default::default()
