@@ -10619,6 +10619,7 @@ dependencies = [
  "async-trait",
  "futures",
  "libp2p",
+ "mockall",
  "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
