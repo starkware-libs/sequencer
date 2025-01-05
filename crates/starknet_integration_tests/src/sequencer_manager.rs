@@ -30,14 +30,7 @@ pub struct SequencerManager {
 }
 
 impl SequencerManager {
-    pub async fn run(
-        tx_generator: &MultiAccountTransactionGenerator,
-        available_ports: AvailablePorts,
-        component_configs: Vec<Vec<ComponentConfig>>,
-    ) -> Self {
-        let sequencers =
-            get_sequencer_configs(tx_generator, available_ports, component_configs).await;
-
+    pub async fn run(sequencers: Vec<IntegrationSequencerSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
