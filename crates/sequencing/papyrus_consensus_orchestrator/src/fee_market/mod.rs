@@ -7,7 +7,8 @@ mod test;
 // and serves as a sensitivity parameter that limits the maximum rate of change of the gas price
 // between consecutive blocks.
 const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 48;
-const MIN_GAS_PRICE: u64 = 100000; // In fri.
+/// The minimum gas price in fri.
+pub const MIN_GAS_PRICE: u64 = 100000;
 // TODO(Mohammad): Check the exact value for maximum block size in StarkNet.
 /// The maximum block size in gas units: 40M gas steps * 100 units/step.
 pub const MAX_BLOCK_SIZE: u64 = 4000000000;

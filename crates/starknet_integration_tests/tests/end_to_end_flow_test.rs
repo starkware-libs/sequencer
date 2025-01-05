@@ -66,13 +66,13 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let expected_content_ids = [
         Felt::from_hex_unchecked(
-            "0x58ad05a6987a675eda038663d8e7dcc8e1d91c9057dd57f16d9b3b9602fc840",
+            "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
         ),
         Felt::from_hex_unchecked(
-            "0x79b59c5036c9427b5194796ede67bdfffed1f311a77382d715174fcfcc33003",
+            "0x5c17ba5f9681bcc8ca5a9dee3fe3a9fd2da42e660a99c64aa1a95fa826a1b2",
         ),
         Felt::from_hex_unchecked(
-            "0x36e1f3e0c71b77474494a5baa0a04a4e406626141eba2b2944e4b568f70ff48",
+            "0x5ec39365c6bbf631f3957f41d7b972f1c57e12544484b1db53458de03714b19",
         ),
     ];
 
