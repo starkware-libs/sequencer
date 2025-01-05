@@ -574,6 +574,11 @@
     "pointer_target": "recorder_url",
     "privacy": "Private"
   },
+  "consensus_manager_config.consensus_config.broadcast_buffer_size": {
+    "description": "The buffer size of each channel, for votes channel and proposals channel.",
+    "privacy": "Public",
+    "value": 100
+  },
   "consensus_manager_config.consensus_config.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
@@ -669,6 +674,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "consensus_manager_config.consensus_config.proposals_topic": {
+    "description": "Name of the topic for streaming proposals.",
+    "privacy": "Public",
+    "value": "consensus_proposals"
+  },
   "consensus_manager_config.consensus_config.start_height": {
     "description": "The height to start the consensus from.",
     "privacy": "Public",
@@ -698,6 +708,11 @@
     "description": "The validator id of the node.",
     "pointer_target": "validator_id",
     "privacy": "Public"
+  },
+  "consensus_manager_config.consensus_config.votes_topic": {
+    "description": "Name of the topic for vote messages.",
+    "privacy": "Public",
+    "value": "consensus_votes"
   },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",

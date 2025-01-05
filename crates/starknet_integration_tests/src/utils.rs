@@ -56,6 +56,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // Transactions per second sent to the gateway. This rate makes each block contain ~10 transactions
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 2;
+pub const TEST_CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();

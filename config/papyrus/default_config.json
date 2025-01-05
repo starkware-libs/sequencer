@@ -79,6 +79,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus.broadcast_buffer_size": {
+    "description": "The buffer size of each channel, for votes channel and proposals channel.",
+    "privacy": "Public",
+    "value": 100
+  },
   "consensus.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
@@ -174,6 +179,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "consensus.proposals_topic": {
+    "description": "Name of the topic for streaming proposals.",
+    "privacy": "Public",
+    "value": "consensus_proposals"
+  },
   "consensus.start_height": {
     "description": "The height to start the consensus from.",
     "privacy": "Public",
@@ -203,6 +213,11 @@
     "description": "The validator id of the node.",
     "privacy": "Public",
     "value": "0x64"
+  },
+  "consensus.votes_topic": {
+    "description": "Name of the topic for vote messages.",
+    "privacy": "Public",
+    "value": "consensus_votes"
   },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",

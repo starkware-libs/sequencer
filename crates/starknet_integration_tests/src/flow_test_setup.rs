@@ -33,6 +33,7 @@ use crate::utils::{
     create_mempool_p2p_configs,
     create_node_config,
     spawn_success_recorder,
+    TEST_CONSENSUS_PROPOSALS_TOPIC,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -182,9 +183,7 @@ pub fn create_consensus_manager_configs_and_channels(
 ) {
     let (network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels(
-            papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-            ),
+            papyrus_network::gossipsub_impl::Topic::new(TEST_CONSENSUS_PROPOSALS_TOPIC),
             ports,
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
