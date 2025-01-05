@@ -22,12 +22,12 @@ use crate::utils::{
     create_mempool_p2p_configs,
 };
 
-pub struct IntegrationTestSetup {
+pub struct SequencerManager {
     pub sequencers: Vec<IntegrationSequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
 }
 
-impl IntegrationTestSetup {
+impl SequencerManager {
     pub async fn run(
         tx_generator: &MultiAccountTransactionGenerator,
         mut available_ports: AvailablePorts,

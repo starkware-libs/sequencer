@@ -13,7 +13,7 @@ use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::sequencer_manager::{await_block, get_account_nonce, IntegrationTestSetup};
+use crate::sequencer_manager::{await_block, get_account_nonce, SequencerManager};
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
@@ -45,7 +45,7 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     info!("Running integration test setup.");
     // Creating the storage for the test.
     let integration_test_setup =
-        IntegrationTestSetup::run(&tx_generator, available_ports, component_configs).await;
+        SequencerManager::run(&tx_generator, available_ports, component_configs).await;
 
     // Wait for the nodes to start.
     integration_test_setup.await_alive(5000, 50).await;
