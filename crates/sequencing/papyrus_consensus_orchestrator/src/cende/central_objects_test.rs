@@ -1,7 +1,16 @@
 use std::sync::Arc;
+use std::vec;
 
 use blockifier::bouncer::BouncerWeights;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
+use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use indexmap::indexmap;
+use num_bigint::BigUint;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::block::{
@@ -57,6 +66,7 @@ use super::{
     CentralTransaction,
     CentralTransactionWritten,
 };
+use crate::cende::central_objects::casm_contract_class_central_format;
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -64,7 +74,10 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
-pub const CENTRAL_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
+pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
+pub const CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.casm.json";
+pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
+    "central_contract_class_default_optionals.casm.json";
 
 fn resource_bounds() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -263,6 +276,50 @@ fn central_sierra_contract_class_json() -> Value {
     serde_json::to_value(sierra_contract_class).unwrap()
 }
 
+fn casm_contract_entry_points() -> Vec<CasmContractEntryPoint> {
+    vec![CasmContractEntryPoint {
+        selector: BigUint::from(1_u8),
+        offset: 1,
+        builtins: vec!["dummy builtin".to_string()],
+    }]
+}
+
+fn casm_contract_class() -> CasmContractClass {
+    CasmContractClass {
+        prime: BigUint::from(1_u8),
+        compiler_version: "dummy version".to_string(),
+        bytecode: vec![BigUintAsHex { value: BigUint::from(1_u8) }],
+        bytecode_segment_lengths: Some(NestedIntList::Node(vec![
+            NestedIntList::Leaf(1),
+            NestedIntList::Leaf(2),
+        ])),
+        // hints is a very complex object, thus not assigned in this test.
+        hints: vec![],
+        pythonic_hints: Some(vec![(5, vec!["5".to_string()])]),
+        entry_points_by_type: CasmContractEntryPoints {
+            external: casm_contract_entry_points(),
+            l1_handler: casm_contract_entry_points(),
+            constructor: casm_contract_entry_points(),
+        },
+    }
+}
+
+fn central_casm_contract_class_json() -> Value {
+    let casm_contract_class = casm_contract_class();
+    let central_casm_contract_class = casm_contract_class_central_format(casm_contract_class);
+    serde_json::to_value(central_casm_contract_class).unwrap()
+}
+
+fn central_casm_contract_class_default_optional_fields_json() -> Value {
+    let casm_contract_class = CasmContractClass {
+        bytecode_segment_lengths: None,
+        pythonic_hints: None,
+        ..casm_contract_class()
+    };
+    let central_casm_contract_class = casm_contract_class_central_format(casm_contract_class);
+    serde_json::to_value(central_casm_contract_class).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
@@ -272,7 +329,15 @@ fn central_sierra_contract_class_json() -> Value {
 #[case::bouncer_weights(central_bouncer_weights_json(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
 #[case::sierra_contract_class(
     central_sierra_contract_class_json(),
-    CENTRAL_CONTRACT_CLASS_JSON_PATH
+    CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH
+)]
+#[case::optionals_are_some(
+    central_casm_contract_class_json(),
+    CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH
+)]
+#[case::optionals_are_none(
+    central_casm_contract_class_default_optional_fields_json(),
+    CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH
 )]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
