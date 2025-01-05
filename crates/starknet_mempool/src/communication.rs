@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -98,6 +99,13 @@ impl MempoolCommunicationWrapper {
     fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
         self.mempool.get_txs(n_txs)
     }
+
+    pub(crate) fn deploy_account_exists(
+        &self,
+        _account_address: ContractAddress,
+    ) -> MempoolResult<bool> {
+        todo!("implement this function");
+    }
 }
 
 #[async_trait]
@@ -112,6 +120,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             }
             MempoolRequest::GetTransactions(n_txs) => {
                 MempoolResponse::GetTransactions(self.get_txs(n_txs))
+            }
+            MempoolRequest::DeployAccountExists(account_address) => {
+                MempoolResponse::DeployAccountExists(self.deploy_account_exists(account_address))
             }
         }
     }
