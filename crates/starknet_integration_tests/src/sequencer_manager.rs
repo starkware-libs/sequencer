@@ -12,6 +12,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -173,4 +174,17 @@ pub async fn await_block(
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
         .ok_or(())
+}
+
+pub async fn verify_results(
+    sender_address: ContractAddress,
+    batcher_storage_reader: StorageReader,
+    n_txs: usize,
+) {
+    info!("Verifying tx sender account nonce.");
+    let expected_nonce_value = n_txs + 1;
+    let expected_nonce =
+        Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
+    let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
+    assert_eq!(nonce, expected_nonce);
 }
