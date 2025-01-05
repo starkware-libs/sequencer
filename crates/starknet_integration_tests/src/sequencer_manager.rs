@@ -52,40 +52,8 @@ impl SequencerManager {
         mut available_ports: AvailablePorts,
         component_configs: Vec<Vec<ComponentConfig>>,
     ) -> Self {
-        let chain_info = create_chain_info();
-        let accounts = tx_generator.accounts();
-        let n_distributed_sequencers =
-            component_configs.iter().map(|inner_vec| inner_vec.len()).sum();
-
-        let (mut consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
-            n_distributed_sequencers,
-            &mut available_ports,
-        );
-
-        let ports = available_ports.get_next_ports(n_distributed_sequencers);
-        let mut mempool_p2p_configs =
-            create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
-
-        let mut sequencers = vec![];
-        for (sequencer_id, node_composition) in component_configs.iter().enumerate() {
-            for component_config in node_composition {
-                // Declare one consensus_manager_config and one mempool_p2p_config for each node
-                // composition
-                let consensus_manager_config = consensus_manager_configs.remove(0);
-                let mempool_p2p_config = mempool_p2p_configs.remove(0);
-                let sequencer = IntegrationSequencerSetup::new(
-                    accounts.to_vec(),
-                    sequencer_id,
-                    chain_info.clone(),
-                    consensus_manager_config,
-                    mempool_p2p_config,
-                    &mut available_ports,
-                    component_config.clone(),
-                )
-                .await;
-                sequencers.push(sequencer);
-            }
-        }
+        let sequencers =
+            get_sequencer_configs(tx_generator, available_ports, component_configs).await;
 
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
@@ -193,4 +161,46 @@ pub async fn await_block(
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
         .ok_or(())
+}
+
+pub async fn get_sequencer_configs(
+    tx_generator: &MultiAccountTransactionGenerator,
+    mut available_ports: AvailablePorts,
+    component_configs: Vec<Vec<ComponentConfig>>,
+) -> Vec<IntegrationSequencerSetup> {
+    info!("Creating sequencer configurations.");
+    let chain_info = create_chain_info();
+    let accounts = tx_generator.accounts();
+    let n_distributed_sequencers = component_configs.iter().map(|inner_vec| inner_vec.len()).sum();
+
+    let (mut consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
+        n_distributed_sequencers,
+        &mut available_ports,
+    );
+
+    let ports = available_ports.get_next_ports(n_distributed_sequencers);
+    let mut mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
+
+    let mut sequencers = vec![];
+    for (sequencer_id, node_composition) in component_configs.iter().enumerate() {
+        for component_config in node_composition {
+            // Declare one consensus_manager_config and one mempool_p2p_config for each node
+            // composition
+            let consensus_manager_config = consensus_manager_configs.remove(0);
+            let mempool_p2p_config = mempool_p2p_configs.remove(0);
+            let sequencer = IntegrationSequencerSetup::new(
+                accounts.to_vec(),
+                sequencer_id,
+                chain_info.clone(),
+                consensus_manager_config,
+                mempool_p2p_config,
+                &mut available_ports,
+                component_config.clone(),
+            )
+            .await;
+            sequencers.push(sequencer);
+        }
+    }
+
+    sequencers
 }
