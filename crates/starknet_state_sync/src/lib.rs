@@ -115,9 +115,11 @@ impl StateSync {
         let state_number = StateNumber::unchecked_right_after_block(block_number);
         let state_reader = txn.get_state_reader()?;
 
-        verify_contract_deployed(&state_reader, state_number, contract_address)?;
-
         let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
+
+        if !contract_deployed(&state_reader, state_number, contract_address)? {
+            return Ok(Felt::default());
+        }
 
         Ok(res)
     }
@@ -133,11 +135,13 @@ impl StateSync {
         let state_number = StateNumber::unchecked_right_after_block(block_number);
         let state_reader = txn.get_state_reader()?;
 
-        verify_contract_deployed(&state_reader, state_number, contract_address)?;
+        let Some(res) = state_reader.get_nonce_at(state_number, &contract_address)? else {
+            return Ok(Nonce::default());
+        };
 
-        let res = state_reader
-            .get_nonce_at(state_number, &contract_address)?
-            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        if !contract_deployed(&state_reader, state_number, contract_address)? {
+            return Ok(Nonce::default());
+        };
 
         Ok(res)
     }
@@ -152,9 +156,11 @@ impl StateSync {
 
         let state_number = StateNumber::unchecked_right_after_block(block_number);
         let state_reader = txn.get_state_reader()?;
-        let class_hash = state_reader
-            .get_class_hash_at(state_number, &contract_address)?
-            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        let Some(class_hash) = state_reader.get_class_hash_at(state_number, &contract_address)?
+        else {
+            return Ok(ClassHash::default());
+        };
+
         Ok(class_hash)
     }
 
@@ -214,21 +220,21 @@ fn verify_synced_up_to<Mode: TransactionKind>(
     Err(StateSyncError::BlockNotFound(block_number))
 }
 
-fn verify_contract_deployed<Mode: TransactionKind>(
+fn contract_deployed<Mode: TransactionKind>(
     state_reader: &StateReader<'_, Mode>,
     state_number: StateNumber,
     contract_address: ContractAddress,
-) -> Result<(), StateSyncError> {
+) -> Result<bool, StateSyncError> {
     // Contract address 0x1 is a special address, it stores the block
     // hashes. Contracts are not deployed to this address.
     if contract_address != BLOCK_HASH_TABLE_ADDRESS {
         // check if the contract is deployed
-        state_reader
-            .get_class_hash_at(state_number, &contract_address)?
-            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        if state_reader.get_class_hash_at(state_number, &contract_address)?.is_some() {
+            return Ok(true);
+        };
     };
 
-    Ok(())
+    Ok(false)
 }
 
 pub type LocalStateSyncServer =

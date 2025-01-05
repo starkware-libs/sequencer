@@ -14,6 +14,7 @@ use starknet_api::block::{Block, BlockHeader, BlockNumber};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::nonce;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
@@ -308,12 +309,14 @@ async fn test_block_not_found() {
 #[tokio::test]
 async fn test_contract_not_found() {
     let (mut state_sync, mut storage_writer) = setup();
-    let address_u64 = 2_u64;
-    let address = ContractAddress::from(address_u64);
+    let address = ContractAddress::from(2_u64);
+    let key = StorageKey::from(3_u64);
+    let value = Felt::from(4_u64);
+    let nonce = nonce!(5);
     let mut diff = ThinStateDiff::default();
     // Create corrupted state diff with a contract that was not deployed.
-    diff.storage_diffs.insert(address, IndexMap::from([(Default::default(), Default::default())]));
-    diff.nonces.insert(address, Default::default());
+    diff.storage_diffs.insert(address, IndexMap::from([(key, value)]));
+    diff.nonces.insert(address, nonce);
     let header = BlockHeader::default();
 
     storage_writer
@@ -326,8 +329,8 @@ async fn test_contract_not_found() {
         .commit()
         .unwrap();
 
-    // Check that get_storage_at and get_nonce_at verify the contract was not deployed and therefore
-    // return contract not found, even though the state diff is corrupt and contains this storage
+    // Check that get_(storage/nonce/class_hash)_at return default values even if the state diff is
+    // corrupt and contains values for them.
     let response = state_sync
         .handle_request(StateSyncRequest::GetStorageAt(
             header.block_header_without_hash.block_number,
@@ -339,7 +342,7 @@ async fn test_contract_not_found() {
         panic!("Expected StateSyncResponse::GetStorageAt(_), but got {:?}", response);
     };
 
-    assert_eq!(get_storage_at_result, Err(StateSyncError::ContractNotFound(address)));
+    assert_eq!(get_storage_at_result, Ok(Felt::default()));
 
     let response = state_sync
         .handle_request(StateSyncRequest::GetNonceAt(
@@ -351,7 +354,7 @@ async fn test_contract_not_found() {
         panic!("Expected StateSyncResponse::GetNonceAt(_), but got {:?}", response);
     };
 
-    assert_eq!(get_nonce_at_result, Err(StateSyncError::ContractNotFound(address)));
+    assert_eq!(get_nonce_at_result, Ok(Nonce::default()));
 
     let response = state_sync
         .handle_request(StateSyncRequest::GetClassHashAt(
@@ -363,5 +366,5 @@ async fn test_contract_not_found() {
         panic!("Expected StateSyncResponse::GetClassHashAt(_), but got {:?}", response);
     };
 
-    assert_eq!(get_class_hash_at_result, Err(StateSyncError::ContractNotFound(address)));
+    assert_eq!(get_class_hash_at_result, Ok(ClassHash::default()));
 }

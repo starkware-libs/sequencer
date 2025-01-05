@@ -2,7 +2,7 @@ use futures::channel::mpsc::SendError;
 use papyrus_storage::StorageError;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::ClassHash;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 
@@ -12,8 +12,6 @@ pub enum StateSyncError {
     RunnerCommunicationError,
     #[error("Block number {0} was not found")]
     BlockNotFound(BlockNumber),
-    #[error("Contract address {0} was not found")]
-    ContractNotFound(ContractAddress),
     #[error("Class hash {0} was not found")]
     ClassNotFound(ClassHash),
     // StorageError and StarknetApiError do not derive Serialize, Deserialize and Clone Traits.
