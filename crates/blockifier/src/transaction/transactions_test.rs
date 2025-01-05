@@ -206,16 +206,14 @@ fn expected_validate_call_info(
     tracked_resource: TrackedResource,
     user_initial_gas: Option<GasAmount>,
 ) -> Option<CallInfo> {
+    // The account contract we use for testing has trivial `validate` functions.
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
         CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
-    let charged_resources = match tracked_resource {
-        TrackedResource::SierraGas => ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(gas_consumed),
-        },
+    let vm_resources = match tracked_resource {
+        TrackedResource::SierraGas => ExecutionResources::default(),
         TrackedResource::CairoSteps => {
             let n_range_checks = match cairo_version {
                 CairoVersion::Cairo0 => {
@@ -256,7 +254,7 @@ fn expected_validate_call_info(
                 )]),
             }
             .filter_unused_builtins();
-            ChargedResources::from_execution_resources(resources)
+            resources
         }
     };
     let initial_gas = match cairo_version {
@@ -284,8 +282,7 @@ fn expected_validate_call_info(
             call_type: CallType::Call,
             initial_gas,
         },
-        // The account contract we use for testing has trivial `validate` functions.
-        charged_resources,
+        resources: vm_resources,
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
         tracked_resource,
         ..Default::default()

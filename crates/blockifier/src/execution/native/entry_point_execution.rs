@@ -3,6 +3,7 @@ use cairo_native::utils::BuiltinCosts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
 use stacker;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
 use crate::execution::contract_class::TrackedResource;
@@ -11,7 +12,6 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::entry_point_execution::gas_consumed_without_inner_calls;
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -120,17 +120,7 @@ fn create_callinfo(
     }
 
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
-
-    let charged_resources_without_inner_calls = ChargedResources {
-        vm_resources: ExecutionResources::default(),
-        gas_for_fee: gas_consumed_without_inner_calls(
-            &TrackedResource::SierraGas,
-            gas_consumed,
-            &syscall_handler.base.inner_calls,
-        ),
-    };
-    let charged_resources = &charged_resources_without_inner_calls
-        + &CallInfo::summarize_charged_resources(syscall_handler.base.inner_calls.iter());
+    let vm_resources = &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
 
     Ok(CallInfo {
         call: syscall_handler.base.call,
@@ -141,7 +131,7 @@ fn create_callinfo(
             failed: call_result.failure_flag,
             gas_consumed,
         },
-        charged_resources,
+        resources: vm_resources,
         inner_calls: syscall_handler.base.inner_calls,
         storage_read_values: syscall_handler.base.read_values,
         accessed_storage_keys: syscall_handler.base.accessed_keys,
