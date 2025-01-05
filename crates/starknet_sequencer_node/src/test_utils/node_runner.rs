@@ -7,13 +7,29 @@ use tokio::io::{AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info, instrument};
+
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
-pub fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
+pub struct NodeRunner {
+    description: String,
+}
+
+impl NodeRunner {
+    pub fn new(index: usize) -> Self {
+        Self { description: format! {"Node id {}:", index} }
+    }
+
+    pub fn get_description(&self) -> String {
+        self.description.clone()
+    }
+}
+
+pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> JoinHandle<()> {
     task::spawn(async move {
         info!("Running the node from its spawned task.");
         // Obtain both handles, as the processes are terminated when their handles are dropped.
-        let (mut node_handle, _annotator_handle) = spawn_node_child_process(node_config_path).await;
+        let (mut node_handle, _annotator_handle) =
+            spawn_node_child_process(node_config_path, node_runner).await;
         let _node_run_result = node_handle.
             wait(). // Runs the node until completion, should be running indefinitely.
             await; // Awaits the completion of the node.
@@ -21,8 +37,11 @@ pub fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
     })
 }
 
-#[instrument()]
-async fn spawn_node_child_process(node_config_path: PathBuf) -> (Child, Child) {
+#[instrument(skip(node_runner))]
+async fn spawn_node_child_process(
+    node_config_path: PathBuf,
+    node_runner: NodeRunner,
+) -> (Child, Child) {
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
@@ -37,7 +56,9 @@ async fn spawn_node_child_process(node_config_path: PathBuf) -> (Child, Child) {
         .expect("Spawning sequencer node should succeed.");
 
     let mut annotator_cmd: Child = create_shell_command("awk")
-        .arg("{print $0}")
+        .arg("-v")
+        .arg(format!{"prefix={}", node_runner.get_description()})
+        .arg("{print prefix, $0}")
         .stdin(std::process::Stdio::piped())
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit())
