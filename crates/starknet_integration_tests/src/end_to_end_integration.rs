@@ -11,7 +11,7 @@ use starknet_sequencer_node::config::component_execution_config::{
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
-use crate::sequencer_manager::{verify_results, SequencerManager};
+use crate::sequencer_manager::{get_sequencer_setup_configs, verify_results, SequencerManager};
 use crate::test_identifiers::TestIdentifier;
 
 /// The number of consolidated local sequencers that participate in the test.
@@ -42,23 +42,23 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
             )
             .collect();
 
-    info!("Running integration test setup.");
-    // Creating the storage for the test.
-    let integration_test_setup =
-        SequencerManager::run(&tx_generator, available_ports, component_configs).await;
+    // Get the sequencer configurations.
+    let sequencers_setup =
+        get_sequencer_setup_configs(&tx_generator, available_ports, component_configs).await;
+
+    // Run the sequencers.
+    let sequencer_manager = SequencerManager::run(sequencers_setup).await;
 
     // TODO(AlonH): Consider checking all sequencer storage readers.
-    let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
+    let batcher_storage_reader = sequencer_manager.batcher_storage_reader();
 
     // Run the integration test simulator.
-    integration_test_setup
-        .run_integration_test_simulator(tx_generator, N_TXS, SENDER_ACCOUNT)
-        .await;
+    sequencer_manager.run_integration_test_simulator(tx_generator, N_TXS, SENDER_ACCOUNT).await;
 
-    integration_test_setup.await_execution(EXPECTED_BLOCK_NUMBER, &batcher_storage_reader).await;
+    sequencer_manager.await_execution(EXPECTED_BLOCK_NUMBER, &batcher_storage_reader).await;
 
     info!("Shutting down nodes.");
-    integration_test_setup.shutdown_nodes();
+    sequencer_manager.shutdown_nodes();
 
     // Verify the results.
     verify_results(sender_address, batcher_storage_reader, N_TXS).await;
