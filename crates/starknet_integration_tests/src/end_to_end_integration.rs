@@ -47,9 +47,6 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let integration_test_setup =
         SequencerManager::run(&tx_generator, available_ports, component_configs).await;
 
-    // Wait for the nodes to start.
-    integration_test_setup.await_alive(5000, 50).await;
-
     // TODO(AlonH): Consider checking all sequencer storage readers.
     let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
 
