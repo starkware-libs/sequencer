@@ -13,8 +13,7 @@ use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::integration_test_setup::IntegrationTestSetup;
-use crate::sequencer_manager::{await_block, get_account_nonce};
+use crate::sequencer_manager::{await_block, get_account_nonce, IntegrationTestSetup};
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::send_account_txs;
 
