@@ -13,9 +13,8 @@ use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::sequencer_manager::{await_block, get_account_nonce, SequencerManager};
+use crate::sequencer_manager::{get_account_nonce, SequencerManager};
 use crate::test_identifiers::TestIdentifier;
-use crate::utils::send_account_txs;
 
 /// The number of consolidated local sequencers that participate in the test.
 const N_CONSOLIDATED_SEQUENCERS: usize = 3;
@@ -24,6 +23,9 @@ const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
 pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
+    const N_TXS: usize = 50;
+    const SENDER_ACCOUNT: AccountId = 0;
+    let sender_address = tx_generator.account_with_id(SENDER_ACCOUNT).sender_address();
 
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();
@@ -50,30 +52,23 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     // Wait for the nodes to start.
     integration_test_setup.await_alive(5000, 50).await;
 
-    info!("Running integration test simulator.");
-    let send_rpc_tx_fn = &mut |rpc_tx| integration_test_setup.send_rpc_tx_fn(rpc_tx);
-
-    const ACCOUNT_ID_0: AccountId = 0;
-    let n_txs = 50;
-    let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
-    info!("Sending {n_txs} txs.");
-    let tx_hashes = send_account_txs(tx_generator, ACCOUNT_ID_0, n_txs, send_rpc_tx_fn).await;
-    assert_eq!(tx_hashes.len(), n_txs);
-
-    info!("Awaiting until {EXPECTED_BLOCK_NUMBER} blocks have been created.");
-
-    // TODO: Consider checking all sequencer storage readers.
+    // TODO(AlonH): Consider checking all sequencer storage readers.
     let batcher_storage_reader = integration_test_setup.batcher_storage_reader();
 
-    await_block(5000, EXPECTED_BLOCK_NUMBER, 50, &batcher_storage_reader)
-        .await
-        .expect("Block number should have been reached.");
+    // Run the integration test simulator.
+    integration_test_setup
+        .run_integration_test_simulator(tx_generator, N_TXS, SENDER_ACCOUNT)
+        .await;
+
+    integration_test_setup
+        .await_execution(EXPECTED_BLOCK_NUMBER, batcher_storage_reader.clone())
+        .await;
 
     info!("Shutting down nodes.");
     integration_test_setup.shutdown_nodes();
 
     info!("Verifying tx sender account nonce.");
-    let expected_nonce_value = n_txs + 1;
+    let expected_nonce_value = N_TXS + 1;
     let expected_nonce =
         Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);

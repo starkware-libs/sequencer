@@ -1,6 +1,6 @@
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
@@ -20,6 +20,7 @@ use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
     create_mempool_p2p_configs,
+    send_account_txs,
 };
 
 pub struct SequencerManager {
@@ -103,6 +104,31 @@ impl SequencerManager {
             assert!(!handle.is_finished(), "Node should still be running.");
             handle.abort()
         });
+    }
+
+    pub async fn run_integration_test_simulator(
+        &self,
+        tx_generator: MultiAccountTransactionGenerator,
+        n_txs: usize,
+        sender_account: AccountId,
+    ) {
+        info!("Running integration test simulator.");
+        let send_rpc_tx_fn = &mut |rpc_tx| self.send_rpc_tx_fn(rpc_tx);
+
+        info!("Sending {n_txs} txs.");
+        let tx_hashes = send_account_txs(tx_generator, sender_account, n_txs, send_rpc_tx_fn).await;
+        assert_eq!(tx_hashes.len(), n_txs);
+    }
+
+    pub async fn await_execution(
+        &self,
+        expected_block_number: BlockNumber,
+        batcher_storage_reader: StorageReader,
+    ) {
+        info!("Awaiting until {expected_block_number} blocks have been created.");
+        await_block(5000, expected_block_number, 50, &batcher_storage_reader)
+            .await
+            .expect("Block number should have been reached.");
     }
 }
 
