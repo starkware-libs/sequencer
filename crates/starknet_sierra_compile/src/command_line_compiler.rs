@@ -14,6 +14,7 @@ use crate::constants::CAIRO_LANG_BINARY_NAME;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
+use crate::resource_limits::ResourceLimits;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
@@ -55,9 +56,15 @@ impl SierraToCasmCompiler for CommandLineCompiler {
             &self.config.max_casm_bytecode_size.to_string(),
         ];
         let env_vars = vec![];
+        let resource_limits = ResourceLimits::new(None, None, None);
 
-        let stdout =
-            compile_with_args(compiler_binary_path, contract_class, additional_args, env_vars)?;
+        let stdout = compile_with_args(
+            compiler_binary_path,
+            contract_class,
+            additional_args,
+            env_vars,
+            resource_limits,
+        )?;
         Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
     }
 }
@@ -74,8 +81,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let output_file_path = output_file.path().to_str().ok_or(
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
-        let additional_args = &[output_file_path];
-
+        let additional_args = [output_file_path];
         let mut env_vars = vec![];
         // Overrides the cairo native runtime library environment variable defined in config.toml.
         if let Some(path) = &self.config.libcairo_native_runtime_path {
@@ -86,8 +92,18 @@ impl SierraToNativeCompiler for CommandLineCompiler {
             ));
         };
 
-        let _stdout =
-            compile_with_args(compiler_binary_path, contract_class, additional_args, env_vars)?;
+        let resource_limits = ResourceLimits::new(
+            Some(self.config.max_cpu_time),
+            Some(self.config.max_native_bytecode_size),
+            Some(self.config.max_memory_usage),
+        );
+        let _stdout = compile_with_args(
+            compiler_binary_path,
+            contract_class,
+            &additional_args,
+            env_vars,
+            resource_limits,
+        )?;
 
         Ok(AotContractExecutor::load(Path::new(&output_file_path))?)
     }
@@ -98,6 +114,7 @@ fn compile_with_args(
     contract_class: ContractClass,
     additional_args: &[&str],
     env_vars: Vec<(&str, &str)>,
+    resource_limits: ResourceLimits,
 ) -> Result<Vec<u8>, CompilationUtilError> {
     // Create a temporary file to store the Sierra contract class.
     let serialized_contract_class = serde_json::to_string(&contract_class)?;
@@ -116,13 +133,20 @@ fn compile_with_args(
         command.env(name, value);
     }
 
+    // Apply the resource limits to the command.
+    resource_limits.apply(&mut command);
+
     // Run the compile process.
     let compile_output = command.output()?;
 
     if !compile_output.status.success() {
         let stderr_output = String::from_utf8(compile_output.stderr)
             .unwrap_or("Failed to get stderr output".into());
-        return Err(CompilationUtilError::CompilationError(stderr_output));
+        // TODO(Avi, 28/2/2025): Make the error messages more readable.
+        return Err(CompilationUtilError::CompilationError(format!(
+            "Exit status: {}\n Stderr: {}",
+            compile_output.status, stderr_output
+        )));
     };
     Ok(compile_output.stdout)
 }
