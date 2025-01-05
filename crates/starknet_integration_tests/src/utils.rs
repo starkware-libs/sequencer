@@ -39,6 +39,7 @@ use url::Url;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
+const TEST_CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -103,9 +104,7 @@ pub fn create_consensus_manager_configs_and_channels(
     let ports = available_ports.get_next_ports(n_managers + 1);
     let (network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels(
-            papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-            ),
+            papyrus_network::gossipsub_impl::Topic::new(TEST_CONSENSUS_PROPOSALS_TOPIC),
             ports,
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.

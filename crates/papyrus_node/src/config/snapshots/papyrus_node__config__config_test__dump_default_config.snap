@@ -89,6 +89,13 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
+  "consensus.broadcast_buffer_size": {
+    "description": "The buffer size of each channel, for votes channel and proposals channel.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
   "consensus.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "value": "0x0",
@@ -206,6 +213,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.proposals_topic": {
+    "description": "Name of the topic for streaming proposals.",
+    "value": "consensus_proposals",
+    "privacy": "Public"
+  },
   "consensus.start_height": {
     "description": "The height to start the consensus from.",
     "value": {
@@ -244,6 +256,11 @@ expression: dumped_default_config
   "consensus.validator_id": {
     "description": "The validator id of the node.",
     "value": "0x64",
+    "privacy": "Public"
+  },
+  "consensus.votes_topic": {
+    "description": "Name of the topic for vote messages.",
+    "value": "consensus_votes",
     "privacy": "Public"
   },
   "monitoring_gateway.collect_metrics": {

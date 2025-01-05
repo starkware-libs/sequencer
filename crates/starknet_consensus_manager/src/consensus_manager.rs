@@ -19,9 +19,9 @@ use tracing::{error, info};
 use crate::config::ConsensusManagerConfig;
 
 // TODO(Dan, Guy): move to config.
-pub const BROADCAST_BUFFER_SIZE: usize = 100;
-pub const CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
-pub const CONSENSUS_VOTES_TOPIC: &str = "consensus_votes";
+// pub const BROADCAST_BUFFER_SIZE: usize = 100;
+// pub const CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
+// pub const CONSENSUS_VOTES_TOPIC: &str = "consensus_votes";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -45,15 +45,15 @@ impl ConsensusManager {
 
         let proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<StreamMessage<ProposalPart>>(
-                Topic::new(CONSENSUS_PROPOSALS_TOPIC),
-                BROADCAST_BUFFER_SIZE,
+                Topic::new(self.config.consensus_config.proposals_topic.clone()),
+                self.config.consensus_config.broadcast_buffer_size,
             )
             .expect("Failed to register broadcast topic");
 
         let votes_broadcast_channels = network_manager
             .register_broadcast_topic::<Vote>(
-                Topic::new(CONSENSUS_VOTES_TOPIC),
-                BROADCAST_BUFFER_SIZE,
+                Topic::new(self.config.consensus_config.votes_topic.clone()),
+                self.config.consensus_config.broadcast_buffer_size,
             )
             .expect("Failed to register broadcast topic");
 

@@ -47,6 +47,12 @@ pub struct ConsensusConfig {
     /// The network configuration for the consensus.
     #[validate]
     pub network_config: NetworkConfig,
+    /// The buffer size of each channel, for votes channel and proposals channel.
+    pub broadcast_buffer_size: usize,
+    /// Name of the topic for streaming proposals.
+    pub proposals_topic: String,
+    /// Name of the topic for vote messages.
+    pub votes_topic: String,
 }
 
 impl SerializeConfig for ConsensusConfig {
@@ -94,6 +100,24 @@ impl SerializeConfig for ConsensusConfig {
                 "The duration (seconds) between sync attempts.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "broadcast_buffer_size",
+                &self.broadcast_buffer_size,
+                "The buffer size of each channel, for votes channel and proposals channel.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "proposals_topic",
+                &self.proposals_topic,
+                "Name of the topic for streaming proposals.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "votes_topic",
+                &self.votes_topic,
+                "Name of the topic for vote messages.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
@@ -114,6 +138,9 @@ impl Default for ConsensusConfig {
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
             network_config,
+            broadcast_buffer_size: 100,
+            proposals_topic: "consensus_proposals".to_string(),
+            votes_topic: "consensus_votes".to_string(),
         }
     }
 }
