@@ -30,14 +30,7 @@ pub struct SequencerManager {
 }
 
 impl SequencerManager {
-    pub async fn run(
-        tx_generator: &MultiAccountTransactionGenerator,
-        available_ports: AvailablePorts,
-        component_configs: Vec<Vec<ComponentConfig>>,
-    ) -> Self {
-        let sequencers =
-            get_sequencer_configs(tx_generator, available_ports, component_configs).await;
-
+    pub async fn run(sequencers: Vec<IntegrationSequencerSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
@@ -97,13 +90,9 @@ impl SequencerManager {
         assert_eq!(tx_hashes.len(), n_txs);
     }
 
-    pub async fn await_execution(
-        &self,
-        expected_block_number: BlockNumber,
-        batcher_storage_reader: &StorageReader,
-    ) {
+    pub async fn await_execution(&self, expected_block_number: BlockNumber) {
         info!("Awaiting until {expected_block_number} blocks have been created.");
-        await_block(5000, expected_block_number, 50, batcher_storage_reader)
+        await_block(5000, expected_block_number, 50, &self.batcher_storage_reader())
             .await
             .expect("Block number should have been reached.");
     }
@@ -164,7 +153,7 @@ pub async fn verify_results(
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
     assert_eq!(nonce, expected_nonce);
 }
-pub async fn get_sequencer_configs(
+pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     mut available_ports: AvailablePorts,
     component_configs: Vec<Vec<ComponentConfig>>,
