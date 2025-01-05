@@ -254,12 +254,9 @@ pub fn finalize_execution(
     vm_resources_without_inner_calls +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
-    let charged_resources_without_inner_calls = ChargedResources {
-        vm_resources: vm_resources_without_inner_calls,
-        gas_for_fee: GasAmount(0),
-    };
-    let charged_resources = &charged_resources_without_inner_calls
-        + &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());
+    let vm_resources = &vm_resources_without_inner_calls
+        + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
+    let charged_resources = ChargedResources { vm_resources, gas_for_fee: GasAmount(0) };
 
     Ok(CallInfo {
         call,

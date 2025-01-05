@@ -212,8 +212,8 @@ impl CallInfo {
         }
 
         ExecutionSummary {
-            // Note: the charged resourses of a call contains the inner call resources, unlike other
-            // fields such as events and messages,
+            // Note: the charged resources of a call contains the inner call resources, unlike other
+            // fields such as events and messages.
             charged_resources: self.charged_resources.clone(),
             executed_class_hashes,
             visited_storage_entries,
@@ -229,13 +229,13 @@ impl CallInfo {
         call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
     }
 
-    pub fn summarize_charged_resources<'a>(
+    pub fn summarize_vm_resources<'a>(
         call_infos: impl Iterator<Item = &'a CallInfo>,
-    ) -> ChargedResources {
-        // Note: the charged resourses of a call contains the inner call resources, unlike other
-        // fields such as events and messages,
-        call_infos.fold(ChargedResources::default(), |mut acc, inner_call| {
-            acc += &inner_call.charged_resources;
+    ) -> ExecutionResources {
+        // Note: the vm resources (and entire charged resources) of a call contains the inner call
+        // resources, unlike other fields such as events and messages.
+        call_infos.fold(ExecutionResources::default(), |mut acc, inner_call| {
+            acc += &inner_call.charged_resources.vm_resources;
             acc
         })
     }
