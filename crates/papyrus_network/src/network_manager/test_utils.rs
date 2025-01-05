@@ -196,14 +196,14 @@ where
         channels_network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
 
     tokio::task::spawn(async move {
-        let result = channels_network_manager.run().await;
+        let result = channels_network_manager.run().await.unwrap_err();
         match result {
-            Ok(()) => panic!("Network manager terminated."),
             // The user of this function can drop the broadcast channels if they want to. In that
             // case we should just terminate NetworkManager's run quietly.
-            Err(NetworkError::BroadcastChannelsDropped { topic_hash })
-                if topic_hash == topic.into() => {}
-            Err(err) => panic!("Network manager failed on {err:?}"),
+            NetworkError::BroadcastChannelsDropped { topic_hash } => {
+                assert_eq!(topic_hash, topic.into())
+            }
+            err => panic!("Network manager failed on {err:?}"),
         }
     });
 
