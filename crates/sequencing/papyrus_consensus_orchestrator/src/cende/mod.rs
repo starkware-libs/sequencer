@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use central_objects::{CentralStateDiff, CentralTransaction};
 use futures::channel::oneshot;
 #[cfg(test)]
 use mockall::automock;
@@ -13,17 +14,24 @@ use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use serde_json;
+use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self};
 use tracing::debug;
 use url::Url;
+
+// TODO(dvir): consider adding `CendeError` when will be more error variants.
 
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct AerospikeBlob {
     // TODO(yael, dvir): add the blob fields.
     block_number: BlockNumber,
+    state_diff: String,
+    transactions: Vec<String>,
 }
 
 #[cfg_attr(test, automock)]
@@ -35,7 +43,10 @@ pub trait CendeContext: Send + Sync {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> oneshot::Receiver<bool>;
 
     // Prepares the previous height blob that will be written in the next height.
-    async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters);
+    async fn prepare_blob_for_next_height(
+        &self,
+        blob_parameters: BlobParameters,
+    ) -> Result<(), serde_json::Error>;
 }
 
 #[derive(Clone, Debug)]
@@ -146,10 +157,14 @@ impl CendeContext for CendeAmbassador {
         receiver
     }
 
-    async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters) {
+    async fn prepare_blob_for_next_height(
+        &self,
+        blob_parameters: BlobParameters,
+    ) -> Result<(), serde_json::Error> {
         // TODO(dvir, yael): make the full creation of blob.
         // TODO(dvir): as optimization, call the `into` and other preperation when writing to AS.
-        *self.prev_height_blob.lock().await = Some(blob_parameters.into());
+        *self.prev_height_blob.lock().await = Some(blob_parameters.try_into()?);
+        Ok(())
     }
 }
 
@@ -188,20 +203,29 @@ fn oneshot_send(sender: oneshot::Sender<bool>, result: bool) {
 
 #[derive(Clone, Debug, Default)]
 pub struct BlobParameters {
-    height: u64,
     // TODO(dvir): add here all the information needed for creating the blob: tranasctions,
     // classes, block info, BlockExecutionArtifacts.
+    pub(crate) block_info: BlockInfo,
+    pub(crate) state_diff: ThinStateDiff,
+    pub(crate) transactions: Vec<Transaction>,
 }
 
-impl BlobParameters {
-    pub fn new(height: u64) -> Self {
-        BlobParameters { height }
-    }
-}
+impl TryFrom<BlobParameters> for AerospikeBlob {
+    type Error = serde_json::Error;
 
-impl From<BlobParameters> for AerospikeBlob {
-    fn from(blob_parameters: BlobParameters) -> Self {
-        // TODO(yael): make the full creation of blob.
-        AerospikeBlob { block_number: BlockNumber(blob_parameters.height) }
+    fn try_from(blob_parameters: BlobParameters) -> Result<Self, Self::Error> {
+        let block_number = blob_parameters.block_info.block_number;
+        let state_diff = serde_json::to_string(&CentralStateDiff::from((
+            blob_parameters.state_diff,
+            blob_parameters.block_info,
+            StarknetVersion::LATEST,
+        )))?;
+        let transactions = blob_parameters
+            .transactions
+            .into_iter()
+            .map(|transaction| serde_json::to_string(&CentralTransaction::from(transaction)))
+            .collect::<Result<Vec<_>, serde_json::Error>>()?;
+
+        Ok(AerospikeBlob { block_number, state_diff, transactions })
     }
 }

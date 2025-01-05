@@ -168,6 +168,11 @@ pub enum ConsensusError {
     SendError(#[from] mpsc::SendError),
     #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]
     Equivocation(BlockNumber, Vote, Vote),
+    // This error is not transparent `serde_json::Error` because this type doesn't implement
+    // `PartialEq` which needed for tests.
+    // TODO(dvir): find a better solution.
+    #[error("{0}")]
+    SerdeJsonError(String),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]

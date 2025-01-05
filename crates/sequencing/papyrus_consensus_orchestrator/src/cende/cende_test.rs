@@ -1,5 +1,5 @@
 use rstest::rstest;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 
 use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
@@ -25,7 +25,10 @@ async fn write_prev_height_blob(
     let cende_ambassador = CendeAmbassador::new(CendeConfig { recorder_url: url.parse().unwrap() });
 
     if let Some(prev_block) = prev_block {
-        cende_ambassador.prepare_blob_for_next_height(BlobParameters { height: prev_block }).await;
+        cende_ambassador
+            .prepare_blob_for_next_height(BlobParameters::with_block_number(prev_block))
+            .await
+            .unwrap();
     }
 
     let receiver = cende_ambassador.write_prev_height_blob(BlockNumber(HEIGHT_TO_WRITE));
@@ -39,10 +42,22 @@ async fn prepare_blob_for_next_height() {
     let cende_ambassador =
         CendeAmbassador::new(CendeConfig { recorder_url: "http://parsable_url".parse().unwrap() });
 
-    cende_ambassador.prepare_blob_for_next_height(BlobParameters { height: HEIGHT_TO_WRITE }).await;
+    cende_ambassador
+        .prepare_blob_for_next_height(BlobParameters::with_block_number(HEIGHT_TO_WRITE))
+        .await
+        .unwrap();
 
     assert_eq!(
         cende_ambassador.prev_height_blob.lock().await.as_ref().unwrap().block_number.0,
         HEIGHT_TO_WRITE
     );
+}
+
+impl BlobParameters {
+    fn with_block_number(block_number: u64) -> Self {
+        Self {
+            block_info: BlockInfo { block_number: BlockNumber(block_number), ..Default::default() },
+            ..Default::default()
+        }
+    }
 }

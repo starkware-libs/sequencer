@@ -332,10 +332,6 @@ impl ConsensusContext for SequencerConsensusContext {
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
             .expect("Failed to get state diff.");
-        // TODO(dvir): pass here real `BlobParameters` info.
-        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
-        // `prepare_blob_for_next_height` is called with the correct parameters.
-        self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::new(height)).await;
 
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
@@ -353,13 +349,29 @@ impl ConsensusContext for SequencerConsensusContext {
             l2_gas_price,
             ..Default::default()
         };
-        let sync_block = SyncBlock { state_diff, transaction_hashes, block_header_without_hash };
+        let sync_block = SyncBlock {
+            state_diff: state_diff.clone(),
+            transaction_hashes,
+            block_header_without_hash,
+        };
         let state_sync_client = self.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client
             .add_new_block(BlockNumber(height), sync_block)
             .await
             .expect("Failed to add new block.");
+
+        // TODO(dvir): pass here real `BlobParameters` info.
+        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
+        // `prepare_blob_for_next_height` is called with the correct parameters.
+        self.cende_ambassador
+            .prepare_blob_for_next_height(BlobParameters {
+                block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
+                state_diff,
+                transactions,
+            })
+            .await
+            .map_err(|e| ConsensusError::SerdeJsonError(e.to_string()))?;
 
         self.l2_gas_price =
             calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used.0, MAX_BLOCK_SIZE / 2);

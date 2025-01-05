@@ -19,6 +19,7 @@ papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
@@ -38,7 +39,6 @@ papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 rstest.workspace = true
-serde_json.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
