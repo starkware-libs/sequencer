@@ -286,6 +286,13 @@ impl Mempool {
         Ok(())
     }
 
+    /// Checks if the given address has any transaction recorded in the mempool state.
+    /// The first transaction sent to a mempool for an address is always a deploy account
+    /// transaction, so it's sufficient to check for any transaction in the mempool state.
+    pub fn deploy_account_exists(&self, account_address: ContractAddress) -> bool {
+        self.state.get(account_address).is_some()
+    }
+
     fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {
         self.state.validate_incoming_tx(tx_reference)
     }
