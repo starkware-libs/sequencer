@@ -102,6 +102,10 @@ enum HandledProposalPart {
 //
 // TODO(Guy): Move this to the context config.
 const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
+// When validating a proposal the Context is responsible for timeout handling. The Batcher though
+// has a timeout as a defensive measure to make sure the proposal doesn't live forever if the
+// Context crashes or has a bug.
+const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
 
 pub struct SequencerConsensusContext {
     state_sync_client: SharedStateSyncClient,
@@ -651,6 +655,7 @@ async fn validate_proposal(
     initiate_validation(batcher, proposal_id, height, proposer, timeout, gas_prices).await;
 
     let mut content = Vec::new();
+    let deadline = tokio::time::Instant::now() + timeout;
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -658,7 +663,7 @@ async fn validate_proposal(
                 batcher_abort_proposal(batcher, proposal_id).await;
                 return;
             }
-            _ = tokio::time::sleep(timeout) => {
+            _ = tokio::time::sleep_until(deadline) => {
                 warn!("Validation timed out");
                 batcher_abort_proposal(batcher, proposal_id).await;
                 return;
@@ -705,8 +710,8 @@ async fn initiate_validation(
     gas_prices: GasPrices,
 ) {
     // Initiate the validation.
-    let chrono_timeout =
-        chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+    let chrono_timeout = chrono::Duration::from_std(timeout + VALIDATE_PROPOSAL_MARGIN)
+        .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     let input = ValidateBlockInput {
         proposal_id,
