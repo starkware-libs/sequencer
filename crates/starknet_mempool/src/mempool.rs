@@ -286,6 +286,10 @@ impl Mempool {
         Ok(())
     }
 
+    pub fn tx_from_address_exists(&self, contract_address: ContractAddress) -> bool {
+        self.state.get(contract_address).is_some()
+    }
+
     fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {
         self.state.validate_incoming_tx(tx_reference)
     }

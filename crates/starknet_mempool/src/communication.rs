@@ -102,9 +102,9 @@ impl MempoolCommunicationWrapper {
 
     pub(crate) fn tx_from_address_exists(
         &self,
-        _contract_address: ContractAddress,
+        contract_address: ContractAddress,
     ) -> MempoolResult<bool> {
-        todo!("implement this function");
+        Ok(self.mempool.tx_from_address_exists(contract_address))
     }
 }
 
