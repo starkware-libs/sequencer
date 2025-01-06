@@ -39,6 +39,7 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
 
     // We hit the out of gas error right before executing the syscall.
     let syscall_base_gas_cost = gas_costs.base.syscall_base_gas_cost;
+    let redeposit_gas = 300;
     let syscall_required_gas = get_block_hash_gas_cost - syscall_base_gas_cost;
     let call_info = entry_point_call.clone().execute_directly(&mut state).unwrap();
     assert_eq!(
@@ -46,7 +47,9 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-            gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST - syscall_required_gas,
+            gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST
+                - syscall_required_gas
+                - redeposit_gas,
             failed: true,
             ..Default::default()
         }
@@ -63,12 +66,12 @@ fn test_total_tx_limits_less_than_max_sierra_gas() {
 
 #[cfg(feature = "cairo_native")]
 #[rstest::rstest]
-#[case(MAX_POSSIBLE_SIERRA_GAS, MAX_POSSIBLE_SIERRA_GAS - 5380)]
-#[case(MAX_POSSIBLE_SIERRA_GAS / 10, 349992640)]
-#[case(MAX_POSSIBLE_SIERRA_GAS / 100, 34994200)]
-#[case(MAX_POSSIBLE_SIERRA_GAS / 1000, 3499630)]
-#[case(MAX_POSSIBLE_SIERRA_GAS / 10000, 344020)]
-#[case(MAX_POSSIBLE_SIERRA_GAS / 100000, 27580)]
+#[case(MAX_POSSIBLE_SIERRA_GAS, MAX_POSSIBLE_SIERRA_GAS - 2681170910)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 10, 81886490)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 100, 8190940)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 1000, 822890)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 10000, 85440)]
+#[case(MAX_POSSIBLE_SIERRA_GAS / 100000, 12340)]
 #[case(MAX_POSSIBLE_SIERRA_GAS / 1000000, 0)]
 #[case(350, 0)]
 #[case(35, 0)]
