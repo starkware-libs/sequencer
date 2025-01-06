@@ -1,0 +1,9 @@
+[2m2025-01-06T11:23:58.475662Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[2m2025-01-06T11:23:58.475747Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Running integration test setup.
+[2m2025-01-06T11:23:58.480528Z[0m [32m INFO[0m [2mstarknet_integration_tests::end_to_end_integration[0m[2m:[0m Checking that the sequencer node executable is present.
+[2m2025-01-06T11:23:58.480607Z[0m [32m INFO[0m [2minfra_utils::path[0m[2m:[0m Project root path: "/home/dvir/workspaces/sequencer"
+[2m2025-01-06T11:23:58.480659Z[0m [32m INFO[0m [2minfra_utils::path[0m[2m:[0m Project root path: "/home/dvir/workspaces/sequencer/target/debug/starknet_sequencer_node"
+[2m2025-01-06T11:23:58.480701Z[0m [32m INFO[0m [2mstarknet_integration_tests::end_to_end_integration[0m[2m:[0m Running integration test setup.
+[2m2025-01-06T11:23:58.483678Z[0m [32m INFO[0m [2mlibp2p_swarm[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWPumquZXkr83vT5LHWepD6SzBDvYxx7rGVqoZ1yeUcMxV
+TempDir { path: "/tmp/.tmpJcItnr" }
+TempDir { path: "/tmp/.tmpBrmdhY" }

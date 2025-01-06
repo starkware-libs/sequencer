@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use central_objects::{CentralStateDiff, CentralTransaction};
+use central_objects::{CentralStateDiff, CentralTransactionWritten};
 use futures::channel::oneshot;
 #[cfg(test)]
 use mockall::automock;
@@ -64,6 +64,7 @@ pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende/write_blob";
 
 impl CendeAmbassador {
     pub fn new(cende_config: CendeConfig) -> Self {
+        println!("8888888888888888888888888888888888888888888888888888888888888888888888");
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: cende_config
@@ -223,9 +224,14 @@ impl TryFrom<BlobParameters> for AerospikeBlob {
         let transactions = blob_parameters
             .transactions
             .into_iter()
-            .map(|transaction| serde_json::to_string(&CentralTransaction::from(transaction)))
+            .map(|transaction| {
+                serde_json::to_string(&CentralTransactionWritten::from((transaction, 0)))
+            })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
 
+        println!("transactions: {:?}", transactions);
+
+        println!("------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
         Ok(AerospikeBlob { block_number, state_diff, transactions })
     }
 }
