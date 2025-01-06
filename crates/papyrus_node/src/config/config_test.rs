@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 use assert_json_diff::assert_json_eq;
 use colored::Colorize;
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::SerializeConfig;

@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};

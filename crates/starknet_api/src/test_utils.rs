@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-use infra_utils::path::current_dir;
+use starknet_infra_utils::path::current_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
 use starknet_types_core::felt::Felt;

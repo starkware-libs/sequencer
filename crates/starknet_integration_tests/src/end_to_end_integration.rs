@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
-use infra_utils::run_until::run_until;
-use infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;

@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{async_trait, Router, Server};
 use hyper::Error;
-use infra_utils::type_name::short_type_name;
+use starknet_infra_utils::type_name::short_type_name;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;

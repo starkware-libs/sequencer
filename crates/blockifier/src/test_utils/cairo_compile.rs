@@ -4,7 +4,7 @@ use std::process::{Command, Output};
 use std::{env, fs};
 
 use cached::proc_macro::cached;
-use infra_utils::compile_time_cargo_manifest_dir;
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 

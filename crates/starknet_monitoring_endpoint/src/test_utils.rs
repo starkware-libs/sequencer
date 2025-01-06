@@ -4,8 +4,8 @@ use axum::body::Body;
 use axum::http::Request;
 use hyper::client::HttpConnector;
 use hyper::Client;
-use infra_utils::run_until::run_until;
-use infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use tracing::info;
 
 use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};

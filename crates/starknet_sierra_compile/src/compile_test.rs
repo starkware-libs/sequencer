@@ -3,7 +3,7 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
 

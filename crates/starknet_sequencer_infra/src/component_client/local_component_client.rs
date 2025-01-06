@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use infra_utils::type_name::short_type_name;
+use starknet_infra_utils::type_name::short_type_name;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};

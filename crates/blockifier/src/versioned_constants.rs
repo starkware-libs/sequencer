@@ -6,7 +6,7 @@ use std::{fs, io};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
-use infra_utils::compile_time_cargo_manifest_dir;
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use num_rational::Ratio;
 use num_traits::Inv;
 use papyrus_config::dumping::{ser_param, SerializeConfig};

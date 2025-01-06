@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use std::vec::Vec;
 
 use clap::Command;
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,

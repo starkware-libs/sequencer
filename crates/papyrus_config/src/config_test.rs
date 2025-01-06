@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use assert_matches::assert_matches;
 use clap::Command;
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use itertools::chain;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};

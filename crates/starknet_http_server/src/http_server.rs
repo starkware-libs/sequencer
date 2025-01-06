@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use axum::extract::State;
 use axum::routing::post;
 use axum::{async_trait, Json, Router};
-use infra_utils::type_name::short_type_name;
+use starknet_infra_utils::type_name::short_type_name;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::SharedGatewayClient;
