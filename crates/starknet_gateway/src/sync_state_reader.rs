@@ -74,18 +74,28 @@ impl BlockifierStateReader for SyncStateReader {
             self.block_number,
             contract_address,
             key,
-        ))
-        .map_err(|e| StateError::StateReadError(e.to_string()))?;
+        ));
 
-        Ok(res)
+        match res {
+            Ok(value) => Ok(value),
+            Err(StateSyncClientError::StateSyncError(StateSyncError::ContractNotFound(_))) => {
+                Ok(Felt::default())
+            }
+            Err(e) => Err(StateError::StateReadError(e.to_string())),
+        }
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
         let res =
-            block_on(self.state_sync_client.get_nonce_at(self.block_number, contract_address))
-                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+            block_on(self.state_sync_client.get_nonce_at(self.block_number, contract_address));
 
-        Ok(res)
+        match res {
+            Ok(value) => Ok(value),
+            Err(StateSyncClientError::StateSyncError(StateSyncError::ContractNotFound(_))) => {
+                Ok(Nonce::default())
+            }
+            Err(e) => Err(StateError::StateReadError(e.to_string())),
+        }
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
@@ -106,10 +116,15 @@ impl BlockifierStateReader for SyncStateReader {
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
         let res =
-            block_on(self.state_sync_client.get_class_hash_at(self.block_number, contract_address))
-                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+            block_on(self.state_sync_client.get_class_hash_at(self.block_number, contract_address));
 
-        Ok(res)
+        match res {
+            Ok(value) => Ok(value),
+            Err(StateSyncClientError::StateSyncError(StateSyncError::ContractNotFound(_))) => {
+                Ok(ClassHash::default())
+            }
+            Err(e) => Err(StateError::StateReadError(e.to_string())),
+        }
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
