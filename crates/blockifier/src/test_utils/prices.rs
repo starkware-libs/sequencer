@@ -88,6 +88,5 @@ fn fee_transfer_resources(
             &mut remaining_gas,
         )
         .unwrap()
-        .charged_resources
-        .vm_resources
+        .resources
 }

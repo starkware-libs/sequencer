@@ -2,9 +2,8 @@ use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 use num_rational::Ratio;
 use stacker;
-use starknet_api::execution_resources::GasAmount;
 
-use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -120,7 +119,6 @@ fn create_callinfo(
 
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
     let vm_resources = CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
-    let charged_resources = ChargedResources { vm_resources, gas_for_fee: GasAmount(gas_consumed) };
 
     Ok(CallInfo {
         call: syscall_handler.base.call,
@@ -131,7 +129,7 @@ fn create_callinfo(
             failed: call_result.failure_flag,
             gas_consumed,
         },
-        charged_resources,
+        resources: vm_resources,
         inner_calls: syscall_handler.base.inner_calls,
         storage_read_values: syscall_handler.base.read_values,
         accessed_storage_keys: syscall_handler.base.accessed_keys,
