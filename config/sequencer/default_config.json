@@ -279,6 +279,11 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "components.batcher.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
+  },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -333,6 +338,11 @@
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
+  },
+  "components.gateway.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
   },
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
@@ -389,6 +399,11 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "components.l1_provider.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
+  },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -439,6 +454,11 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "components.mempool.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
+  },
   "components.mempool_p2p.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -488,6 +508,11 @@
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
+  },
+  "components.mempool_p2p.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
   },
   "components.monitoring_endpoint.execution_mode": {
     "description": "The component execution mode.",
@@ -543,6 +568,11 @@
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
+  },
+  "components.state_sync.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
   },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
