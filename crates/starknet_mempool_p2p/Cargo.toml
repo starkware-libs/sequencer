@@ -34,4 +34,5 @@ papyrus_protobuf.workspace = true
 papyrus_test_utils.workspace = true
 rand_chacha.workspace = true
 starknet_api.workspace = true
+starknet_gateway_types = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
