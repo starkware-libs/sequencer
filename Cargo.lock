@@ -93,9 +93,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "alloy-chains"
-version = "0.1.52"
+version = "0.1.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56f15afc5993458b42739ab3b69bdb6b4c8112acd3997dbea9bc092c9517137c"
+checksum = "da226340862e036ab26336dc99ca85311c6b662267c1440e1733890fd688802c"
 dependencies = [
  "alloy-primitives",
  "num_enum",
@@ -254,21 +254,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-primitives"
-<<<<<<< HEAD
-version = "0.8.15"
-||||||| 535775d43
-version = "0.8.7"
-=======
 version = "0.8.18"
->>>>>>> origin/main-v0.13.4
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
-checksum = "6259a506ab13e1d658796c31e6e39d2e2ee89243bcc505ddc613b35732e0a430"
-||||||| 535775d43
-checksum = "8ecb848c43f6b06ae3de2e4a67496cbbabd78ae87db0f1248934f15d76192c6a"
-=======
 checksum = "788bb18e8f61d5d9340b52143f27771daf7e1dccbaf2741621d2493f9debf52e"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "alloy-rlp",
  "bytes",
@@ -5550,35 +5538,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 
 [[package]]
-<<<<<<< HEAD
-name = "infra_utils"
-version = "0.0.0"
-dependencies = [
- "nix 0.20.2",
- "num-traits 0.2.19",
- "pretty_assertions",
- "regex",
- "rstest",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-||||||| 535775d43
-name = "infra_utils"
-version = "0.0.0"
-dependencies = [
- "pretty_assertions",
- "rstest",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-=======
->>>>>>> origin/main-v0.13.4
 name = "inout"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6774,14 +6733,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
-<<<<<<< HEAD
- "infra_utils",
-||||||| 535775d43
- "infra_utils",
  "pretty_assertions",
-=======
- "pretty_assertions",
->>>>>>> origin/main-v0.13.4
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -7737,12 +7689,8 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
-<<<<<<< HEAD
- "starknet_state_sync_types",
-||||||| 535775d43
-=======
  "starknet_infra_utils",
->>>>>>> origin/main-v0.13.4
+ "starknet_state_sync_types",
  "test-case",
  "tokio",
  "tokio-util",
@@ -7844,15 +7792,7 @@ dependencies = [
  "replace_with",
  "serde",
  "starknet_api",
-<<<<<<< HEAD
- "thiserror",
-||||||| 535775d43
- "starknet_sequencer_infra",
- "thiserror",
-=======
- "starknet_sequencer_infra",
  "thiserror 1.0.69",
->>>>>>> origin/main-v0.13.4
  "tokio",
  "tokio-retry",
  "tokio-stream",
@@ -8392,18 +8332,18 @@ checksum = "5be167a7af36ee22fe3115051bc51f6e6c7054c9348e28deb4f49bd6f705a315"
 
 [[package]]
 name = "pin-project"
-version = "1.1.7"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be57f64e946e500c8ee36ef6331845d40a93055567ec57e8fae13efd33759b95"
+checksum = "1e2ec53ad785f4d35dac0adea7f7dc6f1bb277ad84a680c7afefeae05d1f5916"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "1.1.7"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c0f5fad0874fc7abcd4d750e76917eaebbecaa2c20bde22e1dbeeba8beb758c"
+checksum = "d56a66c0c55993aa927429d0f8a0abfd74f084e4d9c192cffed01e418d83eefb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8412,9 +8352,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.15"
+version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "915a1e146535de9163f3987b8944ed8cf49a18bb0056bcebcdcece385cece4ff"
+checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 
 [[package]]
 name = "pin-utils"
@@ -10775,14 +10715,7 @@ name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
  "async-trait",
-<<<<<<< HEAD
- "infra_utils",
-||||||| 535775d43
  "futures",
- "infra_utils",
-=======
- "futures",
->>>>>>> origin/main-v0.13.4
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_consensus_orchestrator",
@@ -10863,32 +10796,20 @@ name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
  "axum",
-<<<<<<< HEAD
  "blockifier",
- "hyper 0.14.30",
- "infra_utils",
+ "hyper 0.14.32",
  "jsonrpsee",
  "mempool_test_utils",
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
-||||||| 535775d43
- "hyper 0.14.30",
- "infra_utils",
-=======
- "hyper 0.14.32",
->>>>>>> origin/main-v0.13.4
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
  "starknet_api",
  "starknet_gateway_types",
-<<<<<<< HEAD
  "starknet_http_server",
-||||||| 535775d43
-=======
  "starknet_infra_utils",
->>>>>>> origin/main-v0.13.4
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
  "tokio",
@@ -10900,7 +10821,10 @@ dependencies = [
 name = "starknet_infra_utils"
 version = "0.0.0"
 dependencies = [
+ "nix 0.20.2",
+ "num-traits",
  "pretty_assertions",
+ "regex",
  "rstest",
  "tokio",
  "tracing",
@@ -10964,14 +10888,8 @@ dependencies = [
  "starknet_api",
  "starknet_l1_provider_types",
  "starknet_sequencer_infra",
-<<<<<<< HEAD
- "thiserror",
- "tokio",
-||||||| 535775d43
- "thiserror",
-=======
  "thiserror 1.0.69",
->>>>>>> origin/main-v0.13.4
+ "tokio",
  "tracing",
  "validator",
 ]
@@ -11076,13 +10994,13 @@ dependencies = [
  "hyper 0.14.32",
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
- "num-traits 0.2.19",
+ "num-traits",
  "papyrus_config",
  "pretty_assertions",
  "serde",
  "starknet_infra_utils",
  "starknet_sequencer_infra",
- "thiserror",
+ "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
  "tracing",
@@ -11206,7 +11124,7 @@ dependencies = [
  "async-trait",
  "cairo-lang-starknet-classes",
  "futures",
- "indexmap 2.6.0",
+ "indexmap 2.7.0",
  "libp2p",
  "papyrus_config",
  "papyrus_network",
@@ -11236,14 +11154,8 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
-<<<<<<< HEAD
  "starknet_state_sync_types",
- "thiserror",
-||||||| 535775d43
- "thiserror",
-=======
  "thiserror 1.0.69",
->>>>>>> origin/main-v0.13.4
 ]
 
 [[package]]

@@ -7,13 +7,7 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
-<<<<<<< HEAD
-testing = ["dep:assert-json-diff", "infra_utils"]
-||||||| 535775d43
-testing = ["infra_utils"]
-=======
-testing = ["starknet_infra_utils"]
->>>>>>> origin/main-v0.13.4
+testing = ["dep:assert-json-diff", "starknet_infra_utils"]
 
 [dependencies]
 assert-json-diff = { workspace = true, optional = true }

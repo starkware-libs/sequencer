@@ -13,15 +13,6 @@ pub const DEFAULT_MAX_CPU_TIME: u64 = 15;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-<<<<<<< HEAD
-pub struct SierraToCasmCompilationConfig {
-    /// CASM bytecode size limit.
-    pub max_casm_bytecode_size: usize,
-||||||| 535775d43
-pub struct SierraToCasmCompilationConfig {
-    /// CASM bytecode size limit.
-    pub max_bytecode_size: usize,
-=======
 pub struct SierraCompilationConfig {
     /// CASM bytecode size limit (in felts).
     pub max_casm_bytecode_size: usize,
@@ -35,16 +26,10 @@ pub struct SierraCompilationConfig {
     pub sierra_to_native_compiler_path: Option<PathBuf>,
     /// Path to Cairo native runtime library file.
     pub libcairo_native_runtime_path: Option<PathBuf>,
->>>>>>> origin/main-v0.13.4
 }
 
 impl Default for SierraCompilationConfig {
     fn default() -> Self {
-<<<<<<< HEAD
-        Self { max_casm_bytecode_size: 81920 }
-||||||| 535775d43
-        Self { max_bytecode_size: 81920 }
-=======
         Self {
             max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
             sierra_to_native_compiler_path: None,
@@ -53,23 +38,11 @@ impl Default for SierraCompilationConfig {
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         }
->>>>>>> origin/main-v0.13.4
     }
 }
 
 impl SerializeConfig for SierraCompilationConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-<<<<<<< HEAD
-        BTreeMap::from_iter([ser_param(
-            "max_casm_bytecode_size",
-            &self.max_casm_bytecode_size,
-            "Limitation of the result CASM contract bytecode size.",
-||||||| 535775d43
-        BTreeMap::from_iter([ser_param(
-            "max_bytecode_size",
-            &self.max_bytecode_size,
-            "Limitation of contract bytecode size.",
-=======
         let mut dump = BTreeMap::from_iter([
             ser_param(
                 "max_casm_bytecode_size",
@@ -101,7 +74,6 @@ impl SerializeConfig for SierraCompilationConfig {
             "".into(),
             "sierra_to_native_compiler_path",
             "The path to the Sierra-to-Native compiler binary.",
->>>>>>> origin/main-v0.13.4
             ParamPrivacyInput::Public,
         ));
         dump.extend(ser_optional_param(

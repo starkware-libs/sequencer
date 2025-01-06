@@ -16,13 +16,7 @@ anyhow.workspace = true
 clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
-<<<<<<< HEAD
-infra_utils.workspace = true
 papyrus_base_layer.workspace = true
-||||||| 535775d43
-infra_utils.workspace = true
-=======
->>>>>>> origin/main-v0.13.4
 papyrus_config.workspace = true
 papyrus_protobuf.workspace = true
 rstest.workspace = true

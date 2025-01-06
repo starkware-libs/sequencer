@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use blockifier::test_utils::CairoVersion;
-use infra_utils::metrics::parse_numeric_metric;
+use starknet_infra_utils::metrics::parse_numeric_metric;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;

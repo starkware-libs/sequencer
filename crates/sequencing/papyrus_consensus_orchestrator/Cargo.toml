@@ -29,13 +29,7 @@ tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
-<<<<<<< HEAD
 blockifier.workspace = true
-infra_utils.workspace = true
-||||||| 535775d43
-infra_utils.workspace = true
-=======
->>>>>>> origin/main-v0.13.4
 lazy_static.workspace = true
 mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
