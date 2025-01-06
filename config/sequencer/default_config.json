@@ -269,13 +269,6 @@
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
-<<<<<<< HEAD
-  "compiler_config.max_casm_bytecode_size": {
-    "description": "Limitation of the result CASM contract bytecode size.",
-||||||| 535775d43
-  "compiler_config.max_bytecode_size": {
-    "description": "Limitation of contract bytecode size.",
-=======
   "compiler_config.libcairo_native_runtime_path": {
     "description": "The path to the Cairo native runtime library file.",
     "privacy": "Public",
@@ -288,7 +281,6 @@
   },
   "compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
->>>>>>> origin/main-v0.13.4
     "privacy": "Public",
     "value": 81920
   },
@@ -1051,6 +1043,16 @@
     "description": "A required param! The URL of the Pythonic cende_recorder",
     "param_type": "String",
     "privacy": "TemporaryValue"
+  },
+  "rpc_state_reader_config.json_rpc_version": {
+    "description": "The json rpc version.",
+    "privacy": "Public",
+    "value": "2.0"
+  },
+  "rpc_state_reader_config.url": {
+    "description": "The url of the rpc server.",
+    "privacy": "Public",
+    "value": ""
   },
   "state_sync_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",

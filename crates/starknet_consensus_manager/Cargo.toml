@@ -10,14 +10,7 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-<<<<<<< HEAD
-infra_utils.workspace = true
-||||||| 535775d43
 futures.workspace = true
-infra_utils.workspace = true
-=======
-futures.workspace = true
->>>>>>> origin/main-v0.13.4
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true
 papyrus_consensus_orchestrator.workspace = true
