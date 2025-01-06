@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::env;
 use std::fs::File;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use assert_matches::assert_matches;
 use colored::Colorize;
@@ -36,34 +37,40 @@ const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
 const ENABLE_REMOTE_CONNECTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled;
 
+const DEFAULT_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+
 /// Test the validation of the struct ReactiveComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(ReactiveComponentExecutionMode::Disabled, None, None, None)]
+#[case::local(ReactiveComponentExecutionMode::Disabled, None, None, None, DEFAULT_SOCKET)]
 #[case::local(
     ReactiveComponentExecutionMode::Remote,
     None,
     Some(RemoteClientConfig::default()),
-    None
+    None,
+    DEFAULT_SOCKET
 )]
-#[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, None)]
+#[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, None, DEFAULT_SOCKET)]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
     Some(LocalServerConfig::default()),
     None,
-    Some(RemoteServerConfig::default())
+    Some(RemoteServerConfig::default()),
+    DEFAULT_SOCKET
 )]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
     #[case] local_server_config: Option<LocalServerConfig>,
     #[case] remote_client_config: Option<RemoteClientConfig>,
     #[case] remote_server_config: Option<RemoteServerConfig>,
+    #[case] socket: SocketAddr,
 ) {
     let component_exe_config = ReactiveComponentExecutionConfig {
         execution_mode,
         local_server_config,
         remote_client_config,
         remote_server_config,
+        socket,
     };
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
