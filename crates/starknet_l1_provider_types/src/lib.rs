@@ -5,6 +5,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
+use papyrus_base_layer::L1Event;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -68,4 +69,12 @@ where
     ) -> L1ProviderClientResult<ValidationStatus> {
         todo!();
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Event {
+    L1HandlerTransaction(L1HandlerTransaction),
+    TransactionConsumed(L1Event),
+    TransactionCancellationStarted(L1Event),
+    TransactionCanceled(L1Event),
 }
