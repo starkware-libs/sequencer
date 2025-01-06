@@ -161,6 +161,12 @@ impl<'state> SyscallHandlerBase<'state> {
         &mut self,
         contract_address: ContractAddress,
     ) -> SyscallResult<ClassHash> {
+        if self.context.execution_mode == ExecutionMode::Validate {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "get_class_hash_at".to_string(),
+                execution_mode: ExecutionMode::Validate,
+            });
+        }
         self.accessed_contract_addresses.insert(contract_address);
         let class_hash = self.state.get_class_hash_at(contract_address)?;
         self.read_class_hash_values.push(class_hash);
