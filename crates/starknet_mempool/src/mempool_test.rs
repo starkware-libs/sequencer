@@ -6,12 +6,15 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcInvokeTransaction,
     RpcTransaction,
 };
+use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
+use starknet_api::test_utils::NonceManager;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
@@ -883,4 +886,37 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool(expected_pool_txs).build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn deploy_account_exists_negative_flow() {
+    let mempool = MempoolContentBuilder::new().build_into_mempool();
+
+    let result = mempool.account_exists(contract_address!(100_u32));
+    assert_eq!(result, Ok(false))
+}
+
+#[rstest]
+// TODO(Arni): add case for tx in state.
+#[case::tx_in_pool(mempool_content_builder_with_tx_in_pool())]
+fn deploy_account_exists_positive_flow(
+    #[case] test_case: (MempoolContentBuilder, ContractAddress),
+) {
+    let (mempool_content_builder, deployer_address) = test_case;
+    let mempool = mempool_content_builder.build_into_mempool();
+
+    let result = mempool.account_exists(deployer_address);
+    assert_eq!(result, Ok(true));
+}
+
+fn mempool_content_builder_with_tx_in_pool() -> (MempoolContentBuilder, ContractAddress) {
+    let account_tx =
+        executable_deploy_account_tx(DeployAccountTxArgs::default(), &mut NonceManager::default());
+    let deployer_address = if let AccountTransaction::DeployAccount(tx) = &account_tx {
+        tx.contract_address
+    } else {
+        panic!("should be a deploy account transaction.")
+    };
+    let mempool_content_builder = MempoolContentBuilder::new().with_pool([account_tx]);
+    (mempool_content_builder, deployer_address)
 }

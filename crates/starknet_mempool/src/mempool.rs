@@ -286,6 +286,15 @@ impl Mempool {
         Ok(())
     }
 
+    // TODO(Arni): consider changing this function to return a bool. There is no need for this
+    // function to return a mempool result.
+    pub fn account_exists(&self, account_address: ContractAddress) -> MempoolResult<bool> {
+        let account_is_in_state = self.state.get(account_address).is_some();
+        let account_is_in_pool = self.tx_pool.contains_account(account_address);
+
+        Ok(account_is_in_state || account_is_in_pool)
+    }
+
     fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {
         self.state.validate_incoming_tx(tx_reference)
     }
