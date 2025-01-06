@@ -1,7 +1,5 @@
 use std::net::SocketAddr;
 
-use infra_utils::run_until::run_until;
-use infra_utils::tracing::{CustomLogger, TraceLevel};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -9,6 +7,8 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
+use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{

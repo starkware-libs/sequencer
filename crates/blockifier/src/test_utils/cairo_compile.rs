@@ -4,8 +4,8 @@ use std::process::{Command, Output};
 use std::{env, fs};
 
 use cached::proc_macro::cached;
-use infra_utils::compile_time_cargo_manifest_dir;
 use serde::{Deserialize, Serialize};
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use tempfile::NamedTempFile;
 
 use crate::test_utils::contracts::TagAndToolchain;
