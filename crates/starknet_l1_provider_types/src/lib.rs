@@ -24,6 +24,7 @@ pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 pub enum ValidationStatus {
     Validated,
     AlreadyIncludedOnL2,
+    AlreadyIncludedInPropsedBlock,
     ConsumedOnL1OrUnknown,
 }
 

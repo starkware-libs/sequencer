@@ -8,7 +8,7 @@ use starknet_sequencer_infra::component_definitions::{
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use tracing::instrument;
 
-use crate::L1Provider;
+use crate::l1_provider::L1Provider;
 
 pub type LocalL1ProviderServer =
     LocalComponentServer<L1Provider, L1ProviderRequest, L1ProviderResponse>;
