@@ -7,7 +7,6 @@ members = [
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
-  "crates/infra_utils",
   "crates/mempool_test_utils",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
@@ -39,6 +38,7 @@ members = [
   "crates/starknet_gateway",
   "crates/starknet_gateway_types",
   "crates/starknet_http_server",
+  "crates/starknet_infra_utils",
   "crates/starknet_integration_tests",
   "crates/starknet_l1_provider",
   "crates/starknet_l1_provider_types",
@@ -134,7 +134,6 @@ http-body = "0.4.5"
 human_bytes = "0.4.3"
 hyper = "0.14"
 indexmap = "2.1.0"
-infra_utils = { path = "crates/infra_utils", version = "0.0.0" }
 insta = "1.29.0"
 integer-encoding = "3.0.4"
 itertools = "0.12.1"
@@ -227,6 +226,7 @@ starknet_consensus_manager = { path = "crates/starknet_consensus_manager", versi
 starknet_gateway = { path = "crates/starknet_gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.0.0" }
 starknet_http_server = { path = "crates/starknet_http_server", version = "0.0.0" }
+starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0" }
 starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.0.0" }
 starknet_l1_provider_types = { path = "crates/starknet_l1_provider_types", version = "0.0.0" }
 starknet_mempool = { path = "crates/starknet_mempool", version = "0.0.0" }

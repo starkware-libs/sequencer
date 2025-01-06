@@ -14,12 +14,12 @@ workspace = true
 [dependencies]
 axum.workspace = true
 hyper.workspace = true
-infra_utils.workspace = true
 papyrus_config.workspace = true
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
 starknet_gateway_types.workspace = true
+starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

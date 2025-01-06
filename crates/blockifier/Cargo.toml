@@ -33,7 +33,6 @@ cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
-infra_utils.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
@@ -54,6 +53,7 @@ sha2.workspace = true
 stacker = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_infra_utils.workspace = true
 starknet_sierra_compile.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
@@ -76,7 +76,7 @@ starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
 [build-dependencies]
-infra_utils.workspace = true
+starknet_infra_utils.workspace = true
 
 [[bench]]
 harness = false

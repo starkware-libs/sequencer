@@ -16,7 +16,6 @@ use std::slice::Iter;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use infra_utils::compile_time_cargo_manifest_dir;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -41,6 +40,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
