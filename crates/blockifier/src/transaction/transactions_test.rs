@@ -463,11 +463,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 11690, // The gas consumption results from parsing the input
             // arguments.
-<<<<<<< HEAD
-        execute_gas_consumed: 112610,
-=======
-        execute_gas_consumed: 111210,
->>>>>>> c1a221e35 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+        execute_gas_consumed: 111740,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -2376,11 +2372,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-<<<<<<< HEAD
-    let gas_consumed = GasAmount(16050);
-=======
-    let gas_consumed = GasAmount(17020);
->>>>>>> c1a221e35 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+    let gas_consumed = GasAmount(16950);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2411,19 +2403,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-<<<<<<< HEAD
-            l1_gas: 17998_u32.into(),
+            l1_gas: 18007_u32.into(),
             l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19692_u32.into()),
-=======
-            l1_gas: 18008_u32.into(),
-            l1_data_gas: 160_u32.into(),
-            l2_gas: 0_u32.into(),
-        },
-        false => GasVector::from_l1_gas(19702_u32.into()),
->>>>>>> c1a221e35 (chore(cairo_native): update cairo native version to 0.2.5-rc2 and the compiled to 2.10.0-rc.0)
+        false => GasVector::from_l1_gas(19701_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {

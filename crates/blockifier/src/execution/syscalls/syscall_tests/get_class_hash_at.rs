@@ -34,13 +34,14 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let positive_call_info = positive_entry_point_call.execute_directly(&mut state).unwrap();
+    let redeposit_gas = 300;
     assert!(positive_call_info.accessed_contract_addresses.contains(&address));
     assert!(positive_call_info.read_class_hash_values[0] == class_hash);
     assert_eq!(
         positive_call_info.execution,
         CallExecution {
             retdata: retdata!(),
-            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST,
+            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST + redeposit_gas,
             failed: false,
             ..CallExecution::default()
         }
