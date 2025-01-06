@@ -8,8 +8,15 @@ use std::sync::LazyLock;
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
+<<<<<<< HEAD
 use infra_utils::path::resolve_project_relative_path;
 use starknet_api::abi::abi_utils::selector_from_name;
+||||||| 535775d43
+use infra_utils::path::resolve_project_relative_path;
+use pretty_assertions::assert_ne;
+=======
+use pretty_assertions::assert_ne;
+>>>>>>> origin/main-v0.13.4
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
@@ -29,6 +36,7 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
+<<<<<<< HEAD
 use starknet_api::{
     calldata,
     declare_tx_args,
@@ -37,6 +45,12 @@ use starknet_api::{
     invoke_tx_args,
     nonce,
 };
+||||||| 535775d43
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+=======
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_infra_utils::path::resolve_project_relative_path;
+>>>>>>> origin/main-v0.13.4
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};

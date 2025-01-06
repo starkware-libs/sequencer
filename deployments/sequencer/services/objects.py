@@ -49,12 +49,25 @@ class Config:
         _config.update(self.config)
         return _config
 
+<<<<<<< HEAD
     def get_merged_config(self):
+||||||| 535775d43
+    def get_config(self):
+=======
+    def get_merged_config(self) -> Dict[Any, Any]:
+>>>>>>> origin/main-v0.13.4
         return self._merged_config()
 
+<<<<<<< HEAD
     def get_config(self):
         return self.config
 
+||||||| 535775d43
+=======
+    def get_config(self) -> Dict[Any, Any]:
+        return self.config
+
+>>>>>>> origin/main-v0.13.4
     def validate(self):
         pass
 

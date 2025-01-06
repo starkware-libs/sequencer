@@ -4,7 +4,6 @@
         "max_contract_bytecode_size": 61440
     },
     "invoke_tx_max_n_steps": 3000000,
-    "execute_max_sierra_gas": 10000000000,
     "max_recursion_depth": 50,
     "segment_arena_cells": true,
     "disable_cairo0_redeclaration": false,
@@ -71,6 +70,8 @@
         "validate_deploy_entry_point_selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895",
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
         "default_entry_point_selector": 0,
+        "validate_max_sierra_gas": 10000000000,
+        "execute_max_sierra_gas": 10000000000,
         "stored_block_hash_buffer": 10,
         "step_gas_cost": 100,
         "builtin_gas_costs": {
@@ -99,10 +100,6 @@
         "syscall_base_gas_cost": {
             "step_gas_cost": 100
         },
-        "fee_transfer_gas_cost": {
-            "entry_point_initial_budget": 1,
-            "step_gas_cost": 600
-        },
         "error_block_number_out_of_range": "Block number out of range",
         "error_out_of_gas": "Out of gas",
         "error_entry_point_failed": "ENTRYPOINT_FAILED",
@@ -117,13 +114,11 @@
         "syscall_gas_costs": {
             "call_contract": {
                 "syscall_base_gas_cost": 1,
-                "step_gas_cost": 510,
-                "entry_point_initial_budget": 1
+                "step_gas_cost": 510
             },
             "deploy": {
                 "syscall_base_gas_cost": 1,
-                "step_gas_cost": 700,
-                "entry_point_initial_budget": 1
+                "step_gas_cost": 700
             },
             "get_block_hash": {
                 "syscall_base_gas_cost": 1,
@@ -135,8 +130,7 @@
             },
             "library_call": {
                 "syscall_base_gas_cost": 1,
-                "step_gas_cost": 510,
-                "entry_point_initial_budget": 1
+                "step_gas_cost": 510
             },
             "replace_class": {
                 "syscall_base_gas_cost": 1,
@@ -302,7 +296,7 @@
                 "n_memory_holes": 0,
                 "n_steps": 44
             },
-            "Keccak": {
+            "KeccakRound": {
                 "builtin_instance_counter": {
                     "bitwise_builtin": 6,
                     "keccak_builtin": 1,
@@ -310,6 +304,11 @@
                 },
                 "n_memory_holes": 0,
                 "n_steps": 381
+            },
+            "Keccak": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 0
             },
             "LibraryCall": {
                 "builtin_instance_counter": {
@@ -563,7 +562,6 @@
         }
     },
     "validate_max_n_steps": 1000000,
-    "validate_max_sierra_gas": 10000000000,
     "min_sierra_version_for_sierra_gas": "100.0.0",
     "vm_resource_fee_cost": {
         "builtins": {

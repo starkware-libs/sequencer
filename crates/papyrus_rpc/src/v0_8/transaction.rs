@@ -949,6 +949,7 @@ impl Add for ExecutionResources {
                 memory_holes,
             },
             data_availability: DataAvailabilityResources {
+<<<<<<< HEAD
                 l1_gas: self
                     .data_availability
                     .l1_gas
@@ -959,6 +960,22 @@ impl Add for ExecutionResources {
                     .l1_data_gas
                     .checked_add(other.data_availability.l1_data_gas)
                     .expect("Gas amounts should be summable"),
+||||||| 535775d43
+                l1_gas: self.data_availability.l1_gas + other.data_availability.l1_gas,
+                l1_data_gas: self.data_availability.l1_data_gas
+                    + other.data_availability.l1_data_gas,
+=======
+                l1_gas: self
+                    .data_availability
+                    .l1_gas
+                    .checked_add(other.data_availability.l1_gas)
+                    .expect("L1 Gas overflow"),
+                l1_data_gas: self
+                    .data_availability
+                    .l1_data_gas
+                    .checked_add(other.data_availability.l1_data_gas)
+                    .expect("L1_Data Gas overflow"),
+>>>>>>> origin/main-v0.13.4
             },
         }
     }

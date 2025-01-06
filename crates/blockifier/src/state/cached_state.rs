@@ -32,8 +32,6 @@ pub struct CachedState<S: StateReader> {
     // Using interior mutability to update caches during `State`'s immutable getters.
     pub(crate) cache: RefCell<StateCache>,
     pub(crate) class_hash_to_class: RefCell<ContractClassMapping>,
-    /// A map from class hash to the set of PC values that were visited in the class.
-    pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
 }
 
 impl<S: StateReader> CachedState<S> {
@@ -42,7 +40,6 @@ impl<S: StateReader> CachedState<S> {
             state,
             cache: RefCell::new(StateCache::default()),
             class_hash_to_class: RefCell::new(HashMap::default()),
-            visited_pcs: HashMap::default(),
         }
     }
 
@@ -78,12 +75,6 @@ impl<S: StateReader> CachedState<S> {
         self.class_hash_to_class.get_mut().extend(local_contract_cache_updates);
     }
 
-    pub fn update_visited_pcs_cache(&mut self, visited_pcs: &HashMap<ClassHash, HashSet<usize>>) {
-        for (class_hash, class_visited_pcs) in visited_pcs {
-            self.add_visited_pcs(*class_hash, class_visited_pcs);
-        }
-    }
-
     /// Updates cache with initial cell values for write-only access.
     /// If written values match the original, the cell is unchanged and not counted as a
     /// storage-change for fee calculation.
@@ -112,15 +103,9 @@ impl<S: StateReader> CachedState<S> {
 }
 
 impl<S: StateReader> UpdatableState for CachedState<S> {
-    fn apply_writes(
-        &mut self,
-        writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
-        visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
-    ) {
+    fn apply_writes(&mut self, writes: &StateMaps, class_hash_to_class: &ContractClassMapping) {
         // TODO(Noa,15/5/24): Reconsider the clone.
         self.update_cache(writes, class_hash_to_class.clone());
-        self.update_visited_pcs_cache(visited_pcs);
     }
 }
 
@@ -278,10 +263,6 @@ impl<S: StateReader> State for CachedState<S> {
         self.cache.get_mut().set_compiled_class_hash_write(class_hash, compiled_class_hash);
         Ok(())
     }
-
-    fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &HashSet<usize>) {
-        self.visited_pcs.entry(class_hash).or_default().extend(pcs);
-    }
 }
 
 #[cfg(any(feature = "testing", test))]
@@ -291,7 +272,6 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
             state: Default::default(),
             cache: Default::default(),
             class_hash_to_class: Default::default(),
-            visited_pcs: Default::default(),
         }
     }
 }
@@ -598,11 +578,7 @@ impl<U: UpdatableState> TransactionalState<'_, U> {
     pub fn commit(self) {
         let state = self.state.0;
         let child_cache = self.cache.into_inner();
-        state.apply_writes(
-            &child_cache.writes,
-            &self.class_hash_to_class.into_inner(),
-            &self.visited_pcs,
-        )
+        state.apply_writes(&child_cache.writes, &self.class_hash_to_class.into_inner())
     }
 }
 

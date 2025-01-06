@@ -47,7 +47,7 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {
             l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
-            gas_consumed: 20960,
+            gas_consumed: 30190,
             ..Default::default()
         }
     );

@@ -16,6 +16,7 @@ use starknet_api::contract_address;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
@@ -28,6 +29,7 @@ use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    SierraGasRevertTracker,
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -72,6 +74,7 @@ impl CallEntryPoint {
             Arc::new(tx_context),
             execution_mode,
             limit_steps_by_resources,
+            SierraGasRevertTracker::new(GasAmount(self.initial_gas)),
         );
         let mut remaining_gas = self.initial_gas;
         self.execute(state, &mut context, &mut remaining_gas)

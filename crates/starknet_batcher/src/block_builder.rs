@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
     TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
-    VisitedSegmentsMapping,
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
@@ -72,7 +72,6 @@ pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
     pub commitment_state_diff: CommitmentStateDiff,
-    pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
 }
@@ -208,13 +207,20 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
+        let BlockExecutionSummary { state_diff, bouncer_weights, .. } =
             self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
+<<<<<<< HEAD
             rejected_tx_hashes,
             commitment_state_diff,
             visited_segments_mapping,
+||||||| 535775d43
+            commitment_state_diff,
+            visited_segments_mapping,
+=======
+            commitment_state_diff: state_diff,
+>>>>>>> origin/main-v0.13.4
             bouncer_weights,
             l2_gas_used,
         })

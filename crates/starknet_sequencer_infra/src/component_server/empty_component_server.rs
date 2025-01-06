@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use infra_utils::type_name::short_type_name;
+use starknet_infra_utils::type_name::short_type_name;
 use tracing::info;
 
 use crate::component_definitions::ComponentStarter;

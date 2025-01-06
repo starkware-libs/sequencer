@@ -5,8 +5,13 @@ use std::sync::LazyLock;
 use std::vec::Vec;
 
 use clap::Command;
+<<<<<<< HEAD
 use infra_utils::path::resolve_project_relative_path;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+||||||| 535775d43
+use infra_utils::path::resolve_project_relative_path;
+=======
+>>>>>>> origin/main-v0.13.4
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -24,10 +29,11 @@ use starknet_batcher::VersionedConstantsOverrides;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::GatewayConfig;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use validator::Validate;
 
@@ -131,7 +137,17 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub http_server_config: HttpServerConfig,
     #[validate]
+<<<<<<< HEAD
     pub compiler_config: SierraToCasmCompilationConfig,
+||||||| 535775d43
+    pub rpc_state_reader_config: RpcStateReaderConfig,
+    #[validate]
+    pub compiler_config: SierraToCasmCompilationConfig,
+=======
+    pub rpc_state_reader_config: RpcStateReaderConfig,
+    #[validate]
+    pub compiler_config: SierraCompilationConfig,
+>>>>>>> origin/main-v0.13.4
     #[validate]
     pub l1_provider_config: L1ProviderConfig,
     #[validate]

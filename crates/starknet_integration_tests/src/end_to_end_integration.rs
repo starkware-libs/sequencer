@@ -2,7 +2,19 @@ use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::block::BlockNumber;
+<<<<<<< HEAD
 use starknet_sequencer_infra::test_utils::AvailablePorts;
+||||||| 535775d43
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::state::StateNumber;
+use starknet_sequencer_infra::test_utils::get_available_socket;
+=======
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::state::StateNumber;
+use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_sequencer_infra::test_utils::get_available_socket;
+>>>>>>> origin/main-v0.13.4
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
