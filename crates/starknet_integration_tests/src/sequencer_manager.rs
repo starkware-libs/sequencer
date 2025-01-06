@@ -16,7 +16,7 @@ use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::IntegrationSequencerSetup;
+use crate::integration_test_setup::SequencerSetup;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
@@ -24,20 +24,13 @@ use crate::utils::{
     send_account_txs,
 };
 
-pub struct SequencerManager {
-    pub sequencers: Vec<IntegrationSequencerSetup>,
+pub struct SequencerSetupManager {
+    pub sequencers: Vec<SequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
 }
 
-impl SequencerManager {
-    pub async fn run(
-        tx_generator: &MultiAccountTransactionGenerator,
-        available_ports: AvailablePorts,
-        component_configs: Vec<Vec<ComponentConfig>>,
-    ) -> Self {
-        let sequencers =
-            get_sequencer_configs(tx_generator, available_ports, component_configs).await;
-
+impl SequencerSetupManager {
+    pub async fn run(sequencers: Vec<SequencerSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
@@ -97,13 +90,9 @@ impl SequencerManager {
         assert_eq!(tx_hashes.len(), n_txs);
     }
 
-    pub async fn await_execution(
-        &self,
-        expected_block_number: BlockNumber,
-        batcher_storage_reader: &StorageReader,
-    ) {
+    pub async fn await_execution(&self, expected_block_number: BlockNumber) {
         info!("Awaiting until {expected_block_number} blocks have been created.");
-        await_block(5000, expected_block_number, 50, batcher_storage_reader)
+        await_block(5000, expected_block_number, 50, &self.batcher_storage_reader())
             .await
             .expect("Block number should have been reached.");
     }
@@ -164,11 +153,11 @@ pub async fn verify_results(
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
     assert_eq!(nonce, expected_nonce);
 }
-pub async fn get_sequencer_configs(
+pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     mut available_ports: AvailablePorts,
     component_configs: Vec<Vec<ComponentConfig>>,
-) -> Vec<IntegrationSequencerSetup> {
+) -> Vec<SequencerSetup> {
     info!("Creating sequencer configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
@@ -189,7 +178,7 @@ pub async fn get_sequencer_configs(
             // composition
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
-            let sequencer = IntegrationSequencerSetup::new(
+            let sequencer = SequencerSetup::new(
                 accounts.to_vec(),
                 sequencer_id,
                 chain_info.clone(),

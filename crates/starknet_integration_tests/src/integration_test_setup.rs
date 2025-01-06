@@ -21,7 +21,7 @@ use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::create_node_config;
 
-pub struct IntegrationSequencerSetup {
+pub struct SequencerSetup {
     /// Used to differentiate between different sequencer nodes.
     pub sequencer_index: usize,
 
@@ -47,7 +47,7 @@ pub struct IntegrationSequencerSetup {
     state_sync_storage_handle: TempDir,
 }
 
-impl IntegrationSequencerSetup {
+impl SequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
