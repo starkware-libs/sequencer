@@ -25,7 +25,7 @@ use papyrus_protobuf::sync::{
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;
-use papyrus_storage::class::ClassStorageReader;
+use papyrus_storage::class_manager::ClassManagerStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
@@ -44,7 +44,8 @@ use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::FullTransaction;
-use starknet_class_manager_types::EmptyClassManagerClient;
+use starknet_class_manager_types::test_utils::MockClassManagerClient;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
@@ -112,8 +113,7 @@ pub fn setup() -> TestArgs {
         transaction_sender,
         class_sender,
     };
-    // TODO(noamsp): use MockClassManagerClient instead
-    let class_manager_client = Arc::new(EmptyClassManagerClient);
+    let class_manager_client = Arc::new(MockClassManagerClient::new());
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
@@ -162,7 +162,9 @@ pub enum Action {
     SendClass(DataOrFin<(ApiContractClass, ClassHash)>),
     /// Perform custom validations on the storage. Returns back the storage reader it received as
     /// input
-    CheckStorage(Box<dyn FnOnce(StorageReader) -> BoxFuture<'static, ()>>),
+    CheckStorage(
+        Box<dyn FnOnce((StorageReader, SharedClassManagerClient)) -> BoxFuture<'static, ()>>,
+    ),
     /// Check that a report was sent on the current header query.
     ValidateReportSent(DataType),
     /// Sends an internal block to the sync.
@@ -201,15 +203,14 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         class_sender,
     };
     let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
-    // TODO(noamsp): use MockClassManagerClient instead
-    let class_manager_client = Arc::new(EmptyClassManagerClient);
+    let class_manager_client = Arc::new(MockClassManagerClient::new());
     let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
         internal_block_receiver.boxed(),
-        class_manager_client,
+        class_manager_client.clone(),
     );
 
     let mut headers_current_query_responses_manager = None;
@@ -275,7 +276,7 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                     }
                     Action::CheckStorage(check_storage_fn) => {
                         // We tried avoiding the clone here but it causes lifetime issues.
-                        check_storage_fn(storage_reader.clone()).await;
+                        check_storage_fn((storage_reader.clone(), class_manager_client.clone())).await;
                     }
                     Action::ValidateReportSent(DataType::Header) => {
                         let responses_manager = headers_current_query_responses_manager.take()
@@ -387,7 +388,7 @@ pub(crate) async fn wait_for_marker(
             DataType::Header => txn.get_header_marker().unwrap(),
             DataType::Transaction => txn.get_body_marker().unwrap(),
             DataType::StateDiff => txn.get_state_marker().unwrap(),
-            DataType::Class => txn.get_class_marker().unwrap(),
+            DataType::Class => txn.get_class_manager_block_marker().unwrap(),
         };
 
         if storage_marker >= expected_marker {

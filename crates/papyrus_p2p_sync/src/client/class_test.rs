@@ -11,11 +11,12 @@ use papyrus_protobuf::sync::{
     Query,
     StateDiffChunk,
 };
-use papyrus_storage::class::ClassStorageReader;
+use papyrus_storage::class_manager::ClassManagerStorageReader;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
@@ -94,11 +95,11 @@ async fn class_basic_flow() {
             let class_hash = state_diff.get_class_hash();
 
             // Check that before the last class was sent, the classes aren't written.
-            actions.push(Action::CheckStorage(Box::new(move |reader| {
+            actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
                 async move {
                     assert_eq!(
                         u64::try_from(i).unwrap(),
-                        reader.begin_ro_txn().unwrap().get_class_marker().unwrap().0
+                        reader.begin_ro_txn().unwrap().get_class_manager_block_marker().unwrap().0
                     );
                 }
                 .boxed()
@@ -106,7 +107,7 @@ async fn class_basic_flow() {
             actions.push(Action::SendClass(DataOrFin(Some((class.clone(), class_hash)))));
         }
         // Check that a block's classes are written before the entire query finished.
-        actions.push(Action::CheckStorage(Box::new(move |reader| {
+        actions.push(Action::CheckStorage(Box::new(move |(reader, class_manager_client)| {
             async move {
                 let block_number = BlockNumber(i.try_into().unwrap());
                 wait_for_marker(
@@ -118,18 +119,18 @@ async fn class_basic_flow() {
                 )
                 .await;
 
-                let txn = reader.begin_ro_txn().unwrap();
                 for (state_diff, expected_class) in state_diffs_and_classes {
                     let class_hash = state_diff.get_class_hash();
                     match expected_class {
                         ApiContractClass::ContractClass(expected_class) => {
-                            let actual_class = txn.get_class(&class_hash).unwrap().unwrap();
+                            let actual_class =
+                                class_manager_client.get_sierra(class_hash).await.unwrap();
                             assert_eq!(actual_class, expected_class.clone());
                         }
                         ApiContractClass::DeprecatedContractClass(expected_class) => {
                             let actual_class =
-                                txn.get_deprecated_class(&class_hash).unwrap().unwrap();
-                            assert_eq!(actual_class, expected_class.clone());
+                                class_manager_client.get_executable(class_hash).await.unwrap();
+                            assert_eq!(actual_class, ContractClass::V0(expected_class.clone()));
                         }
                     }
                 }
