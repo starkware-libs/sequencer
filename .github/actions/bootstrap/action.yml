@@ -9,7 +9,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    # required to clone native as a gitsubmodule
+    # required to clone  native as a gitsubmodule
     - name: Submodules update.
       run: git submodule update --init --recursive
       shell: bash
