@@ -17,7 +17,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::errors::{
     InvalidNativeBlockifierInputError,
