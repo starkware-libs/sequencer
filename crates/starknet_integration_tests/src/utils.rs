@@ -32,7 +32,7 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
-use starknet_sequencer_node::config::test_utils::{
+use starknet_sequencer_node::config::config_utils::{
     EthereumBaseLayerConfigRequiredParams,
     RequiredParams,
 };
