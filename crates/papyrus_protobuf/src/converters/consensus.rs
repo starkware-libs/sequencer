@@ -9,6 +9,7 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
 use crate::consensus::{
+    IntoFromProto,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -79,9 +80,7 @@ impl From<Vote> for protobuf::Vote {
 
 auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
-    TryFrom<protobuf::StreamMessage> for StreamMessage<T>
-{
+impl<T: IntoFromProto> TryFrom<protobuf::StreamMessage> for StreamMessage<T> {
     type Error = ProtobufConversionError;
 
     fn try_from(value: protobuf::StreamMessage) -> Result<Self, Self::Error> {
@@ -107,9 +106,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
     }
 }
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
-    for protobuf::StreamMessage
-{
+impl<T: IntoFromProto> From<StreamMessage<T>> for protobuf::StreamMessage {
     fn from(value: StreamMessage<T>) -> Self {
         Self {
             message: match value {
@@ -131,18 +128,14 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
 // Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
 // because it doesn't seem to work with generics.
 // TODO(guyn): consider expanding the macro to support generics
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
-    for Vec<u8>
-{
+impl<T: IntoFromProto> From<StreamMessage<T>> for Vec<u8> {
     fn from(value: StreamMessage<T>) -> Self {
         let protobuf_value = <protobuf::StreamMessage>::from(value);
         protobuf_value.encode_to_vec()
     }
 }
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> TryFrom<Vec<u8>>
-    for StreamMessage<T>
-{
+impl<T: IntoFromProto> TryFrom<Vec<u8>> for StreamMessage<T> {
     type Error = ProtobufConversionError;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
         let protobuf_value = <protobuf::StreamMessage>::decode(&value[..])?;
