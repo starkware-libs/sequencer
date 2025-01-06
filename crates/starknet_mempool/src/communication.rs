@@ -102,9 +102,9 @@ impl MempoolCommunicationWrapper {
 
     pub(crate) fn deploy_account_exists(
         &self,
-        _account_address: ContractAddress,
+        account_address: ContractAddress,
     ) -> MempoolResult<bool> {
-        todo!("implement this function");
+        Ok(self.mempool.account_exists(account_address))
     }
 }
 
