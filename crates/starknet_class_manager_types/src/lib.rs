@@ -1,3 +1,5 @@
+pub mod converters;
+
 use async_trait::async_trait;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
