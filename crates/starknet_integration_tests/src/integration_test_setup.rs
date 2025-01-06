@@ -19,7 +19,7 @@ use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
-use crate::utils::{create_node_config, spawn_success_recorder};
+use crate::utils::create_node_config;
 
 pub struct IntegrationSequencerSetup {
     /// Used to differentiate between different sequencer nodes.

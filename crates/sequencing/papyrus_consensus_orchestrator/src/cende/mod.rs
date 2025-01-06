@@ -26,7 +26,7 @@ use url::Url;
 // TODO(dvir): consider adding `CendeError` when will be more error variants.
 
 /// A chunk of all the data to write to Aersopike.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct AerospikeBlob {
     // TODO(yael, dvir): add the blob fields.
     block_number: BlockNumber,
@@ -228,6 +228,18 @@ impl TryFrom<BlobParameters> for AerospikeBlob {
                 serde_json::to_string(&CentralTransactionWritten::from((transaction, 0)))
             })
             .collect::<Result<Vec<_>, serde_json::Error>>()?;
+
+        // let block_number = blob_parameters.block_info.block_number;
+        // let state_diff = CentralStateDiff::from((
+        //     blob_parameters.state_diff,
+        //     blob_parameters.block_info,
+        //     StarknetVersion::LATEST,
+        // ));
+        // let transactions = blob_parameters
+        //     .transactions
+        //     .into_iter()
+        //     .map(|transaction| CentralTransactionWritten::from((transaction, 0)))
+        //     .collect();
 
         println!("transactions: {:?}", transactions);
 
