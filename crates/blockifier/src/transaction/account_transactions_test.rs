@@ -1047,14 +1047,29 @@ fn test_n_reverted_computation_units(
     .unwrap();
     let n_units_2 =
         result.receipt.resources.computation.total_charged_computation_units(tracked_resource);
-    let _actual_fee_2 = result.receipt.fee.0;
+    let actual_fee_2 = result.receipt.fee.0;
     // Ensure the transaction was reverted.
     assert!(result.is_reverted());
 
     // Make sure that n_units and actual_fee diffs are the same for two consecutive reverted calls.
     assert_eq!(n_units_1 - n_units_0, n_units_2 - n_units_1);
-    // TODO(Meshi, 19/1/2025): Uncomment this line when the fee calculation is fixed.
-    // assert_eq!(actual_fee_1 - actual_fee_0, actual_fee_2 - actual_fee_1);
+    match (tracked_resource, resource_bounds.get_gas_vector_computation_mode()) {
+        // If we are tracking sierra gas, but the user signed on L1 gas bounds only, we may have
+        // rounding differences in the number of L1 gas units the user is charged for.
+        // This rounding error can result in at most one unit of L1 gas difference, so the final fee
+        // can differ by at most the L1 gas price.
+        (TrackedResource::SierraGas, GasVectorComputationMode::NoL2Gas) => {
+            assert!(
+                (i128::try_from(actual_fee_1 - actual_fee_0).unwrap()
+                    - i128::try_from(actual_fee_2 - actual_fee_1).unwrap())
+                .unsigned_abs()
+                    <= block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).get().0
+            );
+        }
+        _ => {
+            assert_eq!(actual_fee_1 - actual_fee_0, actual_fee_2 - actual_fee_1);
+        }
+    }
 
     // Save the delta between two consecutive calls to be tested against a much larger recursion.
     let single_call_units_delta = n_units_1 - n_units_0;
