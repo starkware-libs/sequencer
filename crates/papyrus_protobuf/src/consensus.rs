@@ -4,6 +4,9 @@ use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
+pub trait Protoable: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
+impl<T> Protoable for T where T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
+
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub enum VoteType {
     Prevote,
@@ -27,7 +30,7 @@ pub enum StreamMessageBody<T> {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
+pub struct StreamMessage<T: Protoable> {
     pub message: StreamMessageBody<T>,
     pub stream_id: u64,
     pub message_id: u64,
@@ -108,10 +111,7 @@ impl From<ProposalInit> for ProposalPart {
     }
 }
 
-impl<T> std::fmt::Display for StreamMessage<T>
-where
-    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-{
+impl<T: Clone + Protoable> std::fmt::Display for StreamMessage<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let StreamMessageBody::Content(message) = &self.message {
             let message: Vec<u8> = message.clone().into();
