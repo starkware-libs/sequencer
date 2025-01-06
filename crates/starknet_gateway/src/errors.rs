@@ -87,10 +87,26 @@ pub fn mempool_client_result_to_gw_spec_result(
         Ok(()) => return Ok(()),
         Err(err) => err,
     };
-    match err {
+    match mempool_client_error_to_gateway_spec_error(err) {
+        MempoolClientErrorToGatewaySpecErrorConversionResult::GatewaySpecError(err) => Err(err),
+        MempoolClientErrorToGatewaySpecErrorConversionResult::P2pPropagatorClientError => Ok(()),
+    }
+}
+
+pub enum MempoolClientErrorToGatewaySpecErrorConversionResult {
+    GatewaySpecError(GatewaySpecError),
+    P2pPropagatorClientError,
+}
+
+pub fn mempool_client_error_to_gateway_spec_error(
+    mempool_client_error: MempoolClientError,
+) -> MempoolClientErrorToGatewaySpecErrorConversionResult {
+    match mempool_client_error {
         MempoolClientError::ClientError(client_error) => {
             error!("Mempool client error: {}", client_error);
-            Err(GatewaySpecError::UnexpectedError { data: "Internal error".to_owned() })
+            MempoolClientErrorToGatewaySpecErrorConversionResult::GatewaySpecError(
+                GatewaySpecError::UnexpectedError { data: "Internal error".to_owned() },
+            )
         }
         MempoolClientError::MempoolError(mempool_error) => {
             debug!("Mempool error: {}", mempool_error);
@@ -98,13 +114,19 @@ pub fn mempool_client_result_to_gw_spec_result(
                 MempoolError::DuplicateNonce { .. }
                 | MempoolError::NonceTooLarge { .. }
                 | MempoolError::NonceTooOld { .. } => {
-                    Err(GatewaySpecError::InvalidTransactionNonce)
+                    MempoolClientErrorToGatewaySpecErrorConversionResult::GatewaySpecError(
+                        GatewaySpecError::InvalidTransactionNonce,
+                    )
                 }
-                MempoolError::DuplicateTransaction { .. } => Err(GatewaySpecError::DuplicateTx),
+                MempoolError::DuplicateTransaction { .. } => {
+                    MempoolClientErrorToGatewaySpecErrorConversionResult::GatewaySpecError(
+                        GatewaySpecError::DuplicateTx,
+                    )
+                }
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
                     warn!("P2P propagator client error: {}", mempool_error);
-                    Ok(())
+                    MempoolClientErrorToGatewaySpecErrorConversionResult::P2pPropagatorClientError
                 }
                 MempoolError::TransactionNotFound { .. } => {
                     // This error is not expected to happen within the gateway, only from other

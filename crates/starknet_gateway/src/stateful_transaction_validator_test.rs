@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use blockifier::blockifier::stateful_validator::{
     StatefulValidatorError as BlockifierStatefulValidatorError,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
@@ -25,7 +27,9 @@ use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::Resource;
 use starknet_api::{deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_types::communication::MockMempoolClient;
 
+use super::skip_stateful_validations;
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
@@ -76,8 +80,8 @@ fn test_stateful_tx_validator(
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
 
-    let account_nonce = nonce!(0);
-    let result = stateful_validator.run_validate(&executable_tx, account_nonce, mock_validator);
+    let skip_validate = false;
+    let result = stateful_validator.run_validate(&executable_tx, skip_validate, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -135,16 +139,17 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     nonce!(1),
     false
 )]
-fn test_skip_stateful_validation(
+#[tokio::test]
+async fn test_skip_stateful_validation(
     #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
     #[case] should_skip_validate: bool,
-    stateful_validator: StatefulTransactionValidator,
 ) {
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator
-        .expect_validate()
-        .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
-        .returning(|_, _| Ok(()));
-    let _ = stateful_validator.run_validate(&executable_tx, sender_nonce, mock_validator);
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client.expect_has_tx_from_address().returning(|_| Ok(true));
+    let mempool_client = Arc::new(mock_mempool_client);
+    assert_eq!(
+        skip_stateful_validations(&executable_tx, sender_nonce, mempool_client).await.unwrap(),
+        should_skip_validate
+    );
 }
