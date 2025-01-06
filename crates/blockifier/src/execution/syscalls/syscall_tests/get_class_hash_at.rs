@@ -33,7 +33,8 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
         entry_point_selector: selector_from_name("test_get_class_hash_at"),
         ..trivial_external_entry_point_new(test_contract)
     };
-    let positive_call_info = positive_entry_point_call.execute_directly(&mut state).unwrap();
+    let positive_call_info =
+        positive_entry_point_call.clone().execute_directly(&mut state).unwrap();
     let redeposit_gas = 300;
     assert!(positive_call_info.accessed_contract_addresses.contains(&address));
     assert!(positive_call_info.read_class_hash_values[0] == class_hash);
@@ -71,4 +72,10 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
             .execution
             .failed
     );
+
+    let error =
+        positive_entry_point_call.execute_directly_in_validate_mode(&mut state).unwrap_err();
+    assert!(error.to_string().contains(
+        "Unauthorized syscall get_block_hash on recent blocks in execution mode Validate."
+    ));
 }
