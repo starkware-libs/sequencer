@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::channel::oneshot;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -13,7 +12,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
-use tokio::task::{self};
+use tokio::task::{self, JoinHandle};
 use tracing::debug;
 use url::Url;
 
@@ -31,7 +30,7 @@ pub trait CendeContext: Send + Sync {
     /// Write the previous height blob to Aerospike. Returns a cell with an inner boolean indicating
     /// whether the write was successful.
     /// `height` is the height of the block that is built when calling this function.
-    fn write_prev_height_blob(&self, height: BlockNumber) -> oneshot::Receiver<bool>;
+    fn write_prev_height_blob(&self, height: BlockNumber) -> JoinHandle<bool>;
 
     // Prepares the previous height blob that will be written in the next height.
     async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters);
@@ -94,8 +93,7 @@ impl SerializeConfig for CendeConfig {
 
 #[async_trait]
 impl CendeContext for CendeAmbassador {
-    fn write_prev_height_blob(&self, height: BlockNumber) -> oneshot::Receiver<bool> {
-        let (sender, receiver) = oneshot::channel();
+    fn write_prev_height_blob(&self, height: BlockNumber) -> JoinHandle<bool> {
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.url.clone());
         task::spawn(async move {
@@ -110,15 +108,13 @@ impl CendeContext for CendeAmbassador {
                      writing to Aerospike",
                     height
                 );
-                oneshot_send(sender, true);
-                return;
+                return true;
             }
             let Some(ref blob) = *prev_height_blob.lock().await else {
                 // This case happens when restarting the node, `prev_height_blob` intial value is
                 // `None`.
                 debug!("No blob to write to Aerospike.");
-                oneshot_send(sender, false);
-                return;
+                return false;
             };
             // TODO(dvir): consider set `prev_height_blob` to `None` after writing to AS.
             debug!("Writing blob to Aerospike.");
@@ -126,27 +122,20 @@ impl CendeContext for CendeAmbassador {
                 Ok(response) => {
                     if response.status().is_success() {
                         debug!("Blob written to Aerospike successfully.");
-                        oneshot_send(sender, true);
+                        true
                     } else {
                         debug!("The recorder failed to write blob. Error: {}", response.status());
-                        oneshot_send(sender, false);
+                        false
                     }
                 }
                 Err(err) => {
                     debug!("Failed to send a request to the recorder. Error: {}", err);
                     // TODO(dvir): change this to `false`. The reason for the current value is to
                     // make the `end_to_end_flow_test` to pass.
-                    oneshot_send(sender, true);
+                    true
                 }
             }
-        });
-
-        return receiver;
-
-        // Helper function to send a boolean result to a one-shot sender.
-        fn oneshot_send(sender: oneshot::Sender<bool>, result: bool) {
-            sender.send(result).expect("Writing to a one-shot sender should succeed.");
-        }
+        })
     }
 
     async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters) {
