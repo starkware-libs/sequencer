@@ -30,7 +30,7 @@ use crate::config::node_config::{
     DEFAULT_CONFIG_PATH,
     DEFAULT_PRESET_CONFIG_PATH,
 };
-use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
+use crate::config::config_utils::{create_test_config_load_args, RequiredParams};
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
