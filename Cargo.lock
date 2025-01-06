@@ -10569,6 +10569,7 @@ dependencies = [
  "starknet_l1_provider_types",
  "starknet_sequencer_infra",
  "thiserror",
+ "tokio",
  "tracing",
  "validator",
 ]
