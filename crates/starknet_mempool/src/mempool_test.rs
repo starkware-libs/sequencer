@@ -884,3 +884,11 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
         MempoolContentBuilder::new().with_pool(expected_pool_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
+
+// TODO(Arni): Add positive flow.
+#[rstest]
+fn deploy_account_exists_negative_flow() {
+    let mempool = MempoolContentBuilder::new().build_into_mempool();
+
+    assert!(!mempool.deploy_account_exists(contract_address!(100_u32)));
+}
