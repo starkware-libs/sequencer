@@ -56,3 +56,4 @@ tracing-test.workspace = true
 harness = false
 name = "gateway_bench"
 path = "bench/main.rs"
+required-features = ["testing"]
