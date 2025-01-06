@@ -17,7 +17,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -180,6 +180,12 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_casm(&self) -> CompiledClassV1 {
+        let compiled_path = self.get_casm_path();
+        let contact_class = CasmContractClass::from_file(&compiled_path);
+        (contact_class, self.get_sierra_version()).try_into().unwrap()
+    }
+
     pub fn get_runnable_class(&self) -> RunnableCompiledClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Cairo1(RunnableCairo1::Native) == self.cairo_version() {
@@ -294,6 +300,34 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_casm_path(&self) -> String {
+        assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
+        match self {
+            // ERC20 is a special case - not in the feature_contracts directory.
+            Self::ERC20(CairoVersion::Cairo1(_)) => ERC20_CAIRO1_CONTRACT_PATH.into(),
+            _ => {
+                format!(
+                    "feature_contracts/cairo1/compiled/{}.casm.json",
+                    self.get_non_erc20_base_name()
+                )
+            }
+        }
+    }
+
+    pub fn get_cairo0_compiled_path(&self) -> String {
+        assert_eq!(self.cairo_version(), CairoVersion::Cairo0);
+        match self {
+            // ERC20 is a special case - not in the feature_contracts directory.
+            Self::ERC20(CairoVersion::Cairo0) => ERC20_CAIRO0_CONTRACT_PATH.into(),
+            _ => {
+                format!(
+                    "feature_contracts/cairo0/compiled/{}_compiled.json",
+                    self.get_non_erc20_base_name()
+                )
+            }
+        }
+    }
+
     pub fn get_sierra_path(&self) -> String {
         assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
         // This is not the compiled Sierra file of the existing ERC20 contract,
@@ -303,41 +337,18 @@ impl FeatureContract {
         }
 
         format!(
-            "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
+            //"{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
+            "feature_contracts/cairo1/sierra/{}.sierra.json",
             self.get_non_erc20_base_name()
         )
     }
 
     pub fn get_compiled_path(&self) -> String {
-        // ERC20 is a special case - not in the feature_contracts directory.
-        if let Self::ERC20(cairo_version) = self {
-            match cairo_version {
-                CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_PATH,
-                CairoVersion::Cairo1(RunnableCairo1::Casm) => ERC20_CAIRO1_CONTRACT_PATH,
-                #[cfg(feature = "cairo_native")]
-                CairoVersion::Cairo1(RunnableCairo1::Native) => {
-                    todo!("ERC20 cannot be tested with Native")
-                }
-            }
-            .into()
-        } else {
-            let cairo_version = self.cairo_version();
-            format!(
-                "feature_contracts/cairo{}/{}{}.json",
-                match cairo_version {
-                    CairoVersion::Cairo0 => "0/compiled",
-                    CairoVersion::Cairo1(RunnableCairo1::Casm) => "1/compiled",
-                    #[cfg(feature = "cairo_native")]
-                    CairoVersion::Cairo1(RunnableCairo1::Native) => "1/sierra",
-                },
-                self.get_non_erc20_base_name(),
-                match cairo_version {
-                    CairoVersion::Cairo0 => "_compiled",
-                    CairoVersion::Cairo1(RunnableCairo1::Casm) => ".casm",
-                    #[cfg(feature = "cairo_native")]
-                    CairoVersion::Cairo1(RunnableCairo1::Native) => ".sierra",
-                }
-            )
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => self.get_cairo0_compiled_path(),
+            CairoVersion::Cairo1(RunnableCairo1::Casm) => self.get_casm_path(),
+            #[cfg(feature = "cairo_native")]
+            CairoVersion::Cairo1(RunnableCairo1::Native) => self.get_sierra_path(),
         }
     }
 
