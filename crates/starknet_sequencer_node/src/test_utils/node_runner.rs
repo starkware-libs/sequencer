@@ -57,7 +57,8 @@ async fn spawn_node_child_process(
 
     let mut annotator_cmd: Child = create_shell_command("awk")
         .arg("-v")
-        .arg(format!{"prefix={}", node_runner.get_description()})
+        // Print the prefix in blue color.
+        .arg(format!("prefix=\u{1b}[34m{}\u{1b}[0m", node_runner.get_description()))
         .arg("{print prefix, $0}")
         .stdin(std::process::Stdio::piped())
         .stderr(Stdio::inherit())
