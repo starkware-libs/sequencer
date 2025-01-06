@@ -4,12 +4,12 @@ use std::path::PathBuf;
 
 use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use serde_json::Value;
+use starknet_sequencer_node::config::config_utils::{config_to_preset, RequiredParams};
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
 };
-use starknet_sequencer_node::config::test_utils::{config_to_preset, RequiredParams};
 use tracing::info;
 
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".

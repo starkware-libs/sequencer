@@ -23,6 +23,7 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
+use crate::config::config_utils::{create_test_config_load_args, RequiredParams};
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -30,7 +31,6 @@ use crate::config::node_config::{
     DEFAULT_CONFIG_PATH,
     DEFAULT_PRESET_CONFIG_PATH,
 };
-use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
