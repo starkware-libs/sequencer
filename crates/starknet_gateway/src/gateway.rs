@@ -18,7 +18,10 @@ use crate::compilation::GatewayCompiler;
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
 use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::StatefulTransactionValidator;
+use crate::stateful_transaction_validator::{
+    skip_stateful_validations,
+    StatefulTransactionValidator,
+};
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
 use crate::utils::compile_contract_and_build_executable_tx;
@@ -70,7 +73,7 @@ impl Gateway {
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let add_tx_args =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
+            tokio::spawn(async move { curr_span.in_scope(|| blocking_task.process_tx()).await })
                 .await
                 .map_err(|join_err| {
                     error!("Failed to process tx: {}", join_err);
@@ -93,6 +96,7 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     gateway_compiler: Arc<GatewayCompiler>,
+    mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
 }
@@ -104,12 +108,13 @@ impl ProcessTxBlockingTask {
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             gateway_compiler: gateway.gateway_compiler.clone(),
+            mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
         }
     }
 
-    fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
+    async fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
         // TODO(Arni, 1/5/2024): Perform congestion control.
 
         // Perform stateless validations.
@@ -132,15 +137,21 @@ impl ProcessTxBlockingTask {
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
         let address = executable_tx.contract_address();
-        let nonce = validator.get_nonce(address).map_err(|e| {
+        let account_nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
 
-        self.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
+        let skip_validate =
+            skip_stateful_validations(&executable_tx, account_nonce, self.mempool_client.clone())
+                .await;
+        self.stateful_tx_validator.run_validate(&executable_tx, skip_validate, validator)?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
+        Ok(AddTransactionArgs {
+            tx: executable_tx,
+            account_state: AccountState { address, nonce: account_nonce },
+        })
     }
 }
 

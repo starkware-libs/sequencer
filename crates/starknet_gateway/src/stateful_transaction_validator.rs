@@ -12,13 +12,11 @@ use blockifier::versioned_constants::VersionedConstants;
 use mockall::automock;
 use starknet_api::block::BlockInfo;
 use starknet_api::core::Nonce;
-use starknet_api::executable_transaction::{
-    AccountTransaction as ExecutableTransaction,
-    InvokeTransaction as ExecutableInvokeTransaction,
-};
+use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
 use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use starknet_types_core::felt::Felt;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
@@ -58,10 +56,9 @@ impl StatefulTransactionValidator {
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
-        account_nonce: Nonce,
+        skip_validate: bool,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<()> {
-        let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
         let only_query = false;
         let charge_fee = enforce_fee(executable_tx, only_query);
         let execution_flags = ExecutionFlags { only_query, charge_fee, validate: !skip_validate };
@@ -101,21 +98,6 @@ impl StatefulTransactionValidator {
     }
 }
 
-// Check if validation of an invoke transaction should be skipped due to deploy_account not being
-// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
-// once.
-fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
-    match tx {
-        ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) => {
-            // check if the transaction nonce is 1, meaning it is post deploy_account, and the
-            // account nonce is zero, meaning the account was not deployed yet. The mempool also
-            // verifies that the deploy_account transaction exists.
-            tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
-        }
-        ExecutableTransaction::DeployAccount(_) | ExecutableTransaction::Declare(_) => false,
-    }
-}
-
 pub fn get_latest_block_info(
     state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
@@ -127,4 +109,39 @@ pub fn get_latest_block_info(
         error!("Failed to get latest block info: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })
+}
+
+// Check if validation of an invoke transaction should be skipped due to deploy_account not being
+// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
+// once.
+pub async fn skip_stateful_validations(
+    tx: &ExecutableTransaction,
+    account_nonce: Nonce,
+    mempool_client: SharedMempoolClient,
+) -> bool {
+    if let ExecutableTransaction::Invoke(tx) = tx {
+        // check if the transaction nonce is 1, meaning it is post deploy_account, and the
+        // account nonce is zero, meaning the account was not deployed yet.
+        if tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO) {
+            // We verify that a deploy_account transaction exists for this account. It is sufficient
+            // to check if the account exists in the mempool since it means that either it has a
+            // deploy_account transaction or transactions with future nonces that passed
+            // validations.
+            let result = mempool_client.has_tx_from_address(tx.sender_address()).await;
+            match result {
+                Ok(exists) => return exists,
+                Err(MempoolClientError::ClientError(_err)) => {
+                    warn!("A client error occurred");
+                    // Should we simply take a strict approach and in this case say the mempool did
+                    // not find it?
+                    return false;
+                }
+                Err(MempoolClientError::MempoolError(_err)) => {
+                    panic!("No such error can occur on 'has_tx_from_address'")
+                }
+            }
+        }
+    }
+
+    false
 }
