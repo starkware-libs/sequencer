@@ -1,4 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 
 use papyrus_config::dumping::{
     append_sub_config_name,
@@ -11,6 +14,7 @@ use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use starknet_api::core::{ChainId, ContractAddress};
+use tracing::info;
 use url::Url;
 
 use crate::config::node_config::node_command;
@@ -103,6 +107,10 @@ impl RequiredParams {
             panic!("Required params are not a JSON map object: {:?}", self_as_json);
         }
     }
+
+    pub fn dump_to_file(&self, path: &str, dir: PathBuf) -> PathBuf {
+        dump_json_data(self.as_json(), path, dir)
+    }
 }
 
 // Creates a vector of strings with the command name and required parameters that can be used as
@@ -164,4 +172,19 @@ pub fn config_to_preset(config_map: &Value) -> Value {
     } else {
         panic!("Config map is not a JSON object: {:?}", config_map);
     }
+}
+
+/// Dumps the input JSON data to a file at the specified path.
+pub fn dump_json_data(json_data: Value, path: &str, dir: PathBuf) -> PathBuf {
+    let temp_dir_path = dir.join(path);
+    // Serialize the JSON data to a pretty-printed string
+    let json_string = serde_json::to_string_pretty(&json_data).unwrap();
+
+    // Write the JSON string to a file
+    let mut file = File::create(&temp_dir_path).unwrap();
+    file.write_all(json_string.as_bytes()).unwrap();
+    file.flush().unwrap();
+
+    info!("Writing required config changes to: {:?}", &temp_dir_path);
+    temp_dir_path
 }
