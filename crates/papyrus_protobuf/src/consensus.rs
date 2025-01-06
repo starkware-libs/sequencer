@@ -8,6 +8,12 @@ use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
+pub trait IntoFromProto: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
+impl<T> IntoFromProto for T where
+    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>
+{
+}
+
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub enum VoteType {
     Prevote,
@@ -31,10 +37,7 @@ pub enum StreamMessageBody<T> {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct StreamMessage<
-    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-    StreamId: Into<Vec<u8>> + Clone,
-> {
+pub struct StreamMessage<T: IntoFromProto, StreamId: IntoFromProto + Clone> {
     pub message: StreamMessageBody<T>,
     pub stream_id: StreamId,
     pub message_id: u64,
@@ -115,9 +118,8 @@ impl From<ProposalInit> for ProposalPart {
     }
 }
 
-impl<T, StreamId: Into<Vec<u8>> + Clone + Display> std::fmt::Display for StreamMessage<T, StreamId>
-where
-    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+impl<T: Clone + IntoFromProto, StreamId: IntoFromProto + Clone + Display> std::fmt::Display
+    for StreamMessage<T, StreamId>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let StreamMessageBody::Content(message) = &self.message {
