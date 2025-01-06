@@ -14,7 +14,7 @@ use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, MockMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{
