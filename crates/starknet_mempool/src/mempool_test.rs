@@ -885,10 +885,31 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool);
 }
 
-// TODO(Arni): Add positive flow.
 #[rstest]
 fn has_tx_from_address_negative_flow() {
     let mempool = MempoolContentBuilder::new().build_into_mempool();
 
     assert!(!mempool.has_tx_from_address(contract_address!(100_u32)));
+}
+
+#[rstest]
+fn has_tx_from_address_positive_flow() {
+    let address = "0x64";
+    let mut mempool = Mempool::default();
+
+    // Check that has_tx_from_address returns true after add_tx.
+    let add_tx_args = add_tx_input!(address: address);
+    mempool.add_tx(add_tx_args).unwrap();
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
+
+    // Check that has_tx_from_address returns true after get_txs.
+    let _txs = mempool.get_txs(1).unwrap();
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
+
+    // Check that has_tx_from_address returns true after commit_block.
+    // Note, that in the future the mempool's state may be periodically cleared from records of old
+    // committed transactions. Mirroring this behavior may require a modification of this test.
+    let nonces = [(address, 1)];
+    commit_block(&mut mempool, nonces, []);
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
 }
