@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::block::BlockNumber;
-use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_infra::test_utils::{AvailablePorts, MAX_NUMBER_OF_INSTANCES_PER_TEST};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -33,9 +33,11 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();
 
+    let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
+
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
     let mut available_ports =
-        AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
+        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
 
     let component_configs: Vec<ComposedNodeComponentConfigs> = {
         let mut combined = Vec::new();
@@ -49,8 +51,13 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     };
 
     // Get the sequencer configurations.
-    let sequencers_setup =
-        get_sequencer_setup_configs(&tx_generator, available_ports, component_configs).await;
+    let sequencers_setup = get_sequencer_setup_configs(
+        test_unique_id,
+        &tx_generator,
+        available_ports,
+        component_configs,
+    )
+    .await;
 
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its

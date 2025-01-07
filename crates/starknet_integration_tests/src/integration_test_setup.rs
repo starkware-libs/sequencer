@@ -53,7 +53,7 @@ impl SequencerSetup {
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
-        available_ports: &mut AvailablePorts,
+        mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
         // Creating the storage for the test.
@@ -64,7 +64,7 @@ impl SequencerSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
-            available_ports,
+            &mut available_ports,
             sequencer_index,
             chain_info,
             storage_for_test.batcher_storage_config,
