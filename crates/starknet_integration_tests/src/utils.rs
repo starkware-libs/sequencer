@@ -47,6 +47,8 @@ use url::Url;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
+// Transactions per second.
+pub const TPS: u64 = 2;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -217,6 +219,7 @@ where
 {
     let mut tx_hashes = vec![];
     for rpc_tx in rpc_txs {
+        tokio::time::sleep(Duration::from_millis(1000 / TPS)).await;
         tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
     }
     tx_hashes
