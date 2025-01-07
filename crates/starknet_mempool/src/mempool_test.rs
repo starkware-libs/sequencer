@@ -885,10 +885,45 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool);
 }
 
-// TODO(Arni): Add positive flow.
 #[rstest]
 fn has_tx_from_address_negative_flow() {
     let mempool = MempoolContentBuilder::new().build_into_mempool();
 
     assert!(!mempool.has_tx_from_address(contract_address!(100_u32)));
+}
+
+#[rstest]
+#[case::add_tx(mempool_after_add_tx)]
+#[case::get_txs(mempool_after_get_txs)]
+#[case::commit_block(mempool_after_commit)]
+fn has_tx_from_address_positive_flow(
+    #[case] mempool_creator: impl FnOnce(&'static str) -> Mempool,
+) {
+    let address = "0x64";
+    let mempool = mempool_creator(address);
+
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
+}
+
+fn mempool_after_add_tx(address: &str) -> Mempool {
+    let mut mempool = Mempool::default();
+    let add_tx_args = add_tx_input!(address: address);
+    mempool.add_tx(add_tx_args).unwrap();
+
+    mempool
+}
+
+fn mempool_after_get_txs(address: &str) -> Mempool {
+    let mut mempool = mempool_after_add_tx(address);
+    let _txs = mempool.get_txs(1).unwrap();
+
+    mempool
+}
+
+fn mempool_after_commit(address: &'static str) -> Mempool {
+    let mut mempool = mempool_after_get_txs(address);
+    let nonces = [(address, 1)];
+    commit_block(&mut mempool, nonces, []);
+
+    mempool
 }

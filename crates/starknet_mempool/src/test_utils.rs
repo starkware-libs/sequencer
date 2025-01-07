@@ -213,6 +213,13 @@ macro_rules! add_tx_input {
             max_l2_gas_price: $max_l2_gas_price
         )
     };
+    (address: $address:expr) => {
+        add_tx_input!(
+            tx_hash: 0,
+            address: $address,
+            tip: 0
+        )
+    };
 }
 
 #[track_caller]
