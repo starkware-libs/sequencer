@@ -7,23 +7,28 @@ use std::future::ready;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use central_objects::{CentralStateDiff, CentralTransactionWritten};
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::debug;
 use url::Url;
 
 /// A chunk of all the data to write to Aersopike.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct AerospikeBlob {
     // TODO(yael, dvir): add the blob fields.
     block_number: BlockNumber,
+    state_diff: CentralStateDiff,
+    transactions: Vec<CentralTransactionWritten>,
 }
 
 #[cfg_attr(test, automock)]
@@ -174,20 +179,28 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
 
 #[derive(Clone, Debug, Default)]
 pub struct BlobParameters {
-    height: u64,
     // TODO(dvir): add here all the information needed for creating the blob: tranasctions,
     // classes, block info, BlockExecutionArtifacts.
-}
-
-impl BlobParameters {
-    pub fn new(height: u64) -> Self {
-        BlobParameters { height }
-    }
+    pub(crate) block_info: BlockInfo,
+    pub(crate) state_diff: ThinStateDiff,
+    pub(crate) transactions: Vec<Transaction>,
 }
 
 impl From<BlobParameters> for AerospikeBlob {
     fn from(blob_parameters: BlobParameters) -> Self {
-        // TODO(yael): make the full creation of blob.
-        AerospikeBlob { block_number: BlockNumber(blob_parameters.height) }
+        let block_number = blob_parameters.block_info.block_number;
+        let block_timestamp = blob_parameters.block_info.block_timestamp.0;
+        let state_diff = CentralStateDiff::from((
+            blob_parameters.state_diff,
+            blob_parameters.block_info,
+            StarknetVersion::LATEST,
+        ));
+        let transactions = blob_parameters
+            .transactions
+            .into_iter()
+            .map(|tx| CentralTransactionWritten::from((tx, block_timestamp)))
+            .collect();
+
+        AerospikeBlob { block_number, state_diff, transactions }
     }
 }
