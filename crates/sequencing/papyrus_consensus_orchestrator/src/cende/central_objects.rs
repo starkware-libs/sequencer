@@ -32,6 +32,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -114,6 +115,19 @@ impl From<(ThinStateDiff, BlockInfo, StarknetVersion)> for CentralStateDiff {
     }
 }
 
+fn into_central_resource_bounds(
+    resource_bounds: ValidResourceBounds,
+) -> IndexMap<String, ResourceBounds> {
+    match resource_bounds {
+        ValidResourceBounds::AllResources(resource_bounds) => IndexMap::from([
+            ("L2_GAS".to_string(), resource_bounds.l2_gas),
+            ("L1_GAS".to_string(), resource_bounds.l1_gas),
+            ("L1_DATA_GAS".to_string(), resource_bounds.l1_data_gas),
+        ]),
+        _ => panic!("Transaction should be V3"),
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralInvokeTransactionV3 {
     pub sender_address: ContractAddress,
@@ -121,7 +135,7 @@ pub struct CentralInvokeTransactionV3 {
     pub signature: TransactionSignature,
     pub nonce: Nonce,
     // TODO(yael): Consider defining a type for resource_bounds that matches the python object.
-    pub resource_bounds: ValidResourceBounds,
+    pub resource_bounds: IndexMap<String, ResourceBounds>,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
     pub account_deployment_data: AccountDeploymentData,
@@ -138,7 +152,7 @@ impl From<InvokeTransaction> for CentralInvokeTransactionV3 {
             calldata: tx.calldata(),
             signature: tx.signature(),
             nonce: tx.nonce(),
-            resource_bounds: tx.resource_bounds(),
+            resource_bounds: into_central_resource_bounds(tx.resource_bounds()),
             tip: tx.tip(),
             paymaster_data: tx.paymaster_data(),
             account_deployment_data: tx.account_deployment_data(),
@@ -158,7 +172,7 @@ pub enum CentralInvokeTransaction {
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralDeployAccountTransactionV3 {
-    pub resource_bounds: ValidResourceBounds,
+    pub resource_bounds: IndexMap<String, ResourceBounds>,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -175,7 +189,7 @@ pub struct CentralDeployAccountTransactionV3 {
 impl From<DeployAccountTransaction> for CentralDeployAccountTransactionV3 {
     fn from(tx: DeployAccountTransaction) -> CentralDeployAccountTransactionV3 {
         CentralDeployAccountTransactionV3 {
-            resource_bounds: tx.resource_bounds(),
+            resource_bounds: into_central_resource_bounds(tx.resource_bounds()),
             tip: tx.tip(),
             signature: tx.signature(),
             nonce: tx.nonce(),
@@ -204,7 +218,7 @@ fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralDeclareTransactionV3 {
-    pub resource_bounds: ValidResourceBounds,
+    pub resource_bounds: IndexMap<String, ResourceBounds>,
     pub tip: Tip,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
@@ -224,7 +238,7 @@ pub struct CentralDeclareTransactionV3 {
 impl From<DeclareTransaction> for CentralDeclareTransactionV3 {
     fn from(tx: DeclareTransaction) -> CentralDeclareTransactionV3 {
         CentralDeclareTransactionV3 {
-            resource_bounds: tx.resource_bounds(),
+            resource_bounds: into_central_resource_bounds(tx.resource_bounds()),
             tip: tx.tip(),
             signature: tx.signature(),
             nonce: tx.nonce(),
