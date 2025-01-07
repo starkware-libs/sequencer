@@ -12,12 +12,7 @@ use serde::Serialize;
 use tracing::warn;
 
 use crate::component_client::{ClientError, LocalComponentClient};
-use crate::component_definitions::{
-    ComponentClient,
-    RemoteServerConfig,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
-};
+use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;
 use crate::serde_utils::SerdeWrapper;
@@ -53,7 +48,6 @@ use crate::serde_utils::SerdeWrapper;
 /// use crate::starknet_sequencer_infra::component_definitions::{
 ///     ComponentRequestHandler,
 ///     ComponentStarter,
-///     RemoteServerConfig,
 /// };
 /// use crate::starknet_sequencer_infra::component_server::{
 ///     ComponentServerStarter,
@@ -94,10 +88,10 @@ use crate::serde_utils::SerdeWrapper;
 ///     // Set the ip address and port of the server's socket.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let config = RemoteServerConfig { socket: std::net::SocketAddr::new(ip_address, port) };
+///     let socket = std::net::SocketAddr::new(ip_address, port);
 ///
 ///     // Instantiate the server.
-///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, config);
+///     let mut server = RemoteComponentServer::<MyRequest, MyResponse> { local_client, socket };
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -110,8 +104,8 @@ where
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    socket: SocketAddr,
-    local_client: LocalComponentClient<Request, Response>,
+    pub socket: SocketAddr,
+    pub local_client: LocalComponentClient<Request, Response>,
 }
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
@@ -119,13 +113,6 @@ where
     Request: Serialize + DeserializeOwned + Debug + Send + 'static,
     Response: Serialize + DeserializeOwned + Debug + Send + 'static,
 {
-    pub fn new(
-        local_client: LocalComponentClient<Request, Response>,
-        config: RemoteServerConfig,
-    ) -> Self {
-        Self { local_client, socket: config.socket }
-    }
-
     async fn remote_component_server_handler(
         http_request: HyperRequest<Body>,
         local_client: LocalComponentClient<Request, Response>,

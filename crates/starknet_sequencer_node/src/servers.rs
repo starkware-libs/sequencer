@@ -94,7 +94,7 @@ pub struct SequencerNodeServers {
 /// let batcher_remote_server = create_remote_server!(
 ///     &config.components.batcher.execution_mode,
 ///     || {clients.get_gateway_local_client()},
-///     config.remote_server_config
+///     config.socket
 /// );
 /// match batcher_remote_server {
 ///     Some(server) => println!("Remote server created: {:?}", server),
@@ -103,19 +103,13 @@ pub struct SequencerNodeServers {
 /// ```
 #[macro_export]
 macro_rules! create_remote_server {
-    ($execution_mode:expr, $local_client_getter:expr, $remote_server_config:expr) => {
+    ($execution_mode:expr, $local_client_getter:expr, $socket:expr) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client_getter()
                     .expect("Local client should be set for inbound remote connections.");
-                let remote_server_config = $remote_server_config
-                    .as_ref()
-                    .expect("Remote server config should be set for inbound remote connections.");
 
-                Some(Box::new(RemoteComponentServer::new(
-                    local_client,
-                    remote_server_config.clone(),
-                )))
+                Some(Box::new(RemoteComponentServer { local_client, socket: $socket.clone() }))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::Remote
@@ -297,37 +291,37 @@ pub fn create_remote_servers(
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
-        config.components.batcher.remote_server_config
+        config.components.batcher.socket
     );
 
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
-        config.components.gateway.remote_server_config
+        config.components.gateway.socket
     );
 
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
-        config.components.l1_provider.remote_server_config
+        config.components.l1_provider.socket
     );
 
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
-        config.components.mempool.remote_server_config
+        config.components.mempool.socket
     );
 
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
-        config.components.mempool_p2p.remote_server_config
+        config.components.mempool_p2p.socket
     );
 
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
-        config.components.state_sync.remote_server_config
+        config.components.state_sync.socket
     );
 
     RemoteServers {
