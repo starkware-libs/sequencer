@@ -269,16 +269,6 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.batcher.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.batcher.remote_server_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.batcher.socket": {
     "description": "The remote component socket.",
     "privacy": "Public",
@@ -325,16 +315,6 @@
     "value": 3
   },
   "components.gateway.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.gateway.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.gateway.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
@@ -389,16 +369,6 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.l1_provider.socket": {
     "description": "The remote component socket.",
     "privacy": "Public",
@@ -444,16 +414,6 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.mempool.remote_server_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.mempool.socket": {
     "description": "The remote component socket.",
     "privacy": "Public",
@@ -495,16 +455,6 @@
     "value": 3
   },
   "components.mempool_p2p.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.mempool_p2p.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.mempool_p2p.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
@@ -555,16 +505,6 @@
     "value": 3
   },
   "components.state_sync.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.state_sync.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.state_sync.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"

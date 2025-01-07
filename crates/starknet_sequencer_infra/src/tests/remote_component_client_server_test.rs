@@ -25,7 +25,6 @@ use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
     RemoteClientConfig,
-    RemoteServerConfig,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
@@ -169,10 +168,8 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
     let mut component_a_local_server = LocalComponentServer::new(component_a, rx_a);
     let mut component_b_local_server = LocalComponentServer::new(component_b, rx_b);
 
-    let mut component_a_remote_server =
-        RemoteComponentServer::new(a_local_client, RemoteServerConfig { socket: a_socket });
-    let mut component_b_remote_server =
-        RemoteComponentServer::new(b_local_client, RemoteServerConfig { socket: b_socket });
+    let mut component_a_remote_server = RemoteComponentServer::new(a_local_client, a_socket);
+    let mut component_b_remote_server = RemoteComponentServer::new(b_local_client, b_socket);
 
     task::spawn(async move {
         let _ = component_a_local_server.start().await;

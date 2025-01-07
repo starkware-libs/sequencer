@@ -4,11 +4,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
-};
+use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
 use tracing::error;
 use validator::{Validate, ValidationError};
 
@@ -39,7 +35,6 @@ pub struct ReactiveComponentExecutionConfig {
     pub execution_mode: ReactiveComponentExecutionMode,
     pub local_server_config: Option<LocalServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
-    pub remote_server_config: Option<RemoteServerConfig>,
     pub socket: SocketAddr,
 }
 
@@ -63,7 +58,6 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
             members,
             ser_optional_sub_config(&self.local_server_config, "local_server_config"),
             ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
-            ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),
         ]
         .into_iter()
         .flatten()
@@ -84,7 +78,6 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: None,
             remote_client_config: None,
-            remote_server_config: None,
             socket: DEFAULT_INVALID_SOCKET,
         }
     }
@@ -97,7 +90,6 @@ impl ReactiveComponentExecutionConfig {
                 socket,
                 ..RemoteClientConfig::default()
             }),
-            remote_server_config: None,
             socket,
         }
     }
@@ -107,7 +99,6 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
-            remote_server_config: Some(RemoteServerConfig { socket }),
             socket,
         }
     }
@@ -119,7 +110,6 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
-            remote_server_config: None,
             socket: DEFAULT_INVALID_SOCKET,
         }
     }
@@ -169,31 +159,21 @@ fn validate_reactive_component_execution_config(
         component_config.execution_mode.clone(),
         component_config.local_server_config.is_some(),
         component_config.remote_client_config.is_some(),
-        component_config.remote_server_config.is_some(),
         component_config.is_valid_socket(),
     ) {
-        (ReactiveComponentExecutionMode::Disabled, false, false, false, _) => Ok(()),
-        (ReactiveComponentExecutionMode::Remote, false, true, false, true) => Ok(()),
-        (
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
-            true,
-            false,
-            true,
-            true,
-        ) => Ok(()),
-        (
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
-            true,
-            false,
-            false,
-            _,
-        ) => Ok(()),
-        (mode, local_server_config, remote_client_config, remote_server_config, socket) => {
+        (ReactiveComponentExecutionMode::Disabled, false, false, _) => Ok(()),
+        (ReactiveComponentExecutionMode::Remote, false, true, true) => Ok(()),
+        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => {
+            Ok(())
+        }
+        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, _) => {
+            Ok(())
+        }
+        (mode, local_server_config, remote_client_config, socket) => {
             error!(
                 "Invalid reactive component execution configuration: mode: {:?}, \
-                 local_server_config: {:?}, remote_client_config: {:?}, remote_server_config: \
-                 {:?}, socket: {:?}",
-                mode, local_server_config, remote_client_config, remote_server_config, socket
+                 local_server_config: {:?}, remote_client_config: {:?}, socket: {:?}",
+                mode, local_server_config, remote_client_config, socket
             );
             let mut error =
                 ValidationError::new("Invalid reactive component execution configuration.");
