@@ -1,13 +1,8 @@
 use ::serde::{Deserialize, Serialize};
 
+use crate::executable_transaction::L1HandlerTransaction;
 use crate::rpc_transaction::RpcTransaction;
-use crate::transaction::{
-    DeclareTransactionV3,
-    DeployAccountTransactionV3,
-    InvokeTransactionV3,
-    // TODO(alonl): Ask Gilad if this is the right L1HandlerTransaction
-    L1HandlerTransaction,
-};
+use crate::transaction::{DeclareTransactionV3, DeployAccountTransactionV3, InvokeTransactionV3};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "type")]
