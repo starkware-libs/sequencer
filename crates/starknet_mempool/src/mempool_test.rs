@@ -6,6 +6,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -17,6 +18,7 @@ use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
+use starknet_types_core::felt::Felt;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolState, TransactionReference};
@@ -93,7 +95,6 @@ impl MempoolContentBuilder {
         self
     }
 
-    #[allow(dead_code)]
     fn with_state(mut self, state: MempoolState) -> Self {
         self.state = Some(state);
         self
@@ -894,10 +895,31 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool);
 }
 
-// TODO(Arni): Add positive flow.
 #[rstest]
 fn tx_from_address_exists_negative_flow() {
     let mempool = MempoolContentBuilder::new().build_into_mempool();
 
     assert!(!mempool.tx_from_address_exists(contract_address!(100_u32)));
+}
+
+#[rstest]
+#[case::tentative(|address| MempoolState::create_for_testing(
+    Default::default(), Default::default(), [(address, Nonce(Felt::ZERO))].into_iter().collect()
+))]
+#[case::staged(|address| MempoolState::create_for_testing(
+    Default::default(), [(address, Nonce(Felt::ZERO))].into_iter().collect(), Default::default()
+))]
+#[case::committed(|address| MempoolState::create_for_testing(
+    [(address, Nonce(Felt::ZERO))].into_iter().collect(), Default::default(), Default::default()
+))]
+fn tx_from_address_exists_positive_flow(
+    #[case] state_creator: impl FnOnce(ContractAddress) -> MempoolState,
+) {
+    let deployer_address = contract_address!(100_u32);
+    let state = state_creator(deployer_address);
+
+    let mempool_content_builder = MempoolContentBuilder::new().with_state(state);
+    let mempool = mempool_content_builder.build_into_mempool();
+
+    assert!(mempool.tx_from_address_exists(deployer_address));
 }
