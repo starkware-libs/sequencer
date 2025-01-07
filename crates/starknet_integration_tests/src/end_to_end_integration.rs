@@ -14,6 +14,7 @@ use tracing::info;
 use crate::sequencer_manager::{
     get_sequencer_setup_configs,
     verify_results,
+    ComposedNodeComponentConfigs,
     SequencerSetupManager,
 };
 use crate::test_identifiers::TestIdentifier;
@@ -36,8 +37,7 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    // TODO(Nadin): replace Vec<ComponentConfig> with a struct - DistributedNodeConfigs.
-    let component_configs: Vec<Vec<ComponentConfig>> =
+    let component_configs: Vec<ComposedNodeComponentConfigs> =
         create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS)
             .into_iter()
             .chain(
@@ -111,14 +111,14 @@ fn get_non_http_container_config(
 fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<Vec<ComponentConfig>> {
+) -> Vec<ComposedNodeComponentConfigs> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
 
-        vec![
+        ComposedNodeComponentConfigs::new(vec![
             get_http_container_config(
                 gateway_socket,
                 mempool_socket,
@@ -131,7 +131,7 @@ fn create_distributed_node_configs(
                 mempool_p2p_socket,
                 state_sync_socket,
             ),
-        ]
+        ])
     })
     .take(distributed_sequencers_num)
     .collect()
@@ -139,8 +139,8 @@ fn create_distributed_node_configs(
 
 fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
-) -> Vec<Vec<ComponentConfig>> {
-    std::iter::repeat_with(|| vec![ComponentConfig::default()])
+) -> Vec<ComposedNodeComponentConfigs> {
+    std::iter::repeat_with(|| ComposedNodeComponentConfigs::new(vec![ComponentConfig::default()]))
         .take(num_of_consolidated_nodes)
         .collect()
 }
