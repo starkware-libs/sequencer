@@ -177,7 +177,10 @@ impl BlockBuilderTrait for BlockBuilder {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
-            let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
+            let next_txs =
+                self.tx_provider.get_txs(self.tx_chunk_size).await.inspect_err(|err| {
+                    error!("Failed to get transactions from the transaction provider: {}", err);
+                })?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
                 NextTxs::End => break,
