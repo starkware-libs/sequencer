@@ -9,7 +9,7 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use papyrus_consensus::config::ConsensusConfig;
+use papyrus_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use papyrus_consensus::types::ValidatorId;
 use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use papyrus_network::network_manager::test_utils::{
@@ -47,6 +47,9 @@ use url::Url;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
+// Transactions per second sent to the gateway. This rate makes each block contain ~10 transactions
+// with the set [TimeoutsConfig] .
+pub const TPS: u64 = 2;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -122,7 +125,7 @@ pub fn create_consensus_manager_configs_and_channels(
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
 
     // TODO(Matan, Dan): set reasonable default timeouts.
-    let mut timeouts = papyrus_consensus::config::TimeoutsConfig::default();
+    let mut timeouts = TimeoutsConfig::default();
     timeouts.precommit_timeout *= 3;
     timeouts.prevote_timeout *= 3;
     timeouts.proposal_timeout *= 3;
@@ -217,6 +220,7 @@ where
 {
     let mut tx_hashes = vec![];
     for rpc_tx in rpc_txs {
+        tokio::time::sleep(Duration::from_millis(1000 / TPS)).await;
         tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
     }
     tx_hashes
