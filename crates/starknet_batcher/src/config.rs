@@ -62,9 +62,9 @@ impl Default for BatcherConfig {
         Self {
             storage: papyrus_storage::StorageConfig {
                 db_config: papyrus_storage::db::DbConfig {
-                    path_prefix: ".".into(),
+                    path_prefix: "/data".into(),
                     // By default we don't want to create the DB if it doesn't exist.
-                    enforce_file_exists: true,
+                    enforce_file_exists: false,
                     ..Default::default()
                 },
                 scope: papyrus_storage::StorageScope::StateOnly,
