@@ -317,11 +317,6 @@
   "components.gateway.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.gateway.socket": {
-    "description": "The remote component socket.",
-    "privacy": "Public",
     "value": "0.0.0.0:0"
   },
   "components.http_server.execution_mode": {
@@ -366,11 +361,6 @@
   },
   "components.l1_provider.remote_client_config.socket": {
     "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.l1_provider.socket": {
-    "description": "The remote component socket.",
     "privacy": "Public",
     "value": "0.0.0.0:0"
   },
@@ -417,11 +407,6 @@
   "components.mempool.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.mempool.socket": {
-    "description": "The remote component socket.",
-    "privacy": "Public",
     "value": "0.0.0.0:0"
   },
   "components.mempool_p2p.execution_mode": {
@@ -461,11 +446,6 @@
   },
   "components.mempool_p2p.remote_client_config.socket": {
     "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.mempool_p2p.socket": {
-    "description": "The remote component socket.",
     "privacy": "Public",
     "value": "0.0.0.0:0"
   },
@@ -511,11 +491,6 @@
   },
   "components.state_sync.remote_client_config.socket": {
     "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.state_sync.socket": {
-    "description": "The remote component socket.",
     "privacy": "Public",
     "value": "0.0.0.0:0"
   },
