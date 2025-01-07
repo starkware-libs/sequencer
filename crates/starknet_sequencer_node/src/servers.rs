@@ -108,13 +108,16 @@ macro_rules! create_remote_server {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client_getter()
                     .expect("Local client should be set for inbound remote connections.");
-                let remote_server_config = $remote_server_config
-                    .as_ref()
-                    .expect("Remote server config should be set for inbound remote connections.");
+
+                if !$remote_server_config.is_valid() {
+                    panic!(
+                        "Invalid remote server config: the socket or other fields are not valid."
+                    );
+                }
 
                 Some(Box::new(RemoteComponentServer::new(
                     local_client,
-                    remote_server_config.clone(),
+                    $remote_server_config.clone(),
                 )))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
