@@ -93,6 +93,7 @@ const CHANNEL_SIZE: usize = 100;
 
 enum HandledProposalPart {
     Continue,
+    Invalid,
     Finished(ProposalContentId, ProposalFin),
     Failed(String),
 }
@@ -680,6 +681,11 @@ async fn validate_proposal(
                         break (built_block, received_fin);
                     }
                     HandledProposalPart::Continue => {continue;}
+                    HandledProposalPart::Invalid => {
+                        warn!("Invalid proposal: {proposal_id:?}");
+                        // No need to abort since the Batcher is the source of this info.
+                        return;
+                    }
                     HandledProposalPart::Failed(fail_reason) => {
                         warn!("Failed to handle proposal part: {proposal_id:?}, {fail_reason}");
                         batcher_abort_proposal(batcher, proposal_id).await;
@@ -769,9 +775,7 @@ async fn handle_proposal_part(
             });
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal => {
-                    HandledProposalPart::Failed("Invalid proposal".to_string())
-                }
+                ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }
