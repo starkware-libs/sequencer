@@ -3,6 +3,7 @@
   "chain_id": "SN_GOERLI",
   "eth_fee_token_address": "0x2",
   "recorder_url": "https://recorder_url/",
+  "state_sync_config.central_sync_client_config.base_layer_config.node_url": "https://node_url/",
   "strk_fee_token_address": "0x3",
   "validator_id": "0x64"
 }
