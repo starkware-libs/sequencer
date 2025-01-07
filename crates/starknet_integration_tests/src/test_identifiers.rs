@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum TestIdentifier {
     EndToEndIntegrationTest,
     EndToEndFlowTest,
