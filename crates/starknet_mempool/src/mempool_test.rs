@@ -6,7 +6,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -20,6 +20,7 @@ use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
+use starknet_types_core::felt::Felt;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolState, TransactionReference};
@@ -96,7 +97,6 @@ impl MempoolContentBuilder {
         self
     }
 
-    #[allow(dead_code)]
     fn with_state(mut self, state: MempoolState) -> Self {
         self.state = Some(state);
         self
@@ -905,7 +905,8 @@ fn deploy_account_exists_negative_flow() {
 }
 
 #[rstest]
-// TODO(Arni): add case for tx in state.
+// TODO(Arni): add case for tx in state 0 for the other parts of the state.
+#[case::tx_in_state(mempool_content_builder_with_account_in_state())]
 #[case::tx_in_pool(mempool_content_builder_with_tx_in_pool())]
 fn deploy_account_exists_positive_flow(
     #[case] test_case: (MempoolContentBuilder, ContractAddress),
@@ -925,6 +926,19 @@ fn mempool_content_builder_with_tx_in_pool() -> (MempoolContentBuilder, Contract
         panic!("should be a deploy account transaction.")
     };
     let mempool_content_builder = MempoolContentBuilder::new().with_pool([account_tx]);
+
+    (mempool_content_builder, deployer_address)
+}
+
+/// Adds the address of an account to the mempool state as part of the tentative state. Returns the
+/// mempool content builder and the deployer address.
+fn mempool_content_builder_with_account_in_state() -> (MempoolContentBuilder, ContractAddress) {
+    let deployer_address = contract_address!(100_u32);
+    let mut state = MempoolState::default();
+    let _nonce = state.get_or_insert(deployer_address, Nonce(Felt::ONE));
+    assert_eq!(_nonce, Nonce(Felt::ONE));
+
+    let mempool_content_builder = MempoolContentBuilder::new().with_state(state);
 
     (mempool_content_builder, deployer_address)
 }
