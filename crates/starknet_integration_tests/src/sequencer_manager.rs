@@ -181,7 +181,7 @@ pub async fn get_sequencer_setup_configs(
 
     let (mut consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
         n_distributed_sequencers,
-        &mut available_ports,
+        available_ports.get_next_ports(n_distributed_sequencers + 1),
     );
 
     let ports = available_ports.get_next_ports(n_distributed_sequencers);
