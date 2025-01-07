@@ -22,7 +22,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
 use crate::communication::MempoolCommunicationWrapper;
-use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
+use crate::mempool::{Mempool, MempoolConfig, MempoolState, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
@@ -40,6 +40,7 @@ struct MempoolContent {
     config: MempoolConfig,
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
+    state: Option<MempoolState>,
 }
 
 impl MempoolContent {
@@ -57,15 +58,14 @@ impl MempoolContent {
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue_content, config } = mempool_content;
+        let MempoolContent { config, tx_pool, tx_queue_content, state } = mempool_content;
         Mempool {
             config,
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
                 .map(|content| content.complete_to_tx_queue())
                 .unwrap_or_default(),
-            // TODO: Add implementation when needed.
-            state: Default::default(),
+            state: state.unwrap_or_default(),
         }
     }
 }
@@ -75,6 +75,7 @@ struct MempoolContentBuilder {
     config: MempoolConfig,
     tx_pool: Option<TransactionPool>,
     tx_queue_content_builder: TransactionQueueContentBuilder,
+    state: Option<MempoolState>,
 }
 
 impl MempoolContentBuilder {
@@ -83,6 +84,7 @@ impl MempoolContentBuilder {
             config: MempoolConfig { enable_fee_escalation: false, ..Default::default() },
             tx_pool: None,
             tx_queue_content_builder: Default::default(),
+            state: None,
         }
     }
 
@@ -91,6 +93,12 @@ impl MempoolContentBuilder {
         P: IntoIterator<Item = AccountTransaction>,
     {
         self.tx_pool = Some(pool_txs.into_iter().collect());
+        self
+    }
+
+    #[allow(dead_code)]
+    fn with_state(mut self, state: MempoolState) -> Self {
+        self.state = Some(state);
         self
     }
 
@@ -126,6 +134,7 @@ impl MempoolContentBuilder {
             config: self.config,
             tx_pool: self.tx_pool,
             tx_queue_content: self.tx_queue_content_builder.build(),
+            state: self.state,
         }
     }
 
