@@ -115,21 +115,16 @@ impl ReactiveComponentExecutionConfig {
 #[validate(schema(function = "validate_active_component_execution_config"))]
 pub struct ActiveComponentExecutionConfig {
     pub execution_mode: ActiveComponentExecutionMode,
-    pub remote_client_config: Option<RemoteClientConfig>,
 }
 
 impl SerializeConfig for ActiveComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([ser_param(
+        BTreeMap::from_iter([ser_param(
             "execution_mode",
             &self.execution_mode,
             "The component execution mode.",
             ParamPrivacyInput::Public,
-        )]);
-        vec![members, ser_optional_sub_config(&self.remote_client_config, "remote_client_config")]
-            .into_iter()
-            .flatten()
-            .collect()
+        )])
     }
 }
 
@@ -141,11 +136,11 @@ impl Default for ActiveComponentExecutionConfig {
 
 impl ActiveComponentExecutionConfig {
     pub fn disabled() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Disabled, remote_client_config: None }
+        Self { execution_mode: ActiveComponentExecutionMode::Disabled }
     }
 
     pub fn enabled() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Enabled, remote_client_config: None }
+        Self { execution_mode: ActiveComponentExecutionMode::Enabled }
     }
 }
 
@@ -181,23 +176,9 @@ fn validate_reactive_component_execution_config(
 }
 
 fn validate_active_component_execution_config(
-    component_config: &ActiveComponentExecutionConfig,
+    _component_config: &ActiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
-    match (component_config.execution_mode.clone(), component_config.remote_client_config.is_some())
-    {
-        (ActiveComponentExecutionMode::Disabled, true) => {
-            error!(
-                "Invalid active component execution configuration: Disabled mode with \
-                 remote_client_config: {:?}",
-                component_config.remote_client_config
-            );
-            let mut error =
-                ValidationError::new("Invalid active component execution configuration.");
-            error.message = Some("Ensure settings align with the chosen execution mode.".into());
-            Err(error)
-        }
-        _ => Ok(()),
-    }
+    Ok(())
 }
 
 // There are components that are described with a reactive mode setting, however, result in the
