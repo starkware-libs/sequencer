@@ -1,16 +1,17 @@
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 
 use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use serde_json::Value;
-use starknet_sequencer_node::config::config_utils::{config_to_preset, RequiredParams};
+use starknet_sequencer_node::config::config_utils::{
+    config_to_preset,
+    dump_json_data,
+    RequiredParams,
+};
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
 };
-use tracing::info;
 
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".
 
@@ -40,20 +41,6 @@ pub(crate) fn dump_config_file_changes(
     let node_config_path = dump_json_data(preset, NODE_CONFIG_CHANGES_FILE_PATH, dir);
     assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
     node_config_path
-}
-
-/// Dumps the input JSON data to a file at the specified path.
-fn dump_json_data(json_data: Value, path: &str, dir: PathBuf) -> PathBuf {
-    let temp_dir_path = dir.join(path);
-    // Serialize the JSON data to a pretty-printed string
-    let json_string = serde_json::to_string_pretty(&json_data).unwrap();
-
-    // Write the JSON string to a file
-    let mut file = File::create(&temp_dir_path).unwrap();
-    file.write_all(json_string.as_bytes()).unwrap();
-
-    info!("Writing required config changes to: {:?}", &temp_dir_path);
-    temp_dir_path
 }
 
 /// Merges required parameters into an existing preset JSON object.
