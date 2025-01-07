@@ -41,7 +41,7 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress, SequencerContractAddress};
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
@@ -346,11 +346,13 @@ impl ConsensusContext for SequencerConsensusContext {
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
         let l2_gas_price =
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+        let sequencer = SequencerContractAddress(ContractAddress::from(123_u128));
         let block_header_without_hash = BlockHeaderWithoutHash {
             block_number: BlockNumber(height),
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price,
+            sequencer,
             ..Default::default()
         };
         let sync_block = SyncBlock { state_diff, transaction_hashes, block_header_without_hash };
