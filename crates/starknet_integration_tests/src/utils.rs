@@ -40,8 +40,10 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
+    CentralSyncClientConfigRequiredParams,
     EthereumBaseLayerConfigRequiredParams,
     RequiredParams,
+    StateSyncConfigRequiredParams,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::StateSyncConfig;
@@ -111,6 +113,13 @@ pub async fn create_node_config(
             recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+            },
+            state_sync_config: StateSyncConfigRequiredParams {
+                central_sync_client_config: CentralSyncClientConfigRequiredParams {
+                    base_layer_config: EthereumBaseLayerConfigRequiredParams {
+                        node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+                    },
+                },
             },
         },
     )

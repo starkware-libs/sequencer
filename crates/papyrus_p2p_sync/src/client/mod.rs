@@ -51,13 +51,14 @@ use state_diff::StateDiffStreamBuilder;
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;
+use validator::Validate;
 
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 
 const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct P2pSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
