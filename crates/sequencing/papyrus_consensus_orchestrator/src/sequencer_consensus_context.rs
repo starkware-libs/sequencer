@@ -342,7 +342,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
-        self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::default()).await;
+        self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::new(height)).await;
 
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
