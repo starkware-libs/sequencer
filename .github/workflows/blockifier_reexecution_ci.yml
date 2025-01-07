@@ -33,6 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          rust_target_profile: release
       # Download the blockifier re-execution test data.
       - id: auth
         uses: "google-github-actions/auth@v2"

@@ -5,6 +5,9 @@ inputs:
   extra_rust_toolchains:
     description: "Extra toolchains to install, but aren't used by default"
     required: false
+  rust_target_profile:
+    description: "Name of the target profile to cache."
+    default: "debug"
 
 runs:
   using: "composite"
@@ -17,5 +20,6 @@ runs:
       uses: ./.github/actions/install_rust
       with:
         extra_rust_toolchains: ${{ inputs.extra_rust_toolchains }}
+        rust_target_profile: ${{ inputs.rust_target_profile }}
     - name: Install cairo native.
       uses: ./.github/actions/setup_native_deps

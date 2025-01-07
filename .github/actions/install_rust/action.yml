@@ -5,6 +5,9 @@ inputs:
   extra_rust_toolchains:
     description: "Extra toolchains to install, but aren't used by default"
     required: false
+  rust_target_profile:
+    description: "Name of the rust target profile to cache."
+    default: "debug"
 
 runs:
   using: "composite"
@@ -12,6 +15,7 @@ runs:
     - uses: moonrepo/setup-rust@v1
       with:
         cache-base: main(-v[0-9].*)?
+        cache-target: ${{ inputs.rust_target_profile }}
         inherit-toolchain: true
         bins: taplo-cli@0.9.3, cargo-machete
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
