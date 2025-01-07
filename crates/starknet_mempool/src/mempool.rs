@@ -131,6 +131,15 @@ impl MempoolState {
             assert!(committed_nonce <= next_nonce, "NOT SUPPORTED YET {address:?} {next_nonce:?}.")
         }
     }
+
+    #[cfg(test)]
+    pub fn create_for_testing(
+        committed: AddressToNonce,
+        staged: AddressToNonce,
+        tentative: AddressToNonce,
+    ) -> Self {
+        MempoolState { committed, staged, tentative }
+    }
 }
 
 #[derive(Debug, Default)]
