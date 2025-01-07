@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
 use papyrus_config::{ParamPath, SerializedParam};
@@ -67,6 +68,33 @@ impl ComponentConfig {
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
+        }
+    }
+
+    pub fn get_default_for_testing() -> ComponentConfig {
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        ComponentConfig {
+            batcher: ReactiveComponentExecutionConfig::local_with_remote_disabled_for_testing(
+                socket,
+            ),
+            gateway: ReactiveComponentExecutionConfig::local_with_remote_disabled_for_testing(
+                socket,
+            ),
+            mempool: ReactiveComponentExecutionConfig::local_with_remote_disabled_for_testing(
+                socket,
+            ),
+            mempool_p2p: ReactiveComponentExecutionConfig::local_with_remote_disabled_for_testing(
+                socket,
+            ),
+            state_sync: ReactiveComponentExecutionConfig::local_with_remote_disabled_for_testing(
+                socket,
+            ),
+            l1_provider: ReactiveComponentExecutionConfig::local_with_remote_disabled_for_testing(
+                socket,
+            ),
+            consensus_manager: ActiveComponentExecutionConfig::enabled(),
+            http_server: ActiveComponentExecutionConfig::enabled(),
+            monitoring_endpoint: ActiveComponentExecutionConfig::enabled(),
         }
     }
 }

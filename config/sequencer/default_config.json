@@ -234,20 +234,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.batcher.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.batcher.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.batcher.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -267,17 +257,12 @@
   "components.batcher.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.batcher.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": "0.0.0.0:0"
   },
   "components.batcher.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
@@ -289,20 +274,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.gateway.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.gateway.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.gateway.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -322,17 +297,12 @@
   "components.gateway.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.gateway.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": "0.0.0.0:0"
   },
   "components.gateway.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
@@ -344,20 +314,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.l1_provider.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -377,37 +337,22 @@
   "components.l1_provider.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": "0.0.0.0:0"
   },
   "components.l1_provider.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -427,37 +372,22 @@
   "components.mempool.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.mempool.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": "0.0.0.0:0"
   },
   "components.mempool.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.mempool_p2p.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool_p2p.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool_p2p.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool_p2p.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -477,17 +407,12 @@
   "components.mempool_p2p.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.mempool_p2p.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": "0.0.0.0:0"
   },
   "components.mempool_p2p.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.monitoring_endpoint.execution_mode": {
     "description": "The component execution mode.",
@@ -499,20 +424,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.state_sync.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.state_sync.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.state_sync.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -532,17 +447,12 @@
   "components.state_sync.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.state_sync.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": "0.0.0.0:0"
   },
   "components.state_sync.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
