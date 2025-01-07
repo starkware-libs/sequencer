@@ -217,6 +217,7 @@ where
 {
     let mut tx_hashes = vec![];
     for rpc_tx in rpc_txs {
+        tokio::time::sleep(Duration::from_millis(500)).await;
         tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
     }
     tx_hashes
