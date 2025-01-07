@@ -284,31 +284,6 @@
     "privacy": "Public",
     "value": "Enabled"
   },
-  "components.consensus_manager.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.consensus_manager.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 18446744073709551615
-  },
-  "components.consensus_manager.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 90
-  },
-  "components.consensus_manager.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "components.consensus_manager.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.gateway.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -363,31 +338,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "Enabled"
-  },
-  "components.http_server.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.http_server.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 18446744073709551615
-  },
-  "components.http_server.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 90
-  },
-  "components.http_server.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "components.http_server.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
   },
   "components.l1_provider.execution_mode": {
     "description": "The component execution mode.",
@@ -543,31 +493,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "Enabled"
-  },
-  "components.monitoring_endpoint.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.monitoring_endpoint.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 18446744073709551615
-  },
-  "components.monitoring_endpoint.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 90
-  },
-  "components.monitoring_endpoint.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "components.monitoring_endpoint.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
   },
   "components.state_sync.execution_mode": {
     "description": "The component execution mode.",
