@@ -7955,6 +7955,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "validator",
 ]
 
 [[package]]
@@ -11343,16 +11344,19 @@ dependencies = [
  "futures",
  "indexmap 2.7.0",
  "libp2p",
+ "papyrus_common",
  "papyrus_config",
  "papyrus_network",
  "papyrus_p2p_sync",
  "papyrus_storage",
+ "papyrus_sync",
  "papyrus_test_utils",
  "rand_chacha 0.3.1",
  "serde",
  "starknet-types-core",
  "starknet_api",
  "starknet_class_manager_types",
+ "starknet_client",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "tokio",
