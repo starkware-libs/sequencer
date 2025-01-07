@@ -1,3 +1,4 @@
+use futures::stream::{self, StreamExt};
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
 use itertools::izip;
@@ -18,6 +19,7 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::SequencerSetup;
+use crate::test_identifiers::TestIdentifier;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_and_channels,
@@ -158,6 +160,7 @@ pub async fn verify_results(
 }
 
 pub async fn get_sequencer_setup_configs(
+    test_unique_id: TestIdentifier,
     tx_generator: &MultiAccountTransactionGenerator,
     mut available_ports: AvailablePorts,
     component_configs: Vec<ComposedNodeComponentConfigs>,
@@ -196,25 +199,34 @@ pub async fn get_sequencer_setup_configs(
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
-    let mut sequencers = vec![];
-    for (
-        ((sequencer_index, _sequencer_part_index), component_config),
-        consensus_manager_config,
-        mempool_p2p_config,
-    ) in izip!(indexed_component_configs, consensus_manager_configs, mempool_p2p_configs)
-    {
-        let sequencer = SequencerSetup::new(
-            accounts.to_vec(),
-            sequencer_index,
-            chain_info.clone(),
-            consensus_manager_config,
-            mempool_p2p_config,
-            &mut available_ports,
-            component_config.clone(),
-        )
-        .await;
-        sequencers.push(sequencer);
-    }
-
-    sequencers
+    stream::iter(
+        izip!(indexed_component_configs, consensus_manager_configs, mempool_p2p_configs)
+            .enumerate(),
+    )
+    .then(
+        |(
+            index,
+            (
+                ((sequencer_index, _sequencer_part_index), component_config),
+                consensus_manager_config,
+                mempool_p2p_config,
+            ),
+        )| {
+            let value = chain_info.clone();
+            async move {
+                SequencerSetup::new(
+                    accounts.to_vec(),
+                    sequencer_index,
+                    value.clone(),
+                    consensus_manager_config,
+                    mempool_p2p_config,
+                    AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
+                    component_config.clone(),
+                )
+                .await
+            }
+        },
+    )
+    .collect()
+    .await
 }
