@@ -127,7 +127,7 @@ impl FlowSequencerSetup {
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        let (recorder_url, _join_handle) = spawn_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let component_config = ComponentConfig::default();

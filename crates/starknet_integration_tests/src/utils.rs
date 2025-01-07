@@ -43,6 +43,8 @@ use starknet_sequencer_node::config::test_utils::{
 };
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinHandle;
+use tracing::{debug, Instrument};
 use url::Url;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
@@ -148,16 +150,26 @@ pub fn create_consensus_manager_configs_and_channels(
 }
 
 // Creates a local recorder server that always returns a success status.
-pub fn spawn_success_recorder(port: u16) -> Url {
+pub fn spawn_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
     // [127, 0, 0, 1] is the localhost IP address.
     let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
-    tokio::spawn(async move {
-        let router = Router::new()
-            .route(RECORDER_WRITE_BLOB_PATH, post(move || async { StatusCode::OK.to_string() }));
+    let join_handle = tokio::spawn(async move {
+        let router = Router::new().route(
+            RECORDER_WRITE_BLOB_PATH,
+            post(move || {
+                async {
+                    debug!("Received a request to write a blob.");
+                    StatusCode::OK.to_string()
+                }
+                .instrument(tracing::debug_span!("success recorder write_blob"))
+            }),
+        );
         axum::Server::bind(&socket_addr).serve(router.into_make_service()).await.unwrap();
     });
 
-    Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail")
+    let url = Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail");
+
+    (url, join_handle)
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
