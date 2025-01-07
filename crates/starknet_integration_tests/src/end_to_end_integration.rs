@@ -37,14 +37,16 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    let component_configs: Vec<ComposedNodeComponentConfigs> =
-        create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS)
-            .into_iter()
-            .chain(
-                create_distributed_node_configs(&mut available_ports, N_DISTRIBUTED_SEQUENCERS)
-                    .into_iter(),
-            )
-            .collect();
+    let component_configs: Vec<ComposedNodeComponentConfigs> = {
+        let mut combined = Vec::new();
+        // Create elements in place.
+        combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
+        combined.extend(create_distributed_node_configs(
+            &mut available_ports,
+            N_DISTRIBUTED_SEQUENCERS,
+        ));
+        combined
+    };
 
     // Get the sequencer configurations.
     let sequencers_setup =
