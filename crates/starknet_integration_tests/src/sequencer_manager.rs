@@ -24,6 +24,16 @@ use crate::utils::{
     send_account_txs,
 };
 
+pub struct ComposedNodeComponentConfigs {
+    pub component_configs: Vec<ComponentConfig>,
+}
+
+impl ComposedNodeComponentConfigs {
+    pub fn new(component_configs: Vec<ComponentConfig>) -> Self {
+        Self { component_configs }
+    }
+}
+
 pub struct SequencerSetupManager {
     pub sequencers: Vec<SequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
@@ -153,15 +163,21 @@ pub async fn verify_results(
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
     assert_eq!(nonce, expected_nonce);
 }
+
 pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     mut available_ports: AvailablePorts,
-    component_configs: Vec<Vec<ComponentConfig>>,
+    component_configs: Vec<ComposedNodeComponentConfigs>,
 ) -> Vec<SequencerSetup> {
     info!("Creating sequencer configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let n_distributed_sequencers = component_configs.iter().map(|inner_vec| inner_vec.len()).sum();
+    let n_distributed_sequencers = component_configs
+        .iter()
+        .map(|composed_node_component_configs| {
+            composed_node_component_configs.component_configs.len()
+        })
+        .sum();
 
     let (mut consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
         n_distributed_sequencers,
@@ -172,8 +188,8 @@ pub async fn get_sequencer_setup_configs(
     let mut mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
 
     let mut sequencers = vec![];
-    for (sequencer_id, node_composition) in component_configs.iter().enumerate() {
-        for component_config in node_composition {
+    for (sequencer_id, composed_node_component_configs) in component_configs.iter().enumerate() {
+        for component_config in composed_node_component_configs.component_configs.iter() {
             // Declare one consensus_manager_config and one mempool_p2p_config for each node
             // composition
             let consensus_manager_config = consensus_manager_configs.remove(0);
