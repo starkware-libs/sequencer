@@ -120,7 +120,7 @@ fn create_distributed_node_configs(
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
 
-        ComposedNodeComponentConfigs::new(vec![
+        vec![
             get_http_container_config(
                 gateway_socket,
                 mempool_socket,
@@ -133,7 +133,7 @@ fn create_distributed_node_configs(
                 mempool_p2p_socket,
                 state_sync_socket,
             ),
-        ])
+        ]
     })
     .take(distributed_sequencers_num)
     .collect()
@@ -142,7 +142,7 @@ fn create_distributed_node_configs(
 fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<ComposedNodeComponentConfigs> {
-    std::iter::repeat_with(|| ComposedNodeComponentConfigs::new(vec![ComponentConfig::default()]))
+    std::iter::repeat_with(|| vec![ComponentConfig::default()])
         .take(num_of_consolidated_nodes)
         .collect()
 }
