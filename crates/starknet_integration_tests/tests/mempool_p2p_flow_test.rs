@@ -64,15 +64,9 @@ async fn setup(
     let mut available_ports = AvailablePorts::new(test_identifier.into(), 0);
 
     // Derive the configuration for the mempool node.
-    let components = ComponentConfig {
-        consensus_manager: ActiveComponentExecutionConfig::disabled(),
-        batcher: ReactiveComponentExecutionConfig {
-            execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: None,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
+    let mut components = ComponentConfig::get_default_for_testing();
+    components.consensus_manager = ActiveComponentExecutionConfig::disabled();
+    components.batcher = ReactiveComponentExecutionConfig::disabled();
 
     let batcher_config =
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());

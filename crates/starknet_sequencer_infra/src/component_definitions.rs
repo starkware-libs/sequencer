@@ -112,7 +112,7 @@ pub struct RemoteClientConfig {
 
 impl Default for RemoteClientConfig {
     fn default() -> Self {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         Self {
             socket,
             retries: DEFAULT_RETRIES,
@@ -153,6 +153,12 @@ impl SerializeConfig for RemoteClientConfig {
     }
 }
 
+impl RemoteClientConfig {
+    pub fn is_valid(&self) -> bool {
+        self.socket.port() != 0
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteServerConfig {
     pub socket: SocketAddr,
@@ -160,7 +166,7 @@ pub struct RemoteServerConfig {
 
 impl Default for RemoteServerConfig {
     fn default() -> Self {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
         Self { socket }
     }
 }
@@ -173,5 +179,11 @@ impl SerializeConfig for RemoteServerConfig {
             "The remote component server socket.",
             ParamPrivacyInput::Public,
         )])
+    }
+}
+
+impl RemoteServerConfig {
+    pub fn is_valid(&self) -> bool {
+        self.socket.port() != 0
     }
 }
