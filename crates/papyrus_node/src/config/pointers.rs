@@ -88,6 +88,17 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "monitoring_gateway.collect_metrics",
             ])
         ),
+        (
+            ser_pointer_target_param(
+                "base_layer_config",
+                &EthereumBaseLayerConfig::default(),
+                "The Ethereum base layer configuration.",
+            ),
+            set_pointing_param_paths(&[
+                "base_layer_config",
+                "state_sync_config.central_sync_client_config.base_layer_config",
+            ])
+        )
     ]
 });
 

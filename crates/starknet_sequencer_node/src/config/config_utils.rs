@@ -28,6 +28,7 @@ pub struct RequiredParams {
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
+    pub state_sync_config: StateSyncConfigRequiredParams,
 }
 
 impl SerializeConfig for RequiredParams {
@@ -59,10 +60,14 @@ impl SerializeConfig for RequiredParams {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        vec![members, append_sub_config_name(self.base_layer_config.dump(), "base_layer_config")]
-            .into_iter()
-            .flatten()
-            .collect()
+        vec![
+            members,
+            append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
+            append_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
@@ -76,6 +81,13 @@ impl RequiredParams {
             recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+            },
+            state_sync_config: StateSyncConfigRequiredParams {
+                central_sync_client_config: CentralSyncClientConfigRequiredParams {
+                    base_layer_config: EthereumBaseLayerConfigRequiredParams {
+                        node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+                    },
+                },
             },
         }
     }
@@ -119,6 +131,27 @@ pub fn create_test_config_load_args(required_params: RequiredParams) -> Vec<Stri
     let mut cli_args = vec![node_command().to_string()];
     cli_args.extend(required_params.cli_args());
     cli_args
+}
+#[derive(Serialize)]
+pub struct StateSyncConfigRequiredParams {
+    pub central_sync_client_config: CentralSyncClientConfigRequiredParams,
+}
+
+impl SerializeConfig for CentralSyncClientConfigRequiredParams {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.base_layer_config.dump(), "base_layer_config")
+    }
+}
+
+#[derive(Serialize)]
+pub struct CentralSyncClientConfigRequiredParams {
+    pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
+}
+
+impl SerializeConfig for StateSyncConfigRequiredParams {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.central_sync_client_config.dump(), "central_sync_client_config")
+    }
 }
 
 #[derive(Serialize)]
