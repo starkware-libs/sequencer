@@ -196,14 +196,12 @@ pub async fn get_sequencer_setup_configs(
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
-    let mut sequencers = vec![];
-    for (
-        ((sequencer_index, _sequencer_part_index), component_config),
-        consensus_manager_config,
-        mempool_p2p_config,
-    ) in izip!(indexed_component_configs, consensus_manager_configs, mempool_p2p_configs)
-    {
-        let sequencer = SequencerSetup::new(
+     izip!(indexed_component_configs, consensus_manager_configs, mempool_p2p_configs).map(|(
+     ((sequencer_index, _sequencer_part_index), component_config),
+         consensus_manager_config,
+         mempool_p2p_config,
+     )|    async move {
+        SequencerSetup::new(
             accounts.to_vec(),
             sequencer_index,
             chain_info.clone(),
@@ -212,9 +210,7 @@ pub async fn get_sequencer_setup_configs(
             &mut available_ports,
             component_config.clone(),
         )
-        .await;
-        sequencers.push(sequencer);
-    }
+        .await
+    }).collect()
 
-    sequencers
 }
