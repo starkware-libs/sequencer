@@ -1,4 +1,6 @@
+use futures::future::join_all;
 use futures::stream::{self, StreamExt};
+use futures::TryFutureExt;
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
 use itertools::izip;
@@ -58,14 +60,18 @@ impl SequencerSetupManager {
         sequencer_manager
     }
 
-    pub async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        for (sequencer_index, sequencer) in self.sequencers.iter().enumerate() {
-            sequencer
-                .monitoring_client
-                .await_alive(interval, max_attempts)
-                .await
-                .unwrap_or_else(|_| panic!("Node {} should be alive.", sequencer_index));
-        }
+    async fn await_alive(&self, interval: u64, max_attempts: usize) {
+        let await_alive_tasks = self.sequencers.iter().map(|sequencer| {
+            let result = sequencer.monitoring_client.await_alive(interval, max_attempts);
+            result.unwrap_or_else(|_| {
+                panic!(
+                    "Node {} part {} should be alive.",
+                    sequencer.sequencer_index, sequencer.sequencer_part_index
+                )
+            })
+        });
+
+        join_all(await_alive_tasks).await;
     }
 
     pub async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
