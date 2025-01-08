@@ -264,11 +264,6 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.batcher.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.batcher.socket": {
     "description": "The remote component socket.",
     "privacy": "Public",
@@ -313,11 +308,6 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
-  },
-  "components.gateway.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
   },
   "components.gateway.socket": {
     "description": "The remote component socket.",
@@ -364,11 +354,6 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.l1_provider.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.l1_provider.socket": {
     "description": "The remote component socket.",
     "privacy": "Public",
@@ -414,11 +399,6 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.mempool.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.mempool.socket": {
     "description": "The remote component socket.",
     "privacy": "Public",
@@ -458,11 +438,6 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
-  },
-  "components.mempool_p2p.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
   },
   "components.mempool_p2p.socket": {
     "description": "The remote component socket.",
@@ -508,11 +483,6 @@
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
-  },
-  "components.state_sync.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
   },
   "components.state_sync.socket": {
     "description": "The remote component socket.",
