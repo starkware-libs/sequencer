@@ -214,7 +214,7 @@ impl SingleHeightConsensus {
 
     /// Process the proposal init and initiate block validation. See [`ShcTask::ValidateProposal`]
     /// for more details on the full proposal flow.
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(round=self.state_machine.round()))]
     pub(crate) async fn handle_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -248,7 +248,7 @@ impl SingleHeightConsensus {
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
 
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(round=self.state_machine.round()))]
     pub async fn handle_event<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -269,8 +269,10 @@ impl SingleHeightConsensus {
                     return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
                 };
                 if last_vote.round > round {
+                    // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                debug!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
@@ -282,8 +284,10 @@ impl SingleHeightConsensus {
                     return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
                 };
                 if last_vote.round > round {
+                    // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                debug!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
@@ -337,13 +341,13 @@ impl SingleHeightConsensus {
     }
 
     /// Handle vote messages from peer nodes.
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(round=self.state_machine.round()))]
     pub(crate) async fn handle_vote<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received vote: {:?}", vote);
+        debug!("Received {:?}", vote);
         if !self.validators.contains(&vote.voter) {
             debug!("Ignoring vote from non validator: vote={:?}", vote);
             return Ok(ShcReturn::Tasks(Vec::new()));
@@ -372,7 +376,7 @@ impl SingleHeightConsensus {
                 }
             }
         }
-        info!("Received vote: {:?}", vote);
+        info!("Accepting {:?}", vote);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
         let ret = self.handle_state_machine_events(context, sm_events).await;
@@ -545,6 +549,7 @@ impl SingleHeightConsensus {
             }
         };
 
+        info!("Broadcasting {vote:?}");
         context.broadcast(vote).await?;
         Ok(vec![task])
     }
