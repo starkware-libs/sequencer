@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use futures::future::join_all;
 use futures::stream::{self, StreamExt};
 use futures::TryFutureExt;
@@ -15,6 +17,10 @@ use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
+};
 use starknet_sequencer_node::test_utils::node_runner::{spawn_run_node, NodeRunner};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
@@ -241,4 +247,81 @@ pub async fn get_sequencer_setup_configs(
     )
     .collect()
     .await
+}
+
+/// Generates configurations for a specified number of distributed sequencer nodes,
+/// each consisting of an HTTP component configuration and a non-HTTP component configuration.
+/// returns a vector of vectors, where each inner vector contains the two configurations.
+// TODO(Tsabary): remove pub(crate).
+pub(crate) fn create_distributed_node_configs(
+    available_ports: &mut AvailablePorts,
+    distributed_sequencers_num: usize,
+) -> Vec<ComposedNodeComponentConfigs> {
+    std::iter::repeat_with(|| {
+        let gateway_socket = available_ports.get_next_local_host_socket();
+        let mempool_socket = available_ports.get_next_local_host_socket();
+        let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+        let state_sync_socket = available_ports.get_next_local_host_socket();
+
+        vec![
+            get_http_container_config(
+                gateway_socket,
+                mempool_socket,
+                mempool_p2p_socket,
+                state_sync_socket,
+            ),
+            get_non_http_container_config(
+                gateway_socket,
+                mempool_socket,
+                mempool_p2p_socket,
+                state_sync_socket,
+            ),
+        ]
+    })
+    .take(distributed_sequencers_num)
+    .collect()
+}
+
+// TODO(Tsabary): remove pub(crate).
+pub(crate) fn create_consolidated_sequencer_configs(
+    num_of_consolidated_nodes: usize,
+) -> Vec<ComposedNodeComponentConfigs> {
+    std::iter::repeat_with(|| vec![ComponentConfig::default()])
+        .take(num_of_consolidated_nodes)
+        .collect()
+}
+
+// TODO(Nadin/Tsabary): find a better name for this function.
+fn get_http_container_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+    mempool_p2p_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.http_server = ActiveComponentExecutionConfig::default();
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
+    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
+    config.mempool_p2p =
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_p2p_socket);
+    config.state_sync = ReactiveComponentExecutionConfig::remote(state_sync_socket);
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_non_http_container_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+    mempool_p2p_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
+) -> ComponentConfig {
+    ComponentConfig {
+        http_server: ActiveComponentExecutionConfig::disabled(),
+        monitoring_endpoint: Default::default(),
+        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
+        mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
+        mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
+        state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(state_sync_socket),
+        ..ComponentConfig::default()
+    }
 }
