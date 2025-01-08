@@ -25,6 +25,7 @@ use crate::batcher_types::{
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposeBlockInput,
+    RevertBlockInput,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
@@ -91,6 +92,7 @@ pub enum BatcherRequest {
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
+    RevertBlock(RevertBlockInput),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -103,6 +105,7 @@ pub enum BatcherResponse {
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<DecisionReachedResponse>),
     AddSyncBlock(BatcherResult<()>),
+    RevertBlock(BatcherResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]

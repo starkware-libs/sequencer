@@ -22,6 +22,7 @@ use starknet_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
+    RevertBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -532,6 +533,31 @@ async fn add_sync_block_mismatch_block_number() {
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
+}
+
+#[tokio::test]
+async fn revert_block() {
+    let mut mock_dependencies = MockDependencies::default();
+
+    mock_dependencies
+        .storage_writer
+        .expect_revert_block()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|_| Ok(()));
+    let mut batcher = create_batcher(mock_dependencies);
+
+    let revert_input = RevertBlockInput { height: INITIAL_HEIGHT };
+    batcher.revert_block(revert_input).await.unwrap();
+}
+
+#[tokio::test]
+#[should_panic(expected = "Revert block height 4 does not match the current height 3.")]
+async fn revert_block_mismatch_block_number() {
+    let mut batcher = create_batcher(MockDependencies::default());
+
+    let revert_input = RevertBlockInput { height: INITIAL_HEIGHT.unchecked_next() };
+    batcher.revert_block(revert_input).await.unwrap();
 }
 
 #[rstest]
