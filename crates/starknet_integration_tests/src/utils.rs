@@ -51,6 +51,8 @@ use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
+use crate::integration_test_setup::SequencerExecutionId;
+
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
 pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
@@ -71,7 +73,7 @@ pub fn create_chain_info() -> ChainInfo {
 #[allow(clippy::too_many_arguments)]
 pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
-    sequencer_index: usize,
+    sequencer_execution_id: SequencerExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
     state_sync_storage_config: StorageConfig,
@@ -79,7 +81,10 @@ pub async fn create_node_config(
     mempool_p2p_config: MempoolP2pConfig,
     component_config: ComponentConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
-    let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
+    let validator_id = set_validator_id(
+        &mut consensus_manager_config,
+        sequencer_execution_id.get_sequencer_index(),
+    );
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());

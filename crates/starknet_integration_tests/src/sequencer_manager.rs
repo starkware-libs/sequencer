@@ -21,12 +21,12 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use starknet_sequencer_node::test_utils::node_runner::{spawn_run_node, NodeRunner};
+use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::SequencerSetup;
+use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::{
     create_chain_info,
@@ -54,10 +54,7 @@ impl SequencerSetupManager {
             .map(|sequencer_setup| {
                 spawn_run_node(
                     sequencer_setup.node_config_path.clone(),
-                    NodeRunner::new(
-                        sequencer_setup.sequencer_index,
-                        sequencer_setup.sequencer_part_index,
-                    ),
+                    sequencer_setup.sequencer_execution_id.into(),
                 )
             })
             .collect::<Vec<_>>();
@@ -74,10 +71,7 @@ impl SequencerSetupManager {
         let await_alive_tasks = self.sequencers.iter().map(|sequencer| {
             let result = sequencer.monitoring_client.await_alive(interval, max_attempts);
             result.unwrap_or_else(|_| {
-                panic!(
-                    "Node {} part {} should be alive.",
-                    sequencer.sequencer_index, sequencer.sequencer_part_index
-                )
+                panic!("Node {:?} should be alive.", sequencer.sequencer_execution_id)
             })
         });
 
@@ -247,8 +241,7 @@ pub async fn get_sequencer_setup_configs(
             async move {
                 SequencerSetup::new(
                     accounts.to_vec(),
-                    sequencer_index,
-                    sequencer_part_index,
+                    SequencerExecutionId::new(sequencer_index, sequencer_part_index),
                     chain_info,
                     consensus_manager_config,
                     mempool_p2p_config,

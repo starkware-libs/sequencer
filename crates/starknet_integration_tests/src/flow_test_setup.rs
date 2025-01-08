@@ -24,6 +24,7 @@ use starknet_sequencer_node::utils::create_node_modules;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
+use crate::integration_test_setup::SequencerExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
@@ -135,7 +136,7 @@ impl FlowSequencerSetup {
         // Derive the configuration for the sequencer node.
         let (node_config, _required_params) = create_node_config(
             &mut available_ports,
-            sequencer_index,
+            SequencerExecutionId::new(sequencer_index, 0),
             chain_info,
             storage_for_test.batcher_storage_config,
             storage_for_test.state_sync_storage_config,
