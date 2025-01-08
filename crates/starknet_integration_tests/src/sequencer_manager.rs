@@ -84,11 +84,11 @@ impl SequencerSetupManager {
         join_all(await_alive_tasks).await;
     }
 
-    pub async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+    async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         self.sequencers[0].assert_add_tx_success(rpc_tx).await
     }
 
-    pub fn batcher_storage_reader(&self) -> StorageReader {
+    fn batcher_storage_reader(&self) -> StorageReader {
         let (batcher_storage_reader, _) =
             papyrus_storage::open_storage(self.sequencers[0].batcher_storage_config.clone())
                 .expect("Failed to open batcher's storage");
@@ -121,6 +121,15 @@ impl SequencerSetupManager {
         await_block(5000, expected_block_number, 50, &self.batcher_storage_reader())
             .await
             .expect("Block number should have been reached.");
+    }
+
+    pub async fn verify_results(&self, sender_address: ContractAddress, n_txs: usize) {
+        info!("Verifying tx sender account nonce.");
+        let expected_nonce_value = n_txs + 1;
+        let expected_nonce =
+            Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
+        let nonce = get_account_nonce(&self.batcher_storage_reader(), sender_address);
+        assert_eq!(nonce, expected_nonce);
     }
 }
 
@@ -165,19 +174,6 @@ pub async fn await_block(
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
         .ok_or(())
-}
-
-pub async fn verify_results(
-    sender_address: ContractAddress,
-    batcher_storage_reader: StorageReader,
-    n_txs: usize,
-) {
-    info!("Verifying tx sender account nonce.");
-    let expected_nonce_value = n_txs + 1;
-    let expected_nonce =
-        Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
-    let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
-    assert_eq!(nonce, expected_nonce);
 }
 
 pub async fn get_sequencer_setup_configs(
