@@ -21,6 +21,7 @@ message EthereumAddress {
 message Receipt {
   message ExecutionResources {
     message BuiltinCounter {
+      // TODO: add missing builtins
       uint32 bitwise = 1;
       uint32 ecdsa = 2;
       uint32 ec_op = 3;
@@ -29,17 +30,20 @@ message Receipt {
       uint32 poseidon = 6;
       uint32 keccak = 7;
       uint32 output = 8;
-      uint32 add_mod = 9;
-      uint32 mul_mod = 10;
-      uint32 range_check96 = 11;
+    }
+
+    message GasVector {
+      uint64 l1_gas = 1;
+      uint64 l1_data_gas = 2;
+      uint64 l2_gas = 3;
     }
 
     BuiltinCounter builtins = 1;
     uint32 steps = 2;
     uint32 memory_holes = 3;
-    Felt252 l1_gas = 4;
-    Felt252 l1_data_gas = 5;
-    Felt252 total_l1_gas = 6;
+    // TODO: unsplit gas 
+    GasVector da_gas_consumed = 4;
+    GasVector gas_consumed = 5;
   }
 
   message Common {
@@ -57,7 +61,7 @@ message Receipt {
 
   message L1Handler {
     Common common = 1;
-    Hash256 msg_hash = 2;
+    Hash msg_hash = 2;
   }
 
   message Declare {

@@ -3,6 +3,7 @@ import "p2p/proto/common.proto";
 import "p2p/proto/receipt.proto";
 
 message ResourceLimits {
+    // TODO: figure out if max_amount should be uint64 or Felt252
     uint64 max_amount = 1;
     Felt252 max_price_per_unit = 2;
 }

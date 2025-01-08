@@ -60,6 +60,8 @@ fn main() -> io::Result<()> {
             "src/proto/p2p/proto/sync/header.proto",
             "src/proto/p2p/proto/sync/state.proto",
             "src/proto/p2p/proto/transaction.proto",
+            "src/proto/p2p/proto/sync/transaction.proto",
+            "src/proto/p2p/proto/mempool/transaction.proto",
             "src/proto/p2p/proto/consensus/consensus.proto",
         ],
         &["src/proto/"],

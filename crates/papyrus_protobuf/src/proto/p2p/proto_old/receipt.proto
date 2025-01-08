@@ -1,6 +1,8 @@
 syntax = "proto3";
 import "p2p/proto/common.proto";
 
+option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/sync/receipt";
+
 message MessageToL1 {
   Felt252 from_address = 2;
   repeated Felt252 payload = 3;
@@ -19,6 +21,7 @@ message EthereumAddress {
 message Receipt {
   message ExecutionResources {
     message BuiltinCounter {
+      // TODO: add missing builtins
       uint32 bitwise = 1;
       uint32 ecdsa = 2;
       uint32 ec_op = 3;
@@ -38,6 +41,7 @@ message Receipt {
     BuiltinCounter builtins = 1;
     uint32 steps = 2;
     uint32 memory_holes = 3;
+    // TODO: unsplit gas 
     GasVector da_gas_consumed = 4;
     GasVector gas_consumed = 5;
   }
