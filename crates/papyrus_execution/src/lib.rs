@@ -42,7 +42,7 @@ use blockifier::transaction::objects::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsError};
+use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use execution_utils::{get_trace_constructor, induced_state_diff};
@@ -80,6 +80,7 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
+use starknet_api::versioned_constants_logic::VersionedConstantsError;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
