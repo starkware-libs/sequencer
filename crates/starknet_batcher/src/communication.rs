@@ -36,6 +36,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::AddSyncBlock(sync_block) => {
                 BatcherResponse::AddSyncBlock(self.add_sync_block(sync_block).await)
             }
+            BatcherRequest::RevertStateDiff(input) => {
+                BatcherResponse::RevertStateDiff(self.revert_state_diff(input))
+            }
         }
     }
 }
