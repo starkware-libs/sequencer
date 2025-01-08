@@ -14,6 +14,7 @@ use tracing::info;
 use crate::sequencer_manager::{
     get_sequencer_setup_configs,
     verify_results,
+    ComposedNodeComponentConfigs,
     SequencerSetupManager,
 };
 use crate::test_identifiers::TestIdentifier;
@@ -36,15 +37,16 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::EndToEndIntegrationTest.into(), 0);
 
-    // TODO(Nadin): replace Vec<ComponentConfig> with a struct - DistributedNodeConfigs.
-    let component_configs: Vec<Vec<ComponentConfig>> =
-        create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS)
-            .into_iter()
-            .chain(
-                create_distributed_node_configs(&mut available_ports, N_DISTRIBUTED_SEQUENCERS)
-                    .into_iter(),
-            )
-            .collect();
+    let component_configs: Vec<ComposedNodeComponentConfigs> = {
+        let mut combined = Vec::new();
+        // Create elements in place.
+        combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
+        combined.extend(create_distributed_node_configs(
+            &mut available_ports,
+            N_DISTRIBUTED_SEQUENCERS,
+        ));
+        combined
+    };
 
     // Get the sequencer configurations.
     let sequencers_setup =
@@ -111,7 +113,7 @@ fn get_non_http_container_config(
 fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<Vec<ComponentConfig>> {
+) -> Vec<ComposedNodeComponentConfigs> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
@@ -139,7 +141,7 @@ fn create_distributed_node_configs(
 
 fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
-) -> Vec<Vec<ComponentConfig>> {
+) -> Vec<ComposedNodeComponentConfigs> {
     std::iter::repeat_with(|| vec![ComponentConfig::default()])
         .take(num_of_consolidated_nodes)
         .collect()

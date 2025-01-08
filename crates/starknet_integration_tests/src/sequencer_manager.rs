@@ -1,5 +1,6 @@
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
+use itertools::izip;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -23,6 +24,8 @@ use crate::utils::{
     create_mempool_p2p_configs,
     send_account_txs,
 };
+
+pub type ComposedNodeComponentConfigs = Vec<ComponentConfig>;
 
 pub struct SequencerSetupManager {
     pub sequencers: Vec<SequencerSetup>,
@@ -153,43 +156,64 @@ pub async fn verify_results(
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
     assert_eq!(nonce, expected_nonce);
 }
+
 pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     mut available_ports: AvailablePorts,
-    component_configs: Vec<Vec<ComponentConfig>>,
+    component_configs: Vec<ComposedNodeComponentConfigs>,
 ) -> Vec<SequencerSetup> {
     info!("Creating sequencer configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let n_distributed_sequencers = component_configs.iter().map(|inner_vec| inner_vec.len()).sum();
+    let n_distributed_sequencers = component_configs
+        .iter()
+        .map(|composed_node_component_configs| composed_node_component_configs.len())
+        .sum();
 
-    let (mut consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
+    let (consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
         n_distributed_sequencers,
-        &mut available_ports,
+        available_ports.get_next_ports(n_distributed_sequencers + 1),
     );
 
-    let ports = available_ports.get_next_ports(n_distributed_sequencers);
-    let mut mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
+    let mempool_p2p_configs = create_mempool_p2p_configs(
+        chain_info.chain_id.clone(),
+        available_ports.get_next_ports(n_distributed_sequencers),
+    );
+
+    // Flatten while enumerating sequencer and sequencer part indices.
+    let indexed_component_configs: Vec<((usize, usize), ComponentConfig)> = component_configs
+        .into_iter()
+        .enumerate()
+        .flat_map(|(sequencer_index, parts_component_configs)| {
+            parts_component_configs.into_iter().enumerate().map(
+                move |(sequencer_part_config, value)| {
+                    ((sequencer_index, sequencer_part_config), value) // Combine indices with the value
+                },
+            )
+        })
+        .collect();
+
+    // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
+    // needs only one of them, but the current setup creates one per part. Need to refactor.
 
     let mut sequencers = vec![];
-    for (sequencer_id, node_composition) in component_configs.iter().enumerate() {
-        for component_config in node_composition {
-            // Declare one consensus_manager_config and one mempool_p2p_config for each node
-            // composition
-            let consensus_manager_config = consensus_manager_configs.remove(0);
-            let mempool_p2p_config = mempool_p2p_configs.remove(0);
-            let sequencer = SequencerSetup::new(
-                accounts.to_vec(),
-                sequencer_id,
-                chain_info.clone(),
-                consensus_manager_config,
-                mempool_p2p_config,
-                &mut available_ports,
-                component_config.clone(),
-            )
-            .await;
-            sequencers.push(sequencer);
-        }
+    for (
+        ((sequencer_index, _sequencer_part_index), component_config),
+        consensus_manager_config,
+        mempool_p2p_config,
+    ) in izip!(indexed_component_configs, consensus_manager_configs, mempool_p2p_configs)
+    {
+        let sequencer = SequencerSetup::new(
+            accounts.to_vec(),
+            sequencer_index,
+            chain_info.clone(),
+            consensus_manager_config,
+            mempool_p2p_config,
+            &mut available_ports,
+            component_config.clone(),
+        )
+        .await;
+        sequencers.push(sequencer);
     }
 
     sequencers
