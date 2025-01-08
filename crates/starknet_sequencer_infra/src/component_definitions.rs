@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
 use infra_utils::type_name::short_type_name;
@@ -104,7 +103,6 @@ impl Default for LocalServerConfig {
 // TODO(Nadin): Move the RemoteClientConfig and RemoteServerConfig to relevant modules.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteClientConfig {
-    pub socket: SocketAddr,
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout: u64,
@@ -112,9 +110,7 @@ pub struct RemoteClientConfig {
 
 impl Default for RemoteClientConfig {
     fn default() -> Self {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
         Self {
-            socket,
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout: DEFAULT_IDLE_TIMEOUT,
@@ -125,12 +121,6 @@ impl Default for RemoteClientConfig {
 impl SerializeConfig for RemoteClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_param(
-                "socket",
-                &self.socket.to_string(),
-                "The remote component server socket.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "retries",
                 &self.retries,
