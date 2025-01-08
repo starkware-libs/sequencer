@@ -7,8 +7,8 @@ use starknet_api::{l1_handler_tx_args, tx_hash};
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::ValidationStatus;
 
+use crate::l1_provider::L1Provider;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::L1Provider;
 use crate::ProviderState::{Pending, Propose, Uninitialized, Validate};
 
 macro_rules! tx {

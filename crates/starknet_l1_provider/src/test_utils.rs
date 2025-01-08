@@ -3,8 +3,8 @@ use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::{L1Provider, ProviderState, TransactionManager};
-
+use crate::l1_provider::L1Provider;
+use crate::{ProviderState, TransactionManager};
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
