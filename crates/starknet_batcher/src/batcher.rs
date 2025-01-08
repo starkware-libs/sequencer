@@ -22,6 +22,7 @@ use starknet_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
+    RevertStateDiffInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -545,6 +546,14 @@ impl Batcher {
             proposal_task.join_handle.await.ok();
         }
     }
+
+    pub fn revert_state_diff(&mut self, input: RevertStateDiffInput) -> BatcherResult<()> {
+        let height = input.height;
+        self.storage_writer.revert_state_diff(height).map_err(|err| {
+            error!("Failed to revert state diff at height {}: {}", height, err);
+            BatcherError::InternalError
+        })
+    }
 }
 
 pub fn create_batcher(
@@ -593,6 +602,10 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> papyrus_storage::StorageResult<()>;
+
+    // Revets the state of the given height. If the given height is not the last in the storage, an
+    // error is returned, and no revert is performed.
+    fn revert_state_diff(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()>;
 }
 
 impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
@@ -603,6 +616,11 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     ) -> papyrus_storage::StorageResult<()> {
         // TODO: write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+    }
+
+    fn revert_state_diff(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
+        let (txn, _reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
+        txn.commit()
     }
 }
 

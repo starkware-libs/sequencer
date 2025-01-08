@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_client::{
     ClientError,
     LocalComponentClient,
@@ -25,6 +26,7 @@ use crate::batcher_types::{
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposeBlockInput,
+    RevertStateDiffInput,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
@@ -91,6 +93,7 @@ pub enum BatcherRequest {
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
+    RevertStateDiff(RevertStateDiffInput),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -103,6 +106,7 @@ pub enum BatcherResponse {
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<DecisionReachedResponse>),
     AddSyncBlock(BatcherResult<()>),
+    RevertStateDiff(BatcherResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
