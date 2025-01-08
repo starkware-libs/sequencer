@@ -232,17 +232,14 @@ pub fn reexecute_and_verify_correctness<
         assert_matches!(res, Ok(_));
     }
 
-    // TODO(Yoav): Return the block state after the modifications in finalize().
-    // Note that after finalizing, the block state is None.
-    let block_state = transaction_executor.block_state.clone();
-
-    // Finalize block and read actual statediff.
+    // Finalize block and read actual statediff; using non_consuming_finalize to keep the
+    // block_state.
     let actual_state_diff =
-        transaction_executor.finalize().expect("Couldn't finalize block").state_diff;
+        transaction_executor.non_consuming_finalize().expect("Couldn't finalize block").state_diff;
 
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
-    block_state
+    transaction_executor.block_state
 }
 
 pub fn reexecute_block_for_testing(block_number: u64) {
