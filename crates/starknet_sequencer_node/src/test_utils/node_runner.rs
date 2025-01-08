@@ -12,12 +12,15 @@ pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
 pub struct NodeRunner {
     description: String,
-    index: usize,
+    sequencer_index: usize,
 }
 
 impl NodeRunner {
-    pub fn new(index: usize) -> Self {
-        Self { description: format! {"Node ID {}:", index}, index }
+    pub fn new(sequencer_index: usize, sequencer_part_index: usize) -> Self {
+        Self {
+            description: format! {"Node id {} part {}:", sequencer_index, sequencer_part_index},
+            sequencer_index,
+        }
     }
 
     pub fn get_description(&self) -> String {
