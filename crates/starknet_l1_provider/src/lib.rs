@@ -4,6 +4,8 @@ pub mod l1_provider;
 pub mod l1_scraper;
 pub(crate) mod transaction_manager;
 
+mod soft_delete_index_map;
+
 #[cfg(test)]
 pub mod test_utils;
 
