@@ -22,6 +22,7 @@ use starknet_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
+    RevertBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -394,12 +395,12 @@ impl Batcher {
         } = sync_block;
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         let height = self.get_height_from_storage()?;
-        if height != block_number {
-            panic!(
-                "Synced block height {} does not match the current height {}.",
-                block_number, height
-            );
-        }
+        assert!(
+            height == block_number,
+            "Synced block height {} does not match the current height {}.",
+            block_number,
+            height
+        );
 
         self.commit_proposal_and_block(height, state_diff, address_to_nonce, [].into()).await
     }
@@ -545,6 +546,27 @@ impl Batcher {
             proposal_task.join_handle.await.ok();
         }
     }
+
+    pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
+        if let Some(height) = self.active_height {
+            info!("Aborting all work on height {} due to a revert request.", height);
+            self.abort_active_height().await;
+            self.active_height = None;
+        }
+
+        let height = self.get_height_from_storage()?;
+        assert!(
+            height == input.height,
+            "Revert block height {} does not match the current height {}.",
+            input.height,
+            height
+        );
+
+        self.storage_writer.revert_block(height).map_err(|err| {
+            error!("Failed to revert block at height {}: {}", height, err);
+            BatcherError::InternalError
+        })
+    }
 }
 
 pub fn create_batcher(
@@ -593,6 +615,8 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> papyrus_storage::StorageResult<()>;
+
+    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()>;
 }
 
 impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
@@ -603,6 +627,12 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     ) -> papyrus_storage::StorageResult<()> {
         // TODO: write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+    }
+
+    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
+        let (txn, reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
+        trace!("Reverted state diff: {:#?}", reverted_state_diff);
+        txn.commit()
     }
 }
 
