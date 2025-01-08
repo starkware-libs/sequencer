@@ -269,15 +269,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.batcher.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.batcher.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.batcher.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
@@ -324,15 +319,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.gateway.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.gateway.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
@@ -379,15 +369,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.l1_provider.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
@@ -429,15 +414,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.mempool.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.mempool.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.mempool_p2p.execution_mode": {
     "description": "The component execution mode.",
@@ -479,15 +459,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool_p2p.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.mempool_p2p.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.mempool_p2p.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.monitoring_endpoint.execution_mode": {
     "description": "The component execution mode.",
@@ -534,15 +509,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.state_sync.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.state_sync.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.state_sync.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
