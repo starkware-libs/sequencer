@@ -22,8 +22,10 @@ use crate::state_reader::StorageTestSetup;
 use crate::utils::{create_node_config, spawn_success_recorder};
 
 pub struct SequencerSetup {
-    /// Used to differentiate between different sequencer nodes.
+    /// Sequencer index in the test.
     pub sequencer_index: usize,
+    /// Sequencer part index in the test, per sequencer index.
+    pub sequencer_part_index: usize,
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
@@ -45,15 +47,18 @@ pub struct SequencerSetup {
     state_sync_storage_handle: TempDir,
 }
 
+// TODO(Tsabary/ Nadin): reduce number of args.
 impl SequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
+    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
         sequencer_index: usize,
+        sequencer_part_index: usize,
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
-        available_ports: &mut AvailablePorts,
+        mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
         // Creating the storage for the test.
@@ -64,7 +69,7 @@ impl SequencerSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
-            available_ports,
+            &mut available_ports,
             sequencer_index,
             chain_info,
             storage_for_test.batcher_storage_config,
@@ -91,6 +96,7 @@ impl SequencerSetup {
 
         Self {
             sequencer_index,
+            sequencer_part_index,
             add_tx_http_client,
             monitoring_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
