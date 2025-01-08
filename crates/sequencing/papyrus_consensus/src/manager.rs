@@ -157,7 +157,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Inputs - see [`run_consensus`].
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
-    #[instrument(skip_all, fields(height=%height.0))]
+    #[instrument(skip_all, fields(height=%height.0), level = "error")]
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn run_height(
         &mut self,

@@ -269,8 +269,10 @@ impl SingleHeightConsensus {
                     return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
                 };
                 if last_vote.round > round {
+                    // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                debug!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
@@ -282,8 +284,10 @@ impl SingleHeightConsensus {
                     return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
                 };
                 if last_vote.round > round {
+                    // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                debug!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
@@ -343,7 +347,7 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received vote: {:?}", vote);
+        debug!("Received {:?}", vote);
         if !self.validators.contains(&vote.voter) {
             debug!("Ignoring vote from non validator: vote={:?}", vote);
             return Ok(ShcReturn::Tasks(Vec::new()));
@@ -372,7 +376,7 @@ impl SingleHeightConsensus {
                 }
             }
         }
-        info!("Received vote: {:?}", vote);
+        info!("Accepting {:?}", vote);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
         let ret = self.handle_state_machine_events(context, sm_events).await;
@@ -424,7 +428,8 @@ impl SingleHeightConsensus {
                         .await?,
                     );
                 }
-                StateMachineEvent::TimeoutPropose(_) => {
+                StateMachineEvent::TimeoutPropose(round) => {
+                    info!("Starting round {round} as Validator");
                     ret_val.push(ShcTask::TimeoutPropose(self.timeouts.proposal_timeout, event));
                 }
                 StateMachineEvent::TimeoutPrevote(_) => {
@@ -451,7 +456,7 @@ impl SingleHeightConsensus {
             "ProposalContentId must be None since the state machine is requesting a \
              ProposalContentId"
         );
-        debug!("Proposer");
+        info!("Starting round {round} as Proposer");
 
         // TODO: Figure out how to handle failed proposal building. I believe this should be handled
         // by applying timeoutPropose when we are the leader.
@@ -545,6 +550,7 @@ impl SingleHeightConsensus {
             }
         };
 
+        info!("Broadcasting {vote:?}");
         context.broadcast(vote).await?;
         Ok(vec![task])
     }

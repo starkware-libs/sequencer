@@ -306,7 +306,7 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
-        debug!("Broadcasting message: {message:?}");
+        trace!("Broadcasting message: {message:?}");
         self.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
