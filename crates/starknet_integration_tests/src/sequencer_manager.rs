@@ -15,7 +15,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
-use starknet_sequencer_infra::test_utils::AvailablePorts;
+use starknet_sequencer_infra::test_utils::{AvailablePorts, MAX_NUMBER_OF_INSTANCES_PER_TEST};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -37,6 +37,10 @@ use crate::utils::{
 
 pub type ComposedNodeComponentConfigs = Vec<ComponentConfig>;
 
+/// The number of consolidated local sequencers that participate in the test.
+const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+/// The number of distributed remote sequencers that participate in the test.
+const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 pub struct SequencerSetupManager {
     pub sequencers: Vec<SequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
@@ -177,11 +181,25 @@ pub async fn verify_results(
 }
 
 pub async fn get_sequencer_setup_configs(
-    test_unique_id: TestIdentifier,
     tx_generator: &MultiAccountTransactionGenerator,
-    mut available_ports: AvailablePorts,
-    component_configs: Vec<ComposedNodeComponentConfigs>,
 ) -> Vec<SequencerSetup> {
+    let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
+
+    // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
+    let mut available_ports =
+        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
+
+    let component_configs: Vec<ComposedNodeComponentConfigs> = {
+        let mut combined = Vec::new();
+        // Create elements in place.
+        combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
+        combined.extend(create_distributed_node_configs(
+            &mut available_ports,
+            N_DISTRIBUTED_SEQUENCERS,
+        ));
+        combined
+    };
+
     info!("Creating sequencer configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
@@ -252,8 +270,7 @@ pub async fn get_sequencer_setup_configs(
 /// Generates configurations for a specified number of distributed sequencer nodes,
 /// each consisting of an HTTP component configuration and a non-HTTP component configuration.
 /// returns a vector of vectors, where each inner vector contains the two configurations.
-// TODO(Tsabary): remove pub(crate).
-pub(crate) fn create_distributed_node_configs(
+fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
 ) -> Vec<ComposedNodeComponentConfigs> {
@@ -282,8 +299,7 @@ pub(crate) fn create_distributed_node_configs(
     .collect()
 }
 
-// TODO(Tsabary): remove pub(crate).
-pub(crate) fn create_consolidated_sequencer_configs(
+fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<ComposedNodeComponentConfigs> {
     std::iter::repeat_with(|| vec![ComponentConfig::default()])
