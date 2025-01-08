@@ -2,11 +2,11 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use blockifier::test_utils::CairoVersion;
-use starknet_infra_utils::metrics::parse_numeric_metric;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
+use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_sequencer_infra::component_client::ClientError;
 use tokio::task;
 

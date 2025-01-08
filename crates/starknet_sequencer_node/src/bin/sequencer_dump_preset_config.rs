@@ -1,6 +1,6 @@
 use std::env;
 
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_sequencer_node::config::config_utils::RequiredParams;
 use starknet_sequencer_node::config::node_config::DEFAULT_PRESET_CONFIG_PATH;
 

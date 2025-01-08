@@ -15,7 +15,6 @@ blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-infra_utils.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true

@@ -7676,7 +7676,7 @@ dependencies = [
  "indexmap 2.7.0",
  "lazy_static",
  "mockall",
- "mockito 1.5.0",
+ "mockito 1.6.1",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_network",

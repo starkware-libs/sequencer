@@ -14,7 +14,7 @@ use starknet_gateway::config::GatewayConfig;
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::state_reader_test_utils::local_test_state_reader_factory;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::config::SierraCompilationConfig;
 
 const N_TXS: usize = 100;
 
@@ -48,7 +48,7 @@ impl TransactionGenerator {
 pub struct BenchTestSetupConfig {
     pub n_txs: usize,
     pub gateway_config: GatewayConfig,
-    pub compiler_config: SierraToCasmCompilationConfig,
+    pub compiler_config: SierraCompilationConfig,
 }
 
 impl Default for BenchTestSetupConfig {
@@ -59,7 +59,7 @@ impl Default for BenchTestSetupConfig {
                 chain_info: ChainInfo::create_for_testing(),
                 ..Default::default()
             },
-            compiler_config: SierraToCasmCompilationConfig::default(),
+            compiler_config: SierraCompilationConfig::default(),
         }
     }
 }
