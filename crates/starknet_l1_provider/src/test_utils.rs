@@ -4,7 +4,8 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::l1_provider::L1Provider;
-use crate::{ProviderState, TransactionManager};
+use crate::transaction_manager::TransactionManager;
+use crate::ProviderState;
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
