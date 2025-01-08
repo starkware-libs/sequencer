@@ -55,8 +55,6 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
 }
 
 impl StatefulTransactionValidator {
-    // TODO(Arni): consider separating validation from transaction conversion, as transaction
-    // conversion is also relevant for the Mempool.
     pub fn run_validate<V: StatefulTransactionValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
@@ -104,7 +102,7 @@ impl StatefulTransactionValidator {
 }
 
 // Check if validation of an invoke transaction should be skipped due to deploy_account not being
-// proccessed yet. This feature is used to improve UX for users sending deploy_account + invoke at
+// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 // once.
 fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
     match tx {
