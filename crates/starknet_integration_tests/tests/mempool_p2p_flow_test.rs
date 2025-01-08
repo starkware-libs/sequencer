@@ -3,6 +3,7 @@ use std::future::ready;
 use std::net::SocketAddr;
 
 use futures::StreamExt;
+use infra_utils::test_identifiers::TestIdentifier;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
@@ -19,7 +20,6 @@ use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::{create_http_server_config, HttpTestClient};
 use starknet_integration_tests::state_reader::StorageTestSetup;
-use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_batcher_config,
     create_chain_info,

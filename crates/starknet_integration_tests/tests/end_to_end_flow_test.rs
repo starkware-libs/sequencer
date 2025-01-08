@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use futures::StreamExt;
+use infra_utils::test_identifiers::TestIdentifier;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
@@ -18,7 +19,6 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
-use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_funding_txs,
     create_integration_test_tx_generator,

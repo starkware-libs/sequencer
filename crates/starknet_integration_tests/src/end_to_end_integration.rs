@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 
+use infra_utils::test_identifiers::TestIdentifier;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
@@ -17,7 +18,6 @@ use crate::sequencer_manager::{
     ComposedNodeComponentConfigs,
     SequencerSetupManager,
 };
-use crate::test_identifiers::TestIdentifier;
 
 /// The number of consolidated local sequencers that participate in the test.
 const N_CONSOLIDATED_SEQUENCERS: usize = 3;
