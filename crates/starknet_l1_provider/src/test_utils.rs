@@ -1,11 +1,15 @@
-use indexmap::{IndexMap, IndexSet};
+use std::mem;
+
+use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::l1_provider::L1Provider;
+use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::transaction_manager::TransactionManager;
 use crate::ProviderState;
+
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
@@ -53,8 +57,7 @@ impl L1ProviderContentBuilder {
         mut self,
         tx_hashes: impl IntoIterator<Item = TransactionHash>,
     ) -> Self {
-        self.tx_manager_content_builder =
-            self.tx_manager_content_builder.with_on_l2_awaiting_l1_consumption(tx_hashes);
+        self.tx_manager_content_builder = self.tx_manager_content_builder.committed(tx_hashes);
         self
     }
 
@@ -75,37 +78,39 @@ impl L1ProviderContentBuilder {
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
-    txs: Option<IndexMap<TransactionHash, L1HandlerTransaction>>,
-    on_l2_awaiting_l1_consumption: Option<IndexSet<TransactionHash>>,
+    txs: Option<Vec<L1HandlerTransaction>>,
+    committed: Option<IndexSet<TransactionHash>>,
 }
 
 impl TransactionManagerContent {
-    fn complete_to_tx_manager(self) -> TransactionManager {
+    fn complete_to_tx_manager(mut self) -> TransactionManager {
+        let txs: Vec<_> = mem::take(&mut self.txs).unwrap();
         TransactionManager {
-            txs: self.txs.unwrap_or_default(),
-            on_l2_awaiting_l1_consumption: self.on_l2_awaiting_l1_consumption.unwrap_or_default(),
-            ..Default::default()
+            txs: SoftDeleteIndexMap::from(txs),
+            committed: self
+                .committed
+                .unwrap_or_default()
+                .into_iter()
+                .map(|tx_hash| (tx_hash, None))
+                .collect(),
         }
     }
 }
 
 #[derive(Debug, Default)]
 struct TransactionManagerContentBuilder {
-    txs: Option<IndexMap<TransactionHash, L1HandlerTransaction>>,
-    on_l2_awaiting_l1_consumption: Option<IndexSet<TransactionHash>>,
+    txs: Option<Vec<L1HandlerTransaction>>,
+    committed: Option<IndexSet<TransactionHash>>,
 }
 
 impl TransactionManagerContentBuilder {
     fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
-        self.txs = Some(txs.into_iter().map(|tx| (tx.tx_hash, tx)).collect());
+        self.txs = Some(txs.into_iter().collect());
         self
     }
 
-    fn with_on_l2_awaiting_l1_consumption(
-        mut self,
-        tx_hashes: impl IntoIterator<Item = TransactionHash>,
-    ) -> Self {
-        self.on_l2_awaiting_l1_consumption = Some(tx_hashes.into_iter().collect());
+    fn committed(mut self, tx_hashes: impl IntoIterator<Item = TransactionHash>) -> Self {
+        self.committed = Some(tx_hashes.into_iter().collect());
         self
     }
 
@@ -114,13 +119,10 @@ impl TransactionManagerContentBuilder {
             return None;
         }
 
-        Some(TransactionManagerContent {
-            txs: self.txs,
-            on_l2_awaiting_l1_consumption: self.on_l2_awaiting_l1_consumption,
-        })
+        Some(TransactionManagerContent { txs: self.txs, committed: self.committed })
     }
 
     fn is_default(&self) -> bool {
-        self.txs.is_none() && self.on_l2_awaiting_l1_consumption.is_none()
+        self.txs.is_none() && self.committed.is_none()
     }
 }
