@@ -1,5 +1,8 @@
 syntax = "proto3";
 import "p2p/proto/common.proto";
+import "p2p/proto/sync/common.proto";
+
+option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/sync/state";
 
 
 // optimized for flat storage, not through a trie (not sharing key prefixes)
@@ -9,11 +12,11 @@ message ContractStoredValue {
 }
 
 message ContractDiff {
-    Address  address                    = 1;
-    optional Felt252 nonce              = 2;  // Present only if the nonce was updated
-    optional Hash class_hash            = 3;  // Present only if the contract was deployed or replaced in this block.
+    Address address = 1;
+    optional Felt252 nonce = 2;  // Present only if the nonce was updated
+    optional Hash class_hash = 3;  // Present only if the contract was deployed or replaced in this block.
     repeated ContractStoredValue values = 4;
-    VolitionDomain domain               = 5;
+    VolitionDomain domain = 5;
 }
 
 message DeclaredClass {

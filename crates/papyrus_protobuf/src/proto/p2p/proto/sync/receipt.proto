@@ -19,6 +19,7 @@ message EthereumAddress {
 message Receipt {
   message ExecutionResources {
     message BuiltinCounter {
+      // TODO: add missing builtins
       uint32 bitwise = 1;
       uint32 ecdsa = 2;
       uint32 ec_op = 3;
@@ -38,6 +39,7 @@ message Receipt {
     BuiltinCounter builtins = 1;
     uint32 steps = 2;
     uint32 memory_holes = 3;
+    // TODO: unsplit gas
     GasVector da_gas_consumed = 4;
     GasVector gas_consumed = 5;
   }

@@ -147,14 +147,14 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         };
 
         let l1_gas_price = GasPricePerToken {
-            price_in_fri: u128::from(value.gas_price_fri.ok_or(
+            price_in_fri: u128::from(value.l1_gas_price_fri.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::gas_price_fri",
                 },
             )?)
             .into(),
 
-            price_in_wei: u128::from(value.gas_price_wei.ok_or(
+            price_in_wei: u128::from(value.l1_gas_price_fri.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::gas_price_wei",
                 },
@@ -163,13 +163,13 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         };
 
         let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: u128::from(value.data_gas_price_fri.ok_or(
+            price_in_fri: u128::from(value.l1_data_gas_price_fri.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::data_gas_price_fri",
                 },
             )?)
             .into(),
-            price_in_wei: u128::from(value.data_gas_price_wei.ok_or(
+            price_in_wei: u128::from(value.l1_data_gas_price_wei.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::data_gas_price_wei",
                 },
@@ -279,16 +279,16 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
                 .receipt_commitment
                 .map(|receipt_commitment| receipt_commitment.0.into()),
             protocol_version: header.block_header_without_hash.starknet_version.to_string(),
-            gas_price_wei: Some(
+            l1_gas_price_wei: Some(
                 header.block_header_without_hash.l1_gas_price.price_in_wei.0.into(),
             ),
-            gas_price_fri: Some(
+            l1_gas_price_fri: Some(
                 header.block_header_without_hash.l1_gas_price.price_in_fri.0.into(),
             ),
-            data_gas_price_wei: Some(
+            l1_data_gas_price_wei: Some(
                 header.block_header_without_hash.l1_data_gas_price.price_in_wei.0.into(),
             ),
-            data_gas_price_fri: Some(
+            l1_data_gas_price_fri: Some(
                 header.block_header_without_hash.l1_data_gas_price.price_in_fri.0.into(),
             ),
             l2_gas_price_wei: Some(
