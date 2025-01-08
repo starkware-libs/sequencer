@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, LazyLock};
-use std::{fs, io};
+use std::path::Path;
+use std::sync::Arc;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -10,17 +9,17 @@ use num_rational::Ratio;
 use num_traits::Inv;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use paste::paste;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
-use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::block::GasPrice;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ContractAddress;
+use starknet_api::define_versioned_constants;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
+use starknet_api::versioned_constants_logic::{VersionedConstantsError, VersionedConstantsResult};
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -36,81 +35,8 @@ use crate::utils::u64_from_usize;
 #[path = "versioned_constants_test.rs"]
 pub mod test;
 
-/// Auto-generate getters for listed versioned constants versions.
-macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
-        // Static (lazy) instances of the versioned constants.
-        // For internal use only; for access to a static instance use the `StarknetVersion` enum.
-        paste! {
-            $(
-                pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
-                    include_str!($path_to_json);
-                pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
-                    serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
-                        .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
-                });
-            )*
-        }
-
-        /// API to access a static instance of the versioned constants.
-        impl TryFrom<StarknetVersion> for &'static VersionedConstants {
-            type Error = VersionedConstantsError;
-
-            fn try_from(version: StarknetVersion) -> VersionedConstantsResult<Self> {
-                match version {
-                    $(
-                        StarknetVersion::$variant => {
-                           Ok(& paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] })
-                        }
-                    )*
-                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(version)),
-                }
-            }
-        }
-
-        impl VersionedConstants {
-            pub fn path_to_json(version: &StarknetVersion) -> VersionedConstantsResult<&'static str> {
-                match version {
-                    $(StarknetVersion::$variant => Ok($path_to_json),)*
-                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
-                }
-            }
-
-            /// Gets the constants that shipped with the current version of the Blockifier.
-            /// To use custom constants, initialize the struct from a file using `from_path`.
-            pub fn latest_constants() -> &'static Self {
-                Self::get(&StarknetVersion::LATEST)
-                    .expect("Latest version should support VC.")
-            }
-
-            /// Gets the constants for the specified Starknet version.
-            pub fn get(version: &StarknetVersion) -> VersionedConstantsResult<&'static Self> {
-                match version {
-                    $(
-                        StarknetVersion::$variant => Ok(
-                            & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
-                        ),
-                    )*
-                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
-                }
-            }
-        }
-
-        pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
-            let latest_variant = StarknetVersion::LATEST;
-            let path_to_json: PathBuf = [
-                compile_time_cargo_manifest_dir!(),
-                "src".into(),
-                VersionedConstants::path_to_json(&latest_variant)
-                    .expect("Latest variant should have a path to json.").into()
-            ].iter().collect();
-            fs::read_to_string(path_to_json.clone())
-                .expect(&format!("Failed to read file {}.", path_to_json.display()))
-        });
-    };
-}
-
-define_versioned_constants! {
+define_versioned_constants!(
+    VersionedConstants,
     (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
     (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
     (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
@@ -118,7 +44,7 @@ define_versioned_constants! {
     (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
     (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
     (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
-}
+);
 
 pub type ResourceCost = Ratio<u64>;
 
@@ -1159,20 +1085,6 @@ impl OsConstantsRawJson {
         Ok(())
     }
 }
-
-#[derive(Debug, Error)]
-pub enum VersionedConstantsError {
-    #[error(transparent)]
-    IoError(#[from] io::Error),
-    #[error("JSON file cannot be serialized into VersionedConstants: {0}")]
-    ParseError(#[from] serde_json::Error),
-    #[error("Invalid version: {version:?}")]
-    InvalidVersion { version: String },
-    #[error("Invalid Starknet version: {0}")]
-    InvalidStarknetVersion(StarknetVersion),
-}
-
-pub type VersionedConstantsResult<T> = Result<T, VersionedConstantsError>;
 
 #[derive(Debug, Error)]
 pub enum OsConstantsSerdeError {
