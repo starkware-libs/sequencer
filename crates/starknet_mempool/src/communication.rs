@@ -100,9 +100,9 @@ impl MempoolCommunicationWrapper {
         self.mempool.get_txs(n_txs)
     }
 
-    pub(crate) fn deploy_account_exists(
+    pub(crate) fn has_tx_from_address(
         &self,
-        _account_address: ContractAddress,
+        _contract_address: ContractAddress,
     ) -> MempoolResult<bool> {
         todo!("implement this function");
     }
@@ -121,8 +121,8 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetTransactions(n_txs) => {
                 MempoolResponse::GetTransactions(self.get_txs(n_txs))
             }
-            MempoolRequest::DeployAccountExists(account_address) => {
-                MempoolResponse::DeployAccountExists(self.deploy_account_exists(account_address))
+            MempoolRequest::DeployAccountExists(contract_address) => {
+                MempoolResponse::DeployAccountExists(self.has_tx_from_address(contract_address))
             }
         }
     }
