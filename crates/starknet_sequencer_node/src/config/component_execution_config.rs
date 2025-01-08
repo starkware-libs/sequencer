@@ -86,10 +86,7 @@ impl ReactiveComponentExecutionConfig {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Remote,
             local_server_config: None,
-            remote_client_config: Some(RemoteClientConfig {
-                socket,
-                ..RemoteClientConfig::default()
-            }),
+            remote_client_config: Some(RemoteClientConfig::default()),
             socket,
         }
     }

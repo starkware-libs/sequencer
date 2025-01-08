@@ -195,7 +195,8 @@ macro_rules! create_client {
         $local_client_type:ty,
         $remote_client_type:ty,
         $channel_expr:expr,
-        $remote_client_config:expr
+        $remote_client_config:expr,
+        $socket:expr
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -205,7 +206,7 @@ macro_rules! create_client {
             }
             ReactiveComponentExecutionMode::Remote => match $remote_client_config {
                 Some(config) => {
-                    let remote_client = Some(<$remote_client_type>::new(config.clone()));
+                    let remote_client = Some(<$remote_client_type>::new(config.clone(), $socket));
                     Client::new(None, remote_client)
                 }
                 None => panic!("Remote client configuration is missing."),
@@ -224,21 +225,24 @@ pub fn create_node_clients(
         LocalBatcherClient,
         RemoteBatcherClient,
         channels.take_batcher_tx(),
-        &config.components.batcher.remote_client_config
+        &config.components.batcher.remote_client_config,
+        config.components.batcher.socket
     );
     let mempool_client = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
         RemoteMempoolClient,
         channels.take_mempool_tx(),
-        &config.components.mempool.remote_client_config
+        &config.components.mempool.remote_client_config,
+        config.components.mempool.socket
     );
     let gateway_client = create_client!(
         &config.components.gateway.execution_mode,
         LocalGatewayClient,
         RemoteGatewayClient,
         channels.take_gateway_tx(),
-        &config.components.gateway.remote_client_config
+        &config.components.gateway.remote_client_config,
+        config.components.gateway.socket
     );
 
     let mempool_p2p_propagator_client = create_client!(
@@ -246,7 +250,8 @@ pub fn create_node_clients(
         LocalMempoolP2pPropagatorClient,
         RemoteMempoolP2pPropagatorClient,
         channels.take_mempool_p2p_propagator_tx(),
-        &config.components.mempool_p2p.remote_client_config
+        &config.components.mempool_p2p.remote_client_config,
+        config.components.mempool_p2p.socket
     );
 
     let state_sync_client = create_client!(
@@ -254,7 +259,8 @@ pub fn create_node_clients(
         LocalStateSyncClient,
         RemoteStateSyncClient,
         channels.take_state_sync_tx(),
-        &config.components.state_sync.remote_client_config
+        &config.components.state_sync.remote_client_config,
+        config.components.state_sync.socket
     );
 
     let l1_provider_client = create_client!(
@@ -262,7 +268,8 @@ pub fn create_node_clients(
         LocalL1ProviderClient,
         RemoteL1ProviderClient,
         channels.take_l1_provider_tx(),
-        &config.components.l1_provider.remote_client_config
+        &config.components.l1_provider.remote_client_config,
+        config.components.l1_provider.socket
     );
 
     SequencerNodeClients {
