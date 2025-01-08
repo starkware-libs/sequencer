@@ -6,8 +6,8 @@ use starknet_l1_provider_types::ValidationStatus;
 #[derive(Debug, Default)]
 pub struct TransactionManager {
     pub txs: IndexMap<TransactionHash, L1HandlerTransaction>,
-    pub proposed_txs: IndexSet<TransactionHash>,
-    pub on_l2_awaiting_l1_consumption: IndexSet<TransactionHash>,
+    pub staged: IndexSet<TransactionHash>,
+    pub committed: IndexSet<TransactionHash>,
 }
 
 impl TransactionManager {
@@ -15,19 +15,19 @@ impl TransactionManager {
         let (tx_hashes, txs): (Vec<_>, Vec<_>) = self
             .txs
             .iter()
-            .skip(self.proposed_txs.len()) // Transactions are proposed FIFO.
+            .skip(self.staged.len()) // Transactions are proposed FIFO.
             .take(n_txs)
             .map(|(&hash, tx)| (hash, tx.clone()))
             .unzip();
 
-        self.proposed_txs.extend(tx_hashes);
+        self.staged.extend(tx_hashes);
         txs
     }
 
-    pub fn tx_status(&self, tx_hash: TransactionHash) -> ValidationStatus {
+    pub fn validate_tx(&self, tx_hash: TransactionHash) -> ValidationStatus {
         if self.txs.contains_key(&tx_hash) {
             ValidationStatus::Validated
-        } else if self.on_l2_awaiting_l1_consumption.contains(&tx_hash) {
+        } else if self.committed.contains(&tx_hash) {
             ValidationStatus::AlreadyIncludedOnL2
         } else {
             ValidationStatus::ConsumedOnL1OrUnknown

@@ -49,7 +49,7 @@ impl L1Provider {
     ) -> L1ProviderResult<ValidationStatus> {
         self.validate_height(height)?;
         match self.state {
-            ProviderState::Validate => Ok(self.tx_manager.tx_status(tx_hash)),
+            ProviderState::Validate => Ok(self.tx_manager.validate_tx(tx_hash)),
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
             ProviderState::Pending => Err(L1ProviderError::ValidateInPendingState),
             ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
