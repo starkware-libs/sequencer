@@ -118,4 +118,9 @@ pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RevertBlockInput {
+    pub height: BlockNumber,
+}
+
 pub type BatcherResult<T> = Result<T, BatcherError>;
