@@ -46,9 +46,9 @@ pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>>;
-    async fn deploy_account_exists(
+    async fn tx_from_address_exists(
         &self,
-        account_address: ContractAddress,
+        contract_address: ContractAddress,
     ) -> MempoolClientResult<bool>;
 }
 
@@ -104,11 +104,11 @@ where
         )
     }
 
-    async fn deploy_account_exists(
+    async fn tx_from_address_exists(
         &self,
-        account_address: ContractAddress,
+        contract_address: ContractAddress,
     ) -> MempoolClientResult<bool> {
-        let request = MempoolRequest::DeployAccountExists(account_address);
+        let request = MempoolRequest::DeployAccountExists(contract_address);
         let response = self.send(request).await;
         handle_response_variants!(
             MempoolResponse,
