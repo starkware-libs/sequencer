@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::{SinkExt, StreamExt};
+use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -41,7 +41,7 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress, SequencerContractAddress};
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
@@ -62,6 +62,7 @@ use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
+use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
@@ -92,6 +93,7 @@ const CHANNEL_SIZE: usize = 100;
 
 enum HandledProposalPart {
     Continue,
+    Invalid,
     Finished(ProposalContentId, ProposalFin),
     Failed(String),
 }
@@ -101,6 +103,10 @@ enum HandledProposalPart {
 //
 // TODO(Guy): Move this to the context config.
 const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
+// When validating a proposal the Context is responsible for timeout handling. The Batcher though
+// has a timeout as a defensive measure to make sure the proposal doesn't live forever if the
+// Context crashes or has a bug.
+const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
 
 pub struct SequencerConsensusContext {
     state_sync_client: SharedStateSyncClient,
@@ -189,8 +195,9 @@ impl ConsensusContext for SequencerConsensusContext {
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
         info!("Building proposal: timeout={timeout:?}");
-        let cende_write_success =
-            self.cende_ambassador.write_prev_height_blob(proposal_init.height);
+        let cende_write_success = AbortOnDropHandle::new(
+            self.cende_ambassador.write_prev_height_blob(proposal_init.height),
+        );
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
 
@@ -332,10 +339,6 @@ impl ConsensusContext for SequencerConsensusContext {
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
             .expect("Failed to get state diff.");
-        // TODO(dvir): pass here real `BlobParameters` info.
-        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
-        // `prepare_blob_for_next_height` is called with the correct parameters.
-        self.cende_ambassador.prepare_blob_for_next_height(BlobParameters::default()).await;
 
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
@@ -346,20 +349,38 @@ impl ConsensusContext for SequencerConsensusContext {
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
         let l2_gas_price =
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+        let sequencer = SequencerContractAddress(ContractAddress::from(123_u128));
         let block_header_without_hash = BlockHeaderWithoutHash {
             block_number: BlockNumber(height),
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price,
+            sequencer,
             ..Default::default()
         };
-        let sync_block = SyncBlock { state_diff, transaction_hashes, block_header_without_hash };
+        let sync_block = SyncBlock {
+            state_diff: state_diff.clone(),
+            transaction_hashes,
+            block_header_without_hash,
+        };
         let state_sync_client = self.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client
             .add_new_block(BlockNumber(height), sync_block)
             .await
             .expect("Failed to add new block.");
+
+        // TODO(dvir): pass here real `BlobParameters` info.
+        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
+        // `prepare_blob_for_next_height` is called with the correct parameters.
+        self.cende_ambassador
+            .prepare_blob_for_next_height(BlobParameters {
+                // TODO(dvir): use the real `BlockInfo` when consensus will save it.
+                block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
+                state_diff,
+                transactions,
+            })
+            .await;
 
         self.l2_gas_price =
             calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used.0, MAX_BLOCK_SIZE / 2);
@@ -478,7 +499,7 @@ async fn build_proposal(
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
-    cende_write_success: oneshot::Receiver<bool>,
+    cende_write_success: AbortOnDropHandle<bool>,
     gas_prices: GasPrices,
 ) {
     initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
@@ -558,7 +579,7 @@ async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
-    mut cende_write_success: oneshot::Receiver<bool>,
+    cende_write_success: AbortOnDropHandle<bool>,
 ) -> Option<(ProposalContentId, Vec<ExecutableTransaction>)> {
     let mut content = Vec::new();
     loop {
@@ -603,16 +624,20 @@ async fn get_proposal_content(
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
-                match cende_write_success.try_recv() {
-                    Ok(Some(true)) => {
+                match cende_write_success.now_or_never() {
+                    Some(Ok(true)) => {
                         debug!("Writing blob to Aerospike completed.");
                     }
-                    Ok(Some(false)) => {
-                        debug!("Writing blob to Aerospike failed.");
+                    Some(Ok(false)) => {
+                        warn!("Writing blob to Aerospike failed.");
                         return None;
                     }
-                    _ => {
-                        debug!("Writing blob to Aerospike didn't return in time.");
+                    Some(Err(e)) => {
+                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
+                        return None;
+                    }
+                    None => {
+                        warn!("Writing blob to Aerospike didn't return in time.");
                         return None;
                     }
                 }
@@ -645,6 +670,7 @@ async fn validate_proposal(
     initiate_validation(batcher, proposal_id, height, proposer, timeout, gas_prices).await;
 
     let mut content = Vec::new();
+    let deadline = tokio::time::Instant::now() + timeout;
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -652,7 +678,7 @@ async fn validate_proposal(
                 batcher_abort_proposal(batcher, proposal_id).await;
                 return;
             }
-            _ = tokio::time::sleep(timeout) => {
+            _ = tokio::time::sleep_until(deadline) => {
                 warn!("Validation timed out");
                 batcher_abort_proposal(batcher, proposal_id).await;
                 return;
@@ -669,6 +695,11 @@ async fn validate_proposal(
                         break (built_block, received_fin);
                     }
                     HandledProposalPart::Continue => {continue;}
+                    HandledProposalPart::Invalid => {
+                        warn!("Invalid proposal: {proposal_id:?}");
+                        // No need to abort since the Batcher is the source of this info.
+                        return;
+                    }
                     HandledProposalPart::Failed(fail_reason) => {
                         warn!("Failed to handle proposal part: {proposal_id:?}, {fail_reason}");
                         batcher_abort_proposal(batcher, proposal_id).await;
@@ -699,8 +730,8 @@ async fn initiate_validation(
     gas_prices: GasPrices,
 ) {
     // Initiate the validation.
-    let chrono_timeout =
-        chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+    let chrono_timeout = chrono::Duration::from_std(timeout + VALIDATE_PROPOSAL_MARGIN)
+        .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     let input = ValidateBlockInput {
         proposal_id,
@@ -758,9 +789,7 @@ async fn handle_proposal_part(
             });
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal => {
-                    HandledProposalPart::Failed("Invalid proposal".to_string())
-                }
+                ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }

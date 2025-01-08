@@ -326,6 +326,15 @@ pub struct L1HandlerTransaction {
 }
 
 impl L1HandlerTransaction {
+    pub fn create(
+        raw_tx: crate::transaction::L1HandlerTransaction,
+        chain_id: &ChainId,
+        paid_fee_on_l1: Fee,
+    ) -> Result<L1HandlerTransaction, StarknetApiError> {
+        let tx_hash = raw_tx.calculate_transaction_hash(chain_id, &raw_tx.version)?;
+        Ok(Self { tx: raw_tx, tx_hash, paid_fee_on_l1 })
+    }
+
     pub fn payload_size(&self) -> usize {
         // The calldata includes the "from" field, which is not a part of the payload.
         self.tx.calldata.0.len() - 1

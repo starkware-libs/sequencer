@@ -10,14 +10,18 @@ workspace = true
 
 [dependencies]
 assert_matches.workspace = true
+axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+infra_utils.workspace = true
+itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true
+papyrus_consensus_orchestrator.workspace = true
 papyrus_execution.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
@@ -46,7 +50,6 @@ url.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
-itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.workspace = true

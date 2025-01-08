@@ -7676,6 +7676,7 @@ dependencies = [
  "indexmap 2.7.0",
  "lazy_static",
  "mockall",
+ "mockito 1.5.0",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_network",
@@ -10836,6 +10837,7 @@ name = "starknet_integration_tests"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "axum",
  "blockifier",
  "cairo-lang-starknet-classes",
  "futures",
@@ -10845,6 +10847,7 @@ dependencies = [
  "papyrus_common",
  "papyrus_config",
  "papyrus_consensus",
+ "papyrus_consensus_orchestrator",
  "papyrus_execution",
  "papyrus_network",
  "papyrus_protobuf",
@@ -10900,6 +10903,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
+ "papyrus_base_layer",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
@@ -11800,6 +11804,8 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.5",
  "pin-project-lite",
  "tokio",
 ]

@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt::{Debug, Display};
+use std::ops::RangeInclusive;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -34,8 +35,7 @@ pub trait BaseLayerContract {
     /// Get specific events from the Starknet base contract between two L1 block numbers.
     async fn events(
         &self,
-        from_block: u64,
-        until_block: u64,
+        block_range: RangeInclusive<u64>,
         event_identifiers: &[&str],
     ) -> Result<Vec<L1Event>, Self::Error>;
 

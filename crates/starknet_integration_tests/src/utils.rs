@@ -1,12 +1,22 @@
 use std::future::Future;
+use std::net::SocketAddr;
 use std::time::Duration;
 
+use axum::http::StatusCode;
+use axum::routing::post;
+use axum::Router;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountId,
+    AccountTransactionGenerator,
+    Contract,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::types::ValidatorId;
+use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     create_network_configs_connected_to_broadcast_channels,
@@ -17,6 +27,7 @@ use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
@@ -31,17 +42,19 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
-use starknet_sequencer_node::config::test_utils::{
+use starknet_sequencer_node::config::config_utils::{
     EthereumBaseLayerConfigRequiredParams,
     RequiredParams,
 };
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
+pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
+pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -64,6 +77,7 @@ pub async fn create_node_config(
     component_config: ComponentConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
     let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
+    let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
@@ -91,8 +105,7 @@ pub async fn create_node_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
-            // TODO(dvir): change this to real value when add recorder to integration tests.
-            recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
+            recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
             },
@@ -142,6 +155,19 @@ pub fn create_consensus_manager_configs_and_channels(
     (consensus_manager_configs, broadcast_channels)
 }
 
+// Creates a local recorder server that always returns a success status.
+pub fn spawn_success_recorder(port: u16) -> Url {
+    // [127, 0, 0, 1] is the localhost IP address.
+    let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+    tokio::spawn(async move {
+        let router = Router::new()
+            .route(RECORDER_WRITE_BLOB_PATH, post(move || async { StatusCode::OK.to_string() }));
+        axum::Server::bind(&socket_addr).serve(router.into_make_service()).await.unwrap();
+    });
+
+    Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail")
+}
+
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
     create_connected_network_configs(ports)
         .into_iter()
@@ -163,6 +189,13 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     ] {
         tx_generator.register_deployed_account(account);
     }
+    // TODO(yair): This is a hack to fund the new account during the setup. Move the registration to
+    // the test body once funding is supported.
+    let new_account_id = tx_generator.register_undeployed_account(
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        NEW_ACCOUNT_SALT,
+    );
+    assert_eq!(new_account_id, UNDEPLOYED_ACCOUNT_ID);
     tx_generator
 }
 
@@ -178,6 +211,24 @@ pub fn create_txs_for_integration_test(
         tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_invoke_with_tip(4);
 
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
+}
+
+pub fn create_funding_txs(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+) -> Vec<RpcTransaction> {
+    // TODO(yair): Register the undeployed account here instead of in the test setup
+    // once funding is implemented.
+    let undeployed_account = tx_generator.account_with_id(UNDEPLOYED_ACCOUNT_ID).account;
+    assert!(tx_generator.undeployed_accounts().contains(&undeployed_account));
+    fund_new_account(tx_generator.account_with_id_mut(ACCOUNT_ID_0), &undeployed_account)
+}
+
+fn fund_new_account(
+    funding_account: &mut AccountTransactionGenerator,
+    receipient: &Contract,
+) -> Vec<RpcTransaction> {
+    let funding_tx = funding_account.generate_transfer(receipient);
+    vec![funding_tx]
 }
 
 fn create_account_txs(
