@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use assert_matches::assert_matches;
-use blockifier::blockifier::transaction_executor::TransactionExecutorError;
+use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutorError,
+};
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
@@ -57,7 +60,6 @@ fn block_execution_artifacts(
         execution_infos,
         rejected_tx_hashes,
         commitment_state_diff: Default::default(),
-        visited_segments_mapping: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
         l2_gas_used,
@@ -267,11 +269,11 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         block_execution_artifacts(execution_infos_mapping, vec![tx_hash!(1)].into_iter().collect());
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            expected_block_artifacts_copy.commitment_state_diff,
-            expected_block_artifacts_copy.visited_segments_mapping,
-            expected_block_artifacts_copy.bouncer_weights,
-        ))
+        Ok(BlockExecutionSummary {
+            state_diff: expected_block_artifacts_copy.commitment_state_diff,
+            compressed_state_diff: None,
+            bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
+        })
     });
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs]);
@@ -300,11 +302,11 @@ fn set_close_block_expectations(
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            output_block_artifacts.commitment_state_diff,
-            output_block_artifacts.visited_segments_mapping,
-            output_block_artifacts.bouncer_weights,
-        ))
+        Ok(BlockExecutionSummary {
+            state_diff: output_block_artifacts.commitment_state_diff,
+            compressed_state_diff: None,
+            bouncer_weights: output_block_artifacts.bouncer_weights,
+        })
     });
     output_block_artifacts_copy
 }

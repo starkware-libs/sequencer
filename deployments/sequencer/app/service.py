@@ -110,6 +110,7 @@ class ServiceApp(Construct):
             ),
         )
 
+<<<<<<< HEAD
 
     def _get_config_attr(self, attribute) -> str | int:
         config_attr = self.node_config.get(attribute).get('value')
@@ -138,6 +139,38 @@ class ServiceApp(Construct):
         ]
 
     def _get_http_probe(
+||||||| 535775d43
+    def set_k8s_backend_config(self):
+        return google.BackendConfig(
+=======
+
+    def _get_config_attr(self, attribute) -> str | int:
+        config_attr = self.node_config.get(attribute).get('value')
+        assert config_attr is not None, f'Config attribute "{attribute}" is missing.'
+        
+        return config_attr
+
+    def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
+        return [
+            k8s.ContainerPort(
+                container_port=self._get_config_attr(port)
+            ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_container_resources(self): # TODO: implement method to calc resources based on config
+        pass
+
+    def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
+        return [
+            k8s.ServicePort(
+                name=attr.split("_")[0],
+                port=self._get_config_attr(attr),
+                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
+            ) for attr in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_http_probe(
+>>>>>>> origin/main-v0.13.4
             self,
             period_seconds: int = const.PROBE_PERIOD_SECONDS,
             failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,

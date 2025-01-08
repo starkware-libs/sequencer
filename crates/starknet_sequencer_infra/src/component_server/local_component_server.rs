@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
-use infra_utils::type_name::short_type_name;
+use starknet_infra_utils::type_name::short_type_name;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info, warn};
 

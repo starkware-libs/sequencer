@@ -6,6 +6,8 @@ pub mod l1_handler;
 pub mod prices;
 pub mod struct_impls;
 pub mod syscall;
+#[allow(unused_macros)]
+pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
@@ -14,7 +16,6 @@ use std::slice::Iter;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use infra_utils::compile_time_cargo_manifest_dir;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -39,6 +40,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
@@ -116,6 +118,15 @@ impl CairoVersion {
 pub enum CompilerBasedVersion {
     CairoVersion(CairoVersion),
     OldCairo1,
+}
+
+impl From<CompilerBasedVersion> for CairoVersion {
+    fn from(compiler_based_version: CompilerBasedVersion) -> Self {
+        match compiler_based_version {
+            CompilerBasedVersion::CairoVersion(version) => version,
+            CompilerBasedVersion::OldCairo1 => CairoVersion::Cairo1(RunnableCairo1::Casm),
+        }
+    }
 }
 
 impl CompilerBasedVersion {

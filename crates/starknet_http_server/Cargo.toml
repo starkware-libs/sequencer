@@ -14,15 +14,21 @@ workspace = true
 [dependencies]
 axum.workspace = true
 hyper.workspace = true
+<<<<<<< HEAD
 infra_utils.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
 metrics.workspace = true
+||||||| 535775d43
+infra_utils.workspace = true
+=======
+>>>>>>> origin/main-v0.13.4
 papyrus_config.workspace = true
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 starknet_gateway_types.workspace = true
+starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

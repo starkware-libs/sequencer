@@ -15,8 +15,13 @@ blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+<<<<<<< HEAD
 infra_utils.workspace = true
 itertools.workspace = true
+||||||| 535775d43
+infra_utils.workspace = true
+=======
+>>>>>>> origin/main-v0.13.4
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
@@ -36,6 +41,7 @@ starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
 starknet_http_server = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
 starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
