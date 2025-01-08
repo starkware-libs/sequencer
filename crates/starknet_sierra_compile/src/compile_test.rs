@@ -21,13 +21,6 @@ use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
 
-<<<<<<< HEAD
-const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
-    SierraToCasmCompilationConfig { max_casm_bytecode_size: 81920 };
-||||||| 535775d43
-const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
-    SierraToCasmCompilationConfig { max_bytecode_size: 81920 };
-=======
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
     sierra_to_native_compiler_path: None,
@@ -36,7 +29,6 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
 };
->>>>>>> origin/main-v0.13.4
 
 fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -104,8 +96,9 @@ fn test_max_casm_bytecode_size() {
     let expected_casm_bytecode_length = 1965;
 
     // Positive flow.
-    let compiler = CommandLineCompiler::new(SierraToCasmCompilationConfig {
+    let compiler = CommandLineCompiler::new(SierraCompilationConfig {
         max_casm_bytecode_size: expected_casm_bytecode_length,
+        ..SierraCompilationConfig::default()
     });
     let casm_contract_class = compiler.compile(contract_class.clone()).expect(
         "Failed to compile contract class. Probably an issue with the max_casm_bytecode_size.",
@@ -113,8 +106,9 @@ fn test_max_casm_bytecode_size() {
     assert_eq!(casm_contract_class.bytecode.len(), expected_casm_bytecode_length);
 
     // Negative flow.
-    let compiler = CommandLineCompiler::new(SierraToCasmCompilationConfig {
+    let compiler = CommandLineCompiler::new(SierraCompilationConfig {
         max_casm_bytecode_size: expected_casm_bytecode_length - 1,
+        ..SierraCompilationConfig::default()
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))

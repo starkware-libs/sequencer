@@ -214,16 +214,8 @@ impl BlockBuilderTrait for BlockBuilder {
             self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
-<<<<<<< HEAD
             rejected_tx_hashes,
-            commitment_state_diff,
-            visited_segments_mapping,
-||||||| 535775d43
-            commitment_state_diff,
-            visited_segments_mapping,
-=======
             commitment_state_diff: state_diff,
->>>>>>> origin/main-v0.13.4
             bouncer_weights,
             l2_gas_used,
         })
