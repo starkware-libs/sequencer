@@ -62,7 +62,7 @@ fn validate_happy_flow() {
     // Transaction wasn't deleted after the validation.
     assert_eq!(
         l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap(),
-        ValidationStatus::Validated
+        ValidationStatus::AlreadyIncludedInPropsedBlock
     );
 }
 
