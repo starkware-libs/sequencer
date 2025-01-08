@@ -24,10 +24,8 @@ use crate::utils::{create_node_config, spawn_success_recorder};
 pub struct SequencerSetup {
     /// Used to differentiate between different sequencer nodes.
     pub sequencer_index: usize,
-
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
-
     // Client for checking liveness of the sequencer node.
     pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.

@@ -398,7 +398,7 @@ impl AccountTransactionGenerator {
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
-    fn next_nonce(&mut self) -> Nonce {
+    pub fn next_nonce(&mut self) -> Nonce {
         let sender_address = self.sender_address();
         self.nonce_manager.borrow_mut().next(sender_address)
     }
