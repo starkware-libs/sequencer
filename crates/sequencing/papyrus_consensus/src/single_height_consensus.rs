@@ -372,7 +372,7 @@ impl SingleHeightConsensus {
                 }
             }
         }
-        info!("Received vote: {:?}", vote);
+        info!("Accepting vote: {:?}", vote);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
         let ret = self.handle_state_machine_events(context, sm_events).await;
