@@ -39,9 +39,14 @@ impl SequencerSetupManager {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
-            .enumerate()
-            .map(|(i, sequencer)| {
-                spawn_run_node(sequencer.node_config_path.clone(), NodeRunner::new(i))
+            .map(|sequencer_setup| {
+                spawn_run_node(
+                    sequencer_setup.node_config_path.clone(),
+                    NodeRunner::new(
+                        sequencer_setup.sequencer_index,
+                        sequencer_setup.sequencer_part_index,
+                    ),
+                )
             })
             .collect::<Vec<_>>();
 
@@ -207,7 +212,7 @@ pub async fn get_sequencer_setup_configs(
         |(
             index,
             (
-                ((sequencer_index, _sequencer_part_index), component_config),
+                ((sequencer_index, sequencer_part_index), component_config),
                 consensus_manager_config,
                 mempool_p2p_config,
             ),
@@ -217,6 +222,7 @@ pub async fn get_sequencer_setup_configs(
                 SequencerSetup::new(
                     accounts.to_vec(),
                     sequencer_index,
+                    sequencer_part_index,
                     value.clone(),
                     consensus_manager_config,
                     mempool_p2p_config,

@@ -15,8 +15,8 @@ pub struct NodeRunner {
 }
 
 impl NodeRunner {
-    pub fn new(index: usize) -> Self {
-        Self { description: format! {"Node id {}:", index} }
+    pub fn new(sequencer_index: usize, sequencer_part_index: usize) -> Self {
+        Self { description: format! {"Node id {} part {}:", sequencer_index, sequencer_part_index} }
     }
 
     pub fn get_description(&self) -> String {
