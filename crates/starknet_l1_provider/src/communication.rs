@@ -5,7 +5,11 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
-use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use starknet_sequencer_infra::component_server::{
+    LocalComponentServer,
+    RemoteComponentServer,
+    WrapperServer,
+};
 use tracing::instrument;
 
 use crate::L1Provider;
@@ -18,6 +22,10 @@ pub type L1ProviderRequestAndResponseSender =
 pub type LocalL1ProviderClient = LocalComponentClient<L1ProviderRequest, L1ProviderResponse>;
 pub type RemoteL1ProviderClient = RemoteComponentClient<L1ProviderRequest, L1ProviderResponse>;
 
+use crate::l1_scraper::L1Scraper;
+
+pub type L1ScraperServer<B> = WrapperServer<L1Scraper<B>>;
+
 #[async_trait]
 impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provider {
     #[instrument(skip(self))]
@@ -25,6 +33,9 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
         match request {
             L1ProviderRequest::GetTransactions { n_txs, height } => {
                 L1ProviderResponse::GetTransactions(self.get_txs(n_txs, height))
+            }
+            L1ProviderRequest::AddEvents(events) => {
+                L1ProviderResponse::AddEvents(self.process_l1_events(events))
             }
         }
     }

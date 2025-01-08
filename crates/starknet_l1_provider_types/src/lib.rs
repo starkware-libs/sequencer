@@ -23,18 +23,20 @@ pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ValidationStatus {
-    Validated,
     AlreadyIncludedOnL2,
     ConsumedOnL1OrUnknown,
+    Validated,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum L1ProviderRequest {
+    AddEvents(Vec<Event>),
     GetTransactions { n_txs: usize, height: BlockNumber },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum L1ProviderResponse {
+    AddEvents(L1ProviderResult<()>),
     GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
 }
 
@@ -53,6 +55,7 @@ pub trait L1ProviderClient: Send + Sync {
         _tx_hash: TransactionHash,
         _height: BlockNumber,
     ) -> L1ProviderClientResult<ValidationStatus>;
+    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
 }
 
 #[async_trait]
@@ -75,6 +78,19 @@ where
             L1ProviderError
         )
     }
+
+    #[instrument(skip(self))]
+    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::AddEvents(events);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            L1ProviderResponse,
+            AddEvents,
+            L1ProviderClientError,
+            L1ProviderError
+        )
+    }
+
     async fn validate(
         &self,
         _tx_hash: TransactionHash,
@@ -87,7 +103,7 @@ where
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Event {
     L1HandlerTransaction(L1HandlerTransaction),
-    TransactionConsumed(L1Event),
-    TransactionCancellationStarted(L1Event),
     TransactionCanceled(L1Event),
+    TransactionCancellationStarted(L1Event),
+    TransactionConsumed(L1Event),
 }

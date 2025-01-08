@@ -2,11 +2,16 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
-use starknet_l1_provider::communication::{LocalL1ProviderServer, RemoteL1ProviderServer};
+use starknet_l1_provider::communication::{
+    L1ScraperServer,
+    LocalL1ProviderServer,
+    RemoteL1ProviderServer,
+};
 use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use starknet_mempool_p2p::propagator::{
     LocalMempoolP2pPropagatorServer,
@@ -49,6 +54,7 @@ struct LocalServers {
 struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
+    pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
     pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
@@ -94,7 +100,7 @@ pub struct SequencerNodeServers {
 /// let batcher_remote_server = create_remote_server!(
 ///     &config.components.batcher.execution_mode,
 ///     || {clients.get_gateway_local_client()},
-///     config.remote_server_config
+///     config.socket
 /// );
 /// match batcher_remote_server {
 ///     Some(server) => println!("Remote server created: {:?}", server),
@@ -103,19 +109,13 @@ pub struct SequencerNodeServers {
 /// ```
 #[macro_export]
 macro_rules! create_remote_server {
-    ($execution_mode:expr, $local_client_getter:expr, $remote_server_config:expr) => {
+    ($execution_mode:expr, $local_client_getter:expr, $socket:expr) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client_getter()
                     .expect("Local client should be set for inbound remote connections.");
-                let remote_server_config = $remote_server_config
-                    .as_ref()
-                    .expect("Remote server config should be set for inbound remote connections.");
 
-                Some(Box::new(RemoteComponentServer::new(
-                    local_client,
-                    remote_server_config.clone(),
-                )))
+                Some(Box::new(RemoteComponentServer::new(local_client, $socket.clone())))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::Remote
@@ -297,37 +297,37 @@ pub fn create_remote_servers(
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
-        config.components.batcher.remote_server_config
+        config.components.batcher.socket
     );
 
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
-        config.components.gateway.remote_server_config
+        config.components.gateway.socket
     );
 
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
-        config.components.l1_provider.remote_server_config
+        config.components.l1_provider.socket
     );
 
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
-        config.components.mempool.remote_server_config
+        config.components.mempool.socket
     );
 
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
-        config.components.mempool_p2p.remote_server_config
+        config.components.mempool_p2p.socket
     );
 
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
-        config.components.state_sync.remote_server_config
+        config.components.state_sync.socket
     );
 
     RemoteServers {
@@ -362,10 +362,14 @@ fn create_wrapper_servers(
         &config.components.consensus_manager.execution_mode,
         components.consensus_manager
     );
+
     let http_server = create_wrapper_server!(
         &config.components.http_server.execution_mode,
         components.http_server
     );
+
+    let l1_scraper_server =
+        create_wrapper_server!(&config.components.l1_scraper.execution_mode, components.l1_scraper);
 
     let monitoring_endpoint_server = create_wrapper_server!(
         &config.components.monitoring_endpoint.execution_mode,
@@ -384,6 +388,7 @@ fn create_wrapper_servers(
     WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
+        l1_scraper_server,
         monitoring_endpoint: monitoring_endpoint_server,
         mempool_p2p_runner: mempool_p2p_runner_server,
         state_sync_runner: state_sync_runner_server,
@@ -395,6 +400,7 @@ impl WrapperServers {
         create_servers(vec![
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
+            server_future_and_label(self.l1_scraper_server, "L1 Scraper"),
             server_future_and_label(self.monitoring_endpoint, "Monitoring Endpoint"),
             server_future_and_label(self.mempool_p2p_runner, "Mempool P2P Runner"),
             server_future_and_label(self.state_sync_runner, "State Sync Runner"),

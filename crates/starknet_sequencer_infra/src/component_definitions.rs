@@ -152,26 +152,3 @@ impl SerializeConfig for RemoteClientConfig {
         ])
     }
 }
-
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RemoteServerConfig {
-    pub socket: SocketAddr,
-}
-
-impl Default for RemoteServerConfig {
-    fn default() -> Self {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
-        Self { socket }
-    }
-}
-
-impl SerializeConfig for RemoteServerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "socket",
-            &self.socket.to_string(),
-            "The remote component server socket.",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}

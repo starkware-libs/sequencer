@@ -349,15 +349,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.batcher.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.batcher.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.batcher.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
@@ -404,15 +399,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.gateway.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.gateway.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
@@ -459,15 +449,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.l1_provider.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
+  },
+  "components.l1_scraper.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Enabled"
   },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
@@ -509,15 +499,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.mempool.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.mempool.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.mempool_p2p.execution_mode": {
     "description": "The component execution mode.",
@@ -559,15 +544,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool_p2p.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.mempool_p2p.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.mempool_p2p.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "components.monitoring_endpoint.execution_mode": {
     "description": "The component execution mode.",
@@ -614,15 +594,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.state_sync.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.state_sync.remote_server_config.socket": {
-    "description": "The remote component server socket.",
+  "components.state_sync.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:0"
   },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
@@ -868,6 +843,26 @@
     "description": "Interval in milliseconds between each scraping attempt of L1.",
     "privacy": "Public",
     "value": 100
+  },
+  "l1_scraper_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "l1_scraper_config.finality": {
+    "description": "Number of blocks to wait for finality",
+    "privacy": "Public",
+    "value": 3
+  },
+  "l1_scraper_config.l1_block_to_start_scraping_from": {
+    "description": "Last L1 block number processed by the scraper",
+    "privacy": "Public",
+    "value": 0
+  },
+  "l1_scraper_config.polling_interval": {
+    "description": "Interval in Seconds between each scraping attempt of L1.",
+    "privacy": "Public",
+    "value": 1
   },
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",
