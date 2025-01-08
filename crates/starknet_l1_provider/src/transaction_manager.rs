@@ -1,34 +1,38 @@
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::ValidationStatus;
 
+use crate::soft_delete_index_map::SoftDeleteIndexMap;
+
 #[derive(Debug, Default)]
 pub struct TransactionManager {
-    pub txs: IndexMap<TransactionHash, L1HandlerTransaction>,
-    pub staged: IndexSet<TransactionHash>,
-    pub committed: IndexSet<TransactionHash>,
+    pub txs: SoftDeleteIndexMap,
+    pub committed: IndexMap<TransactionHash, Option<L1HandlerTransaction>>,
 }
 
 impl TransactionManager {
     pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
-        let (tx_hashes, txs): (Vec<_>, Vec<_>) = self
-            .txs
-            .iter()
-            .skip(self.staged.len()) // Transactions are proposed FIFO.
-            .take(n_txs)
-            .map(|(&hash, tx)| (hash, tx.clone()))
-            .unzip();
+        let mut txs = Vec::with_capacity(n_txs);
 
-        self.staged.extend(tx_hashes);
+        for _ in 0..n_txs {
+            match self.txs.soft_pop_front().cloned() {
+                Some(tx) => txs.push(tx),
+                None => break,
+            }
+        }
         txs
     }
 
-    pub fn validate_tx(&self, tx_hash: TransactionHash) -> ValidationStatus {
-        if self.txs.contains_key(&tx_hash) {
+    pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
+        if self.committed.contains_key(&tx_hash) {
+            return ValidationStatus::AlreadyIncludedOnL2;
+        }
+
+        if self.txs.soft_remove(tx_hash).is_some() {
             ValidationStatus::Validated
-        } else if self.committed.contains(&tx_hash) {
-            ValidationStatus::AlreadyIncludedOnL2
+        } else if self.txs.is_staged(&tx_hash) {
+            ValidationStatus::AlreadyIncludedInPropsedBlock
         } else {
             ValidationStatus::ConsumedOnL1OrUnknown
         }

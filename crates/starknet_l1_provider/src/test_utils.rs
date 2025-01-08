@@ -1,8 +1,8 @@
+use std::collections::HashSet;
 use std::mem;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use indexmap::{IndexMap, IndexSet};
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::{
@@ -18,8 +18,10 @@ use starknet_l1_provider_types::{
 };
 
 use crate::l1_provider::L1Provider;
+use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::transaction_manager::TransactionManager;
 use crate::ProviderState;
+
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
@@ -32,10 +34,7 @@ pub struct L1ProviderContent {
 impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
         L1Provider {
-            tx_manager: content
-                .tx_manager_content
-                .map(|tm_content| tm_content.complete_to_tx_manager())
-                .unwrap_or_default(),
+            tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             state: content.state.unwrap_or_default(),
             current_height: content.current_height,
         }
@@ -85,29 +84,34 @@ impl L1ProviderContentBuilder {
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
-    txs: Option<IndexMap<TransactionHash, L1HandlerTransaction>>,
-    committed: Option<IndexSet<TransactionHash>>,
+    txs: Option<Vec<L1HandlerTransaction>>,
+    committed: Option<HashSet<TransactionHash>>,
 }
 
-impl TransactionManagerContent {
-    fn complete_to_tx_manager(self) -> TransactionManager {
+impl From<TransactionManagerContent> for TransactionManager {
+    fn from(mut content: TransactionManagerContent) -> TransactionManager {
+        let txs: Vec<_> = mem::take(&mut content.txs).unwrap();
         TransactionManager {
-            txs: self.txs.unwrap_or_default(),
-            committed: self.committed.unwrap_or_default(),
-            ..Default::default()
+            txs: SoftDeleteIndexMap::from(txs),
+            committed: content
+                .committed
+                .unwrap_or_default()
+                .into_iter()
+                .map(|tx_hash| (tx_hash, None))
+                .collect(),
         }
     }
 }
 
 #[derive(Debug, Default)]
 struct TransactionManagerContentBuilder {
-    txs: Option<IndexMap<TransactionHash, L1HandlerTransaction>>,
-    committed: Option<IndexSet<TransactionHash>>,
+    txs: Option<Vec<L1HandlerTransaction>>,
+    committed: Option<HashSet<TransactionHash>>,
 }
 
 impl TransactionManagerContentBuilder {
     fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
-        self.txs = Some(txs.into_iter().map(|tx| (tx.tx_hash, tx)).collect());
+        self.txs = Some(txs.into_iter().collect());
         self
     }
 
