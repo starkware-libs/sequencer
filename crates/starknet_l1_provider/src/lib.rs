@@ -1,5 +1,4 @@
 pub mod communication;
-pub mod errors;
 pub mod l1_scraper;
 
 #[cfg(test)]
@@ -9,6 +8,13 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use indexmap::{IndexMap, IndexSet};
+use papyrus_base_layer::constants::{
+    EventIdentifier,
+    CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+    LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+};
 use papyrus_config::converters::deserialize_milliseconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -17,7 +23,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::{L1ProviderResult, ValidationStatus};
+use starknet_l1_provider_types::{Event, L1ProviderResult, ValidationStatus};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use validator::Validate;
 
@@ -87,6 +93,10 @@ impl L1Provider {
         self.validate_height(height)?;
         self.state = self.state.transition_to_validate()?;
         Ok(())
+    }
+
+    pub fn process_l1_events(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
+        todo!()
     }
 
     pub fn proposal_start(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
@@ -224,6 +234,15 @@ impl SerializeConfig for L1ProviderConfig {
             ParamPrivacyInput::Public,
         )])
     }
+}
+
+pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
+    &[
+        LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+        CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+        MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+        MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
+    ]
 }
 
 pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {

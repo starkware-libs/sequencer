@@ -2,11 +2,16 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
-use starknet_l1_provider::communication::{LocalL1ProviderServer, RemoteL1ProviderServer};
+use starknet_l1_provider::communication::{
+    L1ScraperServer,
+    LocalL1ProviderServer,
+    RemoteL1ProviderServer,
+};
 use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use starknet_mempool_p2p::propagator::{
     LocalMempoolP2pPropagatorServer,
@@ -49,6 +54,7 @@ struct LocalServers {
 struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
+    pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
     pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
@@ -356,10 +362,14 @@ fn create_wrapper_servers(
         &config.components.consensus_manager.execution_mode,
         components.consensus_manager
     );
+
     let http_server = create_wrapper_server!(
         &config.components.http_server.execution_mode,
         components.http_server
     );
+
+    let l1_scraper_server =
+        create_wrapper_server!(&config.components.l1_scraper.execution_mode, components.l1_scraper);
 
     let monitoring_endpoint_server = create_wrapper_server!(
         &config.components.monitoring_endpoint.execution_mode,
@@ -378,6 +388,7 @@ fn create_wrapper_servers(
     WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
+        l1_scraper_server,
         monitoring_endpoint: monitoring_endpoint_server,
         mempool_p2p_runner: mempool_p2p_runner_server,
         state_sync_runner: state_sync_runner_server,
@@ -389,6 +400,7 @@ impl WrapperServers {
         create_servers(vec![
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
+            server_future_and_label(self.l1_scraper_server, "L1 Scraper"),
             server_future_and_label(self.monitoring_endpoint, "Monitoring Endpoint"),
             server_future_and_label(self.mempool_p2p_runner, "Mempool P2P Runner"),
             server_future_and_label(self.state_sync_runner, "State Sync Runner"),
