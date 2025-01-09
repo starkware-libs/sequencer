@@ -1,5 +1,5 @@
 use super::NonceManager;
-use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
+use crate::core::{ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
     AccountTransaction,
@@ -115,20 +115,24 @@ pub fn deploy_account_tx(
     }
 }
 
+// TODO: Consider using [ExecutableDeployAccountTransaction::create] in the body of this function.
+// We don't use it now to avoid tx_hash calculation.
 pub fn executable_deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
     nonce_manager: &mut NonceManager,
 ) -> AccountTransaction {
     let tx_hash = deploy_tx_args.tx_hash;
-    let contract_address = calculate_contract_address(
-        deploy_tx_args.contract_address_salt,
-        deploy_tx_args.class_hash,
-        &deploy_tx_args.constructor_calldata,
-        deploy_tx_args.deployer_address,
-    )
-    .unwrap();
-    let nonce = nonce_manager.next(contract_address);
+    // The nonce of a deploy account transaction is always 0.
+    let nonce = Nonce::default();
     let tx = deploy_account_tx(deploy_tx_args, nonce);
+    let contract_address = tx.calculate_contract_address().unwrap();
+    assert_eq!(
+        nonce,
+        nonce_manager.next(contract_address),
+        "Unexpected nonce for contract address: {:?}. The nonce of a deploy account transaction \
+         is always 0.",
+        contract_address
+    );
     let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
 
     AccountTransaction::DeployAccount(deploy_account_tx)
