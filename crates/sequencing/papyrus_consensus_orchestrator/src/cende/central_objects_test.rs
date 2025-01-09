@@ -15,7 +15,7 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     DeclareTransaction,
@@ -27,11 +27,15 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
+    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
+    PaymasterData,
     ResourceBounds,
+    Tip,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -41,7 +45,8 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionVersion,
 };
-use starknet_api::{contract_address, felt, storage_key};
+use starknet_api::{contract_address, felt, nonce, storage_key};
+use starknet_types_core::felt::Felt;
 
 use super::{
     CentralDeclareTransaction,
@@ -59,6 +64,18 @@ pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
 
+fn resource_bounds() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) },
+        l2_gas: ResourceBounds { max_amount: GasAmount(2), max_price_per_unit: GasPrice(2) },
+        l1_data_gas: ResourceBounds { max_amount: GasAmount(3), max_price_per_unit: GasPrice(3) },
+    })
+}
+
+fn felt_vector() -> Vec<Felt> {
+    vec![felt!(0_u8), felt!(1_u8), felt!(2_u8)]
+}
+
 fn central_state_diff_json() -> Value {
     let state_diff = ThinStateDiff {
         deployed_contracts: indexmap! {
@@ -67,7 +84,7 @@ fn central_state_diff_json() -> Value {
         },
         storage_diffs: indexmap!(contract_address!(3_u8) => indexmap!(storage_key!(3_u8) => felt!(3_u8))),
         declared_classes: indexmap!(ClassHash(felt!(4_u8))=> CompiledClassHash(felt!(4_u8))),
-        nonces: indexmap!(contract_address!(2_u8)=> Nonce(felt!(2_u8))),
+        nonces: indexmap!(contract_address!(2_u8)=> nonce!(2)),
         ..Default::default()
     };
 
@@ -90,7 +107,7 @@ fn central_state_diff_json() -> Value {
         use_kzg_da: true,
     };
 
-    let starknet_version = StarknetVersion::default();
+    let starknet_version = StarknetVersion::V0_13_4;
 
     let central_state_diff: CentralStateDiff = (state_diff, block_info, starknet_version).into();
     serde_json::to_value(central_state_diff).unwrap()
@@ -99,26 +116,18 @@ fn central_state_diff_json() -> Value {
 fn central_invoke_tx_json() -> Value {
     let invoke_tx = InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
-            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas: ResourceBounds {
-                    max_amount: GasAmount(1),
-                    max_price_per_unit: GasPrice(1),
-                },
-                l2_gas: ResourceBounds::default(),
-                l1_data_gas: ResourceBounds::default(),
-            }),
-            // TODO(yael): consider testing these fields with non-default values
-            tip: Default::default(),
-            signature: Default::default(),
-            nonce: Default::default(),
+            resource_bounds: resource_bounds(),
+            tip: Tip(1),
+            signature: TransactionSignature(felt_vector()),
+            nonce: nonce!(1),
             sender_address: contract_address!(
                 "0x14abfd58671a1a9b30de2fcd2a42e8bff2ce1096a7c70bc7995904965f277e"
             ),
             calldata: Calldata(Arc::new(vec![felt!(0_u8), felt!(1_u8)])),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: Default::default(),
-            account_deployment_data: Default::default(),
+            paymaster_data: PaymasterData(vec![]),
+            account_deployment_data: AccountDeploymentData(vec![]),
         }),
         tx_hash: TransactionHash(felt!(
             "0x6efd067c859e6469d0f6d158e9ae408a9552eb8cc11f618ab3aef3e52450666"
@@ -136,18 +145,11 @@ fn central_invoke_tx_json() -> Value {
 fn central_deploy_account_tx_json() -> Value {
     let deploy_account_tx = DeployAccountTransaction {
         tx: starknet_api::transaction::DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas: ResourceBounds {
-                    max_amount: GasAmount(1),
-                    max_price_per_unit: GasPrice(1),
-                },
-                l2_gas: ResourceBounds::default(),
-                l1_data_gas: ResourceBounds::default(),
-            }),
-            signature: Default::default(),
-            nonce: Default::default(),
-            tip: Default::default(),
-            paymaster_data: Default::default(),
+            resource_bounds: resource_bounds(),
+            signature: TransactionSignature(felt_vector()),
+            nonce: nonce!(1),
+            tip: Tip(1),
+            paymaster_data: PaymasterData(vec![]),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
 
@@ -155,7 +157,7 @@ fn central_deploy_account_tx_json() -> Value {
                 "0x1b5a0b09f23b091d5d1fa2f660ddfad6bcfce607deba23806cd7328ccfb8ee9"
             )),
             contract_address_salt: ContractAddressSalt(felt!(2_u8)),
-            constructor_calldata: Default::default(),
+            constructor_calldata: Calldata(Arc::new(felt_vector())),
         }),
         tx_hash: TransactionHash(felt!(
             "0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"
@@ -178,22 +180,15 @@ fn central_deploy_account_tx_json() -> Value {
 fn central_declare_tx_json() -> Value {
     let declare_tx = DeclareTransaction {
         tx: starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
-            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas: ResourceBounds {
-                    max_amount: GasAmount(1),
-                    max_price_per_unit: GasPrice(1),
-                },
-                l2_gas: ResourceBounds::default(),
-                l1_data_gas: ResourceBounds::default(),
-            }),
+            resource_bounds: resource_bounds(),
             sender_address: contract_address!("0x12fd537"),
-            signature: Default::default(),
-            nonce: Nonce(felt!("0x0")),
-            tip: Default::default(),
-            paymaster_data: Default::default(),
+            signature: TransactionSignature(felt_vector()),
+            nonce: nonce!(1),
+            tip: Tip(1),
+            paymaster_data: PaymasterData(vec![]),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
-            account_deployment_data: Default::default(),
+            account_deployment_data: AccountDeploymentData(vec![]),
             class_hash: ClassHash(felt!(
                 "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"
             )),
@@ -222,7 +217,7 @@ fn central_l1_handler_tx_json() -> Value {
     let l1_handler_tx = L1HandlerTransaction {
         tx: starknet_api::transaction::L1HandlerTransaction {
             version: TransactionVersion::ZERO,
-            nonce: Default::default(),
+            nonce: nonce!(1),
             contract_address: contract_address!(
                 "0x14abfd58671a1a9b30de2fcd2a42e8bff2ce1096a7c70bc7995904965f277e"
             ),
