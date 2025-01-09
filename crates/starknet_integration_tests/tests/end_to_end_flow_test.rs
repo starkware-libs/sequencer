@@ -18,6 +18,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
+use starknet_consensus::stream_handler::StreamIdAndNonce;
 use starknet_consensus::types::ValidatorId;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -158,7 +159,7 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 
 async fn listen_to_broadcasted_messages(
     consensus_proposals_channels: &mut BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
@@ -174,7 +175,7 @@ async fn listen_to_broadcasted_messages(
     let mut last_message_id = 0;
 
     while let Some((Ok(message), _)) = broadcasted_messages_receiver.next().await {
-        if message.stream_id.0 == expected_height.0 {
+        if message.stream_id.0.0 == expected_height.0 {
             messages_cache.insert(message.message_id, message.clone());
         } else {
             panic!(
