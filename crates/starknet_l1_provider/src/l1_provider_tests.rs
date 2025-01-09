@@ -5,11 +5,15 @@ use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{l1_handler_tx_args, tx_hash};
 use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::SessionState::{
+    Propose as ProposeSession,
+    Validate as ValidateSession,
+};
 use starknet_l1_provider_types::ValidationStatus;
 
 use crate::l1_provider::L1Provider;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::ProviderState::{Pending, Propose, Uninitialized, Validate};
+use crate::ProviderState;
 
 macro_rules! tx {
     (tx_hash: $tx_hash:expr) => {{
@@ -27,7 +31,7 @@ fn get_txs_happy_flow() {
     let txs = [tx!(tx_hash: 0), tx!(tx_hash: 1), tx!(tx_hash: 2)];
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs(txs.clone())
-        .with_state(Propose)
+        .with_state(ProviderState::Propose)
         .build_into_l1_provider();
 
     // Test.
@@ -43,7 +47,7 @@ fn validate_happy_flow() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([tx!(tx_hash: 1)])
         .with_committed([tx_hash!(2)])
-        .with_state(Validate)
+        .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
     // Test.
@@ -70,7 +74,7 @@ fn validate_happy_flow() {
 fn pending_state_errors() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_state(Pending)
+        .with_state(ProviderState::Pending)
         .with_txs([tx!(tx_hash: 1)])
         .build_into_l1_provider();
 
@@ -90,7 +94,7 @@ fn pending_state_errors() {
 #[should_panic(expected = "Uninitialized L1 provider")]
 fn uninitialized_get_txs() {
     let mut uninitialized_l1_provider = L1Provider::default();
-    assert_eq!(uninitialized_l1_provider.state, Uninitialized);
+    assert_eq!(uninitialized_l1_provider.state, ProviderState::Uninitialized);
 
     uninitialized_l1_provider.get_txs(1, BlockNumber(1)).unwrap();
 }
@@ -99,44 +103,24 @@ fn uninitialized_get_txs() {
 #[should_panic(expected = "Uninitialized L1 provider")]
 fn uninitialized_validate() {
     let mut uninitialized_l1_provider = L1Provider::default();
-    assert_eq!(uninitialized_l1_provider.state, Uninitialized);
+    assert_eq!(uninitialized_l1_provider.state, ProviderState::Uninitialized);
 
     uninitialized_l1_provider.validate(TransactionHash::default(), BlockNumber(1)).unwrap();
 }
 
 #[test]
-fn proposal_start_errors() {
+fn proposal_start_multiple_proposals_same_height() {
     // Setup.
     let mut l1_provider =
-        L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
-    // Test.
-    l1_provider.proposal_start(BlockNumber(1)).unwrap();
-
-    assert_eq!(
-        l1_provider.proposal_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Propose, Propose)
-    );
-    assert_eq!(
-        l1_provider.validation_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Propose, Validate)
-    );
-}
-
-#[test]
-fn validation_start_errors() {
-    // Setup.
-    let mut l1_provider =
-        L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
+        L1ProviderContentBuilder::new().with_state(ProviderState::Pending).build_into_l1_provider();
 
     // Test.
-    l1_provider.validation_start(BlockNumber(1)).unwrap();
+    l1_provider.start_block(BlockNumber(1), ProposeSession).unwrap();
+    l1_provider.start_block(BlockNumber(1), ValidateSession).unwrap();
 
-    assert_eq!(
-        l1_provider.validation_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Validate, Validate)
-    );
-    assert_eq!(
-        l1_provider.proposal_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Validate, Propose)
-    );
+    l1_provider.start_block(BlockNumber(1), ProposeSession).unwrap();
+    l1_provider.start_block(BlockNumber(1), ProposeSession).unwrap();
+
+    l1_provider.start_block(BlockNumber(1), ValidateSession).unwrap();
+    l1_provider.start_block(BlockNumber(1), ValidateSession).unwrap();
 }

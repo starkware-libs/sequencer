@@ -2,7 +2,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::{Event, L1ProviderResult, ValidationStatus};
+use starknet_l1_provider_types::{Event, L1ProviderResult, SessionState, ValidationStatus};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use crate::transaction_manager::TransactionManager;
@@ -21,6 +21,17 @@ pub struct L1Provider {
 impl L1Provider {
     pub fn new(_config: L1ProviderConfig) -> L1ProviderResult<Self> {
         todo!("Init crawler in uninitialized_state from config, to initialize call `reset`.");
+    }
+
+    pub fn start_block(
+        &mut self,
+        height: BlockNumber,
+        state: SessionState,
+    ) -> L1ProviderResult<()> {
+        self.validate_height(height)?;
+        self.state = state.into();
+        self.tx_manager.start_block();
+        Ok(())
     }
 
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
@@ -65,20 +76,8 @@ impl L1Provider {
         )
     }
 
-    pub fn validation_start(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        self.validate_height(height)?;
-        self.state = self.state.transition_to_validate()?;
-        Ok(())
-    }
-
     pub fn process_l1_events(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
         todo!()
-    }
-
-    pub fn proposal_start(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        self.validate_height(height)?;
-        self.state = self.state.transition_to_propose()?;
-        Ok(())
     }
 
     /// Simple recovery from L1 and L2 reorgs by reseting the service, which rewinds L1 and L2

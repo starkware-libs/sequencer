@@ -108,3 +108,9 @@ pub enum Event {
     TransactionCancellationStarted(L1Event),
     TransactionConsumed(L1Event),
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SessionState {
+    Propose,
+    Validate,
+}
