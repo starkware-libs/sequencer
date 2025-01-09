@@ -204,11 +204,17 @@ impl StateReader for PapyrusReader {
 
             // Try fetching native from cache.
             if let Some(cached_native) = self.contract_class_manager.get_native(&class_hash) {
+                log::debug!(
+                    "Noa Found native in cache for class hash {}. Returning cached native.",
+                    class_hash
+                );
                 match cached_native {
                     CachedCairoNative::Compiled(compiled_native) => {
+                        log::debug!("Noa Compilation succeeded. Returning compiled native.");
                         return Ok(RunnableCompiledClass::from(compiled_native));
                     }
                     CachedCairoNative::CompilationFailed => {
+                        log::debug!("Noa Compilation failed. Fetching casm.");
                         // The compilation previously failed. Make no further compilation attempts.
                         // Fetch and return the casm.
                         return self.get_casm(class_hash);
@@ -226,6 +232,7 @@ impl StateReader for PapyrusReader {
             match cached_casm {
                 CachedCasm::WithSierra(runnable_casm, sierra) => {
                     if let RunnableCompiledClass::V1(casm_v1) = runnable_casm.clone() {
+                        log::debug!("Noa Cached with sierra. Sending compilation request.");
                         self.contract_class_manager.send_compilation_request((
                             class_hash,
                             sierra.clone(),

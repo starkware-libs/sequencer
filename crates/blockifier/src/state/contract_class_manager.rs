@@ -117,6 +117,7 @@ impl ContractClassManager {
     ///    processed.
     #[cfg(feature = "cairo_native")]
     pub fn send_compilation_request(&self, request: CompilationRequest) {
+        log::debug!("Noa Sending compilation request for class hash {}", request.0);
         assert!(self.run_cairo_native(), "Native compilation is disabled.");
         if self.wait_on_native_compilation() {
             // Compilation requests are processed synchronously. No need to go through the channel.
