@@ -8,6 +8,7 @@ use infra_utils::tracing::{CustomLogger, TraceLevel};
 use itertools::izip;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
+use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
@@ -30,7 +31,7 @@ use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::{
     create_chain_info,
-    create_consensus_manager_configs_and_channels,
+    create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
     send_account_txs,
 };
@@ -216,10 +217,8 @@ pub async fn get_sequencer_setup_configs(
         .map(|composed_node_component_configs| composed_node_component_configs.len())
         .sum();
 
-    // TODO(Tsabary): remove '+1', replace with 'create_connected_network_configs' and
-    // 'create_consensus_manager_configs_from_network_config'.
-    let (consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
-        available_ports.get_next_ports(n_distributed_sequencers + 1),
+    let consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
+        create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
     );
 
     let mempool_p2p_configs = create_mempool_p2p_configs(

@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -28,7 +29,7 @@ use crate::integration_test_setup::SequencerExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
-    create_consensus_manager_configs_and_channels,
+    create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
     create_node_config,
     spawn_success_recorder,
@@ -170,4 +171,21 @@ impl FlowSequencerSetup {
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
     }
+}
+
+pub fn create_consensus_manager_configs_and_channels(
+    ports: Vec<u16>,
+) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+    let (network_configs, broadcast_channels) =
+        create_network_configs_connected_to_broadcast_channels(
+            papyrus_network::gossipsub_impl::Topic::new(
+                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
+            ),
+            ports,
+        );
+    // TODO: Need to also add a channel for votes, in addition to the proposals channel.
+
+    let consensus_manager_configs =
+        create_consensus_manager_configs_from_network_configs(network_configs);
+    (consensus_manager_configs, broadcast_channels)
 }

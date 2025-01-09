@@ -17,13 +17,8 @@ use mempool_test_utils::starknet_api_test_utils::{
 use papyrus_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use papyrus_consensus::types::ValidatorId;
 use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
-use papyrus_network::network_manager::test_utils::{
-    create_connected_network_configs,
-    create_network_configs_connected_to_broadcast_channels,
-};
-use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
@@ -122,24 +117,7 @@ pub async fn create_node_config(
     )
 }
 
-pub fn create_consensus_manager_configs_and_channels(
-    ports: Vec<u16>,
-) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
-    let (network_configs, broadcast_channels) =
-        create_network_configs_connected_to_broadcast_channels(
-            papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-            ),
-            ports,
-        );
-    // TODO: Need to also add a channel for votes, in addition to the proposals channel.
-
-    let consensus_manager_configs =
-        create_consensus_manager_configs_from_network_configs(network_configs);
-    (consensus_manager_configs, broadcast_channels)
-}
-
-fn create_consensus_manager_configs_from_network_configs(
+pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs: Vec<NetworkConfig>,
 ) -> Vec<ConsensusManagerConfig> {
     // TODO(Matan, Dan): set reasonable default timeouts.
