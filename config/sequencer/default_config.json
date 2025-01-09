@@ -324,11 +324,6 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.batcher.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -368,11 +363,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.gateway.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -414,11 +404,6 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -459,11 +444,6 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.mempool.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
@@ -498,11 +478,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool_p2p.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -543,11 +518,6 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.state_sync.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
