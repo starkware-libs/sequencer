@@ -110,15 +110,19 @@ fn proposal_start_errors() {
     let mut l1_provider =
         L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
     // Test.
-    l1_provider.proposal_start(BlockNumber(1)).unwrap();
+    l1_provider.start_block(BlockNumber(1), Propose).unwrap();
+    l1_provider.start_block(BlockNumber(1), Propose).unwrap();
+    l1_provider.start_block(BlockNumber(1), Validate).unwrap();
+    l1_provider.start_block(BlockNumber(1), Propose).unwrap();
 
     assert_eq!(
-        l1_provider.proposal_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Propose, Propose)
+        l1_provider.start_block(BlockNumber(1), Pending).unwrap_err(),
+        L1ProviderError::unexpected_transition(Propose, Pending)
     );
+
     assert_eq!(
-        l1_provider.validation_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Propose, Validate)
+        l1_provider.start_block(BlockNumber(1), Uninitialized).unwrap_err(),
+        L1ProviderError::unexpected_transition(Propose, Uninitialized)
     );
 }
 
@@ -128,15 +132,18 @@ fn validation_start_errors() {
     let mut l1_provider =
         L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
 
-    // Test.
-    l1_provider.validation_start(BlockNumber(1)).unwrap();
+    l1_provider.start_block(BlockNumber(1), Validate).unwrap();
+    l1_provider.start_block(BlockNumber(1), Validate).unwrap();
+    l1_provider.start_block(BlockNumber(1), Propose).unwrap();
+    l1_provider.start_block(BlockNumber(1), Validate).unwrap();
 
     assert_eq!(
-        l1_provider.validation_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Validate, Validate)
+        l1_provider.start_block(BlockNumber(1), Pending).unwrap_err(),
+        L1ProviderError::unexpected_transition(Validate, Pending)
     );
+
     assert_eq!(
-        l1_provider.proposal_start(BlockNumber(1)).unwrap_err(),
-        L1ProviderError::unexpected_transition(Validate, Propose)
+        l1_provider.start_block(BlockNumber(1), Uninitialized).unwrap_err(),
+        L1ProviderError::unexpected_transition(Validate, Uninitialized)
     );
 }

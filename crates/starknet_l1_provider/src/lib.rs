@@ -42,22 +42,13 @@ pub enum ProviderState {
 }
 
 impl ProviderState {
-    fn transition_to_propose(self) -> L1ProviderResult<Self> {
-        match self {
-            ProviderState::Pending => Ok(ProviderState::Propose),
-            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Propose)),
+    pub fn set_role(self, new_state: ProviderState) -> L1ProviderResult<ProviderState> {
+        match new_state {
+            ProviderState::Propose | ProviderState::Validate => Ok(new_state),
+            ProviderState::Uninitialized | ProviderState::Pending => {
+                Err(L1ProviderError::unexpected_transition(self, new_state))
+            }
         }
-    }
-
-    fn transition_to_validate(self) -> L1ProviderResult<Self> {
-        match self {
-            ProviderState::Pending => Ok(ProviderState::Validate),
-            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Validate)),
-        }
-    }
-
-    fn _transition_to_pending(self) -> L1ProviderResult<Self> {
-        todo!()
     }
 
     pub fn as_str(&self) -> &str {

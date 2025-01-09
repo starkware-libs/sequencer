@@ -12,6 +12,10 @@ pub struct TransactionManager {
 }
 
 impl TransactionManager {
+    pub fn start_block(&mut self) {
+        self.txs.rollback_staging();
+    }
+
     pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
         let mut txs = Vec::with_capacity(n_txs);
 

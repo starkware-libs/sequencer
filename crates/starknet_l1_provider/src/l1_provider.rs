@@ -23,6 +23,17 @@ impl L1Provider {
         todo!("Init crawler in uninitialized_state from config, to initialize call `reset`.");
     }
 
+    pub fn start_block(
+        &mut self,
+        height: BlockNumber,
+        state: ProviderState,
+    ) -> L1ProviderResult<()> {
+        self.validate_height(height)?;
+        self.state = self.state.set_role(state)?;
+        self.tx_manager.start_block();
+        Ok(())
+    }
+
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
     pub fn get_txs(
         &mut self,
@@ -65,20 +76,8 @@ impl L1Provider {
         )
     }
 
-    pub fn validation_start(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        self.validate_height(height)?;
-        self.state = self.state.transition_to_validate()?;
-        Ok(())
-    }
-
     pub fn process_l1_events(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
         todo!()
-    }
-
-    pub fn proposal_start(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        self.validate_height(height)?;
-        self.state = self.state.transition_to_propose()?;
-        Ok(())
     }
 
     /// Simple recovery from L1 and L2 reorgs by reseting the service, which rewinds L1 and L2
