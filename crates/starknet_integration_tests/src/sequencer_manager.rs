@@ -147,7 +147,7 @@ impl SequencerSetupManager {
 }
 
 /// Reads the latest block number from the storage.
-pub fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
+fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
     let txn = storage_reader.begin_ro_txn().unwrap();
     txn.get_state_marker()
         .expect("There should always be a state marker")
@@ -156,10 +156,7 @@ pub fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
 }
 
 /// Reads an account nonce after a block number from storage.
-pub fn get_account_nonce(
-    storage_reader: &StorageReader,
-    contract_address: ContractAddress,
-) -> Nonce {
+fn get_account_nonce(storage_reader: &StorageReader, contract_address: ContractAddress) -> Nonce {
     let block_number = get_latest_block_number(storage_reader);
     let txn = storage_reader.begin_ro_txn().unwrap();
     let state_number = StateNumber::unchecked_right_after_block(block_number);
@@ -170,7 +167,7 @@ pub fn get_account_nonce(
 
 /// Sample a storage until sufficiently many blocks have been stored. Returns an error if after
 /// the given number of attempts the target block number has not been reached.
-pub async fn await_block(
+async fn await_block(
     interval: u64,
     target_block_number: BlockNumber,
     max_attempts: usize,
@@ -189,7 +186,7 @@ pub async fn await_block(
         .ok_or(())
 }
 
-pub async fn get_sequencer_setup_configs(
+pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
 ) -> Vec<SequencerSetup> {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
