@@ -117,11 +117,21 @@ impl ContractClassManager {
     ///    processed.
     #[cfg(feature = "cairo_native")]
     pub fn send_compilation_request(&self, request: CompilationRequest) {
+        log::debug!("Noa Sending compilation request for class hash {}", request.0);
+        log::error!("Noa Sending compilation request for class hash {}", request.0);
+        log::error!("Compilation start");
         assert!(self.run_cairo_native(), "Native compilation is disabled.");
         if self.wait_on_native_compilation() {
             // Compilation requests are processed synchronously. No need to go through the channel.
             let compiler = self.compiler.as_ref().expect("Compiler not available.");
+            // let handle = std::thread::spawn({
+            //     let contract_caches = self.contract_caches.clone();
+            //     let compiler = compiler.clone();
+            //     move || process_compilation_request(contract_caches, compiler, request)
+            // });
+            // handle.join().unwrap();
             process_compilation_request(self.contract_caches.clone(), compiler.clone(), request);
+            log::error!("Compilation end");
             return;
         }
 
