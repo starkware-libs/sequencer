@@ -1,7 +1,6 @@
 use ::serde::{Deserialize, Serialize};
 
 use crate::executable_transaction::L1HandlerTransaction;
-use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::{DeclareTransactionV3, DeployAccountTransactionV3, InvokeTransactionV3};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -16,11 +15,7 @@ pub enum InternalRpcTransaction {
     DeployAccount(DeployAccountTransactionV3),
 }
 
-pub enum ExternalTransaction {
-    RpcTransaction(RpcTransaction),
-    L1Handler(L1HandlerTransaction),
-}
-
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub enum InternalTransaction {
     RpcTransaction(InternalRpcTransaction),
     L1Handler(L1HandlerTransaction),

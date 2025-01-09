@@ -16,6 +16,7 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
+use crate::executable_transaction::L1HandlerTransaction;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
     AccountDeploymentData,
@@ -316,4 +317,10 @@ impl EntryPointByType {
             (EntryPointType::L1Handler, self.l1handler.clone()),
         ])
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+pub enum ExternalTransaction {
+    RpcTransaction(RpcTransaction),
+    L1Handler(L1HandlerTransaction),
 }

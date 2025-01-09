@@ -14,6 +14,8 @@ use thiserror::Error;
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
 pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
 
+pub type SharedClassManagerClient = std::sync::Arc<dyn ClassManagerClient>;
+
 // TODO: export.
 pub type ClassId = ClassHash;
 pub type Class = SierraContractClass;
