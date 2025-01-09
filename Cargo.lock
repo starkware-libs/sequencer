@@ -10862,7 +10862,6 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
- "prost",
  "rand 0.8.5",
  "serde",
  "starknet-types-core",
