@@ -1,13 +1,10 @@
 use std::fs;
 
 use blockifier::test_utils::cairo_compile::{
-    prepare_group_tag_compiler_deps,
-    CompilationArtifacts,
+    CompilationArtifacts, prepare_group_tag_compiler_deps,
 };
 use blockifier::test_utils::contracts::{
-    FeatureContract,
-    CAIRO1_FEATURE_CONTRACTS_DIR,
-    SIERRA_CONTRACTS_SUBDIR,
+    CAIRO1_FEATURE_CONTRACTS_DIR, FeatureContract, SIERRA_CONTRACTS_SUBDIR,
 };
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;
@@ -301,6 +298,7 @@ fn verify_feature_contracts_match_enum(
 
 // Native and Casm have the same contracts and compiled files, as we only save the sierra for
 // Native, so we exclude Native CairoVersion from this test.
+// test
 #[rstest]
 #[ignore]
 fn verify_feature_contracts(
