@@ -14,7 +14,7 @@ use papyrus_common::pending_classes::PendingClasses;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::stream_handler::StreamHandler;
+use papyrus_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
@@ -193,7 +193,7 @@ fn spawn_consensus(
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
     let proposal_network_channels: BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,

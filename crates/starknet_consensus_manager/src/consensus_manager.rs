@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use papyrus_consensus::stream_handler::StreamHandler;
+use papyrus_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use papyrus_consensus::types::ConsensusError;
 use papyrus_consensus_orchestrator::cende::CendeAmbassador;
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
@@ -44,7 +44,7 @@ impl ConsensusManager {
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
 
         let proposals_broadcast_channels = network_manager
-            .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(
+            .register_broadcast_topic::<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>(
                 Topic::new(CONSENSUS_PROPOSALS_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )

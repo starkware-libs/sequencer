@@ -7,7 +7,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::pending;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
-use papyrus_consensus::stream_handler::StreamHandler;
+use papyrus_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -72,7 +72,8 @@ fn generate_invoke_tx(nonce: u8) -> Transaction {
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
-    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart, HeightAndRound>>,
+    _new_proposal_network:
+        BroadcastNetworkMock<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 }
 
 fn setup(

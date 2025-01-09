@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_consensus::stream_handler::StreamIdAndNonce;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     network_config_into_broadcast_channels,
@@ -48,7 +49,7 @@ pub struct FlowTestSetup {
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels:
-        BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+        BroadcastTopicChannels<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 }
 
 impl FlowTestSetup {
@@ -181,7 +182,7 @@ pub fn create_consensus_manager_configs_and_channels(
     ports: Vec<u16>,
 ) -> (
     Vec<ConsensusManagerConfig>,
-    BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+    BroadcastTopicChannels<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 ) {
     let mut network_configs = create_connected_network_configs(ports);
 

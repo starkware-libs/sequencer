@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
-use papyrus_consensus::stream_handler::StreamHandler;
+use papyrus_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -130,7 +130,7 @@ fn test_setup()
 
     let network_channels = mock_register_broadcast_topic().unwrap();
     let network_proposal_channels: TestSubscriberChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     > = mock_register_broadcast_topic().unwrap();
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
