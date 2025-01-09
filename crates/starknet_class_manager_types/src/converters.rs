@@ -1,16 +1,12 @@
-use blockifier::transaction::transaction_execution::Transaction;
-use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction_types::{
-    ExternalTransaction,
-    InternalRpcTransaction,
-    InternalTransaction,
-};
+use blockifier::transaction::transaction_execution;
+use starknet_api::internal_transaction::{InternalRpcTransaction, InternalTransaction};
+use starknet_api::rpc_transaction::{ExternalTransaction, RpcTransaction};
 
-use crate::ClassManagerClient;
+use crate::SharedClassManagerClient;
 
 pub fn internal_transaction_to_external_transaction(
     tx: InternalTransaction,
-    class_manager_client: &dyn ClassManagerClient,
+    class_manager_client: &SharedClassManagerClient,
 ) -> ExternalTransaction {
     match tx {
         InternalTransaction::RpcTransaction(internal_rpc_transaction) => {
@@ -25,7 +21,7 @@ pub fn internal_transaction_to_external_transaction(
 
 pub fn external_transaction_to_internal_transaction(
     tx: ExternalTransaction,
-    class_manager_client: &dyn ClassManagerClient,
+    class_manager_client: &SharedClassManagerClient,
 ) -> InternalTransaction {
     match tx {
         ExternalTransaction::RpcTransaction(rpc_transaction) => {
@@ -41,21 +37,21 @@ pub fn external_transaction_to_internal_transaction(
 // The transaction returned here implements the trait ExecutableTransaction (defined in the batcher)
 pub fn internal_rpc_to_executable_transaction(
     _tx: InternalRpcTransaction,
-    _class_manager_client: &dyn ClassManagerClient,
-) -> Transaction {
+    _class_manager_client: &SharedClassManagerClient,
+) -> transaction_execution::Transaction {
     unimplemented!()
 }
 
 pub fn rpc_to_internal_rpc(
     _tx: RpcTransaction,
-    _class_manager_client: &dyn ClassManagerClient,
+    _class_manager_client: &SharedClassManagerClient,
 ) -> InternalRpcTransaction {
     unimplemented!()
 }
 
 pub fn internal_rpc_to_rpc(
     _tx: InternalRpcTransaction,
-    _class_manager_client: &dyn ClassManagerClient,
+    _class_manager_client: &SharedClassManagerClient,
 ) -> RpcTransaction {
     unimplemented!()
 }
