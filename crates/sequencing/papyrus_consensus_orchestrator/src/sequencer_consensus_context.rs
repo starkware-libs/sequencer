@@ -241,20 +241,22 @@ impl ConsensusContext for SequencerConsensusContext {
 
     // Note: this function does not receive ProposalInit.
     // That part is consumed by the caller, so it can know the height/round.
-    #[instrument(level = "info", skip(self, timeout, content_receiver))]
+    #[instrument(skip_all)]
     async fn validate_proposal(
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
-        info!("Validating proposal: timeout={timeout:?}");
         assert_eq!(Some(proposal_init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
         match proposal_init.round.cmp(&self.current_round) {
-            std::cmp::Ordering::Less => fin_receiver,
+            std::cmp::Ordering::Less => {
+                trace!("Dropping proposal from past round");
+                fin_receiver
+            }
             std::cmp::Ordering::Greater => {
-                debug!("Queuing proposal for future round: current_round={}", self.current_round);
+                trace!("Queueing proposal for future round.");
                 self.queued_proposals.insert(
                     proposal_init.round,
                     (
@@ -443,7 +445,6 @@ impl ConsensusContext for SequencerConsensusContext {
 }
 
 impl SequencerConsensusContext {
-    #[instrument(level = "info", skip(self, timeout, content_receiver, fin_sender))]
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
@@ -452,7 +453,6 @@ impl SequencerConsensusContext {
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
     ) {
-        info!("Validating proposal with timeout: {timeout:?}");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
@@ -462,22 +462,27 @@ impl SequencerConsensusContext {
         self.proposal_id += 1;
         let gas_prices = self.gas_prices();
 
-        let handle = tokio::spawn(async move {
-            validate_proposal(
-                chain_id,
-                proposal_id,
-                batcher.as_ref(),
-                height,
-                proposer,
-                timeout,
-                valid_proposals,
-                content_receiver,
-                fin_sender,
-                cancel_token_clone,
-                gas_prices,
-            )
-            .await
-        });
+        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
+
+        let handle = tokio::spawn(
+            async move {
+                validate_proposal(
+                    chain_id,
+                    proposal_id,
+                    batcher.as_ref(),
+                    height,
+                    proposer,
+                    timeout,
+                    valid_proposals,
+                    content_receiver,
+                    fin_sender,
+                    cancel_token_clone,
+                    gas_prices,
+                )
+                .await
+            }
+            .instrument(debug_span!("consensus_validate_proposal", %proposal_id)),
+        );
         self.active_proposal = Some((cancel_token, handle));
     }
 
@@ -674,12 +679,12 @@ async fn validate_proposal(
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
-                warn!("Proposal interrupted: {:?}", proposal_id);
+                warn!("Proposal interrupted");
                 batcher_abort_proposal(batcher, proposal_id).await;
                 return;
             }
             _ = tokio::time::sleep_until(deadline) => {
-                warn!("Validation timed out");
+                warn!("Validation timed out.");
                 batcher_abort_proposal(batcher, proposal_id).await;
                 return;
             }
@@ -696,12 +701,12 @@ async fn validate_proposal(
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid => {
-                        warn!("Invalid proposal: {proposal_id:?}");
+                        warn!("Invalid proposal.");
                         // No need to abort since the Batcher is the source of this info.
                         return;
                     }
                     HandledProposalPart::Failed(fail_reason) => {
-                        warn!("Failed to handle proposal part: {proposal_id:?}, {fail_reason}");
+                        warn!("Failed to handle proposal part. {fail_reason}");
                         batcher_abort_proposal(batcher, proposal_id).await;
                         return;
                     }
@@ -770,6 +775,7 @@ async fn handle_proposal_part(
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
+            debug!("Received TransactionBatch with {} txs", txs.len());
             let exe_txs: Vec<ExecutableTransaction> = txs
                 .into_iter()
                 .map(|tx| {
@@ -809,15 +815,14 @@ async fn handle_proposal_part(
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
             info!(
-                "Finished validating proposal {:?}: network_block_id: {:?}, batcher_block_id = \
-                 {:?}, num_txs = {:?}",
-                proposal_id,
-                id,
-                batcher_block_id,
-                content.len(),
+                network_block_id = %id,
+                %batcher_block_id,
+                num_txs = %content.len(),
+                "Finished validating proposal."
             );
             HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_content_id: id })
         }
+        // TODO(Asmaa): Handle invalid proposal part by aborting the proposal, not the node.
         _ => panic!("Invalid proposal part: {:?}", proposal_part),
     }
 }
