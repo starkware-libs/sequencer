@@ -6,6 +6,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -254,6 +255,11 @@ fn add_txs_and_verify_no_replacement_in_pool(
 #[fixture]
 fn mempool() -> Mempool {
     MempoolContentBuilder::new().build_into_mempool()
+}
+
+/// Used for the has_tx_from_address tests.
+fn deployer_address() -> ContractAddress {
+    ContractAddress::from(100_u32)
 }
 
 // Tests.
@@ -898,5 +904,22 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
 fn has_tx_from_address_negative_flow() {
     let mempool = MempoolContentBuilder::new().build_into_mempool();
 
-    assert!(!mempool.has_tx_from_address(contract_address!(100_u32)));
+    assert!(!mempool.has_tx_from_address(deployer_address()));
+}
+
+#[rstest]
+#[case::tentative(MempoolState::create_for_testing(
+    Default::default(), Default::default(), [(deployer_address(), nonce!(0))].into_iter().collect()
+))]
+#[case::staged(MempoolState::create_for_testing(
+    Default::default(), [(deployer_address(), nonce!(0))].into_iter().collect(), Default::default()
+))]
+#[case::committed(MempoolState::create_for_testing(
+    [(deployer_address(), nonce!(0))].into_iter().collect(), Default::default(), Default::default()
+))]
+fn tx_from_address_exists_positive_flow(#[case] state: MempoolState) {
+    let mempool_content_builder = MempoolContentBuilder::new().with_state(state);
+    let mempool = mempool_content_builder.build_into_mempool();
+
+    assert!(mempool.has_tx_from_address(deployer_address()));
 }
