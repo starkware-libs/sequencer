@@ -224,13 +224,16 @@ pub(crate) async fn get_sequencer_setup_configs(
     );
 
     // Flatten while enumerating sequencer and sequencer part indices.
-    let indexed_component_configs: Vec<((usize, usize), ComponentConfig)> = component_configs
+    let indexed_component_configs: Vec<(SequencerExecutionId, ComponentConfig)> = component_configs
         .into_iter()
         .enumerate()
         .flat_map(|(sequencer_index, parts_component_configs)| {
             parts_component_configs.into_iter().enumerate().map(
-                move |(sequencer_part_config, value)| {
-                    ((sequencer_index, sequencer_part_config), value) // Combine indices with the value
+                move |(sequencer_part_index, parts_component_config)| {
+                    (
+                        SequencerExecutionId::new(sequencer_index, sequencer_part_index),
+                        parts_component_config,
+                    ) // Combine indices with the value
                 },
             )
         })
@@ -247,7 +250,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         |(
             index,
             (
-                ((sequencer_index, sequencer_part_index), component_config),
+                (sequencer_execution_id, component_config),
                 consensus_manager_config,
                 mempool_p2p_config,
             ),
@@ -256,7 +259,7 @@ pub(crate) async fn get_sequencer_setup_configs(
             async move {
                 SequencerSetup::new(
                     accounts.to_vec(),
-                    SequencerExecutionId::new(sequencer_index, sequencer_part_index),
+                    sequencer_execution_id,
                     chain_info,
                     consensus_manager_config,
                     mempool_p2p_config,
