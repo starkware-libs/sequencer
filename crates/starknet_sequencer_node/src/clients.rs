@@ -54,50 +54,75 @@ pub struct SequencerNodeClients {
 }
 
 /// A macro to retrieve a shared client wrapped in an `Arc`. The returned client is either the local
-/// or the remote, as at most one of them exists. If neither, it returns `None`.
+/// or the remote, based on the provided execution mode. If the execution mode is `Disabled` or
+/// neither client exists, it returns `None`.
 ///
 /// # Arguments
 ///
 /// * `$self` - The `self` reference to the struct that contains the client field.
 /// * `$client_field` - The field name (within `self`) representing the client, which has both
 ///   `local_client` and `remote_client` as options.
+/// * `$execution_mode` - A reference to the `ReactiveComponentExecutionMode` that determines which
+///   client to return (`local_client` or `remote_client`).
 ///
 /// # Returns
 ///
 /// An `Option<Arc<dyn ClientTrait>>` containing the available client (local_client or
-/// remote_client), wrapped in Arc. If neither exists, returns None.
+/// remote_client), wrapped in `Arc`. If the execution mode is `Disabled` or neither client exists,
+/// returns `None`.
 ///
 /// # Example
 ///
 /// ```rust,ignore
-/// // Assuming `SequencerNodeClients` struct has fields `batcher_client` and `mempool_client.
+/// // Assuming `SequencerNodeClients` struct has fields `batcher_client` and `mempool_client`.
 /// impl SequencerNodeClients {
-///     pub fn get_batcher_shared_client(&self) -> Option<Arc<dyn BatcherClient>> {
-///         get_shared_client!(self, batcher_client)
+///     pub fn get_batcher_shared_client(
+///         &self,
+///         execution_mode: &ReactiveComponentExecutionMode,
+///     ) -> Option<Arc<dyn BatcherClient>> {
+///         get_shared_client!(self, batcher_client, execution_mode)
 ///     }
 ///
-///     pub fn get_mempool_shared_client(&self) -> Option<Arc<dyn MempoolClient>> {
-///         get_shared_client!(self, mempool_client)
+///     pub fn get_mempool_shared_client(
+///         &self,
+///         execution_mode: &ReactiveComponentExecutionMode,
+///     ) -> Option<Arc<dyn MempoolClient>> {
+///         get_shared_client!(self, mempool_client, execution_mode)
 ///     }
 /// }
 /// ```
 #[macro_export]
 macro_rules! get_shared_client {
-    ($self:ident, $client_field:ident) => {{
+    ($self:ident, $client_field:ident, $execution_mode:expr) => {{
         let client = &$self.$client_field;
-        if let Some(local_client) = client.get_local_client() {
-            return Some(Arc::new(local_client));
-        } else if let Some(remote_client) = client.get_remote_client() {
-            return Some(Arc::new(remote_client));
+        match &$execution_mode {
+            ReactiveComponentExecutionMode::Disabled => None,
+            ReactiveComponentExecutionMode::Remote => {
+                if let Some(remote_client) = client.get_remote_client() {
+                    Some(Arc::new(remote_client))
+                } else {
+                    None
+                }
+            }
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+                if let Some(local_client) = client.get_local_client() {
+                    Some(Arc::new(local_client))
+                } else {
+                    None
+                }
+            }
         }
-        None
     }};
 }
 
 // TODO(Nadin): Refactor getters to remove code duplication.
 impl SequencerNodeClients {
-    pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
-        get_shared_client!(self, batcher_client)
+    pub fn get_batcher_shared_client(
+        &self,
+        execution_mode: &ReactiveComponentExecutionMode,
+    ) -> Option<SharedBatcherClient> {
+        get_shared_client!(self, batcher_client, execution_mode)
     }
 
     pub fn get_batcher_local_client(
@@ -106,8 +131,11 @@ impl SequencerNodeClients {
         self.batcher_client.get_local_client()
     }
 
-    pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
-        get_shared_client!(self, mempool_client)
+    pub fn get_mempool_shared_client(
+        &self,
+        execution_mode: &ReactiveComponentExecutionMode,
+    ) -> Option<SharedMempoolClient> {
+        get_shared_client!(self, mempool_client, execution_mode)
     }
 
     pub fn get_mempool_local_client(
@@ -116,8 +144,11 @@ impl SequencerNodeClients {
         self.mempool_client.get_local_client()
     }
 
-    pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
-        get_shared_client!(self, gateway_client)
+    pub fn get_gateway_shared_client(
+        &self,
+        execution_mode: &ReactiveComponentExecutionMode,
+    ) -> Option<SharedGatewayClient> {
+        get_shared_client!(self, gateway_client, execution_mode)
     }
 
     pub fn get_gateway_local_client(
@@ -132,14 +163,19 @@ impl SequencerNodeClients {
         self.l1_provider_client.get_local_client()
     }
 
-    pub fn get_l1_provider_shared_client(&self) -> Option<SharedL1ProviderClient> {
-        get_shared_client!(self, l1_provider_client)
+    pub fn get_l1_provider_shared_client(
+        &self,
+        execution_mode: &ReactiveComponentExecutionMode,
+    ) -> Option<SharedL1ProviderClient> {
+        get_shared_client!(self, l1_provider_client, execution_mode)
     }
 
     pub fn get_mempool_p2p_propagator_shared_client(
         &self,
+
+        execution_mode: &ReactiveComponentExecutionMode,
     ) -> Option<SharedMempoolP2pPropagatorClient> {
-        get_shared_client!(self, mempool_p2p_propagator_client)
+        get_shared_client!(self, mempool_p2p_propagator_client, execution_mode)
     }
 
     pub fn get_mempool_p2p_propagator_local_client(
@@ -149,8 +185,11 @@ impl SequencerNodeClients {
         self.mempool_p2p_propagator_client.get_local_client()
     }
 
-    pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
-        get_shared_client!(self, state_sync_client)
+    pub fn get_state_sync_shared_client(
+        &self,
+        execution_mode: &ReactiveComponentExecutionMode,
+    ) -> Option<SharedStateSyncClient> {
+        get_shared_client!(self, state_sync_client, execution_mode)
     }
 
     pub fn get_state_sync_local_client(
