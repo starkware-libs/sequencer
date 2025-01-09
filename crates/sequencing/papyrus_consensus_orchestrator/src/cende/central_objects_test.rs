@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use blockifier::bouncer::{BouncerWeights, BuiltinCount};
+use blockifier::bouncer::BouncerWeights;
 use indexmap::indexmap;
 use rstest::rstest;
 use serde_json::Value;
@@ -85,6 +85,7 @@ fn central_state_diff_json() -> Value {
         storage_diffs: indexmap!(contract_address!(3_u8) => indexmap!(storage_key!(3_u8) => felt!(3_u8))),
         declared_classes: indexmap!(ClassHash(felt!(4_u8))=> CompiledClassHash(felt!(4_u8))),
         nonces: indexmap!(contract_address!(2_u8)=> nonce!(2)),
+        replaced_classes: indexmap!(contract_address!(5_u8)=> ClassHash(felt!(5_u8))),
         ..Default::default()
     };
 
@@ -238,19 +239,8 @@ fn central_l1_handler_tx_json() -> Value {
 }
 
 fn central_bouncer_weights_json() -> Value {
-    let bouncer_weights = BouncerWeights {
-        builtin_count: BuiltinCount {
-            pedersen: 4948,
-            poseidon: 54,
-            range_check: 2301,
-            ..BuiltinCount::empty()
-        },
-        n_events: 2,
-        n_steps: 121095,
-        state_diff_size: 45,
-        ..BouncerWeights::empty()
-    };
-
+    let bouncer_weights_json = read_json_file(CENTRAL_BOUNCER_WEIGHTS_JSON_PATH);
+    let bouncer_weights: BouncerWeights = serde_json::from_value(bouncer_weights_json).unwrap();
     serde_json::to_value(bouncer_weights).unwrap()
 }
 

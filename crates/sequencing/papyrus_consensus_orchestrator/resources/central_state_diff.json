@@ -1,6 +1,7 @@
 {
     "address_to_class_hash": {
-        "0x1": "0x1"
+        "0x1": "0x1",
+        "0x5": "0x5"
     },
     "nonces": {
         "L1": {
