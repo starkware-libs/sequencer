@@ -5,8 +5,8 @@ use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::{Event, L1ProviderResult, ValidationStatus};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
-use crate::{L1ProviderConfig, ProviderState, TransactionManager};
-
+use crate::transaction_manager::TransactionManager;
+use crate::{L1ProviderConfig, ProviderState};
 // TODO: optimistic proposer support, will add later to keep things simple, but the design here
 // is compatible with it.
 #[derive(Debug, Default)]
