@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use starknet_api::contract_class::ClassInfo;
-use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction,
@@ -11,7 +11,11 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
-use starknet_api::transaction::{Transaction as StarknetApiTransaction, TransactionHash};
+use starknet_api::transaction::{
+    calculate_contract_address,
+    Transaction as StarknetApiTransaction,
+    TransactionHash,
+};
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
@@ -104,12 +108,7 @@ impl Transaction {
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
                     Some(address) => address,
-                    None => calculate_contract_address(
-                        deploy_account.contract_address_salt(),
-                        deploy_account.class_hash(),
-                        &deploy_account.constructor_calldata(),
-                        ContractAddress::default(),
-                    )?,
+                    None => calculate_contract_address(&deploy_account)?,
                 };
                 ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
                     tx: deploy_account,

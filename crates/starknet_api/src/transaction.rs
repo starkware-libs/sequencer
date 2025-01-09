@@ -6,7 +6,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
-    calculate_contract_address,
+    calculate_contract_address as calculate_contract_address_from_params,
     ChainId,
     ClassHash,
     CompiledClassHash,
@@ -41,7 +41,7 @@ use crate::transaction_hash::{
     get_invoke_transaction_v3_hash,
     get_l1_handler_transaction_hash,
 };
-use crate::{executable_transaction, StarknetApiError};
+use crate::{executable_transaction, StarknetApiError, StarknetApiResult};
 
 #[cfg(test)]
 #[path = "transaction_test.rs"]
@@ -143,12 +143,7 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
         let tx_hash = tx.calculate_transaction_hash(chain_id)?;
         match tx {
             Transaction::DeployAccount(tx) => {
-                let contract_address = calculate_contract_address(
-                    tx.contract_address_salt(),
-                    tx.class_hash(),
-                    &tx.constructor_calldata(),
-                    ContractAddress::default(),
-                )?;
+                let contract_address = calculate_contract_address(&tx)?;
                 Ok(executable_transaction::Transaction::Account(
                     executable_transaction::AccountTransaction::DeployAccount(
                         executable_transaction::DeployAccountTransaction {
@@ -422,6 +417,21 @@ impl TransactionHasher for DeclareTransaction {
     }
 }
 
+pub trait DeployTrait {
+    fn contract_address_salt(&self) -> ContractAddressSalt;
+    fn class_hash(&self) -> ClassHash;
+    fn constructor_calldata(&self) -> &Calldata;
+}
+
+pub fn calculate_contract_address(tx: &impl DeployTrait) -> StarknetApiResult<ContractAddress> {
+    calculate_contract_address_from_params(
+        tx.contract_address_salt(),
+        tx.class_hash(),
+        tx.constructor_calldata(),
+        ContractAddress::default(),
+    )
+}
+
 /// A deploy account V1 transaction.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
@@ -431,6 +441,20 @@ pub struct DeployAccountTransactionV1 {
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
+}
+
+impl DeployTrait for DeployAccountTransactionV1 {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        self.contract_address_salt
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
 }
 
 impl TransactionHasher for DeployAccountTransactionV1 {
@@ -468,12 +492,50 @@ impl TransactionHasher for DeployAccountTransactionV3 {
     }
 }
 
+impl DeployTrait for DeployAccountTransactionV3 {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        self.contract_address_salt
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
 )]
 pub enum DeployAccountTransaction {
     V1(DeployAccountTransactionV1),
     V3(DeployAccountTransactionV3),
+}
+
+// TODO(Arni): This does collide with the impl block of DeployAccountTransaction.
+impl DeployTrait for DeployAccountTransaction {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        match self {
+            DeployAccountTransaction::V1(tx) => tx.contract_address_salt(),
+            DeployAccountTransaction::V3(tx) => tx.contract_address_salt(),
+        }
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        match self {
+            DeployAccountTransaction::V1(tx) => tx.class_hash(),
+            DeployAccountTransaction::V3(tx) => tx.class_hash(),
+        }
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        match self {
+            DeployAccountTransaction::V1(tx) => tx.constructor_calldata(),
+            DeployAccountTransaction::V3(tx) => tx.constructor_calldata(),
+        }
+    }
 }
 
 macro_rules! implement_deploy_account_tx_getters {
@@ -490,6 +552,7 @@ macro_rules! implement_deploy_account_tx_getters {
 }
 
 impl DeployAccountTransaction {
+    // TODO(Arni): Consider using a direct reference to the getters from [DeployTrait].
     implement_deploy_account_tx_getters!(
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
@@ -547,6 +610,20 @@ impl TransactionHasher for DeployTransaction {
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
         get_deploy_transaction_hash(self, chain_id, transaction_version)
+    }
+}
+
+impl DeployTrait for DeployTransaction {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        self.contract_address_salt
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
     }
 }
 
