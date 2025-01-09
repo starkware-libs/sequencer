@@ -16,7 +16,9 @@ function build() {
     echo "Building..."
     pypy3.9 -m venv /tmp/venv
     source /tmp/venv/bin/activate
-    cargo build --release -p native_blockifier --features "cairo_native" || clean
+    cargo build --release \
+        -p native_blockifier --features "cairo_native" \
+        -p starknet-sierra-compile --bin starknet-native-compile --features "cairo_native" || clean
     clean
 }
 
