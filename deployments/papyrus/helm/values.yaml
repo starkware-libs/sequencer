@@ -8,14 +8,14 @@ node:
   concurrentFgRequests: 50
 
 # Ethereum node URL. A value for this variable is mandatory.
-base_layer_node_url: https://sepolia.infura.io/v3/02d1979ac909443b938cfc740f19708f
+base_layer_node_url:
 
 # possible values: "StateOnly" and "FullArchive".
 storage_scope:
   StateOnly
 
 starknet:
-  # possible values: "mainnet.json, sepolia_testnet" and "sepolia_integration".
+  # possible values: "mainnet.json, sepolia_testnet.json" and "sepolia_integration.json".
   preset: sepolia_integration.json
 
 deployment:
@@ -159,10 +159,10 @@ ingress:
 # This is relevant for Grafana Operator users https://grafana.github.io/grafana-operator/docs/
 grafanaDashboard:
   # Should the GrafanaDashboard object be installed
-  enabled: true
+  enabled: false
 
 grafanaAlerts:
-  enabled: true
+  enabled: false
 
 # Backup mode
 backup:
