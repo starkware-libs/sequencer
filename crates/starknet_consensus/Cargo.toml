@@ -20,7 +20,6 @@ papyrus_config.workspace = true
 papyrus_network.workspace = true
 papyrus_network_types.workspace = true
 papyrus_protobuf.workspace = true
-prost.workspace = true
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
@@ -35,6 +34,7 @@ enum-as-inner.workspace = true
 mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_network_types = { workspace = true, features = ["testing"] }
+papyrus_protobuf = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 test-case.workspace = true
