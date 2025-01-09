@@ -23,8 +23,7 @@ use papyrus_config::converters::deserialize_milliseconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::L1ProviderResult;
+use starknet_l1_provider_types::SessionState;
 use validator::Validate;
 
 #[cfg(test)]
@@ -42,30 +41,21 @@ pub enum ProviderState {
 }
 
 impl ProviderState {
-    fn transition_to_propose(self) -> L1ProviderResult<Self> {
-        match self {
-            ProviderState::Pending => Ok(ProviderState::Propose),
-            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Propose)),
-        }
-    }
-
-    fn transition_to_validate(self) -> L1ProviderResult<Self> {
-        match self {
-            ProviderState::Pending => Ok(ProviderState::Validate),
-            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Validate)),
-        }
-    }
-
-    fn _transition_to_pending(self) -> L1ProviderResult<Self> {
-        todo!()
-    }
-
     pub fn as_str(&self) -> &str {
         match self {
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
             ProviderState::Uninitialized => "Uninitialized",
             ProviderState::Validate => "Validate",
+        }
+    }
+}
+
+impl From<SessionState> for ProviderState {
+    fn from(state: SessionState) -> Self {
+        match state {
+            SessionState::Propose => ProviderState::Propose,
+            SessionState::Validate => ProviderState::Validate,
         }
     }
 }

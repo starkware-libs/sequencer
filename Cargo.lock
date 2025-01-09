@@ -10989,6 +10989,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "indexmap 2.7.0",
+ "itertools 0.12.1",
  "papyrus_base_layer",
  "papyrus_config",
  "pretty_assertions",
