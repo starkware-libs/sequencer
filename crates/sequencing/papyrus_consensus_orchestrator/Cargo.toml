@@ -30,7 +30,6 @@ url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 blockifier.workspace = true
-infra_utils.workspace = true
 lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true
@@ -40,6 +39,7 @@ papyrus_test_utils.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
 test-case.workspace = true
 
 [lints]

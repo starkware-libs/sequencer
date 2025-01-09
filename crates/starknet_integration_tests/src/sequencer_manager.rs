@@ -3,8 +3,6 @@ use std::net::SocketAddr;
 use futures::future::join_all;
 use futures::stream::{self, StreamExt};
 use futures::TryFutureExt;
-use infra_utils::run_until::run_until;
-use infra_utils::tracing::{CustomLogger, TraceLevel};
 use itertools::izip;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
@@ -16,6 +14,8 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
+use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_sequencer_infra::test_utils::{AvailablePorts, MAX_NUMBER_OF_INSTANCES_PER_TEST};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{

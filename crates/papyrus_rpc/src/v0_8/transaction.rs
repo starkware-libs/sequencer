@@ -953,12 +953,12 @@ impl Add for ExecutionResources {
                     .data_availability
                     .l1_gas
                     .checked_add(other.data_availability.l1_gas)
-                    .expect("Gas amounts should be summable"),
+                    .expect("L1 Gas overflow"),
                 l1_data_gas: self
                     .data_availability
                     .l1_data_gas
                     .checked_add(other.data_availability.l1_data_gas)
-                    .expect("Gas amounts should be summable"),
+                    .expect("L1_Data Gas overflow"),
             },
         }
     }

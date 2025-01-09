@@ -31,7 +31,7 @@ use starknet_api::deprecated_contract_class::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 #[cfg(feature = "cairo_native")]
@@ -132,6 +132,17 @@ impl RunnableCompiledClass {
             Some(TrackedResource::CairoSteps) => TrackedResource::CairoSteps,
             Some(TrackedResource::SierraGas) | None => contract_tracked_resource,
         }
+    }
+
+    /// Returns the tracked resource for calling this contract from within a context.
+    pub fn get_current_tracked_resource(
+        &self,
+        context: &EntryPointExecutionContext,
+    ) -> TrackedResource {
+        self.tracked_resource(
+            &context.versioned_constants().min_sierra_version_for_sierra_gas,
+            context.tracked_resource_stack.last(),
+        )
     }
 }
 

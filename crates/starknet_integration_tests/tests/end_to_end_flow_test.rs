@@ -133,7 +133,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             deploy_account,
             test_single_tx,
             Felt::from_hex_unchecked(
-                "0x773f138ea0d89887a4982df74341ce6e6303e3528027f5a838e1c3f8c2cb701",
+                "0xa7c607b6c3a1f3153bf979b41999dd3fdce771fdc49b13d6f12a98085dcb9c",
             ),
         ),
     ];

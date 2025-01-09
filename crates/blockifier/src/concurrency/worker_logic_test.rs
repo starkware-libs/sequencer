@@ -385,7 +385,6 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
 
     assert_eq!(execution_output.writes, writes.diff(&reads));
     assert_eq!(execution_output.reads, reads);
-    assert_ne!(execution_output.visited_pcs, HashMap::default());
 
     // Failed execution.
     let tx_index = 1;
@@ -404,7 +403,6 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     };
     assert_eq!(execution_output.reads, reads);
     assert_eq!(execution_output.writes, StateMaps::default());
-    assert_eq!(execution_output.visited_pcs, HashMap::default());
 
     // Reverted execution.
     let tx_index = 2;
@@ -418,7 +416,6 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let execution_output = execution_output.as_ref().unwrap();
     assert!(execution_output.result.as_ref().unwrap().is_reverted());
     assert_ne!(execution_output.writes, StateMaps::default());
-    assert_ne!(execution_output.visited_pcs, HashMap::default());
 
     // Validate status change.
     for tx_index in 0..3 {

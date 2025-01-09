@@ -49,10 +49,10 @@ class Config:
         _config.update(self.config)
         return _config
 
-    def get_merged_config(self):
+    def get_merged_config(self) -> Dict[Any, Any]:
         return self._merged_config()
 
-    def get_config(self):
+    def get_config(self) -> Dict[Any, Any]:
         return self.config
 
     def validate(self):

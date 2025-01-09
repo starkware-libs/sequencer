@@ -343,8 +343,8 @@ impl SyscallResponse for GetBlockHashResponse {
 
 /// Returns the block hash of a given block_number.
 /// Returns the expected block hash if the given block was created at least
-/// [STORED_BLOCK_HASH_BUFFER](`crate::abi::constants::STORED_BLOCK_HASH_BUFFER`) blocks before the
-/// current block. Otherwise, returns an error.
+/// [crate::abi::constants::STORED_BLOCK_HASH_BUFFER] blocks before the current block. Otherwise,
+/// returns an error.
 pub fn get_block_hash(
     request: GetBlockHashRequest,
     _vm: &mut VirtualMachine,

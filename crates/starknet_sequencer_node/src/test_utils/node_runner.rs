@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use infra_utils::command::create_shell_command;
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::command::create_shell_command;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use tokio::io::{AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};

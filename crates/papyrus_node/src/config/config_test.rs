@@ -8,7 +8,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use colored::Colorize;
-use infra_utils::path::resolve_project_relative_path;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::SerializeConfig;
@@ -19,6 +18,7 @@ use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
 use starknet_api::test_utils::json_utils::assert_json_eq;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use tempfile::NamedTempFile;
 use validator::Validate;
 

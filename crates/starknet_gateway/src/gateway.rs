@@ -10,7 +10,7 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info, instrument, Span};
 
@@ -147,7 +147,7 @@ impl ProcessTxBlockingTask {
 pub fn create_gateway(
     config: GatewayConfig,
     shared_state_sync_client: SharedStateSyncClient,
-    compiler_config: SierraToCasmCompilationConfig,
+    compiler_config: SierraCompilationConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
