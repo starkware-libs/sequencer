@@ -47,10 +47,11 @@ pub fn create_node_components(
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool Client should be available");
+            let mempool_client = clients
+                .get_mempool_shared_client(&config.components.mempool.execution_mode)
+                .expect("Mempool Client should be available");
             let l1_provider_client = clients
-                .get_l1_provider_shared_client()
+                .get_l1_provider_shared_client(&config.components.l1_provider.execution_mode)
                 .expect("L1 Provider Client should be available");
             Some(create_batcher(config.batcher_config.clone(), mempool_client, l1_provider_client))
         }
@@ -58,10 +59,11 @@ pub fn create_node_components(
     };
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let batcher_client =
-                clients.get_batcher_shared_client().expect("Batcher Client should be available");
+            let batcher_client = clients
+                .get_batcher_shared_client(&config.components.batcher.execution_mode)
+                .expect("Batcher Client should be available");
             let state_sync_client = clients
-                .get_state_sync_shared_client()
+                .get_state_sync_shared_client(&config.components.state_sync.execution_mode)
                 .expect("State Sync Client should be available");
             Some(ConsensusManager::new(
                 config.consensus_manager_config.clone(),
@@ -74,10 +76,11 @@ pub fn create_node_components(
     let gateway = match config.components.gateway.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool Client should be available");
+            let mempool_client = clients
+                .get_mempool_shared_client(&config.components.mempool.execution_mode)
+                .expect("Mempool Client should be available");
             let state_sync_client = clients
-                .get_state_sync_shared_client()
+                .get_state_sync_shared_client(&config.components.state_sync.execution_mode)
                 .expect("State Sync Client should be available");
 
             Some(create_gateway(
@@ -91,37 +94,40 @@ pub fn create_node_components(
     };
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let gateway_client =
-                clients.get_gateway_shared_client().expect("Gateway Client should be available");
+            let gateway_client = clients
+                .get_gateway_shared_client(&config.components.gateway.execution_mode)
+                .expect("Gateway Client should be available");
 
             Some(create_http_server(config.http_server_config.clone(), gateway_client))
         }
         ActiveComponentExecutionMode::Disabled => None,
     };
 
-    let (mempool_p2p_propagator, mempool_p2p_runner) = match config
-        .components
-        .mempool_p2p
-        .execution_mode
-    {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let gateway_client =
-                clients.get_gateway_shared_client().expect("Gateway Client should be available");
-            let (mempool_p2p_propagator, mempool_p2p_runner) =
-                create_p2p_propagator_and_runner(config.mempool_p2p_config.clone(), gateway_client);
-            (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
-        }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            (None, None)
-        }
-    };
+    let (mempool_p2p_propagator, mempool_p2p_runner) =
+        match config.components.mempool_p2p.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let gateway_client = clients
+                    .get_gateway_shared_client(&config.components.gateway.execution_mode)
+                    .expect("Gateway Client should be available");
+                let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
+                    config.mempool_p2p_config.clone(),
+                    gateway_client,
+                );
+                (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
+            }
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                (None, None)
+            }
+        };
 
     let mempool = match config.components.mempool.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_p2p_propagator_client = clients
-                .get_mempool_p2p_propagator_shared_client()
+                .get_mempool_p2p_propagator_shared_client(
+                    &config.components.mempool_p2p.execution_mode,
+                )
                 .expect("Propagator Client should be available");
             let mempool = create_mempool(mempool_p2p_propagator_client);
             Some(mempool)
@@ -159,7 +165,9 @@ pub fn create_node_components(
 
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            let l1_provider_client = clients
+                .get_l1_provider_shared_client(&config.components.l1_provider.execution_mode)
+                .unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
 
