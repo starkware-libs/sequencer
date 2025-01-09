@@ -35,7 +35,7 @@ use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerCl
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
 use starknet_consensus::config::ConsensusConfig;
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use starknet_consensus::types::ContextConfig;
 use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::sync::RwLock;
@@ -206,7 +206,7 @@ fn spawn_consensus(
         BUFFER_SIZE,
     )?;
     let proposal_network_channels: BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,

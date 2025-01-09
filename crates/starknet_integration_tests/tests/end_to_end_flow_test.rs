@@ -15,6 +15,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_consensus::stream_handler::StreamIdAndNonce;
 use starknet_consensus::types::ValidatorId;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -154,7 +155,7 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 
 async fn listen_to_broadcasted_messages(
     consensus_proposals_channels: &mut BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,

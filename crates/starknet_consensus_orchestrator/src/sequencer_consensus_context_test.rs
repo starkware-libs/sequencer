@@ -42,7 +42,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use starknet_consensus::types::{ConsensusContext, ContextConfig};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
@@ -72,7 +72,8 @@ fn generate_invoke_tx(nonce: u8) -> Transaction {
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
-    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart, HeightAndRound>>,
+    _new_proposal_network:
+        BroadcastNetworkMock<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 }
 
 fn setup(

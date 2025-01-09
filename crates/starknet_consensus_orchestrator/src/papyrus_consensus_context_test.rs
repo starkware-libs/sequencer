@@ -22,7 +22,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
 use starknet_api::block::{Block, BlockHash};
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use starknet_consensus::types::{ConsensusContext, ContextConfig};
 use test_case::test_case;
 
@@ -130,7 +130,7 @@ fn test_setup()
 
     let network_channels = mock_register_broadcast_topic().unwrap();
     let network_proposal_channels: TestSubscriberChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     > = mock_register_broadcast_topic().unwrap();
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
