@@ -66,7 +66,8 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
-use crate::fee_market::{calculate_next_base_gas_price, MAX_BLOCK_SIZE, MIN_GAS_PRICE};
+use crate::fee_market::calculate_next_base_gas_price;
+use crate::versioned_constants::VersionedConstants;
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
@@ -168,7 +169,7 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             chain_id,
             cende_ambassador,
-            l2_gas_price: MIN_GAS_PRICE,
+            l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
         }
     }
 
@@ -382,8 +383,11 @@ impl ConsensusContext for SequencerConsensusContext {
             })
             .await;
 
-        self.l2_gas_price =
-            calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used.0, MAX_BLOCK_SIZE / 2);
+        self.l2_gas_price = calculate_next_base_gas_price(
+            self.l2_gas_price,
+            l2_gas_used.0,
+            VersionedConstants::latest_constants().max_block_size / 2,
+        );
 
         Ok(())
     }

@@ -1,17 +1,9 @@
 use std::cmp::max;
 
+use crate::versioned_constants;
+
 #[cfg(test)]
 mod test;
-
-//  This constant is used to calculate the base gas price for the next block according to EIP-1559
-// and serves as a sensitivity parameter that limits the maximum rate of change of the gas price
-// between consecutive blocks.
-const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 48;
-/// The minimum gas price in fri.
-pub const MIN_GAS_PRICE: u64 = 100000;
-// TODO(Mohammad): Check the exact value for maximum block size in StarkNet.
-/// The maximum block size in gas units: 40M gas steps * 100 units/step.
-pub const MAX_BLOCK_SIZE: u64 = 4000000000;
 
 /// Calculate the base gas price for the next block according to EIP-1559.
 ///
@@ -20,19 +12,20 @@ pub const MAX_BLOCK_SIZE: u64 = 4000000000;
 /// - `gas_used`: The total gas used in the current block.
 /// - `gas_target`: The target gas usage per block (usually half of a block's gas limit).
 pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64) -> u64 {
+    let versioned_constants = versioned_constants::VersionedConstants::latest_constants();
     // Setting the target at 50% of the max block size balances the rate of gas price changes,
     // helping to prevent sudden spikes, particularly during increases, for a better user
     // experience.
     assert_eq!(
         gas_target,
-        MAX_BLOCK_SIZE / 2,
+        versioned_constants.max_block_size / 2,
         "Gas target must be 50% of max block size to balance price changes."
     );
     // To prevent precision loss during multiplication and division, we set a minimum gas price.
     // Additionally, a minimum gas price is established to prevent prolonged periods before the
     // price reaches a higher value.
     assert!(
-        price >= MIN_GAS_PRICE,
+        price >= versioned_constants.min_gas_price,
         "The gas price must be at least the minimum to prevent precision loss during \
          multiplication and division."
     );
@@ -54,7 +47,8 @@ pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64)
     // Calculate the price change, maintaining precision by dividing after scaling up.
     // This avoids significant precision loss that would occur if dividing before
     // multiplication.
-    let price_change_u128 = gas_delta_cost / gas_target_u128 / GAS_PRICE_MAX_CHANGE_DENOMINATOR;
+    let price_change_u128 =
+        gas_delta_cost / gas_target_u128 / versioned_constants.gas_price_max_change_denominator;
 
     // Convert back to u64, as the price change should fit within the u64 range.
     // Since the target is half the maximum block size (which fits within a u64), the gas delta
@@ -71,5 +65,5 @@ pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64)
             || gas_used <= gas_target && adjusted_price <= price
     );
 
-    max(adjusted_price, MIN_GAS_PRICE)
+    max(adjusted_price, versioned_constants.min_gas_price)
 }
