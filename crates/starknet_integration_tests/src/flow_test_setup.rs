@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -24,10 +25,11 @@ use starknet_sequencer_node::utils::create_node_modules;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
+use crate::integration_test_setup::SequencerExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
-    create_consensus_manager_configs_and_channels,
+    create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
     create_node_config,
     spawn_success_recorder,
@@ -57,7 +59,6 @@ impl FlowTestSetup {
         let accounts = tx_generator.accounts();
         let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(
-                SEQUENCER_INDICES.len(),
                 available_ports.get_next_ports(SEQUENCER_INDICES.len() + 1),
             );
         let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
@@ -135,7 +136,7 @@ impl FlowSequencerSetup {
         // Derive the configuration for the sequencer node.
         let (node_config, _required_params) = create_node_config(
             &mut available_ports,
-            sequencer_index,
+            SequencerExecutionId::new(sequencer_index, 0),
             chain_info,
             storage_for_test.batcher_storage_config,
             storage_for_test.state_sync_storage_config,
@@ -170,4 +171,21 @@ impl FlowSequencerSetup {
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
     }
+}
+
+pub fn create_consensus_manager_configs_and_channels(
+    ports: Vec<u16>,
+) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+    let (network_configs, broadcast_channels) =
+        create_network_configs_connected_to_broadcast_channels(
+            papyrus_network::gossipsub_impl::Topic::new(
+                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
+            ),
+            ports,
+        );
+    // TODO: Need to also add a channel for votes, in addition to the proposals channel.
+
+    let consensus_manager_configs =
+        create_consensus_manager_configs_from_network_configs(network_configs);
+    (consensus_manager_configs, broadcast_channels)
 }
