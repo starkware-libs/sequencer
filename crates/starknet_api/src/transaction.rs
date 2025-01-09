@@ -6,6 +6,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
+    calculate_contract_address,
     ChainId,
     ClassHash,
     CompiledClassHash,
@@ -141,6 +142,23 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
     fn try_from((tx, chain_id): (Transaction, &ChainId)) -> Result<Self, Self::Error> {
         let tx_hash = tx.calculate_transaction_hash(chain_id)?;
         match tx {
+            Transaction::DeployAccount(tx) => {
+                let contract_address = calculate_contract_address(
+                    tx.contract_address_salt(),
+                    tx.class_hash(),
+                    &tx.constructor_calldata(),
+                    ContractAddress::default(),
+                )?;
+                Ok(executable_transaction::Transaction::Account(
+                    executable_transaction::AccountTransaction::DeployAccount(
+                        executable_transaction::DeployAccountTransaction {
+                            tx,
+                            tx_hash,
+                            contract_address,
+                        },
+                    ),
+                ))
+            }
             Transaction::Invoke(tx) => Ok(executable_transaction::Transaction::Account(
                 executable_transaction::AccountTransaction::Invoke(
                     executable_transaction::InvokeTransaction { tx, tx_hash },
@@ -156,8 +174,8 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
             )),
             _ => {
                 unimplemented!(
-                    "Unsupported transaction type. Only Invoke and L1Handler are currently \
-                     supported. tx: {:?}",
+                    "Unsupported transaction type. Only DeployAccount, Invoke and L1Handler are \
+                     currently supported. tx: {:?}",
                     tx
                 )
             }
