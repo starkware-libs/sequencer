@@ -41,7 +41,7 @@ use crate::transaction_hash::{
     get_invoke_transaction_v3_hash,
     get_l1_handler_transaction_hash,
 };
-use crate::{executable_transaction, StarknetApiError};
+use crate::{executable_transaction, StarknetApiError, StarknetApiResult};
 
 #[cfg(test)]
 #[path = "transaction_test.rs"]
@@ -143,12 +143,7 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
         let tx_hash = tx.calculate_transaction_hash(chain_id)?;
         match tx {
             Transaction::DeployAccount(tx) => {
-                let contract_address = calculate_contract_address(
-                    tx.contract_address_salt(),
-                    tx.class_hash(),
-                    &tx.constructor_calldata(),
-                    ContractAddress::default(),
-                )?;
+                let contract_address = calculate_deployed_contract_address(&tx)?;
                 Ok(executable_transaction::Transaction::Account(
                     executable_transaction::AccountTransaction::DeployAccount(
                         executable_transaction::DeployAccountTransaction {
@@ -422,6 +417,29 @@ impl TransactionHasher for DeclareTransaction {
     }
 }
 
+/// A trait intended for deploy account transactions. Structs implementing this trait can use the
+/// function [`calculate_deployed_contract_address`]
+pub trait DeployTransactionTrait {
+    fn contract_address_salt(&self) -> ContractAddressSalt;
+    fn class_hash(&self) -> ClassHash;
+    fn constructor_calldata(&self) -> &Calldata;
+}
+
+/// Calculates the contract address for a deploy account transaction. For more details see:
+/// <https://docs.starknet.io/architecture-and-concepts/smart-contracts/contract-address/>
+pub fn calculate_deployed_contract_address(
+    tx: &impl DeployTransactionTrait,
+) -> StarknetApiResult<ContractAddress> {
+    // When the contract is deployed via a deploy-account transaction, the deployer address is zero.
+    let deployer_address = ContractAddress::from(0_u32);
+    calculate_contract_address(
+        tx.contract_address_salt(),
+        tx.class_hash(),
+        tx.constructor_calldata(),
+        deployer_address,
+    )
+}
+
 /// A deploy account V1 transaction.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
@@ -431,6 +449,20 @@ pub struct DeployAccountTransactionV1 {
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
+}
+
+impl DeployTransactionTrait for DeployAccountTransactionV1 {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        self.contract_address_salt
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
 }
 
 impl TransactionHasher for DeployAccountTransactionV1 {
@@ -468,12 +500,50 @@ impl TransactionHasher for DeployAccountTransactionV3 {
     }
 }
 
+impl DeployTransactionTrait for DeployAccountTransactionV3 {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        self.contract_address_salt
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
+}
+
 #[derive(
     Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
 )]
 pub enum DeployAccountTransaction {
     V1(DeployAccountTransactionV1),
     V3(DeployAccountTransactionV3),
+}
+
+// TODO(Arni): This does collide with the impl block of DeployAccountTransaction.
+impl DeployTransactionTrait for DeployAccountTransaction {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        match self {
+            DeployAccountTransaction::V1(tx) => tx.contract_address_salt(),
+            DeployAccountTransaction::V3(tx) => tx.contract_address_salt(),
+        }
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        match self {
+            DeployAccountTransaction::V1(tx) => tx.class_hash(),
+            DeployAccountTransaction::V3(tx) => tx.class_hash(),
+        }
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        match self {
+            DeployAccountTransaction::V1(tx) => tx.constructor_calldata(),
+            DeployAccountTransaction::V3(tx) => tx.constructor_calldata(),
+        }
+    }
 }
 
 macro_rules! implement_deploy_account_tx_getters {
@@ -490,6 +560,7 @@ macro_rules! implement_deploy_account_tx_getters {
 }
 
 impl DeployAccountTransaction {
+    // TODO(Arni): Consider using a direct reference to the getters from [DeployTrait].
     implement_deploy_account_tx_getters!(
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
@@ -547,6 +618,23 @@ impl TransactionHasher for DeployTransaction {
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
         get_deploy_transaction_hash(self, chain_id, transaction_version)
+    }
+}
+
+/// The trait [`DeployTransactionTrait`] is intended for [`DeployAccountTransaction`].
+/// The calculation of contract address of the contract deployed by the deprecated
+/// [`DeployTransaction`] is consistent with that calculation.
+impl DeployTransactionTrait for DeployTransaction {
+    fn contract_address_salt(&self) -> ContractAddressSalt {
+        self.contract_address_salt
+    }
+
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
     }
 }
 
