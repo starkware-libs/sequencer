@@ -221,10 +221,7 @@ impl SingleHeightConsensus {
         init: ProposalInit,
         p2p_messages_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!(
-            "Received proposal: height={}, round={}, proposer={:?}",
-            init.height.0, init.round, init.proposer
-        );
+        debug!("Received {init:?}");
         let proposer_id = context.proposer(self.height, init.round);
         if init.height != self.height {
             let msg = format!("invalid height: expected {:?}, got {:?}", self.height, init.height);
@@ -238,12 +235,15 @@ impl SingleHeightConsensus {
             warn!("Round {} already has a proposal, ignoring", init.round);
             return Ok(ShcReturn::Tasks(Vec::new()));
         };
+        let timeout = self.timeouts.proposal_timeout;
+        info!(
+            "Accepting {init:?}. node_round: {}, timeout: {timeout:?}",
+            self.state_machine.round()
+        );
         // Since validating the proposal is non-blocking, we want to avoid validating the same round
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
-        let block_receiver = context
-            .validate_proposal(init, self.timeouts.proposal_timeout, p2p_messages_receiver)
-            .await;
+        let block_receiver = context.validate_proposal(init, timeout, p2p_messages_receiver).await;
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
@@ -298,25 +298,30 @@ impl SingleHeightConsensus {
                 StateMachineEvent::Proposal(built_id, round, valid_round),
                 received_fin,
             ) => {
+                let leader_fn =
+                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+                info!(
+                    proposer = %leader_fn(round),
+                    %round,
+                    ?valid_round,
+                    ?built_id,
+                    ?received_fin,
+                    node_round = self.state_machine.round(),
+                    "Validated proposal.",
+                );
                 // TODO(matan): Switch to signature validation.
                 if built_id != received_fin.as_ref().map(|fin| fin.proposal_content_id) {
-                    warn!(
-                        "proposal_id built from content received does not match fin: {:#064x?} != \
-                         {:#064x?}",
-                        built_id, received_fin
-                    );
+                    warn!("proposal_id built from content received does not match fin.");
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 // Retaining the entry for this round prevents us from receiving another proposal on
                 // this round. While this prevents spam attacks it also prevents re-receiving after
                 // a network issue.
                 let old = self.proposals.insert(round, built_id);
-                let old = old
-                    .unwrap_or_else(|| panic!("Proposal should exist from init. round: {round}"));
-                assert!(old.is_none(), "Proposal already exists for this round: {round}");
-                info!("Validated proposal: {:?} in round {round}", built_id);
-                let leader_fn =
-                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+                let old = old.unwrap_or_else(|| {
+                    panic!("Proposal entry should exist from init. round: {round}")
+                });
+                assert!(old.is_none(), "Proposal already exists for this round: {round}. {old:?}");
                 let sm_events = self.state_machine.handle_event(
                     StateMachineEvent::Proposal(built_id, round, valid_round),
                     &leader_fn,
