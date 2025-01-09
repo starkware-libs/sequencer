@@ -97,13 +97,7 @@ macro_rules! get_shared_client {
         let client = &$self.$client_field;
         match &$execution_mode {
             ReactiveComponentExecutionMode::Disabled => None,
-            ReactiveComponentExecutionMode::Remote => {
-                if let Some(remote_client) = client.get_remote_client() {
-                    Some(Arc::new(remote_client))
-                } else {
-                    None
-                }
-            }
+            ReactiveComponentExecutionMode::Remote => Some(Arc::new(client.get_remote_client())),
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
                 if let Some(local_client) = client.get_local_client() {
@@ -241,16 +235,20 @@ macro_rules! create_client {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = Some(<$local_client_type>::new($channel_expr));
-                Client::new(local_client, None)
+                Client::new(
+                    local_client,
+                    <$remote_client_type>::new($remote_client_config.clone(), $socket),
+                )
             }
-            ReactiveComponentExecutionMode::Remote => match $remote_client_config {
-                Some(config) => {
-                    let remote_client = Some(<$remote_client_type>::new(config.clone(), $socket));
-                    Client::new(None, remote_client)
-                }
-                None => panic!("Remote client configuration is missing."),
-            },
-            ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
+            ReactiveComponentExecutionMode::Remote => {
+                let remote_client =
+                    <$remote_client_type>::new($remote_client_config.clone(), $socket);
+                Client::new(None, remote_client)
+            }
+            ReactiveComponentExecutionMode::Disabled => Client::new(
+                None,
+                <$remote_client_type>::new($remote_client_config.clone(), $socket),
+            ),
         }
     };
 }

@@ -28,7 +28,7 @@ where
     Response: Send + DeserializeOwned,
 {
     local_client: Option<LocalComponentClient<Request, Response>>,
-    remote_client: Option<RemoteComponentClient<Request, Response>>,
+    remote_client: RemoteComponentClient<Request, Response>,
 }
 
 impl<Request, Response> Client<Request, Response>
@@ -38,11 +38,8 @@ where
 {
     pub fn new(
         local_client: Option<LocalComponentClient<Request, Response>>,
-        remote_client: Option<RemoteComponentClient<Request, Response>>,
+        remote_client: RemoteComponentClient<Request, Response>,
     ) -> Self {
-        if local_client.is_some() && remote_client.is_some() {
-            panic!("Cannot have both local_client and remote_client simultaneously.");
-        }
         Self { local_client, remote_client }
     }
 
@@ -50,7 +47,7 @@ where
         self.local_client.clone()
     }
 
-    pub fn get_remote_client(&self) -> Option<RemoteComponentClient<Request, Response>> {
+    pub fn get_remote_client(&self) -> RemoteComponentClient<Request, Response> {
         self.remote_client.clone()
     }
 }
