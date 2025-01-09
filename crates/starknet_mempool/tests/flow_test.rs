@@ -306,3 +306,24 @@ fn test_update_gas_price_threshold(mut mempool: Mempool) {
     mempool.update_gas_price_threshold(GasPrice(10));
     get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_20.tx]);
 }
+
+#[rstest]
+fn has_tx_from_address(mut mempool: Mempool) {
+    let address = "0x64";
+
+    // Check that has_tx_from_address returns true after add_tx.
+    let add_tx_args = add_tx_input!(address: address);
+    add_tx(&mut mempool, &add_tx_args);
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
+
+    // Check that has_tx_from_address returns true after get_txs.
+    let _txs = mempool.get_txs(1).unwrap();
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
+
+    // Check that has_tx_from_address returns true after commit_block.
+    // Note, that in the future the mempool's state may be periodically cleared from records of old
+    // committed transactions. Mirroring this behavior may require a modification of this test.
+    let nonces = [(address, 1)];
+    commit_block(&mut mempool, nonces, []);
+    assert!(mempool.has_tx_from_address(contract_address!(address)));
+}
