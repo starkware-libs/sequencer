@@ -29,16 +29,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: nightly-2024-04-29
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
         with:
           python-version: 'pypy3.9'
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+          cache: 'pip'
+      - run: pip install -r crates/blockifier/tests/requirements.txt
 
       # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
       - name: checkout sequencer into `sequencer` directory.
@@ -55,18 +55,7 @@ jobs:
           fetch-tags: true
           path: 'cairo'
 
-      - name: install toolchain for legacy contract compilation (old compiler tag)
-        uses: actions-rs/toolchain@master
-        with:
-          toolchain: nightly-2023-07-05
-
-      - name: install toolchain for cairo steps test contract compilation (old compiler tag)
-        uses: actions-rs/toolchain@master
-        with:
-          toolchain: nightly-2024-04-29
-
       - name: Verify cairo contract recompilation (both cairo versions).
         run:
           cd sequencer &&
-          pip install -r crates/blockifier/tests/requirements.txt &&
           cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored
