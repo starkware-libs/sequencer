@@ -76,7 +76,7 @@ async fn setup(
 
     let batcher_config =
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());
-    let gateway_config = create_gateway_config(chain_info).await;
+    let gateway_config = create_gateway_config(chain_info);
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let state_sync_config = create_state_sync_config(

@@ -84,7 +84,7 @@ pub async fn create_node_config(
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
-    let gateway_config = create_gateway_config(chain_info.clone()).await;
+    let gateway_config = create_gateway_config(chain_info.clone());
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let monitoring_endpoint_config =
@@ -291,7 +291,7 @@ where
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
-pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
+pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
