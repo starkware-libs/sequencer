@@ -188,13 +188,12 @@ impl SequencerConsensusContext {
 impl ConsensusContext for SequencerConsensusContext {
     type ProposalPart = ProposalPart;
 
-    #[instrument(level = "info", skip_all, fields(proposal_init))]
+    #[instrument(skip_all)]
     async fn build_proposal(
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
-        info!("Building proposal: timeout={timeout:?}");
         let cende_write_success = AbortOnDropHandle::new(
             self.cende_ambassador.write_prev_height_blob(proposal_init.height),
         );
@@ -215,6 +214,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Failed to send proposal receiver");
         let gas_prices = self.gas_prices();
 
+        info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let handle = tokio::spawn(
             async move {
                 build_proposal(
@@ -230,7 +230,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 )
                 .await;
             }
-            .instrument(debug_span!("consensus_build_proposal")),
+            .instrument(debug_span!("consensus_build_proposal", %proposal_id)),
         );
         assert!(self.active_proposal.is_none());
         // The cancellation token is unused by the spawned build.
@@ -281,8 +281,8 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
+        info!(?id, ?init, "Reproposing.");
         let height = init.height;
-        debug!("Getting proposal for height: {height} and id: {id}");
         let (_transactions, _) = self
             .valid_proposals
             .lock()
@@ -489,7 +489,7 @@ impl SequencerConsensusContext {
     async fn interrupt_active_proposal(&mut self) {
         if let Some((token, handle)) = self.active_proposal.take() {
             token.cancel();
-            handle.await.expect("Proposal task panicked");
+            handle.await.expect("Proposal task failed");
         }
     }
 }
@@ -508,20 +508,14 @@ async fn build_proposal(
     gas_prices: GasPrices,
 ) {
     initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
-    debug!("Broadcasting proposal init: {proposal_init:?}");
     proposal_sender
         .send(ProposalPart::Init(proposal_init))
         .await
         .expect("Failed to send proposal init");
 
-    let Some((proposal_content_id, content)) = get_proposal_content(
-        proposal_init.height,
-        proposal_id,
-        batcher.as_ref(),
-        proposal_sender,
-        cende_write_success,
-    )
-    .await
+    let Some((proposal_content_id, content)) =
+        get_proposal_content(proposal_id, batcher.as_ref(), proposal_sender, cende_write_success)
+            .await
     else {
         return;
     };
@@ -580,7 +574,6 @@ async fn initialize_build(
 // 2. Forward these to the stream handler to be streamed out to the network.
 // 3. Once finished, receive the commitment from the batcher.
 async fn get_proposal_content(
-    height: BlockNumber,
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
@@ -599,17 +592,15 @@ async fn get_proposal_content(
         match response.content {
             GetProposalContent::Txs(txs) => {
                 content.extend_from_slice(&txs[..]);
-                // TODO: Broadcast the transactions to the network.
-                // TODO(matan): Convert to protobuf and make sure this isn't too large for a single
-                // proto message (could this be a With adapter added to the channel in `new`?).
-                let transaction_hashes =
-                    txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
-                debug!("Broadcasting proposal content: {transaction_hashes:?}");
-
+                // TODO(matan): Make sure this isn't too large for a single proto message.
+                debug!(
+                    hashes = ?txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>(),
+                    "Sending transaction batch with {} txs.",
+                    txs.len()
+                );
                 let transactions =
                     txs.into_iter().map(|tx| tx.into()).collect::<Vec<Transaction>>();
-                trace!("Broadcasting proposal content: {transactions:?}");
-
+                trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 proposal_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                     .await
@@ -617,15 +608,7 @@ async fn get_proposal_content(
             }
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
-                info!(
-                    "Finished building proposal {:?}: content_id = {:?}, num_txs = {:?}, height = \
-                     {:?}",
-                    proposal_id,
-                    proposal_content_id,
-                    content.len(),
-                    height
-                );
-                debug!("Broadcasting proposal fin: {proposal_content_id:?}");
+                info!(?proposal_content_id, num_txs = content.len(), "Finished building proposal",);
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
@@ -775,7 +758,7 @@ async fn handle_proposal_part(
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
-            debug!("Received TransactionBatch with {} txs", txs.len());
+            debug!("Received transaction batch with {} txs", txs.len());
             let exe_txs: Vec<ExecutableTransaction> = txs
                 .into_iter()
                 .map(|tx| {
@@ -815,8 +798,8 @@ async fn handle_proposal_part(
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
             info!(
-                network_block_id = %id,
-                %batcher_block_id,
+                network_block_id = ?id,
+                ?batcher_block_id,
                 num_txs = %content.len(),
                 "Finished validating proposal."
             );

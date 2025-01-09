@@ -331,7 +331,12 @@ impl SingleHeightConsensus {
             ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round)) => {
                 let old = self.proposals.insert(round, proposal_id);
                 assert!(old.is_none(), "There should be no entry for round {round} when proposing");
-                info!("Built proposal: {:?} in round {round}", proposal_id);
+                assert_eq!(
+                    round,
+                    self.state_machine.round(),
+                    "State machine should not progress while awaiting proposal"
+                );
+                info!(%round, proposal_content_id = ?proposal_id, "Built proposal.");
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 let sm_events = self
@@ -433,8 +438,7 @@ impl SingleHeightConsensus {
                         .await?,
                     );
                 }
-                StateMachineEvent::TimeoutPropose(round) => {
-                    info!("Starting round {round} as Validator");
+                StateMachineEvent::TimeoutPropose(_) => {
                     ret_val.push(ShcTask::TimeoutPropose(self.timeouts.proposal_timeout, event));
                 }
                 StateMachineEvent::TimeoutPrevote(_) => {
@@ -458,10 +462,8 @@ impl SingleHeightConsensus {
     ) -> Vec<ShcTask> {
         assert!(
             proposal_id.is_none(),
-            "ProposalContentId must be None since the state machine is requesting a \
-             ProposalContentId"
+            "StateMachine is requesting a new proposal, but provided a content id."
         );
-        info!("Starting round {round} as Proposer");
 
         // TODO: Figure out how to handle failed proposal building. I believe this should be handled
         // by applying timeoutPropose when we are the leader.
@@ -492,6 +494,8 @@ impl SingleHeightConsensus {
                 panic!("A valid proposal should exist for valid_round: {valid_round}")
             });
         assert_eq!(id, proposal_id, "reproposal should match the stored proposal");
+        let old = self.proposals.insert(round, Some(proposal_id));
+        assert!(old.is_none(), "There should be no proposal for round {round}.");
         let init = ProposalInit {
             height: self.height,
             round,
@@ -499,8 +503,6 @@ impl SingleHeightConsensus {
             valid_round: Some(valid_round),
         };
         context.repropose(id, init).await;
-        let old = self.proposals.insert(round, Some(proposal_id));
-        assert!(old.is_none(), "There should be no proposal for round {round}.");
     }
 
     async fn handle_state_machine_vote<ContextT: ConsensusContext>(
