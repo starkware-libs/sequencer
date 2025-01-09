@@ -309,10 +309,11 @@ macro_rules! assert_eq_state_diff {
 }
 
 /// Returns the block numbers for re-execution.
-/// There is block number for each Starknet Version (starting v0.13)
-/// And some additional block with specific transactions.
-pub fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
-    let file_path = FULL_RESOURCES_DIR.to_string() + "/block_numbers_for_reexecution.json";
+/// There is a block number for each Starknet Version (starting v0.13)
+/// And some additional blocks with specific transactions.
+pub fn get_block_numbers_for_reexecution(relative_path: Option<String>) -> Vec<BlockNumber> {
+    let file_path = relative_path.unwrap_or_default()
+        + &(FULL_RESOURCES_DIR.to_string() + "/block_numbers_for_reexecution.json");
     let block_numbers_examples: HashMap<String, u64> =
         serde_json::from_str(&read_to_string(file_path.clone()).expect(
             &("Failed to read the block_numbers_for_reexecution file at ".to_string() + &file_path),
