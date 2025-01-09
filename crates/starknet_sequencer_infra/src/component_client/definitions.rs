@@ -27,7 +27,7 @@ where
     Request: Send + Serialize,
     Response: Send + DeserializeOwned,
 {
-    local_client: Option<LocalComponentClient<Request, Response>>,
+    local_client: LocalComponentClient<Request, Response>,
     remote_client: RemoteComponentClient<Request, Response>,
 }
 
@@ -37,13 +37,13 @@ where
     Response: Send + DeserializeOwned,
 {
     pub fn new(
-        local_client: Option<LocalComponentClient<Request, Response>>,
+        local_client: LocalComponentClient<Request, Response>,
         remote_client: RemoteComponentClient<Request, Response>,
     ) -> Self {
         Self { local_client, remote_client }
     }
 
-    pub fn get_local_client(&self) -> Option<LocalComponentClient<Request, Response>> {
+    pub fn get_local_client(&self) -> LocalComponentClient<Request, Response> {
         self.local_client.clone()
     }
 
