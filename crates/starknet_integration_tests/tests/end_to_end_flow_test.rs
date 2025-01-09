@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_consensus::stream_handler::StreamIdAndNonce;
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
@@ -151,7 +152,7 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 
 async fn listen_to_broadcasted_messages(
     consensus_proposals_channels: &mut BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
+        StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>,
     >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
