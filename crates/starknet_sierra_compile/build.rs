@@ -15,9 +15,8 @@ fn main() {
     install_starknet_native_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
-#[cfg(feature = "cairo_native")]
-const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.5";
+// TODO(Avi, 01/03/2025): Parse the Cairo version from the Cargo.toml file.
+const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.0-rc.0";
 
 /// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
 /// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
@@ -27,39 +26,6 @@ fn install_starknet_sierra_compile() {
     let binary_name = CAIRO_LANG_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_LANG_VERSION;
 
-    let cargo_install_args = &[binary_name, "--version", required_version];
-    install_compiler_binary(binary_name, required_version, cargo_install_args);
-}
-
-/// Installs the `starknet-native-compile` crate from the current repository and moves the binary
-/// to the shared executables folder. This crate includes the `starknet-native-compile` binary,
-/// which is used to compile Sierra to 0x86. The binary is executed as a subprocess whenever Sierra
-/// compilation is required.
-#[cfg(feature = "cairo_native")]
-fn install_starknet_native_compile() {
-    let binary_name = CAIRO_NATIVE_BINARY_NAME;
-    let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
-
-    let repo_root_dir =
-        starknet_infra_utils::path::project_path().expect("Should be able to get the project path");
-
-    // Set the runtime library path. This is required for Cairo native compilation.
-    let runtime_library_path = repo_root_dir
-        .join("crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a");
-    println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
-    println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
-
-    let starknet_native_compile_crate_path = repo_root_dir.join("crates/bin").join(binary_name);
-    let starknet_native_compile_crate_path_str = starknet_native_compile_crate_path
-        .to_str()
-        .expect("Failed to convert the crate path to str");
-    println!("cargo:rerun-if-changed={}", starknet_native_compile_crate_path_str);
-
-    let cargo_install_args = &["--path", starknet_native_compile_crate_path_str];
-    install_compiler_binary(binary_name, required_version, cargo_install_args);
-}
-
-fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
     let binary_path = binary_path(out_dir(), binary_name);
     println!("cargo:rerun-if-changed={}", binary_path.to_str().unwrap());
 
@@ -88,10 +54,12 @@ fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_inst
     let install_command_status = Command::new("cargo")
         .args([
             "install",
+            binary_name,
+            "--version",
+            required_version,
             "--root",
             temp_cargo_path.path().to_str().expect("Failed to convert cargo_path to str"),
         ])
-        .args(cargo_install_args)
         .status()
         .unwrap_or_else(|_| panic!("Failed to install {binary_name}"));
 
@@ -111,19 +79,34 @@ fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_inst
         panic!("Failed to move the {} binary to the shared folder.", binary_name);
     }
 
-    std::fs::remove_dir_all(temp_cargo_path).expect("Failed to remove the cargo directory.");
-
     println!("Successfully set executable file: {:?}", binary_path.display());
 }
 
-// Sets the `RUNTIME_ACCESSIBLE_OUT_DIR` environment variable to the `OUT_DIR` value, which will be
-// available only after the build is completed. Most importantly, it is available during runtime.
+/// Sets the `CAIRO_NATIVE_RUNTIME_LIBRARY` environment variable to the path of the Cairo native
+/// runtime library. This is required for Cairo native compilation.
+/// NOTE: The Cairo native runtime library path can also be set in the compiler config, overriding
+/// the path set in this function.
+#[cfg(feature = "cairo_native")]
+fn install_starknet_native_compile() {
+    println!("Setting up the requirements for {CAIRO_NATIVE_BINARY_NAME}.");
+    let repo_root_dir =
+        starknet_infra_utils::path::project_path().expect("Should be able to get the project path");
+
+    // Set the runtime library path. This is required for Cairo native compilation.
+    let runtime_library_path = repo_root_dir
+        .join("crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a");
+    println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
+    println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
+}
+
+/// Sets the `RUNTIME_ACCESSIBLE_OUT_DIR` environment variable to the `OUT_DIR` value, which will be
+/// available only after the build is completed. Most importantly, it is available during runtime.
 fn set_run_time_out_dir_env_var() {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR is not set");
     println!("cargo:rustc-env=RUNTIME_ACCESSIBLE_OUT_DIR={}", out_dir);
 }
 
-// Returns the OUT_DIR. This function is only operable at build time.
+/// Returns the OUT_DIR. This function is only operable at build time.
 fn out_dir() -> std::path::PathBuf {
     std::env::var("OUT_DIR")
         .expect("Failed to get the build time OUT_DIR environment variable")
