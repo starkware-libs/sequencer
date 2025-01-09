@@ -35,12 +35,30 @@ use crate::utils::{
     send_account_txs,
 };
 
-pub type ComposedNodeComponentConfigs = Vec<ComponentConfig>;
-
 /// The number of consolidated local sequencers that participate in the test.
 const N_CONSOLIDATED_SEQUENCERS: usize = 3;
 /// The number of distributed remote sequencers that participate in the test.
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+
+/// Holds the component configs for a set of sequencers, composing a single sequencer node.
+struct ComposedComponentConfigs {
+    component_configs: Vec<ComponentConfig>,
+}
+
+impl ComposedComponentConfigs {
+    fn new(component_configs: Vec<ComponentConfig>) -> Self {
+        Self { component_configs }
+    }
+
+    fn into_iter(self) -> impl Iterator<Item = ComponentConfig> {
+        self.component_configs.into_iter()
+    }
+
+    fn len(&self) -> usize {
+        self.component_configs.len()
+    }
+}
+
 pub struct SequencerSetupManager {
     pub sequencers: Vec<SequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
@@ -179,7 +197,7 @@ pub async fn get_sequencer_setup_configs(
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
 
-    let component_configs: Vec<ComposedNodeComponentConfigs> = {
+    let component_configs: Vec<ComposedComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
@@ -262,14 +280,14 @@ pub async fn get_sequencer_setup_configs(
 fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<ComposedNodeComponentConfigs> {
+) -> Vec<ComposedComponentConfigs> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
 
-        vec![
+        ComposedComponentConfigs::new(vec![
             get_http_container_config(
                 gateway_socket,
                 mempool_socket,
@@ -282,7 +300,7 @@ fn create_distributed_node_configs(
                 mempool_p2p_socket,
                 state_sync_socket,
             ),
-        ]
+        ])
     })
     .take(distributed_sequencers_num)
     .collect()
@@ -290,8 +308,8 @@ fn create_distributed_node_configs(
 
 fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
-) -> Vec<ComposedNodeComponentConfigs> {
-    std::iter::repeat_with(|| vec![ComponentConfig::default()])
+) -> Vec<ComposedComponentConfigs> {
+    std::iter::repeat_with(|| ComposedComponentConfigs::new(vec![ComponentConfig::default()]))
         .take(num_of_consolidated_nodes)
         .collect()
 }
