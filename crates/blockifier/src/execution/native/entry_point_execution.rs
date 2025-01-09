@@ -74,7 +74,7 @@ pub fn execute_entry_point_call(
         buffer_size: 5 * 1024 * 1024,
     };
     let stack_size_red_zone = stack_config.get_stack_size_red_zone(call_initial_gas);
-    let target_stack_size =
+    let _target_stack_size =
         usize::try_from(stack_config.get_target_stack_size(stack_size_red_zone))
             .unwrap_or_else(|e| panic!("Failed to convert target stack size to usize: {}", e));
     let stack_size_red_zone = usize::try_from(stack_size_red_zone)
@@ -90,6 +90,13 @@ pub fn execute_entry_point_call(
             &mut syscall_handler,
         )
     });
+    // let execution_result = compiled_class.executor.run(
+    //     entry_point.selector.0,
+    //     &syscall_handler.base.call.calldata.0.clone(),
+    //     call_initial_gas,
+    //     Some(builtin_costs),
+    //     &mut syscall_handler,
+    // );
     syscall_handler.finalize();
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;

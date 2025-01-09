@@ -117,6 +117,12 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
+            log::error!(
+                "Noa run cairo0!!!. Block Number: {}, Transaction Hash: {}, Class Hash: {}.",
+                context.tx_context.block_context.block_info.block_number,
+                context.tx_context.tx_info.transaction_hash(),
+                call.class_hash.expect("Missing Class Hash")
+            );
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
                 compiled_class,
@@ -125,6 +131,12 @@ pub fn execute_entry_point_call(
             )
         }
         RunnableCompiledClass::V1(compiled_class) => {
+            log::error!(
+                "Noa run casm!!!. Block Number: {}, Transaction Hash: {}, Class Hash: {}.",
+                context.tx_context.block_context.block_info.block_number,
+                context.tx_context.tx_info.transaction_hash(),
+                call.class_hash.expect("Missing Class Hash")
+            );
             entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
@@ -132,6 +144,20 @@ pub fn execute_entry_point_call(
             if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).
+                log::error!(
+                    "Noa Using Casm execution. Block Number: {}, Transaction Hash: {}, Class \
+                     Hash: {}.",
+                    context.tx_context.block_context.block_info.block_number,
+                    context.tx_context.tx_info.transaction_hash(),
+                    call.class_hash.expect("Missing Class Hash")
+                );
+                log::debug!(
+                    "Noa Using Casm execution. Block Number: {}, Transaction Hash: {}, Class \
+                     Hash: {}.",
+                    context.tx_context.block_context.block_info.block_number,
+                    context.tx_context.tx_info.transaction_hash(),
+                    call.class_hash.expect("Missing Class Hash")
+                );
                 entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class.casm(),
@@ -140,12 +166,25 @@ pub fn execute_entry_point_call(
                 )
             } else {
                 log::debug!(
-                    "Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, Class \
-                     Hash: {}.",
+                    "Noa Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, \
+                     Class Hash: {}.",
                     context.tx_context.block_context.block_info.block_number,
                     context.tx_context.tx_info.transaction_hash(),
                     call.class_hash.expect("Missing Class Hash")
                 );
+                log::error!(
+                    "Noa Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, \
+                     Class Hash: {}.",
+                    context.tx_context.block_context.block_info.block_number,
+                    context.tx_context.tx_info.transaction_hash(),
+                    call.class_hash.expect("Missing Class Hash")
+                );
+                // entry_point_execution::execute_entry_point_call(
+                //     call,
+                //     compiled_class.casm(),
+                //     state,
+                //     context,
+                // )
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,
