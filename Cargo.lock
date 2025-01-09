@@ -7415,6 +7415,7 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "paste",
  "reqwest 0.11.27",
  "rstest",
  "serde",
