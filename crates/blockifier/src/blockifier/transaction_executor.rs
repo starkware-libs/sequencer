@@ -247,6 +247,20 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         // chunk execution is completed, and then they will be joined together in a for loop.
         // TODO(barak, 01/07/2024): Consider using tokio and spawn tasks that will be served by some
         // upper level tokio thread pool (Runtime in tokio terminology).
+        // std::thread::scope(|s| {
+        //     for _ in 0..self.config.concurrency_config.n_workers {
+        //         let worker_executor = Arc::clone(&worker_executor);
+        //         let _handle = std::thread::Builder::new()
+        //             .stack_size(200 * 1024 * 1024)
+        //             .spawn_scoped(s, move || {
+        //                 // Making sure that the program will abort if a panic accured while
+        // halting                 // the scheduler.
+        //                 let abort_guard = AbortIfPanic;
+        //                 // If a panic is not handled or the handling logic itself panics, then we
+        //                 // abort the program.
+        //                 if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
+        //                     worker_executor.run();
+
         std::thread::scope(|s| {
             for _ in 0..self.config.concurrency_config.n_workers {
                 let worker_executor = Arc::clone(&worker_executor);
