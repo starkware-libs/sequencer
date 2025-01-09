@@ -22,6 +22,7 @@ use papyrus_network::network_manager::test_utils::{
     create_network_configs_connected_to_broadcast_channels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::NetworkConfig;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -121,10 +122,7 @@ pub async fn create_node_config(
     )
 }
 
-// TODO(Nadin/Tsabary): refactor this function to separate the creation of network_configs and
-// broadcast_channels broadcast_channels into two distinct functions.
 pub fn create_consensus_manager_configs_and_channels(
-    n_managers: usize,
     ports: Vec<u16>,
 ) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
     let (network_configs, broadcast_channels) =
@@ -136,13 +134,23 @@ pub fn create_consensus_manager_configs_and_channels(
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
 
+    let consensus_manager_configs =
+        create_consensus_manager_configs_from_network_configs(network_configs);
+    (consensus_manager_configs, broadcast_channels)
+}
+
+fn create_consensus_manager_configs_from_network_configs(
+    network_configs: Vec<NetworkConfig>,
+) -> Vec<ConsensusManagerConfig> {
     // TODO(Matan, Dan): set reasonable default timeouts.
     let mut timeouts = TimeoutsConfig::default();
     timeouts.precommit_timeout *= 3;
     timeouts.prevote_timeout *= 3;
     timeouts.proposal_timeout *= 3;
 
-    let consensus_manager_configs = network_configs
+    let num_validators = u64::try_from(network_configs.len()).unwrap();
+
+    network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
@@ -151,15 +159,13 @@ pub fn create_consensus_manager_configs_and_channels(
 		// TODO(Matan, Dan): Set the right amount
                 consensus_delay: Duration::from_secs(15),
                 network_config,
-                num_validators: u64::try_from(n_managers).unwrap(),
+                num_validators,
                 timeouts: timeouts.clone(),
                 ..Default::default()
             },
             ..Default::default()
         })
-        .collect();
-
-    (consensus_manager_configs, broadcast_channels)
+        .collect()
 }
 
 // Creates a local recorder server that always returns a success status.

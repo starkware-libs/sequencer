@@ -216,8 +216,9 @@ pub async fn get_sequencer_setup_configs(
         .map(|composed_node_component_configs| composed_node_component_configs.len())
         .sum();
 
+    // TODO(Tsabary): remove '+1', replace with 'create_connected_network_configs' and
+    // 'create_consensus_manager_configs_from_network_config'.
     let (consensus_manager_configs, _) = create_consensus_manager_configs_and_channels(
-        n_distributed_sequencers,
         available_ports.get_next_ports(n_distributed_sequencers + 1),
     );
 

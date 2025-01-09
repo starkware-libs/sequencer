@@ -58,7 +58,6 @@ impl FlowTestSetup {
         let accounts = tx_generator.accounts();
         let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(
-                SEQUENCER_INDICES.len(),
                 available_ports.get_next_ports(SEQUENCER_INDICES.len() + 1),
             );
         let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
