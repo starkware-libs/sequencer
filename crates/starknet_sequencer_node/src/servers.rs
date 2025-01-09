@@ -112,9 +112,7 @@ macro_rules! create_remote_server {
     ($execution_mode:expr, $local_client_getter:expr, $socket:expr) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let local_client = $local_client_getter()
-                    .expect("Local client should be set for inbound remote connections.");
-
+                let local_client = $local_client_getter();
                 Some(Box::new(RemoteComponentServer::new(local_client, $socket.clone())))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled

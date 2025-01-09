@@ -314,11 +314,6 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.batcher.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.batcher.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
@@ -353,11 +348,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.gateway.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "components.gateway.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
@@ -394,11 +384,6 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.l1_provider.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
@@ -434,11 +419,6 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
@@ -468,11 +448,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.mempool_p2p.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "components.mempool_p2p.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
@@ -508,11 +483,6 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.state_sync.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "components.state_sync.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",

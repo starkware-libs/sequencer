@@ -41,31 +41,31 @@ const VALID_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 
 #[rstest]
 #[case::local(
     ReactiveComponentExecutionMode::Disabled,
-    None,
+    LocalServerConfig::default(),
     RemoteClientConfig::default(),
     VALID_SOCKET
 )]
 #[case::local(
     ReactiveComponentExecutionMode::Remote,
-    None,
+    LocalServerConfig::default(),
     RemoteClientConfig::default(),
     VALID_SOCKET
 )]
 #[case::local(
     LOCAL_EXECUTION_MODE,
-    Some(LocalServerConfig::default()),
+    LocalServerConfig::default(),
     RemoteClientConfig::default(),
     VALID_SOCKET
 )]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
-    Some(LocalServerConfig::default()),
+    LocalServerConfig::default(),
     RemoteClientConfig::default(),
     VALID_SOCKET
 )]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
-    #[case] local_server_config: Option<LocalServerConfig>,
+    #[case] local_server_config: LocalServerConfig,
     #[case] remote_client_config: RemoteClientConfig,
     #[case] socket: SocketAddr,
 ) {

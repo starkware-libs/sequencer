@@ -100,11 +100,7 @@ macro_rules! get_shared_client {
             ReactiveComponentExecutionMode::Remote => Some(Arc::new(client.get_remote_client())),
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-                if let Some(local_client) = client.get_local_client() {
-                    Some(Arc::new(local_client))
-                } else {
-                    None
-                }
+                Some(Arc::new(client.get_local_client()))
             }
         }
     }};
@@ -121,7 +117,7 @@ impl SequencerNodeClients {
 
     pub fn get_batcher_local_client(
         &self,
-    ) -> Option<LocalComponentClient<BatcherRequest, BatcherResponse>> {
+    ) -> LocalComponentClient<BatcherRequest, BatcherResponse> {
         self.batcher_client.get_local_client()
     }
 
@@ -134,7 +130,7 @@ impl SequencerNodeClients {
 
     pub fn get_mempool_local_client(
         &self,
-    ) -> Option<LocalComponentClient<MempoolRequest, MempoolResponse>> {
+    ) -> LocalComponentClient<MempoolRequest, MempoolResponse> {
         self.mempool_client.get_local_client()
     }
 
@@ -147,13 +143,13 @@ impl SequencerNodeClients {
 
     pub fn get_gateway_local_client(
         &self,
-    ) -> Option<LocalComponentClient<GatewayRequest, GatewayResponse>> {
+    ) -> LocalComponentClient<GatewayRequest, GatewayResponse> {
         self.gateway_client.get_local_client()
     }
 
     pub fn get_l1_provider_local_client(
         &self,
-    ) -> Option<LocalComponentClient<L1ProviderRequest, L1ProviderResponse>> {
+    ) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
         self.l1_provider_client.get_local_client()
     }
 
@@ -174,8 +170,7 @@ impl SequencerNodeClients {
 
     pub fn get_mempool_p2p_propagator_local_client(
         &self,
-    ) -> Option<LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>
-    {
+    ) -> LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse> {
         self.mempool_p2p_propagator_client.get_local_client()
     }
 
@@ -188,7 +183,7 @@ impl SequencerNodeClients {
 
     pub fn get_state_sync_local_client(
         &self,
-    ) -> Option<LocalComponentClient<StateSyncRequest, StateSyncResponse>> {
+    ) -> LocalComponentClient<StateSyncRequest, StateSyncResponse> {
         self.state_sync_client.get_local_client()
     }
 }
@@ -231,10 +226,11 @@ macro_rules! create_client {
         $remote_client_config:expr,
         $socket:expr
     ) => {
+        // TODO(Nadin): Refactor to remove code duplication.
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let local_client = Some(<$local_client_type>::new($channel_expr));
+                let local_client = <$local_client_type>::new($channel_expr);
                 Client::new(
                     local_client,
                     <$remote_client_type>::new($remote_client_config.clone(), $socket),
@@ -243,10 +239,10 @@ macro_rules! create_client {
             ReactiveComponentExecutionMode::Remote => {
                 let remote_client =
                     <$remote_client_type>::new($remote_client_config.clone(), $socket);
-                Client::new(None, remote_client)
+                Client::new(<$local_client_type>::new($channel_expr), remote_client)
             }
             ReactiveComponentExecutionMode::Disabled => Client::new(
-                None,
+                <$local_client_type>::new($channel_expr),
                 <$remote_client_type>::new($remote_client_config.clone(), $socket),
             ),
         }
