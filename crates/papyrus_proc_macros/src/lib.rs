@@ -243,11 +243,87 @@ pub fn handle_response_variants(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         match response? {
-            #response_enum::#request_response_enum_var(Ok(response)) => Ok(response),
-            #response_enum::#request_response_enum_var(Err(response)) => {
-                Err(#component_client_error::#component_error(response))
+            #response_enum::#request_response_enum_var(Ok(resp)) => Ok(resp),
+            #response_enum::#request_response_enum_var(Err(resp)) => {
+                Err(#component_client_error::#component_error(resp))
             }
             unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+struct HandleAllResponseVariantsMacroInput {
+    response_enum: Ident,
+    request_response_enum_var: Ident,
+    component_client_error: Ident,
+    component_error: Ident,
+    response_type: Ident,
+}
+
+impl syn::parse::Parse for HandleAllResponseVariantsMacroInput {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let response_enum: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let request_response_enum_var: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let component_client_error: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let component_error: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let response_type: Ident = input.parse()?;
+
+        Ok(HandleAllResponseVariantsMacroInput {
+            response_enum,
+            request_response_enum_var,
+            component_client_error,
+            component_error,
+            response_type,
+        })
+    }
+}
+
+#[proc_macro]
+pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
+    let HandleAllResponseVariantsMacroInput {
+        response_enum,
+        request_response_enum_var,
+        component_client_error,
+        component_error,
+        response_type,
+    } = parse_macro_input!(input as HandleAllResponseVariantsMacroInput);
+
+    let mut expanded = match response_type.to_string().as_str() {
+        "Boxed" => quote! {
+            match response? {
+                #response_enum::#request_response_enum_var(Ok(boxed_resp)) => {
+                    // Dereference the Box to get the response value
+                    let resp = *boxed_resp;
+                    Ok(resp)
+                }
+                #response_enum::#request_response_enum_var(Err(resp)) => {
+                    Err(#component_client_error::#component_error(resp))
+                }
+                unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+            }
+        },
+        "NotBoxed" => quote! {
+            match response? {
+                #response_enum::#request_response_enum_var(Ok(resp)) => Ok(resp),
+                #response_enum::#request_response_enum_var(Err(resp)) => {
+                    Err(#component_client_error::#component_error(resp))
+                }
+                unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+            }
+        },
+        _ => panic!("Expected 'Boxed' or 'Not Boxed'"),
+    };
+
+    expanded = quote! {
+        {
+            let response = self.send(request).await;
+            #expanded
         }
     };
 
