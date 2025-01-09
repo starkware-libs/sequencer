@@ -167,7 +167,8 @@ async fn test_mempool_receives_tx_from_other_peer(
     let (config, mut broadcast_channels, _temp_dir_handles) =
         setup(&tx_generator, TestIdentifier::MempoolReceivesTxFromOtherPeerTest).await;
     let (clients, servers) = create_node_modules(&config);
-    let mempool_client = clients.get_mempool_shared_client().unwrap();
+    let mempool_client =
+        clients.get_mempool_shared_client(&config.components.mempool_p2p.execution_mode).unwrap();
     // Build and run the sequencer node.
     let sequencer_node_future = run_component_servers(servers);
     let _sequencer_node_handle = tokio::spawn(sequencer_node_future);
