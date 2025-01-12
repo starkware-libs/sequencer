@@ -16,8 +16,12 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash};
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};
+use starknet_api::deprecated_contract_class::{
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
+    EntryPointV0,
+};
 use starknet_api::state::SierraContractClass;
 
 use super::test_utils::{
@@ -176,19 +180,33 @@ fn create_random_state_diff_chunk_with_class(
             class_hash,
             compiled_class_hash: CompiledClassHash(rng.next_u64().into()),
         };
+
+        // SierraContractClass::get_test_instance(rng) currently returns the same value every time,
+        // so we change the program to be random.
+        let mut sierra_contract_class = SierraContractClass::get_test_instance(rng);
+
+        sierra_contract_class.sierra_program = vec![rng.next_u64().into()];
         (
             StateDiffChunk::DeclaredClass(declared_class),
-            // TODO(noamsp): get_test_instance on these types returns the same value, making this
-            // test redundant. Fix this.
-            ApiContractClass::ContractClass(SierraContractClass::get_test_instance(rng)),
+            ApiContractClass::ContractClass(sierra_contract_class),
         )
     } else {
         let deprecated_declared_class = DeprecatedDeclaredClass { class_hash };
+
+        // DeprecatedContractClass::get_test_instance(rng) currently returns the same value every
+        // time, so we change the entry points to be random.
+        let mut deprecated_contract_class = DeprecatedContractClass::get_test_instance(rng);
+        deprecated_contract_class.entry_points_by_type.insert(
+            Default::default(),
+            vec![EntryPointV0 {
+                selector: EntryPointSelector::default(),
+                offset: EntryPointOffset(rng.next_u64().try_into().unwrap()),
+            }],
+        );
+
         (
             StateDiffChunk::DeprecatedDeclaredClass(deprecated_declared_class),
-            ApiContractClass::DeprecatedContractClass(DeprecatedContractClass::get_test_instance(
-                rng,
-            )),
+            ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
         )
     }
 }
