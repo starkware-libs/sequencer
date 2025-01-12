@@ -103,7 +103,7 @@ pub fn mempool_client_result_to_gw_spec_result(
                 MempoolError::DuplicateTransaction { .. } => Err(GatewaySpecError::DuplicateTx),
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
-                    warn!("P2P propagator client error: {}", mempool_error);
+                    warn!("P2p propagator client error: {}", mempool_error);
                     Ok(())
                 }
                 MempoolError::TransactionNotFound { .. } => {

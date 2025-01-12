@@ -18,9 +18,9 @@ use starknet_api::core::ClassHash;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{debug, info, warn};
 
-use super::{P2PSyncClientError, STEP};
+use super::{P2pSyncClientError, STEP};
 
-pub type DataStreamResult = Result<Box<dyn BlockData>, P2PSyncClientError>;
+pub type DataStreamResult = Result<Box<dyn BlockData>, P2pSyncClientError>;
 
 pub(crate) trait BlockData: Send {
     fn write_to_storage(
@@ -203,8 +203,8 @@ where
                     Some(Ok(DataOrFin(None))) => {
                         debug!("Network query ending at block {} for {:?} finished", end_block_number, Self::TYPE_DESCRIPTION);
                     },
-                    Some(_) => Err(P2PSyncClientError::TooManyResponses)?,
-                    None => Err(P2PSyncClientError::ReceiverChannelTerminated {
+                    Some(_) => Err(P2pSyncClientError::TooManyResponses)?,
+                    None => Err(P2pSyncClientError::ReceiverChannelTerminated {
                         type_description: Self::TYPE_DESCRIPTION
                     })?,
                 }
@@ -254,20 +254,20 @@ pub(crate) enum BadPeerError {
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum ParseDataError {
     #[error(transparent)]
-    Fatal(#[from] P2PSyncClientError),
+    Fatal(#[from] P2pSyncClientError),
     #[error(transparent)]
     BadPeer(#[from] BadPeerError),
 }
 
 impl From<StorageError> for ParseDataError {
     fn from(err: StorageError) -> Self {
-        ParseDataError::Fatal(P2PSyncClientError::StorageError(err))
+        ParseDataError::Fatal(P2pSyncClientError::StorageError(err))
     }
 }
 
 impl From<tokio::time::error::Elapsed> for ParseDataError {
     fn from(err: tokio::time::error::Elapsed) -> Self {
-        ParseDataError::Fatal(P2PSyncClientError::NetworkTimeout(err))
+        ParseDataError::Fatal(P2pSyncClientError::NetworkTimeout(err))
     }
 }
 
