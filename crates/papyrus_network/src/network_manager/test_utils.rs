@@ -87,6 +87,8 @@ where
 
 const CHANNEL_BUFFER_SIZE: usize = 10000;
 
+/// Mock register subscriber for a given topic. BroadcastNetworkMock is used to send and catch
+/// messages broadcasted by and to the subscriber respectively.
 pub fn mock_register_broadcast_topic<T>() -> Result<TestSubscriberChannels<T>, SubscriptionError>
 where
     T: TryFrom<Bytes> + 'static,
@@ -265,6 +267,9 @@ pub(crate) type MockBroadcastedMessagesFn<T> =
 
 pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> T>;
 
+/// Mock network for testing broadcast topics. It allows to send and catch messages broadcasted to
+/// and by a subscriber (respectively). The naming convension is to mimick BroadcastTopicChannels
+/// and replace sender and receiver.
 pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
     pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,
