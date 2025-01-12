@@ -18,6 +18,7 @@ use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
+    ContextConfig,
     ProposalContentId,
     Round,
     ValidatorId,
@@ -46,6 +47,7 @@ type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<
 const CHANNEL_SIZE: usize = 100;
 
 pub struct PapyrusConsensusContext {
+    _config: ContextConfig,
     storage_reader: StorageReader,
     network_broadcast_client: BroadcastTopicClient<Vote>,
     network_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
@@ -59,13 +61,15 @@ pub struct PapyrusConsensusContext {
 
 impl PapyrusConsensusContext {
     pub fn new(
+        config: ContextConfig,
         storage_reader: StorageReader,
         network_broadcast_client: BroadcastTopicClient<Vote>,
         network_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-        num_validators: u64,
         sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     ) -> Self {
+        let num_validators = config.num_validators;
         Self {
+            _config: config,
             storage_reader,
             network_broadcast_client,
             network_proposal_sender,

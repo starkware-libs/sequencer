@@ -246,6 +246,25 @@ expression: dumped_default_config
     "value": "0x64",
     "privacy": "Public"
   },
+  "context.batcher_build_buffer": {
+    "description": "The buffer size for the batcher when building proposals.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
+  "context.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "value": "SN_MAIN",
+    "privacy": "Public"
+  },
+  "context.num_validators": {
+    "description": "The number of validators.",
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
+  },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
     "value": false,

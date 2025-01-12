@@ -9,6 +9,7 @@ use std::io::{BufWriter, Write};
 use std::mem::discriminant;
 use std::ops::IndexMut;
 use std::path::{Path, PathBuf};
+use std::task::Context;
 use std::time::Duration;
 use std::{env, fs, io};
 
@@ -26,6 +27,7 @@ use papyrus_config::dumping::{
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_consensus::config::ConsensusConfig;
+use papyrus_consensus::types::ContextConfig;
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
@@ -64,6 +66,7 @@ pub struct NodeConfig {
     // TODO(yair): Change NodeConfig to have an option of enum of SyncConfig or P2pSyncConfig.
     pub p2p_sync: Option<P2pSyncClientConfig>,
     pub consensus: Option<ConsensusConfig>,
+    pub context: ContextConfig,
     // TODO(shahak): Make network non-optional once it's developed enough.
     pub network: Option<NetworkConfig>,
     pub collect_profiling_metrics: bool,
@@ -82,6 +85,7 @@ impl Default for NodeConfig {
             sync: Some(SyncConfig::default()),
             p2p_sync: None,
             consensus: None,
+            context: ContextConfig::default(),
             network: None,
             collect_profiling_metrics: false,
         }
@@ -99,6 +103,7 @@ impl SerializeConfig for NodeConfig {
             ser_optional_sub_config(&self.sync, "sync"),
             ser_optional_sub_config(&self.p2p_sync, "p2p_sync"),
             ser_optional_sub_config(&self.consensus, "consensus"),
+            append_sub_config_name(self.context.dump(), "context"),
             ser_optional_sub_config(&self.network, "network"),
             BTreeMap::from_iter([ser_param(
                 "collect_profiling_metrics",

@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::ConsensusContext;
+use papyrus_consensus::types::{ConsensusContext, ContextConfig};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -142,10 +142,10 @@ fn test_setup()
     let sync_channels = mock_register_broadcast_topic().unwrap();
 
     let papyrus_context = PapyrusConsensusContext::new(
+        ContextConfig::default(),
         storage_reader.clone(),
         network_channels.subscriber_channels.broadcast_topic_client,
         outbound_internal_sender,
-        4,
         Some(sync_channels.subscriber_channels.broadcast_topic_client),
     );
     (block, papyrus_context, network_channels.mock_network, sync_channels.mock_network)
