@@ -12,7 +12,7 @@ use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{error, info, instrument, Span};
+use tracing::{error, info, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::GatewayConfig;
@@ -66,16 +66,8 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
         info!("Processing tx");
-        let blocking_task = ProcessTxBlockingTask::new(self, tx);
-        // Run the blocking task in the current span.
-        let curr_span = Span::current();
-        let add_tx_args =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
-                .await
-                .map_err(|join_err| {
-                    error!("Failed to process tx: {}", join_err);
-                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-                })??;
+        let process_tx_task = ProcessTxTask::new(self, tx);
+        let add_tx_args = process_tx_task.process_tx()?;
 
         let tx_hash = add_tx_args.tx.tx_hash();
 
@@ -88,7 +80,7 @@ impl Gateway {
 
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
-struct ProcessTxBlockingTask {
+struct ProcessTxTask {
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
@@ -97,7 +89,7 @@ struct ProcessTxBlockingTask {
     tx: RpcTransaction,
 }
 
-impl ProcessTxBlockingTask {
+impl ProcessTxTask {
     pub fn new(gateway: &Gateway, tx: RpcTransaction) -> Self {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
