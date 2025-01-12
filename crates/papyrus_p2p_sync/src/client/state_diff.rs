@@ -21,7 +21,7 @@ use crate::client::stream_builder::{
     DataStreamBuilder,
     ParseDataError,
 };
-use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
+use crate::client::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (ThinStateDiff, BlockNumber) {
     #[latency_histogram("p2p_sync_state_diff_write_to_storage_latency_seconds", true)]
@@ -61,7 +61,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                 .get_block_header(block_number)?
                 .expect("A header with number lower than the header marker is missing")
                 .state_diff_length
-                .ok_or(P2PSyncClientError::OldHeaderInStorage {
+                .ok_or(P2pSyncClientError::OldHeaderInStorage {
                     block_number,
                     missing_field: "state_diff_length",
                 })?;
@@ -72,7 +72,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                     state_diff_chunks_response_manager.next(),
                 )
                 .await?
-                .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                     type_description: Self::TYPE_DESCRIPTION,
                 })?;
                 let Some(state_diff_chunk) = maybe_state_diff_chunk?.0 else {

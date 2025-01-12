@@ -283,7 +283,7 @@ impl LocalServers {
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
-            server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2P Propagator"),
+            server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
             server_future_and_label(self.state_sync, "Local State Sync"),
         ])
         .await
@@ -347,7 +347,7 @@ impl RemoteServers {
             server_future_and_label(self.gateway, "Remote Gateway"),
             server_future_and_label(self.l1_provider, "Remote L1 Provider"),
             server_future_and_label(self.mempool, "Remote Mempool"),
-            server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2P Propagator"),
+            server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2p Propagator"),
             server_future_and_label(self.state_sync, "Remote State Sync"),
         ])
         .await
@@ -402,7 +402,7 @@ impl WrapperServers {
             server_future_and_label(self.http_server, "Http"),
             server_future_and_label(self.l1_scraper_server, "L1 Scraper"),
             server_future_and_label(self.monitoring_endpoint, "Monitoring Endpoint"),
-            server_future_and_label(self.mempool_p2p_runner, "Mempool P2P Runner"),
+            server_future_and_label(self.mempool_p2p_runner, "Mempool P2p Runner"),
             server_future_and_label(self.state_sync_runner, "State Sync Runner"),
         ])
         .await
