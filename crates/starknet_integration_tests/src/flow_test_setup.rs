@@ -5,7 +5,10 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
-use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
+use papyrus_network::network_manager::test_utils::{
+    create_connected_network_configs,
+    network_config_into_broadcast_channels,
+};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -176,16 +179,19 @@ impl FlowSequencerSetup {
 pub fn create_consensus_manager_configs_and_channels(
     ports: Vec<u16>,
 ) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
-    let (network_configs, broadcast_channels) =
-        create_network_configs_connected_to_broadcast_channels(
-            papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-            ),
-            ports,
-        );
+    let mut network_configs = create_connected_network_configs(ports);
+
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
+    let channels_network_config = network_configs.pop().unwrap();
+    let broadcast_channels = network_config_into_broadcast_channels(
+        channels_network_config,
+        papyrus_network::gossipsub_impl::Topic::new(
+            starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
+        ),
+    );
 
     let consensus_manager_configs =
         create_consensus_manager_configs_from_network_configs(network_configs);
+
     (consensus_manager_configs, broadcast_channels)
 }
