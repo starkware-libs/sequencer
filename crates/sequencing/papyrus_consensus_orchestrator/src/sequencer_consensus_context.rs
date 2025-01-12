@@ -379,6 +379,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
                 state_diff,
                 transactions,
+                // TODO(Yael): add the execution_infos to DecisionReachedResponse.
+                execution_infos: Default::default(),
             })
             .await;
 
