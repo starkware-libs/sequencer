@@ -3,6 +3,8 @@ pub mod runner;
 #[cfg(test)]
 mod test;
 
+use std::cmp::min;
+
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
@@ -191,7 +193,7 @@ impl StateSync {
 
     fn get_latest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
         let txn = self.storage_reader.begin_ro_txn()?;
-        let latest_block_number = txn.get_state_marker()?.prev();
+        let latest_block_number = min_state_and_transaction_block_number(&txn)?;
         Ok(latest_block_number)
     }
 }
@@ -200,13 +202,29 @@ fn verify_synced_up_to<Mode: TransactionKind>(
     txn: &StorageTxn<'_, Mode>,
     block_number: BlockNumber,
 ) -> Result<(), StateSyncError> {
-    if let Some(latest_block_number) = txn.get_state_marker()?.prev() {
+    if let Some(latest_block_number) = min_state_and_transaction_block_number(txn)? {
         if latest_block_number >= block_number {
             return Ok(());
         }
     }
 
     Err(StateSyncError::BlockNotFound(block_number))
+}
+
+fn min_state_and_transaction_block_number<Mode: TransactionKind>(
+    txn: &StorageTxn<'_, Mode>,
+) -> StateSyncResult<Option<BlockNumber>> {
+    let latest_state_block_number = txn.get_state_marker()?.prev();
+    if latest_state_block_number.is_none() {
+        return Ok(None);
+    }
+
+    let latest_transaction_block_number = txn.get_body_marker()?.prev();
+    if latest_transaction_block_number.is_none() {
+        return Ok(None);
+    }
+
+    Ok(min(latest_state_block_number, latest_transaction_block_number))
 }
 
 fn verify_contract_deployed<Mode: TransactionKind>(
