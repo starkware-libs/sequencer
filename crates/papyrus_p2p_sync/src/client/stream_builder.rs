@@ -36,7 +36,7 @@ pub(crate) enum BlockNumberLimit {
     StateDiffMarker,
 }
 
-pub(crate) trait DataStreamBuilder<InputFromNetwork>
+pub(crate) trait StreamBuilder<InputFromNetwork>
 where
     InputFromNetwork: Send + 'static,
     DataOrFin<InputFromNetwork>: TryFrom<Vec<u8>, Error = ProtobufConversionError>,
