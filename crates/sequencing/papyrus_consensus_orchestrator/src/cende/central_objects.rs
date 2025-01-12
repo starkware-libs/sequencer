@@ -6,7 +6,7 @@ use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use indexmap::{indexmap, IndexMap};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockInfo,
     BlockNumber,
@@ -361,7 +361,7 @@ impl From<(Transaction, u64)> for CentralTransactionWritten {
 }
 
 /// A mapping from a transaction execution resource to its actual usage.
-#[derive(Debug, Eq, PartialEq, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ResourcesMapping(pub HashMap<String, usize>);
 
 impl From<TransactionReceipt> for ResourcesMapping {
@@ -382,7 +382,7 @@ impl From<TransactionReceipt> for ResourcesMapping {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CentralTransactionExecutionInfo {
     pub validate_call_info: Option<CallInfo>,
     pub execute_call_info: Option<CallInfo>,

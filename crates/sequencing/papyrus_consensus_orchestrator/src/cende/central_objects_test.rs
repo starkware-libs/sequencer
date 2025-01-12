@@ -3,7 +3,7 @@ use std::sync::Arc;
 use blockifier::bouncer::BouncerWeights;
 use indexmap::indexmap;
 use rstest::rstest;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use starknet_api::block::{
     BlockInfo,
     BlockNumber,
@@ -25,6 +25,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -54,6 +55,7 @@ use super::{
     CentralInvokeTransaction,
     CentralStateDiff,
     CentralTransaction,
+    CentralTransactionExecutionInfo,
     CentralTransactionWritten,
 };
 
@@ -63,6 +65,8 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
+pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
+    "central_transaction_execution_info.json";
 
 fn resource_bounds() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -243,6 +247,42 @@ fn central_bouncer_weights_json() -> Value {
     serde_json::to_value(bouncer_weights).unwrap()
 }
 
+fn central_transaction_execution_info_json() -> Value {
+    let transaction_execution_info = read_json_file(CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH);
+    let transaction_execution_info: CentralTransactionExecutionInfo =
+        serde_json::from_value(transaction_execution_info).unwrap();
+    let value = serde_json::to_value(transaction_execution_info).unwrap();
+    // The HashSet has undeterministic order when deserialized. Sorting the
+    // hashset fields is required in order to compare the jsons.
+    sort_execution_info_hashset_fields(&value)
+}
+
+/// Recursively traverse a transaction execution info json and sort the HashSet fields.
+fn sort_execution_info_hashset_fields(json: &Value) -> Value {
+    let mut new_map = Map::new();
+    match json {
+        Value::Object(map) => {
+            for (key, value) in map.iter() {
+                if key == "accessed_storage_keys" || key == "accessed_contract_addresses" {
+                    if let Value::Array(array) = value {
+                        let mut sorted_array = array.clone();
+                        sorted_array.sort_by(|a, b| {
+                            serde_json::to_string(a)
+                                .unwrap()
+                                .cmp(&serde_json::to_string(b).unwrap())
+                        });
+                        new_map.insert(key.clone(), Value::Array(sorted_array));
+                    }
+                } else {
+                    new_map.insert(key.clone(), sort_execution_info_hashset_fields(value));
+                }
+            }
+        }
+        _ => return json.clone(),
+    }
+    Value::Object(new_map)
+}
+
 #[rstest]
 #[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
@@ -250,8 +290,13 @@ fn central_bouncer_weights_json() -> Value {
 #[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
 #[case::l1_handler_tx(central_l1_handler_tx_json(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
 #[case::bouncer_weights(central_bouncer_weights_json(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
+#[case::transaction_execution_info(
+    central_transaction_execution_info_json(),
+    CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH
+)]
+
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
-    assert_eq!(rust_json, python_json,);
+    assert_json_eq(&rust_json, &python_json, "serialize_central_objects test".to_string());
 }
