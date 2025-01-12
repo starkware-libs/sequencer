@@ -29,8 +29,6 @@ pub struct ConsensusConfig {
     pub chain_id: ChainId,
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
-    /// The network topic of the consensus.
-    pub network_topic: String,
     /// The height to start the consensus from.
     pub start_height: BlockNumber,
     /// The number of validators in the consensus.
@@ -68,12 +66,6 @@ impl SerializeConfig for ConsensusConfig {
                 "validator_id",
                 &self.validator_id,
                 "The validator id of the node.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "network_topic",
-                &self.network_topic,
-                "The network topic of the consensus.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -131,7 +123,6 @@ impl Default for ConsensusConfig {
         Self {
             chain_id: ChainId::Other("0x0".to_string()),
             validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
             num_validators: 1,
             consensus_delay: Duration::from_secs(5),

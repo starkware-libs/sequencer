@@ -54,9 +54,6 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
 
-// TODO(guyn): move this to the config.
-pub const NETWORK_TOPIC: &str = "consensus_proposals";
-
 // TODO(dvir): add this to config.
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
 const STORAGE_METRICS_UPDATE_INTERVAL: Duration = Duration::from_secs(10);
@@ -191,10 +188,11 @@ fn spawn_consensus(
     debug!("Consensus configuration: {config:?}");
 
     let network_channels = network_manager
-        .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
+        .register_broadcast_topic(Topic::new(config.votes_topic.clone()), BUFFER_SIZE)?;
     let proposal_network_channels: BroadcastTopicChannels<
         StreamMessage<ProposalPart, HeightAndRound>,
-    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    > = network_manager
+        .register_broadcast_topic(Topic::new(config.proposals_topic), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,

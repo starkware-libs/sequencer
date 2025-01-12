@@ -664,11 +664,6 @@
     "privacy": "Public",
     "value": 10100
   },
-  "consensus_manager_config.consensus_config.network_topic": {
-    "description": "The network topic of the consensus.",
-    "privacy": "Public",
-    "value": "consensus"
-  },
   "consensus_manager_config.consensus_config.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
