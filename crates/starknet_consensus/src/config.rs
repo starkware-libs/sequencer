@@ -25,6 +25,8 @@ const CONSENSUS_TCP_PORT: u16 = 10100;
 /// Configuration for consensus.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusConfig {
+    // TODO(guyn): the chain_id, validator_id, and network_topic are going to be removed in
+    // following PRs.
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// The validator ID of the node.

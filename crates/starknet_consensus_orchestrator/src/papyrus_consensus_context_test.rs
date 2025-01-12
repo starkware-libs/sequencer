@@ -142,10 +142,10 @@ fn test_setup()
     let sync_channels = mock_register_broadcast_topic().unwrap();
 
     let papyrus_context = PapyrusConsensusContext::new(
+        ContextConfig::default(),
         storage_reader.clone(),
         network_channels.subscriber_channels.broadcast_topic_client,
         outbound_internal_sender,
-        4,
         Some(sync_channels.subscriber_channels.broadcast_topic_client),
     );
     (block, papyrus_context, network_channels.mock_network, sync_channels.mock_network)

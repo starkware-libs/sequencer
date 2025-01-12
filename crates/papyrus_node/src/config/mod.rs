@@ -64,6 +64,7 @@ pub struct NodeConfig {
     // TODO(yair): Change NodeConfig to have an option of enum of SyncConfig or P2pSyncConfig.
     pub p2p_sync: Option<P2pSyncClientConfig>,
     pub consensus: Option<ConsensusConfig>,
+    pub context: Option<ContextConfig>,
     // TODO(shahak): Make network non-optional once it's developed enough.
     pub network: Option<NetworkConfig>,
     pub collect_profiling_metrics: bool,
@@ -82,6 +83,7 @@ impl Default for NodeConfig {
             sync: Some(SyncConfig::default()),
             p2p_sync: None,
             consensus: None,
+            context: None,
             network: None,
             collect_profiling_metrics: false,
         }
@@ -99,6 +101,7 @@ impl SerializeConfig for NodeConfig {
             ser_optional_sub_config(&self.sync, "sync"),
             ser_optional_sub_config(&self.p2p_sync, "p2p_sync"),
             ser_optional_sub_config(&self.consensus, "consensus"),
+            ser_optional_sub_config(&self.context, "context"),
             ser_optional_sub_config(&self.network, "network"),
             BTreeMap::from_iter([ser_param(
                 "collect_profiling_metrics",
