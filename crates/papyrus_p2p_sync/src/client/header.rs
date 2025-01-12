@@ -119,8 +119,8 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> Option<SignedBlockHeader> {
-        Some(SignedBlockHeader {
+    ) -> SignedBlockHeader {
+        SignedBlockHeader {
             block_header: BlockHeader {
                 block_hash: BlockHash(StarkHash::from(block_number.0)),
                 block_header_without_hash: sync_block.block_header_without_hash,
@@ -129,6 +129,6 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
                 ..Default::default()
             },
             signatures: vec![BlockSignature::default()],
-        })
+        }
     }
 }

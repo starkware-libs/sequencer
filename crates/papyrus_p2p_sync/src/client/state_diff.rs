@@ -115,8 +115,8 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> Option<(ThinStateDiff, BlockNumber)> {
-        Some((sync_block.state_diff, block_number))
+    ) -> (ThinStateDiff, BlockNumber) {
+        (sync_block.state_diff, block_number)
     }
 }
 
