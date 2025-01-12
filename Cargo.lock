@@ -7731,6 +7731,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "blockifier",
+ "cairo-vm",
  "chrono",
  "futures",
  "indexmap 2.7.0",
