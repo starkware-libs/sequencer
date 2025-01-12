@@ -1,7 +1,21 @@
+use std::mem;
+use std::sync::Mutex;
+
+use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
+use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
-use starknet_api::executable_transaction::L1HandlerTransaction;
+use starknet_api::executable_transaction::{
+    L1HandlerTransaction as ExecutableL1HandlerTransaction,
+    L1HandlerTransaction,
+};
 use starknet_api::transaction::TransactionHash;
+use starknet_l1_provider_types::{
+    Event,
+    L1ProviderClient,
+    L1ProviderClientResult,
+    ValidationStatus,
+};
 
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::TransactionManager;
@@ -122,5 +136,44 @@ impl TransactionManagerContentBuilder {
 
     fn is_default(&self) -> bool {
         self.txs.is_none() && self.on_l2_awaiting_l1_consumption.is_none()
+    }
+}
+
+#[derive(Default)]
+pub struct FakeL1ProviderClient {
+    // Interior mutability needed since this is modifying during client API calls, which are all
+    // immutable.
+    pub events_received: Mutex<Vec<Event>>,
+}
+
+impl FakeL1ProviderClient {
+    #[track_caller]
+    pub fn assert_add_events_received_with(&self, expected: &[Event]) {
+        let events_received = mem::take(&mut *self.events_received.lock().unwrap());
+        assert_eq!(events_received, expected);
+    }
+}
+
+#[async_trait]
+impl L1ProviderClient for FakeL1ProviderClient {
+    async fn get_txs(
+        &self,
+        _n_txs: usize,
+        _height: BlockNumber,
+    ) -> L1ProviderClientResult<Vec<ExecutableL1HandlerTransaction>> {
+        todo!()
+    }
+
+    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
+        self.events_received.lock().unwrap().extend(events);
+        Ok(())
+    }
+
+    async fn validate(
+        &self,
+        _tx_hash: TransactionHash,
+        _height: BlockNumber,
+    ) -> L1ProviderClientResult<ValidationStatus> {
+        todo!()
     }
 }
