@@ -12,11 +12,11 @@ use starknet_api::hash::StarkHash;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::debug;
 
-use super::stream_builder::{
+use super::block_data_stream_builder::{
     BadPeerError,
     BlockData,
+    BlockDataStreamBuilder,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
 };
 use super::{P2pSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
@@ -64,7 +64,7 @@ impl BlockData for SignedBlockHeader {
 
 pub(crate) struct HeaderStreamBuilder;
 
-impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
+impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     type Output = SignedBlockHeader;
 
     const TYPE_DESCRIPTION: &'static str = "headers";

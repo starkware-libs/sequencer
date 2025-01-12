@@ -20,7 +20,7 @@ use tracing::{debug, info, warn};
 
 use super::{P2pSyncClientError, STEP};
 
-pub type DataStreamResult = Result<Box<dyn BlockData>, P2pSyncClientError>;
+pub type BlockDataResult = Result<Box<dyn BlockData>, P2pSyncClientError>;
 
 pub(crate) trait BlockData: Send {
     /// Write the block data to the storage.
@@ -37,7 +37,7 @@ pub(crate) enum BlockNumberLimit {
     StateDiffMarker,
 }
 
-pub(crate) trait DataStreamBuilder<InputFromNetwork>
+pub(crate) trait BlockDataStreamBuilder<InputFromNetwork>
 where
     InputFromNetwork: Send + 'static,
     DataOrFin<InputFromNetwork>: TryFrom<Vec<u8>, Error = ProtobufConversionError>,
@@ -108,7 +108,7 @@ where
         mut internal_block_receiver: Option<Receiver<SyncBlock>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
-    ) -> BoxStream<'static, DataStreamResult>
+    ) -> BoxStream<'static, BlockDataResult>
     where
         TQuery: From<Query> + Send + 'static,
         Vec<u8>: From<TQuery>,
