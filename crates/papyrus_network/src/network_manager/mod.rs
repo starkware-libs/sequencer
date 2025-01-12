@@ -437,6 +437,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 "Received an inbound query while the buffer is full. Dropping query for session \
                  {inbound_session_id:?}"
             ),
+            true,
         );
     }
 
@@ -459,6 +460,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             self.sqmr_outbound_response_senders.get_mut(&outbound_session_id)
         {
             // TODO(shahak): Close the channel if the buffer is full.
+            // TODO(Eitan): Close the channel if query was dropped by user.
             send_now(
                 response_sender,
                 response,
@@ -466,6 +468,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     "Received response for an outbound query while the buffer is full. Dropping \
                      it. Session: {outbound_session_id:?}"
                 ),
+                false,
             );
         }
     }
@@ -621,12 +624,19 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 }
 
-fn send_now<Item>(sender: &mut GenericSender<Item>, item: Item, buffer_full_message: String) {
+fn send_now<Item>(
+    sender: &mut GenericSender<Item>,
+    item: Item,
+    buffer_full_message: String,
+    should_panic_upon_disconnect: bool,
+) {
     pin_mut!(sender);
     match sender.as_mut().send(item).now_or_never() {
         Some(Ok(())) => {}
         Some(Err(error)) => {
-            error!("Received error while sending message: {:?}", error);
+            if should_panic_upon_disconnect || !error.is_disconnected() {
+                panic!("Received error while sending message: {:?}", error);
+            }
         }
         None => {
             warn!(buffer_full_message);
