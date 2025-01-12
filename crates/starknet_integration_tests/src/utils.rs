@@ -89,8 +89,10 @@ pub async fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let monitoring_endpoint_config =
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
+    // TODO(Nadin): get a single state_sync_config as an argument.
     let state_sync_config =
-        create_state_sync_config(state_sync_storage_config, available_ports.get_next_port());
+        create_state_sync_configs(state_sync_storage_config, available_ports.get_next_ports(1))
+            .remove(0);
 
     (
         SequencerNodeConfig {
@@ -328,12 +330,19 @@ fn set_validator_id(
     validator_id
 }
 
-pub fn create_state_sync_config(
+pub fn create_state_sync_configs(
     state_sync_storage_config: StorageConfig,
-    port: u16,
-) -> StateSyncConfig {
-    let mut config =
-        StateSyncConfig { storage_config: state_sync_storage_config, ..Default::default() };
-    config.network_config.tcp_port = port;
-    config
+    ports: Vec<u16>,
+) -> Vec<StateSyncConfig> {
+    let mut state_sync_configs = vec![];
+    let network_configs = create_connected_network_configs(ports);
+    for network_config in network_configs {
+        let state_sync_config = StateSyncConfig {
+            storage_config: state_sync_storage_config.clone(),
+            network_config,
+            ..Default::default()
+        };
+        state_sync_configs.push(state_sync_config);
+    }
+    state_sync_configs
 }
