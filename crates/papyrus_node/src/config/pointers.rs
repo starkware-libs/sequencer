@@ -29,7 +29,7 @@ use papyrus_config::ParamPrivacyInput;
 use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientConfig};
+use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::RpcConfig;
 use papyrus_storage::db::DbConfig;

@@ -17,7 +17,7 @@ use super::stream_builder::{
     DataStreamBuilder,
     ParseDataError,
 };
-use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (BlockBody, BlockNumber) {
     fn write_to_storage(
@@ -56,7 +56,7 @@ impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                     transactions_response_manager.next(),
                 )
                 .await?
-                .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                     type_description: Self::TYPE_DESCRIPTION,
                 })?;
                 let Some(FullTransaction { transaction, transaction_output, transaction_hash }) =

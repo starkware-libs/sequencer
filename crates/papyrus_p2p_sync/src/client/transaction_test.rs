@@ -174,7 +174,7 @@ async fn transaction_basic_flow() {
     tokio::select! {
         sync_result = p2p_sync.run() => {
             sync_result.unwrap();
-            panic!("P2P sync aborted with no failure.");
+            panic!("P2p sync aborted with no failure.");
         }
         _ = parse_queries_future => {}
     }

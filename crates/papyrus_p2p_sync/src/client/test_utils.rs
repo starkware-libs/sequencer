@@ -47,7 +47,7 @@ use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
 
-use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
+use super::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientConfig};
 
 pub(crate) const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
 pub const BUFFER_SIZE: usize = 1000;
@@ -61,7 +61,7 @@ pub const TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE: Duration =
     WAIT_PERIOD_FOR_NEW_DATA.saturating_add(Duration::from_secs(1));
 
 lazy_static! {
-    static ref TEST_CONFIG: P2PSyncClientConfig = P2PSyncClientConfig {
+    static ref TEST_CONFIG: P2pSyncClientConfig = P2pSyncClientConfig {
         num_headers_per_query: HEADER_QUERY_LENGTH,
         num_block_state_diffs_per_query: STATE_DIFF_QUERY_LENGTH,
         num_block_transactions_per_query: TRANSACTION_QUERY_LENGTH,
@@ -82,7 +82,7 @@ pub(crate) type ClassTestPayload =
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
     #[allow(clippy::type_complexity)]
-    pub p2p_sync: P2PSyncClient,
+    pub p2p_sync: P2pSyncClient,
     pub storage_reader: StorageReader,
     pub mock_header_response_manager: GenericReceiver<HeaderTestPayload>,
     pub mock_state_diff_response_manager: GenericReceiver<StateDiffTestPayload>,
@@ -104,13 +104,13 @@ pub fn setup() -> TestArgs {
         mock_register_sqmr_protocol_client(buffer_size);
     let (class_sender, mock_class_response_manager) =
         mock_register_sqmr_protocol_client(buffer_size);
-    let p2p_sync_channels = P2PSyncClientChannels {
+    let p2p_sync_channels = P2pSyncClientChannels {
         header_sender,
         state_diff_sender,
         transaction_sender,
         class_sender,
     };
-    let p2p_sync = P2PSyncClient::new(
+    let p2p_sync = P2pSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
@@ -138,7 +138,7 @@ pub enum DataType {
 }
 
 pub enum Action {
-    /// Run the P2P sync client.
+    /// Run the P2p sync client.
     RunP2pSync,
     /// Get a header query from the sync and run custom validations on it.
     ReceiveQuery(Box<dyn FnOnce(Query)>, DataType),
@@ -167,7 +167,7 @@ pub enum Action {
 
 // TODO(shahak): add support for state diffs, transactions and classes.
 pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Action>) {
-    let p2p_sync_config = P2PSyncClientConfig {
+    let p2p_sync_config = P2pSyncClientConfig {
         num_headers_per_query: max_query_lengths.get(&DataType::Header).cloned().unwrap_or(1),
         num_block_state_diffs_per_query: max_query_lengths
             .get(&DataType::StateDiff)
@@ -189,14 +189,14 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
     let (transaction_sender, mut mock_transaction_network) =
         mock_register_sqmr_protocol_client(buffer_size);
     let (class_sender, mut mock_class_network) = mock_register_sqmr_protocol_client(buffer_size);
-    let p2p_sync_channels = P2PSyncClientChannels {
+    let p2p_sync_channels = P2pSyncClientChannels {
         header_sender,
         state_diff_sender,
         transaction_sender,
         class_sender,
     };
     let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
-    let p2p_sync = P2PSyncClient::new(
+    let p2p_sync = P2pSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
@@ -301,17 +301,17 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                         internal_block_sender.send(sync_block).await.unwrap();
                     }
                     Action::RunP2pSync => {
-                        sync_future_sender.take().expect("Called RunP2pSync twice").send(()).expect("Failed to send message to run P2P sync");
+                        sync_future_sender.take().expect("Called RunP2pSync twice").send(()).expect("Failed to send message to run P2p sync");
                     }
                 }
             }
         } => {},
         res = sync_future_receiver.then(|res| async {
-            res.expect("Failed to run P2P sync");
+            res.expect("Failed to run P2p sync");
             p2p_sync.run().await
         }) => {
             res.unwrap();
-            panic!("P2P sync client finished running");
+            panic!("P2p sync client finished running");
         }
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");

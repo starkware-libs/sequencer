@@ -19,7 +19,7 @@ use super::stream_builder::{
     DataStreamBuilder,
     ParseDataError,
 };
-use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
+use super::{P2pSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -82,7 +82,7 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             let maybe_signed_header =
                 tokio::time::timeout(NETWORK_DATA_TIMEOUT, signed_headers_response_manager.next())
                     .await?
-                    .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                    .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                         type_description: Self::TYPE_DESCRIPTION,
                     })?;
             let Some(signed_block_header) = maybe_signed_header?.0 else {

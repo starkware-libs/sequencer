@@ -20,7 +20,7 @@ use super::stream_builder::{
     DataStreamBuilder,
     ParseDataError,
 };
-use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage(
@@ -80,7 +80,7 @@ impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
                 let maybe_contract_class =
                     tokio::time::timeout(NETWORK_DATA_TIMEOUT, classes_response_manager.next())
                         .await?
-                        .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                        .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                             type_description: Self::TYPE_DESCRIPTION,
                         })?;
                 let Some((api_contract_class, class_hash)) = maybe_contract_class?.0 else {
