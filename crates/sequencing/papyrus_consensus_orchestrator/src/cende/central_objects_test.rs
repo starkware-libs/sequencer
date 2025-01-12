@@ -147,25 +147,24 @@ fn central_deploy_account_tx_json() -> Value {
     let deploy_account_tx = DeployAccountTransaction {
         tx: starknet_api::transaction::DeployAccountTransaction::V3(DeployAccountTransactionV3 {
             resource_bounds: resource_bounds(),
+            tip: Tip(1),
             signature: TransactionSignature(felt_vector()),
             nonce: nonce!(1),
-            tip: Tip(1),
-            paymaster_data: PaymasterData(vec![]),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-
             class_hash: ClassHash(felt!(
                 "0x1b5a0b09f23b091d5d1fa2f660ddfad6bcfce607deba23806cd7328ccfb8ee9"
             )),
             contract_address_salt: ContractAddressSalt(felt!(2_u8)),
             constructor_calldata: Calldata(Arc::new(felt_vector())),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData(vec![]),
         }),
-        tx_hash: TransactionHash(felt!(
-            "0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"
-        )),
         contract_address: contract_address!(
             "0x4c2e031b0ddaa38e06fd9b1bf32bff739965f9d64833006204c67cbc879a57c"
         ),
+        tx_hash: TransactionHash(felt!(
+            "0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"
+        )),
     };
 
     let central_transaction_written = CentralTransactionWritten {
@@ -182,22 +181,19 @@ fn central_declare_tx_json() -> Value {
     let declare_tx = DeclareTransaction {
         tx: starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
             resource_bounds: resource_bounds(),
-            sender_address: contract_address!("0x12fd537"),
+            tip: Tip(1),
             signature: TransactionSignature(felt_vector()),
             nonce: nonce!(1),
-            tip: Tip(1),
-            paymaster_data: PaymasterData(vec![]),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            account_deployment_data: AccountDeploymentData(vec![]),
             class_hash: ClassHash(felt!(
                 "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"
             )),
             compiled_class_hash: CompiledClassHash(felt!("0x1")),
+            sender_address: contract_address!("0x12fd537"),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData(vec![]),
+            account_deployment_data: AccountDeploymentData(vec![]),
         }),
-        tx_hash: TransactionHash(felt!(
-            "0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"
-        )),
         class_info: ClassInfo {
             // The contract class is not used by the central object.
             contract_class: ContractClass::V0(Default::default()),
@@ -205,6 +201,9 @@ fn central_declare_tx_json() -> Value {
             abi_length: 11237,
             sierra_version: SierraVersion::new(1, 6, 0),
         },
+        tx_hash: TransactionHash(felt!(
+            "0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"
+        )),
     };
     let central_transaction_written = CentralTransactionWritten {
         tx: CentralTransaction::Declare(CentralDeclareTransaction::V3(declare_tx.into())),
