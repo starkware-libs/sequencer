@@ -505,7 +505,7 @@
         }
     },
     "validate_max_n_steps": 1000000,
-    "min_sierra_version_for_sierra_gas": "1.7.0",
+    "min_sierra_version_for_sierra_gas": "0.0.0",
     "vm_resource_fee_cost": {
         "builtins": {
             "add_mod_builtin": [
