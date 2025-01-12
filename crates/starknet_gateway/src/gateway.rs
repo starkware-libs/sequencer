@@ -67,12 +67,12 @@ impl Gateway {
     ) -> GatewayResult<TransactionHash> {
         info!("Processing tx");
         let process_tx_task = ProcessTxTask::new(self, tx);
-        let add_tx_args = process_tx_task.process_tx()?;
+        let add_tx_args = process_tx_task.process_tx().await?;
 
         let tx_hash = add_tx_args.tx.tx_hash();
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
+        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await, ())?;
         // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
         Ok(tx_hash)
     }
@@ -85,6 +85,7 @@ struct ProcessTxTask {
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     gateway_compiler: Arc<GatewayCompiler>,
+    mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
 }
@@ -96,12 +97,13 @@ impl ProcessTxTask {
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             gateway_compiler: gateway.gateway_compiler.clone(),
+            mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
         }
     }
 
-    fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
+    async fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
         // TODO(Arni, 1/5/2024): Perform congestion control.
 
         // Perform stateless validations.
@@ -129,7 +131,9 @@ impl ProcessTxTask {
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
 
-        self.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
+        self.stateful_tx_validator
+            .run_validate(&executable_tx, nonce, self.mempool_client, validator)
+            .await?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })

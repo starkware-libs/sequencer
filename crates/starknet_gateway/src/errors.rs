@@ -80,11 +80,14 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
 
 /// Converts a mempool client result to a gateway result. Some errors variants are unreachable in
 /// Gateway context, and some are not considered errors from the gateway's perspective.
-pub fn mempool_client_result_to_gw_spec_result(
-    value: MempoolClientResult<()>,
-) -> GatewayResult<()> {
+/// If the result is a mempool client error that is not considered an error from the gateway's
+/// perspective, the function returns `value_on_repressed_error`.
+pub fn mempool_client_result_to_gw_spec_result<T>(
+    value: MempoolClientResult<T>,
+    value_on_repressed_error: T,
+) -> GatewayResult<T> {
     let err = match value {
-        Ok(()) => return Ok(()),
+        Ok(value) => return Ok(value),
         Err(err) => err,
     };
     match err {
@@ -104,7 +107,7 @@ pub fn mempool_client_result_to_gw_spec_result(
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
                     warn!("P2p propagator client error: {}", mempool_error);
-                    Ok(())
+                    Ok(value_on_repressed_error)
                 }
                 MempoolError::TransactionNotFound { .. } => {
                     // This error is not expected to happen within the gateway, only from other
