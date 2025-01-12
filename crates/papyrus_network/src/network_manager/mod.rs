@@ -7,6 +7,7 @@ pub mod test_utils;
 
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
@@ -17,8 +18,9 @@ use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
+use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
+use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
@@ -26,7 +28,6 @@ use sqmr::Bytes;
 use tracing::{debug, error, info, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
-use crate::bin_utils::build_swarm;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
@@ -650,19 +651,42 @@ impl NetworkManager {
         } = config;
 
         // TODO(shahak): Add quic transport.
-        let listen_addresses = vec![format!("/ip4/0.0.0.0/tcp/{tcp_port}")];
+        let listen_address_str = format!("/ip4/0.0.0.0/tcp/{tcp_port}");
+        let listen_address = Multiaddr::from_str(&listen_address_str)
+            .unwrap_or_else(|_| panic!("Unable to parse address {}", listen_address_str));
+        debug!("Creating swarm with listen address: {:?}", listen_address);
 
-        let swarm = build_swarm(listen_addresses, idle_connection_timeout, secret_key, |key| {
-            mixed_behaviour::MixedBehaviour::new(
-                key,
+        let key_pair = match secret_key {
+            Some(secret_key) => {
+                Keypair::ed25519_from_bytes(secret_key).expect("Error while parsing secret key")
+            }
+            None => Keypair::generate_ed25519(),
+        };
+        let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
+        .with_tokio()
+        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+        .expect("Error building TCP transport")
+        .with_dns()
+        .expect("Error building DNS transport")
+        // TODO: quic transpot does not work (failure appears in the command line when running in debug mode)
+        // .with_quic()
+        .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
+                key.clone(),
                 bootstrap_peer_multiaddr.clone(),
                 sqmr::Config { session_timeout },
                 chain_id,
                 node_version,
                 discovery_config,
                 peer_manager_config,
-            )
-        });
+            ))
+        .expect("Error while building the swarm")
+        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
+        .build();
+
+        swarm
+            .listen_on(listen_address.clone())
+            .unwrap_or_else(|_| panic!("Error while binding to {}", listen_address));
+
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
             address
                 .with_p2p(*swarm.local_peer_id())
