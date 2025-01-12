@@ -23,6 +23,7 @@ use super::{P2PSyncClientError, STEP};
 pub type DataStreamResult = Result<Box<dyn BlockData>, P2PSyncClientError>;
 
 pub(crate) trait BlockData: Send {
+    /// Write the block data to the storage.
     fn write_to_storage(
         // This is Box<Self> in order to allow using it with `Box<dyn BlockData>`.
         self: Box<Self>,
@@ -47,22 +48,27 @@ where
     const BLOCK_NUMBER_LIMIT: BlockNumberLimit;
 
     // Async functions in trait don't work well with argument references
+    /// Parse data for a specific block received from the network and return a future resolving to
+    /// an optional block data output or a parse error.
     fn parse_data_for_block<'a>(
         client_response_manager: &'a mut ClientResponsesManager<DataOrFin<InputFromNetwork>>,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
     ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>>;
 
+    /// Get the starting block number for this stream.
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
     // TODO(Eitan): Remove option on return once we have a class manager component.
-    /// Returning None happens when internal blocks are disabled for this stream.
+    /// Convert a sync block into block data. Return `None` if internal blocks are disabled for this
+    /// stream.
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
     ) -> Option<Self::Output>;
 
     // Async functions in trait don't work well with argument references
+    /// Retrieve the internal block for a specific block number.
     fn get_internal_block_at<'a>(
         internal_blocks_received: &'a mut HashMap<BlockNumber, Self::Output>,
         internal_block_receiver: &'a mut Option<Receiver<(BlockNumber, SyncBlock)>>,
@@ -94,6 +100,7 @@ where
         .boxed()
     }
 
+    /// Create a stream for fetching and processing block data.
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
