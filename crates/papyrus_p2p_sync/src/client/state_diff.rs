@@ -15,6 +15,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::stream_builder::BadPeerError;
+use super::OldHeaderInStorageError;
 use crate::client::stream_builder::{
     BlockData,
     BlockNumberLimit,
@@ -61,10 +62,10 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                 .get_block_header(block_number)?
                 .expect("A header with number lower than the header marker is missing")
                 .state_diff_length
-                .ok_or(P2PSyncClientError::OldHeaderInStorage {
+                .ok_or(P2PSyncClientError::OldHeaderInStorage(OldHeaderInStorageError {
                     block_number,
                     missing_field: "state_diff_length",
-                })?;
+                }))?;
 
             while current_state_diff_len < target_state_diff_len {
                 let maybe_state_diff_chunk = tokio::time::timeout(

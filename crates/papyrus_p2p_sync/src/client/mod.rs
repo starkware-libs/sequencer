@@ -15,6 +15,7 @@ mod transaction;
 mod transaction_test;
 
 use std::collections::BTreeMap;
+use std::fmt::{self};
 use std::time::Duration;
 
 use class::ClassStreamBuilder;
@@ -131,12 +132,8 @@ pub enum P2PSyncClientError {
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     #[error("Network returned more responses than expected for a query.")]
     TooManyResponses,
-    #[error(
-        "Encountered an old header in the storage at {block_number:?} that's missing the field \
-         {missing_field}. Re-sync the node from {block_number:?} from a node that provides this \
-         field."
-    )]
-    OldHeaderInStorage { block_number: BlockNumber, missing_field: &'static str },
+    #[error(transparent)]
+    OldHeaderInStorage(#[from] OldHeaderInStorageError),
     #[error("The sender end of the response receivers for {type_description:?} was closed.")]
     ReceiverChannelTerminated { type_description: &'static str },
     #[error(transparent)]
@@ -145,6 +142,23 @@ pub enum P2PSyncClientError {
     StorageError(#[from] StorageError),
     #[error(transparent)]
     SendError(#[from] SendError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub struct OldHeaderInStorageError {
+    block_number: BlockNumber,
+    missing_field: &'static str,
+}
+
+impl fmt::Display for OldHeaderInStorageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Encountered an old header in the storage at {:?} that's missing the field {}. \
+             Re-sync the node from {:?} from a node that provides this field.",
+            self.block_number, self.missing_field, self.block_number
+        )
+    }
 }
 
 type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
