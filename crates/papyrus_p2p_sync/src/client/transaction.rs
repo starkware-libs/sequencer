@@ -91,7 +91,7 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> Option<(BlockBody, BlockNumber)> {
+    ) -> (BlockBody, BlockNumber) {
         let num_transactions = sync_block.transaction_hashes.len();
         let mut rng = get_rng();
         let block_body = BlockBody {
@@ -105,6 +105,6 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                 .take(num_transactions)
                 .collect::<Vec<_>>(),
         };
-        Some((block_body, block_number))
+        (block_body, block_number)
     }
 }
