@@ -17,6 +17,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction as ExecutableInvokeTransaction,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_types_core::felt::Felt;
 use tracing::error;
 
@@ -59,9 +60,11 @@ impl StatefulTransactionValidator {
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
+        mempool_client: SharedMempoolClient,
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<()> {
-        let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
+        let skip_validate =
+            skip_stateful_validations(executable_tx, account_nonce, mempool_client)?;
         let only_query = false;
         let charge_fee = enforce_fee(executable_tx, only_query);
         let execution_flags = ExecutionFlags { only_query, charge_fee, validate: !skip_validate };
@@ -104,15 +107,29 @@ impl StatefulTransactionValidator {
 /// Check if validation of an invoke transaction should be skipped due to deploy_account not being
 /// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
 /// once.
-fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
+fn skip_stateful_validations(
+    tx: &ExecutableTransaction,
+    account_nonce: Nonce,
+    mempool_client: SharedMempoolClient,
+) -> StatefulTransactionValidatorResult<bool> {
     if let ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) = tx {
-        // TODO(Arni): Add a verification that there is a deploy_account transaction in the mempool.
         // check if the transaction nonce is 1, meaning it is post deploy_account, and the
         // account nonce is zero, meaning the account was not deployed yet.
-        return tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO);
+        if tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO) {
+            // We verify that a deploy_account transaction exists for this account. It is sufficient
+            // to check if the account exists in the mempool since it means that either it has a
+            // deploy_account transaction or transactions with future nonces that passed
+            // validations.
+            // TODO(Arni): Reconsider the use of tokio runtime here.
+            return tokio::runtime::Runtime::new()
+                .unwrap()
+                .block_on(mempool_client.has_tx_from_address(tx.sender_address()))
+                // TODO(Arni): Decide on a better error handling strategy.
+                .map_err(|err| GatewaySpecError::UnexpectedError { data: err.to_string() });
+        }
     }
 
-    false
+    Ok(false)
 }
 
 pub fn get_latest_block_info(
