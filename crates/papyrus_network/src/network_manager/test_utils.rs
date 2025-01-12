@@ -87,7 +87,8 @@ where
 
 const CHANNEL_BUFFER_SIZE: usize = 10000;
 
-pub fn mock_register_broadcast_topic<T>() -> Result<TestSubscriberChannels<T>, SubscriptionError>
+pub fn mock_register_broadcast_topic<T>()
+-> Result<(BroadcastTopicChannels<T>, BroadcastNetworkMock<T>), SubscriptionError>
 where
     T: TryFrom<Bytes> + 'static,
     Bytes: From<T>,
@@ -146,7 +147,7 @@ where
         continue_propagation_receiver: mock_continue_propagation_receiver,
     };
 
-    Ok(TestSubscriberChannels { subscriber_channels, mock_network })
+    Ok((subscriber_channels, mock_network))
 }
 
 pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfig> {
@@ -272,7 +273,7 @@ pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
 }
 
-pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {
-    pub subscriber_channels: BroadcastTopicChannels<T>,
-    pub mock_network: BroadcastNetworkMock<T>,
-}
+// pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {
+//     pub subscriber_channels: BroadcastTopicChannels<T>,
+//     pub mock_network: BroadcastNetworkMock<T>,
+// }

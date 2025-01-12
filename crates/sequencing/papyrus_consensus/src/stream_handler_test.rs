@@ -7,7 +7,6 @@ use futures::SinkExt;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
-    TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -112,7 +111,7 @@ mod tests {
     ) {
         // The outbound_sender is the network connector for broadcasting messages.
         // The network_broadcast_receiver is used to catch those messages in the test.
-        let TestSubscriberChannels { mock_network: mock_broadcast_network, subscriber_channels } =
+        let (subscriber_channels, mock_broadcast_network) =
             mock_register_broadcast_topic().unwrap();
         let BroadcastTopicChannels {
             broadcasted_messages_receiver: _,
@@ -129,8 +128,7 @@ mod tests {
 
         // The network_sender_to_inbound is the sender of the mock network, that is used by the
         // test to send messages into the StreamHandler (from the mock network).
-        let TestSubscriberChannels { mock_network, subscriber_channels } =
-            mock_register_broadcast_topic().unwrap();
+        let (subscriber_channels, mock_network) = mock_register_broadcast_topic().unwrap();
         let network_sender_to_inbound = mock_network.broadcasted_messages_sender;
 
         // The inbound_receiver is given to StreamHandler to mock network messages.
