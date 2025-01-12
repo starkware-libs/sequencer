@@ -72,19 +72,16 @@ pub struct SequencerSetup {
 
 // TODO(Tsabary/ Nadin): reduce number of args.
 impl SequencerSetup {
-    #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
+    #[instrument(skip(chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
-        accounts: Vec<AccountTransactionGenerator>,
         sequencer_execution_id: SequencerExecutionId,
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
+        storage_for_test: StorageTestSetup,
     ) -> Self {
-        // Creating the storage for the test.
-        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
-
         let recorder_url = spawn_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 

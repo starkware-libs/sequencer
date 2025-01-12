@@ -28,6 +28,7 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
+use crate::state_reader::StorageTestSetup;
 use crate::test_identifiers::TestIdentifier;
 use crate::utils::{
     create_chain_info,
@@ -258,13 +259,13 @@ pub(crate) async fn get_sequencer_setup_configs(
             let chain_info = chain_info.clone();
             async move {
                 SequencerSetup::new(
-                    accounts.to_vec(),
                     sequencer_execution_id,
                     chain_info,
                     consensus_manager_config,
                     mempool_p2p_config,
                     AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
                     component_config.clone(),
+                    StorageTestSetup::new(accounts.to_vec(), &chain_info),
                 )
                 .await
             }

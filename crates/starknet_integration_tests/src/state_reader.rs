@@ -51,6 +51,7 @@ use tokio::sync::RwLock;
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
+#[derive(Debug)]
 pub struct StorageTestSetup {
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: TempDir,
