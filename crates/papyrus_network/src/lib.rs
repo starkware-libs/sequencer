@@ -2,7 +2,6 @@
 /// to the [`Starknet p2p specs`]
 ///
 /// [`Starknet p2p specs`]: https://github.com/starknet-io/starknet-p2p-specs/
-mod bin_utils;
 mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
