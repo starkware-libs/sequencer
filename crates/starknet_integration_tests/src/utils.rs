@@ -72,7 +72,7 @@ pub async fn create_node_config(
     sequencer_execution_id: SequencerExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
-    state_sync_storage_config: StorageConfig,
+    state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     component_config: ComponentConfig,
@@ -89,10 +89,6 @@ pub async fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let monitoring_endpoint_config =
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
-    // TODO(Nadin): get a single state_sync_config as an argument.
-    let state_sync_config =
-        create_state_sync_configs(state_sync_storage_config, available_ports.get_next_ports(1))
-            .remove(0);
 
     (
         SequencerNodeConfig {

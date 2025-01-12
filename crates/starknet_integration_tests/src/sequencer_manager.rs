@@ -8,7 +8,7 @@ use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransac
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::StorageReader;
+use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -33,6 +33,7 @@ use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
+    create_state_sync_configs,
     send_account_txs,
 };
 
@@ -218,6 +219,13 @@ pub(crate) async fn get_sequencer_setup_configs(
         create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
     );
 
+    // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
+    // the SequencerSetup
+    let state_sync_configs = create_state_sync_configs(
+        StorageConfig::default(),
+        available_ports.get_next_ports(n_distributed_sequencers),
+    );
+
     let mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
         available_ports.get_next_ports(n_distributed_sequencers),
@@ -243,8 +251,13 @@ pub(crate) async fn get_sequencer_setup_configs(
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
     stream::iter(
-        izip!(indexed_component_configs, consensus_manager_configs, mempool_p2p_configs)
-            .enumerate(),
+        izip!(
+            indexed_component_configs,
+            consensus_manager_configs,
+            mempool_p2p_configs,
+            state_sync_configs
+        )
+        .enumerate(),
     )
     .then(
         |(
@@ -253,6 +266,7 @@ pub(crate) async fn get_sequencer_setup_configs(
                 (sequencer_execution_id, component_config),
                 consensus_manager_config,
                 mempool_p2p_config,
+                state_sync_config,
             ),
         )| {
             let chain_info = chain_info.clone();
@@ -263,6 +277,7 @@ pub(crate) async fn get_sequencer_setup_configs(
                     chain_info,
                     consensus_manager_config,
                     mempool_p2p_config,
+                    state_sync_config,
                     AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
                     component_config.clone(),
                 )
