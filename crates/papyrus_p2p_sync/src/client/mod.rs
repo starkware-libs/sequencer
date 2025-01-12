@@ -44,7 +44,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
-use stream_builder::{DataStreamBuilder, DataStreamResult};
+use stream_builder::{StreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;

@@ -14,7 +14,7 @@ use super::stream_builder::{
     BadPeerError,
     BlockData,
     BlockNumberLimit,
-    DataStreamBuilder,
+    StreamBuilder,
     ParseDataError,
 };
 use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
@@ -30,7 +30,7 @@ impl BlockData for (BlockBody, BlockNumber) {
 
 pub(crate) struct TransactionStreamFactory;
 
-impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
+impl StreamBuilder<FullTransaction> for TransactionStreamFactory {
     // TODO(Eitan): Add events protocol to BlockBody or split their write to storage
     type Output = (BlockBody, BlockNumber);
 

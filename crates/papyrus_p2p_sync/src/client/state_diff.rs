@@ -18,7 +18,7 @@ use super::stream_builder::BadPeerError;
 use crate::client::stream_builder::{
     BlockData,
     BlockNumberLimit,
-    DataStreamBuilder,
+    StreamBuilder,
     ParseDataError,
 };
 use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
@@ -38,7 +38,7 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
 
 pub(crate) struct StateDiffStreamBuilder;
 
-impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
+impl StreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
     type Output = (ThinStateDiff, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "state diffs";
