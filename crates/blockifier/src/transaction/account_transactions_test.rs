@@ -1773,13 +1773,18 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
 /// Check initial gas is as expected according to the contract cairo+compiler version, and call
 /// history.
 #[rstest]
-#[case(&[
+#[case::cairo0(&[
     CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
     CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm))
 ])]
-// TODO(Tzahi, 1/12/2024): Add a case with OldCairo1 instead of Cairo0.
+#[case::old_cairo1(&[
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    CompilerBasedVersion::OldCairo1,
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm))
+])]
 fn test_initial_gas(
     block_context: BlockContext,
     #[case] versions: &[CompilerBasedVersion],
@@ -1838,7 +1843,12 @@ fn test_initial_gas(
         curr_initial_gas = execute_call_info.call.initial_gas;
 
         match (prev_version, version, started_vm_mode) {
-            (CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), _, _) => {
+            (
+                CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0)
+                | CompilerBasedVersion::OldCairo1,
+                _,
+                _,
+            ) => {
                 assert_eq!(started_vm_mode, true);
                 assert_eq!(curr_initial_gas, prev_initial_gas);
             }
@@ -1860,7 +1870,7 @@ fn test_initial_gas(
                 started_vm_mode = true;
             }
             _ => {
-                // prev_version is a non Cairo0 contract, thus it consumes gas from the initial
+                // prev_version is a non CairoStep contract, thus it consumes gas from the initial
                 // gas.
                 assert!(curr_initial_gas < prev_initial_gas);
                 if version
