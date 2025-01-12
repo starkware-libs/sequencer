@@ -17,8 +17,8 @@ use super::stream_builder::{
     BadPeerError,
     BlockData,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
+    StreamBuilder,
 };
 use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
@@ -44,7 +44,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
 
 pub(crate) struct ClassStreamBuilder;
 
-impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
+impl StreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
     type Output = (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "classes";

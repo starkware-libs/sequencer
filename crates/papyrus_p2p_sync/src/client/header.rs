@@ -16,8 +16,8 @@ use super::stream_builder::{
     BadPeerError,
     BlockData,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
+    StreamBuilder,
 };
 use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
@@ -65,7 +65,7 @@ impl BlockData for SignedBlockHeader {
 
 pub(crate) struct HeaderStreamBuilder;
 
-impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
+impl StreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     type Output = SignedBlockHeader;
 
     const TYPE_DESCRIPTION: &'static str = "headers";

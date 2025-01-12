@@ -44,7 +44,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
-use stream_builder::{DataStreamBuilder, DataStreamResult};
+use stream_builder::{StreamBuilder, StreamResult};
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;
@@ -173,7 +173,7 @@ impl P2PSyncClientChannels {
         storage_reader: StorageReader,
         config: P2PSyncClientConfig,
         internal_blocks_receivers: InternalBlocksReceivers,
-    ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
+    ) -> impl Stream<Item = StreamResult> + Send + 'static {
         let header_stream = HeaderStreamBuilder::create_stream(
             self.header_sender,
             storage_reader.clone(),
