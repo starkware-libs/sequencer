@@ -29,6 +29,7 @@ where
 {
     local_client: LocalComponentClient<Request, Response>,
     remote_client: RemoteComponentClient<Request, Response>,
+    use_remote_client: bool,
 }
 
 impl<Request, Response> Client<Request, Response>
@@ -39,8 +40,9 @@ where
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
         remote_client: RemoteComponentClient<Request, Response>,
+        use_remote_client: bool,
     ) -> Self {
-        Self { local_client, remote_client }
+        Self { local_client, remote_client, use_remote_client }
     }
 
     pub fn get_local_client(&self) -> LocalComponentClient<Request, Response> {
@@ -49,5 +51,9 @@ where
 
     pub fn get_remote_client(&self) -> RemoteComponentClient<Request, Response> {
         self.remote_client.clone()
+    }
+
+    pub fn get_use_remote_client(&self) -> bool {
+        self.use_remote_client
     }
 }

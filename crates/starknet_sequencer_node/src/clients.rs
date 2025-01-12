@@ -93,26 +93,19 @@ pub struct SequencerNodeClients {
 /// ```
 #[macro_export]
 macro_rules! get_shared_client {
-    ($self:ident, $client_field:ident, $execution_mode:expr) => {{
+    ($self:ident, $client_field:ident) => {{
         let client = &$self.$client_field;
-        match &$execution_mode {
-            ReactiveComponentExecutionMode::Disabled => None,
-            ReactiveComponentExecutionMode::Remote => Some(Arc::new(client.get_remote_client())),
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
-            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
-                Some(Arc::new(client.get_local_client()))
-            }
+        match client.get_use_remote_client() {
+            true => Some(Arc::new(client.get_remote_client())),
+            false => Some(Arc::new(client.get_local_client())),
         }
     }};
 }
 
 // TODO(Nadin): Refactor getters to remove code duplication.
 impl SequencerNodeClients {
-    pub fn get_batcher_shared_client(
-        &self,
-        execution_mode: &ReactiveComponentExecutionMode,
-    ) -> Option<SharedBatcherClient> {
-        get_shared_client!(self, batcher_client, execution_mode)
+    pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
+        get_shared_client!(self, batcher_client)
     }
 
     pub fn get_batcher_local_client(
@@ -121,11 +114,8 @@ impl SequencerNodeClients {
         self.batcher_client.get_local_client()
     }
 
-    pub fn get_mempool_shared_client(
-        &self,
-        execution_mode: &ReactiveComponentExecutionMode,
-    ) -> Option<SharedMempoolClient> {
-        get_shared_client!(self, mempool_client, execution_mode)
+    pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
+        get_shared_client!(self, mempool_client)
     }
 
     pub fn get_mempool_local_client(
@@ -134,11 +124,8 @@ impl SequencerNodeClients {
         self.mempool_client.get_local_client()
     }
 
-    pub fn get_gateway_shared_client(
-        &self,
-        execution_mode: &ReactiveComponentExecutionMode,
-    ) -> Option<SharedGatewayClient> {
-        get_shared_client!(self, gateway_client, execution_mode)
+    pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
+        get_shared_client!(self, gateway_client)
     }
 
     pub fn get_gateway_local_client(
@@ -153,19 +140,14 @@ impl SequencerNodeClients {
         self.l1_provider_client.get_local_client()
     }
 
-    pub fn get_l1_provider_shared_client(
-        &self,
-        execution_mode: &ReactiveComponentExecutionMode,
-    ) -> Option<SharedL1ProviderClient> {
-        get_shared_client!(self, l1_provider_client, execution_mode)
+    pub fn get_l1_provider_shared_client(&self) -> Option<SharedL1ProviderClient> {
+        get_shared_client!(self, l1_provider_client)
     }
 
     pub fn get_mempool_p2p_propagator_shared_client(
         &self,
-
-        execution_mode: &ReactiveComponentExecutionMode,
     ) -> Option<SharedMempoolP2pPropagatorClient> {
-        get_shared_client!(self, mempool_p2p_propagator_client, execution_mode)
+        get_shared_client!(self, mempool_p2p_propagator_client)
     }
 
     pub fn get_mempool_p2p_propagator_local_client(
@@ -174,11 +156,8 @@ impl SequencerNodeClients {
         self.mempool_p2p_propagator_client.get_local_client()
     }
 
-    pub fn get_state_sync_shared_client(
-        &self,
-        execution_mode: &ReactiveComponentExecutionMode,
-    ) -> Option<SharedStateSyncClient> {
-        get_shared_client!(self, state_sync_client, execution_mode)
+    pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
+        get_shared_client!(self, state_sync_client)
     }
 
     pub fn get_state_sync_local_client(
@@ -198,6 +177,8 @@ impl SequencerNodeClients {
 ///   client type should have a function $remote_client_type::new(config).
 /// * $channel_expr - Sender side for the local client.
 /// * $remote_client_config - Configuration for the remote client, passed as Option(config).
+/// * $execution_mode - Determines whether to enable the remote client
+///   (ReactiveComponentExecutionMode::Remote) or to use the local client.
 ///
 /// # Example
 ///
@@ -209,13 +190,14 @@ impl SequencerNodeClients {
 ///     LocalBatcherClient,
 ///     RemoteBatcherClient,
 ///     channels.take_batcher_tx(),
-///     config.components.batcher.remote_client_config
+///     config.components.batcher.remote_client_config,
+///     ReactiveComponentExecutionMode::Remote
 /// );
 /// ```
 ///
 /// This macro returns an instance of `Client` with both local and remote clients initialized.
 /// The local client uses the provided channel, and the remote client uses the configuration and
-/// socket.
+/// socket. The use_remote_client field is set based on the value of $execution_mode.
 #[macro_export]
 macro_rules! create_client {
     (
@@ -223,11 +205,13 @@ macro_rules! create_client {
         $remote_client_type:ty,
         $channel_expr:expr,
         $remote_client_config:expr,
-        $socket:expr
+        $socket:expr,
+        $execution_mode:expr
     ) => {
         Client::new(
             <$local_client_type>::new($channel_expr),
             <$remote_client_type>::new($remote_client_config.clone(), $socket),
+            matches!($execution_mode, ReactiveComponentExecutionMode::Remote),
         )
     };
 }
@@ -241,21 +225,24 @@ pub fn create_node_clients(
         RemoteBatcherClient,
         channels.take_batcher_tx(),
         &config.components.batcher.remote_client_config,
-        config.components.batcher.socket
+        config.components.batcher.socket,
+        config.components.batcher.execution_mode
     );
     let mempool_client = create_client!(
         LocalMempoolClient,
         RemoteMempoolClient,
         channels.take_mempool_tx(),
         &config.components.mempool.remote_client_config,
-        config.components.mempool.socket
+        config.components.mempool.socket,
+        config.components.mempool.execution_mode
     );
     let gateway_client = create_client!(
         LocalGatewayClient,
         RemoteGatewayClient,
         channels.take_gateway_tx(),
         &config.components.gateway.remote_client_config,
-        config.components.gateway.socket
+        config.components.gateway.socket,
+        config.components.gateway.execution_mode
     );
 
     let mempool_p2p_propagator_client = create_client!(
@@ -263,7 +250,8 @@ pub fn create_node_clients(
         RemoteMempoolP2pPropagatorClient,
         channels.take_mempool_p2p_propagator_tx(),
         &config.components.mempool_p2p.remote_client_config,
-        config.components.mempool_p2p.socket
+        config.components.mempool_p2p.socket,
+        config.components.mempool_p2p.execution_mode
     );
 
     let state_sync_client = create_client!(
@@ -271,7 +259,8 @@ pub fn create_node_clients(
         RemoteStateSyncClient,
         channels.take_state_sync_tx(),
         &config.components.state_sync.remote_client_config,
-        config.components.state_sync.socket
+        config.components.state_sync.socket,
+        config.components.state_sync.execution_mode
     );
 
     let l1_provider_client = create_client!(
@@ -279,7 +268,8 @@ pub fn create_node_clients(
         RemoteL1ProviderClient,
         channels.take_l1_provider_tx(),
         &config.components.l1_provider.remote_client_config,
-        config.components.l1_provider.socket
+        config.components.l1_provider.socket,
+        config.components.l1_provider.execution_mode
     );
 
     SequencerNodeClients {
