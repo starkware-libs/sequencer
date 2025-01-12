@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Infrastructure utility."
 
 [features]
-testing = ["tokio/net"]
+testing = []
 
 [lints]
 workspace = true
@@ -15,7 +15,12 @@ workspace = true
 [dependencies]
 num-traits.workspace = true
 regex.workspace = true
-tokio = { workspace = true, features = ["process", "rt", "time"] }
+tokio = { workspace = true, features = [
+  "net",
+  "process",
+  "rt",
+  "time",
+] } # TODO(Tsabary): remove "net".
 tracing.workspace = true
 
 [dev-dependencies]

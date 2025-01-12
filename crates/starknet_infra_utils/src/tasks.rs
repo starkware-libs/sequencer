@@ -1,11 +1,16 @@
 use std::future::Future;
+use std::panic;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-use tokio::task::JoinHandle;
+use tokio::task::{JoinError, JoinHandle};
 use tracing::error;
 
 #[cfg(test)]
 #[path = "tasks_test.rs"]
 mod tasks_test;
+
+pub(crate) const UNAWAITED_DROP_MESSAGE: &str = "ProtectedJoinHandle dropped without being awaited";
 
 /// Spawns a monitored asynchronous task in Tokio.
 ///
@@ -60,4 +65,61 @@ where
 
 pub(crate) fn exit_process() {
     std::process::exit(1);
+}
+
+pub struct ProtectedJoinHandle<T> {
+    handle: JoinHandle<T>,
+    awaited: bool,
+}
+
+impl<T> ProtectedJoinHandle<T> {
+    fn new(handle: JoinHandle<T>) -> Self {
+        Self { handle, awaited: false }
+    }
+
+    // TODO(Tsabary): add tests.
+    pub fn abort(&self) {
+        self.handle.abort();
+    }
+}
+
+impl<T> Drop for ProtectedJoinHandle<T> {
+    fn drop(&mut self) {
+        assert!(self.awaited, "{UNAWAITED_DROP_MESSAGE}");
+    }
+}
+
+impl<T> Future for ProtectedJoinHandle<T> {
+    type Output = std::result::Result<T, JoinError>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut(); // Access the inner value safely
+        let poll_result = Pin::new(&mut this.handle).poll(cx);
+
+        match poll_result {
+            Poll::Ready(Ok(value)) => {
+                this.awaited = true;
+                Poll::Ready(Ok(value)) // Return the successful result
+            }
+            Poll::Ready(Err(err)) => {
+                this.awaited = true; // Mark as awaited even if it failed
+                if err.is_panic() {
+                    // Log the panic message in the current scope.
+                    error!("ProtectedJoinHandle task panicked: {:?}", err);
+                    panic!("{:?}", err);
+                }
+                Poll::Ready(Err(err)) // Return the error result
+            }
+            Poll::Pending => Poll::Pending, // Task is still in progress
+        }
+    }
+}
+
+pub fn spawn_protected<F, T>(future: F) -> ProtectedJoinHandle<T>
+where
+    F: Future<Output = T> + Send + 'static,
+    T: Send + 'static,
+{
+    let handle = tokio::spawn(future);
+    ProtectedJoinHandle::new(handle)
 }

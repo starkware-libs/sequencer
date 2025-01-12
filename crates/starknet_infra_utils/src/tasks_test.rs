@@ -1,8 +1,20 @@
+use core::panic;
+
 use rstest::rstest;
 use tokio::signal::unix::{signal, SignalKind};
 use tokio::time::{sleep, timeout, Duration};
 
-use crate::tasks::{inner_spawn_with_exit_on_panic, spawn_with_exit_on_panic};
+use crate::tasks::{inner_spawn_with_exit_on_panic, spawn_protected, spawn_with_exit_on_panic};
+
+const SUCCESS_VALUE: u32 = 5;
+
+fn panicking_fn() -> u32 {
+    panic!("Oh no!");
+}
+
+fn success_fn() -> u32 {
+    SUCCESS_VALUE
+}
 
 #[rstest]
 #[tokio::test]
@@ -45,4 +57,47 @@ async fn test_spawn_with_exit_on_panic_failure() {
         timeout(Duration::from_millis(10), sigterm.recv()).await.is_ok(),
         "Did not receive SIGTERM signal."
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn spawn_protected_success_with_handle() {
+    let handle = spawn_protected(async { success_fn() });
+    let result = handle.await.unwrap();
+    assert_eq!(result, SUCCESS_VALUE);
+}
+
+#[rstest]
+#[tokio::test]
+async fn spawn_protected_success_without_handle() {
+    let result = spawn_protected(async { success_fn() }).await.unwrap();
+    assert_eq!(result, SUCCESS_VALUE);
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "ProtectedJoinHandle dropped without being awaited")]
+async fn spawn_protected_unawaited() {
+    spawn_protected(async { success_fn() });
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "Oh no!")]
+async fn spawn_protected_single_panic() {
+    spawn_protected(async { panicking_fn() }).await.unwrap();
+}
+
+// The expected panic in the 2-level-nesting tested case is:
+// 'JoinError::Panic(Id(X), "JoinError::Panic(Id(Y), "Oh no!", ...)", ...)', where 'X' and 'Y'
+// are the non-deterministic tokio inner task identifiers. The 'should_panic' annotation does not
+// support pattern matching, and as such, the test expected the suffix '// "Oh no!", ...)", ...)'
+// that captures the original panic message while indicating the nesting level.
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "\\\"Oh no!\\\", ...)\", ...)")]
+async fn spawn_protected_nested_panic() {
+    spawn_protected(async { spawn_protected(async { panicking_fn() }).await.unwrap() })
+        .await
+        .unwrap();
 }
