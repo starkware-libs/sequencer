@@ -57,8 +57,11 @@ async fn test_get_block() {
             expected_header.block_header_without_hash.block_number,
         ))
         .await;
-    let StateSyncResponse::GetBlock(Ok(Some(block))) = response else {
-        panic!("Expected StateSyncResponse::GetBlock::Ok(Some(_)), but got {:?}", response);
+    let StateSyncResponse::GetBlock(Ok(boxed_sync_block)) = response else {
+        panic!("Expected StateSyncResponse::GetBlock::Ok(Box(Some(_))), but got {:?}", response);
+    };
+    let Some(block) = *boxed_sync_block else {
+        panic!("Expected Box(Some(_)), but got {:?}", boxed_sync_block);
     };
 
     assert_eq!(block.block_header_without_hash, expected_header.block_header_without_hash);
