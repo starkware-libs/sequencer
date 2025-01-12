@@ -68,7 +68,6 @@ async fn setup(
         consensus_manager: ActiveComponentExecutionConfig::disabled(),
         batcher: ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: None,
             ..Default::default()
         },
         ..Default::default()
