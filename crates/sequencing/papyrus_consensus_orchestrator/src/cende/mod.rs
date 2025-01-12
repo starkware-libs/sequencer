@@ -7,7 +7,12 @@ use std::future::ready;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use central_objects::{CentralStateDiff, CentralTransactionWritten};
+use blockifier::transaction::objects::TransactionExecutionInfo;
+use central_objects::{
+    CentralStateDiff,
+    CentralTransactionExecutionInfo,
+    CentralTransactionWritten,
+};
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -29,6 +34,7 @@ pub(crate) struct AerospikeBlob {
     block_number: BlockNumber,
     state_diff: CentralStateDiff,
     transactions: Vec<CentralTransactionWritten>,
+    execution_infos: Vec<Vec<u8>>,
 }
 
 #[cfg_attr(test, automock)]
@@ -177,13 +183,14 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct BlobParameters {
-    // TODO(dvir): add here all the information needed for creating the blob: tranasctions,
-    // classes, block info, BlockExecutionArtifacts.
+    // TODO(dvir): add here all the information needed for creating the blob: classes,
+    // bouncer_weights.
     pub(crate) block_info: BlockInfo,
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) transactions: Vec<Transaction>,
+    pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
 }
 
 impl From<BlobParameters> for AerospikeBlob {
@@ -200,7 +207,12 @@ impl From<BlobParameters> for AerospikeBlob {
             .into_iter()
             .map(|tx| CentralTransactionWritten::from((tx, block_timestamp)))
             .collect();
+        let execution_infos = blob_parameters
+            .execution_infos
+            .into_iter()
+            .map(|execution_info| CentralTransactionExecutionInfo::from(execution_info).serialize())
+            .collect();
 
-        AerospikeBlob { block_number, state_diff, transactions }
+        AerospikeBlob { block_number, state_diff, transactions, execution_infos }
     }
 }
