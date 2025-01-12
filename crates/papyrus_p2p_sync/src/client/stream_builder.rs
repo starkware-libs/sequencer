@@ -59,13 +59,12 @@ where
     /// Get the starting block number for this stream.
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
-    // TODO(Eitan): Remove option on return once we have a class manager component.
     /// Convert a sync block into block data. Return `None` if internal blocks are disabled for this
     /// stream.
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> Option<Self::Output>;
+    ) -> Self::Output;
 
     // Async functions in trait don't work well with argument references
     /// Retrieve the internal block for a specific block number.
@@ -82,13 +81,8 @@ where
                 internal_block_receiver.as_mut().expect("Internal block receiver not set");
             while let Some((block_number, sync_block)) = internal_block_receiver.next().await {
                 if block_number >= current_block_number {
-                    // If None is received then we don't use internal blocks for this stream
-                    // TODO(Eitan): Remove this once we have a class manager component.
-                    let Some(block_data) =
-                        Self::convert_sync_block_to_block_data(block_number, sync_block)
-                    else {
-                        continue;
-                    };
+                    let block_data =
+                        Self::convert_sync_block_to_block_data(block_number, sync_block);
                     if block_number == current_block_number {
                         return block_data;
                     }

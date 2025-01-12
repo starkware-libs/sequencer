@@ -131,11 +131,10 @@ impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
         storage_reader.begin_ro_txn()?.get_class_marker()
     }
 
-    // TODO(Eitan): Implement this function once we have a class manager component.
     fn convert_sync_block_to_block_data(
-        _block_number: BlockNumber,
+        block_number: BlockNumber,
         _sync_block: SyncBlock,
-    ) -> Option<(DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber)> {
-        None
+    ) -> (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
+        (DeclaredClasses::new(), DeprecatedDeclaredClasses::new(), block_number)
     }
 }
