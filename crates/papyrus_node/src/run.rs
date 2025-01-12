@@ -36,6 +36,7 @@ use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockO
 use starknet_client::reader::PendingData;
 use starknet_consensus::config::ConsensusConfig;
 use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::types::ContextConfig;
 use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
@@ -184,19 +185,25 @@ fn spawn_monitoring_server(
 }
 
 fn spawn_consensus(
-    config: Option<&ConsensusConfig>,
+    consensus_config: Option<&ConsensusConfig>,
+    context_config: Option<&ContextConfig>,
     storage_reader: StorageReader,
     network_manager: Option<&mut NetworkManager>,
 ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
-    let (Some(config), Some(network_manager)) = (config, network_manager) else {
+    let (Some(consensus_config), Some(context_config), Some(network_manager)) =
+        (consensus_config, context_config, network_manager)
+    else {
         info!("Consensus is disabled.");
         return Ok(tokio::spawn(future::pending()));
     };
-    let config = config.clone();
-    debug!("Consensus configuration: {config:?}");
+    let consensus_config = consensus_config.clone();
+    let context_config = context_config.clone();
+    debug!("Consensus configuration: {consensus_config:?}");
 
-    let network_channels = network_manager
-        .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
+    let network_channels = network_manager.register_broadcast_topic(
+        Topic::new(consensus_config.network_topic.clone()),
+        BUFFER_SIZE,
+    )?;
     let proposal_network_channels: BroadcastTopicChannels<
         StreamMessage<ProposalPart, HeightAndRound>,
     > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
@@ -210,23 +217,23 @@ fn spawn_consensus(
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
     let context = PapyrusConsensusContext::new(
+        context_config,
         storage_reader.clone(),
         network_channels.broadcast_topic_client.clone(),
         outbound_internal_sender,
-        config.num_validators,
         None,
     );
 
     Ok(tokio::spawn(async move {
         Ok(starknet_consensus::run_consensus(
             context,
-            config.start_height,
+            consensus_config.start_height,
             // TODO(Asmaa): replace with the correct value.
-            config.start_height,
-            config.validator_id,
-            config.consensus_delay,
-            config.timeouts.clone(),
-            config.sync_retry_interval,
+            consensus_config.start_height,
+            consensus_config.validator_id,
+            consensus_config.consensus_delay,
+            consensus_config.timeouts.clone(),
+            consensus_config.sync_retry_interval,
             network_channels.into(),
             inbound_internal_receiver,
         )
@@ -367,6 +374,7 @@ async fn run_threads(
     } else {
         spawn_consensus(
             config.consensus.as_ref(),
+            config.context.as_ref(),
             resources.storage_reader.clone(),
             resources.maybe_network_manager.as_mut(),
         )?
