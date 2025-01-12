@@ -42,6 +42,10 @@ pub trait StateSyncClient: Send + Sync {
         sync_block: SyncBlock,
     ) -> StateSyncClientResult<()>;
 
+    /// Request storage value under the given key in the given contract instance.
+    /// If the block doesn't exist or the sync hasn't downloaded it yet, it returns error
+    /// BlockNotFound.
+    /// If the contract has not been deployed, it will return the error ContractNotFound.
     async fn get_storage_at(
         &self,
         block_number: BlockNumber,
@@ -49,12 +53,20 @@ pub trait StateSyncClient: Send + Sync {
         storage_key: StorageKey,
     ) -> StateSyncClientResult<Felt>;
 
+    /// Request nonce in the given contract instance.
+    /// If the block doesn't exist or the sync hasn't downloaded it yet, it returns the error
+    /// BlockNotFound.
+    /// If the contract has not been deployed, it will return the error ContractNotFound.
     async fn get_nonce_at(
         &self,
         block_number: BlockNumber,
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<Nonce>;
 
+    /// Request class hash of contract class in the given contract instance.
+    /// If the block doesn't exist or the sync hasn't downloaded it yet, it returns the error
+    /// BlockNotFound.
+    /// If the contract has not been deployed, it will return the error ContractNotFound.
     async fn get_class_hash_at(
         &self,
         block_number: BlockNumber,
@@ -68,6 +80,8 @@ pub trait StateSyncClient: Send + Sync {
         class_hash: ClassHash,
     ) -> StateSyncClientResult<ContractClass>;
 
+    /// Request latest block number the sync has downloaded.
+    /// If there is no latest block download yet, it returns None.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
 
     // TODO: Add get_compiled_class_hash for StateSyncReader
