@@ -314,20 +314,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.batcher.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.batcher.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.batcher.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -359,20 +349,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.gateway.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.gateway.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.gateway.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -404,20 +384,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.l1_provider.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -449,20 +419,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -489,20 +449,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool_p2p.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool_p2p.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool_p2p.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -534,20 +484,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.state_sync.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.state_sync.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.state_sync.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",

@@ -39,24 +39,34 @@ const VALID_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 
 /// Test the validation of the struct ReactiveComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(ReactiveComponentExecutionMode::Disabled, None, None, VALID_SOCKET)]
 #[case::local(
-    ReactiveComponentExecutionMode::Remote,
-    None,
-    Some(RemoteClientConfig::default()),
+    ReactiveComponentExecutionMode::Disabled,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
     VALID_SOCKET
 )]
-#[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, VALID_SOCKET)]
+#[case::local(
+    ReactiveComponentExecutionMode::Remote,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
+    VALID_SOCKET
+)]
+#[case::local(
+    LOCAL_EXECUTION_MODE,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
+    VALID_SOCKET
+)]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
-    Some(LocalServerConfig::default()),
-    None,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
     VALID_SOCKET
 )]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
-    #[case] local_server_config: Option<LocalServerConfig>,
-    #[case] remote_client_config: Option<RemoteClientConfig>,
+    #[case] local_server_config: LocalServerConfig,
+    #[case] remote_client_config: RemoteClientConfig,
     #[case] socket: SocketAddr,
 ) {
     let component_exe_config = ReactiveComponentExecutionConfig {
