@@ -16,6 +16,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -71,7 +72,7 @@ fn generate_invoke_tx(nonce: u8) -> Transaction {
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
-    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart>>,
+    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart, HeightAndRound>>,
 }
 
 fn setup(
