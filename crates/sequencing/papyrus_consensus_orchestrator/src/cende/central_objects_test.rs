@@ -1,7 +1,30 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec;
 
 use blockifier::bouncer::BouncerWeights;
+use blockifier::execution::call_info::{
+    CallExecution,
+    CallInfo,
+    MessageToL1,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    Retdata,
+};
+use blockifier::execution::contract_class::TrackedResource;
+use blockifier::execution::entry_point::{CallEntryPoint, CallType};
+use blockifier::fee::fee_checks::FeeCheckError;
+use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::fee::resources::{
+    ArchivalDataResources,
+    ComputationResources,
+    MessageResources,
+    StarknetResources,
+    StateResources,
+    TransactionResources,
+};
+use blockifier::state::cached_state::{StateChangesCount, StateChangesCountForFee};
+use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{CellRef, Register};
 use cairo_lang_starknet_classes::casm_contract_class::{
@@ -11,6 +34,8 @@ use cairo_lang_starknet_classes::casm_contract_class::{
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::indexmap;
 use num_bigint::BigUint;
 use rstest::rstest;
@@ -25,8 +50,8 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};
+use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType, SierraVersion};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     DeclareTransaction,
@@ -34,9 +59,16 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::rpc_transaction::EntryPointByType;
-use starknet_api::state::{EntryPoint, FunctionIndex, SierraContractClass, ThinStateDiff};
+use starknet_api::state::{
+    EntryPoint,
+    FunctionIndex,
+    SierraContractClass,
+    StorageKey,
+    ThinStateDiff,
+};
+use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -53,7 +85,11 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{
     DeclareTransactionV3,
     DeployAccountTransactionV3,
+    EventContent,
+    EventData,
+    EventKey,
     InvokeTransactionV3,
+    L2ToL1Payload,
     TransactionHash,
     TransactionVersion,
 };
@@ -66,6 +102,7 @@ use super::{
     CentralInvokeTransaction,
     CentralStateDiff,
     CentralTransaction,
+    CentralTransactionExecutionInfo,
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::casm_contract_class_central_format;
@@ -80,6 +117,8 @@ pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contra
 pub const CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.casm.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
     "central_contract_class_default_optionals.casm.json";
+pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
+    "central_transaction_execution_info.json";
 
 fn resource_bounds() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -326,6 +365,133 @@ fn central_casm_contract_class_default_optional_fields_json() -> Value {
     serde_json::to_value(central_casm_contract_class).unwrap()
 }
 
+fn execution_resources() -> ExecutionResources {
+    ExecutionResources {
+        n_steps: 2,
+        n_memory_holes: 3,
+        builtin_instance_counter: {
+            let mut counter = HashMap::new();
+            counter.insert(BuiltinName::range_check, 31);
+            counter.insert(BuiltinName::pedersen, 4);
+            counter
+        },
+    }
+}
+
+fn call_info() -> CallInfo {
+    CallInfo {
+        call: CallEntryPoint {
+            class_hash: Some(ClassHash(felt!("0x80020000"))),
+            code_address: Some(contract_address!("0x40070000")),
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: EntryPointSelector(felt!(
+                "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775"
+            )),
+            calldata: Calldata(Arc::new(vec![
+                felt!("0x40070000"),
+                felt!("0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701"),
+                felt!("0x1"),
+                felt!("0x2"),
+            ])),
+            storage_address: contract_address!("0xc0020000"),
+            caller_address: contract_address!("0x1"),
+            call_type: CallType::Call,
+            initial_gas: 100_000_000,
+        },
+        execution: CallExecution {
+            retdata: Retdata(vec![felt!("0x56414c4944")]),
+            events: vec![OrderedEvent {
+                order: 2,
+                event: EventContent {
+                    keys: vec![EventKey(felt!("0x9"))],
+                    data: EventData(felt_vector()),
+                },
+            }],
+            l2_to_l1_messages: vec![OrderedL2ToL1Message {
+                order: 1,
+                message: MessageToL1 {
+                    to_address: EthAddress::try_from(felt!(1_u8)).unwrap(),
+                    payload: L2ToL1Payload(felt_vector()),
+                },
+            }],
+            failed: false,
+            gas_consumed: 11_690,
+        },
+        inner_calls: Vec::new(),
+        resources: execution_resources(),
+        tracked_resource: TrackedResource::SierraGas,
+        storage_read_values: felt_vector(),
+        accessed_storage_keys: HashSet::from([StorageKey::from(1_u128)]),
+        read_class_hash_values: vec![ClassHash(felt!("0x80020000"))],
+        accessed_contract_addresses: HashSet::from([contract_address!("0x1")]),
+    }
+}
+
+// This object is very long , so in order to test all types of sub-structs and refrain from filling
+// the entire object, we fill only one CallInfo with non-default values and the other CallInfos are
+// None.
+fn central_transaction_execution_info() -> Value {
+    let transaction_execution_info = TransactionExecutionInfo {
+        validate_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
+        execute_call_info: None,
+        fee_transfer_call_info: None,
+        revert_error: Some(RevertError::PostExecution(
+            FeeCheckError::InsufficientFeeTokenBalance {
+                fee: Fee(1),
+                balance_low: felt!(2_u8),
+                balance_high: felt!(3_u8),
+            },
+        )),
+        receipt: TransactionReceipt {
+            fee: Fee(0x26fe9d250e000),
+            gas: GasVector {
+                l1_gas: GasAmount(6860),
+                l1_data_gas: GasAmount(1),
+                l2_gas: GasAmount(1),
+            },
+            da_gas: GasVector {
+                l1_gas: GasAmount(1652),
+                l1_data_gas: GasAmount(1),
+                l2_gas: GasAmount(1),
+            },
+            resources: TransactionResources {
+                starknet_resources: StarknetResources {
+                    // The archival_data has private fields so it cannot be assigned, however, it is
+                    // not being used in the central object anyway so it can be default.
+                    archival_data: ArchivalDataResources::default(),
+                    messages: MessageResources {
+                        l2_to_l1_payload_lengths: vec![1, 2],
+                        message_segment_length: 1,
+                        l1_handler_payload_size: Some(1),
+                    },
+                    state: StateResources {
+                        state_changes_for_fee: StateChangesCountForFee {
+                            state_changes_count: StateChangesCount {
+                                n_storage_updates: 1,
+                                n_class_hash_updates: 2,
+                                n_compiled_class_hash_updates: 3,
+                                n_modified_contracts: 4,
+                            },
+                            n_allocated_keys: 5,
+                        },
+                    },
+                },
+                computation: ComputationResources {
+                    vm_resources: execution_resources(),
+                    n_reverted_steps: 2,
+                    sierra_gas: GasAmount(0x123430),
+                    reverted_sierra_gas: GasAmount(0x2),
+                },
+            },
+        },
+    };
+
+    let central_transaction_execution_info: CentralTransactionExecutionInfo =
+        transaction_execution_info.into();
+
+    serde_json::to_value(central_transaction_execution_info).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
@@ -345,8 +511,12 @@ fn central_casm_contract_class_default_optional_fields_json() -> Value {
     central_casm_contract_class_default_optional_fields_json(),
     CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH
 )]
+#[case::transaction_execution_info(
+    central_transaction_execution_info(),
+    CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH
+)]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
-    assert_eq!(rust_json, python_json,);
+    assert_json_eq(&rust_json, &python_json, "serialize_central_objects test".to_string());
 }
