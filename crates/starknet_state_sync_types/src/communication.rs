@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::{handle_all_response_variants, handle_response_variants};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
@@ -105,7 +105,7 @@ pub type StateSyncRequestAndResponseSender =
 #[allow(clippy::large_enum_variant)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
-    AddNewBlock(SyncBlock),
+    AddNewBlock(Box<SyncBlock>),
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
@@ -116,7 +116,7 @@ pub enum StateSyncRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum StateSyncResponse {
-    GetBlock(StateSyncResult<Option<SyncBlock>>),
+    GetBlock(StateSyncResult<Box<Option<SyncBlock>>>),
     AddNewBlock(StateSyncResult<()>),
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
@@ -135,12 +135,17 @@ where
         block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>> {
         let request = StateSyncRequest::GetBlock(block_number);
-        let response = self.send(request).await;
-        handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
+        handle_all_response_variants!(
+            StateSyncResponse,
+            GetBlock,
+            StateSyncClientError,
+            StateSyncError,
+            Boxed
+        )
     }
 
     async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
-        let request = StateSyncRequest::AddNewBlock(sync_block);
+        let request = StateSyncRequest::AddNewBlock(Box::new(sync_block));
         let response = self.send(request).await;
         handle_response_variants!(
             StateSyncResponse,
