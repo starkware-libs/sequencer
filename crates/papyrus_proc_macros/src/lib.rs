@@ -166,7 +166,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
             let return_value=#origin_block;
             if let Some(start_time) = start_function_time {
                 let exec_time = start_time.elapsed().as_secs_f64();
-                metrics::histogram!(#metric_name, exec_time);
+                metrics::histogram!(#metric_name).record(exec_time);
                 tracing::debug!("{}: {}", #metric_name, exec_time);
             }
             return_value

@@ -1,4 +1,4 @@
-use metrics::{absolute_counter, describe_counter, register_counter};
+use metrics::{counter, describe_counter};
 use tracing::info;
 
 #[cfg(test)]
@@ -14,27 +14,24 @@ pub(crate) const ADDED_TRANSACTIONS_FAILURE: (&str, &str, u64) =
 
 pub(crate) fn init_metrics() {
     info!("Initializing HTTP Server metrics");
-    register_counter!(ADDED_TRANSACTIONS_TOTAL.0);
+    counter!(ADDED_TRANSACTIONS_TOTAL.0).absolute(ADDED_TRANSACTIONS_TOTAL.2);
     describe_counter!(ADDED_TRANSACTIONS_TOTAL.0, ADDED_TRANSACTIONS_TOTAL.1);
-    absolute_counter!(ADDED_TRANSACTIONS_TOTAL.0, ADDED_TRANSACTIONS_TOTAL.2);
 
-    register_counter!(ADDED_TRANSACTIONS_SUCCESS.0);
+    counter!(ADDED_TRANSACTIONS_SUCCESS.0).absolute(ADDED_TRANSACTIONS_SUCCESS.2);
     describe_counter!(ADDED_TRANSACTIONS_SUCCESS.0, ADDED_TRANSACTIONS_SUCCESS.1);
-    absolute_counter!(ADDED_TRANSACTIONS_SUCCESS.0, ADDED_TRANSACTIONS_SUCCESS.2);
 
-    register_counter!(ADDED_TRANSACTIONS_FAILURE.0);
+    counter!(ADDED_TRANSACTIONS_FAILURE.0).absolute(ADDED_TRANSACTIONS_FAILURE.2);
     describe_counter!(ADDED_TRANSACTIONS_FAILURE.0, ADDED_TRANSACTIONS_FAILURE.1);
-    absolute_counter!(ADDED_TRANSACTIONS_FAILURE.0, ADDED_TRANSACTIONS_FAILURE.2);
 }
 
 pub(crate) fn record_added_transaction() {
-    metrics::increment_counter!(ADDED_TRANSACTIONS_TOTAL.0);
+    counter!(ADDED_TRANSACTIONS_TOTAL.0).increment(1);
 }
 
 pub(crate) fn record_added_transaction_status(add_tx_success: bool) {
     if add_tx_success {
-        metrics::increment_counter!(ADDED_TRANSACTIONS_SUCCESS.0);
+        counter!(ADDED_TRANSACTIONS_SUCCESS.0).increment(1);
     } else {
-        metrics::increment_counter!(ADDED_TRANSACTIONS_FAILURE.0);
+        counter!(ADDED_TRANSACTIONS_FAILURE.0).increment(1);
     }
 }

@@ -99,7 +99,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
     pub(crate) fn generic_new(mut swarm: SwarmT, advertised_multiaddr: Option<Multiaddr>) -> Self {
-        gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS, 0f64);
+        gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS).set(0f64);
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
         if let Some(address) = advertised_multiaddr.clone() {
@@ -268,10 +268,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
-                gauge!(
-                    papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS,
-                    self.swarm.num_connected_peers() as f64
-                );
+                gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS)
+                    .set(self.swarm.num_connected_peers() as f64);
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 match cause {
@@ -280,10 +278,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     }
                     None => debug!("Connection to {peer_id:?} closed."),
                 }
-                gauge!(
-                    papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS,
-                    self.swarm.num_connected_peers() as f64
-                );
+                gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS)
+                    .set(self.swarm.num_connected_peers() as f64);
             }
             SwarmEvent::Behaviour(event) => {
                 self.handle_behaviour_event(event)?;
@@ -405,10 +401,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         query: Vec<u8>,
     ) {
         self.num_active_inbound_sessions += 1;
-        gauge!(
-            papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS,
-            self.num_active_inbound_sessions as f64
-        );
+        gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
+            .set(self.num_active_inbound_sessions as f64);
         let (report_sender, report_receiver) = oneshot::channel::<()>();
         self.handle_new_report_receiver(peer_id, report_receiver);
         // TODO: consider returning error instead of panic.
@@ -572,10 +566,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                      outbound_session_id: {outbound_session_id:?}"
                 );
                 self.num_active_outbound_sessions += 1;
-                gauge!(
-                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
-                    self.num_active_outbound_sessions as f64
-                );
+                gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
+                    .set(self.num_active_outbound_sessions as f64);
                 self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
                 self.sqmr_outbound_report_receivers_awaiting_assignment
                     .insert(outbound_session_id, report_receiver);
@@ -598,17 +590,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         match session_id {
             SessionId::InboundSessionId(_) => {
                 self.num_active_inbound_sessions -= 1;
-                gauge!(
-                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS,
-                    self.num_active_inbound_sessions as f64
-                );
+                gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
+                    .set(self.num_active_inbound_sessions as f64);
             }
             SessionId::OutboundSessionId(_) => {
                 self.num_active_outbound_sessions += 1;
-                gauge!(
-                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
-                    self.num_active_outbound_sessions as f64
-                );
+                gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
+                    .set(self.num_active_outbound_sessions as f64);
             }
         }
     }
