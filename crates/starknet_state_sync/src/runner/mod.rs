@@ -11,7 +11,6 @@ use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClie
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_storage::{open_storage, StorageReader};
-use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
 use starknet_sequencer_infra::errors::ComponentError;
@@ -46,7 +45,7 @@ impl ComponentStarter for StateSyncRunner {
 impl StateSyncRunner {
     pub fn new(
         config: StateSyncConfig,
-        new_block_receiver: Receiver<(BlockNumber, SyncBlock)>,
+        new_block_receiver: Receiver<SyncBlock>,
     ) -> (Self, StorageReader) {
         let (storage_reader, storage_writer) =
             open_storage(config.storage_config).expect("StateSyncRunner failed opening storage");

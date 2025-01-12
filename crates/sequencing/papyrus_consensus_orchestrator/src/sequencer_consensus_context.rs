@@ -367,10 +367,7 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let state_sync_client = self.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
-        state_sync_client
-            .add_new_block(BlockNumber(height), sync_block)
-            .await
-            .expect("Failed to add new block.");
+        state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that

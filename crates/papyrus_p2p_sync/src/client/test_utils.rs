@@ -162,7 +162,7 @@ pub enum Action {
     ValidateReportSent(DataType),
     /// Sends an internal block to the sync.
     #[allow(dead_code)]
-    SendInternalBlock(BlockNumber, SyncBlock),
+    SendInternalBlock(SyncBlock),
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
@@ -297,8 +297,8 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                                 data type");
                         responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
                     }
-                    Action::SendInternalBlock(block_number, sync_block) => {
-                        internal_block_sender.send((block_number, sync_block)).await.unwrap();
+                    Action::SendInternalBlock(sync_block) => {
+                        internal_block_sender.send(sync_block).await.unwrap();
                     }
                     Action::RunP2pSync => {
                         sync_future_sender.take().expect("Called RunP2pSync twice").send(()).expect("Failed to send message to run P2P sync");
