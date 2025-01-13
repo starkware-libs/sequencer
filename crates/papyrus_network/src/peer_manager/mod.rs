@@ -174,10 +174,6 @@ impl PeerManager {
             let peer_connection_ids = peer.connection_ids();
             if !peer_connection_ids.is_empty() {
                 let connection_id = peer_connection_ids[0];
-                info!(
-                    "Session {:?} assigned to peer {:?} with connection id: {:?}",
-                    outbound_session_id, peer_id, connection_id
-                );
                 self.pending_events.push(ToSwarm::GenerateEvent(
                     ToOtherBehaviourEvent::SessionAssigned {
                         outbound_session_id,
