@@ -4,6 +4,7 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::indexmap;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
@@ -29,6 +30,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
@@ -160,6 +162,19 @@ async fn batcher_with_active_validate_block(
     batcher
 }
 
+#[tokio::test]
+async fn metrics_registered() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
+    let _batcher = create_batcher(MockDependencies::default());
+    let metrics = metrics_handle.render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.0)
+    );
+}
+
 #[rstest]
 #[tokio::test]
 async fn start_height_success() {
@@ -216,8 +231,9 @@ async fn no_active_height() {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT));
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next()));
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
@@ -401,7 +417,7 @@ async fn get_height() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
 
-    let mut batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
+    let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
 
     let result = batcher.get_height().await.unwrap();
     assert_eq!(result, GetHeightResponse { height: INITIAL_HEIGHT });
@@ -486,6 +502,9 @@ async fn concurrent_proposals_generation_fail() {
 #[rstest]
 #[tokio::test]
 async fn add_sync_block() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
     let mut mock_dependencies = MockDependencies::default();
 
     mock_dependencies
@@ -516,6 +535,11 @@ async fn add_sync_block() {
         transaction_hashes: test_tx_hashes().into_iter().collect(),
     };
     batcher.add_sync_block(sync_block).await.unwrap();
+    let metrics = metrics_handle.render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.unchecked_next().0)
+    );
 }
 
 #[rstest]
@@ -537,6 +561,9 @@ async fn add_sync_block_mismatch_block_number() {
 #[rstest]
 #[tokio::test]
 async fn decision_reached() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
     let mut mock_dependencies = MockDependencies::default();
     let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
 
@@ -572,6 +599,12 @@ async fn decision_reached() {
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
     assert_eq!(response.state_diff, expected_artifacts.state_diff());
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
+
+    let metrics = metrics_handle.render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.unchecked_next().0)
+    );
 }
 
 #[rstest]
