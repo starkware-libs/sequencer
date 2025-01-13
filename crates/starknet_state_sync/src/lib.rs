@@ -48,10 +48,10 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
     async fn handle_request(&mut self, request: StateSyncRequest) -> StateSyncResponse {
         match request {
             StateSyncRequest::GetBlock(block_number) => {
-                StateSyncResponse::GetBlock(self.get_block(block_number))
+                StateSyncResponse::GetBlock(self.get_block(block_number).map(Box::new))
             }
             StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
-                self.new_block_sender.send(sync_block).await.map_err(StateSyncError::from),
+                self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
             ),
             StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key) => {
                 StateSyncResponse::GetStorageAt(self.get_storage_at(
