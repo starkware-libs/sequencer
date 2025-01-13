@@ -41,15 +41,33 @@ pub struct TransactionConverter {
 
 impl TransactionConverterTrait for TransactionConverter {
     fn convert_internal_tx_to_consensus_transaction(
-        _tx: InternalConsensusTransaction,
+        tx: InternalConsensusTransaction,
     ) -> ConsensusTransaction {
-        todo!()
+        match tx {
+            InternalConsensusTransaction::RpcTransaction(internal_rpc_transaction) => {
+                ConsensusTransaction::RpcTransaction(Self::convert_internal_rpc_to_rpc(
+                    internal_rpc_transaction,
+                ))
+            }
+            InternalConsensusTransaction::L1Handler(l1_handler) => ConsensusTransaction::L1Handler(
+                Self::convert_internal_l1_handler_to_consensus_l1_handler(l1_handler),
+            ),
+        }
     }
 
     async fn convert_consensus_tx_to_internal_tx(
-        _tx: ConsensusTransaction,
+        tx: ConsensusTransaction,
     ) -> InternalConsensusTransaction {
-        todo!()
+        match tx {
+            ConsensusTransaction::RpcTransaction(rpc_transaction) => {
+                InternalConsensusTransaction::RpcTransaction(
+                    Self::convert_rpc_to_internal_rpc(rpc_transaction).await,
+                )
+            }
+            ConsensusTransaction::L1Handler(l1_handler) => InternalConsensusTransaction::L1Handler(
+                Self::convert_consensus_l1_handler_to_internal_l1_handler(l1_handler),
+            ),
+        }
     }
 
     fn convert_internal_rpc_to_rpc(_tx: InternalRpcTransaction) -> RpcTransaction {
