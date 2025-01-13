@@ -10,6 +10,7 @@ use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
 use crate::consensus::{
+    IntoFromProto,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -82,8 +83,8 @@ auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
 
 impl<T, StreamId> TryFrom<protobuf::StreamMessage> for StreamMessage<T, StreamId>
 where
-    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-    StreamId: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
     type Error = ProtobufConversionError;
 
@@ -110,10 +111,10 @@ where
     }
 }
 
-impl<
-    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-    StreamId: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
-> From<StreamMessage<T, StreamId>> for protobuf::StreamMessage
+impl<T, StreamId> From<StreamMessage<T, StreamId>> for protobuf::StreamMessage
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
     fn from(value: StreamMessage<T, StreamId>) -> Self {
         Self {
@@ -136,10 +137,10 @@ impl<
 // Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
 // because it doesn't seem to work with generics.
 // TODO(guyn): consider expanding the macro to support generics
-impl<
-    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-    StreamId: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
-> From<StreamMessage<T, StreamId>> for Vec<u8>
+impl<T, StreamId> From<StreamMessage<T, StreamId>> for Vec<u8>
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
     fn from(value: StreamMessage<T, StreamId>) -> Self {
         let protobuf_value = <protobuf::StreamMessage>::from(value);
@@ -147,10 +148,10 @@ impl<
     }
 }
 
-impl<
-    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
-    StreamId: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
-> TryFrom<Vec<u8>> for StreamMessage<T, StreamId>
+impl<T, StreamId> TryFrom<Vec<u8>> for StreamMessage<T, StreamId>
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
     type Error = ProtobufConversionError;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
