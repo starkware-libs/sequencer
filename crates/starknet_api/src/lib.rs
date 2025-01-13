@@ -5,6 +5,7 @@
 pub mod abi;
 pub mod block;
 pub mod block_hash;
+pub mod consensus_transaction;
 pub mod contract_class;
 pub mod core;
 pub mod crypto;

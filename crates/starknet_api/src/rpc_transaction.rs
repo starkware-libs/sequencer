@@ -35,6 +35,7 @@ use crate::transaction::{
     InvokeTransaction,
     InvokeTransactionV3,
     Transaction,
+    TransactionHash,
 };
 use crate::StarknetApiError;
 
@@ -50,6 +51,24 @@ pub enum RpcTransaction {
     DeployAccount(RpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
     Invoke(RpcInvokeTransaction),
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
+pub enum InternalRpcTransactionWithoutTxHash {
+    #[serde(rename = "DECLARE")]
+    Declare(DeclareTransactionV3),
+    #[serde(rename = "INVOKE")]
+    Invoke(InvokeTransactionV3),
+    #[serde(rename = "DEPLOY_ACCOUNT")]
+    DeployAccount(DeployAccountTransactionV3),
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+pub struct InternalRpcTransaction {
+    pub tx: InternalRpcTransactionWithoutTxHash,
+    pub tx_hash: TransactionHash,
 }
 
 macro_rules! implement_ref_getters {
