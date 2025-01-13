@@ -15,6 +15,7 @@ use std::time::Duration;
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use metrics::counter;
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -78,7 +79,7 @@ where
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
-        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
+        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
 
         let must_observer = current_height < start_active_height;
         match manager
@@ -101,7 +102,7 @@ where
             }
             RunHeightRes::Sync(sync_height) => {
                 info!("Sync to height: {}. current_height={}", sync_height, current_height);
-                metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
+                counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
                 current_height = sync_height.unchecked_next();
             }
         }

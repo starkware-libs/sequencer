@@ -5,7 +5,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::response::Response;
 use axum::Router;
-use metrics::{absolute_counter, describe_counter, register_counter};
+use metrics::{counter, describe_counter};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_storage::{table_names, test_utils};
 use pretty_assertions::assert_eq;
@@ -182,9 +182,8 @@ async fn with_metrics() {
     let metric_name = "metric_name";
     let metric_help = "metric_help";
     let metric_value = 8224;
-    register_counter!(metric_name);
+    counter!(metric_name).absolute(metric_value);
     describe_counter!(metric_name, metric_help);
-    absolute_counter!(metric_name, metric_value);
 
     let response = request_app(app, "metrics").await;
 
