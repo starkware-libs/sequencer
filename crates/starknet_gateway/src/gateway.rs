@@ -6,6 +6,8 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
@@ -34,6 +36,7 @@ pub struct Gateway {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub gateway_compiler: Arc<GatewayCompiler>,
     pub mempool_client: SharedMempoolClient,
+    pub transaction_converter: TransactionConverter,
     pub chain_info: ChainInfo,
 }
 
@@ -43,6 +46,7 @@ impl Gateway {
         state_reader_factory: Arc<dyn StateReaderFactory>,
         gateway_compiler: GatewayCompiler,
         mempool_client: SharedMempoolClient,
+        transaction_converter: TransactionConverter,
     ) -> Self {
         Self {
             config: config.clone(),
@@ -56,6 +60,7 @@ impl Gateway {
             gateway_compiler: Arc::new(gateway_compiler),
             mempool_client,
             chain_info: config.chain_info.clone(),
+            transaction_converter,
         }
     }
 
@@ -156,11 +161,19 @@ pub fn create_gateway(
     shared_state_sync_client: SharedStateSyncClient,
     compiler_config: SierraCompilationConfig,
     mempool_client: SharedMempoolClient,
+    class_manager_client: SharedClassManagerClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
     let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
+    let transaction_converter = TransactionConverter::new(class_manager_client);
 
-    Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
+    Gateway::new(
+        config,
+        state_reader_factory,
+        gateway_compiler,
+        mempool_client,
+        transaction_converter,
+    )
 }
 
 impl ComponentStarter for Gateway {}
