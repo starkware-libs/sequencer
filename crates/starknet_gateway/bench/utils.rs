@@ -11,12 +11,10 @@ use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::EmptyClassManagerClient;
-use starknet_gateway::compilation::GatewayCompiler;
 use starknet_gateway::config::GatewayConfig;
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::state_reader_test_utils::local_test_state_reader_factory;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 const N_TXS: usize = 100;
 
@@ -50,7 +48,6 @@ impl TransactionGenerator {
 pub struct BenchTestSetupConfig {
     pub n_txs: usize,
     pub gateway_config: GatewayConfig,
-    pub compiler_config: SierraCompilationConfig,
 }
 
 impl Default for BenchTestSetupConfig {
@@ -61,7 +58,6 @@ impl Default for BenchTestSetupConfig {
                 chain_info: ChainInfo::create_for_testing(),
                 ..Default::default()
             },
-            compiler_config: SierraCompilationConfig::default(),
         }
     }
 }
@@ -84,8 +80,6 @@ impl BenchTestSetup {
         }
 
         let state_reader_factory = local_test_state_reader_factory(cairo_version, false);
-        let gateway_compiler =
-            GatewayCompiler::new_command_line_compiler(config.compiler_config.clone());
         let mut mempool_client = MockMempoolClient::new();
         // TODO(noamsp): use MockTransactionConverter
         let class_manager_client = Arc::new(EmptyClassManagerClient);
@@ -98,7 +92,6 @@ impl BenchTestSetup {
         let gateway_business_logic = Gateway::new(
             config.gateway_config,
             Arc::new(state_reader_factory),
-            gateway_compiler,
             Arc::new(mempool_client),
             transaction_converter,
         );
