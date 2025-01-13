@@ -1,5 +1,14 @@
 use blockifier::transaction::transaction_execution::{self};
-use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
+use starknet_api::core::ClassHash;
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutHash,
+    RpcDeclareTransaction,
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcTransaction,
+};
+use starknet_api::transaction::TransactionHash;
 use starknet_api::transaction_v3::{ExternalTransactionV3, InternalTransactionV3};
 
 use crate::SharedClassManagerClient;
@@ -46,10 +55,26 @@ pub fn convert_internal_rpc_to_executable_transaction(
 }
 
 pub async fn convert_rpc_to_internal_rpc(
-    _tx: RpcTransaction,
-    _class_manager_client: &SharedClassManagerClient,
+    tx: RpcTransaction,
+    class_manager_client: &SharedClassManagerClient,
 ) -> InternalRpcTransaction {
-    unimplemented!()
+    let internal_rpc_tx_without_hash = match tx {
+        RpcTransaction::Declare(RpcDeclareTransaction::V3(declare)) => {
+            class_manager_client
+                .add_class(ClassHash(declare.compiled_class_hash.0), declare.contract_class.clone())
+                .await
+                .expect("Failed to add class");
+            InternalRpcTransactionWithoutHash::Declare(declare.into())
+        }
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke)) => {
+            InternalRpcTransactionWithoutHash::Invoke(invoke.into())
+        }
+        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(deploy_account)) => {
+            InternalRpcTransactionWithoutHash::DeployAccount(deploy_account.into())
+        }
+    };
+    // TODO: calculate the hash
+    InternalRpcTransaction { tx: internal_rpc_tx_without_hash, tx_hash: TransactionHash::default() }
 }
 
 pub fn convert_internal_rpc_to_rpc(
