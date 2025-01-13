@@ -119,27 +119,24 @@ use crate::utils::u64_from_usize;
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
-    let test_contract_address = test_contract.get_instance_address(0);
-    let account_address = account.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(
+            &block_context.chain_info,
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+        );
 
     // Invoke a function that changes the state and reverts.
     let tx_args = invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
-                test_contract_address,
+            contract_address,
                 "test_circuit",
                 &[]
             ),
         nonce: nonce_manager.next(account_address)
     };
     let tx_execution_info = run_invoke_tx(
-        state,
+        &mut state,
         &block_context,
         invoke_tx_args! {
             resource_bounds: default_all_resource_bounds,
@@ -155,27 +152,24 @@ fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidR
 #[case::vm(default_l1_resource_bounds())]
 #[case::gas(default_all_resource_bounds())]
 fn test_rc96_holes(block_context: BlockContext, #[case] resource_bounds: ValidResourceBounds) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
-    let test_contract_address = test_contract.get_instance_address(0);
-    let account_address = account.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(
+            &block_context.chain_info,
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+        );
 
     // Invoke a function that changes the state and reverts.
     let tx_args = invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
-                test_contract_address,
+            contract_address,
                 "test_rc96_holes",
                 &[]
             ),
         nonce: nonce_manager.next(account_address)
     };
     let tx_execution_info = run_invoke_tx(
-        state,
+        &mut state,
         &block_context,
         invoke_tx_args! {
             resource_bounds: resource_bounds,
@@ -677,25 +671,20 @@ fn test_revert_invoke(
     #[case] transaction_version: TransactionVersion,
     #[case] fee_type: FeeType,
 ) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
-    let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
-    let test_contract_address = test_contract.get_instance_address(0);
-    let account_address = account.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
 
     // Invoke a function that changes the state and reverts.
     let storage_key = felt!(9_u8);
     let tx_execution_info = run_invoke_tx(
-        state,
+        &mut state,
         &block_context,
         invoke_tx_args! {
             max_fee,
             resource_bounds: all_resource_bounds,
             sender_address: account_address,
             calldata: create_calldata(
-                test_contract_address,
+                contract_address,
                 "write_and_revert",
                 // Write some non-zero value.
                 &[storage_key, felt!(99_u8)]
@@ -715,7 +704,10 @@ fn test_revert_invoke(
     // Check that the nonce was increased and the fee was deducted.
     assert_eq!(
         state
-            .get_fee_token_balance(account_address, chain_info.fee_token_address(&fee_type))
+            .get_fee_token_balance(
+                account_address,
+                block_context.chain_info.fee_token_address(&fee_type)
+            )
             .unwrap(),
         (felt!(BALANCE.0 - tx_execution_info.receipt.fee.0), felt!(0_u8))
     );
@@ -727,9 +719,7 @@ fn test_revert_invoke(
     // Check that execution state changes were reverted.
     assert_eq!(
         felt!(0_u8),
-        state
-            .get_storage_at(test_contract_address, StorageKey::try_from(storage_key).unwrap())
-            .unwrap()
+        state.get_storage_at(contract_address, StorageKey::try_from(storage_key).unwrap()).unwrap()
     );
 }
 
@@ -1471,12 +1461,8 @@ fn test_count_actual_storage_changes(
     let fee_token_address = chain_info.fee_token_address(&fee_type);
 
     // Create initial state
-    let test_contract = FeatureContract::TestContract(cairo_version);
-    let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let mut state = test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
-    let account_address = account_contract.get_instance_address(0);
-    let contract_address = test_contract.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(&block_context.chain_info, cairo_version);
 
     let sequencer_address = block_context.block_info.sequencer_address;
     let initial_sequencer_balance =
@@ -1651,6 +1637,7 @@ fn test_count_actual_storage_changes(
 #[case::tx_version_1(TransactionVersion::ONE)]
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrency_execute_fee_transfer(
+    block_context: BlockContext,
     max_fee: Fee,
     default_all_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
@@ -1660,27 +1647,24 @@ fn test_concurrency_execute_fee_transfer(
     const TRANSFER_AMOUNT: u128 = 100;
     const SEQUENCER_BALANCE_LOW_INITIAL: u128 = 50;
 
-    let block_context = BlockContext::create_for_account_testing();
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
+    let TestInitData { mut state, account_address, contract_address, .. } =
+        create_test_init_data(chain_info, CairoVersion::Cairo1(RunnableCairo1::Casm));
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
-    sender_address: account.get_instance_address(0),
+    sender_address: account_address,
     max_fee,
-    calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+    calldata: create_trivial_calldata(contract_address),
     resource_bounds: default_all_resource_bounds,
     version
     });
     let fee_type = &account_tx.fee_type();
-    let fee_token_address = block_context.chain_info.fee_token_address(fee_type);
+    let fee_token_address = chain_info.fee_token_address(fee_type);
 
-    // Case 1: The transaction did not read form/ write to the sequenser balance before executing
+    // Case 1: The transaction did not read from/ write to the sequencer balance before executing
     // fee transfer.
-    let mut transactional_state = TransactionalState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
@@ -1695,7 +1679,7 @@ fn test_concurrency_execute_fee_transfer(
         }
     }
 
-    // Case 2: The transaction read from and write to the sequenser balance before executing fee
+    // Case 2: The transaction read from and write to the sequencer balance before executing fee
     // transfer.
 
     let transfer_calldata = create_calldata(
@@ -1711,11 +1695,11 @@ fn test_concurrency_execute_fee_transfer(
         Fee(SEQUENCER_BALANCE_LOW_INITIAL),
         &mut state.state,
     );
-    let mut transactional_state = TransactionalState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
 
     // Invokes transfer to the sequencer.
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
-        sender_address: account.get_instance_address(0),
+        sender_address: account_address,
         calldata: transfer_calldata,
         max_fee,
         resource_bounds: default_all_resource_bounds,
@@ -1729,7 +1713,7 @@ fn test_concurrency_execute_fee_transfer(
     let storage_writes = transactional_state.cache.borrow().writes.storage.clone();
     let storage_initial_reads = transactional_state.cache.borrow().initial_reads.storage.clone();
 
-    for (seq_write_val, expexted_write_val) in [
+    for (seq_write_val, expected_write_val) in [
         (
             storage_writes.get(&(fee_token_address, sequencer_balance_key_low)),
             // Balance after `execute` and without the fee transfer.
@@ -1742,7 +1726,7 @@ fn test_concurrency_execute_fee_transfer(
         (storage_writes.get(&(fee_token_address, sequencer_balance_key_high)), Felt::ZERO),
         (storage_initial_reads.get(&(fee_token_address, sequencer_balance_key_high)), Felt::ZERO),
     ] {
-        assert_eq!(*seq_write_val.unwrap(), expexted_write_val);
+        assert_eq!(*seq_write_val.unwrap(), expected_write_val);
     }
 }
 
@@ -1751,32 +1735,29 @@ fn test_concurrency_execute_fee_transfer(
 #[case::tx_version_1(TransactionVersion::ONE)]
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrent_fee_transfer_when_sender_is_sequencer(
+    mut block_context: BlockContext,
     max_fee: Fee,
     default_all_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
-    let mut block_context = BlockContext::create_for_account_testing();
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let account_address = account.get_instance_address(0_u16);
-    block_context.block_info.sequencer_address = account_address;
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let sender_balance = BALANCE;
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, sender_balance, &[(account, 1), (test_contract, 1)]);
+    let TestInitData { mut state, account_address, contract_address, .. } =
+        create_test_init_data(chain_info, CairoVersion::Cairo1(RunnableCairo1::Casm));
+    block_context.block_info.sequencer_address = account_address;
+    let sender_balance = BALANCE;
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee,
         sender_address: account_address,
-        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        calldata: create_trivial_calldata(contract_address),
         resource_bounds: default_all_resource_bounds,
         version
     });
     let fee_type = &account_tx.fee_type();
-    let fee_token_address = block_context.chain_info.fee_token_address(fee_type);
+    let fee_token_address = chain_info.fee_token_address(fee_type);
 
-    let mut transactional_state = TransactionalState::create_transactional(state);
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
@@ -1800,10 +1781,10 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
 ])]
 // TODO(Tzahi, 1/12/2024): Add a case with OldCairo1 instead of Cairo0.
 fn test_initial_gas(
+    block_context: BlockContext,
     #[case] versions: &[CompilerBasedVersion],
     default_all_resource_bounds: ValidResourceBounds,
 ) {
-    let block_context = BlockContext::create_for_account_testing();
     let account_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
     let account = FeatureContract::AccountWithoutValidations(account_version);
     let account_address = account.get_instance_address(0_u16);
@@ -1908,12 +1889,10 @@ fn test_revert_in_execute(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
 ) {
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
-    let account_address = account.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
+    let TestInitData { mut state, account_address, mut nonce_manager, .. } = create_test_init_data(
+        &block_context.chain_info,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+    );
 
     // Invoke a function that changes the state and reverts.
     let tx_args = invoke_tx_args! {
@@ -1930,7 +1909,7 @@ fn test_revert_in_execute(
     });
     let execution_flags = AccountExecutionFlags { validate, ..AccountExecutionFlags::default() };
     let account_tx = AccountTransaction { tx, execution_flags };
-    let tx_execution_info = account_tx.execute(state, &block_context).unwrap();
+    let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
 
     assert!(tx_execution_info.is_reverted());
     assert!(
@@ -1954,24 +1933,14 @@ fn test_call_contract_that_panics(
 ) {
     // Override enable reverts.
     block_context.versioned_constants.enable_reverts = enable_reverts;
-    let test_contract = FeatureContract::TestContract(cairo_version);
-    // TODO(Yoni): use `class_version` here once the feature contract fully supports Native.
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
-    let test_contract_address = test_contract.get_instance_address(0);
-    let account_address = account.get_instance_address(0);
-    let mut nonce_manager = NonceManager::default();
+    let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(&block_context.chain_info, cairo_version);
 
-    let new_class_hash = test_contract.get_class_hash();
+    let new_class_hash = FeatureContract::TestContract(cairo_version).get_class_hash();
     let to_panic = true.into();
 
     let calldata = [
-        *FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_instance_address(0)
-            .0
-            .key(),
+        *contract_address.0.key(),
         selector_from_name(inner_selector).0,
         felt!(2_u8),
         new_class_hash.0,
@@ -1982,14 +1951,14 @@ fn test_call_contract_that_panics(
     let tx_args = invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
-                test_contract_address,
+            contract_address,
                "test_call_contract_revert",
                 &calldata
             ),
         nonce: nonce_manager.next(account_address)
     };
     let tx_execution_info = run_invoke_tx(
-        state,
+        &mut state,
         &block_context,
         invoke_tx_args! {
             resource_bounds: default_all_resource_bounds,
