@@ -21,6 +21,7 @@ impl std::fmt::Display for AccountState {
     }
 }
 
+// TODO(noamsp): Change tx to InternalRpcTransaction.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AddTransactionArgs {
     pub tx: AccountTransaction,
