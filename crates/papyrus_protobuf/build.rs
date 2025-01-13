@@ -55,6 +55,7 @@ fn main() -> io::Result<()> {
         &[
             // "src/proto/p2p/proto/rpc_transaction.proto",
             "src/proto/p2p/proto/class.proto",
+            "src/proto/p2p/proto/sync/class.proto",
             "src/proto/p2p/proto/event.proto",
             "src/proto/p2p/proto/header.proto",
             "src/proto/p2p/proto/state.proto",
