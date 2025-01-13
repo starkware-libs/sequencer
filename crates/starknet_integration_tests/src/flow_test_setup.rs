@@ -202,8 +202,9 @@ pub fn create_consensus_manager_configs_and_channels(
         ),
     );
 
+    let n_network_configs = network_configs.len();
     let consensus_manager_configs =
-        create_consensus_manager_configs_from_network_configs(network_configs);
+        create_consensus_manager_configs_from_network_configs(network_configs, n_network_configs);
 
     (consensus_manager_configs, broadcast_channels)
 }

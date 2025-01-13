@@ -117,6 +117,7 @@ pub async fn create_node_config(
 
 pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs: Vec<NetworkConfig>,
+    n_composed_nodes: usize,
 ) -> Vec<ConsensusManagerConfig> {
     // TODO(Matan, Dan): set reasonable default timeouts.
     let mut timeouts = TimeoutsConfig::default();
@@ -124,7 +125,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     timeouts.prevote_timeout *= 3;
     timeouts.proposal_timeout *= 3;
 
-    let num_validators = u64::try_from(network_configs.len()).unwrap();
+    let num_validators = u64::try_from(n_composed_nodes).unwrap();
 
     network_configs
         .into_iter()
