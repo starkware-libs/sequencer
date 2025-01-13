@@ -266,7 +266,9 @@ impl SingleHeightConsensus {
             }
             ShcEvent::Prevote(StateMachineEvent::Prevote(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_prevote else {
-                    return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
+                    return Err(ConsensusError::InternalInconsistency(
+                        "No prevote to send".to_string(),
+                    ));
                 };
                 if last_vote.round > round {
                     // Only replay the newest prevote.
@@ -281,7 +283,9 @@ impl SingleHeightConsensus {
             }
             ShcEvent::Precommit(StateMachineEvent::Precommit(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_precommit else {
-                    return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
+                    return Err(ConsensusError::InternalInconsistency(
+                        "No precommit to send".to_string(),
+                    ));
                 };
                 if last_vote.round > round {
                     // Only replay the newest precommit.
@@ -576,9 +580,11 @@ impl SingleHeightConsensus {
         let block = self
             .proposals
             .remove(&round)
-            .ok_or_else(|| invalid_decision("No ProposalInit for this round".to_string()))?
+            .ok_or_else(|| invalid_decision("No proposal entry for this round".to_string()))?
             .ok_or_else(|| {
-                invalid_decision("Invalid or validations haven't yet completed".to_string())
+                invalid_decision(
+                    "Proposal is invalid or validations haven't yet completed".to_string(),
+                )
             })?;
         if block != proposal_id {
             return Err(invalid_decision(format!(
