@@ -56,7 +56,7 @@ pub enum RpcTransaction {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
-pub enum InternalRpcTransactionWithoutHash {
+pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "DECLARE")]
     Declare(DeclareTransactionV3),
     #[serde(rename = "INVOKE")]
@@ -67,7 +67,7 @@ pub enum InternalRpcTransactionWithoutHash {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct InternalRpcTransaction {
-    pub tx: InternalRpcTransactionWithoutHash,
+    pub tx: InternalRpcTransactionWithoutTxHash,
     pub tx_hash: TransactionHash,
 }
 
