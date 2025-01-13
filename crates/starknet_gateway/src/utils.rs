@@ -15,6 +15,7 @@ use crate::errors::GatewayResult;
 /// Converts an RPC transaction to an executable transaction.
 /// Note, for declare transaction this step is heavy, as it requires compilation of Sierra to
 /// executable contract class.
+#[allow(dead_code)]
 pub fn compile_contract_and_build_executable_tx(
     rpc_tx: RpcTransaction,
     gateway_compiler: &GatewayCompiler,

@@ -23,6 +23,7 @@ pub struct GatewayCompiler {
     pub sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,
 }
 
+#[allow(dead_code)]
 impl GatewayCompiler {
     pub fn new_command_line_compiler(config: SierraCompilationConfig) -> Self {
         Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler::new(config)) }
