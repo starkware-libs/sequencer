@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
@@ -109,12 +109,12 @@ where
         class: RawClass,
     ) -> SierraCompilerClientResult<RawExecutableHashedClass> {
         let request = SierraCompilerRequest::Compile(class);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             SierraCompilerResponse,
             Compile,
             SierraCompilerClientError,
-            SierraCompilerError
+            SierraCompilerError,
+            Direct
         )
     }
 }

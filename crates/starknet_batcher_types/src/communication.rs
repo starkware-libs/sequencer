@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_sequencer_infra::component_client::{
     ClientError,
@@ -120,8 +120,13 @@ where
 {
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::ProposeBlock(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, ProposeBlock, BatcherClientError, BatcherError)
+        handle_all_response_variants!(
+            BatcherResponse,
+            ProposeBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
     }
 
     async fn get_proposal_content(
@@ -129,19 +134,24 @@ where
         input: GetProposalContentInput,
     ) -> BatcherClientResult<GetProposalContentResponse> {
         let request = BatcherRequest::GetProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             BatcherResponse,
             GetProposalContent,
             BatcherClientError,
-            BatcherError
+            BatcherError,
+            Direct
         )
     }
 
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::ValidateBlock(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, ValidateBlock, BatcherClientError, BatcherError)
+        handle_all_response_variants!(
+            BatcherResponse,
+            ValidateBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
     }
 
     async fn send_proposal_content(
@@ -149,29 +159,34 @@ where
         input: SendProposalContentInput,
     ) -> BatcherClientResult<SendProposalContentResponse> {
         let request = BatcherRequest::SendProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             BatcherResponse,
             SendProposalContent,
             BatcherClientError,
-            BatcherError
+            BatcherError,
+            Direct
         )
     }
 
     async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::StartHeight(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
+        handle_all_response_variants!(
+            BatcherResponse,
+            StartHeight,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
     }
 
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse> {
         let request = BatcherRequest::GetCurrentHeight;
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             BatcherResponse,
             GetCurrentHeight,
             BatcherClientError,
-            BatcherError
+            BatcherError,
+            Direct
         )
     }
 
@@ -180,18 +195,23 @@ where
         input: DecisionReachedInput,
     ) -> BatcherClientResult<DecisionReachedResponse> {
         let request = BatcherRequest::DecisionReached(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             BatcherResponse,
             DecisionReached,
             BatcherClientError,
-            BatcherError
+            BatcherError,
+            Direct
         )
     }
 
     async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
         let request = BatcherRequest::AddSyncBlock(sync_block);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, AddSyncBlock, BatcherClientError, BatcherError)
+        handle_all_response_variants!(
+            BatcherResponse,
+            AddSyncBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
     }
 }
