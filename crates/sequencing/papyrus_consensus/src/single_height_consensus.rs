@@ -224,11 +224,11 @@ impl SingleHeightConsensus {
         debug!("Received {init:?}");
         let proposer_id = context.proposer(self.height, init.round);
         if init.height != self.height {
-            let msg = format!("invalid height: expected {:?}, got {:?}", self.height, init.height);
-            return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
+            warn!("Invalid proposal height: expected {:?}, got {:?}", self.height, init.height);
+            return Ok(ShcReturn::Tasks(Vec::new()));
         }
         if init.proposer != proposer_id {
-            warn!("invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
+            warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
         let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
