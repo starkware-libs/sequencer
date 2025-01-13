@@ -2,11 +2,15 @@ use std::clone::Clone;
 use std::sync::Arc;
 
 use blockifier::context::ChainInfo;
+use futures::executor::block_on;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
@@ -23,7 +27,6 @@ use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
-use crate::utils::compile_contract_and_build_executable_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -97,10 +100,13 @@ struct ProcessTxBlockingTask {
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
+    // TODO(noamsp): remove gatewayCompiler from here and erase it
+    #[allow(dead_code)]
     gateway_compiler: Arc<GatewayCompiler>,
     mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
+    transaction_converter: TransactionConverter,
 }
 
 impl ProcessTxBlockingTask {
@@ -113,6 +119,7 @@ impl ProcessTxBlockingTask {
             mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
+            transaction_converter: gateway.transaction_converter.clone(),
         }
     }
 
@@ -122,11 +129,21 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
-        let executable_tx = compile_contract_and_build_executable_tx(
-            self.tx,
-            self.gateway_compiler.as_ref(),
-            &self.chain_info.chain_id,
-        )?;
+        let internal_tx =
+            block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
+                .map_err(|err| {
+                    error!(
+                        "Failed to convert internal RPC transaction to executable transaction: {}",
+                        err
+                    );
+                    GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+                })?;
+
+        let executable_tx = block_on(
+            self.transaction_converter
+                .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
+        )
+        .unwrap();
 
         // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
@@ -152,6 +169,7 @@ impl ProcessTxBlockingTask {
         )?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
+        // TODO(noamsp): put internal_tx instead of executable_tx
         Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
     }
 }
