@@ -1,3 +1,4 @@
+mod block_data_stream_builder;
 mod class;
 #[cfg(test)]
 mod class_test;
@@ -7,7 +8,6 @@ mod header_test;
 mod state_diff;
 #[cfg(test)]
 mod state_diff_test;
-mod stream_builder;
 #[cfg(test)]
 mod test;
 #[cfg(test)]
@@ -19,6 +19,7 @@ mod transaction_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use block_data_stream_builder::{BlockDataResult, BlockDataStreamBuilder};
 use class::ClassStreamBuilder;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::never::Never;
@@ -46,7 +47,6 @@ use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
-use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;
@@ -175,7 +175,7 @@ impl P2pSyncClientChannels {
         storage_reader: StorageReader,
         config: P2pSyncClientConfig,
         internal_blocks_receivers: InternalBlocksReceivers,
-    ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
+    ) -> impl Stream<Item = BlockDataResult> + Send + 'static {
         let header_stream = HeaderStreamBuilder::create_stream(
             self.header_sender,
             storage_reader.clone(),

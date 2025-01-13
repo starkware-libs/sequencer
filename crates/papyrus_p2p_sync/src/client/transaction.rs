@@ -10,11 +10,11 @@ use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
-use super::stream_builder::{
+use super::block_data_stream_builder::{
     BadPeerError,
     BlockData,
+    BlockDataStreamBuilder,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
 };
 use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
@@ -30,7 +30,7 @@ impl BlockData for (BlockBody, BlockNumber) {
 
 pub(crate) struct TransactionStreamFactory;
 
-impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
+impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
     // TODO(Eitan): Add events protocol to BlockBody or split their write to storage
     type Output = (BlockBody, BlockNumber);
 

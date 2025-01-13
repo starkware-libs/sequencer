@@ -13,11 +13,11 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
-use super::stream_builder::{
+use super::block_data_stream_builder::{
     BadPeerError,
     BlockData,
+    BlockDataStreamBuilder,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
 };
 use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
@@ -44,7 +44,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
 
 pub(crate) struct ClassStreamBuilder;
 
-impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
+impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
     type Output = (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "classes";
