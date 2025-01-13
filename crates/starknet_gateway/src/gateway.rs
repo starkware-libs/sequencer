@@ -15,11 +15,9 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{debug, error, instrument, Span};
 
-use crate::compilation::GatewayCompiler;
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
 use crate::state_reader::StateReaderFactory;
@@ -36,7 +34,6 @@ pub struct Gateway {
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
-    pub gateway_compiler: Arc<GatewayCompiler>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
     pub chain_info: ChainInfo,
@@ -46,7 +43,6 @@ impl Gateway {
     pub fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
-        gateway_compiler: GatewayCompiler,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
     ) -> Self {
@@ -59,7 +55,6 @@ impl Gateway {
                 config: config.stateful_tx_validator_config.clone(),
             }),
             state_reader_factory,
-            gateway_compiler: Arc::new(gateway_compiler),
             mempool_client,
             chain_info: config.chain_info.clone(),
             transaction_converter,
@@ -100,9 +95,6 @@ struct ProcessTxBlockingTask {
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
-    // TODO(noamsp): remove gatewayCompiler from here and erase it
-    #[allow(dead_code)]
-    gateway_compiler: Arc<GatewayCompiler>,
     mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
@@ -115,7 +107,6 @@ impl ProcessTxBlockingTask {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
-            gateway_compiler: gateway.gateway_compiler.clone(),
             mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
@@ -178,22 +169,15 @@ impl ProcessTxBlockingTask {
 pub fn create_gateway(
     config: GatewayConfig,
     shared_state_sync_client: SharedStateSyncClient,
-    compiler_config: SierraCompilationConfig,
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
-    let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
+
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
 
-    Gateway::new(
-        config,
-        state_reader_factory,
-        gateway_compiler,
-        mempool_client,
-        transaction_converter,
-    )
+    Gateway::new(config, state_reader_factory, mempool_client, transaction_converter)
 }
 
 impl ComponentStarter for Gateway {}
