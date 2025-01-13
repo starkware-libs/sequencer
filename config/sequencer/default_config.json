@@ -344,6 +344,11 @@
     "privacy": "Public",
     "value": "Enabled"
   },
+  "components.delay_in_sec": {
+    "description": "The delay in seconds before starting the node.",
+    "privacy": "Public",
+    "value": 0
+  },
   "components.gateway.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",

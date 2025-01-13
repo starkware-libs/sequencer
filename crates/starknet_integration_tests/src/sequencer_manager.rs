@@ -22,9 +22,10 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_sequencer_node::test_utils::node_runner::{spawn_run_node, NodeRunner};
 use starknet_types_core::felt::Felt;
-use tokio::task::JoinHandle;
+use tokio::task::{self, JoinHandle};
+use tokio::time::{sleep, Duration};
 use tracing::info;
 
 use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
@@ -38,7 +39,7 @@ use crate::utils::{
 };
 
 /// The number of consolidated local sequencers that participate in the test.
-const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+const N_CONSOLIDATED_SEQUENCERS: usize = 2;
 /// The number of distributed remote sequencers that participate in the test.
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
@@ -72,10 +73,20 @@ impl SequencerSetupManager {
         let sequencer_run_handles = sequencers
             .iter()
             .map(|sequencer_setup| {
-                spawn_run_node(
-                    sequencer_setup.node_config_path.clone(),
-                    sequencer_setup.sequencer_execution_id.into(),
-                )
+                let node_config_path = sequencer_setup.node_config_path.clone();
+                let execution_id: NodeRunner = sequencer_setup.sequencer_execution_id.into();
+                let delay_seconds = sequencer_setup.delay_in_sec;
+
+                task::spawn(async move {
+                    info!(
+                        "Delaying {} start by {} seconds...",
+                        execution_id.get_description(),
+                        delay_seconds
+                    );
+                    sleep(Duration::from_secs(delay_seconds)).await;
+
+                    spawn_run_node(node_config_path, execution_id);
+                })
             })
             .collect::<Vec<_>>();
 
@@ -204,6 +215,10 @@ pub(crate) async fn get_sequencer_setup_configs(
             &mut available_ports,
             N_DISTRIBUTED_SEQUENCERS,
         ));
+        combined.extend(vec![ComposedComponentConfigs::new(vec![ComponentConfig {
+            delay_in_sec: 30,
+            ..ComponentConfig::default()
+        }])]);
         combined
     };
 
@@ -280,6 +295,7 @@ pub(crate) async fn get_sequencer_setup_configs(
                     state_sync_config,
                     AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
                     component_config.clone(),
+                    component_config.delay_in_sec,
                 )
                 .await
             }
