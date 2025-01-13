@@ -442,8 +442,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         response: Vec<u8>,
     ) {
         trace!(
-            "Received response from peer for session id: {outbound_session_id:?}. sending to sync \
-             subscriber."
+            "Received response from peer for {outbound_session_id:?}. Sending to sync subscriber."
         );
         if let Some(report_receiver) =
             self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
@@ -460,7 +459,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 response,
                 format!(
                     "Received response for an outbound query while the buffer is full. Dropping \
-                     it. Session: {outbound_session_id:?}"
+                     it. {outbound_session_id:?}"
                 ),
                 false,
             );
@@ -485,7 +484,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn handle_sqmr_event_session_finished_successfully(&mut self, session_id: SessionId) {
-        debug!("Session completed successfully. session_id: {session_id:?}");
+        debug!("Session completed successfully. {session_id:?}");
         self.report_session_removed_to_metrics(session_id);
         if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
             self.sqmr_outbound_response_senders.remove(&outbound_session_id);
@@ -530,12 +529,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     fn handle_response_for_inbound_query(&mut self, res: (InboundSessionId, Option<Bytes>)) {
         let (inbound_session_id, maybe_response) = res;
+        debug!("Received response from server. Sending response to peer. {inbound_session_id:?}");
         match maybe_response {
             Some(response) => {
                 self.swarm.send_response(response, inbound_session_id).unwrap_or_else(|e| {
                     error!(
-                        "Failed to send response to peer. Session id: {inbound_session_id:?} not \
-                         found error: {e:?}"
+                        "Failed to send response to peer. {inbound_session_id:?} not found error: \
+                         {e:?}"
                     );
                 });
             }
@@ -544,7 +544,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             None => {
                 self.swarm.close_inbound_session(inbound_session_id).unwrap_or_else(|e| {
                     error!(
-                        "Failed to close session after sending all response. Session id: \
+                        "Failed to close session after sending all response. \
                          {inbound_session_id:?} not found error: {e:?}"
                     )
                 });
@@ -562,8 +562,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(outbound_session_id) => {
                 debug!(
-                    "Network received new query. waiting for peer assignment. \
-                     outbound_session_id: {outbound_session_id:?}"
+                    "Network received new query. Waiting for peer assignment. \
+                     {outbound_session_id:?}"
                 );
                 self.num_active_outbound_sessions += 1;
                 gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
@@ -851,7 +851,6 @@ where
     }
 
     pub async fn send_response(&mut self, response: Response) -> Result<(), SendError> {
-        debug!("Sending response from server to network");
         match self.responses_sender.feed(response).await {
             Ok(()) => Ok(()),
             Err(e) => {
