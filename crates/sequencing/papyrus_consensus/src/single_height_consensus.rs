@@ -379,7 +379,8 @@ impl SingleHeightConsensus {
             Entry::Occupied(entry) => {
                 let old = entry.get();
                 if old.block_hash != vote.block_hash {
-                    return Err(ConsensusError::Equivocation(old.clone(), vote));
+                    warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
+                    return Ok(ShcReturn::Tasks(Vec::new()));
                 } else {
                     // Replay, ignore.
                     return Ok(ShcReturn::Tasks(Vec::new()));
