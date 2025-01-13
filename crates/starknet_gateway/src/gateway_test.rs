@@ -12,6 +12,8 @@ use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
@@ -58,7 +60,15 @@ fn mock_dependencies(
     state_reader_factory: TestStateReaderFactory,
 ) -> MockDependencies {
     let mock_mempool_client = MockMempoolClient::new();
-    MockDependencies { config, compiler, state_reader_factory, mock_mempool_client }
+    // TODO(noamsp): use MockTransactionConverter
+    let class_manager_client = Arc::new(EmptyClassManagerClient);
+    MockDependencies {
+        config,
+        compiler,
+        state_reader_factory,
+        mock_mempool_client,
+        class_manager_client,
+    }
 }
 
 struct MockDependencies {
@@ -66,15 +76,17 @@ struct MockDependencies {
     compiler: GatewayCompiler,
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
+    class_manager_client: SharedClassManagerClient,
 }
 
 impl MockDependencies {
     fn gateway(self) -> Gateway {
         Gateway::new(
-            self.config,
+            self.config.clone(),
             Arc::new(self.state_reader_factory),
             self.compiler,
             Arc::new(self.mock_mempool_client),
+            TransactionConverter::new(self.class_manager_client, self.config.chain_info.chain_id),
         )
     }
 
