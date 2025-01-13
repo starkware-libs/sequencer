@@ -14,6 +14,7 @@ pub mod executable_transaction;
 pub mod execution_resources;
 pub mod execution_utils;
 pub mod hash;
+pub mod internal_transaction;
 pub mod rpc_transaction;
 pub mod serde_utils;
 pub mod state;
