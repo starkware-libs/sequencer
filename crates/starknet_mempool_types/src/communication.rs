@@ -4,7 +4,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
@@ -83,24 +83,34 @@ where
 {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
-        let response = self.send(request).await;
-        handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
+        handle_all_response_variants!(
+            MempoolResponse,
+            AddTransaction,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
     }
 
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::CommitBlock(args);
-        let response = self.send(request).await;
-        handle_response_variants!(MempoolResponse, CommitBlock, MempoolClientError, MempoolError)
+        handle_all_response_variants!(
+            MempoolResponse,
+            CommitBlock,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
     }
 
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             MempoolResponse,
             GetTransactions,
             MempoolClientError,
-            MempoolError
+            MempoolError,
+            Direct
         )
     }
 
@@ -109,12 +119,12 @@ where
         contract_address: ContractAddress,
     ) -> MempoolClientResult<bool> {
         let request = MempoolRequest::DeployAccountExists(contract_address);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             MempoolResponse,
             DeployAccountExists,
             MempoolClientError,
-            MempoolError
+            MempoolError,
+            Direct
         )
     }
 }
