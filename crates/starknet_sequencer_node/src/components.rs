@@ -84,12 +84,14 @@ pub fn create_node_components(
             let state_sync_client = clients
                 .get_state_sync_shared_client()
                 .expect("State Sync Client should be available");
-
+            // TODO: Remove this and use the real client instead once implemented.
+            let class_manager_client = Arc::new(EmptyClassManagerClient);
             Some(create_gateway(
                 config.gateway_config.clone(),
                 state_sync_client,
                 config.compiler_config.clone(),
                 mempool_client,
+                class_manager_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
