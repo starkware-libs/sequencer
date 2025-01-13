@@ -16,7 +16,6 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
-use crate::executable_transaction::L1HandlerTransaction;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
     AccountDeploymentData,
@@ -36,6 +35,7 @@ use crate::transaction::{
     InvokeTransaction,
     InvokeTransactionV3,
     Transaction,
+    TransactionHash,
 };
 use crate::StarknetApiError;
 
@@ -51,6 +51,24 @@ pub enum RpcTransaction {
     DeployAccount(RpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
     Invoke(RpcInvokeTransaction),
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[serde(tag = "type")]
+#[serde(deny_unknown_fields)]
+pub enum InternalRpcTransactionWithoutHash {
+    #[serde(rename = "DECLARE")]
+    Declare(DeclareTransactionV3),
+    #[serde(rename = "INVOKE")]
+    Invoke(InvokeTransactionV3),
+    #[serde(rename = "DEPLOY_ACCOUNT")]
+    DeployAccount(DeployAccountTransactionV3),
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+pub struct InternalRpcTransaction {
+    pub tx: InternalRpcTransactionWithoutHash,
+    pub tx_hash: TransactionHash,
 }
 
 macro_rules! implement_ref_getters {
@@ -317,10 +335,4 @@ impl EntryPointByType {
             (EntryPointType::L1Handler, self.l1handler.clone()),
         ])
     }
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub enum ExternalTransaction {
-    RpcTransaction(RpcTransaction),
-    L1Handler(L1HandlerTransaction),
 }
