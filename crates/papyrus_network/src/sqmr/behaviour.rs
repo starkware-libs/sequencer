@@ -21,7 +21,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use super::handler::{
     Handler,
@@ -143,7 +143,7 @@ impl Behaviour {
 
         self.outbound_sessions_pending_peer_assignment
             .insert(outbound_session_id, (query, protocol_name));
-        info!("Requesting peer assignment for outbound session: {:?}.", outbound_session_id);
+        debug!("Requesting peer assignment for outbound session: {:?}.", outbound_session_id);
         self.add_event_to_queue(ToSwarm::GenerateEvent(Event::ToOtherBehaviourEvent(
             ToOtherBehaviourEvent::RequestPeerAssignment { outbound_session_id },
         )));
