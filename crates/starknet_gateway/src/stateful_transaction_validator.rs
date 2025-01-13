@@ -101,19 +101,18 @@ impl StatefulTransactionValidator {
     }
 }
 
-// Check if validation of an invoke transaction should be skipped due to deploy_account not being
-// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
-// once.
+/// Check if validation of an invoke transaction should be skipped due to deploy_account not being
+/// processed yet. This feature is used to improve UX for users sending deploy_account + invoke at
+/// once.
 fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
-    match tx {
-        ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) => {
-            // check if the transaction nonce is 1, meaning it is post deploy_account, and the
-            // account nonce is zero, meaning the account was not deployed yet. The mempool also
-            // verifies that the deploy_account transaction exists.
-            tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
-        }
-        ExecutableTransaction::DeployAccount(_) | ExecutableTransaction::Declare(_) => false,
+    if let ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) = tx {
+        // TODO(Arni): Add a verification that there is a deploy_account transaction in the mempool.
+        // check if the transaction nonce is 1, meaning it is post deploy_account, and the
+        // account nonce is zero, meaning the account was not deployed yet.
+        return tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO);
     }
+
+    false
 }
 
 pub fn get_latest_block_info(
