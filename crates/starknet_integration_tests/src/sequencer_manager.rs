@@ -217,6 +217,7 @@ pub(crate) async fn get_sequencer_setup_configs(
 
     let consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
+        component_configs.len(),
     );
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
