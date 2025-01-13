@@ -45,6 +45,7 @@ pub trait TransactionConverterTrait {
     ) -> TransactionConverterResult<AccountTransaction>;
 }
 
+#[derive(Clone)]
 pub struct TransactionConverter {
     #[allow(dead_code)]
     class_manager_client: SharedClassManagerClient,
