@@ -6,6 +6,7 @@ use starknet_infra_utils::path::resolve_project_relative_path;
 use tokio::io::{AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
+use tokio::time::{sleep, Duration};
 use tracing::{error, info, instrument};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
@@ -28,9 +29,18 @@ impl NodeRunner {
     }
 }
 
-pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> JoinHandle<()> {
+pub fn spawn_run_node(
+    node_config_path: PathBuf,
+    node_runner: NodeRunner,
+    delay_in_sec: u64,
+) -> JoinHandle<()> {
     task::spawn(async move {
-        info!("Running the node from its spawned task.");
+        info!(
+            "Running {} after a delay of {} seconds from its spawned task.",
+            node_runner.get_description(),
+            delay_in_sec
+        );
+        sleep(Duration::from_secs(delay_in_sec)).await;
         // Obtain both handles, as the processes are terminated when their handles are dropped.
         let (mut node_handle, _annotator_handle) =
             spawn_node_child_process(node_config_path, node_runner).await;

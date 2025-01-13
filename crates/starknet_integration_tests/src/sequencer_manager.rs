@@ -38,7 +38,7 @@ use crate::utils::{
 };
 
 /// The number of consolidated local sequencers that participate in the test.
-const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+const N_CONSOLIDATED_SEQUENCERS: usize = 2;
 /// The number of distributed remote sequencers that participate in the test.
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
@@ -75,6 +75,7 @@ impl SequencerSetupManager {
                 spawn_run_node(
                     sequencer_setup.node_config_path.clone(),
                     sequencer_setup.sequencer_execution_id.into(),
+                    sequencer_setup.delay_in_sec,
                 )
             })
             .collect::<Vec<_>>();
@@ -204,6 +205,10 @@ pub(crate) async fn get_sequencer_setup_configs(
             &mut available_ports,
             N_DISTRIBUTED_SEQUENCERS,
         ));
+        combined.extend(vec![ComposedComponentConfigs::new(vec![ComponentConfig {
+            delay_in_sec: 30,
+            ..ComponentConfig::default()
+        }])]);
         combined
     };
 
@@ -280,6 +285,7 @@ pub(crate) async fn get_sequencer_setup_configs(
                     state_sync_config,
                     AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
                     component_config.clone(),
+                    component_config.delay_in_sec,
                 )
                 .await
             }

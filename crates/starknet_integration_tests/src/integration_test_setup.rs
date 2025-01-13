@@ -50,6 +50,8 @@ impl From<SequencerExecutionId> for NodeRunner {
 pub struct SequencerSetup {
     // Sequencer test identifier.
     pub sequencer_execution_id: SequencerExecutionId,
+    // Delay in seconds before starting the node.
+    pub delay_in_sec: u64,
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
@@ -84,6 +86,7 @@ impl SequencerSetup {
         mut state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
+        delay_in_sec: u64,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
@@ -131,6 +134,7 @@ impl SequencerSetup {
             node_config_path,
             state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
+            delay_in_sec,
         }
     }
 
