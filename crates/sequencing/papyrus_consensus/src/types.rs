@@ -159,9 +159,6 @@ pub enum ConsensusError {
     Canceled(#[from] oneshot::Canceled),
     #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
-    /// This should never occur, since events are internally generated.
-    #[error("Invalid event: {0}")]
-    InvalidEvent(String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
     // Indicates an error in communication between consensus and the node's networking component.
