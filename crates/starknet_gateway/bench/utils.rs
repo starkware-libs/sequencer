@@ -9,6 +9,8 @@ use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::NonceManager;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_gateway::compilation::GatewayCompiler;
 use starknet_gateway::config::GatewayConfig;
 use starknet_gateway::gateway::Gateway;
@@ -85,6 +87,12 @@ impl BenchTestSetup {
         let gateway_compiler =
             GatewayCompiler::new_command_line_compiler(config.compiler_config.clone());
         let mut mempool_client = MockMempoolClient::new();
+        // TODO(noamsp): use MockClassManagerClient
+        let class_manager_client = Arc::new(EmptyClassManagerClient);
+        let transaction_converter = TransactionConverter::new(
+            class_manager_client.clone(),
+            config.gateway_config.chain_info.chain_id.clone(),
+        );
         mempool_client.expect_add_tx().returning(|_| Ok(()));
 
         let gateway_business_logic = Gateway::new(
@@ -92,6 +100,7 @@ impl BenchTestSetup {
             Arc::new(state_reader_factory),
             gateway_compiler,
             Arc::new(mempool_client),
+            transaction_converter,
         );
 
         Self { gateway: gateway_business_logic, txs }
