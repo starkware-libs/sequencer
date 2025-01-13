@@ -24,7 +24,6 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn send_query(
         &mut self,
         query: Vec<u8>,
-        peer_id: PeerId,
         protocol: StreamProtocol,
     ) -> Result<OutboundSessionId, PeerNotConnected>;
 
@@ -67,11 +66,9 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         self.behaviour_mut().sqmr.send_response(response, inbound_session_id)
     }
 
-    // TODO: change this function signature
     fn send_query(
         &mut self,
         query: Vec<u8>,
-        _peer_id: PeerId,
         protocol: StreamProtocol,
     ) -> Result<OutboundSessionId, PeerNotConnected> {
         Ok(self.behaviour_mut().sqmr.start_query(query, protocol))
