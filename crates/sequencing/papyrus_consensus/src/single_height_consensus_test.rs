@@ -11,7 +11,7 @@ use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
-use crate::types::{ConsensusError, ValidatorId};
+use crate::types::ValidatorId;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -272,11 +272,7 @@ async fn vote_twice(same_vote: bool) {
     let second_vote =
         if same_vote { first_vote.clone() } else { precommit(Some(Felt::TWO), 0, 0, *PROPOSER_ID) };
     let res = shc.handle_vote(&mut context, second_vote.clone()).await;
-    if same_vote {
-        assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
-    } else {
-        assert!(matches!(res, Err(ConsensusError::Equivocation(_, _))));
-    }
+    assert_eq!(res, Ok(ShcReturn::Tasks(Vec::new())));
 
     let ShcReturn::Decision(decision) = shc
         .handle_vote(&mut context, precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2))

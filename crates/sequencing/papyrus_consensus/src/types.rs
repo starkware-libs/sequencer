@@ -166,8 +166,6 @@ pub enum ConsensusError {
     InvalidProposal(ValidatorId, BlockNumber, String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
-    #[error("Conflicting votes. Old: {0:?}, New: {1:?}")]
-    Equivocation(Vote, Vote),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
