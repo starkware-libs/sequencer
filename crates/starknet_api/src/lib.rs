@@ -5,6 +5,7 @@
 pub mod abi;
 pub mod block;
 pub mod block_hash;
+pub mod consensus_transaction;
 pub mod contract_class;
 pub mod core;
 pub mod crypto;
@@ -21,7 +22,6 @@ pub mod state;
 pub mod test_utils;
 pub mod transaction;
 pub mod transaction_hash;
-pub mod transaction_v3;
 pub mod type_utils;
 
 use std::num::ParseIntError;
