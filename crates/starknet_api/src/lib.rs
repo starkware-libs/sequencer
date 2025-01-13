@@ -14,7 +14,6 @@ pub mod executable_transaction;
 pub mod execution_resources;
 pub mod execution_utils;
 pub mod hash;
-pub mod internal_transaction;
 pub mod rpc_transaction;
 pub mod serde_utils;
 pub mod state;
@@ -22,6 +21,7 @@ pub mod state;
 pub mod test_utils;
 pub mod transaction;
 pub mod transaction_hash;
+pub mod transaction_v3;
 pub mod type_utils;
 
 use std::num::ParseIntError;
