@@ -89,7 +89,6 @@ pub fn create_node_components(
             Some(create_gateway(
                 config.gateway_config.clone(),
                 state_sync_client,
-                config.compiler_config.clone(),
                 mempool_client,
                 class_manager_client,
             ))

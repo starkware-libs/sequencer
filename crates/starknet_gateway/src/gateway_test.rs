@@ -23,9 +23,7 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
-use crate::compilation::GatewayCompiler;
 use crate::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,
@@ -44,11 +42,6 @@ fn config() -> GatewayConfig {
 }
 
 #[fixture]
-fn compiler() -> GatewayCompiler {
-    GatewayCompiler::new_command_line_compiler(SierraCompilationConfig::default())
-}
-
-#[fixture]
 fn state_reader_factory() -> TestStateReaderFactory {
     local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false)
 }
@@ -56,24 +49,16 @@ fn state_reader_factory() -> TestStateReaderFactory {
 #[fixture]
 fn mock_dependencies(
     config: GatewayConfig,
-    compiler: GatewayCompiler,
     state_reader_factory: TestStateReaderFactory,
 ) -> MockDependencies {
     let mock_mempool_client = MockMempoolClient::new();
     // TODO(noamsp): use MockTransactionConverter
     let class_manager_client = Arc::new(EmptyClassManagerClient);
-    MockDependencies {
-        config,
-        compiler,
-        state_reader_factory,
-        mock_mempool_client,
-        class_manager_client,
-    }
+    MockDependencies { config, state_reader_factory, mock_mempool_client, class_manager_client }
 }
 
 struct MockDependencies {
     config: GatewayConfig,
-    compiler: GatewayCompiler,
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
     class_manager_client: SharedClassManagerClient,
@@ -84,7 +69,6 @@ impl MockDependencies {
         Gateway::new(
             self.config.clone(),
             Arc::new(self.state_reader_factory),
-            self.compiler,
             Arc::new(self.mock_mempool_client),
             TransactionConverter::new(self.class_manager_client, self.config.chain_info.chain_id),
         )
