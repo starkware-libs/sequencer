@@ -1,6 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use tokio::net::TcpListener;
 
 const PORTS_PER_INSTANCE: u16 = 60;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 10;
@@ -22,6 +21,7 @@ pub enum TestIdentifier {
     EndToEndFlowTest,
     MempoolSendsTxToOtherPeerTest,
     MempoolReceivesTxFromOtherPeerTest,
+    InfraUnitTests,
 }
 
 impl From<TestIdentifier> for u16 {
@@ -31,6 +31,7 @@ impl From<TestIdentifier> for u16 {
             TestIdentifier::EndToEndFlowTest => 1,
             TestIdentifier::MempoolSendsTxToOtherPeerTest => 2,
             TestIdentifier::MempoolReceivesTxFromOtherPeerTest => 3,
+            TestIdentifier::InfraUnitTests => 4,
         }
     }
 }
@@ -80,18 +81,4 @@ impl AvailablePorts {
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
     }
-}
-
-/// Returns a unique IP address and port for testing purposes.
-/// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
-/// different ports, otherwise the server will fail with "address already in use".
-pub async fn get_available_socket() -> SocketAddr {
-    // Dynamically select port.
-    // First, set the port to 0 (dynamic port).
-    TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind to address")
-        // Then, resolve to the actual selected port.
-        .local_addr()
-        .expect("Failed to get local address")
 }
