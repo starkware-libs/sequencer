@@ -25,7 +25,7 @@ use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
@@ -529,9 +529,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     fn handle_response_for_inbound_query(&mut self, res: (InboundSessionId, Option<Bytes>)) {
         let (inbound_session_id, maybe_response) = res;
-        debug!("Received response from server. Sending response to peer. {inbound_session_id:?}");
         match maybe_response {
             Some(response) => {
+                debug!(
+                    "Received response from server. Sending response to peer. \
+                     {inbound_session_id:?}"
+                );
                 self.swarm.send_response(response, inbound_session_id).unwrap_or_else(|e| {
                     error!(
                         "Failed to send response to peer. {inbound_session_id:?} not found error: \
@@ -542,6 +545,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             // The None is inserted by the network manager after the receiver end terminated so
             // that we'll know here when it terminated.
             None => {
+                debug!(
+                    "Server finished sending responses. Closing session. {inbound_session_id:?}"
+                );
                 self.swarm.close_inbound_session(inbound_session_id).unwrap_or_else(|e| {
                     error!(
                         "Failed to close session after sending all response. \
@@ -558,27 +564,14 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         client_payload: SqmrClientPayload,
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
-        match self.swarm.send_query(query, protocol.clone()) {
-            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-            Ok(outbound_session_id) => {
-                debug!(
-                    "Network received new query. Waiting for peer assignment. \
-                     {outbound_session_id:?}"
-                );
-                self.num_active_outbound_sessions += 1;
-                gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
-                    .set(self.num_active_outbound_sessions as f64);
-                self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
-                self.sqmr_outbound_report_receivers_awaiting_assignment
-                    .insert(outbound_session_id, report_receiver);
-            }
-            Err(e) => {
-                info!(
-                    "Failed to send query to peer. Peer not connected error: {e:?} Returning \
-                     empty response to sync subscriber."
-                );
-            }
-        }
+        let outbound_session_id = self.swarm.send_query(query, protocol.clone());
+        self.num_active_outbound_sessions += 1;
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+        gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
+            .set(self.num_active_outbound_sessions as f64);
+        self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
+        self.sqmr_outbound_report_receivers_awaiting_assignment
+            .insert(outbound_session_id, report_receiver);
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
