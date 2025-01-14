@@ -26,7 +26,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use starknet_consensus::types::ValidatorId;
+use starknet_consensus::types::{ContextConfig, ValidatorId};
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
 use starknet_gateway::config::{
@@ -144,7 +144,12 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             cende_config: CendeConfig{
                 skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
-            }
+            },
+            context_config: ContextConfig {
+                num_validators,
+                chain_id: papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS.clone(),
+                ..Default::default()
+            },
         })
         .collect()
 }
