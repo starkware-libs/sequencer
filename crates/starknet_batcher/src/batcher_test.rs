@@ -678,7 +678,7 @@ async fn decision_reached() {
         .times(1)
         .with(eq(CommitBlockArgs {
             address_to_nonce: expected_artifacts.address_to_nonce(),
-            rejected_tx_hashes: [].into(),
+            rejected_tx_hashes: expected_artifacts.rejected_tx_hashes.clone(),
         }))
         .returning(|_| Ok(()));
 
@@ -709,6 +709,14 @@ async fn decision_reached() {
     assert_eq!(
         parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
         Some(INITIAL_HEIGHT.unchecked_next().0)
+    );
+    assert_eq!(
+        parse_numeric_metric::<usize>(&metrics, crate::metrics::BATCHED_TRANSACTIONS.name),
+        Some(expected_artifacts.execution_infos.len())
+    );
+    assert_eq!(
+        parse_numeric_metric::<usize>(&metrics, crate::metrics::REJECTED_TRANSACTIONS.name),
+        Some(expected_artifacts.rejected_tx_hashes.len())
     );
 }
 
