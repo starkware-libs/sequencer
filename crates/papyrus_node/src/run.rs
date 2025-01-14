@@ -36,7 +36,7 @@ use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockO
 use starknet_client::reader::PendingData;
 use starknet_consensus::config::ConsensusConfig;
 use starknet_consensus::stream_handler::StreamHandler;
-use starknet_consensus::types::ContextConfig;
+use starknet_consensus::types::ContextConfig; 
 use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;

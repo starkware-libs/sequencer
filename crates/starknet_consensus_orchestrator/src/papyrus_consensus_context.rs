@@ -32,6 +32,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::Transaction;
 use starknet_consensus::types::{
     ConsensusContext,
+    ContextConfig, 
     ConsensusError,
     ContextConfig,
     ProposalContentId,
