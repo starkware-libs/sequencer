@@ -12,7 +12,6 @@ members = [
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
   "crates/papyrus_config",
-  "crates/papyrus_consensus",
   "crates/papyrus_consensus_orchestrator",
   "crates/papyrus_execution",
   "crates/papyrus_load_test",
@@ -34,6 +33,7 @@ members = [
   "crates/starknet_class_manager_types",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_consensus",
   "crates/starknet_consensus_manager",
   "crates/starknet_gateway",
   "crates/starknet_gateway_types",
@@ -166,7 +166,6 @@ page_size = "0.6.0"
 papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.0.0" }
 papyrus_common = { path = "crates/papyrus_common", version = "0.0.0" }
 papyrus_config = { path = "crates/papyrus_config", version = "0.0.0" }
-papyrus_consensus = { path = "crates/papyrus_consensus", version = "0.0.0" }
 papyrus_consensus_orchestrator = { path = "crates/papyrus_consensus_orchestrator", version = "0.0.0" }
 papyrus_execution = { path = "crates/papyrus_execution", version = "0.0.0" }
 papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.0.0" }
@@ -224,6 +223,7 @@ starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.
 starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
+starknet_consensus = { path = "crates/starknet_consensus", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.0.0" }
 starknet_gateway = { path = "crates/starknet_gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.0.0" }

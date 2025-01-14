@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::ConsensusError;
 use papyrus_consensus_orchestrator::cende::CendeAmbassador;
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
@@ -10,6 +8,8 @@ use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
 use starknet_batcher_types::communication::SharedBatcherClient;
+use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::types::ConsensusError;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
@@ -91,7 +91,7 @@ impl ConsensusManager {
         );
 
         let mut network_handle = tokio::task::spawn(network_manager.run());
-        let consensus_task = papyrus_consensus::run_consensus(
+        let consensus_task = starknet_consensus::run_consensus(
             context,
             active_height,
             observer_height,

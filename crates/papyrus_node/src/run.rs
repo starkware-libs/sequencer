@@ -13,8 +13,6 @@ use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
-use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
@@ -36,6 +34,8 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
+use starknet_consensus::config::ConsensusConfig;
+use starknet_consensus::stream_handler::StreamHandler;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::metadata::LevelFilter;
@@ -213,7 +213,7 @@ fn spawn_consensus(
     );
 
     Ok(tokio::spawn(async move {
-        Ok(papyrus_consensus::run_consensus(
+        Ok(starknet_consensus::run_consensus(
             context,
             config.start_height,
             // TODO(Asmaa): replace with the correct value.

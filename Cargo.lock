@@ -7693,38 +7693,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_consensus"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "clap",
- "enum-as-inner",
- "fs2",
- "futures",
- "lazy_static",
- "lru",
- "metrics 0.24.1",
- "mockall",
- "nix 0.20.2",
- "papyrus_common",
- "papyrus_config",
- "papyrus_network",
- "papyrus_network_types",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "prost",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "test-case",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
 name = "papyrus_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
@@ -7738,7 +7706,6 @@ dependencies = [
  "mockall",
  "mockito 1.6.1",
  "papyrus_config",
- "papyrus_consensus",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_storage",
@@ -7750,6 +7717,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_consensus",
  "starknet_infra_utils",
  "starknet_state_sync_types",
  "test-case",
@@ -7891,7 +7859,6 @@ dependencies = [
  "papyrus_base_layer",
  "papyrus_common",
  "papyrus_config",
- "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_monitoring_gateway",
  "papyrus_network",
@@ -7907,6 +7874,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_client",
+ "starknet_consensus",
  "starknet_infra_utils",
  "strum 0.25.0",
  "tempfile",
@@ -10815,18 +10783,50 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_consensus"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "clap",
+ "enum-as-inner",
+ "fs2",
+ "futures",
+ "lazy_static",
+ "lru",
+ "metrics 0.24.1",
+ "mockall",
+ "nix 0.20.2",
+ "papyrus_common",
+ "papyrus_config",
+ "papyrus_network",
+ "papyrus_network_types",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "prost",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "test-case",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
 name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_config",
- "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_network",
  "papyrus_protobuf",
  "serde",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_consensus",
  "starknet_infra_utils",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
@@ -10948,7 +10948,6 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_config",
- "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_execution",
  "papyrus_network",
@@ -10962,6 +10961,7 @@ dependencies = [
  "starknet_api",
  "starknet_batcher",
  "starknet_client",
+ "starknet_consensus",
  "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_gateway_types",

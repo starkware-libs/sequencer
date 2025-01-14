@@ -19,7 +19,6 @@ itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_consensus.workspace = true
 papyrus_consensus_orchestrator.workspace = true
 papyrus_execution.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
@@ -31,6 +30,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher.workspace = true
 starknet_client.workspace = true
+starknet_consensus.workspace = true
 starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
