@@ -21,7 +21,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use super::handler::{
     Handler,
@@ -344,7 +344,10 @@ impl BridgedBehaviour for Behaviour {
         else {
             return;
         };
-        info!("Assigned {outbound_session_id:?} to {peer_id:?}");
+        debug!(
+            "Assigned session {:?} to peer {:?} with connection id: {:?}",
+            outbound_session_id, peer_id, connection_id
+        );
         self.session_id_to_peer_id_and_connection_id
             .insert((*outbound_session_id).into(), (*peer_id, *connection_id));
 
