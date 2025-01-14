@@ -150,7 +150,6 @@ pub enum Action {
     SendStateDiff(DataOrFin<StateDiffChunk>),
     /// Send a transaction as a response to a query we got from ReceiveQuery. Will panic if didn't
     /// call ReceiveQuery with DataType::Transaction before.
-    #[allow(dead_code)]
     SendTransaction(DataOrFin<FullTransaction>),
     /// Send a class as a response to a query we got from ReceiveQuery. Will panic if didn't
     /// call ReceiveQuery with DataType::Class before.
