@@ -30,6 +30,7 @@ impl L1Provider {
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
         // Reenable once `commit_block` is implemented so that height can be updated.
+        // test
         let _disabled = self.validate_height(height);
 
         match self.state {
