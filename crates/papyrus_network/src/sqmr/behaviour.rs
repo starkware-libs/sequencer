@@ -143,7 +143,10 @@ impl Behaviour {
 
         self.outbound_sessions_pending_peer_assignment
             .insert(outbound_session_id, (query, protocol_name));
-        debug!("Requesting peer assignment for outbound session: {:?}.", outbound_session_id);
+        debug!(
+            "Network received new query. Requesting peer assignment for session {:?}.",
+            outbound_session_id
+        );
         self.add_event_to_queue(ToSwarm::GenerateEvent(Event::ToOtherBehaviourEvent(
             ToOtherBehaviourEvent::RequestPeerAssignment { outbound_session_id },
         )));
@@ -345,8 +348,8 @@ impl BridgedBehaviour for Behaviour {
             return;
         };
         debug!(
-            "Assigned session {:?} to peer {:?} with connection id: {:?}",
-            outbound_session_id, peer_id, connection_id
+            "Assigned peer {:?} to session {:?} with connection id: {:?}",
+            peer_id, outbound_session_id, connection_id
         );
         self.session_id_to_peer_id_and_connection_id
             .insert((*outbound_session_id).into(), (*peer_id, *connection_id));
