@@ -16,8 +16,8 @@ use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::test_identifiers::TestIdentifier;
+use starknet_infra_utils::test_utils::{AvailablePorts, MAX_NUMBER_OF_INSTANCES_PER_TEST};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
-use starknet_sequencer_infra::test_utils::{AvailablePorts, MAX_NUMBER_OF_INSTANCES_PER_TEST};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
