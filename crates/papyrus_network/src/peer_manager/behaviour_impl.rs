@@ -13,7 +13,6 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tracing::{debug, error, warn};
 
-use super::peer::PeerTrait;
 use super::{PeerManager, PeerManagerError};
 use crate::sqmr::OutboundSessionId;
 

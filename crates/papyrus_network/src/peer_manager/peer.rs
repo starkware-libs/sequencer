@@ -4,33 +4,6 @@ use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
 use tracing::info;
 
-pub trait PeerTrait {
-    fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self;
-
-    fn blacklist_peer(&mut self, timeout_duration: Duration);
-
-    fn peer_id(&self) -> PeerId;
-
-    fn multiaddr(&self) -> Multiaddr;
-
-    fn is_blocked(&self) -> bool;
-
-    /// Returns Instant::now if not blocked.
-    fn blocked_until(&self) -> Instant;
-
-    fn connection_ids(&self) -> &Vec<ConnectionId>;
-
-    fn add_connection_id(&mut self, connection_id: ConnectionId);
-
-    fn remove_connection_id(&mut self, connection_id: ConnectionId);
-
-    fn reset_misconduct_score(&mut self);
-
-    fn report(&mut self, misconduct_score: f64);
-
-    fn is_malicious(&self) -> bool;
-}
-
 #[derive(Clone)]
 pub struct Peer {
     peer_id: PeerId,
@@ -40,7 +13,7 @@ pub struct Peer {
     misconduct_score: f64,
 }
 
-impl PeerTrait for Peer {
+impl Peer {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
         Self {
             peer_id,
