@@ -10680,6 +10680,7 @@ dependencies = [
  "assert-json-diff",
  "assert_matches",
  "bitvec",
+ "cached",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "derive_more 0.99.18",
