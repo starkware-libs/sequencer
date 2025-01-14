@@ -11,6 +11,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
+use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -25,6 +26,7 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
+use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
@@ -74,6 +76,11 @@ impl FlowTestSetup {
         let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config]: [MempoolP2pConfig;
             2] = mempool_p2p_configs.try_into().unwrap();
 
+        let [sequencer_0_state_sync_config, sequencer_1_state_sync_config]: [StateSyncConfig; 2] =
+            create_state_sync_configs(StorageConfig::default(), available_ports.get_next_ports(2))
+                .try_into()
+                .unwrap();
+
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
             accounts.to_vec(),
@@ -82,6 +89,7 @@ impl FlowTestSetup {
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 1),
+            sequencer_0_state_sync_config,
         )
         .await;
 
@@ -92,6 +100,7 @@ impl FlowTestSetup {
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 2),
+            sequencer_1_state_sync_config,
         )
         .await;
 
@@ -130,6 +139,7 @@ impl FlowSequencerSetup {
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
+        mut state_sync_config: StateSyncConfig,
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
@@ -138,12 +148,7 @@ impl FlowSequencerSetup {
 
         let component_config = ComponentConfig::default();
 
-        let state_sync_config = create_state_sync_configs(
-            storage_for_test.state_sync_storage_config,
-            available_ports.get_next_ports(1),
-        )
-        .pop()
-        .unwrap();
+        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Derive the configuration for the sequencer node.
         let (node_config, _required_params) = create_node_config(
