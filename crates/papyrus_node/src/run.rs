@@ -198,7 +198,9 @@ fn spawn_consensus(
     };
     let consensus_config = consensus_config.clone();
     let context_config = context_config.clone();
-    debug!("Consensus configuration: {consensus_config:?}");
+    debug!(
+        "Consensus configuration: {consensus_config:?}, Context configuration: {context_config:?}"
+    );
 
     let network_channels = network_manager.register_broadcast_topic(
         Topic::new(consensus_config.network_topic.clone()),
