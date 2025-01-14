@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -129,6 +130,7 @@ impl FlowSequencerSetup {
 
         let recorder_url = spawn_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
+        consensus_manager_config.cende_config.skip_write_height = Some(BlockNumber(1));
 
         let component_config = ComponentConfig::default();
 

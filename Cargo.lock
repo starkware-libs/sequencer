@@ -10414,11 +10414,13 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "infra_utils",
+ "mockall",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_network",
  "papyrus_protobuf",
+ "rstest",
  "serde",
  "starknet_api",
  "starknet_batcher_types",

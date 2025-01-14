@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use central_objects::{CentralStateDiff, CentralTransactionWritten};
 #[cfg(test)]
 use mockall::automock;
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Client, RequestBuilder};
 use serde::{Deserialize, Serialize};
@@ -51,6 +51,7 @@ pub struct CendeAmbassador {
     prev_height_blob: Arc<Mutex<Option<AerospikeBlob>>>,
     url: Url,
     client: Client,
+    skip_write_height: Option<BlockNumber>,
 }
 
 /// The path to write blob in the Recorder.
@@ -65,6 +66,7 @@ impl CendeAmbassador {
                 .join(RECORDER_WRITE_BLOB_PATH)
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
             client: Client::new(),
+            skip_write_height: cende_config.skip_write_height,
         }
     }
 }
@@ -72,6 +74,7 @@ impl CendeAmbassador {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
     pub recorder_url: Url,
+    pub skip_write_height: Option<BlockNumber>,
 }
 
 impl Default for CendeConfig {
@@ -83,18 +86,28 @@ impl Default for CendeConfig {
             recorder_url: "https://recorder_url"
                 .parse()
                 .expect("recorder_url must be a valid Recorder URL"),
+            skip_write_height: None,
         }
     }
 }
 
 impl SerializeConfig for CendeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
+        let mut config = BTreeMap::from_iter([ser_param(
             "recorder_url",
             &self.recorder_url,
             "The URL of the Pythonic cende_recorder",
             ParamPrivacyInput::Private,
-        )])
+        )]);
+        config.extend(ser_optional_param(
+            &self.skip_write_height,
+            BlockNumber(0),
+            "skip_write_height",
+            "A height that the consensus can skip writing to Aerospike. Needed for booting up (no \
+             previous height blob to write) or to handle extreme cases (all the nodes failed).",
+            ParamPrivacyInput::Private,
+        ));
+        config
     }
 }
 
@@ -102,22 +115,19 @@ impl SerializeConfig for CendeConfig {
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
         // TODO(dvir): consider returning a future that will be spawned in the context instead.
+        if let Some(skip_write_height) = self.skip_write_height {
+            if skip_write_height == current_height {
+                debug!(
+                    "Height {current_height} is configured as the `skip_write_height`, meaning \
+                     consensus can send a proposal without writing to Aerospike. Not writing to \
+                     Aerospike previous height blob!!!.",
+                );
+                return tokio::spawn(ready(true));
+            }
+        }
+
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.url.clone());
-
-        // TODO(dvir): remove this when handle the booting up case.
-        // Heights that are permitted to be built without writing to Aerospike.
-        // Height 1 to make  `end_to_end_flow` test pass.
-        const SKIP_WRITE_HEIGHTS: [BlockNumber; 1] = [BlockNumber(1)];
-
-        if SKIP_WRITE_HEIGHTS.contains(&current_height) {
-            debug!(
-                "height {} is in `SKIP_WRITE_HEIGHTS`, consensus can send proposal without \
-                 writing to Aerospike",
-                current_height
-            );
-            return tokio::spawn(ready(true));
-        }
 
         task::spawn(async move {
             // TODO(dvir): consider extracting the "should write blob" logic to a function.
