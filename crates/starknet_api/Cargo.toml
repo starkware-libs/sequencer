@@ -12,6 +12,7 @@ testing = ["dep:assert-json-diff", "starknet_infra_utils"]
 [dependencies]
 assert-json-diff = { workspace = true, optional = true }
 bitvec.workspace = true
+cached.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 derive_more.workspace = true
