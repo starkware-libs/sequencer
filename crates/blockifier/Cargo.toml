@@ -16,6 +16,7 @@ native_blockifier = []
 reexecution = ["transaction_serde"]
 testing = ["rand", "rstest", "starknet_api/testing"]
 transaction_serde = []
+profiling = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

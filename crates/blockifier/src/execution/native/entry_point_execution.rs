@@ -54,7 +54,7 @@ pub fn execute_entry_point_call(
     // adjusting the stack size.
     // This also limits multi-threading, since each thread has its own stack.
     // TODO(Aviv/Yonatan): add these numbers to overridable VC.
-    let stack_size_red_zone = 160 * 1024 * 1024;
+    let stack_size_red_zone = if !cfg!(feature = "profiling") { 160 * 1024 * 1024 } else { 0 };
     let target_stack_size = stack_size_red_zone + 10 * 1024 * 1024;
     // Use `maybe_grow` and not `grow` for performance, since in happy flows, only the main call
     // should trigger the growth.
