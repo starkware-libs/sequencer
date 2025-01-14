@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
@@ -11,15 +9,13 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, Contract};
-use papyrus_common::pending_classes::PendingClasses;
-use papyrus_rpc::{run_server, RpcConfig};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::TestStorageBuilder;
-use papyrus_storage::{StorageConfig, StorageReader, StorageScope, StorageWriter};
+use papyrus_storage::{StorageConfig, StorageScope, StorageWriter};
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
@@ -30,7 +26,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::test_utils::{
@@ -41,12 +37,9 @@ use starknet_api::test_utils::{
 };
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
-use starknet_client::reader::PendingData;
-use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
-use tokio::sync::RwLock;
 
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
@@ -285,41 +278,6 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
         },
         ..Default::default()
     }
-}
-
-/// Spawns a papyrus rpc server for given state reader and chain id.
-/// Returns the address of the rpc server.
-pub async fn spawn_test_rpc_state_reader(
-    storage_reader: StorageReader,
-    chain_id: ChainId,
-) -> SocketAddr {
-    let socket = get_available_socket().await;
-    spawn_test_rpc_state_reader_with_socket(storage_reader, chain_id, socket).await;
-    socket
-}
-
-/// Spawns a papyrus rpc server for given state reader, chain id, and socket address.
-pub async fn spawn_test_rpc_state_reader_with_socket(
-    storage_reader: StorageReader,
-    chain_id: ChainId,
-    socket: SocketAddr,
-) -> SocketAddr {
-    let rpc_config =
-        RpcConfig { chain_id, server_address: socket.to_string(), ..Default::default() };
-    let (addr, handle) = run_server(
-        &rpc_config,
-        Arc::new(RwLock::new(None)),
-        Arc::new(RwLock::new(PendingData::default())),
-        Arc::new(RwLock::new(PendingClasses::default())),
-        storage_reader,
-        "NODE VERSION",
-    )
-    .await
-    .unwrap();
-    // Spawn the server handle to keep the server running, otherwise the server will stop once the
-    // handler is out of scope.
-    tokio::spawn(handle.stopped());
-    addr
 }
 
 /// Constructs a thin state diff from lists of contracts, where each contract can be declared,
