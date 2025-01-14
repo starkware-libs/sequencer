@@ -400,12 +400,17 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         inbound_session_id: InboundSessionId,
         query: Vec<u8>,
     ) {
+        debug!(
+            "Network received new inbound query from peer {peer_id:?}. Sending query to server. \
+             {inbound_session_id:?}"
+        );
         self.num_active_inbound_sessions += 1;
         gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
             .set(self.num_active_inbound_sessions as f64);
         let (report_sender, report_receiver) = oneshot::channel::<()>();
         self.handle_new_report_receiver(peer_id, report_receiver);
         // TODO: consider returning error instead of panic.
+        // TODO(Eitan): Prevent miscalculation of num_active_inbound_sessions upon else clause.
         let Some(query_sender) = self.sqmr_inbound_payload_senders.get_mut(&protocol_name) else {
             return;
         };
@@ -442,7 +447,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         response: Vec<u8>,
     ) {
         trace!(
-            "Received response from peer for {outbound_session_id:?}. Sending to sync subscriber."
+            "Received response from peer {peer_id:?} for {outbound_session_id:?}. Sending to sync \
+             subscriber."
         );
         if let Some(report_receiver) =
             self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
@@ -531,7 +537,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         let (inbound_session_id, maybe_response) = res;
         match maybe_response {
             Some(response) => {
-                debug!(
+                trace!(
                     "Received response from server. Sending response to peer. \
                      {inbound_session_id:?}"
                 );
@@ -545,7 +551,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             // The None is inserted by the network manager after the receiver end terminated so
             // that we'll know here when it terminated.
             None => {
-                debug!(
+                trace!(
                     "Server finished sending responses. Closing session. {inbound_session_id:?}"
                 );
                 self.swarm.close_inbound_session(inbound_session_id).unwrap_or_else(|e| {
