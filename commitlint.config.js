@@ -48,7 +48,6 @@ const Configuration = {
             'papyrus_sync',
             'papyrus_test_utils',
             'release',
-            'sequencing',
             'starknet_api',
             'starknet_batcher',
             'starknet_batcher_types',
