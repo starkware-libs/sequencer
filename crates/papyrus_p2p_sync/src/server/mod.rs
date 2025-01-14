@@ -29,7 +29,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[cfg(test)]
 mod test;
@@ -167,7 +167,7 @@ fn register_query<Data, TQuery>(
     let query = server_query_manager.query().clone();
     match query {
         Ok(query) => {
-            info!("Sync server received a new inbound query {query:?}");
+            debug!("Sync server received a new inbound query {query:?}");
             tokio::task::spawn(async move {
                 let result = send_data_for_query(storage_reader, server_query_manager).await;
                 if let Err(error) = result {
@@ -382,7 +382,7 @@ where
 {
     // If this function fails, we still want to send fin before failing.
     let result = send_data_without_fin_for_query(&storage_reader, &mut server_query_manager).await;
-    info!("Sending fin message for inbound sync query");
+    debug!("Sending fin message for inbound sync query");
     server_query_manager.send_response(DataOrFin(None)).await?;
     result
 }
