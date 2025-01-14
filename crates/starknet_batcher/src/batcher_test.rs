@@ -271,8 +271,16 @@ async fn consecutive_heights_success() {
 #[rstest]
 #[tokio::test]
 async fn validate_block_full_flow() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
     let mut batcher =
         batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let metrics = metrics_handle.render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::PROPOSAL_STARTED.name),
+        Some(1)
+    );
 
     let send_proposal_input_txs = SendProposalContentInput {
         proposal_id: PROPOSAL_ID,
@@ -288,6 +296,11 @@ async fn validate_block_full_flow() {
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
+    );
+    let metrics = metrics_handle.render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::PROPOSAL_SUCCEEDED.name),
+        Some(1)
     );
 }
 
@@ -353,8 +366,12 @@ async fn send_proposal_content_after_finish_or_abort(
 #[rstest]
 #[tokio::test]
 async fn send_proposal_content_abort() {
-    let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
+    let mut batcher = batcher_with_active_validate_block(Err(BlockBuilderError::Aborted)).await;
+    let metrics = metrics_handle.render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
     let send_abort_proposal =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Abort };
@@ -362,11 +379,21 @@ async fn send_proposal_content_abort() {
         batcher.send_proposal_content(send_abort_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Aborted }
     );
+
+    // The block builder is running in a separate task, and the proposal metrics are emitted from
+    // that task, so we need to wait for them.
+    // TODO: Find a way to wait for the metrics to be emitted.
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    let metrics = metrics_handle.render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 1);
 }
 
 #[rstest]
 #[tokio::test]
 async fn propose_block_full_flow() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
 
@@ -409,6 +436,12 @@ async fn propose_block_full_flow() {
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
     assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
+
+    let metrics = metrics_handle.render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::PROPOSAL_SUCCEEDED.name),
+        Some(1)
+    );
 }
 
 #[rstest]
@@ -455,6 +488,9 @@ async fn get_content_from_unknown_proposal() {
 #[rstest]
 #[tokio::test]
 async fn consecutive_proposal_generation_success() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
         mock_create_builder_for_propose_block(
@@ -485,11 +521,17 @@ async fn consecutive_proposal_generation_success() {
         batcher.send_proposal_content(finish_proposal).await.unwrap();
         batcher.await_active_proposal().await;
     }
+
+    let metrics = metrics_handle.render();
+    assert_proposal_metrics(&metrics, 4, 4, 0, 0);
 }
 
 #[rstest]
 #[tokio::test]
 async fn concurrent_proposals_generation_fail() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _g = metrics::set_default_local_recorder(&recorder);
+    let metrics_handle = recorder.handle();
     let mut batcher =
         batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
 
@@ -497,6 +539,19 @@ async fn concurrent_proposals_generation_fail() {
     let result = batcher.propose_block(propose_block_input(ProposalId(1))).await;
 
     assert_matches!(result, Err(BatcherError::AnotherProposalInProgress { .. }));
+
+    // Finish the first proposal.
+    batcher
+        .send_proposal_content(SendProposalContentInput {
+            proposal_id: ProposalId(0),
+            content: SendProposalContent::Finish,
+        })
+        .await
+        .unwrap();
+    batcher.await_active_proposal().await;
+
+    let metrics = metrics_handle.render();
+    assert_proposal_metrics(&metrics, 2, 1, 1, 0);
 }
 
 #[rstest]
@@ -642,4 +697,46 @@ pub fn test_state_diff() -> ThinStateDiff {
         nonces: test_contract_nonces().into_iter().collect(),
         ..Default::default()
     }
+}
+
+fn assert_proposal_metrics(
+    metrics: &str,
+    expected_started: u64,
+    expected_succeeded: u64,
+    expected_failed: u64,
+    expected_aborted: u64,
+) {
+    let started = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_STARTED.name);
+    let succeeded = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_SUCCEEDED.name);
+    let failed = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_FAILED.name);
+    let aborted = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_ABORTED.name);
+
+    assert_eq!(
+        started,
+        Some(expected_started),
+        "unexpected value proposal_started, expected {} got {:?}",
+        expected_started,
+        started,
+    );
+    assert_eq!(
+        succeeded,
+        Some(expected_succeeded),
+        "unexpected value proposal_succeeded, expected {} got {:?}",
+        expected_succeeded,
+        succeeded,
+    );
+    assert_eq!(
+        failed,
+        Some(expected_failed),
+        "unexpected value proposal_failed, expected {} got {:?}",
+        expected_failed,
+        failed,
+    );
+    assert_eq!(
+        aborted,
+        Some(expected_aborted),
+        "unexpected value proposal_aborted, expected {} got {:?}",
+        expected_aborted,
+        aborted,
+    );
 }
