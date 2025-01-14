@@ -62,6 +62,7 @@ fn main() -> io::Result<()> {
             "src/proto/p2p/proto/sync/event.proto",
             "src/proto/p2p/proto/sync/header.proto",
             "src/proto/p2p/proto/sync/state.proto",
+            "src/proto/p2p/proto/sync/receipt.proto",
             "src/proto/p2p/proto/transaction.proto",
         ],
         &["src/proto/"],
