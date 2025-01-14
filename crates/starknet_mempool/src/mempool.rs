@@ -286,7 +286,7 @@ impl Mempool {
         Ok(())
     }
 
-    pub fn has_tx_from_address(&self, account_address: ContractAddress) -> bool {
+    pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
         self.state.get(account_address).is_some()
     }
 

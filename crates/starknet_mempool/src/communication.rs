@@ -100,11 +100,8 @@ impl MempoolCommunicationWrapper {
         self.mempool.get_txs(n_txs)
     }
 
-    pub(crate) fn has_tx_from_address(
-        &self,
-        account_address: ContractAddress,
-    ) -> MempoolResult<bool> {
-        Ok(self.mempool.has_tx_from_address(account_address))
+    pub(crate) fn contains_tx_from(&self, account_address: ContractAddress) -> MempoolResult<bool> {
+        Ok(self.mempool.contains_tx_from(account_address))
     }
 }
 
@@ -121,8 +118,8 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetTransactions(n_txs) => {
                 MempoolResponse::GetTransactions(self.get_txs(n_txs))
             }
-            MempoolRequest::DeployAccountExists(account_address) => {
-                MempoolResponse::DeployAccountExists(self.has_tx_from_address(account_address))
+            MempoolRequest::ContainsTransactionFrom(account_address) => {
+                MempoolResponse::ContainsTransactionFrom(self.contains_tx_from(account_address))
             }
         }
     }

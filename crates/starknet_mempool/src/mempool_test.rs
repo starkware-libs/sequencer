@@ -256,7 +256,7 @@ fn mempool() -> Mempool {
     MempoolContentBuilder::new().build_into_mempool()
 }
 
-/// Used for the has_tx_from_address tests.
+/// Used for the contains_tx_from tests.
 fn deployer_address() -> ContractAddress {
     ContractAddress::from(100_u32)
 }
@@ -927,5 +927,5 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
 fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: bool) {
     let mempool = MempoolContentBuilder::new().with_state(state).build_into_mempool();
 
-    assert_eq!(mempool.has_tx_from_address(deployer_address()), expected_result);
+    assert_eq!(mempool.contains_tx_from(deployer_address()), expected_result);
 }
