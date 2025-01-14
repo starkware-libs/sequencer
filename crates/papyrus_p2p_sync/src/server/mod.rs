@@ -29,7 +29,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 #[cfg(test)]
 mod test;
@@ -122,31 +122,31 @@ impl P2pSyncServer {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Header queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, "header");
                 }
                 maybe_server_query_manager = state_diff_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "State diff queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, "state diff");
                 }
                 maybe_server_query_manager = transaction_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Transaction queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, "transaction");
                 }
                 maybe_server_query_manager = class_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Class queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, "class");
                 }
                 maybe_server_query_manager = event_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Event queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager);
+                    register_query(self.storage_reader.clone(), server_query_manager, "event");
                 }
             };
         }
@@ -159,17 +159,24 @@ impl P2pSyncServer {
 fn register_query<Data, TQuery>(
     storage_reader: StorageReader,
     server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
+    protocol_decription: &str,
 ) where
     Data: FetchBlockDataFromDb + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send + Clone + Debug + 'static,
     Query: From<TQuery>,
 {
+    let protocol_decription = protocol_decription.to_owned();
     let query = server_query_manager.query().clone();
     match query {
         Ok(query) => {
-            info!("Sync server received a new inbound query {query:?}");
+            debug!("Sync server received a new inbound query {query:?}");
             tokio::task::spawn(async move {
-                let result = send_data_for_query(storage_reader, server_query_manager).await;
+                let result = send_data_for_query(
+                    storage_reader,
+                    server_query_manager,
+                    protocol_decription.as_str(),
+                )
+                .await;
                 if let Err(error) = result {
                     if error.should_log_in_error_level() {
                         error!("Running inbound query {query:?} failed on {error:?}");
@@ -374,6 +381,7 @@ pub fn split_thin_state_diff(thin_state_diff: ThinStateDiff) -> Vec<StateDiffChu
 async fn send_data_for_query<Data, TQuery>(
     storage_reader: StorageReader,
     mut server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
+    protocol_decription: &str,
 ) -> Result<(), P2pSyncServerError>
 where
     Data: FetchBlockDataFromDb + Send + 'static,
@@ -381,8 +389,13 @@ where
     Query: From<TQuery>,
 {
     // If this function fails, we still want to send fin before failing.
-    let result = send_data_without_fin_for_query(&storage_reader, &mut server_query_manager).await;
-    info!("Sending fin message for inbound sync query");
+    let result = send_data_without_fin_for_query(
+        &storage_reader,
+        &mut server_query_manager,
+        protocol_decription,
+    )
+    .await;
+    debug!("Sending fin message for inbound sync query");
     server_query_manager.send_response(DataOrFin(None)).await?;
     result
 }
@@ -390,6 +403,7 @@ where
 async fn send_data_without_fin_for_query<Data, TQuery>(
     storage_reader: &StorageReader,
     server_query_manager: &mut ServerQueryManager<TQuery, DataOrFin<Data>>,
+    protocol_decription: &str,
 ) -> Result<(), P2pSyncServerError>
 where
     Data: FetchBlockDataFromDb + Send + 'static,
@@ -417,7 +431,10 @@ where
         let data_vec = Data::fetch_block_data_from_db(block_number, &txn)?;
         for data in data_vec {
             // TODO: consider implement retry mechanism.
-            info!("Sending response for inbound sync query");
+            info!(
+                "Sending response for inbound {protocol_decription} query for block \
+                 {block_number:?}"
+            );
             server_query_manager.send_response(DataOrFin(Some(data))).await?;
         }
     }
