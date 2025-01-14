@@ -40,3 +40,10 @@ test-case.workspace = true
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "run_simulation"
+path = "src/bin/run_simulation.rs"
+
+[target.'cfg(name = "run_simulation")'.dependencies]
+starknet_infra_utils = { workspace = true, features = ["testing"] }
