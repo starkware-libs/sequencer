@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use starknet_api::contract_class::ClassInfo;
-use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction,
@@ -104,12 +104,7 @@ impl Transaction {
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
                     Some(address) => address,
-                    None => calculate_contract_address(
-                        deploy_account.contract_address_salt(),
-                        deploy_account.class_hash(),
-                        &deploy_account.constructor_calldata(),
-                        ContractAddress::default(),
-                    )?,
+                    None => deploy_account.calculate_contract_address()?,
                 };
                 ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
                     tx: deploy_account,
