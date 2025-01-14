@@ -39,6 +39,7 @@ use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
 use starknet_client::RetryConfig;
 use starknet_consensus::config::ConsensusConfig;
+use starknet_consensus::types::ContextConfig; 
 use validator::Validate;
 
 use crate::version::VERSION_FULL;

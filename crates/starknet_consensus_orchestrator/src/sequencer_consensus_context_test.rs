@@ -43,7 +43,7 @@ use starknet_batcher_types::batcher_types::{
 };
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_consensus::stream_handler::StreamHandler;
-use starknet_consensus::types::ConsensusContext;
+use starknet_consensus::types::{ContextConfig, ConsensusContext};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
@@ -95,12 +95,11 @@ fn setup(
     let state_sync_client = MockStateSyncClient::new();
 
     let context = SequencerConsensusContext::new(
+        ContextConfig { num_validators: NUM_VALIDATORS, chain_id: CHAIN_ID, ..Default::default() },
         Arc::new(state_sync_client),
         Arc::new(batcher),
         outbound_proposal_stream_sender,
         votes_topic_client,
-        NUM_VALIDATORS,
-        CHAIN_ID,
         Arc::new(cende_ambassador),
     );
 
