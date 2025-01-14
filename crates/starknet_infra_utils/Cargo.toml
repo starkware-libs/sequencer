@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Infrastructure utility."
 
 [features]
-testing = ["tokio/net"]
+testing = []
 
 [lints]
 workspace = true
