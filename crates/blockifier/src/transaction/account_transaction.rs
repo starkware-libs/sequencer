@@ -317,26 +317,30 @@ impl AccountTransaction {
                         ]
                     }
                 };
-                for (resource, resource_bounds, minimal_gas_amount, actual_gas_price) in
-                    resources_amount_tuple
-                {
-                    // TODO(Aner): refactor to indicate both amount and price are too low.
-                    // TODO(Aner): refactor to return all amounts that are too low.
-                    if minimal_gas_amount > resource_bounds.max_amount {
-                        return Err(TransactionFeeError::MaxGasAmountTooLow {
-                            resource,
-                            max_gas_amount: resource_bounds.max_amount,
-                            minimal_gas_amount,
-                        })?;
-                    }
-                    // TODO(Aner): refactor to return all prices that are too low.
-                    if resource_bounds.max_price_per_unit < actual_gas_price.get() {
-                        return Err(TransactionFeeError::MaxGasPriceTooLow {
-                            resource,
-                            max_gas_price: resource_bounds.max_price_per_unit,
-                            actual_gas_price: actual_gas_price.into(),
-                        })?;
-                    }
+                let insufficiencies = resources_amount_tuple
+                    .iter()
+                    .filter_map(
+                        |(resource, resource_bounds, minimal_gas_amount, actual_gas_price)| {
+                            if minimal_gas_amount > &resource_bounds.max_amount {
+                                Some(TransactionFeeError::MaxGasAmountTooLow {
+                                    resource: *resource,
+                                    max_gas_amount: resource_bounds.max_amount,
+                                    minimal_gas_amount: *minimal_gas_amount,
+                                })
+                            } else if resource_bounds.max_price_per_unit < actual_gas_price.get() {
+                                Some(TransactionFeeError::MaxGasPriceTooLow {
+                                    resource: *resource,
+                                    max_gas_price: resource_bounds.max_price_per_unit,
+                                    actual_gas_price: (*actual_gas_price).into(),
+                                })
+                            } else {
+                                None
+                            }
+                        },
+                    )
+                    .collect::<Vec<_>>();
+                if !insufficiencies.is_empty() {
+                    return Err(TransactionFeeError::MultipleErrors { errors: insufficiencies })?;
                 }
             }
             TransactionInfo::Deprecated(context) => {

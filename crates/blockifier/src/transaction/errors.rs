@@ -57,6 +57,8 @@ pub enum TransactionFeeError {
         max_gas_amount: GasAmount,
         minimal_gas_amount: GasAmount,
     },
+    #[error("{}", errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n"))]
+    MultipleErrors { errors: Vec<TransactionFeeError> },
     #[error("Missing L1 gas bounds in resource bounds.")]
     MissingL1GasBounds,
     #[error(transparent)]
