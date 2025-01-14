@@ -57,12 +57,12 @@ impl Peer {
         &self.connection_ids
     }
 
-    pub fn add_connection_id(&mut self, connection_id: ConnectionId) {
-        self.connection_ids.push(connection_id);
+    pub fn connection_ids_mut(&mut self) -> &mut Vec<ConnectionId> {
+        &mut self.connection_ids
     }
 
-    pub fn remove_connection_id(&mut self, connection_id: ConnectionId) {
-        self.connection_ids.retain(|&id| id != connection_id);
+    pub fn add_connection_id(&mut self, connection_id: ConnectionId) {
+        self.connection_ids.push(connection_id);
     }
 
     pub fn reset_misconduct_score(&mut self) {
