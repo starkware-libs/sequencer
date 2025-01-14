@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
-use self::peer::PeerTrait;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::sqmr::OutboundSessionId;
