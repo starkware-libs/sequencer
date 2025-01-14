@@ -280,7 +280,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     let validator_id = i + usize::try_from(DEFAULT_VALIDATOR_ID).expect("Conversion failed");
 
     let mut cmd = format!(
-        "RUST_LOG=papyrus_consensus=debug,papyrus=info target/release/run_consensus \
+        "RUST_LOG=starknet_consensus=debug,papyrus=info target/release/run_consensus \
          --network.#is_none false --base_layer.node_url {} --storage.db_config.path_prefix {} \
          --consensus.#is_none false --consensus.validator_id 0x{:x} --consensus.num_validators {} \
          --network.tcp_port {} --rpc.server_address 127.0.0.1:{} \

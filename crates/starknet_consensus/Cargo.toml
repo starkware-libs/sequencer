@@ -1,5 +1,5 @@
 [package]
-name = "papyrus_consensus"
+name = "starknet_consensus"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

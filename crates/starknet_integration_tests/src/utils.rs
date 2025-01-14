@@ -15,8 +15,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use papyrus_consensus::types::ValidatorId;
 use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
@@ -28,6 +26,8 @@ use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
+use starknet_consensus::config::{ConsensusConfig, TimeoutsConfig};
+use starknet_consensus::types::ValidatorId;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{
     GatewayConfig,

@@ -7,10 +7,6 @@
 
 use clap::Parser;
 use futures::stream::StreamExt;
-use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
-use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::BroadcastVoteChannel;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
@@ -20,6 +16,10 @@ use papyrus_p2p_sync::BUFFER_SIZE;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
+use starknet_consensus::config::ConsensusConfig;
+use starknet_consensus::simulation_network_receiver::NetworkReceiver;
+use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::types::BroadcastVoteChannel;
 use tokio::task::JoinHandle;
 
 /// Test configuration for consensus.
@@ -98,7 +98,7 @@ fn build_consensus(
         broadcast_topic_client: network_channels.broadcast_topic_client,
     };
 
-    let consensus_task = papyrus_consensus::run_consensus(
+    let consensus_task = starknet_consensus::run_consensus(
         context,
         consensus_config.start_height,
         consensus_config.start_height,

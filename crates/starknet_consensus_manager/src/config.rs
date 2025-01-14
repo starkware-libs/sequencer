@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
 use papyrus_config::{ParamPath, SerializedParam};
-use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus_orchestrator::cende::CendeConfig;
 use serde::{Deserialize, Serialize};
+use starknet_consensus::config::ConsensusConfig;
 use validator::Validate;
 
 /// The consensus manager related configuration.
