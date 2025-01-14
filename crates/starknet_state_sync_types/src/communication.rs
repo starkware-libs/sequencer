@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_proc_macros::{handle_all_response_variants, handle_response_variants};
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
@@ -146,12 +146,12 @@ where
 
     async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
         let request = StateSyncRequest::AddNewBlock(Box::new(sync_block));
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             AddNewBlock,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -162,12 +162,12 @@ where
         storage_key: StorageKey,
     ) -> StateSyncClientResult<Felt> {
         let request = StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetStorageAt,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -177,12 +177,12 @@ where
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<Nonce> {
         let request = StateSyncRequest::GetNonceAt(block_number, contract_address);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetNonceAt,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -192,12 +192,12 @@ where
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<ClassHash> {
         let request = StateSyncRequest::GetClassHashAt(block_number, contract_address);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetClassHashAt,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -207,23 +207,23 @@ where
         class_hash: ClassHash,
     ) -> StateSyncClientResult<ContractClass> {
         let request = StateSyncRequest::GetCompiledClassDeprecated(block_number, class_hash);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetCompiledClassDeprecated,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
         let request = StateSyncRequest::GetLatestBlockNumber();
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetLatestBlockNumber,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 }

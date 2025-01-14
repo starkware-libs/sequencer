@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_sequencer_infra::component_client::{
@@ -77,12 +77,12 @@ where
         transaction: RpcTransaction,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::AddTransaction(transaction);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             MempoolP2pPropagatorResponse,
             AddTransaction,
             MempoolP2pPropagatorClientError,
-            MempoolP2pPropagatorError
+            MempoolP2pPropagatorError,
+            Direct
         )
     }
 
@@ -91,12 +91,12 @@ where
         propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::ContinuePropagation(propagation_metadata);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             MempoolP2pPropagatorResponse,
             ContinuePropagation,
             MempoolP2pPropagatorClientError,
-            MempoolP2pPropagatorError
+            MempoolP2pPropagatorError,
+            Direct
         )
     }
 }
