@@ -15,7 +15,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use papyrus_consensus::types::ValidatorId;
+use papyrus_consensus::types::{ContextConfig, ValidatorId};
 use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
@@ -140,6 +140,11 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 network_config,
                 num_validators,
                 timeouts: timeouts.clone(),
+                ..Default::default()
+            },
+            context_config: ContextConfig {
+                num_validators,
+                chain_id: papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS.clone(),
                 ..Default::default()
             },
             ..Default::default()

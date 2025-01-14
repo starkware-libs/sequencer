@@ -8,7 +8,7 @@ use futures::future::pending;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::ConsensusContext;
+use papyrus_consensus::types::{ConsensusContext, ContextConfig};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -95,12 +95,11 @@ fn setup(
     let state_sync_client = MockStateSyncClient::new();
 
     let context = SequencerConsensusContext::new(
+        ContextConfig { num_validators: NUM_VALIDATORS, chain_id: CHAIN_ID, ..Default::default() },
         Arc::new(state_sync_client),
         Arc::new(batcher),
         outbound_proposal_stream_sender,
         votes_topic_client,
-        NUM_VALIDATORS,
-        CHAIN_ID,
         Arc::new(cende_ambassador),
     );
 

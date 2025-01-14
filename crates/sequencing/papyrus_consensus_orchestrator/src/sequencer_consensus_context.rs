@@ -15,6 +15,7 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
+    ContextConfig,
     ProposalContentId,
     Round,
     ValidatorId,
@@ -110,6 +111,7 @@ const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
 
 pub struct SequencerConsensusContext {
+    config: ContextConfig,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
@@ -134,8 +136,6 @@ pub struct SequencerConsensusContext {
     outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<Vote>,
-    // Used to convert Transaction to ExecutableTransaction.
-    chain_id: ChainId,
     cende_ambassador: Arc<dyn CendeContext>,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
@@ -144,15 +144,16 @@ pub struct SequencerConsensusContext {
 
 impl SequencerConsensusContext {
     pub fn new(
+        config: ContextConfig,
         state_sync_client: SharedStateSyncClient,
         batcher: Arc<dyn BatcherClient>,
         outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<Vote>,
-        num_validators: u64,
-        chain_id: ChainId,
         cende_ambassador: Arc<dyn CendeContext>,
     ) -> Self {
+        let num_validators = config.num_validators;
         Self {
+            config,
             state_sync_client,
             batcher,
             outbound_proposal_sender,
@@ -167,7 +168,6 @@ impl SequencerConsensusContext {
             current_round: 0,
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
-            chain_id,
             cende_ambassador,
             l2_gas_price: MIN_GAS_PRICE,
         }
@@ -457,7 +457,7 @@ impl SequencerConsensusContext {
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
         let valid_proposals = Arc::clone(&self.valid_proposals);
-        let chain_id = self.chain_id.clone();
+        let chain_id = self.config.chain_id.clone();
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         let gas_prices = self.gas_prices();

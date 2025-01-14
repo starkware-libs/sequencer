@@ -639,6 +639,21 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.batcher_build_buffer": {
+    "description": "The buffer size for the batcher when building proposals.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "consensus_manager_config.context_config.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "consensus_manager_config.context_config.num_validators": {
+    "description": "The number of validators.",
+    "privacy": "Public",
+    "value": 1
+  },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
     "param_type": "String",
