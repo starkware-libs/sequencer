@@ -137,7 +137,7 @@ where
                 if let Some(block) = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number)
                     .now_or_never()
                 {
-                    debug!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                    info!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                     yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
                     current_block_number = current_block_number.unchecked_next();
                     continue 'send_query_and_parse_responses;
