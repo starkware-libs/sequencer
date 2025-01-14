@@ -558,7 +558,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         client_payload: SqmrClientPayload,
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
-        match self.swarm.send_query(query, PeerId::random(), protocol.clone()) {
+        match self.swarm.send_query(query, protocol.clone()) {
             #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(outbound_session_id) => {
                 debug!(
