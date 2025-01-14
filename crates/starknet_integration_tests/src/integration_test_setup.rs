@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_storage::StorageConfig;
+use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -66,6 +67,7 @@ impl SequencerSetup {
 
         let recorder_url = spawn_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
+        consensus_manager_config.cende_config.skip_write_height = Some(BlockNumber(1));
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(

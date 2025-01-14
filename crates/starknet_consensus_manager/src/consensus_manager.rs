@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "consensus_manager_test.rs"]
+mod consensus_manager_test;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,11 +14,12 @@ use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
+use starknet_batcher_types::batcher_types::RevertBlockInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::config::ConsensusManagerConfig;
 
@@ -40,6 +45,7 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        self.revert_if_needed().await;
         let mut network_manager =
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
 
@@ -116,6 +122,36 @@ impl ConsensusManager {
             stream_handler_result = &mut stream_handler_task_handle => {
                 panic!("Consensus' stream handler task finished unexpectedly: {:?}", stream_handler_result);
             }
+        }
+    }
+
+    // This function is for handling the extreme case where all the nodes failed before writing to
+    // Aerospike block that passed consensus.
+    // In this case, we align the node to the `cende_no_write_height`, and cende knows not to write
+    // to Aersopike in this height.
+    async fn revert_if_needed(&self) {
+        let Some(height_to_align) = self.config.cende_config.skip_write_height else {
+            return;
+        };
+
+        let batcher_height = self.batcher_client.get_height().await.unwrap().height;
+
+        if batcher_height == height_to_align.unchecked_next() {
+            info!(
+                "Batcher is at block number: {batcher_height}, target block number is \
+                 {height_to_align}, reverting one block",
+            );
+            self.batcher_client
+                .revert_block(RevertBlockInput { height: height_to_align })
+                .await
+                .expect("Batcher revert should not fail");
+        } else if batcher_height == height_to_align {
+            debug!("Batcher is at the target height, no revert is needed");
+        } else {
+            debug!(
+                "Batcher is at block number: {batcher_height}, target block number is \
+                 {height_to_align}. Not performing revert",
+            );
         }
     }
 }
