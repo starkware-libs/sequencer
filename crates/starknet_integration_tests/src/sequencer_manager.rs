@@ -15,6 +15,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::test_identifiers::TestIdentifier;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_sequencer_infra::test_utils::{AvailablePorts, MAX_NUMBER_OF_INSTANCES_PER_TEST};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
@@ -28,7 +29,6 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
-use crate::test_identifiers::TestIdentifier;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
