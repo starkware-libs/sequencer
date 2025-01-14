@@ -146,19 +146,18 @@ impl From<ValidResourceBounds> for CentralResourceBounds {
     }
 }
 
-// TODO(Yael): organize the fields of transactions in the same order.
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralInvokeTransactionV3 {
-    pub sender_address: ContractAddress,
-    pub calldata: Calldata,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
     pub resource_bounds: CentralResourceBounds,
     pub tip: Tip,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub sender_address: ContractAddress,
+    pub calldata: Calldata,
     pub nonce_data_availability_mode: u32,
     pub fee_data_availability_mode: u32,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
     pub hash_value: TransactionHash,
 }
 
@@ -196,12 +195,12 @@ pub struct CentralDeployAccountTransactionV3 {
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
+    pub sender_address: ContractAddress,
     pub constructor_calldata: Calldata,
     pub nonce_data_availability_mode: u32,
     pub fee_data_availability_mode: u32,
     pub paymaster_data: PaymasterData,
     pub hash_value: TransactionHash,
-    pub sender_address: ContractAddress,
 }
 
 impl From<DeployAccountTransaction> for CentralDeployAccountTransactionV3 {
