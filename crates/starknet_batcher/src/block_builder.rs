@@ -235,7 +235,9 @@ async fn collect_execution_results_and_stream_txs(
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
-                *l2_gas_used += tx_execution_info.receipt.gas.l2_gas;
+                *l2_gas_used = l2_gas_used
+                    .checked_add(tx_execution_info.receipt.gas.l2_gas)
+                    .expect("Total L2 gas overflow.");
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;
