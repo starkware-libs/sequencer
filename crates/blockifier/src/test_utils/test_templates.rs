@@ -64,8 +64,3 @@ fn two_cairo_versions(
 fn test_cairo_version(cairo_version: CairoVersion) {
     println!("test {:?}", cairo_version);
 }
-
-#[apply(two_cairo_versions)]
-fn test_two_cairo_version(cairo_version1: CairoVersion, cairo_version2: CairoVersion) {
-    println!("test {:?} {:?}", cairo_version1, cairo_version2);
-}
