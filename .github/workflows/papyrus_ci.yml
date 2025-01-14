@@ -100,6 +100,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build Papyrus utilites docker image
