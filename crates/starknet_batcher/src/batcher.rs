@@ -432,6 +432,10 @@ impl Batcher {
             .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
             .map_err(|_| BatcherError::InternalError)?;
         let state_diff = block_execution_artifacts.state_diff();
+        let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
+            .expect("Number of transactions should fit in u64");
+        let n_rejected_txs = u64::try_from(block_execution_artifacts.rejected_tx_hashes.len())
+            .expect("Number of rejected transactions should fit in u64");
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -439,6 +443,8 @@ impl Batcher {
             block_execution_artifacts.rejected_tx_hashes,
         )
         .await?;
+        counter!(crate::metrics::BATCHED_TRANSACTIONS.name).increment(n_txs);
+        counter!(crate::metrics::REJECTED_TRANSACTIONS.name).increment(n_rejected_txs);
         Ok(DecisionReachedResponse {
             state_diff,
             l2_gas_used: block_execution_artifacts.l2_gas_used,
