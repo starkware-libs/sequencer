@@ -42,7 +42,7 @@ fn validate_happy_flow() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([tx!(tx_hash: 1)])
-        .with_on_l2_awaiting_l1_consumption([tx_hash!(2)])
+        .with_committed([tx_hash!(2)])
         .with_state(Validate)
         .build_into_l1_provider();
 

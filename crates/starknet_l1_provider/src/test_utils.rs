@@ -63,12 +63,8 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn with_on_l2_awaiting_l1_consumption(
-        mut self,
-        tx_hashes: impl IntoIterator<Item = TransactionHash>,
-    ) -> Self {
-        self.tx_manager_content_builder =
-            self.tx_manager_content_builder.with_on_l2_awaiting_l1_consumption(tx_hashes);
+    pub fn with_committed(mut self, tx_hashes: impl IntoIterator<Item = TransactionHash>) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_committed(tx_hashes);
         self
     }
 
@@ -90,14 +86,14 @@ impl L1ProviderContentBuilder {
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
     txs: Option<IndexMap<TransactionHash, L1HandlerTransaction>>,
-    on_l2_awaiting_l1_consumption: Option<IndexSet<TransactionHash>>,
+    committed: Option<IndexSet<TransactionHash>>,
 }
 
 impl TransactionManagerContent {
     fn complete_to_tx_manager(self) -> TransactionManager {
         TransactionManager {
             txs: self.txs.unwrap_or_default(),
-            on_l2_awaiting_l1_consumption: self.on_l2_awaiting_l1_consumption.unwrap_or_default(),
+            committed: self.committed.unwrap_or_default(),
             ..Default::default()
         }
     }
@@ -106,7 +102,7 @@ impl TransactionManagerContent {
 #[derive(Debug, Default)]
 struct TransactionManagerContentBuilder {
     txs: Option<IndexMap<TransactionHash, L1HandlerTransaction>>,
-    on_l2_awaiting_l1_consumption: Option<IndexSet<TransactionHash>>,
+    committed: Option<IndexSet<TransactionHash>>,
 }
 
 impl TransactionManagerContentBuilder {
@@ -115,11 +111,8 @@ impl TransactionManagerContentBuilder {
         self
     }
 
-    fn with_on_l2_awaiting_l1_consumption(
-        mut self,
-        tx_hashes: impl IntoIterator<Item = TransactionHash>,
-    ) -> Self {
-        self.on_l2_awaiting_l1_consumption = Some(tx_hashes.into_iter().collect());
+    fn with_committed(mut self, tx_hashes: impl IntoIterator<Item = TransactionHash>) -> Self {
+        self.committed = Some(tx_hashes.into_iter().collect());
         self
     }
 
@@ -128,14 +121,11 @@ impl TransactionManagerContentBuilder {
             return None;
         }
 
-        Some(TransactionManagerContent {
-            txs: self.txs,
-            on_l2_awaiting_l1_consumption: self.on_l2_awaiting_l1_consumption,
-        })
+        Some(TransactionManagerContent { txs: self.txs, committed: self.committed })
     }
 
     fn is_default(&self) -> bool {
-        self.txs.is_none() && self.on_l2_awaiting_l1_consumption.is_none()
+        self.txs.is_none() && self.committed.is_none()
     }
 }
 
