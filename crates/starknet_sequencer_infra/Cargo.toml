@@ -31,3 +31,4 @@ validator.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
+starknet_infra_utils = { workspace = true, features = ["testing"] }

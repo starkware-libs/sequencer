@@ -10,6 +10,7 @@ use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use starknet_infra_utils::test_utils::get_available_socket;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
@@ -34,7 +35,6 @@ use crate::component_server::{
     RemoteComponentServer,
 };
 use crate::serde_utils::SerdeWrapper;
-use crate::test_utils::get_available_socket;
 use crate::tests::{
     test_a_b_functionality,
     ComponentA,
