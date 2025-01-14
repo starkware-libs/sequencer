@@ -46,7 +46,7 @@ pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>>;
-    async fn has_tx_from_address(
+    async fn contains_tx_from(
         &self,
         contract_address: ContractAddress,
     ) -> MempoolClientResult<bool>;
@@ -57,7 +57,7 @@ pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
-    DeployAccountExists(ContractAddress),
+    ContainsTransactionFrom(ContractAddress),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,7 +65,7 @@ pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<AccountTransaction>>),
-    DeployAccountExists(MempoolResult<bool>),
+    ContainsTransactionFrom(MempoolResult<bool>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -114,14 +114,14 @@ where
         )
     }
 
-    async fn has_tx_from_address(
+    async fn contains_tx_from(
         &self,
-        contract_address: ContractAddress,
+        account_address: ContractAddress,
     ) -> MempoolClientResult<bool> {
-        let request = MempoolRequest::DeployAccountExists(contract_address);
+        let request = MempoolRequest::ContainsTransactionFrom(account_address);
         handle_all_response_variants!(
             MempoolResponse,
-            DeployAccountExists,
+            ContainsTransactionFrom,
             MempoolClientError,
             MempoolError,
             Direct
