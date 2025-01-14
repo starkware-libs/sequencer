@@ -22,6 +22,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_sierra_compile_types.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 validator.workspace = true
@@ -30,6 +31,7 @@ validator.workspace = true
 assert_matches.workspace = true
 mempool_test_utils.workspace = true
 rstest.workspace = true
+starknet_api.workspace = true
 starknet_infra_utils.workspace = true
 
 [build-dependencies]
