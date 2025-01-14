@@ -1,6 +1,5 @@
 use std::future::Future;
 
-use blockifier::transaction::transaction_execution::{self};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_api::{executable_transaction, transaction};
@@ -24,7 +23,7 @@ pub trait TransactionConverterTrait {
 
     fn convert_internal_rpc_tx_to_executable_tx(
         tx: InternalRpcTransaction,
-    ) -> transaction_execution::Transaction;
+    ) -> executable_transaction::Transaction;
 }
 
 pub struct TransactionConverter {
@@ -54,7 +53,7 @@ impl TransactionConverterTrait for TransactionConverter {
 
     fn convert_internal_rpc_tx_to_executable_tx(
         _tx: InternalRpcTransaction,
-    ) -> transaction_execution::Transaction {
+    ) -> executable_transaction::Transaction {
         todo!()
     }
 }
