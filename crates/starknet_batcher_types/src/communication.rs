@@ -25,6 +25,7 @@ use crate::batcher_types::{
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposeBlockInput,
+    RevertBlockInput,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
@@ -79,6 +80,8 @@ pub trait BatcherClient: Send + Sync {
         &self,
         input: DecisionReachedInput,
     ) -> BatcherClientResult<DecisionReachedResponse>;
+    /// Reverts the block with the given block number, only if it is the last in the storage.
+    async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -91,6 +94,7 @@ pub enum BatcherRequest {
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
+    RevertBlock(RevertBlockInput),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -103,6 +107,7 @@ pub enum BatcherResponse {
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<DecisionReachedResponse>),
     AddSyncBlock(BatcherResult<()>),
+    RevertBlock(BatcherResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -209,6 +214,17 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             AddSyncBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::RevertBlock(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            RevertBlock,
             BatcherClientError,
             BatcherError,
             Direct
