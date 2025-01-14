@@ -18,7 +18,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_infra_utils::test_identifiers::TestIdentifier;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::utils::{
     create_funding_txs,
