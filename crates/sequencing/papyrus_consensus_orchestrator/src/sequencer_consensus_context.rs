@@ -64,7 +64,7 @@ use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{debug, debug_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
 use crate::fee_market::{calculate_next_base_gas_price, MAX_BLOCK_SIZE, MIN_GAS_PRICE};
@@ -231,7 +231,9 @@ impl ConsensusContext for SequencerConsensusContext {
                 )
                 .await;
             }
-            .instrument(debug_span!("consensus_build_proposal", %proposal_id)),
+            .instrument(
+                error_span!("consensus_build_proposal", %proposal_id, round=proposal_init.round),
+            ),
         );
         assert!(self.active_proposal.is_none());
         // The cancellation token is unused by the spawned build.
@@ -479,7 +481,9 @@ impl SequencerConsensusContext {
                 )
                 .await
             }
-            .instrument(debug_span!("consensus_validate_proposal", %proposal_id)),
+            .instrument(
+                error_span!("consensus_validate_proposal", %proposal_id, round=self.current_round),
+            ),
         );
         self.active_proposal = Some((cancel_token, handle));
     }
