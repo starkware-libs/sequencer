@@ -48,7 +48,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
-use crate::metrics::register_metrics;
+use crate::metrics::{register_metrics, ProposalMetricsHandle};
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -157,6 +157,7 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
             active_height,
@@ -192,8 +193,13 @@ impl Batcher {
             )
             .map_err(|_| BatcherError::InternalError)?;
 
-        self.spawn_proposal(propose_block_input.proposal_id, block_builder, abort_signal_sender)
-            .await?;
+        self.spawn_proposal(
+            propose_block_input.proposal_id,
+            block_builder,
+            abort_signal_sender,
+            proposal_metrics_handle,
+        )
+        .await?;
 
         self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
         Ok(())
@@ -204,6 +210,7 @@ impl Batcher {
         &mut self,
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
+        let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
             active_height,
@@ -239,8 +246,13 @@ impl Batcher {
             )
             .map_err(|_| BatcherError::InternalError)?;
 
-        self.spawn_proposal(validate_block_input.proposal_id, block_builder, abort_signal_sender)
-            .await?;
+        self.spawn_proposal(
+            validate_block_input.proposal_id,
+            block_builder,
+            abort_signal_sender,
+            proposal_metrics_handle,
+        )
+        .await?;
 
         self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
         Ok(())
@@ -497,6 +509,7 @@ impl Batcher {
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+        mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
@@ -505,7 +518,18 @@ impl Batcher {
 
         let join_handle = tokio::spawn(
             async move {
-                let result = block_builder.build_block().await.map_err(Arc::new);
+                let result = match block_builder.build_block().await {
+                    Ok(artifacts) => {
+                        proposal_metrics_handle.set_succeeded();
+                        Ok(artifacts)
+                    }
+                    Err(BlockBuilderError::Aborted) => {
+                        proposal_metrics_handle.set_aborted();
+                        Err(BlockBuilderError::Aborted)
+                    }
+                    Err(e) => Err(e),
+                }
+                .map_err(Arc::new);
 
                 // The proposal is done, clear the active proposal.
                 // Keep the proposal result only if it is the same as the active proposal.

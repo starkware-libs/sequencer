@@ -3,6 +3,14 @@ use starknet_api::block::BlockNumber;
 
 pub const STORAGE_HEIGHT: Metric =
     Metric { name: "batcher_storage_height", description: "The height of the batcher's storage" };
+pub const PROPOSAL_STARTED: Metric =
+    Metric { name: "batcher_proposal_started", description: "Counter of proposals started" };
+pub const PROPOSAL_SUCCEEDED: Metric =
+    Metric { name: "batcher_proposal_succeeded", description: "Counter of successful proposals" };
+pub const PROPOSAL_FAILED: Metric =
+    Metric { name: "batcher_proposal_failed", description: "Counter of failed proposals" };
+pub const PROPOSAL_ABORTED: Metric =
+    Metric { name: "batcher_proposal_aborted", description: "Counter of aborted proposals" };
 
 pub struct Metric {
     pub name: &'static str,
@@ -11,9 +19,61 @@ pub struct Metric {
 
 pub fn register_metrics(storage_height: BlockNumber) {
     // Ideally, we would have a `Gauge` here because of reverts, but we can't because
-    // the value will need to implement `Into<f64>` and `BlockNumber` doesn't.
+    // the value will need to implement `Into<f64>` and `BlockNumber` doesn't (it is u64).
     // In case of reverts, consider calling `absolute`.
-    let storage_height_metric = counter!(STORAGE_HEIGHT.name);
+    counter!(STORAGE_HEIGHT.name).absolute(storage_height.0);
     describe_counter!(STORAGE_HEIGHT.name, STORAGE_HEIGHT.description);
-    storage_height_metric.absolute(storage_height.0);
+
+    counter!(PROPOSAL_STARTED.name).absolute(0);
+    describe_counter!(PROPOSAL_STARTED.name, PROPOSAL_STARTED.description);
+    counter!(PROPOSAL_SUCCEEDED.name).absolute(0);
+    describe_counter!(PROPOSAL_SUCCEEDED.name, PROPOSAL_SUCCEEDED.description);
+    counter!(PROPOSAL_FAILED.name).absolute(0);
+    describe_counter!(PROPOSAL_FAILED.name, PROPOSAL_FAILED.description);
+    counter!(PROPOSAL_ABORTED.name).absolute(0);
+    describe_counter!(PROPOSAL_ABORTED.name, PROPOSAL_ABORTED.description);
+}
+
+/// A handle to update the proposal metrics when the proposal is created and dropped.
+#[derive(Debug)]
+pub(crate) struct ProposalMetricsHandle {
+    finish_status: ProposalFinishStatus,
+}
+
+impl ProposalMetricsHandle {
+    pub fn new() -> Self {
+        counter!(crate::metrics::PROPOSAL_STARTED.name).increment(1);
+        Self { finish_status: ProposalFinishStatus::Failed }
+    }
+
+    pub fn set_succeeded(&mut self) {
+        self.finish_status = ProposalFinishStatus::Succeeded;
+    }
+
+    pub fn set_aborted(&mut self) {
+        self.finish_status = ProposalFinishStatus::Aborted;
+    }
+}
+
+#[derive(Debug)]
+enum ProposalFinishStatus {
+    Succeeded,
+    Aborted,
+    Failed,
+}
+
+impl Drop for ProposalMetricsHandle {
+    fn drop(&mut self) {
+        match self.finish_status {
+            ProposalFinishStatus::Succeeded => {
+                counter!(crate::metrics::PROPOSAL_SUCCEEDED.name).increment(1)
+            }
+            ProposalFinishStatus::Aborted => {
+                counter!(crate::metrics::PROPOSAL_ABORTED.name).increment(1)
+            }
+            ProposalFinishStatus::Failed => {
+                counter!(crate::metrics::PROPOSAL_FAILED.name).increment(1)
+            }
+        }
+    }
 }
