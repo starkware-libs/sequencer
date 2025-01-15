@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Infrastructure utility."
 
+[features]
+testing = ["tokio/net"]
+
 [lints]
 workspace = true
 

@@ -34,9 +34,9 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::test_utils::create_http_server_config;
+use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
     EthereumBaseLayerConfigRequiredParams,
