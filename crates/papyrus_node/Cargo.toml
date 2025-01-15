@@ -31,7 +31,6 @@ once_cell.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
-papyrus_consensus_orchestrator.workspace = true
 papyrus_monitoring_gateway.workspace = true
 papyrus_network.workspace = true
 papyrus_p2p_sync.workspace = true
@@ -45,6 +44,7 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_client.workspace = true
 starknet_consensus.workspace = true
+starknet_consensus_orchestrator.workspace = true
 strum.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true

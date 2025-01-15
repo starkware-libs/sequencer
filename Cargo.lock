@@ -7693,41 +7693,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_consensus_orchestrator"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "blockifier",
- "chrono",
- "futures",
- "indexmap 2.7.0",
- "lazy_static",
- "mockall",
- "mockito 1.6.1",
- "papyrus_config",
- "papyrus_network",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "reqwest 0.11.27",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_batcher_types",
- "starknet_consensus",
- "starknet_infra_utils",
- "starknet_state_sync_types",
- "test-case",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "papyrus_execution"
 version = "0.0.0"
 dependencies = [
@@ -7859,7 +7824,6 @@ dependencies = [
  "papyrus_base_layer",
  "papyrus_common",
  "papyrus_config",
- "papyrus_consensus_orchestrator",
  "papyrus_monitoring_gateway",
  "papyrus_network",
  "papyrus_p2p_sync",
@@ -7875,6 +7839,7 @@ dependencies = [
  "starknet_api",
  "starknet_client",
  "starknet_consensus",
+ "starknet_consensus_orchestrator",
  "starknet_infra_utils",
  "strum 0.25.0",
  "tempfile",
@@ -10820,19 +10785,54 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_config",
- "papyrus_consensus_orchestrator",
  "papyrus_network",
  "papyrus_protobuf",
  "serde",
  "starknet_api",
  "starknet_batcher_types",
  "starknet_consensus",
+ "starknet_consensus_orchestrator",
  "starknet_infra_utils",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "tokio",
  "tracing",
  "validator",
+]
+
+[[package]]
+name = "starknet_consensus_orchestrator"
+version = "0.0.0"
+dependencies = [
+ "assert_matches",
+ "async-trait",
+ "blockifier",
+ "chrono",
+ "futures",
+ "indexmap 2.7.0",
+ "lazy_static",
+ "mockall",
+ "mockito 1.6.1",
+ "papyrus_config",
+ "papyrus_network",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "reqwest 0.11.27",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_batcher_types",
+ "starknet_consensus",
+ "starknet_infra_utils",
+ "starknet_state_sync_types",
+ "test-case",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -10948,7 +10948,6 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_config",
- "papyrus_consensus_orchestrator",
  "papyrus_execution",
  "papyrus_network",
  "papyrus_protobuf",
@@ -10963,6 +10962,7 @@ dependencies = [
  "starknet_client",
  "starknet_consensus",
  "starknet_consensus_manager",
+ "starknet_consensus_orchestrator",
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
