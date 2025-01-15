@@ -136,7 +136,7 @@ async fn state_diff_basic_flow() {
     {
         for state_diff_chunk in state_diff_chunks {
             // Check that before the last chunk was sent, the state diff isn't written.
-            actions.push(Action::CheckStorage(Box::new(move |reader| {
+            actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
                 async move {
                     assert_eq!(
                         u64::try_from(i).unwrap(),
@@ -149,7 +149,7 @@ async fn state_diff_basic_flow() {
             actions.push(Action::SendStateDiff(DataOrFin(Some(state_diff_chunk))));
         }
         // Check that a block's state diff is written before the entire query finished.
-        actions.push(Action::CheckStorage(Box::new(move |reader| {
+        actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
             async move {
                 let block_number = BlockNumber(i.try_into().unwrap());
                 wait_for_marker(

@@ -213,7 +213,7 @@ async fn wrong_block_number() {
                 None,
             )))),
             Action::ValidateReportSent(DataType::Header),
-            Action::CheckStorage(Box::new(|reader| {
+            Action::CheckStorage(Box::new(|(reader, _)| {
                 async move {
                     assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
                 }

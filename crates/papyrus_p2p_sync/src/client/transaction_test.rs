@@ -85,7 +85,7 @@ async fn transaction_basic_flow() {
             .zip(transaction_outputs.iter().cloned().zip(transaction_hashes.iter().cloned()))
         {
             // Check that before the last transaction was sent, the transactions aren't written.
-            actions.push(Action::CheckStorage(Box::new(move |reader| {
+            actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
                 async move {
                     assert_eq!(i, reader.begin_ro_txn().unwrap().get_body_marker().unwrap().0);
                 }
@@ -100,7 +100,7 @@ async fn transaction_basic_flow() {
         }
 
         // Check that a block's transactions are written before the entire query finished.
-        actions.push(Action::CheckStorage(Box::new(move |reader| {
+        actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
             async move {
                 let block_number = BlockNumber(i);
                 wait_for_marker(
