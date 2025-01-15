@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
-
+use once_cell::sync::Lazy;
+use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -63,6 +64,33 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 // ClientError::ResponseDeserializationFailure error message.
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 const VALID_VALUE_A: ValueA = Felt::ONE;
+
+
+
+// Define the shared fixture
+static TEST_PORTS: Lazy<Arc<Mutex<YourSharedDataType>>> = Lazy::new(|| {
+    let mut available_ports = AvailablePorts::new(test_unique_index, 0);
+    Arc::new(Mutex::new(fixture))
+});
+
+// Mock data type for illustration
+struct YourSharedDataType {
+    value: u32,
+}
+
+impl YourSharedDataType {
+    fn new() -> Self {
+        Self { value: 0 }
+    }
+
+    fn increment(&mut self) {
+        self.value += 1;
+    }
+
+    fn get_value(&self) -> u32 {
+        self.value
+    }
+}
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {

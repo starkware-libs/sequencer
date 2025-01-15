@@ -29,5 +29,6 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+once_cell.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
