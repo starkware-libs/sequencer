@@ -42,14 +42,14 @@ impl TransactionManager {
         }
     }
 
+    pub fn commit_txs(&mut self, committed_txs: &[TransactionHash]) {
+        self.txs.commit(committed_txs);
+    }
+
     pub fn _add_unconsumed_l1_not_in_l2_block_tx(&mut self, _tx: L1HandlerTransaction) {
         todo!(
             "Check if tx is in L2, if it isn't on L2 add it to the txs buffer, otherwise print
              debug and do nothing."
         )
-    }
-
-    pub fn _mark_tx_included_on_l2(&mut self, _tx_hash: &TransactionHash) {
-        todo!("Adds the tx hash to l2 buffer; remove tx from the txs storage if it's there.")
     }
 }

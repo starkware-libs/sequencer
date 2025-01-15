@@ -6,6 +6,7 @@ pub(crate) mod transaction_manager;
 
 mod soft_delete_index_map;
 
+pub mod bootstrapper;
 #[cfg(test)]
 pub mod test_utils;
 
@@ -26,17 +27,18 @@ use serde::{Deserialize, Serialize};
 use starknet_l1_provider_types::SessionState;
 use validator::Validate;
 
+use crate::bootstrapper::Bootstrapper;
+
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
 pub mod l1_provider_tests;
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderState {
     Pending,
     Propose,
-    #[default]
-    Uninitialized,
+    Bootstrap(Bootstrapper),
     Validate,
 }
 
@@ -45,9 +47,25 @@ impl ProviderState {
         match self {
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
-            ProviderState::Uninitialized => "Uninitialized",
+            ProviderState::Bootstrap(_) => "Bootstrap",
             ProviderState::Validate => "Validate",
         }
+    }
+
+    pub fn is_bootstrapping(&self) -> bool {
+        if let ProviderState::Bootstrap { .. } = self {
+            return true;
+        }
+
+        false
+    }
+
+    fn transition_to_pending(&self) -> ProviderState {
+        assert!(
+            !self.is_bootstrapping(),
+            "Transitioning from bootstrapping should be done manually by the L1Provider."
+        );
+        ProviderState::Pending
     }
 }
 
@@ -63,6 +81,12 @@ impl From<SessionState> for ProviderState {
 impl std::fmt::Display for ProviderState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
+    }
+}
+
+impl Default for ProviderState {
+    fn default() -> Self {
+        ProviderState::Bootstrap(Bootstrapper::default())
     }
 }
 
