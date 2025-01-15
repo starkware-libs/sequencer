@@ -11114,6 +11114,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_os_proc_macros"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
 name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [
