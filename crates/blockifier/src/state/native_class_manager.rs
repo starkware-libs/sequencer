@@ -20,6 +20,7 @@ use crate::state::global_cache::{CachedCairoNative, CachedClass, RawClassCache};
 #[cfg(test)]
 #[path = "native_class_manager_test.rs"]
 mod native_class_manager_test;
+
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ContractClassManagerError {
     #[error("Error compiling contract class: {0}")]
