@@ -7,7 +7,6 @@
 
 use clap::Parser;
 use futures::stream::StreamExt;
-use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_node::bin_utils::build_configs;
@@ -20,6 +19,7 @@ use starknet_consensus::config::ConsensusConfig;
 use starknet_consensus::simulation_network_receiver::NetworkReceiver;
 use starknet_consensus::stream_handler::StreamHandler;
 use starknet_consensus::types::BroadcastVoteChannel;
+use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::task::JoinHandle;
 
 /// Test configuration for consensus.
