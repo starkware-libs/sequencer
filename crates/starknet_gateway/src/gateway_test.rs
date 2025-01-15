@@ -8,15 +8,18 @@ use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
-use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
+use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
+    MempoolClientError,
     MempoolClientResult,
     MockMempoolClient,
 };
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sierra_compile::config::SierraCompilationConfig;
 
@@ -94,9 +97,32 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
 }
 
 // TODO: add test with Some broadcasted message metadata
+// We use default nonce, address, and tx_hash since Gateway errors drop these details when
+// converting Mempool errors.
 #[rstest]
+#[case::successful_transaction_addition(Ok(()), None)]
+#[case::duplicate_tx_hash(
+    Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
+    Some(GatewaySpecError::DuplicateTx)
+)]
+#[case::duplicate_nonce(
+    Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
+    Some(GatewaySpecError::InvalidTransactionNonce)
+)]
+#[case::nonce_too_old(
+    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
+    Some(GatewaySpecError::InvalidTransactionNonce)
+)]
+#[case::nonce_too_large(
+    Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
+    Some(GatewaySpecError::InvalidTransactionNonce)
+)]
 #[tokio::test]
-async fn test_add_tx(mut mock_dependencies: MockDependencies) {
+async fn test_add_tx(
+    mut mock_dependencies: MockDependencies,
+    #[case] expected_result: Result<(), MempoolClientError>,
+    #[case] expected_error: Option<GatewaySpecError>,
+) {
     let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
@@ -116,14 +142,17 @@ async fn test_add_tx(mut mock_dependencies: MockDependencies) {
             args: add_tx_args,
             p2p_message_metadata: p2p_message_metadata.clone(),
         },
-        Ok(()),
+        expected_result,
     );
 
     let gateway = mock_dependencies.gateway();
 
-    let response_tx_hash = gateway.add_tx(rpc_tx, p2p_message_metadata).await.unwrap();
+    let result = gateway.add_tx(rpc_tx, p2p_message_metadata).await;
 
-    assert_eq!(tx_hash, response_tx_hash);
+    match expected_error {
+        Some(_expected_err) => assert_matches!(result.unwrap_err(), _expected_err),
+        None => assert_eq!(result.unwrap(), tx_hash),
+    }
 }
 
 // Gateway spec errors tests.
