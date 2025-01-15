@@ -39,6 +39,7 @@ lazy_static.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
+starknet_class_manager_types = { workspace = true, features = ["testing"] }
 static_assertions.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
