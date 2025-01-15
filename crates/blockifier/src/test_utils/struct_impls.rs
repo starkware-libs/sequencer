@@ -34,7 +34,7 @@ use crate::execution::entry_point::{
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
-use crate::state::contract_class_manager::ContractClassManager;
+use crate::state::native_class_manager::NativeClassManager;
 use crate::state::state_api::State;
 use crate::test_utils::{get_raw_contract_class, update_json_value};
 use crate::transaction::objects::{
@@ -206,13 +206,13 @@ impl CallExecution {
     }
 }
 
-impl ContractClassManager {
+impl NativeClassManager {
     pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
         let config = ContractClassManagerConfig {
             cairo_native_run_config: native_config,
             ..Default::default()
         };
-        ContractClassManager::start(config)
+        NativeClassManager::start(config)
     }
 }
 // Contract loaders.
