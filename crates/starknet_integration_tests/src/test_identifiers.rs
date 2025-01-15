@@ -4,6 +4,7 @@ pub enum TestIdentifier {
     EndToEndFlowTest,
     MempoolSendsTxToOtherPeerTest,
     MempoolReceivesTxFromOtherPeerTest,
+    MempoolHandlesDuplicateTxTest,
 }
 
 impl From<TestIdentifier> for u16 {
@@ -13,6 +14,7 @@ impl From<TestIdentifier> for u16 {
             TestIdentifier::EndToEndFlowTest => 1,
             TestIdentifier::MempoolSendsTxToOtherPeerTest => 2,
             TestIdentifier::MempoolReceivesTxFromOtherPeerTest => 3,
+            TestIdentifier::MempoolHandlesDuplicateTxTest => 4,
         }
     }
 }
