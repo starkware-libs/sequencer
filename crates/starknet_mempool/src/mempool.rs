@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
@@ -203,7 +204,7 @@ impl Mempool {
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
         debug!("Adding transaction to mempool: {tx:#?}.");
-        let tx_reference = TransactionReference::new(&tx);
+        let tx_reference = TransactionReference::deprecated_new(&tx);
         self.validate_incoming_tx(tx_reference)?;
 
         self.handle_fee_escalation(&tx)?;
@@ -319,7 +320,7 @@ impl Mempool {
 
     #[instrument(level = "debug", skip(self, incoming_tx), err)]
     fn handle_fee_escalation(&mut self, incoming_tx: &AccountTransaction) -> MempoolResult<()> {
-        let incoming_tx_reference = TransactionReference::new(incoming_tx);
+        let incoming_tx_reference = TransactionReference::deprecated_new(incoming_tx);
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
 
         if !self.config.enable_fee_escalation {
@@ -408,13 +409,24 @@ pub struct TransactionReference {
 }
 
 impl TransactionReference {
-    pub fn new(tx: &AccountTransaction) -> Self {
+    // TODO(noamsp): remove this once class manager client integration is complete.
+    pub fn deprecated_new(tx: &AccountTransaction) -> Self {
         TransactionReference {
             address: tx.contract_address(),
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tip(tx),
             max_l2_gas_price: max_l2_gas_price(tx),
+        }
+    }
+
+    pub fn new(tx: &InternalRpcTransaction) -> Self {
+        TransactionReference {
+            address: tx.contract_address(),
+            nonce: tx.nonce(),
+            tx_hash: tx.tx_hash(),
+            tip: tx.tip(),
+            max_l2_gas_price: tx.resource_bounds().l2_gas.max_price_per_unit,
         }
     }
 }
