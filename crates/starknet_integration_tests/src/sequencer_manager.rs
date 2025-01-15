@@ -257,20 +257,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     );
 
     // Flatten while enumerating sequencer and sequencer part indices.
-    let indexed_component_configs: Vec<(SequencerExecutionId, ComponentConfig)> = component_configs
-        .into_iter()
-        .enumerate()
-        .flat_map(|(sequencer_index, parts_component_configs)| {
-            parts_component_configs.into_iter().enumerate().map(
-                move |(sequencer_part_index, parts_component_config)| {
-                    (
-                        SequencerExecutionId::new(sequencer_index, sequencer_part_index),
-                        parts_component_config,
-                    ) // Combine indices with the value
-                },
-            )
-        })
-        .collect();
+    let indexed_component_configs = get_indexed_component_configs(component_configs);
 
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
@@ -333,6 +320,25 @@ async fn create_sequencer_setups(
     )
     .collect()
     .await
+}
+
+fn get_indexed_component_configs(
+    component_configs: Vec<ComposedComponentConfigs>,
+) -> Vec<(SequencerExecutionId, ComponentConfig)> {
+    component_configs
+        .into_iter()
+        .enumerate()
+        .flat_map(|(sequencer_index, parts_component_configs)| {
+            parts_component_configs.into_iter().enumerate().map(
+                move |(sequencer_part_index, parts_component_config)| {
+                    (
+                        SequencerExecutionId::new(sequencer_index, sequencer_part_index),
+                        parts_component_config,
+                    ) // Combine indices with the value
+                },
+            )
+        })
+        .collect()
 }
 
 /// Generates configurations for a specified number of distributed sequencer nodes,
