@@ -1,5 +1,5 @@
 [package]
-name = "papyrus_consensus_orchestrator"
+name = "starknet_consensus_orchestrator"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
