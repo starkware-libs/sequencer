@@ -1,5 +1,5 @@
 [package]
-name = "cairo-type-derive"
+name = "starknet_os_proc_macros"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
@@ -9,6 +9,6 @@ license-file.workspace = true
 proc-macro = true
 
 [dependencies]
+proc-macro2 = "1.0.78"
 quote = "1.0.35"
 syn = "2.0.48"
-proc-macro2 = "1.0.78"

@@ -68,6 +68,7 @@ const Configuration = {
             'starknet_mempool_p2p_types',
             'starknet_mempool_types',
             'starknet_monitoring_endpoint',
+            'starknet_os_proc_macros',
             'starknet_patricia',
             'starknet_sequencer_infra',
             'starknet_sequencer_node',
