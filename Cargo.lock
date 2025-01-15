@@ -11137,6 +11137,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "futures",
  "hyper 0.14.32",
  "papyrus_config",
  "pretty_assertions",

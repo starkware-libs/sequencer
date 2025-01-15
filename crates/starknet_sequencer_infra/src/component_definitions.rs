@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::future::pending;
 
 use async_trait::async_trait;
+use futures::FutureExt;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::DeserializeOwned;
@@ -40,6 +42,11 @@ pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
         info!("Starting component {} with the default starter.", short_type_name::<Self>());
         Ok(())
+    }
+
+    async fn concurrent_start(&mut self) -> Result<(), ComponentError> {
+        self.start().await?;
+        pending().boxed().await
     }
 }
 
