@@ -193,6 +193,14 @@ impl L1ProviderClient for FakeL1ProviderClient {
         Ok(())
     }
 
+    async fn commit_block(
+        &self,
+        _l1_handler_tx_hashes: Vec<TransactionHash>,
+        _height: BlockNumber,
+    ) -> L1ProviderClientResult<()> {
+        todo!()
+    }
+
     async fn validate(
         &self,
         _tx_hash: TransactionHash,
