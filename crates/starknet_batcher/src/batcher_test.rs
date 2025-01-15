@@ -172,15 +172,15 @@ async fn start_height_success() {
 #[rstest]
 #[case::height_already_passed(
     INITIAL_HEIGHT.prev().unwrap(),
-    BatcherError::HeightAlreadyPassed {
-        storage_height: INITIAL_HEIGHT,
+    BatcherError::StorageHeightMarkerMismatch {
+        marker_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.prev().unwrap()
     }
 )]
 #[case::storage_not_synced(
     INITIAL_HEIGHT.unchecked_next(),
-    BatcherError::StorageNotSynced {
-        storage_height: INITIAL_HEIGHT,
+    BatcherError::StorageHeightMarkerMismatch {
+        marker_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.unchecked_next()
     }
 )]
@@ -522,7 +522,6 @@ async fn add_sync_block() {
 
 #[rstest]
 #[tokio::test]
-#[should_panic(expected = "Synced block height 4 does not match the current height 3.")]
 async fn add_sync_block_mismatch_block_number() {
     let mut batcher = create_batcher(MockDependencies::default());
 
@@ -533,7 +532,14 @@ async fn add_sync_block_mismatch_block_number() {
         },
         ..Default::default()
     };
-    batcher.add_sync_block(sync_block).await.unwrap();
+    let result = batcher.add_sync_block(sync_block).await;
+    assert_eq!(
+        result,
+        Err(BatcherError::StorageHeightMarkerMismatch {
+            marker_height: BlockNumber(3),
+            requested_height: BlockNumber(4)
+        })
+    )
 }
 
 #[tokio::test]
@@ -553,16 +559,21 @@ async fn revert_block() {
 }
 
 #[tokio::test]
-#[should_panic(expected = "Revert block height 3 does not match the current height 2.")]
 async fn revert_block_mismatch_block_number() {
     let mut batcher = create_batcher(MockDependencies::default());
 
     let revert_input = RevertBlockInput { height: INITIAL_HEIGHT };
-    batcher.revert_block(revert_input).await.unwrap();
+    let result = batcher.revert_block(revert_input).await;
+    assert_eq!(
+        result,
+        Err(BatcherError::StorageHeightMarkerMismatch {
+            marker_height: BlockNumber(3),
+            requested_height: BlockNumber(3)
+        })
+    )
 }
 
 #[tokio::test]
-#[should_panic(expected = "Revert block called, but the storage is empty.")]
 async fn revert_block_empty_storage() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
@@ -571,7 +582,14 @@ async fn revert_block_empty_storage() {
     let mut batcher = create_batcher(mock_dependencies);
 
     let revert_input = RevertBlockInput { height: BlockNumber(0) };
-    batcher.revert_block(revert_input).await.unwrap();
+    let result = batcher.revert_block(revert_input).await;
+    assert_eq!(
+        result,
+        Err(BatcherError::StorageHeightMarkerMismatch {
+            marker_height: BlockNumber(0),
+            requested_height: BlockNumber(0)
+        })
+    );
 }
 
 #[rstest]

@@ -126,15 +126,9 @@ impl Batcher {
         }
 
         let storage_height = self.get_height_from_storage()?;
-        if storage_height < input.height {
-            return Err(BatcherError::StorageNotSynced {
-                storage_height,
-                requested_height: input.height,
-            });
-        }
-        if storage_height > input.height {
-            return Err(BatcherError::HeightAlreadyPassed {
-                storage_height,
+        if storage_height != input.height {
+            return Err(BatcherError::StorageHeightMarkerMismatch {
+                marker_height: storage_height,
                 requested_height: input.height,
             });
         }
@@ -266,6 +260,7 @@ impl Batcher {
         self.executed_proposals.lock().await.clear();
         self.propose_tx_streams.clear();
         self.validate_tx_streams.clear();
+        self.active_height = None;
     }
 
     async fn handle_send_txs_request(
@@ -382,26 +377,27 @@ impl Batcher {
 
     #[instrument(skip(self), err)]
     pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
-        if let Some(height) = self.active_height {
-            info!("Aborting all work on height {} due to state sync.", height);
-            self.abort_active_height().await;
-            self.active_height = None;
-        }
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
             state_diff,
             transaction_hashes: _,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
         } = sync_block;
-        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        let height = self.get_height_from_storage()?;
-        assert!(
-            height == block_number,
-            "Synced block height {} does not match the current height {}.",
-            block_number,
-            height
-        );
 
+        let height = self.get_height_from_storage()?;
+        if height != block_number {
+            return Err(BatcherError::StorageHeightMarkerMismatch {
+                marker_height: height,
+                requested_height: block_number,
+            });
+        }
+
+        if let Some(height) = self.active_height {
+            info!("Aborting all work on height {} due to state sync.", height);
+            self.abort_active_height().await;
+        }
+
+        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         self.commit_proposal_and_block(height, state_diff, address_to_nonce, [].into()).await
     }
 
@@ -548,26 +544,27 @@ impl Batcher {
     }
 
     pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
+        let storage_height = self.get_height_from_storage()?.prev().ok_or(
+            BatcherError::StorageHeightMarkerMismatch {
+                marker_height: BlockNumber(0),
+                requested_height: input.height,
+            },
+        )?;
+
+        if storage_height != input.height {
+            return Err(BatcherError::StorageHeightMarkerMismatch {
+                marker_height: storage_height.unchecked_next(),
+                requested_height: input.height,
+            });
+        }
+
         if let Some(height) = self.active_height {
             info!("Aborting all work on height {} due to a revert request.", height);
             self.abort_active_height().await;
-            self.active_height = None;
         }
 
-        let height = self
-            .get_height_from_storage()?
-            .prev()
-            .expect("Revert block called, but the storage is empty.");
-
-        assert!(
-            height == input.height,
-            "Revert block height {} does not match the current height {}.",
-            input.height,
-            height
-        );
-
-        self.storage_writer.revert_block(height).map_err(|err| {
-            error!("Failed to revert block at height {}: {}", height, err);
+        self.storage_writer.revert_block(storage_height).map_err(|err| {
+            error!("Failed to revert block at height {}: {}", storage_height, err);
             BatcherError::InternalError
         })
     }
