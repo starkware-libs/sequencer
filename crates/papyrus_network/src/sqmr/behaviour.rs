@@ -144,7 +144,7 @@ impl Behaviour {
         self.outbound_sessions_pending_peer_assignment
             .insert(outbound_session_id, (query, protocol_name));
         debug!(
-            "Network received new query. Requesting peer assignment for session {:?}.",
+            "Network received new outbound query. Requesting peer assignment for {:?}.",
             outbound_session_id
         );
         self.add_event_to_queue(ToSwarm::GenerateEvent(Event::ToOtherBehaviourEvent(
