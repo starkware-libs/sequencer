@@ -3,6 +3,7 @@ use std::mem;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
+use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::{
@@ -28,7 +29,19 @@ use crate::ProviderState;
 pub struct L1ProviderContent {
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
-    current_height: BlockNumber,
+    current_height: Option<BlockNumber>,
+}
+impl L1ProviderContent {
+    #[track_caller]
+    pub fn assert_eq(&self, l1_provider: &L1Provider) {
+        if let Some(tx_manager_content) = &self.tx_manager_content {
+            tx_manager_content.assert_eq(&l1_provider.tx_manager);
+        }
+
+        if let Some(state) = &self.state {
+            assert_eq!(&l1_provider.state, state);
+        }
+    }
 }
 
 impl From<L1ProviderContent> for L1Provider {
@@ -36,7 +49,7 @@ impl From<L1ProviderContent> for L1Provider {
         L1Provider {
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             state: content.state.unwrap_or_default(),
-            current_height: content.current_height,
+            current_height: content.current_height.unwrap_or_default(),
         }
     }
 }
@@ -45,6 +58,7 @@ impl From<L1ProviderContent> for L1Provider {
 pub struct L1ProviderContentBuilder {
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
+    current_height: Option<BlockNumber>,
 }
 
 impl L1ProviderContentBuilder {
@@ -62,6 +76,11 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_height(mut self, height: BlockNumber) -> Self {
+        self.current_height = Some(height);
+        self
+    }
+
     pub fn with_committed(mut self, tx_hashes: impl IntoIterator<Item = TransactionHash>) -> Self {
         self.tx_manager_content_builder = self.tx_manager_content_builder.with_committed(tx_hashes);
         self
@@ -71,7 +90,7 @@ impl L1ProviderContentBuilder {
         L1ProviderContent {
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
-            ..Default::default()
+            current_height: self.current_height,
         }
     }
 
@@ -84,8 +103,19 @@ impl L1ProviderContentBuilder {
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
-    txs: Option<Vec<L1HandlerTransaction>>,
-    committed: Option<HashSet<TransactionHash>>,
+    pub txs: Option<Vec<L1HandlerTransaction>>,
+    pub committed: Option<HashSet<TransactionHash>>,
+}
+impl TransactionManagerContent {
+    #[track_caller]
+    fn assert_eq(&self, tx_manager: &TransactionManager) {
+        if let Some(txs) = &self.txs {
+            assert_eq!(
+                txs,
+                &tx_manager.txs.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
+            );
+        }
+    }
 }
 
 impl From<TransactionManagerContent> for TransactionManager {
