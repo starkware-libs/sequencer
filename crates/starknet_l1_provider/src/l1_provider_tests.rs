@@ -10,6 +10,7 @@ use starknet_l1_provider_types::SessionState::{
 };
 use starknet_l1_provider_types::ValidationStatus;
 
+use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog};
 use crate::test_utils::L1ProviderContentBuilder;
 use crate::ProviderState;
 
@@ -20,6 +21,22 @@ macro_rules! tx {
                 tx_hash: tx_hash!($tx_hash) , ..Default::default()
             )
         )
+    }};
+}
+
+macro_rules! bootstrapper {
+    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
+        Bootstrapper {
+            commit_block_backlog: vec![
+                $(CommitBlockBacklog {
+                    height: BlockNumber($height),
+                    committed_txs: vec![$(tx_hash!($tx)),*]
+                }),*
+            ].into_iter().collect(),
+            catch_up_height: BlockNumber($catch),
+            // NOTE: current_provider_height is taken from the provider by the builder.
+            ..Default::default()
+        }
     }};
 }
 
@@ -103,4 +120,95 @@ fn proposal_start_multiple_proposals_same_height() {
 
     l1_provider.start_block(BlockNumber(1), ValidateSession).unwrap();
     l1_provider.start_block(BlockNumber(1), ValidateSession).unwrap();
+}
+
+#[test]
+fn test_commit_block_empty_block() {
+    // Setup.
+    let txs = [tx!(tx_hash: 1), tx!(tx_hash: 2)];
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs(txs.clone())
+        .with_height(BlockNumber(10))
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Commit block during proposal.
+    l1_provider.commit_block(&[], BlockNumber(10));
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs(txs)
+        .with_height(BlockNumber(11))
+        .with_state(ProviderState::Pending)
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+}
+
+#[test]
+fn test_commit_block_during_proposal() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([tx!(tx_hash: 1), tx!(tx_hash: 2), tx!(tx_hash: 3)])
+        .with_height(BlockNumber(10))
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Commit block during proposal.
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(11));
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([tx!(tx_hash: 2), tx!(tx_hash: 3)])
+        .with_height(BlockNumber(12))
+        .with_state(ProviderState::Pending)
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Commit block during pending.
+    l1_provider.commit_block(&[tx_hash!(2)], BlockNumber(12));
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([tx!(tx_hash: 3)])
+        .with_height(BlockNumber(13))
+        .with_state(ProviderState::Pending)
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Commit block during validate.
+    l1_provider.state = ProviderState::Validate;
+    l1_provider.commit_block(&[tx_hash!(3)], BlockNumber(13));
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([])
+        .with_height(BlockNumber(14))
+        .with_state(ProviderState::Pending)
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+}
+
+#[test]
+fn test_commit_block_backlog() {
+    // Setup.
+    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+        backlog: [10 => [2], 11 => [4]],
+        catch_up: 11
+    ));
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([tx!(tx_hash: 1), tx!(tx_hash: 2), tx!(tx_hash: 4)])
+        .with_height(BlockNumber(7))
+        .with_state(initial_bootstrap_state.clone())
+        .build_into_l1_provider();
+
+    // Test.
+    // Commit height too low to affect backlog.
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(8));
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([tx!(tx_hash: 2), tx!(tx_hash: 4)])
+        .with_height(BlockNumber(8))
+        .with_state(initial_bootstrap_state)
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Backlog is consumed, bootstrapping complete.
+    l1_provider.commit_block(&[], BlockNumber(9));
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([])
+        .with_height(BlockNumber(12))
+        .with_state(ProviderState::Pending)
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
 }
