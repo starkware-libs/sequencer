@@ -1,5 +1,6 @@
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
 pub mod transaction_converter;
-
 use std::sync::Arc;
 
 use async_trait::async_trait;
