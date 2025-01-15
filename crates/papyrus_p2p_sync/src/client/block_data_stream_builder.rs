@@ -16,7 +16,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
 use super::{P2pSyncClientError, STEP};
 
@@ -120,7 +120,7 @@ where
                         };
                         let limit = min(last_block_number.0 - current_block_number.0, num_blocks_per_query);
                         if limit == 0 {
-                            debug!("{:?} sync is waiting for a new {}", Self::TYPE_DESCRIPTION, description);
+                            trace!("{:?} sync is waiting for a new {}", Self::TYPE_DESCRIPTION, description);
                             tokio::time::sleep(wait_period_for_new_data).await;
                             continue;
                         }

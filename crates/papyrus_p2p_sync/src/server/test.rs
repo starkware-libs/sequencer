@@ -361,7 +361,7 @@ async fn run_test<T, F, TQuery>(
     let query = TQuery::from(query);
     let (server_query_manager, _report_sender, response_reciever) =
         create_test_server_query_manager(query);
-    register_query::<T, TQuery>(storage_reader, server_query_manager);
+    register_query::<T, TQuery>(storage_reader, server_query_manager, "test");
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
