@@ -1,4 +1,5 @@
-extern crate proc_macro;
+// TODO(Dori): Uncomment this next line when these macros are actually used.
+// extern crate proc_macro;
 
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, Data, DeriveInput, Fields, Type};
@@ -18,11 +19,12 @@ pub fn cairo_type_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStr
                 let field_names_read = fields.named.iter().map(|f| &f.ident);
                 let field_names_write = field_names_read.clone();
                 let n_fields = field_names_read.clone().count();
-                let field_values = field_names_read.clone().enumerate().map(|(index, field_name)| {
-                    quote! {
-                        let #field_name = vm.get_integer((address + #index)?)?.into_owned();
-                    }
-                });
+                let field_values =
+                    field_names_read.clone().enumerate().map(|(index, field_name)| {
+                        quote! {
+                            let #field_name = vm.get_integer((address + #index)?)?.into_owned();
+                        }
+                    });
 
                 quote! {
                     impl CairoType for #struct_ident {
