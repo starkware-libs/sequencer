@@ -13,7 +13,6 @@ use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
-use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
@@ -37,6 +36,7 @@ use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockO
 use starknet_client::reader::PendingData;
 use starknet_consensus::config::ConsensusConfig;
 use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::metadata::LevelFilter;
