@@ -22,14 +22,11 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     // invocation. Consider using the builder pattern.
     let sequencer_manager = SequencerSetupManager::run(sequencers_setup).await;
 
-    // Run the integration test simulator.
-    sequencer_manager.run_integration_test_simulator(tx_generator, N_TXS, SENDER_ACCOUNT).await;
-
-    sequencer_manager.await_execution(EXPECTED_BLOCK_NUMBER).await;
+    // Run the integration test simulator and verify the results.
+    sequencer_manager
+        .test_and_verify(tx_generator, N_TXS, SENDER_ACCOUNT, sender_address, EXPECTED_BLOCK_NUMBER)
+        .await;
 
     info!("Shutting down nodes.");
     sequencer_manager.shutdown_nodes();
-
-    // Verify the results.
-    sequencer_manager.verify_results(sender_address, N_TXS).await;
 }
