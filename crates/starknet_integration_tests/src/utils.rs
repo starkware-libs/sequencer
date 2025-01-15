@@ -237,7 +237,7 @@ fn fund_new_account(
 }
 
 fn create_account_txs(
-    mut tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
@@ -293,7 +293,7 @@ pub fn test_tx_hashes_for_integration_test(tx_hashes: &[TransactionHash]) -> Vec
 
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
 pub async fn send_account_txs<'a, Fut>(
-    tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     n_txs: usize,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
