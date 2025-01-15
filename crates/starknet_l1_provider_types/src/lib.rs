@@ -23,6 +23,7 @@ pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ValidationStatus {
+    AlreadyIncludedInPropsedBlock,
     AlreadyIncludedOnL2,
     ConsumedOnL1OrUnknown,
     Validated,
