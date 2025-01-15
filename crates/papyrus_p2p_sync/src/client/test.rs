@@ -38,7 +38,7 @@ async fn receive_block_internally() {
         vec![
             Action::SendInternalBlock(sync_block),
             Action::RunP2pSync,
-            Action::CheckStorage(Box::new(move |reader| {
+            Action::CheckStorage(Box::new(move |(reader, _)| {
                 async move {
                     wait_for_marker(
                         DataType::StateDiff,
@@ -113,7 +113,7 @@ async fn receive_blocks_out_of_order() {
             Action::SendInternalBlock(sync_block_1),
             Action::SendInternalBlock(sync_block_0),
             Action::RunP2pSync,
-            Action::CheckStorage(Box::new(move |reader| {
+            Action::CheckStorage(Box::new(move |(reader, _)| {
                 async move {
                     wait_for_marker(
                         DataType::StateDiff,
@@ -193,7 +193,7 @@ async fn receive_blocks_first_externally_and_then_internally() {
                 None,
                 None,
             )))),
-            Action::CheckStorage(Box::new(|reader| {
+            Action::CheckStorage(Box::new(|(reader, _)| {
                 async move {
                     wait_for_marker(
                         DataType::Header,
@@ -212,7 +212,7 @@ async fn receive_blocks_first_externally_and_then_internally() {
             })),
             Action::SendInternalBlock(sync_block_0),
             Action::SendInternalBlock(sync_block_1),
-            Action::CheckStorage(Box::new(|reader| {
+            Action::CheckStorage(Box::new(|(reader, _)| {
                 async move {
                     wait_for_marker(
                         DataType::Header,
