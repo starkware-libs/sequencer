@@ -17,7 +17,7 @@ use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_node::bin_utils::build_configs;
 use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles, NETWORK_TOPIC};
 use papyrus_p2p_sync::BUFFER_SIZE;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use tokio::task::JoinHandle;
@@ -62,8 +62,9 @@ fn build_consensus(
         Topic::new(consensus_config.network_topic.clone()),
         BUFFER_SIZE,
     )?;
-    let proposal_network_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>> =
-        network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    let proposal_network_channels: BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
@@ -80,7 +81,8 @@ fn build_consensus(
         consensus_config.num_validators,
         Some(sync_channels.broadcast_topic_client),
     );
-    let sync_receiver =
+    // TODO(Asmaa): papyrus context should be created with the sync channel.
+    let _sync_receiver =
         sync_channels.broadcasted_messages_receiver.map(|(vote, _report_sender)| {
             BlockNumber(vote.expect("Sync channel should never have errors").height)
         });
@@ -103,9 +105,9 @@ fn build_consensus(
         consensus_config.validator_id,
         consensus_config.consensus_delay,
         consensus_config.timeouts.clone(),
+        consensus_config.sync_retry_interval,
         broadcast_vote_channels,
         inbound_internal_receiver,
-        sync_receiver,
     );
 
     Ok(Some(tokio::spawn(async move {
