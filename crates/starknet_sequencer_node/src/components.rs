@@ -105,23 +105,26 @@ pub fn create_node_components(
         ActiveComponentExecutionMode::Disabled => None,
     };
 
-    let (mempool_p2p_propagator, mempool_p2p_runner) = match config
-        .components
-        .mempool_p2p
-        .execution_mode
-    {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let gateway_client =
-                clients.get_gateway_shared_client().expect("Gateway Client should be available");
-            let (mempool_p2p_propagator, mempool_p2p_runner) =
-                create_p2p_propagator_and_runner(config.mempool_p2p_config.clone(), gateway_client);
-            (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
-        }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            (None, None)
-        }
-    };
+    let (mempool_p2p_propagator, mempool_p2p_runner) =
+        match config.components.mempool_p2p.execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let gateway_client = clients
+                    .get_gateway_shared_client()
+                    .expect("Gateway Client should be available");
+                // TODO: Remove this and use the real client instead once implemented.
+                let class_manager_client = Arc::new(EmptyClassManagerClient);
+                let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
+                    config.mempool_p2p_config.clone(),
+                    gateway_client,
+                    class_manager_client,
+                );
+                (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
+            }
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                (None, None)
+            }
+        };
 
     let mempool = match config.components.mempool.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
