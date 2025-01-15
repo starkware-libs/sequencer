@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::iter;
 
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
@@ -16,10 +15,20 @@ impl Bootstrapper {
     /// heights.
     pub fn drain_applicable_commit_block_backlog(
         &mut self,
-        _start_height: BlockNumber,
+        start_height: BlockNumber,
     ) -> impl Iterator<Item = Vec<TransactionHash>> + '_ {
-        // TODO
-        iter::empty()
+        let mut current_height = start_height;
+        std::iter::from_fn(move || {
+            let next = self.commit_block_backlog.front()?;
+            if next.height != current_height.unchecked_next() {
+                return None;
+            }
+
+            let item = self.commit_block_backlog.pop_front().unwrap();
+            current_height = current_height.unchecked_next();
+            self.current_provider_height = current_height;
+            Some(item.committed_txs)
+        })
     }
 
     pub fn is_complete(&self) -> bool {
