@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures::stream::StreamExt;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -8,7 +10,10 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
+use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use tokio::time::timeout;
@@ -25,7 +30,11 @@ async fn process_handle_add_tx() {
         subscriber_channels;
     let BroadcastNetworkMock { mut messages_to_broadcast_receiver, .. } = mock_network;
     let rpc_transaction = RpcTransaction::get_test_instance(&mut get_rng());
-    let mut mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client);
+    // TODO(noamsp): use MockClassManagerClient
+    let transaction_converter =
+        TransactionConverter::new(Arc::new(EmptyClassManagerClient), ChainId::create_for_testing());
+    let mut mempool_p2p_propagator =
+        MempoolP2pPropagator::new(broadcast_topic_client, transaction_converter);
     mempool_p2p_propagator
         .handle_request(MempoolP2pPropagatorRequest::AddTransaction(rpc_transaction.clone()))
         .await;
@@ -41,7 +50,11 @@ async fn process_handle_continue_propagation() {
         subscriber_channels;
     let BroadcastNetworkMock { mut continue_propagation_receiver, .. } = mock_network;
     let propagation_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-    let mut mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client);
+    // TODO(noamsp): use MockClassManagerClient
+    let transaction_converter =
+        TransactionConverter::new(Arc::new(EmptyClassManagerClient), ChainId::create_for_testing());
+    let mut mempool_p2p_propagator =
+        MempoolP2pPropagator::new(broadcast_topic_client, transaction_converter);
     mempool_p2p_propagator
         .handle_request(MempoolP2pPropagatorRequest::ContinuePropagation(
             propagation_metadata.clone(),
