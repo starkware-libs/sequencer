@@ -9,7 +9,7 @@ use validator::Validate;
 pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 80 * 1024;
 // TODO(Noa): Reconsider the default values.
 pub const DEFAULT_MAX_NATIVE_BYTECODE_SIZE: u64 = 15 * 1024 * 1024;
-pub const DEFAULT_MAX_CPU_TIME: u64 = 15;
+pub const DEFAULT_MAX_CPU_TIME: u64 = 20;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]

@@ -127,20 +127,29 @@ impl ContractClassManager {
         }
 
         let sender = self.sender.as_ref().expect("Compilation channel not available.");
+        let class_hash = request.0;
         // TODO(Avi, 15/12/2024): Check for duplicated requests.
-        sender.try_send(request).unwrap_or_else(|err| match err {
-            TrySendError::Full((class_hash, _, _)) => {
-                log::error!(
-                    "Compilation request channel is full (size: {}). Compilation request for \
-                     class hash {} was not sent.",
-                    self.cairo_native_run_config.channel_size,
+        match sender.try_send(request) {
+            Ok(_) => {
+                log::info!(
+                    "Compilation request with class hash: {} was sent successfully.",
                     class_hash
-                )
+                );
             }
-            TrySendError::Disconnected(_) => {
-                panic!("Compilation request channel is closed.")
-            }
-        });
+            Err(err) => match err {
+                TrySendError::Full((class_hash, _, _)) => {
+                    log::error!(
+                        "Compilation request channel is full (size: {}). Compilation request for \
+                         class hash {} was not sent.",
+                        self.cairo_native_run_config.channel_size,
+                        class_hash
+                    )
+                }
+                TrySendError::Disconnected(_) => {
+                    panic!("Compilation request channel is closed.")
+                }
+            },
+        };
     }
 
     /// Returns the native compiled class for the given class hash, if it exists in cache.
