@@ -1,10 +1,15 @@
 use std::net::SocketAddr;
 
+use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::stream::{self, StreamExt};
 use futures::TryFutureExt;
 use itertools::izip;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountId,
+    AccountTransactionGenerator,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::state::StateStorageReader;
@@ -14,6 +19,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
+use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::test_utils::{
     AvailablePorts,
@@ -21,12 +27,14 @@ use starknet_infra_utils::test_utils::{
     MAX_NUMBER_OF_INSTANCES_PER_TEST,
 };
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -267,6 +275,27 @@ pub(crate) async fn get_sequencer_setup_configs(
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
+    create_sequencer_setups(
+        indexed_component_configs,
+        consensus_manager_configs,
+        mempool_p2p_configs,
+        state_sync_configs,
+        accounts,
+        chain_info,
+        test_unique_id,
+    )
+    .await
+}
+
+async fn create_sequencer_setups(
+    indexed_component_configs: Vec<(SequencerExecutionId, ComponentConfig)>,
+    consensus_manager_configs: Vec<ConsensusManagerConfig>,
+    mempool_p2p_configs: Vec<MempoolP2pConfig>,
+    state_sync_configs: Vec<StateSyncConfig>,
+    accounts: &[AccountTransactionGenerator],
+    chain_info: ChainInfo,
+    test_unique_id: TestIdentifier,
+) -> Vec<SequencerSetup> {
     stream::iter(
         izip!(
             indexed_component_configs,
