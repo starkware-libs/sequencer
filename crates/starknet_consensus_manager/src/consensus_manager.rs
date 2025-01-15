@@ -55,8 +55,7 @@ impl ConsensusManager {
             return std::future::pending().await;
         }
 
-        let mut network_manager =
-            NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
+        let mut network_manager = NetworkManager::new(self.config.network_config.clone(), None);
 
         let proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(
