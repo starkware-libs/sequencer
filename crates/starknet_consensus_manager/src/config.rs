@@ -21,6 +21,7 @@ pub struct ConsensusManagerConfig {
     pub cende_config: CendeConfig,
     pub votes_topic: String,
     pub proposals_topic: String,
+    pub broadcast_buffer_size: usize,
     pub immediate_active_height: BlockNumber,
 }
 
@@ -48,6 +49,12 @@ impl SerializeConfig for ConsensusManagerConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "broadcast_buffer_size",
+                &self.broadcast_buffer_size,
+                "The buffer size for the broadcast channel.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "immediate_active_height",
                 &self.immediate_active_height,
                 "The height at which the consensus manager becomes active.",
@@ -68,6 +75,7 @@ impl Default for ConsensusManagerConfig {
             network_config: NetworkConfig::default(),
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
+            broadcast_buffer_size: 100,
             immediate_active_height: BlockNumber::default(),
         }
     }
