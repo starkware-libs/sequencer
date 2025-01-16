@@ -13,8 +13,6 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
 use validator::Validate;
 
 use crate::types::ValidatorId;
@@ -22,40 +20,25 @@ use crate::types::ValidatorId;
 /// Configuration for consensus.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusConfig {
-    // TODO(guyn): the chain_id, validator_id, and network_topic are going to be removed in
-    // following PRs.
-    /// The chain id of the Starknet chain.
-    pub chain_id: ChainId,
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
-    // TODO(guyn): this will be removed in one of the next PRs.
-    /// The network topic of the consensus.
-    pub network_topic: String,
-    // TODO(guyn): this will be removed in one of the next PRs??
-    /// The height to start the consensus from.
-    pub start_height: BlockNumber,
-    /// The number of validators in the consensus.
-    // Used for testing in an early milestones.
-    pub num_validators: u64,
     /// The delay (seconds) before starting consensus to give time for network peering.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub consensus_delay: Duration,
+    pub startup_delay: Duration,
     /// Timeouts configuration for consensus.
     pub timeouts: TimeoutsConfig,
     /// The duration (seconds) between sync attempts.
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub sync_retry_interval: Duration,
+    /// How many heights in the future should we cache.
+    pub future_height_limit: u32,
+    /// How many rounds in the future should we cache.
+    pub future_round_limit: u32,
 }
 
 impl SerializeConfig for ConsensusConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
-            ser_param(
-                "chain_id",
-                &self.chain_id,
-                "The chain id of the Starknet chain.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "validator_id",
                 &self.validator_id,
@@ -63,26 +46,8 @@ impl SerializeConfig for ConsensusConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "network_topic",
-                &self.network_topic,
-                "The network topic of the consensus.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "start_height",
-                &self.start_height,
-                "The height to start the consensus from.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "num_validators",
-                &self.num_validators,
-                "The number of validators in the consensus.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "consensus_delay",
-                &self.consensus_delay.as_secs(),
+                "startup_delay",
+                &self.startup_delay.as_secs(),
                 "Delay (seconds) before starting consensus to give time for network peering.",
                 ParamPrivacyInput::Public,
             ),
@@ -90,6 +55,18 @@ impl SerializeConfig for ConsensusConfig {
                 "sync_retry_interval",
                 &self.sync_retry_interval.as_secs_f64(),
                 "The duration (seconds) between sync attempts.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "future_height_limit",
+                &self.future_height_limit,
+                "How many heights in the future should we cache.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "future_round_limit",
+                &self.future_round_limit,
+                "How many rounds in the future should we cache.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -101,14 +78,13 @@ impl SerializeConfig for ConsensusConfig {
 impl Default for ConsensusConfig {
     fn default() -> Self {
         Self {
-            chain_id: ChainId::Other("0x0".to_string()),
             validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            network_topic: "consensus".to_string(),
-            start_height: BlockNumber::default(),
-            num_validators: 1,
-            consensus_delay: Duration::from_secs(5),
+            // start_height: BlockNumber::default(),
+            startup_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
+            future_height_limit: 10,
+            future_round_limit: 10,
         }
     }
 }

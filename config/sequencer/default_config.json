@@ -654,30 +654,20 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.consensus_config.chain_id": {
-    "description": "The chain id of the Starknet chain.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
+  "consensus_manager_config.consensus_config.future_height_limit": {
+    "description": "How many heights in the future should we cache.",
+    "privacy": "Public",
+    "value": 10
   },
-  "consensus_manager_config.consensus_config.consensus_delay": {
+  "consensus_manager_config.consensus_config.future_round_limit": {
+    "description": "How many rounds in the future should we cache.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "consensus_manager_config.consensus_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
-  },
-  "consensus_manager_config.consensus_config.network_topic": {
-    "description": "The network topic of the consensus.",
-    "privacy": "Public",
-    "value": "consensus"
-  },
-  "consensus_manager_config.consensus_config.num_validators": {
-    "description": "The number of validators in the consensus.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus_manager_config.consensus_config.start_height": {
-    "description": "The height to start the consensus from.",
-    "privacy": "Public",
-    "value": 0
   },
   "consensus_manager_config.consensus_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
