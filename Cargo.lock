@@ -1635,6 +1635,7 @@ dependencies = [
  "cached",
  "cairo-lang-casm",
  "cairo-lang-runner",
+ "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-native",
  "cairo-vm",
