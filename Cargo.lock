@@ -11059,7 +11059,6 @@ dependencies = [
  "papyrus_base_layer",
  "papyrus_config",
  "pretty_assertions",
- "rstest",
  "serde",
  "starknet_api",
  "starknet_l1_provider_types",
