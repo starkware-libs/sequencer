@@ -37,10 +37,10 @@ fn get_txs_happy_flow() {
         .build_into_l1_provider();
 
     // Test.
-    assert_eq!(l1_provider.get_txs(0, BlockNumber(1)).unwrap(), []);
-    assert_eq!(l1_provider.get_txs(1, BlockNumber(1)).unwrap(), [txs[0].clone()]);
-    assert_eq!(l1_provider.get_txs(3, BlockNumber(1)).unwrap(), txs[1..=2]);
-    assert_eq!(l1_provider.get_txs(1, BlockNumber(1)).unwrap(), []);
+    assert_eq!(l1_provider.get_txs(0, BlockNumber(0)).unwrap(), []);
+    assert_eq!(l1_provider.get_txs(1, BlockNumber(0)).unwrap(), [txs[0].clone()]);
+    assert_eq!(l1_provider.get_txs(3, BlockNumber(0)).unwrap(), txs[1..=2]);
+    assert_eq!(l1_provider.get_txs(1, BlockNumber(0)).unwrap(), []);
 }
 
 #[test]
@@ -54,20 +54,20 @@ fn validate_happy_flow() {
 
     // Test.
     assert_eq!(
-        l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap(),
+        l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap(),
         ValidationStatus::Validated
     );
     assert_eq!(
-        l1_provider.validate(tx_hash!(2), BlockNumber(1)).unwrap(),
+        l1_provider.validate(tx_hash!(2), BlockNumber(0)).unwrap(),
         ValidationStatus::AlreadyIncludedOnL2
     );
     assert_eq!(
-        l1_provider.validate(tx_hash!(3), BlockNumber(1)).unwrap(),
+        l1_provider.validate(tx_hash!(3), BlockNumber(0)).unwrap(),
         ValidationStatus::ConsumedOnL1OrUnknown
     );
     // Transaction wasn't deleted after the validation.
     assert_eq!(
-        l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap(),
+        l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap(),
         ValidationStatus::AlreadyIncludedInPropsedBlock
     );
 }
@@ -82,12 +82,12 @@ fn pending_state_errors() {
 
     // Test.
     assert_matches!(
-        l1_provider.get_txs(1, BlockNumber(1)).unwrap_err(),
+        l1_provider.get_txs(1, BlockNumber(0)).unwrap_err(),
         L1ProviderError::GetTransactionsInPendingState
     );
 
     assert_matches!(
-        l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap_err(),
+        l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap_err(),
         L1ProviderError::ValidateInPendingState
     );
 }
@@ -98,7 +98,7 @@ fn uninitialized_get_txs() {
     let mut uninitialized_l1_provider = L1Provider::default();
     assert_eq!(uninitialized_l1_provider.state, ProviderState::Uninitialized);
 
-    uninitialized_l1_provider.get_txs(1, BlockNumber(1)).unwrap();
+    uninitialized_l1_provider.get_txs(1, BlockNumber(0)).unwrap();
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn uninitialized_validate() {
     let mut uninitialized_l1_provider = L1Provider::default();
     assert_eq!(uninitialized_l1_provider.state, ProviderState::Uninitialized);
 
-    uninitialized_l1_provider.validate(TransactionHash::default(), BlockNumber(1)).unwrap();
+    uninitialized_l1_provider.validate(TransactionHash::default(), BlockNumber(0)).unwrap();
 }
 
 #[test]
@@ -119,7 +119,7 @@ fn proposal_start_multiple_proposals_same_height() {
     // Test all single-height combinations.
     const SESSION_TYPES: [SessionState; 2] = [ProposeSession, ValidateSession];
     for (session_1, session_2) in SESSION_TYPES.into_iter().cartesian_product(SESSION_TYPES) {
-        l1_provider.start_block(BlockNumber(1), session_1).unwrap();
-        l1_provider.start_block(BlockNumber(1), session_2).unwrap();
+        l1_provider.start_block(BlockNumber(0), session_1).unwrap();
+        l1_provider.start_block(BlockNumber(0), session_2).unwrap();
     }
 }

@@ -96,9 +96,11 @@ impl L1Provider {
     }
 
     fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        let next_height = self.current_height.unchecked_next();
-        if height != next_height {
-            return Err(L1ProviderError::UnexpectedHeight { expected: next_height, got: height });
+        if height != self.current_height {
+            return Err(L1ProviderError::UnexpectedHeight {
+                expected: self.current_height,
+                got: height,
+            });
         }
         Ok(())
     }
