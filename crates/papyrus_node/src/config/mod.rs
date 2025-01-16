@@ -36,6 +36,7 @@ use papyrus_sync::sources::central::CentralSourceConfig;
 use papyrus_sync::SyncConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_client::RetryConfig;
 use starknet_consensus::config::ConsensusConfig;
@@ -65,6 +66,7 @@ pub struct NodeConfig {
     // TODO(yair): Change NodeConfig to have an option of enum of SyncConfig or P2pSyncConfig.
     pub p2p_sync: Option<P2pSyncClientConfig>,
     pub consensus: Option<ConsensusConfig>,
+    pub papyrus_consensus: Option<PapyrusConsensusConfig>,
     pub context: Option<ContextConfig>,
     // TODO(shahak): Make network non-optional once it's developed enough.
     pub network: Option<NetworkConfig>,
@@ -84,6 +86,7 @@ impl Default for NodeConfig {
             sync: Some(SyncConfig::default()),
             p2p_sync: None,
             consensus: None,
+            papyrus_consensus: None,
             context: None,
             network: None,
             collect_profiling_metrics: false,
@@ -102,6 +105,7 @@ impl SerializeConfig for NodeConfig {
             ser_optional_sub_config(&self.sync, "sync"),
             ser_optional_sub_config(&self.p2p_sync, "p2p_sync"),
             ser_optional_sub_config(&self.consensus, "consensus"),
+            ser_optional_sub_config(&self.papyrus_consensus, "papyrus_consensus"),
             ser_optional_sub_config(&self.context, "context"),
             ser_optional_sub_config(&self.network, "network"),
             BTreeMap::from_iter([ser_param(
@@ -132,4 +136,48 @@ pub fn node_command() -> Command {
     Command::new("Papyrus")
         .version(VERSION_FULL)
         .about("Papyrus is a StarkNet full node written in Rust.")
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
+pub struct PapyrusConsensusConfig {
+    pub start_height: BlockNumber,
+    pub proposals_topic: String,
+    pub votes_topic: String,
+    pub config: ContextConfig,
+}
+
+impl SerializeConfig for PapyrusConsensusConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "start_height",
+                &self.start_height,
+                "The height to start the consensus from.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "proposals_topic",
+                &self.proposals_topic,
+                "The topic for consensus proposals.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "votes_topic",
+                &self.votes_topic,
+                "The topic for consensus votes.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for PapyrusConsensusConfig {
+    fn default() -> Self {
+        Self {
+            start_height: BlockNumber::default(),
+            proposals_topic: "consensus_proposals".to_string(),
+            votes_topic: "consensus_votes".to_string(),
+            config: ContextConfig::default(),
+        }
+    }
 }
