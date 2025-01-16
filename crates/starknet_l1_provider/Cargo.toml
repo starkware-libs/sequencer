@@ -27,7 +27,6 @@ alloy-node-bindings.workspace = true
 alloy-primitives.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
-rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 
 [lints]
