@@ -131,7 +131,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         }
     }
 
-    pub fn execute_txs_sequentially(
+    pub fn execute_txs_sequentially_inner(
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
@@ -227,6 +227,29 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
+    pub fn execute_txs_sequentially(
+        &mut self,
+        txs: &[Transaction],
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+        #[cfg(not(feature = "cairo_native"))]
+        return self.execute_txs_sequentially(txs);
+        #[cfg(feature = "cairo_native")]
+        {
+            // TODO meshi: find a way to access the contract class manager config from transaction
+            // executor.
+            let txs = txs.to_vec();
+            let mut results = Vec::new();
+            std::thread::scope(|s| {
+                let handle = std::thread::Builder::new()
+                    .stack_size(self.config.stack_size)
+                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs));
+                results =
+                    handle.expect("Failed to spawn thread").join().expect("Failed to join thread.");
+            });
+            results
+        }
+    }
+
     pub fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
@@ -250,26 +273,28 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         std::thread::scope(|s| {
             for _ in 0..self.config.concurrency_config.n_workers {
                 let worker_executor = Arc::clone(&worker_executor);
-                s.spawn(move || {
-                    // Making sure that the program will abort if a panic accured while halting the
-                    // scheduler.
-                    let abort_guard = AbortIfPanic;
-                    // If a panic is not handled or the handling logic itself panics, then we abort
-                    // the program.
-                    if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
-                        worker_executor.run();
-                    })) {
-                        // If the program panics here, the abort guard will exit the program.
-                        // In this case, no panic message will be logged. Add the cargo flag
-                        // --nocapture to log the panic message.
+                let _handle = std::thread::Builder::new()
+                    .stack_size(self.config.stack_size)
+                    .spawn_scoped(s, move || {
+                        // Making sure that the program will abort if a panic accured while halting
+                        // the scheduler.
+                        let abort_guard = AbortIfPanic;
+                        // If a panic is not handled or the handling logic itself panics, then we
+                        // abort the program.
+                        if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
+                            worker_executor.run();
+                        })) {
+                            // If the program panics here, the abort guard will exit the program.
+                            // In this case, no panic message will be logged. Add the cargo flag
+                            // --nocapture to log the panic message.
 
-                        worker_executor.scheduler.halt();
+                            worker_executor.scheduler.halt();
+                            abort_guard.release();
+                            panic::resume_unwind(err);
+                        }
+
                         abort_guard.release();
-                        panic::resume_unwind(err);
-                    }
-
-                    abort_guard.release();
-                });
+                    });
             }
         });
 
