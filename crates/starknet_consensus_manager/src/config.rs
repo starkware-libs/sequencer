@@ -27,7 +27,7 @@ pub struct ConsensusManagerConfig {
     pub revert_up_to_and_including: Option<BlockNumber>,
     pub votes_topic: String,
     pub proposals_topic: String,
-    pub immediate_active_height: u64,
+    pub immediate_active_height: BlockNumber,
 }
 
 impl SerializeConfig for ConsensusManagerConfig {
@@ -80,7 +80,7 @@ impl Default for ConsensusManagerConfig {
             revert_up_to_and_including: None,
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
-            immediate_active_height: 0,
+            immediate_active_height: BlockNumber::default(),
         }
     }
 }

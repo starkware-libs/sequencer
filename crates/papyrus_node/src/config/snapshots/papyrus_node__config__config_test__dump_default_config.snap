@@ -89,34 +89,24 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "consensus.chain_id": {
-    "description": "The chain id of the Starknet chain.",
-    "value": "0x0",
+  "consensus.future_height_limit": {
+    "description": "How many heights in the future should we cache.",
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
     "privacy": "Public"
   },
-  "consensus.consensus_delay": {
+  "consensus.future_round_limit": {
+    "description": "How many rounds in the future should we cache.",
+    "value": {
+      "$serde_json::private::Number": "10"
+    },
+    "privacy": "Public"
+  },
+  "consensus.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "value": {
       "$serde_json::private::Number": "5"
-    },
-    "privacy": "Public"
-  },
-  "consensus.network_topic": {
-    "description": "The network topic of the consensus.",
-    "value": "consensus",
-    "privacy": "Public"
-  },
-  "consensus.num_validators": {
-    "description": "The number of validators in the consensus.",
-    "value": {
-      "$serde_json::private::Number": "1"
-    },
-    "privacy": "Public"
-  },
-  "consensus.start_height": {
-    "description": "The height to start the consensus from.",
-    "value": {
-      "$serde_json::private::Number": "0"
     },
     "privacy": "Public"
   },
