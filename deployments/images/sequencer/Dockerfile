@@ -9,11 +9,12 @@ WORKDIR /app
 COPY . .
 RUN cargo build --bin starknet_sequencer_node
 
-FROM base AS sequencer
+FROM ubuntu:22.04
 
 ENV ID=1000
 WORKDIR /app
 COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
+COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
 COPY config/sequencer/default_config.json /app/config/sequencer/
