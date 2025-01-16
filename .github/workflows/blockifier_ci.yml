@@ -24,6 +24,7 @@ on:
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
       - '.github/workflows/blockifier_ci.yml'
       - '.github/workflows/upload_artifacts_workflow.yml'
+      - '.github/actions/bootstrap/action.yml'
       - 'build_native_in_docker.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
