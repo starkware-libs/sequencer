@@ -90,7 +90,7 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::ONE,
     false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V1."
     )
 )]
@@ -101,7 +101,7 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V3."
     )
 )]
