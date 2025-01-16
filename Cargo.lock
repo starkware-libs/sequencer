@@ -10753,6 +10753,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_class_manager"
+version = "0.0.0"
+dependencies = [
+ "starknet_api",
+ "starknet_class_manager_types",
+ "starknet_sierra_compile_types",
+]
+
+[[package]]
 name = "starknet_class_manager_types"
 version = "0.0.0"
 dependencies = [
