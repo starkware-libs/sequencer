@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "consensus_manager_test.rs"]
+mod consensus_manager_test;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,12 +13,13 @@ use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
+use starknet_batcher_types::batcher_types::RevertBlockInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::config::ConsensusManagerConfig;
 
@@ -64,6 +69,8 @@ impl ConsensusManager {
 
         let (outbound_internal_sender, inbound_internal_receiver, mut stream_handler_task_handle) =
             StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
+        self.revert_block_if_need().await?;
 
         let observer_height =
             self.batcher_client.get_height().await.map(|h| h.height).map_err(|e| {
@@ -117,6 +124,65 @@ impl ConsensusManager {
                 panic!("Consensus' stream handler task finished unexpectedly: {:?}", stream_handler_result);
             }
         }
+    }
+
+    // This function is for handling the extreme case where all the nodes failed before writing to
+    // Aerospike block that passed consensus.
+    // In this case, we align the batcher storage to the latest block that completed the Aerospike
+    // write. Moreover, Cende will skip the previous blob writing due to the `skip_write_height`
+    // configuration.
+    async fn revert_block_if_need(&self) -> Result<(), ConsensusError> {
+        let Some(target_batcher_height_marker) = self.config.cende_config.skip_write_height else {
+            return Ok(());
+        };
+
+        let batcher_height_marker = self
+            .batcher_client
+            .get_height()
+            .await
+            .map_err(|e| {
+                error!("Failed to get height from batcher: {:?}", e);
+                ConsensusError::Other("Failed to get height from batcher".to_string())
+            })?
+            .height;
+
+        if batcher_height_marker == target_batcher_height_marker.unchecked_next() {
+            // This case happens when the node fails after writing to its batcher's storage but
+            // before writing to Aerospike.
+            info!(
+                "Batcher marker is at block number: {batcher_height_marker}, it needs to be \
+                 reverted to {target_batcher_height_marker}, reverting one block",
+            );
+            self.batcher_client
+                .revert_block(RevertBlockInput { height: target_batcher_height_marker })
+                .await
+                .map_err(|e| {
+                    error!(
+                        "Failed to revert block {target_batcher_height_marker} in the batcher: \
+                         {:?}",
+                        e
+                    );
+                    ConsensusError::Other(format!(
+                        "Failed to revert block {target_batcher_height_marker} in the batcher"
+                    ))
+                })?;
+        } else if batcher_height_marker == target_batcher_height_marker {
+            // This case happens when the node fails before writing to the batcher's storage.
+            debug!("Batcher marker is equal to the target height marker, no revert is needed");
+        } else {
+            // This case is when:
+            // 1. the batcher's storage is behind the target height marker; we can fix that using a
+            //    revert.
+            // 2. the batcher's storage is ahead of the target height marker, by more than one
+            //    block, we do not want to do reverts to the target marker in this case. This may
+            //    happen if the node is restarted without changing the configuration.
+            debug!(
+                "Batcher is at block number: {batcher_height_marker}, target block number is \
+                 {target_batcher_height_marker}. Not performing revert",
+            );
+        }
+
+        Ok(())
     }
 }
 
