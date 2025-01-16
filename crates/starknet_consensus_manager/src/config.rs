@@ -27,6 +27,7 @@ pub struct ConsensusManagerConfig {
     pub revert_up_to_and_including: Option<BlockNumber>,
     pub votes_topic: String,
     pub proposals_topic: String,
+    pub broadcast_buffer_size: usize,
     pub immediate_active_height: BlockNumber,
 }
 
@@ -43,6 +44,12 @@ impl SerializeConfig for ConsensusManagerConfig {
                 "proposals_topic",
                 &self.proposals_topic,
                 "The topic for consensus proposals.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "broadcast_buffer_size",
+                &self.broadcast_buffer_size,
+                "The buffer size for the broadcast channel.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -80,6 +87,7 @@ impl Default for ConsensusManagerConfig {
             revert_up_to_and_including: None,
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
+            broadcast_buffer_size: 100,
             immediate_active_height: BlockNumber::default(),
         }
     }
