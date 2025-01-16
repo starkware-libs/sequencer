@@ -45,6 +45,8 @@ use starknet_sequencer_node::config::config_utils::{
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinHandle;
+use tracing::{debug, Instrument};
 use url::Url;
 
 use crate::integration_test_setup::SequencerExecutionId;
@@ -146,16 +148,28 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 }
 
 // Creates a local recorder server that always returns a success status.
-pub fn spawn_success_recorder(port: u16) -> Url {
-    // [127, 0, 0, 1] is the localhost IP address.
-    let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let router = Router::new()
-            .route(RECORDER_WRITE_BLOB_PATH, post(move || async { StatusCode::OK.to_string() }));
-        axum::Server::bind(&socket_addr).serve(router.into_make_service()).await.unwrap();
-    });
+        let router = Router::new().route(
+            RECORDER_WRITE_BLOB_PATH,
+            post(move || {
+                async {
+                    debug!("Received a request to write a blob.");
+                    StatusCode::OK.to_string()
+                }
+                .instrument(tracing::debug_span!("success recorder write_blob"))
+            }),
+        );
+        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+    })
+}
 
-    Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail")
+pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+    // [127, 0, 0, 1] is the localhost IP address.
+    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+    let url = Url::parse(&format!("http://{}", socket_address)).unwrap();
+    let join_handle = spawn_success_recorder(socket_address);
+    (url, join_handle)
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
