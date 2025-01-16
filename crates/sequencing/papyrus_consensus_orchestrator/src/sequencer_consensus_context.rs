@@ -340,7 +340,7 @@ impl ConsensusContext for SequencerConsensusContext {
         }
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used } = self
+        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
             .batcher
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
@@ -376,14 +376,15 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
+        let central_objects = *central_objects;
         self.cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 // TODO(dvir): use the real `BlockInfo` when consensus will save it.
                 block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
                 state_diff,
                 transactions,
-                // TODO(Yael): add the execution_infos to DecisionReachedResponse.
-                execution_infos: Default::default(),
+                execution_infos: central_objects.execution_infos,
+                bouncer_weights: central_objects.bouncer_weights,
             })
             .await;
 
