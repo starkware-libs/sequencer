@@ -64,11 +64,11 @@ pub struct DeployAccountTransactionV3WithAddress {
 #[serde(deny_unknown_fields)]
 pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "DECLARE")]
-    Declare(DeclareTransactionV3),
+    Declare(InternalRpcDeclareTransactionV3),
     #[serde(rename = "INVOKE")]
-    Invoke(InvokeTransactionV3),
+    Invoke(RpcInvokeTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
-    DeployAccount(DeployAccountTransactionV3WithAddress),
+    DeployAccount(RpcDeployAccountTransaction),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -193,6 +193,21 @@ impl From<RpcInvokeTransaction> for InvokeTransaction {
             RpcInvokeTransaction::V3(tx) => InvokeTransaction::V3(tx.into()),
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+pub struct InternalRpcDeclareTransactionV3 {
+    pub sender_address: ContractAddress,
+    pub compiled_class_hash: CompiledClassHash,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub resource_bounds: AllResourceBounds,
+    pub tip: Tip,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
