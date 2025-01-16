@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
+use starknet_api::execution_resources::GasAmount;
 use thiserror::Error;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -74,7 +75,7 @@ impl<S: StateReader> StatefulValidator<S> {
 
         // `__validate__` call.
         let (_optional_call_info, actual_cost) =
-            self.validate(&tx, tx_context.initial_sierra_gas())?;
+            self.validate(&tx, tx_context.initial_sierra_gas().0)?;
 
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost)?;
@@ -132,6 +133,7 @@ impl<S: StateReader> StatefulValidator<S> {
                 &tx_context.block_context.versioned_constants,
             ),
             0,
+            GasAmount(0),
         );
 
         Ok((validate_call_info, tx_receipt))

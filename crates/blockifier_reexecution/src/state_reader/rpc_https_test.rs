@@ -89,7 +89,7 @@ pub fn get_test_block_id() -> BlockId {
 }
 
 pub fn get_test_rpc_config() -> RpcStateReaderConfig {
-    RpcStateReaderConfig { url: get_test_url(), json_rpc_version: "2.0".to_string() }
+    RpcStateReaderConfig::from_url(get_test_url())
 }
 
 #[fixture]

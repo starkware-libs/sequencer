@@ -10,7 +10,6 @@ on:
       - edited
 
 env:
-  SEQUENCER_INTEGRATION_TESTS: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
@@ -19,11 +18,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-run-run-sequencer-integration-tests:
+  build-and-run-sequencer-integration-tests:
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: |
           cargo build --bin starknet_sequencer_node
-          cargo test --test end_to_end_integration_test
+          cargo build --bin sequencer_node_end_to_end_integration_test
+          target/debug/sequencer_node_end_to_end_integration_test
+

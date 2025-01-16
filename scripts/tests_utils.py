@@ -28,6 +28,10 @@ def get_workspace_tree() -> Dict[str, str]:
     return tree
 
 
+def get_workspace_packages() -> Set[str]:
+    return set(get_workspace_tree().keys())
+
+
 def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
     os.environ["GIT_PYTHON_REFRESH"] = "quiet"  # noqa
     repo = Repo(repo_path)

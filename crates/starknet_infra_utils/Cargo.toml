@@ -1,0 +1,26 @@
+[package]
+name = "starknet_infra_utils"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Infrastructure utility."
+
+[features]
+testing = ["tokio/net"]
+
+[lints]
+workspace = true
+
+[dependencies]
+num-traits.workspace = true
+regex.workspace = true
+tokio = { workspace = true, features = ["process", "rt", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+nix.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "signal", "sync"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }

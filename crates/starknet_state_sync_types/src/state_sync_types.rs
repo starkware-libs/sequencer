@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockHeaderWithoutHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -11,9 +12,10 @@ pub type StateSyncResult<T> = Result<T, StateSyncError>;
 ///
 /// Blocks that came from the state sync are trusted. Therefore, SyncBlock doesn't contain data
 /// needed for verifying the block
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SyncBlock {
     pub state_diff: ThinStateDiff,
     // TODO: decide if we want block hash, parent block hash and full classes here.
     pub transaction_hashes: Vec<TransactionHash>,
+    pub block_header_without_hash: BlockHeaderWithoutHash,
 }

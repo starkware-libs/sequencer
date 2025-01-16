@@ -1,13 +1,12 @@
-use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use starknet_infra_utils::type_name::short_type_name;
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{error, info};
@@ -30,8 +29,8 @@ pub trait ComponentRequestHandler<Request, Response> {
 #[async_trait]
 pub trait ComponentClient<Request, Response>
 where
-    Request: Send + Sync + Serialize + DeserializeOwned,
-    Response: Send + Sync + Serialize + DeserializeOwned,
+    Request: Send + Serialize + DeserializeOwned,
+    Response: Send + Serialize + DeserializeOwned,
 {
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
@@ -39,17 +38,17 @@ where
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {} with the default starter.", type_name::<Self>());
+        info!("Starting component {} with the default starter.", short_type_name::<Self>());
         Ok(())
     }
 }
 
-pub struct ComponentCommunication<T: Send + Sync> {
+pub struct ComponentCommunication<T: Send> {
     tx: Option<Sender<T>>,
     rx: Option<Receiver<T>>,
 }
 
-impl<T: Send + Sync> ComponentCommunication<T> {
+impl<T: Send> ComponentCommunication<T> {
     pub fn new(tx: Option<Sender<T>>, rx: Option<Receiver<T>>) -> Self {
         Self { tx, rx }
     }
@@ -65,8 +64,8 @@ impl<T: Send + Sync> ComponentCommunication<T> {
 
 pub struct ComponentRequestAndResponseSender<Request, Response>
 where
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     pub request: Request,
     pub tx: Sender<Response>,
@@ -104,7 +103,6 @@ impl Default for LocalServerConfig {
 // TODO(Nadin): Move the RemoteClientConfig and RemoteServerConfig to relevant modules.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteClientConfig {
-    pub socket: SocketAddr,
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout: u64,
@@ -112,9 +110,7 @@ pub struct RemoteClientConfig {
 
 impl Default for RemoteClientConfig {
     fn default() -> Self {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
         Self {
-            socket,
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout: DEFAULT_IDLE_TIMEOUT,
@@ -125,12 +121,6 @@ impl Default for RemoteClientConfig {
 impl SerializeConfig for RemoteClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_param(
-                "socket",
-                &self.socket.to_string(),
-                "The remote component server socket.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "retries",
                 &self.retries,
@@ -150,28 +140,5 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RemoteServerConfig {
-    pub socket: SocketAddr,
-}
-
-impl Default for RemoteServerConfig {
-    fn default() -> Self {
-        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
-        Self { socket }
-    }
-}
-
-impl SerializeConfig for RemoteServerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "socket",
-            &self.socket.to_string(),
-            "The remote component server socket.",
-            ParamPrivacyInput::Public,
-        )])
     }
 }

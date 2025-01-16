@@ -1,15 +1,16 @@
 use std::cmp::min;
-use std::sync::Arc;
 use std::vec;
 
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
+use starknet_api::block::BlockNumber;
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_l1_provider_types::errors::L1ProviderClientError;
+use starknet_l1_provider_types::{SharedL1ProviderClient, ValidationStatus as L1ValidationStatus};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
-use tracing::warn;
 
 type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
 
@@ -19,6 +20,8 @@ pub enum TransactionProviderError {
     MempoolError(#[from] MempoolClientError),
     #[error("L1Handler transaction validation failed for tx with hash {0}.")]
     L1HandlerTransactionValidationFailed(TransactionHash),
+    #[error(transparent)]
+    L1ProviderError(#[from] L1ProviderClientError),
 }
 
 #[derive(Debug, PartialEq)]
@@ -38,6 +41,7 @@ pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub max_l1_handler_txs_per_block: usize,
+    pub height: BlockNumber,
     phase: TxProviderPhase,
     n_l1handler_txs_so_far: usize,
 }
@@ -54,18 +58,29 @@ impl ProposeTransactionProvider {
         mempool_client: SharedMempoolClient,
         l1_provider_client: SharedL1ProviderClient,
         max_l1_handler_txs_per_block: usize,
+        height: BlockNumber,
     ) -> Self {
         Self {
             mempool_client,
             l1_provider_client,
             max_l1_handler_txs_per_block,
+            height,
             phase: TxProviderPhase::L1,
             n_l1handler_txs_so_far: 0,
         }
     }
 
-    fn get_l1_handler_txs(&mut self, n_txs: usize) -> Vec<Transaction> {
-        self.l1_provider_client.get_txs(n_txs).into_iter().map(Transaction::L1Handler).collect()
+    async fn get_l1_handler_txs(
+        &mut self,
+        n_txs: usize,
+    ) -> TransactionProviderResult<Vec<Transaction>> {
+        Ok(self
+            .l1_provider_client
+            .get_txs(n_txs, self.height)
+            .await?
+            .into_iter()
+            .map(Transaction::L1Handler)
+            .collect())
     }
 
     async fn get_mempool_txs(
@@ -90,7 +105,7 @@ impl TransactionProvider for ProposeTransactionProvider {
         if self.phase == TxProviderPhase::L1 {
             let n_l1handler_txs_to_get =
                 min(self.max_l1_handler_txs_per_block - self.n_l1handler_txs_so_far, n_txs);
-            let mut l1handler_txs = self.get_l1_handler_txs(n_l1handler_txs_to_get);
+            let mut l1handler_txs = self.get_l1_handler_txs(n_l1handler_txs_to_get).await?;
             self.n_l1handler_txs_so_far += l1handler_txs.len();
 
             // Determine whether we need to switch to mempool phase.
@@ -116,6 +131,7 @@ impl TransactionProvider for ProposeTransactionProvider {
 pub struct ValidateTransactionProvider {
     pub tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
     pub l1_provider_client: SharedL1ProviderClient,
+    pub height: BlockNumber,
 }
 
 #[async_trait]
@@ -131,7 +147,10 @@ impl TransactionProvider for ValidateTransactionProvider {
         }
         for tx in &buffer {
             if let Transaction::L1Handler(tx) = tx {
-                if !self.l1_provider_client.validate(tx) {
+                let l1_validation_status =
+                    self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
+                if l1_validation_status != L1ValidationStatus::Validated {
+                    // TODO: add the validation status into the error.
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed(
                         tx.tx_hash,
                     ));
@@ -139,30 +158,5 @@ impl TransactionProvider for ValidateTransactionProvider {
             }
         }
         Ok(NextTxs::Txs(buffer))
-    }
-}
-
-// TODO: Remove L1Provider code when the communication module of l1_provider is added.
-#[cfg_attr(test, automock)]
-#[async_trait]
-pub trait L1ProviderClient: Send + Sync {
-    fn get_txs(&self, n_txs: usize) -> Vec<L1HandlerTransaction>;
-    fn validate(&self, tx: &L1HandlerTransaction) -> bool;
-}
-
-pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
-
-pub struct DummyL1ProviderClient;
-
-#[async_trait]
-impl L1ProviderClient for DummyL1ProviderClient {
-    fn get_txs(&self, _n_txs: usize) -> Vec<L1HandlerTransaction> {
-        warn!("Dummy L1 provider client is used, no L1 transactions are provided.");
-        vec![]
-    }
-
-    fn validate(&self, _tx: &L1HandlerTransaction) -> bool {
-        warn!("Dummy L1 provider client is used, tx is not really validated.");
-        true
     }
 }

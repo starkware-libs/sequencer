@@ -7,6 +7,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -21,10 +22,16 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
-use crate::context::{BlockContext, TransactionContext};
+use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    CallType,
+    EntryPointExecutionContext,
+    SierraGasRevertTracker,
+};
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
     gen_tx_execution_error_trace,
@@ -35,6 +42,7 @@ use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
     get_sequencer_balance_keys,
     verify_can_pay_committed_bounds,
+    GasVectorToL1GasForFee,
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
@@ -260,7 +268,6 @@ impl AccountTransaction {
         &self,
         tx_context: &TransactionContext,
     ) -> TransactionPreValidationResult<()> {
-        // TODO(Aner): seprate to cases based on context.resource_bounds type
         let minimal_gas_amount_vector = estimate_minimal_gas_vector(
             &tx_context.block_context,
             self,
@@ -275,7 +282,10 @@ impl AccountTransaction {
                     ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
                         l1_gas_resource_bounds,
-                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context.get_gas_prices()),
+                        minimal_gas_amount_vector.to_l1_gas_for_fee(
+                            tx_context.get_gas_prices(),
+                            &tx_context.block_context.versioned_constants,
+                        ),
                         block_info.gas_prices.l1_gas_price(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -372,11 +382,18 @@ impl AccountTransaction {
         &self,
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        let limit_steps_by_resources = self.execution_flags.charge_fee;
         if self.execution_flags.validate {
-            self.validate_tx(state, tx_context, remaining_gas, limit_steps_by_resources)
+            let limit_steps_by_resources = self.execution_flags.charge_fee;
+            let remaining_validation_gas = &mut remaining_gas.limit_usage(
+                tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
+            );
+            Ok(self
+                .validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?
+                .inspect(|call_info| {
+                    remaining_gas.subtract_used_gas(call_info);
+                }))
         } else {
             Ok(None)
         }
@@ -460,7 +477,11 @@ impl AccountTransaction {
 
             initial_gas: remaining_gas_for_fee_transfer,
         };
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
+        let mut context = EntryPointExecutionContext::new_invoke(
+            tx_context,
+            true,
+            SierraGasRevertTracker::new(GasAmount(remaining_gas_for_fee_transfer)),
+        );
 
         Ok(fee_transfer_call
             .execute(state, &mut context, &mut remaining_gas_for_fee_transfer)
@@ -503,41 +524,70 @@ impl AccountTransaction {
         &self,
         state: &mut S,
         context: &mut EntryPointExecutionContext,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        match &self.tx {
-            Transaction::Declare(tx) => tx.run_execute(state, context, remaining_gas),
-            Transaction::DeployAccount(tx) => tx.run_execute(state, context, remaining_gas),
-            Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_gas),
-        }
+        let remaining_execution_gas =
+            &mut remaining_gas.limit_usage(context.mode_sierra_gas_limit());
+        Ok(match &self.tx {
+            Transaction::Declare(tx) => tx.run_execute(state, context, remaining_execution_gas),
+            Transaction::DeployAccount(tx) => {
+                tx.run_execute(state, context, remaining_execution_gas)
+            }
+            Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_execution_gas),
+        }?
+        .inspect(|call_info| {
+            remaining_gas.subtract_used_gas(call_info);
+        }))
     }
 
     fn run_non_revertible<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         let validate_call_info: Option<CallInfo>;
         let execute_call_info: Option<CallInfo>;
         if matches!(&self.tx, Transaction::DeployAccount(_)) {
             // Handle `DeployAccount` transactions separately, due to different order of things.
-            // Also, the execution context required form the `DeployAccount` execute phase is
+            // Also, the execution context required for the `DeployAccount` execute phase is
             // validation context.
             let mut execution_context = EntryPointExecutionContext::new_validate(
                 tx_context.clone(),
                 self.execution_flags.charge_fee,
+                // TODO: Reduce code dup (the gas usage limit is computed in run_execute).
+                // We initialize the revert gas tracker here for completeness - the value will not
+                // be used, as this tx is non-revertible.
+                SierraGasRevertTracker::new(GasAmount(
+                    remaining_gas.limit_usage(
+                        tx_context
+                            .block_context
+                            .versioned_constants
+                            .sierra_gas_limit(&ExecutionMode::Validate),
+                    ),
+                )),
             );
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info =
                 self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
+            validate_call_info =
+                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
                 self.execution_flags.charge_fee,
+                // TODO: Reduce code dup (the gas usage limit is computed in run_execute).
+                // We initialize the revert gas tracker here for completeness - the value will not
+                // be used, as this tx is non-revertible.
+                SierraGasRevertTracker::new(GasAmount(
+                    remaining_gas.limit_usage(
+                        tx_context
+                            .block_context
+                            .versioned_constants
+                            .sierra_gas_limit(&ExecutionMode::Execute),
+                    ),
+                )),
             );
-            validate_call_info =
-                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
         }
 
@@ -550,6 +600,7 @@ impl AccountTransaction {
                 &tx_context.block_context.versioned_constants,
             ),
             0,
+            GasAmount(0),
         );
 
         let post_execution_report = PostExecutionReport::new(
@@ -572,16 +623,25 @@ impl AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut execution_context = EntryPointExecutionContext::new_invoke(
-            tx_context.clone(),
-            self.execution_flags.charge_fee,
-        );
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info =
             self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
 
+        let mut execution_context = EntryPointExecutionContext::new_invoke(
+            tx_context.clone(),
+            self.execution_flags.charge_fee,
+            // TODO: Reduce code dup (the gas usage limit is computed in run_execute).
+            SierraGasRevertTracker::new(GasAmount(
+                remaining_gas.limit_usage(
+                    tx_context
+                        .block_context
+                        .versioned_constants
+                        .sierra_gas_limit(&ExecutionMode::Execute),
+                ),
+            )),
+        );
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
             &validate_call_info,
             &self.tx_type(),
@@ -600,7 +660,6 @@ impl AccountTransaction {
             self.run_execute(&mut execution_state, &mut execution_context, remaining_gas);
 
         // Pre-compute cost in case of revert.
-        // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
         // Get the receipt only in case of revert.
@@ -614,6 +673,7 @@ impl AccountTransaction {
                     &tx_context.block_context.versioned_constants,
                 ),
                 execution_steps_consumed,
+                execution_context.sierra_gas_revert_tracker.get_gas_consumed(),
             )
         };
 
@@ -636,6 +696,7 @@ impl AccountTransaction {
                         &tx_context.block_context.versioned_constants,
                     ),
                     0,
+                    GasAmount(0),
                 );
                 // Post-execution checks.
                 let post_execution_report = PostExecutionReport::new(
@@ -717,7 +778,7 @@ impl AccountTransaction {
     fn run_or_revert<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
         tx_context: Arc<TransactionContext>,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         if self.is_non_revertible(&tx_context.tx_info) {
@@ -743,7 +804,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         self.perform_pre_validation_stage(state, &tx_context, strict_nonce_check)?;
 
         // Run validation and execution.
-        let mut remaining_gas = tx_context.initial_sierra_gas();
+        let initial_gas = tx_context.initial_sierra_gas();
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
@@ -755,7 +816,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                     resources: final_resources,
                     gas: total_gas,
                 },
-        } = self.run_or_revert(state, &mut remaining_gas, tx_context.clone())?;
+        } = self.run_or_revert(state, &mut GasCounter::new(initial_gas), tx_context.clone())?;
         let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,
@@ -825,8 +886,11 @@ impl ValidatableTransaction for AccountTransaction {
         remaining_gas: &mut u64,
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        let mut context =
-            EntryPointExecutionContext::new_validate(tx_context, limit_steps_by_resources);
+        let mut context = EntryPointExecutionContext::new_validate(
+            tx_context,
+            limit_steps_by_resources,
+            SierraGasRevertTracker::new(GasAmount(*remaining_gas)),
+        );
         let tx_info = &context.tx_context.tx_info;
         if tx_info.is_v0() {
             return Ok(None);

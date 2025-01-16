@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
+use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -11,7 +11,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -24,6 +24,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
 use starknet_api::block::{Block, BlockHash};
+use test_case::test_case;
 
 use crate::papyrus_consensus_context::PapyrusConsensusContext;
 
@@ -36,12 +37,7 @@ const TEST_CHANNEL_SIZE: usize = 10;
 async fn build_proposal() {
     let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_header_without_hash.block_number;
-    let proposal_init = ProposalInit {
-        height: block_number,
-        round: 0,
-        proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
-        valid_round: None,
-    };
+    let proposal_init = ProposalInit { height: block_number, ..Default::default() };
     // TODO(Asmaa): Test proposal content.
     let fin_receiver = papyrus_context.build_proposal(proposal_init, Duration::MAX).await;
 
@@ -49,17 +45,16 @@ async fn build_proposal() {
     assert_eq!(fin, block.header.block_hash);
 }
 
+#[test_case(true ; "repropose")]
+#[test_case(false ; "dont_repropose")]
 #[tokio::test]
-async fn validate_proposal_success() {
+async fn validate_proposal_success(repropose: bool) {
     let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_header_without_hash.block_number;
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
     for tx in block.body.transactions.clone() {
-        let tx_part = ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![tx],
-            tx_hashes: vec![],
-        });
+        let tx_part = ProposalPart::Transactions(TransactionBatch { transactions: vec![tx] });
         validate_sender.try_send(tx_part).unwrap();
     }
     let fin_part = ProposalPart::Fin(ProposalFin { proposal_content_id: block.header.block_hash });
@@ -68,9 +63,7 @@ async fn validate_proposal_success() {
 
     let fin = papyrus_context
         .validate_proposal(
-            block_number,
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit { height: block_number, ..Default::default() },
             Duration::MAX,
             validate_receiver,
         )
@@ -79,6 +72,12 @@ async fn validate_proposal_success() {
         .unwrap();
 
     assert_eq!(fin.0, block.header.block_hash);
+    if repropose {
+        let proposal_init = ProposalInit { height: block_number, ..Default::default() };
+        // Context checks if the proposal exists in `self.valid_proposals` for retrieval and
+        // streaming. The user doesn't interact or see what's done with it.
+        papyrus_context.repropose(block.header.block_hash, proposal_init).await;
+    }
 }
 
 #[tokio::test]
@@ -89,19 +88,14 @@ async fn validate_proposal_fail() {
     let different_block = get_test_block(4, None, None, None);
     let (mut validate_sender, validate_receiver) = mpsc::channel(5000);
     for tx in different_block.body.transactions.clone() {
-        let tx_part = ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![tx],
-            tx_hashes: vec![],
-        });
+        let tx_part = ProposalPart::Transactions(TransactionBatch { transactions: vec![tx] });
         validate_sender.try_send(tx_part).unwrap();
     }
     validate_sender.close_channel();
 
     let fin = papyrus_context
         .validate_proposal(
-            block_number,
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit { height: block_number, ..Default::default() },
             Duration::MAX,
             validate_receiver,
         )
@@ -119,12 +113,8 @@ async fn decision() {
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
 }
 
-fn test_setup() -> (
-    Block,
-    PapyrusConsensusContext,
-    BroadcastNetworkMock<ConsensusMessage>,
-    BroadcastNetworkMock<Vote>,
-) {
+fn test_setup()
+-> (Block, PapyrusConsensusContext, BroadcastNetworkMock<Vote>, BroadcastNetworkMock<Vote>) {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(5, None, None, None);
     let block_number = block.header.block_header_without_hash.block_number;
@@ -139,8 +129,9 @@ fn test_setup() -> (
         .unwrap();
 
     let network_channels = mock_register_broadcast_topic().unwrap();
-    let network_proposal_channels: TestSubscriberChannels<StreamMessage<ProposalPart>> =
-        mock_register_broadcast_topic().unwrap();
+    let network_proposal_channels: TestSubscriberChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    > = mock_register_broadcast_topic().unwrap();
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,

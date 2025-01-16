@@ -1,17 +1,16 @@
 #[cfg(test)]
 #[path = "consensus_test.rs"]
 mod consensus_test;
+
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Transaction, TransactionHash};
-use starknet_types_core::felt::Felt;
+use starknet_api::transaction::Transaction;
 
 use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
+    IntoFromProto,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -23,50 +22,6 @@ use crate::consensus::{
 };
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
-
-impl TryFrom<protobuf::Proposal> for Proposal {
-    type Error = ProtobufConversionError;
-
-    fn try_from(value: protobuf::Proposal) -> Result<Self, Self::Error> {
-        let transactions = value
-            .transactions
-            .into_iter()
-            .map(|tx| tx.try_into())
-            .collect::<Result<Vec<Transaction>, ProtobufConversionError>>()?;
-
-        let height = value.height;
-        let round = value.round;
-        let proposer = value
-            .proposer
-            .ok_or(ProtobufConversionError::MissingField { field_description: "proposer" })?
-            .try_into()?;
-        let block_hash: StarkHash = value
-            .block_hash
-            .ok_or(ProtobufConversionError::MissingField { field_description: "block_hash" })?
-            .try_into()?;
-        let block_hash = BlockHash(block_hash);
-        let valid_round = value.valid_round;
-
-        Ok(Proposal { height, round, proposer, transactions, block_hash, valid_round })
-    }
-}
-
-impl From<Proposal> for protobuf::Proposal {
-    fn from(value: Proposal) -> Self {
-        let transactions = value.transactions.into_iter().map(Into::into).collect();
-
-        protobuf::Proposal {
-            height: value.height,
-            round: value.round,
-            proposer: Some(value.proposer.into()),
-            transactions,
-            block_hash: Some(value.block_hash.0.into()),
-            valid_round: value.valid_round,
-        }
-    }
-}
-
-auto_impl_into_and_try_from_vec_u8!(Proposal, protobuf::Proposal);
 
 impl TryFrom<protobuf::vote::VoteType> for VoteType {
     type Error = ProtobufConversionError;
@@ -126,8 +81,10 @@ impl From<Vote> for protobuf::Vote {
 
 auto_impl_into_and_try_from_vec_u8!(Vote, protobuf::Vote);
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
-    TryFrom<protobuf::StreamMessage> for StreamMessage<T>
+impl<T, StreamId> TryFrom<protobuf::StreamMessage> for StreamMessage<T, StreamId>
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
     type Error = ProtobufConversionError;
 
@@ -148,16 +105,18 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
                     StreamMessageBody::Fin
                 }
             },
-            stream_id: value.stream_id,
+            stream_id: value.stream_id.try_into()?,
             message_id: value.message_id,
         })
     }
 }
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
-    for protobuf::StreamMessage
+impl<T, StreamId> From<StreamMessage<T, StreamId>> for protobuf::StreamMessage
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
-    fn from(value: StreamMessage<T>) -> Self {
+    fn from(value: StreamMessage<T, StreamId>) -> Self {
         Self {
             message: match value {
                 StreamMessage {
@@ -169,7 +128,7 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
                     Some(protobuf::stream_message::Message::Fin(protobuf::Fin {}))
                 }
             },
-            stream_id: value.stream_id,
+            stream_id: value.stream_id.into(),
             message_id: value.message_id,
         }
     }
@@ -178,17 +137,21 @@ impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<
 // Can't use auto_impl_into_and_try_from_vec_u8!(StreamMessage, protobuf::StreamMessage);
 // because it doesn't seem to work with generics.
 // TODO(guyn): consider expanding the macro to support generics
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> From<StreamMessage<T>>
-    for Vec<u8>
+impl<T, StreamId> From<StreamMessage<T, StreamId>> for Vec<u8>
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
-    fn from(value: StreamMessage<T>) -> Self {
+    fn from(value: StreamMessage<T, StreamId>) -> Self {
         let protobuf_value = <protobuf::StreamMessage>::from(value);
         protobuf_value.encode_to_vec()
     }
 }
 
-impl<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> TryFrom<Vec<u8>>
-    for StreamMessage<T>
+impl<T, StreamId> TryFrom<Vec<u8>> for StreamMessage<T, StreamId>
+where
+    T: IntoFromProto,
+    StreamId: IntoFromProto + Clone,
 {
     type Error = ProtobufConversionError;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
@@ -227,8 +190,6 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
-// TODO(guyn): remove tx_hashes once we know how to compile the hashes
-// when making the executable transactions.
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionBatch) -> Result<Self, Self::Error> {
@@ -237,20 +198,14 @@ impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
             .into_iter()
             .map(|tx| tx.try_into())
             .collect::<Result<Vec<Transaction>, ProtobufConversionError>>()?;
-        let tx_hashes = value
-            .tx_hashes
-            .into_iter()
-            .map(|x| Felt::try_from(x).map(TransactionHash))
-            .collect::<Result<_, Self::Error>>()?;
-        Ok(TransactionBatch { transactions, tx_hashes })
+        Ok(TransactionBatch { transactions })
     }
 }
 
 impl From<TransactionBatch> for protobuf::TransactionBatch {
     fn from(value: TransactionBatch) -> Self {
         let transactions = value.transactions.into_iter().map(Into::into).collect();
-        let tx_hashes = value.tx_hashes.into_iter().map(|hash| hash.0.into()).collect();
-        protobuf::TransactionBatch { transactions, tx_hashes }
+        protobuf::TransactionBatch { transactions }
     }
 }
 
@@ -312,36 +267,3 @@ impl From<ProposalPart> for protobuf::ProposalPart {
 }
 
 auto_impl_into_and_try_from_vec_u8!(ProposalPart, protobuf::ProposalPart);
-
-// TODO(guyn): remove this once we are happy with how proposals are sent separate from votes.
-impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
-    type Error = ProtobufConversionError;
-
-    fn try_from(value: protobuf::ConsensusMessage) -> Result<Self, Self::Error> {
-        use protobuf::consensus_message::Message;
-
-        let Some(message) = value.message else {
-            return Err(ProtobufConversionError::MissingField { field_description: "message" });
-        };
-
-        match message {
-            Message::Proposal(proposal) => Ok(ConsensusMessage::Proposal(proposal.try_into()?)),
-            Message::Vote(vote) => Ok(ConsensusMessage::Vote(vote.try_into()?)),
-        }
-    }
-}
-
-impl From<ConsensusMessage> for protobuf::ConsensusMessage {
-    fn from(value: ConsensusMessage) -> Self {
-        match value {
-            ConsensusMessage::Proposal(proposal) => protobuf::ConsensusMessage {
-                message: Some(protobuf::consensus_message::Message::Proposal(proposal.into())),
-            },
-            ConsensusMessage::Vote(vote) => protobuf::ConsensusMessage {
-                message: Some(protobuf::consensus_message::Message::Vote(vote.into())),
-            },
-        }
-    }
-}
-
-auto_impl_into_and_try_from_vec_u8!(ConsensusMessage, protobuf::ConsensusMessage);

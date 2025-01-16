@@ -1,10 +1,10 @@
-use std::any::type_name;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use starknet_infra_utils::type_name::short_type_name;
 use tokio::sync::mpsc::Receiver;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::component_definitions::{
     ComponentRequestAndResponseSender,
@@ -25,9 +25,9 @@ use crate::errors::{ComponentServerError, ReplaceComponentError};
 ///   the `ComponentRequestHandler` trait, which defines how the component processes requests and
 ///   generates responses.
 /// - `Request`: The type of requests that the component will handle. This type must implement the
-///   `Send` and `Sync` traits to ensure safe concurrency.
+///   `Send` trait to ensure safe concurrency.
 /// - `Response`: The type of responses that the component will generate. This type must implement
-///   the `Send` and `Sync` traits to ensure safe concurrency.
+///   the `Send` trait to ensure safe concurrency.
 ///
 /// # Fields
 ///
@@ -121,15 +121,15 @@ pub struct BlockingLocalServerType {}
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + Sync + ComponentStarter,
-    Request: Send + Sync + Debug,
-    Response: Send + Sync + Debug,
+    Component: ComponentRequestHandler<Request, Response> + Send + ComponentStarter,
+    Request: Send + Debug,
+    Response: Send + Debug,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
-        info!("Starting LocalComponentServer for {}.", type_name::<Component>());
+        info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
         request_response_loop(&mut self.rx, &mut self.component).await;
-        info!("Finished LocalComponentServer for {}.", type_name::<Component>());
+        info!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
         Ok(())
     }
 }
@@ -142,9 +142,9 @@ pub struct NonBlockingLocalServerType {}
 impl<Component, Request, Response> ComponentServerStarter
     for LocalActiveComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
-    Request: Send + Sync + Debug,
-    Response: Send + Sync + Debug,
+    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send,
+    Request: Send + Debug,
+    Response: Send + Debug,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         let mut component = self.component.clone();
@@ -167,8 +167,8 @@ where
 pub struct BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
     Component: ComponentRequestHandler<Request, Response>,
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     component: Component,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
@@ -179,8 +179,8 @@ impl<Component, Request, Response, LocalServerType>
     BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
     Component: ComponentRequestHandler<Request, Response>,
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     pub fn new(
         component: Component,
@@ -194,8 +194,8 @@ impl<Component, Request, Response, LocalServerType> ComponentReplacer<Component>
     for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
 where
     Component: ComponentRequestHandler<Request, Response>,
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send,
+    Response: Send,
 {
     fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
         self.component = component;
@@ -203,28 +203,40 @@ where
     }
 }
 
+impl<Component, Request, Response, LocalServerType> Drop
+    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    fn drop(&mut self) {
+        warn!("Dropping {}.", short_type_name::<Self>());
+    }
+}
+
 async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
 ) where
-    Component: ComponentRequestHandler<Request, Response> + Send + Sync,
-    Request: Send + Sync + Debug,
-    Response: Send + Sync + Debug,
+    Component: ComponentRequestHandler<Request, Response> + Send,
+    Request: Send + Debug,
+    Response: Send + Debug,
 {
-    info!("Starting server for component {}", type_name::<Component>());
+    info!("Starting server for component {}", short_type_name::<Component>());
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
-        debug!("Component {} received request {:?}", type_name::<Component>(), request);
+        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
         let response = component.handle_request(request).await;
-        debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
+        debug!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
 
         // Send the response to the client. This might result in a panic if the client has closed
         // the response channel, which is considered a bug.
         tx.send(response).await.expect("Response connection should be open.");
     }
 
-    info!("Stopping server for component {}", type_name::<Component>());
+    info!("Stopping server for component {}", short_type_name::<Component>());
 }

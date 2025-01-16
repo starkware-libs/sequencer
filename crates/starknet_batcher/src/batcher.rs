@@ -1,25 +1,28 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use blockifier::abi::constants;
-use blockifier::state::global_cache::GlobalContractCache;
-use chrono::Utc;
+use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
+    ProposalCommitment,
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
+    RevertBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -27,31 +30,31 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_l1_provider_types::SharedL1ProviderClient;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use tracing::{debug, error, info, instrument, trace};
+use starknet_state_sync_types::state_sync_types::SyncBlock;
+use tokio::sync::Mutex;
+use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::block_builder::{
     BlockBuilderError,
     BlockBuilderExecutionParams,
     BlockBuilderFactory,
     BlockBuilderFactoryTrait,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{
-    GenerateProposalError,
-    InternalProposalStatus,
-    ProposalError,
-    ProposalManager,
-    ProposalManagerTrait,
-    ProposalOutput,
-};
-use crate::transaction_provider::{
-    DummyL1ProviderClient,
-    ProposeTransactionProvider,
-    ValidateTransactionProvider,
+use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
+use crate::utils::{
+    deadline_as_instant,
+    proposal_status_from,
+    verify_block_input,
+    ProposalResult,
+    ProposalTask,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
@@ -61,13 +64,33 @@ pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
+    pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
 
-    active_height: Option<BlockNumber>,
-    proposal_manager: Box<dyn ProposalManagerTrait>,
-
+    // Used to create block builders.
+    // Using the factory pattern to allow for easier testing.
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
+
+    // The height that the batcher is currently working on.
+    // All proposals are considered to be at this height.
+    active_height: Option<BlockNumber>,
+
+    // The block proposal that is currently being built, if any.
+    // At any given time, there can be only one proposal being actively executed (either proposed
+    // or validated).
+    active_proposal: Arc<Mutex<Option<ProposalId>>>,
+    active_proposal_task: Option<ProposalTask>,
+
+    // Holds all the proposals that completed execution in the current height.
+    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<BlockExecutionArtifacts>>>>,
+
+    // The propose blocks transaction streams, used to stream out the proposal transactions.
+    // Each stream is kept until all the transactions are streamed out, or a new height is started.
     propose_tx_streams: HashMap<ProposalId, OutputStreamReceiver>,
+
+    // The validate blocks transaction streams, used to stream in the transactions to validate.
+    // Each stream is kept until SendProposalContent::Finish/Abort is received, or a new height is
+    // started.
     validate_tx_streams: HashMap<ProposalId, InputStreamSender>,
 }
 
@@ -76,18 +99,21 @@ impl Batcher {
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
         storage_writer: Box<dyn BatcherStorageWriterTrait>,
+        l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
-        proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
             storage_reader,
             storage_writer,
+            l1_provider_client,
             mempool_client,
-            active_height: None,
             block_builder_factory,
-            proposal_manager,
+            active_height: None,
+            active_proposal: Arc::new(Mutex::new(None)),
+            active_proposal_task: None,
+            executed_proposals: Arc::new(Mutex::new(HashMap::new())),
             propose_tx_streams: HashMap::new(),
             validate_tx_streams: HashMap::new(),
         }
@@ -99,25 +125,15 @@ impl Batcher {
             return Err(BatcherError::HeightInProgress);
         }
 
-        let storage_height =
-            self.storage_reader.height().map_err(|_| BatcherError::InternalError)?;
-        if storage_height < input.height {
-            return Err(BatcherError::StorageNotSynced {
-                storage_height,
-                requested_height: input.height,
-            });
-        }
-        if storage_height > input.height {
-            return Err(BatcherError::HeightAlreadyPassed {
-                storage_height,
+        let storage_height = self.get_height_from_storage()?;
+        if storage_height != input.height {
+            return Err(BatcherError::StorageHeightMarkerMismatch {
+                marker_height: storage_height,
                 requested_height: input.height,
             });
         }
 
-        // Clear all the proposals from the previous height.
-        self.proposal_manager.reset().await;
-        self.propose_tx_streams.clear();
-        self.validate_tx_streams.clear();
+        self.abort_active_height().await;
 
         info!("Starting to work on height {}.", input.height);
         self.active_height = Some(input.height);
@@ -137,11 +153,13 @@ impl Batcher {
             propose_block_input.retrospective_block_hash,
         )?;
 
+        self.set_active_proposal(propose_block_input.proposal_id).await?;
+
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
-            // TODO: use a real L1 provider client.
-            Arc::new(DummyL1ProviderClient),
+            self.l1_provider_client.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
+            propose_block_input.block_info.block_number,
         );
 
         // A channel to receive the transactions included in the proposed block.
@@ -163,8 +181,7 @@ impl Batcher {
             )
             .map_err(|_| BatcherError::InternalError)?;
 
-        self.proposal_manager
-            .spawn_proposal(propose_block_input.proposal_id, block_builder, abort_signal_sender)
+        self.spawn_proposal(propose_block_input.proposal_id, block_builder, abort_signal_sender)
             .await?;
 
         self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
@@ -183,14 +200,16 @@ impl Batcher {
             validate_block_input.retrospective_block_hash,
         )?;
 
+        self.set_active_proposal(validate_block_input.proposal_id).await?;
+
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
 
         let tx_provider = ValidateTransactionProvider {
             tx_receiver: input_tx_receiver,
-            // TODO: use a real L1 provider client.
-            l1_provider_client: Arc::new(DummyL1ProviderClient),
+            l1_provider_client: self.l1_provider_client.clone(),
+            height: validate_block_input.block_info.block_number,
         };
 
         let (block_builder, abort_signal_sender) = self
@@ -209,8 +228,7 @@ impl Batcher {
             )
             .map_err(|_| BatcherError::InternalError)?;
 
-        self.proposal_manager
-            .spawn_proposal(validate_block_input.proposal_id, block_builder, abort_signal_sender)
+        self.spawn_proposal(validate_block_input.proposal_id, block_builder, abort_signal_sender)
             .await?;
 
         self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
@@ -224,90 +242,101 @@ impl Batcher {
         &mut self,
         send_proposal_content_input: SendProposalContentInput,
     ) -> BatcherResult<SendProposalContentResponse> {
-        // TODO(Dafna): this method should return an meaningful error if the given proposal_id
-        // is of a proposed block (and not validated). Currently it panics or returns a
-        // wrong error.
-
         let proposal_id = send_proposal_content_input.proposal_id;
+        if !self.validate_tx_streams.contains_key(&proposal_id) {
+            return Err(BatcherError::ProposalNotFound { proposal_id });
+        }
 
         match send_proposal_content_input.content {
-            SendProposalContent::Txs(txs) => self.send_txs_and_get_status(proposal_id, txs).await,
-            SendProposalContent::Finish => {
-                self.close_tx_channel_and_get_commitment(proposal_id).await
-            }
-            SendProposalContent::Abort => {
-                self.proposal_manager.abort_proposal(proposal_id).await;
-                Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
-            }
+            SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
+            SendProposalContent::Finish => self.handle_finish_proposal_request(proposal_id).await,
+            SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
     }
 
-    async fn send_txs_and_get_status(
+    /// Clear all the proposals from the previous height.
+    async fn abort_active_height(&mut self) {
+        self.abort_active_proposal().await;
+        self.executed_proposals.lock().await.clear();
+        self.propose_tx_streams.clear();
+        self.validate_tx_streams.clear();
+        self.active_height = None;
+    }
+
+    async fn handle_send_txs_request(
         &mut self,
         proposal_id: ProposalId,
         txs: Vec<Transaction>,
     ) -> BatcherResult<SendProposalContentResponse> {
-        match self.proposal_manager.get_proposal_status(proposal_id).await {
-            InternalProposalStatus::Processing => {
-                let tx_provider_sender = &self
-                    .validate_tx_streams
-                    .get(&proposal_id)
-                    .expect("Expecting tx_provider_sender to exist during batching.");
-                for tx in txs {
-                    tx_provider_sender.send(tx).await.map_err(|err| {
-                        error!("Failed to send transaction to the tx provider: {}", err);
-                        BatcherError::InternalError
-                    })?;
-                }
-                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+        if self.is_active(proposal_id).await {
+            //   The proposal is active. Send the transactions through the tx provider.
+            let tx_provider_sender = &self
+                .validate_tx_streams
+                .get(&proposal_id)
+                .expect("Expecting tx_provider_sender to exist during batching.");
+            for tx in txs {
+                tx_provider_sender.send(tx).await.map_err(|err| {
+                    error!("Failed to send transaction to the tx provider: {}", err);
+                    BatcherError::InternalError
+                })?;
             }
-            // Proposal Got an Error while processing transactions.
-            InternalProposalStatus::Failed => {
-                Ok(SendProposalContentResponse { response: ProposalStatus::InvalidProposal })
-            }
-            InternalProposalStatus::Finished => {
-                Err(BatcherError::ProposalAlreadyFinished { proposal_id })
-            }
-            InternalProposalStatus::NotFound => Err(BatcherError::ProposalNotFound { proposal_id }),
+            return Ok(SendProposalContentResponse { response: ProposalStatus::Processing });
+        }
+
+        // The proposal is no longer active, can't send the transactions.
+        let proposal_result =
+            self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
+        match proposal_result {
+            Ok(_) => panic!("Proposal finished validation before all transactions were sent."),
+            Err(err) => Ok(SendProposalContentResponse { response: proposal_status_from(err)? }),
         }
     }
 
-    async fn close_tx_channel_and_get_commitment(
+    async fn handle_finish_proposal_request(
         &mut self,
         proposal_id: ProposalId,
     ) -> BatcherResult<SendProposalContentResponse> {
         debug!("Send proposal content done for {}", proposal_id);
 
-        self.close_input_transaction_stream(proposal_id)?;
+        self.validate_tx_streams.remove(&proposal_id).expect("validate tx stream should exist.");
+        if self.is_active(proposal_id).await {
+            self.await_active_proposal().await;
+        }
 
-        let response = match self.proposal_manager.await_proposal_commitment(proposal_id).await {
-            Some(Ok(proposal_commitment)) => ProposalStatus::Finished(proposal_commitment),
-            Some(Err(ProposalError::BlockBuilderError(err))) => match err.as_ref() {
-                BlockBuilderError::FailOnError(_) => ProposalStatus::InvalidProposal,
-                _ => return Err(BatcherError::InternalError),
-            },
-            Some(Err(ProposalError::Aborted)) => return Err(BatcherError::ProposalAborted),
-            None => {
-                panic!("Proposal {} should exist in the proposal manager.", proposal_id)
-            }
+        let proposal_result =
+            self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
+        let proposal_status = match proposal_result {
+            Ok(commitment) => ProposalStatus::Finished(commitment),
+            Err(err) => proposal_status_from(err)?,
         };
-
-        Ok(SendProposalContentResponse { response })
+        Ok(SendProposalContentResponse { response: proposal_status })
     }
 
-    fn close_input_transaction_stream(&mut self, proposal_id: ProposalId) -> BatcherResult<()> {
-        self.validate_tx_streams
-            .remove(&proposal_id)
-            .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
-        Ok(())
+    async fn handle_abort_proposal_request(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> BatcherResult<SendProposalContentResponse> {
+        if self.is_active(proposal_id).await {
+            self.abort_active_proposal().await;
+            self.executed_proposals
+                .lock()
+                .await
+                .insert(proposal_id, Err(Arc::new(BlockBuilderError::Aborted)));
+        }
+        self.validate_tx_streams.remove(&proposal_id);
+        Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
+    }
+
+    fn get_height_from_storage(&mut self) -> BatcherResult<BlockNumber> {
+        self.storage_reader.height().map_err(|err| {
+            error!("Failed to get height from storage: {}", err);
+            BatcherError::InternalError
+        })
     }
 
     #[instrument(skip(self), err)]
     pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
-        let height = self.storage_reader.height().map_err(|err| {
-            error!("Failed to get height from storage: {}", err);
-            BatcherError::InternalError
-        })?;
+        let height = self.get_height_from_storage()?;
         Ok(GetHeightResponse { height })
     }
 
@@ -337,69 +366,234 @@ impl Batcher {
         // TODO: Consider removing the proposal from the proposal manager and keep it in the batcher
         // for decision reached.
         self.propose_tx_streams.remove(&proposal_id);
-        let proposal_commitment = self
-            .proposal_manager
-            .await_proposal_commitment(proposal_id)
+        let commitment = self
+            .get_completed_proposal_result(proposal_id)
             .await
-            .ok_or(BatcherError::ProposalNotFound { proposal_id })??;
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(proposal_commitment),
-        })
+            .expect("Proposal should exist.")
+            .map_err(|_| BatcherError::InternalError)?;
+
+        Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
     }
 
     #[instrument(skip(self), err)]
-    pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
+    pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+        // TODO(AlonH): Use additional data from the sync block.
+        let SyncBlock {
+            state_diff,
+            transaction_hashes: _,
+            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
+        } = sync_block;
+
+        let height = self.get_height_from_storage()?;
+        if height != block_number {
+            return Err(BatcherError::StorageHeightMarkerMismatch {
+                marker_height: height,
+                requested_height: block_number,
+            });
+        }
+
+        if let Some(height) = self.active_height {
+            info!("Aborting all work on height {} due to state sync.", height);
+            self.abort_active_height().await;
+        }
+
+        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, [].into()).await
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn decision_reached(
+        &mut self,
+        input: DecisionReachedInput,
+    ) -> BatcherResult<DecisionReachedResponse> {
+        let height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
+
         let proposal_id = input.proposal_id;
-        let proposal_output = self
-            .proposal_manager
-            .take_proposal_result(proposal_id)
-            .await
-            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })??;
-        let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
-            proposal_output;
-        // TODO: Keep the height from start_height or get it from the input.
-        let height = self.storage_reader.height().map_err(|err| {
-            error!("Failed to get height from storage: {}", err);
-            BatcherError::InternalError
-        })?;
-        info!(
-            "Committing proposal {} at height {} and notifying mempool of the block.",
-            proposal_id, height
-        );
-        trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
+        let proposal_result = self.executed_proposals.lock().await.remove(&proposal_id);
+        let block_execution_artifacts = proposal_result
+            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
+            .map_err(|_| BatcherError::InternalError)?;
+        let state_diff = block_execution_artifacts.state_diff();
+        self.commit_proposal_and_block(
+            height,
+            state_diff.clone(),
+            block_execution_artifacts.address_to_nonce(),
+            block_execution_artifacts.rejected_tx_hashes,
+        )
+        .await?;
+        Ok(DecisionReachedResponse {
+            state_diff,
+            l2_gas_used: block_execution_artifacts.l2_gas_used,
+        })
+    }
+
+    async fn commit_proposal_and_block(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        address_to_nonce: HashMap<ContractAddress, Nonce>,
+        rejected_tx_hashes: HashSet<TransactionHash>,
+    ) -> BatcherResult<()> {
+        info!("Committing block at height {} and notifying mempool of the block.", height);
+        trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
+
+        // Commit the proposal to the storage and notify the mempool.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
-        if let Err(mempool_err) =
-            self.mempool_client.commit_block(CommitBlockArgs { address_to_nonce, tx_hashes }).await
-        {
+        let mempool_result = self
+            .mempool_client
+            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
+            .await;
+
+        if let Err(mempool_err) = mempool_result {
             error!("Failed to commit block to mempool: {}", mempool_err);
             // TODO: Should we rollback the state diff and return an error?
-        }
+        };
+
         Ok(())
+    }
+
+    async fn is_active(&self, proposal_id: ProposalId) -> bool {
+        *self.active_proposal.lock().await == Some(proposal_id)
+    }
+
+    // Sets a new active proposal task.
+    // Fails if there is another proposal being currently generated, or a proposal with the same ID
+    // already exists.
+    async fn set_active_proposal(&mut self, proposal_id: ProposalId) -> BatcherResult<()> {
+        if self.executed_proposals.lock().await.contains_key(&proposal_id) {
+            return Err(BatcherError::ProposalAlreadyExists { proposal_id });
+        }
+
+        let mut active_proposal = self.active_proposal.lock().await;
+        if let Some(active_proposal_id) = *active_proposal {
+            return Err(BatcherError::AnotherProposalInProgress {
+                active_proposal_id,
+                new_proposal_id: proposal_id,
+            });
+        }
+
+        debug!("Set proposal {} as the one being generated.", proposal_id);
+        *active_proposal = Some(proposal_id);
+        Ok(())
+    }
+
+    // Starts a new block proposal generation task for the given proposal_id.
+    // Uses the given block_builder to generate the proposal.
+    async fn spawn_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        mut block_builder: Box<dyn BlockBuilderTrait>,
+        abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+    ) -> BatcherResult<()> {
+        info!("Starting generation of a new proposal with id {}.", proposal_id);
+
+        let active_proposal = self.active_proposal.clone();
+        let executed_proposals = self.executed_proposals.clone();
+
+        let join_handle = tokio::spawn(
+            async move {
+                let result = block_builder.build_block().await.map_err(Arc::new);
+
+                // The proposal is done, clear the active proposal.
+                // Keep the proposal result only if it is the same as the active proposal.
+                // The active proposal might have changed if this proposal was aborted.
+                let mut active_proposal = active_proposal.lock().await;
+                if *active_proposal == Some(proposal_id) {
+                    active_proposal.take();
+                    executed_proposals.lock().await.insert(proposal_id, result);
+                }
+            }
+            .in_current_span(),
+        );
+
+        self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
+        Ok(())
+    }
+
+    // Returns a completed proposal result, either its commitment or an error if the proposal
+    // failed. If the proposal doesn't exist, or it's still active, returns None.
+    async fn get_completed_proposal_result(
+        &self,
+        proposal_id: ProposalId,
+    ) -> Option<ProposalResult<ProposalCommitment>> {
+        let guard = self.executed_proposals.lock().await;
+        let proposal_result = guard.get(&proposal_id);
+        match proposal_result {
+            Some(Ok(artifacts)) => Some(Ok(artifacts.commitment())),
+            Some(Err(e)) => Some(Err(e.clone())),
+            None => None,
+        }
+    }
+
+    // Ends the current active proposal.
+    // This call is non-blocking.
+    async fn abort_active_proposal(&mut self) {
+        self.active_proposal.lock().await.take();
+        if let Some(proposal_task) = self.active_proposal_task.take() {
+            proposal_task.abort_signal_sender.send(()).ok();
+        }
+    }
+
+    pub async fn await_active_proposal(&mut self) {
+        if let Some(proposal_task) = self.active_proposal_task.take() {
+            proposal_task.join_handle.await.ok();
+        }
+    }
+
+    pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
+        let height = self.get_height_from_storage()?.prev().ok_or(
+            BatcherError::StorageHeightMarkerMismatch {
+                marker_height: BlockNumber(0),
+                requested_height: input.height,
+            },
+        )?;
+
+        if height != input.height {
+            return Err(BatcherError::StorageHeightMarkerMismatch {
+                marker_height: height.unchecked_next(),
+                requested_height: input.height,
+            });
+        }
+
+        if let Some(height) = self.active_height {
+            info!("Aborting all work on height {} due to a revert request.", height);
+            self.abort_active_height().await;
+        }
+
+        self.storage_writer.revert_block(height).map_err(|err| {
+            error!("Failed to revert block at height {}: {}", height, err);
+            BatcherError::InternalError
+        })
     }
 }
 
-pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
+pub fn create_batcher(
+    config: BatcherConfig,
+    mempool_client: SharedMempoolClient,
+    l1_provider_client: SharedL1ProviderClient,
+) -> Batcher {
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
-        global_class_hash_to_class: GlobalContractCache::new(config.global_contract_cache_size),
+        contract_class_manager: ContractClassManager::start(
+            config.contract_class_manager_config.clone(),
+        ),
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
-    let proposal_manager = Box::new(ProposalManager::new());
     Batcher::new(
         config,
         storage_reader,
         storage_writer,
+        l1_provider_client,
         mempool_client,
         block_builder_factory,
-        proposal_manager,
     )
 }
 
@@ -422,6 +616,8 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> papyrus_storage::StorageResult<()>;
+
+    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()>;
 }
 
 impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
@@ -433,71 +629,12 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
         // TODO: write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
     }
-}
 
-impl From<GenerateProposalError> for BatcherError {
-    fn from(err: GenerateProposalError) -> Self {
-        match err {
-            GenerateProposalError::AlreadyGeneratingProposal {
-                current_generating_proposal_id,
-                new_proposal_id,
-            } => BatcherError::ServerBusy {
-                active_proposal_id: current_generating_proposal_id,
-                new_proposal_id,
-            },
-            GenerateProposalError::BlockBuilderError(..) => BatcherError::InternalError,
-            GenerateProposalError::NoActiveHeight => BatcherError::NoActiveHeight,
-            GenerateProposalError::ProposalAlreadyExists { proposal_id } => {
-                BatcherError::ProposalAlreadyExists { proposal_id }
-            }
-        }
-    }
-}
-
-impl From<ProposalError> for BatcherError {
-    fn from(err: ProposalError) -> Self {
-        match err {
-            ProposalError::BlockBuilderError(..) => BatcherError::InternalError,
-            ProposalError::Aborted => BatcherError::ProposalAborted,
-        }
+    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
+        let (txn, reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
+        trace!("Reverted state diff: {:#?}", reverted_state_diff);
+        txn.commit()
     }
 }
 
 impl ComponentStarter for Batcher {}
-
-pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tokio::time::Instant> {
-    let time_to_deadline = deadline - chrono::Utc::now();
-    let as_duration =
-        time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
-    // TODO(Matan): this is a temporary solution to the timeout issue.
-    Ok((std::time::Instant::now() + (as_duration / 2)).into())
-}
-
-fn verify_block_input(
-    height: BlockNumber,
-    block_number: BlockNumber,
-    retrospective_block_hash: Option<BlockHashAndNumber>,
-) -> BatcherResult<()> {
-    verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
-    verify_block_number(height, block_number)?;
-    Ok(())
-}
-
-fn verify_non_empty_retrospective_block_hash(
-    height: BlockNumber,
-    retrospective_block_hash: Option<BlockHashAndNumber>,
-) -> BatcherResult<()> {
-    if height >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)
-        && retrospective_block_hash.is_none()
-    {
-        return Err(BatcherError::MissingRetrospectiveBlockHash);
-    }
-    Ok(())
-}
-
-fn verify_block_number(height: BlockNumber, block_number: BlockNumber) -> BatcherResult<()> {
-    if block_number != height {
-        return Err(BatcherError::InvalidBlockNumber { active_height: height, block_number });
-    }
-    Ok(())
-}

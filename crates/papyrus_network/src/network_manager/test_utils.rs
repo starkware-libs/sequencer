@@ -11,12 +11,14 @@ use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
-use papyrus_common::tcp::find_n_free_ports;
 
 use super::{
+    BroadcastReceivedMessagesConverterFn,
+    BroadcastTopicChannels,
     BroadcastTopicClient,
     BroadcastedMessageMetadata,
     GenericReceiver,
+    NetworkError,
     NetworkManager,
     ReportReceiver,
     ServerQueryManager,
@@ -26,7 +28,6 @@ use super::{
     SqmrServerReceiver,
     Topic,
 };
-use crate::network_manager::{BroadcastReceivedMessagesConverterFn, BroadcastTopicChannels};
 use crate::sqmr::Bytes;
 use crate::NetworkConfig;
 
@@ -86,6 +87,8 @@ where
 
 const CHANNEL_BUFFER_SIZE: usize = 10000;
 
+/// Mock register subscriber for a given topic. BroadcastNetworkMock is used to send and catch
+/// messages broadcasted by and to the subscriber respectively.
 pub fn mock_register_broadcast_topic<T>() -> Result<TestSubscriberChannels<T>, SubscriptionError>
 where
     T: TryFrom<Bytes> + 'static,
@@ -148,8 +151,8 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
-    let mut ports = find_n_free_ports(n);
+pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfig> {
+    let number_of_configs = ports.len();
     let port0 = ports.remove(0);
 
     let secret_key0 = [1u8; 32];
@@ -160,7 +163,7 @@ pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
         secret_key: Some(secret_key0.to_vec()),
         ..Default::default()
     };
-    let mut configs = Vec::with_capacity(n);
+    let mut configs = Vec::with_capacity(number_of_configs);
     configs.push(config0);
     for port in ports.iter() {
         configs.push(NetworkConfig {
@@ -177,26 +180,33 @@ pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
     configs
 }
 
-pub fn create_network_configs_connected_to_broadcast_channels<T>(
-    n_configs: usize,
+pub fn network_config_into_broadcast_channels<T>(
+    network_config: NetworkConfig,
     topic: Topic,
-) -> (Vec<NetworkConfig>, BroadcastTopicChannels<T>)
+) -> BroadcastTopicChannels<T>
 where
     T: TryFrom<Bytes> + 'static,
     Bytes: From<T>,
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let mut channels_configs = create_connected_network_configs(n_configs + 1);
-    let broadcast_channels = channels_configs.remove(0);
-
-    let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
+    let mut network_manager = NetworkManager::new(network_config, None);
     let broadcast_channels =
-        channels_network_manager.register_broadcast_topic(topic, BUFFER_SIZE).unwrap();
+        network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
 
-    tokio::task::spawn(channels_network_manager.run());
+    tokio::task::spawn(async move {
+        let result = network_manager.run().await;
+        match result {
+            Ok(()) => panic!("Network manager terminated."),
+            // The user of this function can drop the broadcast channels if they want to. In that
+            // case we should just terminate NetworkManager's run quietly.
+            Err(NetworkError::BroadcastChannelsDropped { topic_hash })
+                if topic_hash == topic.into() => {}
+            Err(err) => panic!("Network manager failed on {err:?}"),
+        }
+    });
 
-    (channels_configs, broadcast_channels)
+    broadcast_channels
 }
 
 pub struct MockClientResponsesManager<Query: TryFrom<Bytes>, Response: TryFrom<Bytes>> {
@@ -254,6 +264,9 @@ pub(crate) type MockBroadcastedMessagesFn<T> =
 
 pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> T>;
 
+/// Mock network for testing broadcast topics. It allows to send and catch messages broadcasted to
+/// and by a subscriber (respectively). The naming convension is to mimick BroadcastTopicChannels
+/// and replace sender and receiver.
 pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
     pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,

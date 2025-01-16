@@ -2,20 +2,7 @@ use std::str::FromStr;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::parse::{Parse, ParseStream, Result};
-use syn::{
-    parse_macro_input,
-    DeriveInput,
-    ExprLit,
-    Ident,
-    ItemFn,
-    ItemTrait,
-    LitBool,
-    LitStr,
-    Meta,
-    Token,
-    TraitItem,
-};
+use syn::{parse_macro_input, ExprLit, Ident, ItemFn, ItemTrait, LitBool, LitStr, Meta, TraitItem};
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates
 /// a server and client traits from a given trait definition. The wrapper gets a version id and
@@ -167,7 +154,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
             let return_value=#origin_block;
             if let Some(start_time) = start_function_time {
                 let exec_time = start_time.elapsed().as_secs_f64();
-                metrics::histogram!(#metric_name, exec_time);
+                metrics::histogram!(#metric_name).record(exec_time);
                 tracing::debug!("{}: {}", #metric_name, exec_time);
             }
             return_value
@@ -183,50 +170,79 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     modified_function.to_token_stream().into()
 }
 
-struct HandleResponseVariantsMacroInput {
+struct HandleAllResponseVariantsMacroInput {
     response_enum: Ident,
     request_response_enum_var: Ident,
     component_client_error: Ident,
     component_error: Ident,
+    response_type: Ident,
 }
 
-impl Parse for HandleResponseVariantsMacroInput {
-    fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let response_enum = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let request_response_enum_var = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let component_client_error = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let component_error = input.parse()?;
-        Ok(HandleResponseVariantsMacroInput {
+impl syn::parse::Parse for HandleAllResponseVariantsMacroInput {
+    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+        let response_enum: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let request_response_enum_var: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let component_client_error: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let component_error: Ident = input.parse()?;
+        input.parse::<syn::Token![,]>()?;
+        let response_type: Ident = input.parse()?;
+
+        Ok(HandleAllResponseVariantsMacroInput {
             response_enum,
             request_response_enum_var,
             component_client_error,
             component_error,
+            response_type,
         })
     }
 }
 
-/// A macro for generating code that handles the received communication response.
+/// A macro for generating code that sends the request and handles the received response.
 /// Takes the following arguments:
 /// * response_enum -- the response enum type
 /// * request_response_enum_var -- the request/response enum variant corresponding to the invoked
 ///   function
 /// * component_client_error -- the component client error type
 /// * component_error --  the component error type
+/// * response_type -- Boxed or Direct, a string literal indicating if the response content is boxed
+///   or not
 ///
-/// For example, the following code:
+/// For example, use of the Direct response_type:
 /// ```rust,ignore
-/// handle_response_variants!(MempoolResponse, GetTransactions, MempoolClientError, MempoolError)
-/// ``````
+/// handle_all_response_variants!(MempoolResponse, GetTransactions, MempoolClientError, MempoolError, Direct)
+/// ```
 ///
 /// Results in:
 /// ```rust,ignore
-/// match response {
-///     MempoolResponse::GetTransactions(Ok(response)) => Ok(response),
-///     MempoolResponse::GetTransactions(Err(response)) => {
-///         Err(MempoolClientError::MempoolError(response))
+/// let response = self.send(request).await;
+/// match response? {
+///     MempoolResponse::GetTransactions(Ok(resp)) => Ok(resp),
+///     MempoolResponse::GetTransactions(Err(resp)) => {
+///         Err(MempoolClientError::MempoolError(resp))
+///     }
+///     unexpected_response => Err(MempoolClientError::ClientError(
+///         ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
+///     )),
+/// }
+/// ```
+/// Use of the Boxed response_type:
+/// ```rust,ignore
+/// handle_all_response_variants!(MempoolResponse, GetTransactions, MempoolClientError, MempoolError, Boxed)
+/// ```
+///
+/// Results in:
+/// ```rust,ignore
+/// let response = self.send(request).await;
+/// match response? {
+///     MempoolResponse::GetTransactions(Ok(boxed_resp)) => {
+///         let resr = *boxed_resp;
+///         Ok(resp)
+///     }
+///     MempoolResponse::GetTransactions(Err(resp)) => {
+///         Err(MempoolClientError::MempoolError(resp))
 ///     }
 ///     unexpected_response => Err(MempoolClientError::ClientError(
 ///         ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
@@ -234,89 +250,42 @@ impl Parse for HandleResponseVariantsMacroInput {
 /// }
 /// ```
 #[proc_macro]
-pub fn handle_response_variants(input: TokenStream) -> TokenStream {
-    let HandleResponseVariantsMacroInput {
+pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
+    let HandleAllResponseVariantsMacroInput {
         response_enum,
         request_response_enum_var,
         component_client_error,
         component_error,
-    } = parse_macro_input!(input as HandleResponseVariantsMacroInput);
+        response_type,
+    } = parse_macro_input!(input as HandleAllResponseVariantsMacroInput);
 
-    let expanded = quote! {
-        match response? {
-            #response_enum::#request_response_enum_var(Ok(response)) => Ok(response),
-            #response_enum::#request_response_enum_var(Err(response)) => {
-                Err(#component_client_error::#component_error(response))
+    let mut expanded = match response_type.to_string().as_str() {
+        "Boxed" => quote! {
+            {
+                // Dereference the Box to get the response value
+                let resp = *resp;
+                Ok(resp)
             }
-            unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+        },
+        "Direct" => quote! {
+            Ok(resp),
+        },
+        _ => panic!("Expected 'Boxed' or 'Direct'"),
+    };
+
+    expanded = quote! {
+        {
+            let response = self.send(request).await;
+            match response? {
+                #response_enum::#request_response_enum_var(Ok(resp)) =>
+                    #expanded
+                #response_enum::#request_response_enum_var(Err(resp)) => {
+                    Err(#component_client_error::#component_error(resp))
+                }
+                unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+            }
         }
     };
 
     TokenStream::from(expanded)
-}
-
-/// This macro generates a `pub fn field_names() -> Vec<String>`, a method that returns a vector of
-/// the struct field element names.
-/// This macro also generates a `pub fn cli_args() -> Vec<String>`, a method that returns a vector
-/// of the struct fields as command line arguments..
-///
-/// # Example
-/// ```rust
-/// use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
-///
-/// #[gen_field_names_and_cli_args_fn]
-/// pub struct Example {
-///     pub field_a: u8,
-///     field_b: u32,
-///     pub field_c: String,
-/// }
-///
-/// assert_eq!(Example::field_names(), vec!["field_a", "field_b", "field_c"]);
-///
-/// let example = Example { field_a: 1, field_b: 2, field_c: "C".to_string() };
-/// assert_eq!(example.cli_args(), vec!["--field_a", "1", "--field_b", "2", "--field_c", "C"]);
-/// ```
-#[proc_macro_attribute]
-pub fn gen_field_names_and_cli_args_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    // Parse the input tokens as a Rust struct
-    let input = parse_macro_input!(item as DeriveInput);
-
-    // Get the struct name
-    let struct_name = &input.ident;
-
-    // Collect the names of the struct's fields as string literals
-    let field_idents = if let syn::Data::Struct(data) = &input.data {
-        data.fields.iter().filter_map(|field| field.ident.as_ref()).collect::<Vec<_>>()
-    } else {
-        panic!("#[gen_field_names_and_cli_args_fn] can only be used on structs");
-    };
-
-    // Collect the names of the struct's fields as string literals
-    let field_names = field_idents.iter().map(|ident| ident.to_string()).collect::<Vec<_>>();
-
-    // Generate the field_names method
-    let gen = quote! {
-        #input
-
-        impl #struct_name {
-            pub fn field_names() -> Vec<String> {
-                vec![
-                    #(#field_names.to_string()),*
-                ]
-            }
-
-            pub fn cli_args(&self) -> Vec<String> {
-                let mut args = Vec::new();
-                #(
-                    args.push(format!("--{}", #field_names));
-                    args.push(self.#field_idents.to_string());
-                )*
-
-                args
-            }
-        }
-
-    };
-
-    gen.into()
 }

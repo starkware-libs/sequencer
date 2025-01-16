@@ -184,7 +184,7 @@ pub fn call_contract(
 
     let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
         .map_err(|error| match error {
-            SyscallExecutionError::SyscallError { .. } => error,
+            SyscallExecutionError::Revert { .. } => error,
             _ => error.as_call_contract_execution_error(class_hash, storage_address, selector),
         })?;
 
@@ -343,8 +343,8 @@ impl SyscallResponse for GetBlockHashResponse {
 
 /// Returns the block hash of a given block_number.
 /// Returns the expected block hash if the given block was created at least
-/// [constants::STORED_BLOCK_HASH_BUFFER] blocks before the current block. Otherwise, returns an
-/// error.
+/// [crate::abi::constants::STORED_BLOCK_HASH_BUFFER] blocks before the current block. Otherwise,
+/// returns an error.
 pub fn get_block_hash(
     request: GetBlockHashRequest,
     _vm: &mut VirtualMachine,
@@ -423,7 +423,7 @@ pub fn library_call(
 
     let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
         .map_err(|error| match error {
-            SyscallExecutionError::SyscallError { .. } => error,
+            SyscallExecutionError::Revert { .. } => error,
             _ => error.as_lib_call_execution_error(
                 request.class_hash,
                 syscall_handler.storage_address(),

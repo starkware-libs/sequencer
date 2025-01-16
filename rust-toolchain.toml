@@ -1,5 +1,5 @@
 [toolchain]
-channel = "stable"
-components = ["clippy", "rustc-dev", "rustfmt"]
+channel = "1.83"
+components = ["rustc-dev"]
 profile = "default"
 targets = ["x86_64-unknown-linux-gnu"]

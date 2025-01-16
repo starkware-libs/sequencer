@@ -7,11 +7,16 @@ license-file.workspace = true
 description = "A Bridge between the Rust blockifier crate and Python."
 
 [features]
+cairo_native = [
+  "blockifier/cairo_native",
+  "papyrus_state_reader/cairo_native",
+  "starknet_sierra_compile/cairo_native",
+]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
 # https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
 extension-module = ["pyo3/extension-module"]
-testing = []
+testing = ["blockifier/testing", "papyrus_storage/testing", "starknet_api/testing"]
 
 [lints]
 workspace = true
@@ -27,23 +32,27 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # TODO(Dori, 1/1/2025): Add the "jemalloc" feature to the blockifier crate when possible.
-blockifier = { workspace = true, features = ["cairo_native", "testing"] }
+blockifier = { workspace = true, features = ["native_blockifier"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true
 papyrus_state_reader.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_storage.workspace = true
 pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api.workspace = true
+starknet_sierra_compile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+blockifier = { workspace = true, features = ["native_blockifier", "testing"] }
 cached.workspace = true
+papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 tempfile.workspace = true

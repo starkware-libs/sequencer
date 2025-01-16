@@ -2,8 +2,9 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -19,23 +20,17 @@ use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
+use crate::fee::fee_utils::GasVectorToL1GasForFee;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    create_calldata,
-    CairoVersion,
-    BALANCE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-};
+use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     block_context,
-    create_all_resource_bounds,
+    create_gas_amount_bounds_with_default_price,
     default_all_resource_bounds,
     default_l1_resource_bounds,
     invoke_tx_with_default_flags,
@@ -316,7 +311,7 @@ fn test_revert_on_resource_overuse(
     // units for bounds check in post-execution.
     let tight_resource_bounds = match gas_mode {
         GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
-            actual_gas_usage.to_discounted_l1_gas(gas_prices),
+            actual_gas_usage.to_l1_gas_for_fee(gas_prices, &block_context.versioned_constants),
             DEFAULT_STRK_L1_GAS_PRICE.into(),
         ),
         GasVectorComputationMode::All => {
@@ -374,14 +369,11 @@ fn test_revert_on_resource_overuse(
                     Resource::L2Gas => l2_gas.0 -= 1,
                     Resource::L1DataGas => l1_data_gas.0 -= 1,
                 }
-                create_all_resource_bounds(
+                create_gas_amount_bounds_with_default_price(GasVector {
                     l1_gas,
-                    DEFAULT_STRK_L1_GAS_PRICE.into(),
                     l2_gas,
-                    DEFAULT_STRK_L2_GAS_PRICE.into(),
                     l1_data_gas,
-                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
-                )
+                })
             }
         }
     };

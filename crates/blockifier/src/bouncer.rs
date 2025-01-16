@@ -25,13 +25,23 @@ use crate::utils::usize_from_u64;
 #[path = "bouncer_test.rs"]
 mod test;
 
-macro_rules! impl_checked_sub {
+macro_rules! impl_checked_ops {
     ($($field:ident),+) => {
         pub fn checked_sub(self: Self, other: Self) -> Option<Self> {
             Some(
                 Self {
                     $(
                         $field: self.$field.checked_sub(other.$field)?,
+                    )+
+                }
+            )
+        }
+
+        pub fn checked_add(self: Self, other: Self) -> Option<Self> {
+            Some(
+                Self {
+                    $(
+                        $field: self.$field.checked_add(other.$field)?,
                     )+
                 }
             )
@@ -80,17 +90,8 @@ impl SerializeConfig for BouncerConfig {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    Deserialize,
-    PartialEq,
-    Serialize,
-)]
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::AddAssign))]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 /// Represents the execution resources counted throughout block creation.
 pub struct BouncerWeights {
     pub builtin_count: BuiltinCount,
@@ -103,7 +104,7 @@ pub struct BouncerWeights {
 }
 
 impl BouncerWeights {
-    impl_checked_sub!(
+    impl_checked_ops!(
         builtin_count,
         l1_gas,
         message_segment_length,
@@ -251,7 +252,7 @@ macro_rules! impl_all_non_zero {
 
 macro_rules! impl_builtin_variants {
     ($($field:ident),+) => {
-        impl_checked_sub!($($field),+);
+        impl_checked_ops!($($field),+);
         impl_all_non_zero!($($field),+);
     };
 }
@@ -495,7 +496,14 @@ impl Bouncer {
         )?;
 
         // Check if the transaction can fit the current block available capacity.
-        if !self.bouncer_config.has_room(self.accumulated_weights + tx_weights) {
+        let err_msg = format!(
+            "Addition overflow. Transaction weights: {tx_weights:?}, block weights: {:?}.",
+            self.accumulated_weights
+        );
+        if !self
+            .bouncer_config
+            .has_room(self.accumulated_weights.checked_add(tx_weights).expect(&err_msg))
+        {
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
                  transaction weights: {tx_weights:?}, block weights: {:?}.",
@@ -515,7 +523,12 @@ impl Bouncer {
         tx_execution_summary: &ExecutionSummary,
         state_changes_keys: &StateChangesKeys,
     ) {
-        self.accumulated_weights += tx_weights;
+        let err_msg = format!(
+            "Addition overflow. Transaction weights: {tx_weights:?}, block weights: {:?}.",
+            self.accumulated_weights
+        );
+        self.accumulated_weights =
+            self.accumulated_weights.checked_add(tx_weights).expect(&err_msg);
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
         self.executed_class_hashes.extend(&tx_execution_summary.executed_class_hashes);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was

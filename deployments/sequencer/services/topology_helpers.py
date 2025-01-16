@@ -1,5 +1,16 @@
-from services import objects, const, helpers
+import typing
+
+from services import objects, const
 from config.sequencer import SequencerDevConfig
+
+
+cluster_name = "gcp-integration"
+replicas = 1
+
+def get_images() -> typing.Dict[str, str]:
+    return {
+        "sequencer": "us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.11"
+    }
 
 
 def get_pvc() -> objects.PersistentVolumeClaim:
@@ -15,7 +26,7 @@ def get_pvc() -> objects.PersistentVolumeClaim:
 
 def get_dev_config(config_file_path: str) -> objects.Config:
     return SequencerDevConfig(
-        mount_path="/config/sequencer/presets/", config_file_path=config_file_path
+        config_file_path=config_file_path
     )
 
 
@@ -34,7 +45,7 @@ def get_ingress(url: str = "test.gcp-integration.sw-dev.io") -> objects.Ingress:
                 host=url,
                 paths=[
                     objects.IngressRuleHttpPath(
-                        path="/monitoring/",
+                        path="/monitoring",
                         path_type="Prefix",
                         backend_service_name="sequencer-node-service",
                         backend_service_port_number=const.MONITORING_SERVICE_PORT,
@@ -58,7 +69,7 @@ def get_service() -> objects.Service:
             ),
             objects.PortMapping(
                 name="rpc",
-                port=const.RPC_SERVICE_PORT,
+                port=const.GRPC_SERVICE_PORT,
                 container_port=const.RPC_CONTAINER_PORT,
             ),
             objects.PortMapping(
@@ -77,8 +88,8 @@ def get_deployment() -> objects.Deployment:
         containers=[
             objects.Container(
                 name="server",
-                image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3",
-                args=["--config_file", "/config/sequencer/presets/config"],
+                image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.8",
+                args=["--config_file", "/app/config/sequencer/presets/config"],
                 ports=[
                     objects.ContainerPort(container_port=const.HTTP_CONTAINER_PORT),
                     objects.ContainerPort(container_port=const.RPC_CONTAINER_PORT),
@@ -108,7 +119,7 @@ def get_deployment() -> objects.Deployment:
                 volume_mounts=[
                     objects.VolumeMount(
                         name="config",
-                        mount_path="/config/sequencer/presets/",
+                        mount_path="/app/config/sequencer/presets/",
                         read_only=True,
                     ),
                     objects.VolumeMount(name="data", mount_path="/data", read_only=False),

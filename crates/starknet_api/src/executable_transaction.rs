@@ -1,7 +1,14 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
+use crate::core::{
+    calculate_contract_address,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -152,7 +159,16 @@ impl DeclareTransaction {
         (nonce, Nonce),
         (sender_address, ContractAddress),
         (signature, TransactionSignature),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        // compiled_class_hash is only supported in V2 and V3, otherwise the getter panics.
+        (compiled_class_hash, CompiledClassHash),
+        // The following fields are only supported in V3, otherwise the getter panics.
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData),
+        (resource_bounds, ValidResourceBounds)
     );
 
     pub fn create(
@@ -302,7 +318,7 @@ impl InvokeTransaction {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct L1HandlerTransaction {
     pub tx: crate::transaction::L1HandlerTransaction,
     pub tx_hash: TransactionHash,
@@ -310,6 +326,15 @@ pub struct L1HandlerTransaction {
 }
 
 impl L1HandlerTransaction {
+    pub fn create(
+        raw_tx: crate::transaction::L1HandlerTransaction,
+        chain_id: &ChainId,
+        paid_fee_on_l1: Fee,
+    ) -> Result<L1HandlerTransaction, StarknetApiError> {
+        let tx_hash = raw_tx.calculate_transaction_hash(chain_id, &raw_tx.version)?;
+        Ok(Self { tx: raw_tx, tx_hash, paid_fee_on_l1 })
+    }
+
     pub fn payload_size(&self) -> usize {
         // The calldata includes the "from" field, which is not a part of the payload.
         self.tx.calldata.0.len() - 1

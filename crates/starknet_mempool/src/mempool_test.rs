@@ -6,6 +6,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -19,7 +20,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
 use crate::communication::MempoolCommunicationWrapper;
-use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
+use crate::mempool::{Mempool, MempoolConfig, MempoolState, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
@@ -37,6 +38,7 @@ struct MempoolContent {
     config: MempoolConfig,
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
+    state: Option<MempoolState>,
 }
 
 impl MempoolContent {
@@ -54,15 +56,14 @@ impl MempoolContent {
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue_content, config } = mempool_content;
+        let MempoolContent { config, tx_pool, tx_queue_content, state } = mempool_content;
         Mempool {
             config,
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
                 .map(|content| content.complete_to_tx_queue())
                 .unwrap_or_default(),
-            // TODO: Add implementation when needed.
-            state: Default::default(),
+            state: state.unwrap_or_default(),
         }
     }
 }
@@ -72,6 +73,7 @@ struct MempoolContentBuilder {
     config: MempoolConfig,
     tx_pool: Option<TransactionPool>,
     tx_queue_content_builder: TransactionQueueContentBuilder,
+    state: Option<MempoolState>,
 }
 
 impl MempoolContentBuilder {
@@ -80,6 +82,7 @@ impl MempoolContentBuilder {
             config: MempoolConfig { enable_fee_escalation: false, ..Default::default() },
             tx_pool: None,
             tx_queue_content_builder: Default::default(),
+            state: None,
         }
     }
 
@@ -88,6 +91,11 @@ impl MempoolContentBuilder {
         P: IntoIterator<Item = AccountTransaction>,
     {
         self.tx_pool = Some(pool_txs.into_iter().collect());
+        self
+    }
+
+    fn with_state(mut self, state: MempoolState) -> Self {
+        self.state = Some(state);
         self
     }
 
@@ -123,6 +131,7 @@ impl MempoolContentBuilder {
             config: self.config,
             tx_pool: self.tx_pool,
             tx_queue_content: self.tx_queue_content_builder.build(),
+            state: self.state,
         }
     }
 
@@ -142,27 +151,42 @@ impl FromIterator<AccountTransaction> for TransactionPool {
 }
 
 #[track_caller]
+fn builder_with_queue(
+    in_priority_queue: bool,
+    in_pending_queue: bool,
+    tx: &AccountTransaction,
+) -> MempoolContentBuilder {
+    assert!(
+        !(in_priority_queue && in_pending_queue),
+        "A transaction can be in at most one queue at a time."
+    );
+
+    let mut builder = MempoolContentBuilder::new();
+
+    if in_priority_queue {
+        builder = builder.with_priority_queue([TransactionReference::new(tx)]);
+    }
+
+    if in_pending_queue {
+        builder = builder.with_pending_queue([TransactionReference::new(tx)]);
+    }
+
+    builder
+}
+
+#[track_caller]
 fn add_tx_and_verify_replacement(
     mut mempool: Mempool,
     valid_replacement_input: AddTransactionArgs,
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
-    // Ensure that the transaction is not in both queues.
-    assert!(!(in_priority_queue && in_pending_queue));
-
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
-    let mut builder = MempoolContentBuilder::new();
-    if in_priority_queue {
-        builder =
-            builder.with_priority_queue([TransactionReference::new(&valid_replacement_input.tx)]);
-    }
-    if in_pending_queue {
-        builder =
-            builder.with_pending_queue([TransactionReference::new(&valid_replacement_input.tx)]);
-    }
+    let builder =
+        builder_with_queue(in_priority_queue, in_pending_queue, &valid_replacement_input.tx);
+
     let expected_mempool_content = builder.with_pool([valid_replacement_input.tx]).build();
     expected_mempool_content.assert_eq(&mempool);
 }
@@ -187,6 +211,8 @@ fn add_txs_and_verify_no_replacement(
     mut mempool: Mempool,
     existing_tx: AccountTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
+    in_priority_queue: bool,
+    in_pending_queue: bool,
 ) {
     for input in invalid_replacement_inputs {
         add_tx_expect_error(
@@ -200,8 +226,27 @@ fn add_txs_and_verify_no_replacement(
     }
 
     // Verify transaction was not replaced.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([existing_tx]).build();
+    let builder = builder_with_queue(in_priority_queue, in_pending_queue, &existing_tx);
+
+    let expected_mempool_content = builder.with_pool([existing_tx]).build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+#[track_caller]
+fn add_txs_and_verify_no_replacement_in_pool(
+    mempool: Mempool,
+    existing_tx: AccountTransaction,
+    invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
+) {
+    let in_priority_queue = false;
+    let in_pending_queue = false;
+    add_txs_and_verify_no_replacement(
+        mempool,
+        existing_tx,
+        invalid_replacement_inputs,
+        in_priority_queue,
+        in_pending_queue,
+    );
 }
 
 // Fixtures.
@@ -209,6 +254,11 @@ fn add_txs_and_verify_no_replacement(
 #[fixture]
 fn mempool() -> Mempool {
     MempoolContentBuilder::new().build_into_mempool()
+}
+
+/// Used for the contains_tx_from tests.
+fn deployer_address() -> ContractAddress {
+    ContractAddress::from(100_u32)
 }
 
 // Tests.
@@ -220,7 +270,7 @@ fn mempool() -> Mempool {
 #[case::test_get_exactly_all_eligible_txs(3)]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
-fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
+fn test_get_txs_returns_by_priority(#[case] n_requested_txs: usize) {
     // Setup.
     let tx_tip_20 = tx!(tx_hash: 1, address: "0x0", tip: 20);
     let tx_tip_30 = tx!(tx_hash: 2, address: "0x1", tip: 30);
@@ -246,6 +296,21 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_get_txs_returns_by_secondary_priority_on_tie() {
+    // Setup.
+    let tx_tip_10_hash_9 = tx!(tx_hash: 9, address: "0x2", tip: 10);
+    let tx_tip_10_hash_15 = tx!(tx_hash: 15, address: "0x0", tip: 10);
+
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool([&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(|tx| tx.clone()))
+        .with_priority_queue([&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(TransactionReference::new))
+        .build_into_mempool();
+
+    // Test and assert.
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_tip_10_hash_15, tx_tip_10_hash_9]);
 }
 
 #[rstest]
@@ -330,10 +395,12 @@ fn test_get_txs_with_nonce_gap() {
 // `add_tx` tests.
 
 #[rstest]
-fn test_add_tx(mut mempool: Mempool) {
+fn test_add_tx_insertion_sorted_by_priority(mut mempool: Mempool) {
     // Setup.
     let input_tip_50 =
         add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 50);
+    // The following transactions test a scenario with a higher tip and lower hash, covering
+    // both primary and secondary priority.
     let input_tip_100 =
         add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1, tip: 100);
     let input_tip_80 =
@@ -347,11 +414,8 @@ fn test_add_tx(mut mempool: Mempool) {
     // Assert: transactions are ordered by priority.
     let expected_queue_txs =
         [&input_tip_100.tx, &input_tip_80.tx, &input_tip_50.tx].map(TransactionReference::new);
-    let expected_pool_txs = [input_tip_50.tx, input_tip_100.tx, input_tip_80.tx];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -384,7 +448,7 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 
 // TODO(Elin): reconsider this test in a more realistic scenario.
 #[rstest]
-fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
+fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
     // Same hash is possible if signature is different, for example.
@@ -406,25 +470,21 @@ fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
+#[case::lower_nonce(0, MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) })]
+#[case::equal_nonce(1, MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) })]
+fn test_add_tx_rejects_tx_of_queued_nonce(
+    #[case] tx_nonce: u64,
+    #[case] expected_error: MempoolError,
+    mut mempool: Mempool,
+) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
     add_tx(&mut mempool, &input);
 
     // Test and assert: original transaction remains.
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
-
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
-    );
+    let invalid_input =
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: tx_nonce, account_nonce: 1);
+    add_tx_expect_error(&mut mempool, &invalid_input, expected_error);
 }
 
 #[rstest]
@@ -450,27 +510,6 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 
     // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
     // replace this assertion with a dedicated test.
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
-    // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tx_hash: 1, address: "0x0", tip: 2);
-    // Create a transaction with identical tip, it should be allowed through since the priority
-    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tx_hash: 2, address: "0x1", tip: 1);
-
-    // Test.
-    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Assert: ensure that the transaction with the higher tip is prioritized higher.
-    let expected_queue_txs =
-        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -550,8 +589,7 @@ fn test_commit_block_includes_all_proposed_txs() {
 
     // Test.
     let nonces = [("0x0", 4), ("0x1", 3)];
-    let tx_hashes = [1, 4];
-    commit_block(&mut mempool, nonces, tx_hashes);
+    commit_block(&mut mempool, nonces, []);
 
     // Assert.
     let pool_txs =
@@ -579,16 +617,12 @@ fn test_fee_escalation_valid_replacement(
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tip: 90, max_l2_gas_price: 90);
-        let mut builder = MempoolContentBuilder::new().with_fee_escalation_percentage(10);
 
-        if in_priority_queue {
-            builder = builder.with_priority_queue([TransactionReference::new(&tx)]);
-        }
+        let mut builder = builder_with_queue(in_priority_queue, in_pending_queue, &tx)
+            .with_fee_escalation_percentage(10);
 
         if in_pending_queue {
-            builder = builder
-                .with_pending_queue([TransactionReference::new(&tx)])
-                .with_gas_price_threshold(1000);
+            builder = builder.with_gas_price_threshold(1000);
         }
 
         let mempool = builder.with_pool([tx]).build_into_mempool();
@@ -607,13 +641,24 @@ fn test_fee_escalation_valid_replacement(
 }
 
 #[rstest]
-fn test_fee_escalation_invalid_replacement() {
+#[case::pool(false, false)]
+#[case::pool_and_priority_queue(true, false)]
+#[case::pool_and_pending_queue(false, true)]
+fn test_fee_escalation_invalid_replacement(
+    #[case] in_priority_queue: bool,
+    #[case] in_pending_queue: bool,
+) {
     // Setup.
     let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
-    let mempool = MempoolContentBuilder::new()
-        .with_pool([existing_tx.clone()])
-        .with_fee_escalation_percentage(10)
-        .build_into_mempool();
+
+    let mut builder = builder_with_queue(in_priority_queue, in_pending_queue, &existing_tx)
+        .with_fee_escalation_percentage(10);
+
+    if in_pending_queue {
+        builder = builder.with_gas_price_threshold(1000);
+    }
+
+    let mempool = builder.with_pool([existing_tx.clone()]).build_into_mempool();
 
     let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110);
     let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109);
@@ -622,7 +667,13 @@ fn test_fee_escalation_invalid_replacement() {
     // Test and assert.
     let invalid_replacement_inputs =
         [input_not_enough_tip, input_not_enough_gas_price, input_not_enough_both];
-    add_txs_and_verify_no_replacement(mempool, existing_tx, invalid_replacement_inputs);
+    add_txs_and_verify_no_replacement(
+        mempool,
+        existing_tx,
+        invalid_replacement_inputs,
+        in_priority_queue,
+        in_pending_queue,
+    );
 }
 
 #[rstest]
@@ -678,7 +729,11 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
 
         // Test and assert: overflow gracefully handled.
         let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
-        add_txs_and_verify_no_replacement(mempool, existing_tx, [invalid_replacement_input]);
+        add_txs_and_verify_no_replacement_in_pool(
+            mempool,
+            existing_tx,
+            [invalid_replacement_input],
+        );
     }
 
     // Large percentage.
@@ -692,7 +747,7 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
 
     // Test and assert: overflow gracefully handled.
     let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
-    add_txs_and_verify_no_replacement(mempool, existing_tx, [invalid_replacement_input]);
+    add_txs_and_verify_no_replacement_in_pool(mempool, existing_tx, [invalid_replacement_input]);
 }
 
 // `update_gas_price_threshold` tests.
@@ -805,4 +860,72 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
         MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
 
     mempool_wrapper.add_tx(propagated_args).await.unwrap();
+}
+
+#[rstest]
+fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
+    // Setup.
+    let tx_address_1_nonce_2 =
+        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 2, account_nonce: 2);
+    let tx_address_1_nonce_3 =
+        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 3, account_nonce: 2);
+
+    let tx_address_2_nonce_1 =
+        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 1, account_nonce: 1);
+    let tx_address_2_nonce_2 =
+        add_tx_input!(tx_hash: 8, address: "0x2", tx_nonce: 2, account_nonce: 1);
+
+    let mut expected_pool_txs = vec![];
+    for input in
+        [&tx_address_1_nonce_2, &tx_address_1_nonce_3, &tx_address_2_nonce_1, &tx_address_2_nonce_2]
+    {
+        add_tx(&mut mempool, input);
+        expected_pool_txs.push(input.tx.clone());
+    }
+
+    // All the transactions are in the mempool.
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pool(expected_pool_txs.clone()).build();
+    expected_mempool_content.assert_eq(&mempool);
+
+    // Transaction 4 and 8 are rejected.
+    let rejected_tx = [4, 8];
+    commit_block(&mut mempool, [], rejected_tx);
+
+    // Assert transactions 4 and 8 are removed from the mempool.
+    expected_pool_txs.retain(|x| *x != tx_address_1_nonce_2.tx && *x != tx_address_2_nonce_2.tx);
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pool(expected_pool_txs).build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+// Negative flow. The method should return false if the transaction is not in the mempool.
+#[case::empty(MempoolState::default(), false)]
+// Positive flows. The method should return true if the transaction is in the mempool.
+#[case::tentative(
+    MempoolState{
+        tentative: [(deployer_address(), nonce!(0))].into_iter().collect(),
+        ..Default::default()
+    },
+    true
+)]
+#[case::staged(
+    MempoolState{
+        staged: [(deployer_address(), nonce!(0))].into_iter().collect(),
+        ..Default::default()
+    },
+    true
+)]
+#[case::committed(
+    MempoolState{
+        committed: [(deployer_address(), nonce!(0))].into_iter().collect(),
+        ..Default::default()
+    },
+    true,
+)]
+fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: bool) {
+    let mempool = MempoolContentBuilder::new().with_state(state).build_into_mempool();
+
+    assert_eq!(mempool.contains_tx_from(deployer_address()), expected_result);
 }

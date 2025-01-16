@@ -52,6 +52,8 @@ pub struct SyscallHandlerBase<'state> {
     // The original storage value of the executed contract.
     // Should be moved back `context.revert_info` before executing an inner call.
     pub original_values: HashMap<StorageKey, Felt>,
+
+    revert_info_idx: usize,
 }
 
 impl<'state> SyscallHandlerBase<'state> {
@@ -60,6 +62,7 @@ impl<'state> SyscallHandlerBase<'state> {
         state: &'state mut dyn State,
         context: &'state mut EntryPointExecutionContext,
     ) -> SyscallHandlerBase<'state> {
+        let revert_info_idx = context.revert_infos.0.len() - 1;
         let original_values = std::mem::take(
             &mut context
                 .revert_infos
@@ -80,28 +83,43 @@ impl<'state> SyscallHandlerBase<'state> {
             read_class_hash_values: Vec::new(),
             accessed_contract_addresses: HashSet::new(),
             original_values,
+            revert_info_idx,
         }
     }
 
     pub fn get_block_hash(&self, requested_block_number: u64) -> SyscallResult<Felt> {
-        let execution_mode = self.context.execution_mode;
-        if execution_mode == ExecutionMode::Validate {
-            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-                syscall_name: "get_block_hash".to_string(),
-                execution_mode,
-            });
-        }
-
+        // Note: we take the actual block number (and not the rounded one for validate)
+        // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
         let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
 
         if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
             || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
         {
-            let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
-                .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
-            return Err(SyscallExecutionError::SyscallError {
-                error_data: vec![out_of_range_error],
-            });
+            // Requested block is too recent.
+            match self.context.execution_mode {
+                ExecutionMode::Execute => {
+                    // Revert the syscall.
+                    let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
+                        .expect(
+                            "Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.",
+                        );
+                    return Err(SyscallExecutionError::Revert {
+                        error_data: vec![out_of_range_error],
+                    });
+                }
+                ExecutionMode::Validate => {
+                    // In this case, the transaction must be **rejected** to avoid the following
+                    // attack:
+                    //   * query a given block in validate,
+                    //   * if reverted - ignore, if succeeded - panic.
+                    //   * in the gateway, the queried block is (actual_latest - 9),
+                    //   * while in the sequencer, the queried block can be further than that.
+                    return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                        syscall_name: "get_block_hash on recent blocks".to_string(),
+                        execution_mode: ExecutionMode::Validate,
+                    });
+                }
+            }
         }
 
         let key = StorageKey::try_from(Felt::from(requested_block_number))?;
@@ -143,6 +161,12 @@ impl<'state> SyscallHandlerBase<'state> {
         &mut self,
         contract_address: ContractAddress,
     ) -> SyscallResult<ClassHash> {
+        if self.context.execution_mode == ExecutionMode::Validate {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "get_class_hash_at".to_string(),
+                execution_mode: ExecutionMode::Validate,
+            });
+        }
         self.accessed_contract_addresses.insert(contract_address);
         let class_hash = self.state.get_class_hash_at(contract_address)?;
         self.read_class_hash_values.push(class_hash);
@@ -252,7 +276,7 @@ impl<'state> SyscallHandlerBase<'state> {
             raw_retdata.push(
                 Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?,
             );
-            return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata });
+            return Err(SyscallExecutionError::Revert { error_data: raw_retdata });
         }
 
         Ok(raw_retdata)
@@ -268,7 +292,7 @@ impl<'state> SyscallHandlerBase<'state> {
         let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
 
         if remainder != 0 {
-            return Err(SyscallExecutionError::SyscallError {
+            return Err(SyscallExecutionError::Revert {
                 error_data: vec![
                     Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
                         .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
@@ -284,7 +308,7 @@ impl<'state> SyscallHandlerBase<'state> {
             let out_of_gas_error = Felt::from_hex(OUT_OF_GAS_ERROR)
                 .expect("Failed to parse OUT_OF_GAS_ERROR hex string");
 
-            return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_gas_error] });
+            return Err(SyscallExecutionError::Revert { error_data: vec![out_of_gas_error] });
         }
         *remaining_gas -= gas_cost;
 
@@ -303,7 +327,7 @@ impl<'state> SyscallHandlerBase<'state> {
         self.context
             .revert_infos
             .0
-            .last_mut()
+            .get_mut(self.revert_info_idx)
             .expect("Missing contract revert info.")
             .original_values = std::mem::take(&mut self.original_values);
     }

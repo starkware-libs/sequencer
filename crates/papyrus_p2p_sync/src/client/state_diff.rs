@@ -12,15 +12,16 @@ use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 
-use super::stream_builder::BadPeerError;
-use crate::client::stream_builder::{
+use super::block_data_stream_builder::BadPeerError;
+use crate::client::block_data_stream_builder::{
     BlockData,
+    BlockDataStreamBuilder,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
 };
-use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
+use crate::client::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (ThinStateDiff, BlockNumber) {
     #[latency_histogram("p2p_sync_state_diff_write_to_storage_latency_seconds", true)]
@@ -30,14 +31,14 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
         storage_writer: &mut StorageWriter,
     ) -> Result<(), StorageError> {
         storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
-        gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER, self.1.unchecked_next().0 as f64);
+        gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER).set(self.1.unchecked_next().0 as f64);
         Ok(())
     }
 }
 
 pub(crate) struct StateDiffStreamBuilder;
 
-impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
+impl BlockDataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
     type Output = (ThinStateDiff, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "state diffs";
@@ -60,7 +61,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                 .get_block_header(block_number)?
                 .expect("A header with number lower than the header marker is missing")
                 .state_diff_length
-                .ok_or(P2PSyncClientError::OldHeaderInStorage {
+                .ok_or(P2pSyncClientError::OldHeaderInStorage {
                     block_number,
                     missing_field: "state_diff_length",
                 })?;
@@ -71,7 +72,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                     state_diff_chunks_response_manager.next(),
                 )
                 .await?
-                .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                     type_description: Self::TYPE_DESCRIPTION,
                 })?;
                 let Some(state_diff_chunk) = maybe_state_diff_chunk?.0 else {
@@ -109,6 +110,13 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError> {
         storage_reader.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn convert_sync_block_to_block_data(
+        block_number: BlockNumber,
+        sync_block: SyncBlock,
+    ) -> (ThinStateDiff, BlockNumber) {
+        (sync_block.state_diff, block_number)
     }
 }
 

@@ -10,6 +10,7 @@ use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Fee;
+use starknet_state_sync_types::communication::StateSyncClientResult;
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
@@ -57,8 +58,10 @@ pub struct TestStateReaderFactory {
 }
 
 impl StateReaderFactory for TestStateReaderFactory {
-    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
-        Box::new(self.state_reader.clone())
+    fn get_state_reader_from_latest_block(
+        &self,
+    ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+        Ok(Box::new(self.state_reader.clone()))
     }
 
     fn get_state_reader(&self, _block_number: BlockNumber) -> Box<dyn MempoolStateReader> {

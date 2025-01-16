@@ -50,7 +50,7 @@ use starknet_api::transaction::{
     TransactionOutput,
 };
 
-use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};
+use super::{split_thin_state_diff, FetchBlockDataFromDb, P2pSyncServer, P2pSyncServerChannels};
 use crate::server::register_query;
 const BUFFER_SIZE: usize = 10;
 const NUM_OF_BLOCKS: usize = 10;
@@ -361,7 +361,7 @@ async fn run_test<T, F, TQuery>(
     let query = TQuery::from(query);
     let (server_query_manager, _report_sender, response_reciever) =
         create_test_server_query_manager(query);
-    register_query::<T, TQuery>(storage_reader, server_query_manager);
+    register_query::<T, TQuery>(storage_reader, server_query_manager, "test");
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
@@ -371,7 +371,7 @@ async fn run_test<T, F, TQuery>(
         mut res = response_reciever.collect::<Vec<_>>() => {
             assert_eq!(DataOrFin(None), res.pop().unwrap());
             let filtered_res: Vec<T> = res.into_iter()
-                    .map(|data| data.0.expect("P2PSyncServer returned Fin and then returned another response"))
+                    .map(|data| data.0.expect("P2pSyncServer returned Fin and then returned another response"))
                     .collect();
             assert_fn(filtered_res);
         }
@@ -380,7 +380,7 @@ async fn run_test<T, F, TQuery>(
 
 pub struct TestArgs {
     #[allow(clippy::type_complexity)]
-    pub p2p_sync_server: P2PSyncServer,
+    pub p2p_sync_server: P2pSyncServer,
     pub storage_reader: StorageReader,
     pub storage_writer: StorageWriter,
     pub header_sender: Sender<ServerQueryManager<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
@@ -401,7 +401,7 @@ fn setup() -> TestArgs {
         mock_register_sqmr_protocol_server(BUFFER_SIZE);
     let (class_receiver, class_sender) = mock_register_sqmr_protocol_server(BUFFER_SIZE);
     let (event_receiver, event_sender) = mock_register_sqmr_protocol_server(BUFFER_SIZE);
-    let p2p_sync_server_channels = P2PSyncServerChannels {
+    let p2p_sync_server_channels = P2pSyncServerChannels {
         header_receiver,
         state_diff_receiver,
         transaction_receiver,
@@ -410,7 +410,7 @@ fn setup() -> TestArgs {
     };
 
     let p2p_sync_server =
-        super::P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+        super::P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
     TestArgs {
         p2p_sync_server,
         storage_reader,

@@ -10,16 +10,17 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use tracing::{error, instrument, Span};
+use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
+use tracing::{error, info, instrument, Span};
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{GatewayConfig, RpcStateReaderConfig};
-use crate::errors::GatewayResult;
-use crate::rpc_state_reader::RpcStateReaderFactory;
+use crate::config::GatewayConfig;
+use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
+use crate::sync_state_reader::SyncStateReaderFactory;
 use crate::utils::compile_contract_and_build_executable_tx;
 
 #[cfg(test)]
@@ -58,12 +59,13 @@ impl Gateway {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self), ret)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
+        info!("Processing tx");
         let blocking_task = ProcessTxBlockingTask::new(self, tx);
         // Run the blocking task in the current span.
         let curr_span = Span::current();
@@ -78,10 +80,7 @@ impl Gateway {
         let tx_hash = add_tx_args.tx.tx_hash();
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        self.mempool_client.add_tx(add_tx_args).await.map_err(|e| {
-            error!("Failed to send tx to mempool: {}", e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-        })?;
+        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
         // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
         Ok(tx_hash)
     }
@@ -94,6 +93,7 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     gateway_compiler: Arc<GatewayCompiler>,
+    mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
 }
@@ -105,6 +105,7 @@ impl ProcessTxBlockingTask {
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             gateway_compiler: gateway.gateway_compiler.clone(),
+            mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
         }
@@ -122,7 +123,7 @@ impl ProcessTxBlockingTask {
             &self.chain_info.chain_id,
         )?;
 
-        // Perfom post compilation validations.
+        // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
             if !executable_declare_tx.validate_compiled_class_hash() {
                 return Err(GatewaySpecError::CompiledClassHashMismatch);
@@ -138,7 +139,12 @@ impl ProcessTxBlockingTask {
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
 
-        self.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
+        self.stateful_tx_validator.run_validate(
+            &executable_tx,
+            nonce,
+            self.mempool_client,
+            validator,
+        )?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
@@ -147,11 +153,11 @@ impl ProcessTxBlockingTask {
 
 pub fn create_gateway(
     config: GatewayConfig,
-    rpc_state_reader_config: RpcStateReaderConfig,
-    compiler_config: SierraToCasmCompilationConfig,
+    shared_state_sync_client: SharedStateSyncClient,
+    compiler_config: SierraCompilationConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
-    let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
+    let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
     let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
 
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)

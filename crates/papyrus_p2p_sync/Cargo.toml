@@ -19,9 +19,12 @@ papyrus_network.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+papyrus_test_utils.workspace = true
 rand.workspace = true
+rand_chacha.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
+starknet_state_sync_types.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
@@ -34,8 +37,6 @@ lazy_static.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
-rand_chacha.workspace = true
 static_assertions.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 

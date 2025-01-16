@@ -3,17 +3,11 @@ use std::convert::TryFrom;
 
 use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::state::cached_state::CommitmentStateDiff;
-use blockifier::test_utils::{
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-};
 use blockifier::versioned_constants::VersionedConstants;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use pyo3::FromPyObject;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
 
@@ -24,6 +18,12 @@ use crate::errors::{
     NativeBlockifierResult,
 };
 use crate::py_utils::PyFelt;
+
+// TODO(Arni): consider moving to starknet api.
+const DEFAULT_ETH_L1_GAS_PRICE: GasPrice = GasPrice(100 * u128::pow(10, 9));
+const DEFAULT_STRK_L1_GAS_PRICE: GasPrice = GasPrice(100 * u128::pow(10, 9));
+const DEFAULT_ETH_L1_DATA_GAS_PRICE: GasPrice = GasPrice(u128::pow(10, 6));
+const DEFAULT_STRK_L1_DATA_GAS_PRICE: GasPrice = GasPrice(u128::pow(10, 9));
 
 #[pyclass]
 #[derive(Default, FromPyObject)]
@@ -153,19 +153,19 @@ impl Default for PyBlockInfo {
             block_number: u64::default(),
             block_timestamp: u64::default(),
             l1_gas_price: PyResourcePrice {
-                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.get().0,
-                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.get().0,
+                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.0,
+                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.0,
             },
             l1_data_gas_price: PyResourcePrice {
-                price_in_wei: DEFAULT_ETH_L1_DATA_GAS_PRICE.get().0,
-                price_in_fri: DEFAULT_STRK_L1_DATA_GAS_PRICE.get().0,
+                price_in_wei: DEFAULT_ETH_L1_DATA_GAS_PRICE.0,
+                price_in_fri: DEFAULT_STRK_L1_DATA_GAS_PRICE.0,
             },
             l2_gas_price: PyResourcePrice {
                 price_in_wei: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into())
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
                     .0,
                 price_in_fri: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into())
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
                     .0,
             },
             sequencer_address: PyFelt::default(),

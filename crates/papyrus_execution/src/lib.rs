@@ -30,6 +30,7 @@ use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
     EntryPointExecutionContext,
+    SierraGasRevertTracker,
 };
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::ExecutionFlags;
@@ -62,6 +63,7 @@ use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
@@ -274,6 +276,7 @@ pub fn execute_call(
     let mut context = EntryPointExecutionContext::new_invoke(
         Arc::new(TransactionContext { block_context, tx_info }),
         limit_steps_by_resources,
+        SierraGasRevertTracker::new(GasAmount(remaining_gas)),
     );
 
     let res = call_entry_point
@@ -894,7 +897,7 @@ fn to_blockifier_tx(
             sierra_version,
         ) => {
             let class_info = ClassInfo::new(
-                &compiled_class.into(),
+                &(compiled_class, sierra_version.clone()).into(),
                 sierra_program_length,
                 abi_length,
                 sierra_version,
@@ -923,7 +926,7 @@ fn to_blockifier_tx(
             sierra_version,
         ) => {
             let class_info = ClassInfo::new(
-                &compiled_class.into(),
+                &(compiled_class, sierra_version.clone()).into(),
                 sierra_program_length,
                 abi_length,
                 sierra_version,

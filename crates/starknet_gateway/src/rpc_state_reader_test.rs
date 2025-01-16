@@ -6,6 +6,7 @@ use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
 use crate::config::RpcStateReaderConfig;
@@ -172,14 +173,19 @@ async fn test_get_compiled_class() {
         entry_points_by_type: Default::default(),
     };
 
+    let expected_sierra_version = SierraVersion::default();
+
     let mock = mock_rpc_interaction(
         &mut server,
         &config.json_rpc_version,
         "starknet_getCompiledContractClass",
         GetCompiledClassParams { block_id: BlockId::Latest, class_hash: class_hash!("0x1") },
         &RpcResponse::Success(RpcSuccessResponse {
-            result: serde_json::to_value(CompiledContractClass::V1(expected_result.clone()))
-                .unwrap(),
+            result: serde_json::to_value((
+                CompiledContractClass::V1(expected_result.clone()),
+                SierraVersion::default(),
+            ))
+            .unwrap(),
             ..Default::default()
         }),
     );
@@ -189,7 +195,10 @@ async fn test_get_compiled_class() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(result, RunnableCompiledClass::V1(expected_result.try_into().unwrap()));
+    assert_eq!(
+        result,
+        RunnableCompiledClass::V1((expected_result, expected_sierra_version).try_into().unwrap())
+    );
     mock.assert_async().await;
 }
 

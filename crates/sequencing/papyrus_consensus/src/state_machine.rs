@@ -9,7 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use tracing::trace;
+use tracing::{info, trace};
 
 use crate::types::{ProposalContentId, Round, ValidatorId};
 
@@ -18,7 +18,7 @@ use crate::types::{ProposalContentId, Round, ValidatorId};
 pub enum StateMachineEvent {
     /// Sent by the state machine when a block is required to propose (ProposalContentId is always
     /// None). While waiting for the response of GetProposal, the state machine will buffer all
-    /// other events. The caller must respond with a valid proposal id for this height to the
+    /// other events. The caller *must* respond with a valid proposal id for this height to the
     /// state machine, and the same round sent out.
     GetProposal(Option<ProposalContentId>, Round),
     /// Consensus message, can be both sent from and to the state machine.
@@ -48,9 +48,10 @@ pub enum Step {
 }
 
 /// State Machine. Major assumptions:
-/// 1. SHC handles replays and conflicts.
+/// 1. SHC handles: authentication, replays, and conflicts.
 /// 2. SM must handle "out of order" messages (E.g. vote arrives before proposal).
-/// 3. No network failures.
+///
+/// Each height is begun with a call to `start`, with no further calls to it.
 pub struct StateMachine {
     id: ValidatorId,
     round: Round,
@@ -117,8 +118,8 @@ impl StateMachine {
 
     /// Process the incoming event.
     ///
-    /// If we are waiting for a response to `GetProposal` all other incoming events are buffered
-    /// until that response arrives.
+    /// If we are waiting for a response to [`GetProposal`](`StateMachineEvent::GetProposal`) all
+    /// other incoming events are buffered until that response arrives.
     ///
     /// Returns a set of events for the caller to handle. The caller should not mirror the output
     /// events back to the state machine, as it makes sure to handle them before returning.
@@ -132,7 +133,6 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        trace!("Handling event: {:?}", event);
         // Mimic LOC 18 in the paper; the state machine doesn't
         // handle any events until `getValue` completes.
         if self.awaiting_get_proposal {
@@ -201,6 +201,7 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        trace!("Processing event: {:?}", event);
         if self.awaiting_get_proposal {
             assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
         }
@@ -336,6 +337,7 @@ impl StateMachine {
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
+            info!("Starting round {round} as Proposer");
             // Leader.
             match self.valid_value_round {
                 Some((proposal_id, valid_round)) => VecDeque::from([StateMachineEvent::Proposal(
@@ -350,6 +352,7 @@ impl StateMachine {
                 }
             }
         } else {
+            info!("Starting round {round} as Validator");
             VecDeque::from([StateMachineEvent::TimeoutPropose(self.round)])
         };
         output.append(&mut self.current_round_upons());

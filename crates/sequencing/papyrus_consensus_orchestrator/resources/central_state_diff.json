@@ -1,0 +1,40 @@
+{
+    "address_to_class_hash": {
+        "0x1": "0x1",
+        "0x5": "0x5"
+    },
+    "nonces": {
+        "L1": {
+            "0x2": "0x2"
+        }
+    },
+    "storage_updates": {
+        "L1": {
+            "0x3": {
+                "0x3": "0x3"
+            }
+        }
+    },
+    "declared_classes": {
+        "0x4": "0x4"
+    },
+    "block_info": {
+        "block_number": 5,
+        "block_timestamp": 6,
+        "l1_gas_price": {
+            "price_in_wei": "0x8",
+            "price_in_fri": "0x9"
+        },
+        "l1_data_gas_price": {
+            "price_in_wei": "0xa",
+            "price_in_fri": "0xb"
+        },
+        "l2_gas_price": {
+            "price_in_wei": "0xc",
+            "price_in_fri": "0xd"
+        },
+        "sequencer_address": "0x7",
+        "starknet_version": "0.13.4",
+        "use_kzg_da": true
+    }
+}

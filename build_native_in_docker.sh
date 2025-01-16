@@ -5,8 +5,9 @@ docker_image_name=sequencer-ci
 
 (
     cd scripts
-    docker build . -t ${docker_image_name} --file ${docker_image_name}.Dockerfile
+    docker build . --build-arg USER_UID=$UID -t ${docker_image_name} --file ${docker_image_name}.Dockerfile
 )
+
 
 docker run \
     --rm \

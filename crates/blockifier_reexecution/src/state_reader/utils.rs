@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 use std::env;
+use std::fs::read_to_string;
 use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
@@ -13,7 +14,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::test_utils::read_json_file;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
@@ -27,11 +27,12 @@ use crate::state_reader::offline_state_reader::{
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 
+pub const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
+
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
-pub const JSON_RPC_VERSION: &str = "2.0";
 
 pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
     match (
@@ -59,12 +60,9 @@ pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
     }
 }
 
-/// Returns the RPC state reader configuration with the constants RPC_NODE_URL and JSON_RPC_VERSION.
+/// Returns the RPC state reader configuration with the constant RPC_NODE_URL.
 pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
-    RpcStateReaderConfig {
-        url: RPC_NODE_URL.clone(),
-        json_rpc_version: JSON_RPC_VERSION.to_string(),
-    }
+    RpcStateReaderConfig::from_url(RPC_NODE_URL.clone())
 }
 
 /// Returns the chain info of mainnet.
@@ -216,7 +214,7 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync,
+    S: StateReader + Send + Sync + Clone,
     T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
@@ -234,13 +232,17 @@ pub fn reexecute_and_verify_correctness<
         assert_matches!(res, Ok(_));
     }
 
+    // TODO(Yoav): Return the block state after the modifications in finalize().
+    // Note that after finalizing, the block state is None.
+    let block_state = transaction_executor.block_state.clone();
+
     // Finalize block and read actual statediff.
-    let (actual_state_diff, _, _) =
-        transaction_executor.finalize().expect("Couldn't finalize block");
+    let actual_state_diff =
+        transaction_executor.finalize().expect("Couldn't finalize block").state_diff;
 
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
-    transaction_executor.block_state
+    block_state
 }
 
 pub fn reexecute_block_for_testing(block_number: u64) {
@@ -260,8 +262,7 @@ pub fn write_block_reexecution_data_to_file(
     node_url: String,
     chain_id: ChainId,
 ) {
-    let config =
-        RpcStateReaderConfig { url: node_url, json_rpc_version: JSON_RPC_VERSION.to_string() };
+    let config = RpcStateReaderConfig::from_url(node_url);
 
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
@@ -311,8 +312,11 @@ macro_rules! assert_eq_state_diff {
 /// There is block number for each Starknet Version (starting v0.13)
 /// And some additional block with specific transactions.
 pub fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
+    let file_path = FULL_RESOURCES_DIR.to_string() + "/block_numbers_for_reexecution.json";
     let block_numbers_examples: HashMap<String, u64> =
-        serde_json::from_value(read_json_file("block_numbers_for_reexecution.json"))
-            .expect("Failed to deserialize block header");
+        serde_json::from_str(&read_to_string(file_path.clone()).expect(
+            &("Failed to read the block_numbers_for_reexecution file at ".to_string() + &file_path),
+        ))
+        .expect("Failed to deserialize block header");
     block_numbers_examples.values().cloned().map(BlockNumber).collect()
 }

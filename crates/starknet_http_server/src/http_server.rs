@@ -1,4 +1,3 @@
-use std::any::type_name;
 use std::clone::Clone;
 use std::net::SocketAddr;
 
@@ -8,20 +7,21 @@ use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::SharedGatewayClient;
-use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
+use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
-use tracing::{error, info, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::config::HttpServerConfig;
-use crate::errors::HttpServerRunError;
+use crate::errors::{HttpServerError, HttpServerRunError};
+use crate::metrics::{init_metrics, record_added_transaction, record_added_transaction_status};
 
 #[cfg(test)]
 #[path = "http_server_test.rs"]
 pub mod http_server_test;
 
-pub type HttpServerResult<T> = Result<T, GatewaySpecError>;
+pub type HttpServerResult<T> = Result<T, HttpServerError>;
 
 pub struct HttpServer {
     pub config: HttpServerConfig,
@@ -36,6 +36,7 @@ pub struct AppState {
 impl HttpServer {
     pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
         let app_state = AppState { gateway_client };
+        init_metrics();
         HttpServer { config, app_state }
     }
 
@@ -62,18 +63,18 @@ async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
-    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx.clone(), message_metadata: None };
-
-    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
-        error!("Failed to process tx: {}", join_err);
-        GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+    record_added_transaction();
+    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
+    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
+        debug!("Error while adding transaction: {}", e);
+        HttpServerError::from(e)
     });
-
+    record_added_transaction_status(add_tx_result.is_ok());
     add_tx_result_as_json(add_tx_result)
 }
 
 pub(crate) fn add_tx_result_as_json(
-    result: Result<TransactionHash, GatewaySpecError>,
+    result: HttpServerResult<TransactionHash>,
 ) -> HttpServerResult<Json<TransactionHash>> {
     let tx_hash = result?;
     Ok(Json(tx_hash))
@@ -89,7 +90,7 @@ pub fn create_http_server(
 #[async_trait]
 impl ComponentStarter for HttpServer {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<Self>());
+        info!("Starting component {}.", short_type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
     }
 }
