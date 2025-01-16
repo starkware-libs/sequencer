@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -11,9 +13,10 @@ use starknet_l1_provider_types::SessionState::{
     Validate as ValidateSession,
 };
 use starknet_l1_provider_types::ValidationStatus;
+use starknet_state_sync_types::communication::MockStateSyncClient;
 
-use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog};
-use crate::test_utils::L1ProviderContentBuilder;
+use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
+use crate::test_utils::{FakeL1ProviderClient, L1ProviderContentBuilder};
 use crate::ProviderState;
 
 macro_rules! tx {
@@ -27,7 +30,7 @@ macro_rules! tx {
 }
 
 macro_rules! bootstrapper {
-    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
+    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr, current_height: $cur_height:expr) => {{
         Bootstrapper {
             commit_block_backlog: vec![
                 $(CommitBlockBacklog {
@@ -36,6 +39,9 @@ macro_rules! bootstrapper {
                 }),*
             ].into_iter().collect(),
             catch_up_height: BlockNumber($catch),
+            l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
+            sync_client: Arc::new(MockStateSyncClient::default()),
+            sync_task_handle: SyncTaskHandle::default()
         }
     }};
 }
@@ -180,6 +186,7 @@ fn test_commit_block_during_proposal() {
 #[test]
 fn test_commit_block_backlog() {
     // Setup.
+    const STARTING_HEIGHT: u64 = 7;
     let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
         backlog: [10 => [2], 11 => [4]],
         catch_up: 10

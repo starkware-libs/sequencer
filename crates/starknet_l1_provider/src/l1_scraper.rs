@@ -22,6 +22,9 @@ use thiserror::Error;
 use tokio::time::sleep;
 use tracing::{error, info};
 use validator::Validate;
+#[cfg(test)]
+#[path = "l1_scraper_tests.rs"]
+pub mod l1_scraper_tests;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
@@ -49,32 +52,27 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         }
     }
 
-    pub async fn fetch_events(&mut self) -> L1ScraperResult<(), B> {
-        let latest_l1_block_number = self
-            .base_layer
-            .latest_l1_block_number(self.config.finality)
-            .await
-            .map_err(L1ScraperError::BaseLayerError)?;
-
-        let Some(latest_l1_block_number) = latest_l1_block_number else {
-            error!("Failed to get latest L1 block number, finality too high.");
+    async fn initialize(&mut self) -> L1ScraperResult<(), B> {
+        let Some((latest_l1_block_number, events)) = self.fetch_events().await? else {
             return Ok(());
         };
 
-        let scraping_result = self
-            .base_layer
-            .events(
-                self.last_block_number_processed..=latest_l1_block_number,
-                &self.tracked_event_identifiers,
-            )
-            .await;
+        // TODO: if this gets too high, send in batches.
+        if let Err(L1ProviderClientError::ClientError(client_error)) =
+            self.l1_provider_client.initialize(events).await
+        {
+            return Err(L1ScraperError::NetworkError(client_error));
+        }
+        self.last_block_number_processed = latest_l1_block_number + 1;
+        Ok(())
+    }
 
-        let events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
-        let events = events
-            .into_iter()
-            .map(|event| self.event_from_raw_l1_event(event))
-            .collect::<L1ScraperResult<Vec<_>, _>>()?;
+    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
+        let Some((latest_l1_block_number, events)) = self.fetch_events().await? else {
+            return Ok(());
+        };
 
+        // TODO: if this gets too high, send in batches.
         if let Err(L1ProviderClientError::ClientError(client_error)) =
             self.l1_provider_client.add_events(events).await
         {
@@ -84,12 +82,39 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
+    async fn fetch_events(&self) -> L1ScraperResult<Option<(u64, Vec<Event>)>, B> {
+        let latest_l1_block_number = self
+            .base_layer
+            .latest_l1_block_number(self.config.finality)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?;
+        let Some(latest_l1_block_number) = latest_l1_block_number else {
+            error!("Failed to get latest L1 block number, finality too high.");
+            return Ok(None);
+        };
+
+        let scraping_result = self
+            .base_layer
+            .events(
+                self.last_block_number_processed..=latest_l1_block_number,
+                &self.tracked_event_identifiers,
+            )
+            .await;
+        let events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
+        let events = events
+            .into_iter()
+            .map(|event| self.event_from_raw_l1_event(event))
+            .collect::<L1ScraperResult<Vec<_>, _>>()?;
+        Ok(Some((latest_l1_block_number, events)))
+    }
+
     async fn run(&mut self) -> L1ScraperResult<(), B> {
+        self.initialize().await?;
         loop {
             sleep(self.config.polling_interval).await;
             // FIXME: Configure Anvil for integration tests later, currently this fails there
             // because anvil isn't configured.
-            let _error_in_flow_tests = self.fetch_events().await;
+            let _error_in_flow_tests = self.send_events_to_l1_provider().await;
         }
     }
 

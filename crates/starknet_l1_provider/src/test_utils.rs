@@ -17,6 +17,9 @@ use starknet_l1_provider_types::{
     L1ProviderClientResult,
     ValidationStatus,
 };
+use starknet_state_sync_types::communication::{StateSyncClient, StateSyncClientResult};
+use starknet_state_sync_types::state_sync_types::SyncBlock;
+use starknet_types_core::felt::Felt;
 
 use crate::l1_provider::L1Provider;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
@@ -25,7 +28,7 @@ use crate::ProviderState;
 
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct L1ProviderContent {
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
@@ -48,7 +51,9 @@ impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
         L1Provider {
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
-            state: content.state.unwrap_or_default(),
+            // Defaulting to Pending state, since a provider with a "default" Bootstrapper
+            // is functionally equiv to Pending for testing purposes.
+            state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
         }
     }
@@ -206,6 +211,10 @@ impl L1ProviderClient for FakeL1ProviderClient {
         _tx_hash: TransactionHash,
         _height: BlockNumber,
     ) -> L1ProviderClientResult<ValidationStatus> {
+        todo!()
+    }
+
+    async fn initialize(&self, _events: Vec<Event>) -> L1ProviderClientResult<()> {
         todo!()
     }
 }

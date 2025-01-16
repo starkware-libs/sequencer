@@ -24,14 +24,11 @@ use papyrus_config::converters::deserialize_milliseconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use starknet_l1_provider_types::SessionState;
 use validator::Validate;
 
 use crate::bootstrapper::Bootstrapper;
-
-#[cfg(test)]
-#[path = "l1_provider_tests.rs"]
-pub mod l1_provider_tests;
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -92,26 +89,36 @@ impl std::fmt::Display for ProviderState {
     }
 }
 
-impl Default for ProviderState {
-    fn default() -> Self {
-        ProviderState::Bootstrap(Bootstrapper::default())
-    }
-}
-
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1ProviderConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub _poll_interval: Duration,
+    pub provider_startup_height: BlockNumber,
+    pub bootstrap_catch_up_height: BlockNumber,
 }
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([ser_param(
-            "_poll_interval",
-            &Duration::from_millis(100).as_millis(),
-            "Interval in milliseconds between each scraping attempt of L1.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from([
+            ser_param(
+                "_poll_interval",
+                &Duration::from_millis(100).as_millis(),
+                "Interval in milliseconds between each scraping attempt of L1.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "provider_startup_height",
+                &0,
+                "Height at which the provider should start.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bootstrap_catch_up_height",
+                &0,
+                "Height at which the provider should catch up to the bootstrapper.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 

@@ -2,8 +2,7 @@
 #[ignore = "Mock the spawn initialization task for deterministic testing, then test a scenario \
             with several commits blocks, some applied, some backlogged, some applied and trigger \
             backlog consumption."]
-fn backlog_happy_flow() {
-    todo!()
+fn bootstrap_e2e() {
 }
 
 #[test]

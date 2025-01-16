@@ -4,14 +4,27 @@ use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::{Event, L1ProviderResult, SessionState, ValidationStatus};
+use starknet_l1_provider_types::{
+    Event,
+    L1ProviderResult,
+    SessionState,
+    SharedL1ProviderClient,
+    ValidationStatus,
+};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
 
+use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
+
+#[cfg(test)]
+#[path = "l1_provider_tests.rs"]
+pub mod l1_provider_tests;
+
 // TODO: optimistic proposer support, will add later to keep things simple, but the design here
 // is compatible with it.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct L1Provider {
     pub current_height: BlockNumber,
     pub(crate) tx_manager: TransactionManager,
@@ -21,10 +34,6 @@ pub struct L1Provider {
 }
 
 impl L1Provider {
-    pub fn new(_config: L1ProviderConfig) -> L1ProviderResult<Self> {
-        todo!("Init crawler in uninitialized_state from config, to initialize call `reset`.");
-    }
-
     pub fn start_block(
         &mut self,
         height: BlockNumber,
@@ -134,6 +143,16 @@ impl L1Provider {
         }
     }
 
+    pub fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        self.process_l1_events(events)?;
+        let ProviderState::Bootstrap(bootstrapper) = &mut self.state else {
+            panic!("Unexpected state {} while attempting to bootstrap", self.state)
+        };
+        bootstrapper.start_l2_sync();
+
+        Ok(())
+    }
+
     pub fn process_l1_events(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
         todo!()
     }
@@ -171,6 +190,23 @@ impl L1Provider {
 
 impl ComponentStarter for L1Provider {}
 
-pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {
-    L1Provider { state: ProviderState::Propose, ..Default::default() }
+pub fn create_l1_provider(
+    config: L1ProviderConfig,
+    l1_provider_client: SharedL1ProviderClient,
+    sync_client: SharedStateSyncClient,
+) -> L1Provider {
+    let bootstrapper = Bootstrapper {
+        current_provider_height: config.provider_startup_height,
+        catch_up_height: config.bootstrap_catch_up_height,
+        commit_block_backlog: Default::default(),
+        l1_provider_client,
+        sync_client,
+        sync_task_handle: SyncTaskHandle::NotStartedYet,
+    };
+
+    L1Provider {
+        current_height: BlockNumber::default(),
+        tx_manager: TransactionManager::default(),
+        state: ProviderState::Bootstrap(bootstrapper),
+    }
 }

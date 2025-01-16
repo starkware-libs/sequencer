@@ -1,5 +1,6 @@
 pub mod errors;
 
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -34,6 +35,7 @@ pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock { l1_handler_tx_hashes: Vec<TransactionHash>, height: BlockNumber },
     GetTransactions { n_txs: usize, height: BlockNumber },
+    Initialize(Vec<Event>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,6 +43,7 @@ pub enum L1ProviderResponse {
     AddEvents(L1ProviderResult<()>),
     CommitBlock(L1ProviderResult<()>),
     GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
+    Initialize(L1ProviderResult<()>),
 }
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
@@ -67,6 +70,8 @@ pub trait L1ProviderClient: Send + Sync {
     ) -> L1ProviderClientResult<()>;
 
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
+
+    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
 }
 
 #[async_trait]
@@ -123,6 +128,17 @@ where
         _height: BlockNumber,
     ) -> L1ProviderClientResult<ValidationStatus> {
         todo!();
+    }
+
+    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::Initialize(events);
+        handle_all_response_variants!(
+            L1ProviderResponse,
+            Initialize,
+            L1ProviderClientError,
+            L1ProviderError,
+            Direct
+        )
     }
 }
 
