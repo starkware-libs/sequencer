@@ -8,14 +8,14 @@ FROM base AS builder
 COPY . .
 RUN cargo build --release --package papyrus_node
 
-FROM base AS papyrus_node
+FROM ubuntu:22.04
 
 ENV ID=1000
 WORKDIR /app
 COPY --from=builder /target/release/papyrus_node /app/target/release/papyrus_node
+COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 COPY config/papyrus config/papyrus
-
 
 # Create a new user "papyrus".
 RUN set -ex; \
