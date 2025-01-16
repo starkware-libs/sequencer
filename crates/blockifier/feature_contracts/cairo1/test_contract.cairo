@@ -26,6 +26,9 @@ mod TestContract {
         EvalCircuitResult, EvalCircuitTrait, u384, CircuitOutputsTrait, CircuitModulus,
         CircuitInputs, AddInputResultTrait
     };
+    use core::hash::HashStateTrait;
+    use core::pedersen::PedersenTrait; //if a bug, maybe it is because this suppose to be down with the function (will remove this comment before merging)
+    use core::poseidon::PoseidonTrait;
 
     #[storage]
     struct Storage {
@@ -731,4 +734,49 @@ mod TestContract {
         let result = num;
         result
     }
+
+    //Used resources in this function- Const: 1410, Step: 12, Hole: 5, RangeCheck: 3
+    #[external(v0)]
+    fn test_range_check(ref self: ContractState) {
+        let x: felt252 = 0x1;
+        let _y: u32 = x.try_into().unwrap_or_default();
+    }
+
+    //Used resources in this function- Bitwise: 1, Const: 500, Step: 5, Hole: 0, RangeCheck: 0
+    #[external(v0)]
+    fn test_bitwise(ref self: ContractState) {
+        let x: u32 = 0x1;
+        let y: u32 = 0x2;
+        let _z = x & y;
+    }
+
+    //Used resources in this function- Const: Pedersen: 1, Const: 500, Step: 5, Hole: 0, RangeCheck: 0
+    #[external(v0)]  
+    fn test_pedersen (ref self: ContractState) {
+        let mut state = PedersenTrait::new(0);
+        state = state.update(1);
+        let _hash = state.finalize();
+    }
+
+    //Used resources in this function- Poseidon: 2, Const: 1700, Step: 17, Hole: 3, RangeCheck: 0
+    #[external(v0)]
+    fn test_poseidon (ref self: ContractState) {
+        let mut state = PoseidonTrait::new();
+        state = state.update(1);
+        let _hash = state.finalize();
+    }
+
+    #[external(v0)]
+    test_ecdsa (ref self: ContractState) {
+        let (msg_hash, signature, expected_public_key_x, expected_public_key_y, eth_address) =
+            get_message_and_secp256r1_signature();
+        verify_eth_signature(:msg_hash, :signature, :eth_address);
+    }
+
+    #[external(v0)]
+    fn test(ref s: ec::EcState, m: felt252, p: ec::NonZeroEcPoint) {
+        ec::ec_state_add_mul(ref s, m, p);
+    }
 }
+
+
