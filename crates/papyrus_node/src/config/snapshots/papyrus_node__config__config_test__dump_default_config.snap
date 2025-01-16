@@ -347,6 +347,28 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "papyrus_consensus.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "papyrus_consensus.proposals_topic": {
+    "description": "The topic for consensus proposals.",
+    "value": "consensus_proposals",
+    "privacy": "Public"
+  },
+  "papyrus_consensus.start_height": {
+    "description": "The height to start the consensus from.",
+    "value": {
+      "$serde_json::private::Number": "0"
+    },
+    "privacy": "Public"
+  },
+  "papyrus_consensus.votes_topic": {
+    "description": "The topic for consensus votes.",
+    "value": "consensus_votes",
+    "privacy": "Public"
+  },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "value": "SN_MAIN",

@@ -44,7 +44,7 @@ use tracing::{debug, debug_span, error, info, warn, Instrument};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
-use crate::config::NodeConfig;
+use crate::config::{NodeConfig, PapyrusConsensusConfig};
 use crate::version::VERSION_FULL;
 
 // TODO(yair): Add to config.
@@ -181,12 +181,17 @@ fn spawn_monitoring_server(
 
 fn spawn_consensus(
     consensus_config: Option<&ConsensusConfig>,
+    papyrus_consensus_config: Option<&PapyrusConsensusConfig>,
     context_config: Option<&ContextConfig>,
     storage_reader: StorageReader,
     network_manager: Option<&mut NetworkManager>,
 ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
-    let (Some(consensus_config), Some(context_config), Some(network_manager)) =
-        (consensus_config, context_config, network_manager)
+    let (
+        Some(consensus_config),
+        Some(papyrus_consensus_config),
+        Some(context_config),
+        Some(network_manager),
+    ) = (consensus_config, papyrus_consensus_config, context_config, network_manager)
     else {
         info!("Consensus is disabled.");
         return Ok(tokio::spawn(future::pending()));
@@ -194,14 +199,19 @@ fn spawn_consensus(
     let consensus_config = consensus_config.clone();
     let context_config = context_config.clone();
     debug!("Consensus configuration: {consensus_config:?}");
+    let papyrus_consensus_config = papyrus_consensus_config.clone();
+    debug!("Papyrus consensus configuration: {papyrus_consensus_config:?}");
 
     let network_channels = network_manager.register_broadcast_topic(
-        Topic::new(consensus_config.network_topic.clone()),
+        Topic::new(papyrus_consensus_config.votes_topic.clone()),
         BUFFER_SIZE,
     )?;
     let proposal_network_channels: BroadcastTopicChannels<
         StreamMessage<ProposalPart, HeightAndRound>,
-    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    > = network_manager.register_broadcast_topic(
+        Topic::new(papyrus_consensus_config.proposals_topic.clone()),
+        BUFFER_SIZE,
+    )?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
@@ -222,9 +232,9 @@ fn spawn_consensus(
     Ok(tokio::spawn(async move {
         Ok(papyrus_consensus::run_consensus(
             context,
-            consensus_config.start_height,
+            papyrus_consensus_config.start_height,
             // TODO(Asmaa): replace with the correct value.
-            consensus_config.start_height,
+            papyrus_consensus_config.start_height,
             consensus_config.validator_id,
             consensus_config.consensus_delay,
             consensus_config.timeouts.clone(),
@@ -364,6 +374,7 @@ async fn run_threads(
     } else {
         spawn_consensus(
             config.consensus.as_ref(),
+            config.papyrus_consensus.as_ref(),
             config.context.as_ref(),
             resources.storage_reader.clone(),
             resources.maybe_network_manager.as_mut(),
