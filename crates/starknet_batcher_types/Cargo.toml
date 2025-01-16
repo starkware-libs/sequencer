@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+blockifier = { workspace = true, features = ["transaction_serde"] }
 chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
 mockall = { workspace = true, optional = true }

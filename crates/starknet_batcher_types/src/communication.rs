@@ -97,7 +97,7 @@ pub enum BatcherRequest {
     RevertBlock(RevertBlockInput),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
@@ -105,7 +105,7 @@ pub enum BatcherResponse {
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
-    DecisionReached(BatcherResult<DecisionReachedResponse>),
+    DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
 }
@@ -205,7 +205,7 @@ where
             DecisionReached,
             BatcherClientError,
             BatcherError,
-            Direct
+            Boxed
         )
     }
 
