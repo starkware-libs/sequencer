@@ -24,7 +24,8 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::state::ThinStateDiff;
+use starknet_api::rpc_transaction::EntryPointByType;
+use starknet_api::state::{EntryPoint, FunctionIndex, SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -63,6 +64,7 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
+pub const CENTRAL_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
 
 fn resource_bounds() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -243,6 +245,24 @@ fn central_bouncer_weights_json() -> Value {
     serde_json::to_value(bouncer_weights).unwrap()
 }
 
+fn entry_point(idx: usize, selector: u8) -> EntryPoint {
+    EntryPoint { function_idx: FunctionIndex(idx), selector: EntryPointSelector(felt!(selector)) }
+}
+
+fn central_sierra_contract_class_json() -> Value {
+    let sierra_contract_class = SierraContractClass {
+        sierra_program: felt_vector(),
+        contract_class_version: "dummy version".to_string(),
+        entry_points_by_type: EntryPointByType {
+            constructor: vec![entry_point(1, 2)],
+            external: vec![entry_point(3, 4)],
+            l1handler: vec![entry_point(5, 6)],
+        },
+        abi: "dummy abi".to_string(),
+    };
+    serde_json::to_value(sierra_contract_class).unwrap()
+}
+
 #[rstest]
 #[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
@@ -250,6 +270,10 @@ fn central_bouncer_weights_json() -> Value {
 #[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
 #[case::l1_handler_tx(central_l1_handler_tx_json(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
 #[case::bouncer_weights(central_bouncer_weights_json(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
+#[case::sierra_contract_class(
+    central_sierra_contract_class_json(),
+    CENTRAL_CONTRACT_CLASS_JSON_PATH
+)]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
 
