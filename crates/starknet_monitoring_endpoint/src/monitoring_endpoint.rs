@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{async_trait, Router, Server};
 use hyper::Error;
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use metrics_exporter_prometheus::PrometheusHandle;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
@@ -30,17 +30,11 @@ pub struct MonitoringEndpoint {
 }
 
 impl MonitoringEndpoint {
-    pub fn new(config: MonitoringEndpointConfig, version: &'static str) -> Self {
-        // TODO(Tsabary): consider error handling
-        let prometheus_handle = if config.collect_metrics {
-            Some(
-                PrometheusBuilder::new()
-                    .install_recorder()
-                    .expect("should be able to build the recorder and install it globally"),
-            )
-        } else {
-            None
-        };
+    pub fn new(
+        config: MonitoringEndpointConfig,
+        version: &'static str,
+        prometheus_handle: Option<PrometheusHandle>,
+    ) -> Self {
         MonitoringEndpoint { config, version, prometheus_handle }
     }
 
@@ -88,8 +82,9 @@ impl MonitoringEndpoint {
 pub fn create_monitoring_endpoint(
     config: MonitoringEndpointConfig,
     version: &'static str,
+    prometheus_handle: Option<PrometheusHandle>,
 ) -> MonitoringEndpoint {
-    MonitoringEndpoint::new(config, version)
+    MonitoringEndpoint::new(config, version, prometheus_handle)
 }
 
 #[async_trait]

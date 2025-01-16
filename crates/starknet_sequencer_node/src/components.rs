@@ -1,3 +1,4 @@
+use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
@@ -43,6 +44,7 @@ pub struct SequencerNodeComponents {
 pub fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
+    metrics_handle: PrometheusHandle,
 ) -> SequencerNodeComponents {
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -133,6 +135,7 @@ pub fn create_node_components(
         ActiveComponentExecutionMode::Enabled => Some(create_monitoring_endpoint(
             config.monitoring_endpoint_config.clone(),
             VERSION_FULL,
+            Some(metrics_handle),
         )),
         ActiveComponentExecutionMode::Disabled => None,
     };

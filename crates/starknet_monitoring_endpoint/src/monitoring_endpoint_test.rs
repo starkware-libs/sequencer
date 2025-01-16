@@ -6,6 +6,7 @@ use axum::Router;
 use hyper::body::to_bytes;
 use hyper::Client;
 use metrics::{counter, describe_counter};
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use pretty_assertions::assert_eq;
 use tokio::spawn;
 use tokio::task::yield_now;
@@ -24,9 +25,12 @@ use crate::test_utils::build_request;
 
 const TEST_VERSION: &str = "1.2.3-dev";
 
-fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
+fn setup_monitoring_endpoint(
+    config: Option<MonitoringEndpointConfig>,
+    prometheus_handle: Option<PrometheusHandle>,
+) -> MonitoringEndpoint {
     let config = config.unwrap_or_default();
-    create_monitoring_endpoint(config, TEST_VERSION)
+    create_monitoring_endpoint(config, TEST_VERSION, prometheus_handle)
 }
 
 async fn request_app(app: Router, method: &str) -> Response {
@@ -35,7 +39,7 @@ async fn request_app(app: Router, method: &str) -> Response {
 
 #[tokio::test]
 async fn node_version() {
-    let response = request_app(setup_monitoring_endpoint(None).app(), VERSION).await;
+    let response = request_app(setup_monitoring_endpoint(None, None).app(), VERSION).await;
     assert_eq!(response.status(), StatusCode::OK);
 
     let body = to_bytes(response.into_body()).await.unwrap();
@@ -44,20 +48,22 @@ async fn node_version() {
 
 #[tokio::test]
 async fn alive_endpoint() {
-    let response = request_app(setup_monitoring_endpoint(None).app(), ALIVE).await;
+    let response = request_app(setup_monitoring_endpoint(None, None).app(), ALIVE).await;
     assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]
 async fn ready_endpoint() {
-    let response = request_app(setup_monitoring_endpoint(None).app(), READY).await;
+    let response = request_app(setup_monitoring_endpoint(None, None).app(), READY).await;
     assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]
 async fn with_metrics() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let config = MonitoringEndpointConfig { collect_metrics: true, ..Default::default() };
-    let app = setup_monitoring_endpoint(Some(config)).app();
+    let app = setup_monitoring_endpoint(Some(config), Some(recorder.handle())).app();
 
     // Register a metric.
     let metric_name = "metric_name";
@@ -78,14 +84,14 @@ async fn with_metrics() {
 
 #[tokio::test]
 async fn without_metrics() {
-    let app = setup_monitoring_endpoint(None).app();
+    let app = setup_monitoring_endpoint(None, None).app();
     let response = request_app(app, METRICS).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
 
 #[tokio::test]
 async fn endpoint_as_server() {
-    spawn(async move { setup_monitoring_endpoint(None).run().await });
+    spawn(async move { setup_monitoring_endpoint(None, None).run().await });
     yield_now().await;
 
     let MonitoringEndpointConfig { ip, port, .. } = MonitoringEndpointConfig::default();
