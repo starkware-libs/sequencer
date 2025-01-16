@@ -7,6 +7,13 @@ use starknet_batcher_types::communication::{
     RemoteBatcherClient,
     SharedBatcherClient,
 };
+use starknet_class_manager_types::{
+    ClassManagerRequest,
+    ClassManagerResponse,
+    LocalClassManagerClient,
+    RemoteClassManagerClient,
+    SharedClassManagerClient,
+};
 use starknet_gateway_types::communication::{
     GatewayRequest,
     GatewayResponse,
@@ -31,6 +38,13 @@ use starknet_mempool_types::communication::{
     SharedMempoolClient,
 };
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
+use starknet_sierra_compile_types::{
+    LocalSierraCompilerClient,
+    RemoteSierraCompilerClient,
+    SharedSierraCompilerClient,
+    SierraCompilerRequest,
+    SierraCompilerResponse,
+};
 use starknet_state_sync_types::communication::{
     LocalStateSyncClient,
     RemoteStateSyncClient,
@@ -45,10 +59,12 @@ use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
+    class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
     mempool_client: Client<MempoolRequest, MempoolResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
     mempool_p2p_propagator_client:
         Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
+    sierra_compiler_client: Client<SierraCompilerRequest, SierraCompilerResponse>,
     state_sync_client: Client<StateSyncRequest, StateSyncResponse>,
     l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
 }
@@ -95,6 +111,7 @@ macro_rules! get_shared_client {
 }
 
 // TODO(Nadin): Refactor getters to remove code duplication.
+// TODO(Lev/Itay): Too many functions, need to be sorted in a meaningful way.
 impl SequencerNodeClients {
     pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
         get_shared_client!(self, batcher_client)
@@ -104,6 +121,16 @@ impl SequencerNodeClients {
         &self,
     ) -> Option<LocalComponentClient<BatcherRequest, BatcherResponse>> {
         self.batcher_client.get_local_client()
+    }
+
+    pub fn get_class_manager_shared_client(&self) -> Option<SharedClassManagerClient> {
+        get_shared_client!(self, class_manager_client)
+    }
+
+    pub fn get_class_manager_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<ClassManagerRequest, ClassManagerResponse>> {
+        self.class_manager_client.get_local_client()
     }
 
     pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
@@ -147,6 +174,16 @@ impl SequencerNodeClients {
     ) -> Option<LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>
     {
         self.mempool_p2p_propagator_client.get_local_client()
+    }
+
+    pub fn get_sierra_compiler_shared_client(&self) -> Option<SharedSierraCompilerClient> {
+        get_shared_client!(self, sierra_compiler_client)
+    }
+
+    pub fn get_sierra_compiler_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<SierraCompilerRequest, SierraCompilerResponse>> {
+        self.sierra_compiler_client.get_local_client()
     }
 
     pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
@@ -226,6 +263,14 @@ pub fn create_node_clients(
         &config.components.batcher.remote_client_config,
         config.components.batcher.socket
     );
+    let class_manager_client = create_client!(
+        &config.components.class_manager.execution_mode,
+        LocalClassManagerClient,
+        RemoteClassManagerClient,
+        channels.take_class_manager_tx(),
+        &config.components.class_manager.remote_client_config,
+        config.components.class_manager.socket
+    );
     let mempool_client = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
@@ -252,6 +297,15 @@ pub fn create_node_clients(
         config.components.mempool_p2p.socket
     );
 
+    let sierra_compiler_client = create_client!(
+        &config.components.sierra_compiler.execution_mode,
+        LocalSierraCompilerClient,
+        RemoteSierraCompilerClient,
+        channels.take_sierra_compiler_tx(),
+        &config.components.sierra_compiler.remote_client_config,
+        config.components.sierra_compiler.socket
+    );
+
     let state_sync_client = create_client!(
         &config.components.state_sync.execution_mode,
         LocalStateSyncClient,
@@ -272,9 +326,11 @@ pub fn create_node_clients(
 
     SequencerNodeClients {
         batcher_client,
+        class_manager_client,
         mempool_client,
         gateway_client,
         mempool_p2p_propagator_client,
+        sierra_compiler_client,
         state_sync_client,
         l1_provider_client,
     }
