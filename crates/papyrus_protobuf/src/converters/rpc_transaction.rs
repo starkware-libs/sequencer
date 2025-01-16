@@ -24,61 +24,71 @@ use crate::auto_impl_into_and_try_from_vec_u8;
 use crate::mempool::RpcTransactionWrapper;
 use crate::protobuf::{self};
 
-auto_impl_into_and_try_from_vec_u8!(RpcTransactionWrapper, protobuf::RpcTransaction);
+auto_impl_into_and_try_from_vec_u8!(RpcTransactionWrapper, protobuf::MempoolTransaction);
 
-impl TryFrom<protobuf::RpcTransaction> for RpcTransactionWrapper {
+impl TryFrom<protobuf::MempoolTransaction> for RpcTransactionWrapper {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::RpcTransaction) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::MempoolTransaction) -> Result<Self, Self::Error> {
         Ok(RpcTransactionWrapper(RpcTransaction::try_from(value)?))
     }
 }
-impl From<RpcTransactionWrapper> for protobuf::RpcTransaction {
+impl From<RpcTransactionWrapper> for protobuf::MempoolTransaction {
     fn from(value: RpcTransactionWrapper) -> Self {
-        protobuf::RpcTransaction::from(value.0)
+        protobuf::MempoolTransaction::from(value.0)
     }
 }
 
-impl TryFrom<protobuf::RpcTransaction> for RpcTransaction {
+impl TryFrom<protobuf::MempoolTransaction> for RpcTransaction {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::RpcTransaction) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::MempoolTransaction) -> Result<Self, Self::Error> {
         let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
             field_description: "RpcTransaction::txn",
         })?;
         Ok(match txn {
-            protobuf::rpc_transaction::Txn::DeclareV3(txn) => {
+            protobuf::mempool_transaction::Txn::DeclareV3(txn) => {
                 RpcTransaction::Declare(RpcDeclareTransaction::V3(txn.try_into()?))
             }
-            protobuf::rpc_transaction::Txn::DeployAccountV3(txn) => {
+            protobuf::mempool_transaction::Txn::DeployAccountV3(txn) => {
                 RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(txn.try_into()?))
             }
-            protobuf::rpc_transaction::Txn::InvokeV3(txn) => {
+            protobuf::mempool_transaction::Txn::InvokeV3(txn) => {
                 RpcTransaction::Invoke(RpcInvokeTransaction::V3(txn.try_into()?))
             }
         })
     }
 }
 
-impl From<RpcTransaction> for protobuf::RpcTransaction {
+impl From<RpcTransaction> for protobuf::MempoolTransaction {
     fn from(value: RpcTransaction) -> Self {
         match value {
-            RpcTransaction::Declare(RpcDeclareTransaction::V3(txn)) => protobuf::RpcTransaction {
-                txn: Some(protobuf::rpc_transaction::Txn::DeclareV3(txn.into())),
-            },
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(txn)) => {
-                protobuf::RpcTransaction {
-                    txn: Some(protobuf::rpc_transaction::Txn::DeployAccountV3(txn.into())),
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(txn)) => {
+                protobuf::MempoolTransaction {
+                    txn: Some(protobuf::mempool_transaction::Txn::DeclareV3(txn.into())),
+                    // TODO(alonl): Consider removing transaction hash from protobuf
+                    transaction_hash: None,
                 }
             }
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(txn)) => protobuf::RpcTransaction {
-                txn: Some(protobuf::rpc_transaction::Txn::InvokeV3(txn.into())),
-            },
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(txn)) => {
+                protobuf::MempoolTransaction {
+                    txn: Some(protobuf::mempool_transaction::Txn::DeployAccountV3(txn.into())),
+                    // TODO(alonl): Consider removing transaction hash from protobuf
+                    transaction_hash: None,
+                }
+            }
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(txn)) => {
+                protobuf::MempoolTransaction {
+                    txn: Some(protobuf::mempool_transaction::Txn::InvokeV3(txn.into())),
+                    // TODO(alonl): Consider removing transaction hash from protobuf
+                    transaction_hash: None,
+                }
+            }
         }
     }
 }
 
-impl TryFrom<protobuf::rpc_transaction::DeclareV3> for RpcDeclareTransactionV3 {
+impl TryFrom<protobuf::mempool_transaction::DeclareV3> for RpcDeclareTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::rpc_transaction::DeclareV3) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::mempool_transaction::DeclareV3) -> Result<Self, Self::Error> {
         let declare_v3 = value.declare_v3.ok_or(ProtobufConversionError::MissingField {
             field_description: "DeclareV3::declare_v3",
         })?;
@@ -127,7 +137,7 @@ impl TryFrom<protobuf::rpc_transaction::DeclareV3> for RpcDeclareTransactionV3 {
     }
 }
 
-impl From<RpcDeclareTransactionV3> for protobuf::rpc_transaction::DeclareV3 {
+impl From<RpcDeclareTransactionV3> for protobuf::mempool_transaction::DeclareV3 {
     fn from(value: RpcDeclareTransactionV3) -> Self {
         let RpcDeclareTransactionV3 {
             sender_address,
