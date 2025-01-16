@@ -25,6 +25,30 @@ fn cairo_version(
 ) {
 }
 
+
+#[cfg(test)]
+#[cfg(not(feature = "cairo_native"))]
+#[template]
+#[rstest]
+fn runnable_version(
+    #[values(RunnableCairo1::Casm)]
+    runnable_version: RunnableCairo1,
+) {
+}
+
+#[cfg(feature = "cairo_native")]
+#[template]
+#[rstest]
+fn runnable_version(
+    #[values(
+        RunnableCairo1::Casm,
+        RunnableCairo1::Native
+    )]
+    runnable_version: RunnableCairo1,
+) {
+}
+
+
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
