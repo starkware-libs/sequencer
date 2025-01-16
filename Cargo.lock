@@ -2450,9 +2450,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.2.6"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bc77e0c934153cb074cff4d2e177d7a98a449ee06210ae8b18bfc61a3011b9f"
+checksum = "c84e1ccfdba20102ad55dd6c83fe7a9972d454d6d6d2ff22e72f1780b3aa5463"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2504,12 +2504,12 @@ dependencies = [
 
 [[package]]
 name = "cairo-native-runtime"
-version = "0.2.6"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "860e4d0c94d4e66e66b54d5ea82c6b5bdc40f5407072a27fe296daacb628ec35"
+checksum = "bdb4c6ef526a4ccd79acf17fbcb296e9f3e3c9198cb9f35986743ab87fb769ef"
 dependencies = [
  "cairo-lang-sierra-gas",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "lazy_static",
  "num-traits",
  "rand 0.8.5",
@@ -5729,6 +5729,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]

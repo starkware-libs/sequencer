@@ -104,8 +104,7 @@ cairo-lang-sierra = "=2.10.0-rc.0"
 cairo-lang-sierra-to-casm = "2.10.0-rc.0"
 cairo-lang-starknet-classes = "2.10.0-rc.0"
 cairo-lang-utils = "2.10.0-rc.0"
-# Important: when updated, make sure to update the cairo-native submodule as well.
-cairo-native = "0.2.5-rc2"
+cairo-native = "=0.2.8" # Important: when updated, make sure to update the cairo-native submodule as well + deps in bin/startknet-native-compile/Cargo.toml as needed.
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
