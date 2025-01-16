@@ -17,12 +17,16 @@ papyrus_consensus.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
 starknet_state_sync_types = { workspace = true, features = ["testing"] }
+thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true
@@ -44,3 +48,7 @@ test-case.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+# `paste`, `starknet_infra_utils` are used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste", "starknet_infra_utils"]
