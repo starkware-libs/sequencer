@@ -453,6 +453,8 @@ fn test_block_info_syscalls(
 
 #[rstest]
 fn test_tx_info(#[values(false, true)] only_query: bool) {
+    use crate::context::{BlockContext, TransactionContext};
+
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let mut version = felt!(1_u8);
@@ -490,10 +492,14 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
         max_fee,
     });
     let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
+    let tx_context = TransactionContext {
+        block_context: BlockContext::create_for_testing(),
+        tx_info: tx_info,
+    };
     let result = entry_point_call
-        .execute_directly_given_tx_info(
+        .execute_directly_given_tx_context(
             &mut state,
-            tx_info,
+            tx_context,
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )

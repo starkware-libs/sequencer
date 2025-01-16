@@ -53,23 +53,24 @@ impl CallEntryPoint {
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
         // Do not limit steps by resources as we use default resources.
         let limit_steps_by_resources = false;
-        self.execute_directly_given_tx_info(
+        self.execute_directly_given_tx_context(
             state,
-            TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
+            TransactionContext {
+                block_context: BlockContext::create_for_testing(),
+                tx_info: TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
+            },
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )
     }
 
-    pub fn execute_directly_given_tx_info(
+    pub fn execute_directly_given_tx_context(
         self,
         state: &mut dyn State,
-        tx_info: TransactionInfo,
+        tx_context: TransactionContext,
         limit_steps_by_resources: bool,
         execution_mode: ExecutionMode,
     ) -> EntryPointExecutionResult<CallInfo> {
-        let tx_context =
-            TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
         let mut context = EntryPointExecutionContext::new(
             Arc::new(tx_context),
             execution_mode,
@@ -87,10 +88,13 @@ impl CallEntryPoint {
         state: &mut dyn State,
     ) -> EntryPointExecutionResult<CallInfo> {
         let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
-        self.execute_directly_given_tx_info(
+        self.execute_directly_given_tx_context(
             state,
             // TODO(Yoni, 1/12/2024): change the default to V3.
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
+            TransactionContext {
+                block_context: BlockContext::create_for_testing(),
+                tx_info: TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
+            },
             limit_steps_by_resources,
             ExecutionMode::Validate,
         )
