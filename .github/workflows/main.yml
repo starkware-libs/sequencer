@@ -28,8 +28,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
+
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
+    needs: bootstrap
     steps:
       # Environment setup.
       - uses: actions/checkout@v4
@@ -48,11 +57,6 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-
-      # Install rust components.
-      - uses: ./.github/actions/bootstrap
-        with:
-          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
 
       - name: Setup Python venv
         run: |
@@ -93,19 +97,19 @@ jobs:
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
+    needs: bootstrap
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
 
   run-tests:
     runs-on: starkware-ubuntu-latest-large
+    needs: bootstrap
     steps:
       - uses: actions/checkout@v4
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/bootstrap
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
