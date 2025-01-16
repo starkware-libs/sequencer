@@ -29,6 +29,7 @@ on:
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'scripts/sequencer-ci.Dockerfile'
+      - 'crates/starknet_sierra_compile/build.rs'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
