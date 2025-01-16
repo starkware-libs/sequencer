@@ -1,5 +1,7 @@
-use std::sync::Mutex;
+use std::sync::Arc;
 
+use cairo_lang_sierra::program::Program;
+use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::executor::AotContractExecutor;
 use cairo_native::starknet::StarknetSyscallHandler;
@@ -13,8 +15,7 @@ use super::syscall_handler::NativeSyscallHandler;
 #[derive(Debug)]
 pub enum ContractExecutor {
     Aot(AotContractExecutor),
-    // must use mutex, as emu executor has state, therefore it must me mutable.
-    Emu(Mutex<VirtualMachine>),
+    Emu((Arc<Program>, ContractEntryPoints)),
 }
 
 impl From<AotContractExecutor> for ContractExecutor {
@@ -22,9 +23,9 @@ impl From<AotContractExecutor> for ContractExecutor {
         Self::Aot(value)
     }
 }
-impl From<VirtualMachine> for ContractExecutor {
-    fn from(value: VirtualMachine) -> Self {
-        Self::Emu(Mutex::new(value))
+impl From<(Arc<Program>, ContractEntryPoints)> for ContractExecutor {
+    fn from(value: (Arc<Program>, ContractEntryPoints)) -> Self {
+        Self::Emu(value)
     }
 }
 
@@ -41,8 +42,9 @@ impl ContractExecutor {
             ContractExecutor::Aot(aot_contract_executor) => {
                 aot_contract_executor.run(selector, args, gas, builtin_costs, syscall_handler)
             }
-            ContractExecutor::Emu(virtual_machine) => {
-                let mut virtual_machine = virtual_machine.lock().unwrap();
+            ContractExecutor::Emu((program, entrypoints)) => {
+                let mut virtual_machine =
+                    VirtualMachine::new_starknet(program.to_owned(), entrypoints);
 
                 let args = args.to_owned();
                 virtual_machine.call_contract(selector, gas, args);
