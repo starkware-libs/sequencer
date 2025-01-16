@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use blockifier::bouncer::BouncerWeights;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
@@ -90,10 +92,18 @@ pub struct SendProposalContentResponse {
     pub response: ProposalStatus,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct CentralObjects {
+    // The box is required because the object is big and causes a large variance in enum size.
+    pub execution_infos: Box<Vec<TransactionExecutionInfo>>,
+    pub bouncer_weights: BouncerWeights,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct DecisionReachedResponse {
     pub state_diff: ThinStateDiff,
     pub l2_gas_used: GasAmount,
+    pub central_objects: CentralObjects,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

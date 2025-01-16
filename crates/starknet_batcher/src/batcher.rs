@@ -12,6 +12,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
+    CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
     GetHeightResponse,
@@ -425,9 +426,16 @@ impl Batcher {
             block_execution_artifacts.rejected_tx_hashes,
         )
         .await?;
+        let execution_infos: Vec<_> =
+            block_execution_artifacts.execution_infos.into_iter().map(|(_, info)| info).collect();
+
         Ok(DecisionReachedResponse {
             state_diff,
             l2_gas_used: block_execution_artifacts.l2_gas_used,
+            central_objects: CentralObjects {
+                execution_infos: Box::new(execution_infos),
+                bouncer_weights: block_execution_artifacts.bouncer_weights,
+            },
         })
     }
 

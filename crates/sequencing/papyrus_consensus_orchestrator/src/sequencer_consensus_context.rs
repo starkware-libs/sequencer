@@ -46,6 +46,7 @@ use starknet_api::core::{ChainId, ContractAddress, SequencerContractAddress};
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
+    CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
     GetProposalContent,
@@ -339,7 +340,11 @@ impl ConsensusContext for SequencerConsensusContext {
         }
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used } = self
+        let DecisionReachedResponse {
+            state_diff,
+            l2_gas_used,
+            central_objects: CentralObjects { execution_infos, bouncer_weights },
+        } = self
             .batcher
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
@@ -381,8 +386,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
                 state_diff,
                 transactions,
-                // TODO(Yael): add the execution_infos to DecisionReachedResponse.
-                execution_infos: Default::default(),
+                execution_infos: *execution_infos,
+                bouncer_weights,
             })
             .await;
 

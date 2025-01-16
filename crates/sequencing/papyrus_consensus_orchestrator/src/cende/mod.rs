@@ -7,6 +7,7 @@ use std::future::ready;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
     CentralStateDiff,
@@ -35,6 +36,7 @@ pub(crate) struct AerospikeBlob {
     state_diff: CentralStateDiff,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
+    bouncer_weights: BouncerWeights,
 }
 
 #[cfg_attr(test, automock)]
@@ -191,6 +193,7 @@ pub struct BlobParameters {
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) transactions: Vec<Transaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
+    pub(crate) bouncer_weights: BouncerWeights,
 }
 
 impl From<BlobParameters> for AerospikeBlob {
@@ -213,6 +216,12 @@ impl From<BlobParameters> for AerospikeBlob {
             .map(CentralTransactionExecutionInfo::from)
             .collect();
 
-        AerospikeBlob { block_number, state_diff, transactions, execution_infos }
+        AerospikeBlob {
+            block_number,
+            state_diff,
+            transactions,
+            execution_infos,
+            bouncer_weights: blob_parameters.bouncer_weights,
+        }
     }
 }
