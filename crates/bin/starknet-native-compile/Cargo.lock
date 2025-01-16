@@ -103,13 +103,13 @@ checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
 name = "aquamarine"
-version = "0.6.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f50776554130342de4836ba542aa85a4ddb361690d7e8df13774d7284c3d5c2"
+checksum = "21cc1548309245035eb18aa7f0967da6bc65587005170c56e6ef2788a4cf3f4e"
 dependencies = [
  "include_dir",
  "itertools 0.10.5",
- "proc-macro-error2",
+ "proc-macro-error",
  "proc-macro2",
  "quote",
  "syn 2.0.95",
@@ -429,7 +429,7 @@ dependencies = [
  "bitflags",
  "cexpr",
  "clang-sys",
- "itertools 0.12.1",
+ "itertools 0.10.5",
  "lazy_static",
  "lazycell",
  "log",
@@ -452,7 +452,7 @@ dependencies = [
  "bitflags",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -1123,9 +1123,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.2.6"
+version = "0.2.5-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6bc77e0c934153cb074cff4d2e177d7a98a449ee06210ae8b18bfc61a3011b9f"
+checksum = "5e832d9687639e5e8fa0668d4144896a541b1b7391b9ce20168c674524897a2e"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -1177,9 +1177,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native-runtime"
-version = "0.2.6"
+version = "0.2.5-rc2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "860e4d0c94d4e66e66b54d5ea82c6b5bdc40f5407072a27fe296daacb628ec35"
+checksum = "9d73cacb57dbe06ca622c23e47bbfc48f8b0001fc116eb244ab05c8a7a79bbf9"
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.13.0",
@@ -2562,24 +2562,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "proc-macro-error-attr2"
-version = "2.0.0"
+name = "proc-macro-error"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96de42df36bb9bba5542fe9f1a054b8cc87e172759a1868aa05c1f3acc89dfc5"
+checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
 dependencies = [
+ "proc-macro-error-attr",
  "proc-macro2",
  "quote",
+ "syn 1.0.109",
+ "version_check",
 ]
 
 [[package]]
-name = "proc-macro-error2"
-version = "2.0.1"
+name = "proc-macro-error-attr"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11ec05c52be0a07b08061f7dd003e7d7092e0472bc731b4af7bb1ef876109802"
+checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
 dependencies = [
- "proc-macro-error-attr2",
  "proc-macro2",
  "quote",
+ "version_check",
 ]
 
 [[package]]
