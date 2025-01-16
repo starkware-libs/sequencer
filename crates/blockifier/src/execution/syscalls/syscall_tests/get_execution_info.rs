@@ -90,7 +90,7 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::ONE,
     false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V1."
     )
 )]
@@ -101,7 +101,7 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false;
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V3."
     )
 )]
@@ -320,8 +320,12 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-    let result =
-        entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
+    let result = entry_point_call.execute_directly_given_tx_info(
+        state,
+        tx_info,
+        false,
+        execution_mode,
+    );
 
     assert!(!result.unwrap().execution.failed);
 }
