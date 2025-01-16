@@ -7,7 +7,6 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerContract,
     Starknet,
 };
-use rstest::{fixture, rstest};
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
@@ -33,7 +32,6 @@ const DEFAULT_ANVIL_ACCOUNT_ADDRESS: StarkHash =
 const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
 // Spin up Anvil instance, a local Ethereum node, dies when dropped.
-#[fixture]
 fn anvil() -> AnvilInstance {
     Anvil::new().spawn()
 }
@@ -63,16 +61,16 @@ async fn scraper(
     (scraper, fake_client)
 }
 
-#[rstest]
 #[tokio::test]
 // TODO: extract setup stuff into test helpers once more tests are added and patterns emerge.
-async fn txs_happy_flow(anvil: AnvilInstance) {
+async fn txs_happy_flow() {
     if !in_ci() {
         // To run the test _locally_, remove the `in_ci` check and install the anvil binary:
         // cargo install --git https://github.com/foundry-rs/foundry anvil --locked
         return;
     }
 
+    let anvil = anvil();
     // Setup.
     let (mut scraper, fake_client) = scraper(&anvil).await;
 
