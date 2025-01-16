@@ -1177,12 +1177,12 @@ dependencies = [
 
 [[package]]
 name = "cairo-native-runtime"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "860e4d0c94d4e66e66b54d5ea82c6b5bdc40f5407072a27fe296daacb628ec35"
+checksum = "564fe761fb5b03752a577fccd3c9c4b39fb019e46ad4c151592dc233bcd3eaf1"
 dependencies = [
  "cairo-lang-sierra-gas",
- "itertools 0.13.0",
+ "itertools 0.14.0",
  "lazy_static",
  "num-traits",
  "rand",
@@ -1982,6 +1982,15 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -3104,6 +3113,7 @@ dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-native",
+ "cairo-native-runtime",
  "clap",
  "serde_json",
 ]
