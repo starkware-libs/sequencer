@@ -669,6 +669,11 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "consensus_manager_config.broadcast_buffer_size": {
+    "description": "The buffer size for the broadcast channel.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "consensus_manager_config.cende_config.certificates_file_path": {
     "description": "The path to the certificates file. The certificates are used when sending a request to the cende_recorder.",
     "privacy": "Private",
