@@ -25,7 +25,7 @@ use starknet_api::{felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo, TransactionContext};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
@@ -242,7 +242,7 @@ fn test_get_execution_info(
     };
 
     let expected_tx_info: Vec<Felt>;
-    let tx_info: TransactionInfo;
+    let transaction_info: TransactionInfo;
     if version == TransactionVersion::ONE {
         expected_tx_info = vec![
             version.0,                                       /* Transaction
@@ -255,7 +255,7 @@ fn test_get_execution_info(
             nonce.0,                 // Nonce.
         ];
 
-        tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+        transaction_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
             common_fields: CommonAccountFields {
                 transaction_hash: tx_hash,
                 version: TransactionVersion::ONE,
@@ -278,7 +278,7 @@ fn test_get_execution_info(
             nonce.0,                 // Nonce.
         ];
 
-        tx_info = TransactionInfo::Current(CurrentTransactionInfo {
+        transaction_info = TransactionInfo::Current(CurrentTransactionInfo {
             common_fields: CommonAccountFields {
                 transaction_hash: tx_hash,
                 version: TransactionVersion::THREE,
@@ -320,8 +320,16 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-    let result =
-        entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
+    let tx_context = TransactionContext {
+        block_context: BlockContext::create_for_testing(),
+        tx_info: transaction_info,
+    };
+    let result = entry_point_call.execute_directly_given_tx_context(
+        state,
+        tx_context,
+        false,
+        execution_mode,
+    );
 
     assert!(!result.unwrap().execution.failed);
 }
