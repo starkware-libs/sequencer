@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     network_config_into_broadcast_channels,
@@ -15,7 +16,6 @@ use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
-use starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
@@ -218,14 +218,15 @@ pub fn create_consensus_manager_configs_and_channels(
 
     // TODO(Tsabary): Need to also add a channel for votes, in addition to the proposals channel.
     let channels_network_config = network_configs.pop().unwrap();
-    let broadcast_channels = network_config_into_broadcast_channels(
-        channels_network_config,
-        papyrus_network::gossipsub_impl::Topic::new(CONSENSUS_PROPOSALS_TOPIC),
-    );
 
     let n_network_configs = network_configs.len();
     let consensus_manager_configs =
         create_consensus_manager_configs_from_network_configs(network_configs, n_network_configs);
+
+    let broadcast_channels = network_config_into_broadcast_channels(
+        channels_network_config,
+        Topic::new(consensus_manager_configs[0].proposals_topic.clone()),
+    );
 
     (consensus_manager_configs, broadcast_channels)
 }
