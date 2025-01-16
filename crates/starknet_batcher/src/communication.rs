@@ -25,7 +25,7 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
                 BatcherResponse::StartHeight(self.start_height(input).await)
             }
             BatcherRequest::DecisionReached(input) => {
-                BatcherResponse::DecisionReached(self.decision_reached(input).await)
+                BatcherResponse::DecisionReached(self.decision_reached(input).await.map(Box::new))
             }
             BatcherRequest::ValidateBlock(input) => {
                 BatcherResponse::ValidateBlock(self.validate_block(input).await)
