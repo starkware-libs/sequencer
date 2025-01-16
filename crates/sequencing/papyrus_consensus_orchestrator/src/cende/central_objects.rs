@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants as abi_constants;
+use blockifier::bouncer::BouncerWeights;
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
@@ -55,6 +56,8 @@ use starknet_types_core::felt::Felt;
 #[cfg(test)]
 #[path = "central_objects_test.rs"]
 mod central_objects_test;
+
+pub type CentralBouncerWeights = BouncerWeights;
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {

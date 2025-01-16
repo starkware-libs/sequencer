@@ -79,7 +79,7 @@ pub trait BatcherClient: Send + Sync {
     async fn decision_reached(
         &self,
         input: DecisionReachedInput,
-    ) -> BatcherClientResult<DecisionReachedResponse>;
+    ) -> BatcherClientResult<Box<DecisionReachedResponse>>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
 }
@@ -97,7 +97,7 @@ pub enum BatcherRequest {
     RevertBlock(RevertBlockInput),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
@@ -105,7 +105,7 @@ pub enum BatcherResponse {
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
-    DecisionReached(BatcherResult<DecisionReachedResponse>),
+    DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
 }
@@ -198,7 +198,7 @@ where
     async fn decision_reached(
         &self,
         input: DecisionReachedInput,
-    ) -> BatcherClientResult<DecisionReachedResponse> {
+    ) -> BatcherClientResult<Box<DecisionReachedResponse>> {
         let request = BatcherRequest::DecisionReached(input);
         handle_all_response_variants!(
             BatcherResponse,
