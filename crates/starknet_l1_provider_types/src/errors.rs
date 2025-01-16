@@ -7,20 +7,22 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1ProviderError {
-    #[error(
-        "`get_txs` called while in `Pending` state, likely due to a crash; restart block proposal"
-    )]
-    GetTransactionsInPendingState,
     #[error("`get_txs` while in validate state")]
     GetTransactionConsensusBug,
+    #[error(
+        "`get_txs` called when provider is not in proposer state, likely due to a crash; restart \
+         block proposal"
+    )]
+    OutOfSessionGetTransactions,
+    #[error(
+        "`validate` called when provider is not in proposer state, likely due to a crash; restart \
+         block validation"
+    )]
+    OutOfSessionValidate,
     #[error("Unexpected height: expected {expected}, got {got}")]
     UnexpectedHeight { expected: BlockNumber, got: BlockNumber },
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: String, to: String },
-    #[error(
-        "`validate` called while in `Pending` state, likely due to a crash; restart block proposal"
-    )]
-    ValidateInPendingState,
     #[error("`validate` called while in `Propose`")]
     ValidateTransactionConsensusBug,
 }
