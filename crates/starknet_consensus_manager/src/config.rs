@@ -7,6 +7,7 @@ use papyrus_consensus::types::ContextConfig;
 use papyrus_consensus_orchestrator::cende::CendeConfig;
 use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use validator::Validate;
 
 /// The consensus manager related configuration.
@@ -20,7 +21,7 @@ pub struct ConsensusManagerConfig {
     pub cende_config: CendeConfig,
     pub votes_topic: String,
     pub proposals_topic: String,
-    pub immediate_active_height: u64,
+    pub immediate_active_height: BlockNumber,
 }
 
 impl SerializeConfig for ConsensusManagerConfig {
@@ -67,7 +68,7 @@ impl Default for ConsensusManagerConfig {
             network_config: NetworkConfig::default(),
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
-            immediate_active_height: 0,
+            immediate_active_height: BlockNumber::default(),
         }
     }
 }

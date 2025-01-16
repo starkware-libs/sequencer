@@ -55,7 +55,8 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
 
-// TODO(guyn): move this to the config.
+// TODO(guyn): move this to the config. (in the next PR this will happen!)
+pub const NETWORK_VOTES_TOPIC: &str = "consensus_votes";
 pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 // TODO(dvir): add this to config.
@@ -236,7 +237,7 @@ fn spawn_consensus(
             // TODO(Asmaa): replace with the correct value.
             papyrus_consensus_config.start_height,
             consensus_config.validator_id,
-            consensus_config.consensus_delay,
+            consensus_config.startup_delay,
             consensus_config.timeouts.clone(),
             consensus_config.sync_retry_interval,
             network_channels.into(),

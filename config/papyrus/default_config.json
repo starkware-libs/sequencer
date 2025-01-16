@@ -79,30 +79,20 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus.chain_id": {
-    "description": "The chain id of the Starknet chain.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
+  "consensus.future_height_limit": {
+    "description": "How many heights in the future should we cache.",
+    "privacy": "Public",
+    "value": 10
   },
-  "consensus.consensus_delay": {
+  "consensus.future_round_limit": {
+    "description": "How many rounds in the future should we cache.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "consensus.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
-  },
-  "consensus.network_topic": {
-    "description": "The network topic of the consensus.",
-    "privacy": "Public",
-    "value": "consensus"
-  },
-  "consensus.num_validators": {
-    "description": "The number of validators in the consensus.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus.start_height": {
-    "description": "The height to start the consensus from.",
-    "privacy": "Public",
-    "value": 0
   },
   "consensus.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
