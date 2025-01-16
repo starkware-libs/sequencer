@@ -1,3 +1,5 @@
+use std::cmp::Ordering::{Equal, Greater, Less};
+
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -45,9 +47,10 @@ impl L1Provider {
 
         match self.state {
             ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
-            ProviderState::Pending => Err(L1ProviderError::GetTransactionsInPendingState),
+            ProviderState::Pending | ProviderState::Bootstrap(_) => {
+                Err(L1ProviderError::OutOfSessionGetTransactions)
+            }
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
-            ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
         }
     }
 
@@ -62,18 +65,80 @@ impl L1Provider {
         match self.state {
             ProviderState::Validate => Ok(self.tx_manager.validate_tx(tx_hash)),
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
-            ProviderState::Pending => Err(L1ProviderError::ValidateInPendingState),
-            ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
+            ProviderState::Pending | ProviderState::Bootstrap(_) => {
+                Err(L1ProviderError::OutOfSessionValidate)
+            }
         }
     }
 
     // TODO: when deciding on consensus, if possible, have commit_block also tell the node if it's
     // about to [optimistically-]propose or validate the next block.
-    pub fn commit_block(&mut self, _commited_txs: &[TransactionHash], _height: BlockNumber) {
-        todo!(
-            "Purges txs from internal buffers, if was proposer clear staging buffer, 
-            reset state to Pending until we get proposing/validating notice from consensus."
-        )
+    pub fn commit_block(
+        &mut self,
+        committed_txs: &[TransactionHash],
+        height: BlockNumber,
+    ) -> L1ProviderResult<()> {
+        if self.state.is_bootstrapping() {
+            // Once bootstrap completes it will transition to Pending state by itself.
+            return self.bootstrap(committed_txs, height);
+        }
+
+        self.validate_height(height)?;
+        self.apply_commit_block(committed_txs);
+
+        self.state = self.state.transition_to_pending();
+        Ok(())
+    }
+
+    /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
+    fn bootstrap(
+        &mut self,
+        committed_txs: &[TransactionHash],
+        height: BlockNumber,
+    ) -> L1ProviderResult<()> {
+        let other = &self.current_height;
+        match height.cmp(other) {
+            Less => Err(L1ProviderError::UnexpectedHeight { expected: *other, got: height })?,
+            Equal => self.apply_commit_block(committed_txs),
+            Greater => {
+                self.state
+                    .get_bootstrapper()
+                    .expect("This method should only be called when bootstrapping.")
+                    .add_commit_block_to_backlog(committed_txs, height);
+                // No need to check the backlog or bootstrap completion, since those are only
+                // applicable if we just increased the provider's height, like in the `Equal` case.
+                return Ok(());
+            }
+        };
+
+        let bootstrapper = self
+            .state
+            .get_bootstrapper()
+            .expect("This method should only be called when bootstrapping.");
+
+        // If caught up, apply the backlog, drop the Bootstrapper and transition to Pending.
+        if bootstrapper.is_caught_up(self.current_height) {
+            let backlog = std::mem::take(&mut bootstrapper.commit_block_backlog);
+            assert!(
+                backlog.is_empty()
+                    || bootstrapper.catch_up_height == backlog.first().unwrap().height
+                        && backlog
+                            .windows(2)
+                            .all(|height| height[1].height == height[0].height.unchecked_next()),
+                "Backlog must have sequential heights starting sequentially after \
+                 catch_up_height: {}, backlog: {:?}",
+                bootstrapper.catch_up_height,
+                backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
+            );
+            for commit_block in backlog {
+                self.apply_commit_block(&commit_block.committed_txs);
+            }
+
+            // Drops bootstrapper and all of its assets.
+            self.state = ProviderState::Pending;
+        }
+
+        Ok(())
     }
 
     pub fn process_l1_events(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
@@ -103,6 +168,11 @@ impl L1Provider {
             });
         }
         Ok(())
+    }
+
+    fn apply_commit_block(&mut self, committed_txs: &[TransactionHash]) {
+        self.tx_manager.commit_txs(committed_txs);
+        self.current_height = self.current_height.unchecked_next();
     }
 }
 
