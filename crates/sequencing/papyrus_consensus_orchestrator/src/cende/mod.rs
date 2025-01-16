@@ -7,6 +7,7 @@ use std::future::ready;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
     CentralStateDiff,
@@ -27,12 +28,15 @@ use tokio::task::{self, JoinHandle};
 use tracing::debug;
 use url::Url;
 
+type CentralBouncerWeights = BouncerWeights;
+
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize)]
 pub(crate) struct AerospikeBlob {
     // TODO(yael, dvir): add the blob fields.
     block_number: BlockNumber,
     state_diff: CentralStateDiff,
+    bouncer_weights: CentralBouncerWeights,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
 }
@@ -189,6 +193,7 @@ pub struct BlobParameters {
     // bouncer_weights.
     pub(crate) block_info: BlockInfo,
     pub(crate) state_diff: ThinStateDiff,
+    pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) transactions: Vec<Transaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
 }
@@ -213,6 +218,12 @@ impl From<BlobParameters> for AerospikeBlob {
             .map(CentralTransactionExecutionInfo::from)
             .collect();
 
-        AerospikeBlob { block_number, state_diff, transactions, execution_infos }
+        AerospikeBlob {
+            block_number,
+            state_diff,
+            transactions,
+            execution_infos,
+            bouncer_weights: blob_parameters.bouncer_weights,
+        }
     }
 }

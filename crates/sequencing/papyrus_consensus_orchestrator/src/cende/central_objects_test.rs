@@ -417,37 +417,7 @@ fn call_info() -> CallInfo {
             failed: false,
             gas_consumed: 11_690,
         },
-        inner_calls: vec![CallInfo {
-            call: CallEntryPoint {
-                class_hash: Some(ClassHash(felt!("0x70000"))),
-                code_address: Some(contract_address!("0x40070000")),
-                entry_point_type: EntryPointType::External,
-                entry_point_selector: EntryPointSelector(felt!(
-                    "0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701"
-                )),
-                calldata: Calldata(Arc::new(vec![felt!("0x2")])),
-                storage_address: contract_address!("0x40070000"),
-                caller_address: contract_address!("0xc0020000"),
-                call_type: CallType::Call,
-                initial_gas: 10_000_000_000,
-            },
-            execution: CallExecution {
-                retdata: Retdata(vec![]),
-                events: vec![],
-                l2_to_l1_messages: vec![],
-                failed: false,
-                gas_consumed: 0,
-            },
-            inner_calls: vec![],
-            resources: execution_resources(),
-            tracked_resource: TrackedResource::CairoSteps,
-            // The next 4 vectors have default values since they are already being assigned and
-            // tested in the outer CallInfo.
-            storage_read_values: vec![],
-            accessed_storage_keys: HashSet::new(),
-            read_class_hash_values: vec![],
-            accessed_contract_addresses: HashSet::new(),
-        }],
+        inner_calls: Vec::new(),
         resources: execution_resources(),
         tracked_resource: TrackedResource::SierraGas,
         storage_read_values: felt_vector(),
@@ -462,7 +432,7 @@ fn call_info() -> CallInfo {
 // None.
 fn central_transaction_execution_info() -> Value {
     let transaction_execution_info = TransactionExecutionInfo {
-        validate_call_info: Some(call_info()),
+        validate_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
         execute_call_info: None,
         fee_transfer_call_info: None,
         revert_error: Some(RevertError::PostExecution(
