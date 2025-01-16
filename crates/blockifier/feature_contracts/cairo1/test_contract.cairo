@@ -26,6 +26,9 @@ mod TestContract {
         EvalCircuitResult, EvalCircuitTrait, u384, CircuitOutputsTrait, CircuitModulus,
         CircuitInputs, AddInputResultTrait
     };
+    use core::hash::HashStateTrait;
+    use core::pedersen::PedersenTrait; 
+    use core::poseidon::PoseidonTrait;
 
     #[storage]
     struct Storage {
@@ -735,4 +738,70 @@ mod TestContract {
     #[external(v0)]
     fn empty_function(ref self: ContractState) {
     }
+
+    // Used resources in this function- Step: 12, Hole: 5, RangeCheck: 3.
+    #[external(v0)]
+    fn test_range_check(ref self: ContractState) {
+        let x: felt252 = 0x1;
+        let _y: u32 = x.try_into().unwrap_or_default();
+    }
+
+    // Used resources in this function- Bitwise: 1, Step: 5, Hole: 0, RangeCheck: 0.
+    #[external(v0)]
+    fn test_bitwise(ref self: ContractState) {
+        let x: u32 = 0x1;
+        let y: u32 = 0x2;
+        let _z = x & y;
+    }
+
+    // Used resources in this function- Const: Pedersen: 1, Step: 5, Hole: 0, RangeCheck: 0.
+    #[external(v0)]  
+    fn test_pedersen (ref self: ContractState) {
+        let mut state = PedersenTrait::new(0);
+        state = state.update(1);
+        let _hash = state.finalize();
+    }
+
+    // Used resources in this function- Poseidon: 2, Step: 17, Hole: 3, RangeCheck: 0.
+    #[external(v0)]
+    fn test_poseidon (ref self: ContractState) {
+        let mut state = PoseidonTrait::new();
+        state = state.update(1);
+        let _hash = state.finalize();
+    }
+
+    // Used resources in this function- EcOp: 1, Step: 28, Hole: 8, RangeCheck: 0.
+    #[external(v0)]
+    fn test_ecop (ref self: ContractState) {
+        let m: felt252 = 2;
+        let a: felt252 = 336742005567258698661916498343089167447076063081786685068305785816009957563;
+        let b: felt252 = 1706004133033694959518200210163451614294041810778629639790706933324248611779;
+        let p : ec::NonZeroEcPoint = (ec::ec_point_try_new_nz(a, b)).unwrap();
+        let mut s: ec::EcState = ec::ec_state_init();
+        ec::ec_state_add_mul(ref s, m, p);
+    }
+
+    // This function has been taken taken from the compilers repo, and is used there to test successive use of circuits.
+    // The name of the function is test_circuit_success. Source: https://github.com/starkware-libs/cairo/blob/main/corelib/src/test/circuit_test.cairo.
+    // Used resources in this function- AddMod: 2, MulMod: 4, Const: 14708.
+    #[external(v0)]
+    fn test_add_and_mul_mod(ref self: ContractState) {
+        let in1 = CircuitElement::<CircuitInput<0>> {};
+        let in2 = CircuitElement::<CircuitInput<1>> {};
+        let add = circuit_add(in1, in2);
+        let inv = circuit_inverse(add);
+        let sub = circuit_sub(inv, in2);
+        let mul = circuit_mul(inv, sub);
+
+        let modulus = TryInto::<_, CircuitModulus>::try_into([7, 0, 0, 0]).unwrap();
+        let _outputs = (mul, add, inv)
+            .new_inputs()
+            .next([3, 0, 0, 0])
+            .next([6, 0, 0, 0])
+            .done()
+            .eval(modulus)
+            .unwrap();
+    }
 }
+
+
