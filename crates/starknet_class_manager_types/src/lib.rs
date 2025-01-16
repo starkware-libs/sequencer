@@ -9,14 +9,27 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
-use starknet_sequencer_infra::component_client::ClientError;
-use starknet_sequencer_infra::component_definitions::ComponentClient;
+use starknet_sequencer_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
 pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
 
+pub type LocalClassManagerClient = LocalComponentClient<ClassManagerRequest, ClassManagerResponse>;
+pub type RemoteClassManagerClient =
+    RemoteComponentClient<ClassManagerRequest, ClassManagerResponse>;
+
 pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
+pub type ClassManagerRequestAndResponseSender =
+    ComponentRequestAndResponseSender<ClassManagerRequest, ClassManagerResponse>;
 
 // TODO: export.
 pub type ClassId = ClassHash;
