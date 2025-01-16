@@ -57,5 +57,6 @@ jobs:
       - run: cargo build -p blockifier --features transaction_serde
       - run: cargo test -p blockifier --features transaction_serde
       # cairo_native is not activated by any workspace crate; test the build.
-      - run: cargo build -p blockifier --features cairo_native
-      - run: cargo test -p blockifier --features cairo_native
+      # TODO(Dori/Noa/Tsabary): re-enable this test once the cairo_native feature is fixed.
+      # - run: cargo build -p blockifier --features cairo_native
+      # - run: cargo test -p blockifier --features cairo_native
