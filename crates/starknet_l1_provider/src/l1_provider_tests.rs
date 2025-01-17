@@ -30,7 +30,7 @@ macro_rules! tx {
 }
 
 macro_rules! bootstrapper {
-    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr, current_height: $cur_height:expr) => {{
+    (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
         Bootstrapper {
             commit_block_backlog: vec![
                 $(CommitBlockBacklog {

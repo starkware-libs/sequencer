@@ -148,7 +148,7 @@ impl L1Provider {
         let ProviderState::Bootstrap(bootstrapper) = &mut self.state else {
             panic!("Unexpected state {} while attempting to bootstrap", self.state)
         };
-        bootstrapper.start_l2_sync();
+        bootstrapper.start_l2_sync(self.current_height);
 
         Ok(())
     }
@@ -196,7 +196,6 @@ pub fn create_l1_provider(
     sync_client: SharedStateSyncClient,
 ) -> L1Provider {
     let bootstrapper = Bootstrapper {
-        current_provider_height: config.provider_startup_height,
         catch_up_height: config.bootstrap_catch_up_height,
         commit_block_backlog: Default::default(),
         l1_provider_client,

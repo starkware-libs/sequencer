@@ -12,6 +12,9 @@ use tracing::{debug, error};
 pub struct Bootstrapper {
     pub catch_up_height: BlockNumber,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
+    pub l1_provider_client: SharedL1ProviderClient,
+    pub sync_client: SharedStateSyncClient,
+    pub sync_task_handle: SyncTaskHandle,
 }
 
 impl Bootstrapper {
@@ -37,11 +40,11 @@ impl Bootstrapper {
             .push(CommitBlockBacklog { height, committed_txs: committed_txs.to_vec() });
     }
 
-    pub fn start_l2_sync(&mut self) {
+    pub fn start_l2_sync(&mut self, current_provider_height: BlockNumber) {
         let sync_task_handle = tokio::spawn(l2_sync_task(
             self.l1_provider_client.clone(),
             self.sync_client.clone(),
-            self.current_provider_height,
+            current_provider_height,
             self.catch_up_height,
         ));
 
@@ -62,7 +65,6 @@ impl Bootstrapper {
 impl PartialEq for Bootstrapper {
     fn eq(&self, other: &Self) -> bool {
         self.catch_up_height == other.catch_up_height
-            && self.current_provider_height == other.current_provider_height
             && self.commit_block_backlog == other.commit_block_backlog
     }
 }
@@ -73,7 +75,6 @@ impl std::fmt::Debug for Bootstrapper {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Bootstrapper")
             .field("catch_up_height", &self.catch_up_height)
-            .field("current_provider_height", &self.current_provider_height)
             .field("commit_block_backlog", &self.commit_block_backlog)
             .field("l1_provider_client", &"<non-debuggable>")
             .field("sync_client", &"<non-debuggable>")
