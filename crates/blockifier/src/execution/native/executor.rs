@@ -49,8 +49,7 @@ impl ContractExecutor {
                 let args = args.to_owned();
                 virtual_machine.call_contract(selector, gas, args);
 
-                let trace = virtual_machine.run_with_trace(&mut syscall_handler);
-                let result = sierra_emu::ContractExecutionResult::from_trace(&trace).unwrap();
+                let result = virtual_machine.run(&mut syscall_handler).unwrap();
 
                 Ok(ContractExecutionResult {
                     remaining_gas: result.remaining_gas,
