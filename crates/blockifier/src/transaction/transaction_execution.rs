@@ -9,13 +9,15 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{Transaction as StarknetApiTransaction, TransactionHash};
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
-use crate::execution::entry_point::EntryPointExecutionContext;
+use crate::execution::common_hints::ExecutionMode;
+use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
@@ -142,9 +144,14 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = false;
-        let mut context =
-            EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
-        let mut remaining_gas = tx_context.initial_sierra_gas().0;
+        // The Sierra gas limit for L1 handler transaction is set to max_execute_sierra_gas.
+        let mut remaining_gas =
+            block_context.versioned_constants.sierra_gas_limit(&ExecutionMode::Execute).0;
+        let mut context = EntryPointExecutionContext::new_invoke(
+            tx_context.clone(),
+            limit_steps_by_resources,
+            SierraGasRevertTracker::new(GasAmount(remaining_gas)),
+        );
         let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
         let TransactionReceipt {

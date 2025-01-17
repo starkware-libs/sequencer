@@ -1,13 +1,14 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
+use starknet_api::block::BlockNumber;
 use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{l1_handler_tx_args, tx_hash};
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::ValidationStatus;
 
+use crate::l1_provider::L1Provider;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::L1Provider;
 use crate::ProviderState::{Pending, Propose, Uninitialized, Validate};
 
 macro_rules! tx {
@@ -30,27 +31,39 @@ fn get_txs_happy_flow() {
         .build_into_l1_provider();
 
     // Test.
-    assert_eq!(l1_provider.get_txs(0).unwrap(), []);
-    assert_eq!(l1_provider.get_txs(1).unwrap(), [txs[0].clone()]);
-    assert_eq!(l1_provider.get_txs(3).unwrap(), txs[1..=2]);
-    assert_eq!(l1_provider.get_txs(1).unwrap(), []);
+    assert_eq!(l1_provider.get_txs(0, BlockNumber(1)).unwrap(), []);
+    assert_eq!(l1_provider.get_txs(1, BlockNumber(1)).unwrap(), [txs[0].clone()]);
+    assert_eq!(l1_provider.get_txs(3, BlockNumber(1)).unwrap(), txs[1..=2]);
+    assert_eq!(l1_provider.get_txs(1, BlockNumber(1)).unwrap(), []);
 }
 
 #[test]
 fn validate_happy_flow() {
     // Setup.
-    let l1_provider = L1ProviderContentBuilder::new()
+    let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([tx!(tx_hash: 1)])
-        .with_on_l2_awaiting_l1_consumption([tx_hash!(2)])
+        .with_committed([tx_hash!(2)])
         .with_state(Validate)
         .build_into_l1_provider();
 
     // Test.
-    assert_eq!(l1_provider.validate(tx_hash!(1)).unwrap(), ValidationStatus::Validated);
-    assert_eq!(l1_provider.validate(tx_hash!(2)).unwrap(), ValidationStatus::AlreadyIncludedOnL2);
-    assert_eq!(l1_provider.validate(tx_hash!(3)).unwrap(), ValidationStatus::ConsumedOnL1OrUnknown);
+    assert_eq!(
+        l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap(),
+        ValidationStatus::Validated
+    );
+    assert_eq!(
+        l1_provider.validate(tx_hash!(2), BlockNumber(1)).unwrap(),
+        ValidationStatus::AlreadyIncludedOnL2
+    );
+    assert_eq!(
+        l1_provider.validate(tx_hash!(3), BlockNumber(1)).unwrap(),
+        ValidationStatus::ConsumedOnL1OrUnknown
+    );
     // Transaction wasn't deleted after the validation.
-    assert_eq!(l1_provider.validate(tx_hash!(1)).unwrap(), ValidationStatus::Validated);
+    assert_eq!(
+        l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap(),
+        ValidationStatus::AlreadyIncludedInPropsedBlock
+    );
 }
 
 #[test]
@@ -63,12 +76,12 @@ fn pending_state_errors() {
 
     // Test.
     assert_matches!(
-        l1_provider.get_txs(1).unwrap_err(),
+        l1_provider.get_txs(1, BlockNumber(1)).unwrap_err(),
         L1ProviderError::GetTransactionsInPendingState
     );
 
     assert_matches!(
-        l1_provider.validate(tx_hash!(1)).unwrap_err(),
+        l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap_err(),
         L1ProviderError::ValidateInPendingState
     );
 }
@@ -79,16 +92,16 @@ fn uninitialized_get_txs() {
     let mut uninitialized_l1_provider = L1Provider::default();
     assert_eq!(uninitialized_l1_provider.state, Uninitialized);
 
-    uninitialized_l1_provider.get_txs(1).unwrap();
+    uninitialized_l1_provider.get_txs(1, BlockNumber(1)).unwrap();
 }
 
 #[test]
 #[should_panic(expected = "Uninitialized L1 provider")]
 fn uninitialized_validate() {
-    let uninitialized_l1_provider = L1Provider::default();
+    let mut uninitialized_l1_provider = L1Provider::default();
     assert_eq!(uninitialized_l1_provider.state, Uninitialized);
 
-    uninitialized_l1_provider.validate(TransactionHash::default()).unwrap();
+    uninitialized_l1_provider.validate(TransactionHash::default(), BlockNumber(1)).unwrap();
 }
 
 #[test]
@@ -97,14 +110,14 @@ fn proposal_start_errors() {
     let mut l1_provider =
         L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
     // Test.
-    l1_provider.proposal_start().unwrap();
+    l1_provider.proposal_start(BlockNumber(1)).unwrap();
 
     assert_eq!(
-        l1_provider.proposal_start().unwrap_err(),
+        l1_provider.proposal_start(BlockNumber(1)).unwrap_err(),
         L1ProviderError::unexpected_transition(Propose, Propose)
     );
     assert_eq!(
-        l1_provider.validation_start().unwrap_err(),
+        l1_provider.validation_start(BlockNumber(1)).unwrap_err(),
         L1ProviderError::unexpected_transition(Propose, Validate)
     );
 }
@@ -116,14 +129,14 @@ fn validation_start_errors() {
         L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
 
     // Test.
-    l1_provider.validation_start().unwrap();
+    l1_provider.validation_start(BlockNumber(1)).unwrap();
 
     assert_eq!(
-        l1_provider.validation_start().unwrap_err(),
+        l1_provider.validation_start(BlockNumber(1)).unwrap_err(),
         L1ProviderError::unexpected_transition(Validate, Validate)
     );
     assert_eq!(
-        l1_provider.proposal_start().unwrap_err(),
+        l1_provider.proposal_start(BlockNumber(1)).unwrap_err(),
         L1ProviderError::unexpected_transition(Validate, Propose)
     );
 }

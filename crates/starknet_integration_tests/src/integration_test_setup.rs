@@ -1,31 +1,59 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use blockifier::context::ChainInfo;
+use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_storage::StorageConfig;
+use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::TransactionHash;
+use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
+use starknet_infra_utils::test_utils::AvailablePorts;
+use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_monitoring_endpoint::test_utils::IsAliveClient;
+use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
+use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
+use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
-use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{
-    create_chain_info,
-    create_config,
-    create_consensus_manager_configs_and_channels,
-    create_mempool_p2p_configs,
-};
+use crate::state_reader::StorageTestSetup;
+use crate::utils::{create_node_config, spawn_local_success_recorder};
 
-const SEQUENCER_INDEX: usize = 0;
-const SEQUENCER_INDICES: [usize; 1] = [SEQUENCER_INDEX];
+#[derive(Debug, Copy, Clone)]
+pub struct SequencerExecutionId {
+    sequencer_index: usize,
+    sequencer_part_index: usize,
+}
 
-pub struct IntegrationTestSetup {
+impl SequencerExecutionId {
+    pub fn new(sequencer_index: usize, sequencer_part_index: usize) -> Self {
+        Self { sequencer_index, sequencer_part_index }
+    }
+    pub fn get_sequencer_index(&self) -> usize {
+        self.sequencer_index
+    }
+    pub fn get_sequencer_part_index(&self) -> usize {
+        self.sequencer_part_index
+    }
+}
+
+impl From<SequencerExecutionId> for NodeRunner {
+    fn from(val: SequencerExecutionId) -> Self {
+        NodeRunner::new(val.sequencer_index, val.sequencer_part_index)
+    }
+}
+
+pub struct SequencerSetup {
+    // Sequencer test identifier.
+    pub sequencer_execution_id: SequencerExecutionId,
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
-    pub is_alive_test_client: IsAliveClient,
+    pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.
     pub node_config_path: PathBuf,
     // Storage reader for the batcher.
@@ -38,40 +66,45 @@ pub struct IntegrationTestSetup {
     #[allow(dead_code)]
     batcher_storage_handle: TempDir,
     #[allow(dead_code)]
-    rpc_storage_handle: TempDir,
-    #[allow(dead_code)]
     node_config_dir_handle: TempDir,
     #[allow(dead_code)]
     state_sync_storage_handle: TempDir,
 }
 
-impl IntegrationTestSetup {
-    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
-        let chain_info = create_chain_info();
+// TODO(Tsabary/ Nadin): reduce number of args.
+#[allow(clippy::too_many_arguments)]
+impl SequencerSetup {
+    #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
+    pub async fn new(
+        accounts: Vec<AccountTransactionGenerator>,
+        sequencer_execution_id: SequencerExecutionId,
+        chain_info: ChainInfo,
+        mut consensus_manager_config: ConsensusManagerConfig,
+        mempool_p2p_config: MempoolP2pConfig,
+        mut state_sync_config: StateSyncConfig,
+        mut available_ports: AvailablePorts,
+        component_config: ComponentConfig,
+    ) -> Self {
+        // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
-        let storage_for_test = StorageTestSetup::new(tx_generator.accounts(), &chain_info);
+        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr = spawn_test_rpc_state_reader(
-            storage_for_test.rpc_storage_reader,
-            chain_info.chain_id.clone(),
-        )
-        .await;
+        let (recorder_url, _join_handle) =
+            spawn_local_success_recorder(available_ports.get_next_port());
+        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
-        let (mut consensus_manager_configs, _consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
-        let mut mempool_p2p_configs =
-            create_mempool_p2p_configs(SEQUENCER_INDICES.len(), chain_info.chain_id.clone());
+        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Derive the configuration for the sequencer node.
-        let (config, required_params) = create_config(
-            SEQUENCER_INDEX,
+        let (config, required_params) = create_node_config(
+            &mut available_ports,
+            sequencer_execution_id,
             chain_info,
-            rpc_server_addr,
             storage_for_test.batcher_storage_config,
-            storage_for_test.state_sync_storage_config,
-            consensus_manager_configs.pop().unwrap(),
-            mempool_p2p_configs.pop().unwrap(),
+            state_sync_config,
+            consensus_manager_config,
+            mempool_p2p_config,
+            component_config,
         )
         .await;
 
@@ -84,21 +117,25 @@ impl IntegrationTestSetup {
 
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
-        let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+        let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        IntegrationTestSetup {
+        Self {
+            sequencer_execution_id,
             add_tx_http_client,
-            is_alive_test_client,
+            monitoring_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage,
-            rpc_storage_handle: storage_for_test.rpc_storage_handle,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
         }
+    }
+
+    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
+        self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 }

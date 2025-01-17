@@ -1204,7 +1204,7 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
 #[test]
 fn message_from_l1_to_l1_handler_tx() {
     let l1_handler_tx = L1HandlerTransaction::from(MESSAGE_FROM_L1.clone());
-    assert_eq!(l1_handler_tx.version, TransactionVersion::ONE);
+    assert_eq!(l1_handler_tx.version, L1HandlerTransaction::VERSION);
     assert_eq!(l1_handler_tx.contract_address, *CONTRACT_ADDRESS);
     assert_eq!(l1_handler_tx.entry_point_selector, selector_from_name("l1_handle"));
     // The first item of calldata is the from_address.

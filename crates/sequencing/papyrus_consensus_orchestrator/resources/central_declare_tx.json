@@ -1,0 +1,39 @@
+{
+    "tx": {
+        "hash_value": "0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706",
+        "version": "0x3",
+        "signature": ["0x0", "0x1", "0x2"],
+        "nonce": "0x1",
+        "sender_address": "0x12fd537",
+        "nonce_data_availability_mode": 0,
+        "fee_data_availability_mode": 0,
+        "resource_bounds": {
+            "L1_GAS": {
+                "max_amount": "0x1",
+                "max_price_per_unit": "0x1"
+            },
+            "L2_GAS": {
+                "max_amount": "0x2",
+                "max_price_per_unit": "0x2"
+            },
+            "L1_DATA_GAS": {
+                "max_amount": "0x3",
+                "max_price_per_unit": "0x3"
+            }
+        },
+        "tip": "0x1",
+        "paymaster_data": [],
+        "class_hash": "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056",
+        "compiled_class_hash": "0x1",
+        "sierra_program_size": 8844,
+        "sierra_version": [
+            "0x1",
+            "0x6",
+            "0x0"
+        ],
+        "abi_size": 11237,
+        "account_deployment_data": [],
+        "type": "DECLARE"
+    },
+    "time_created": 1734601649
+}

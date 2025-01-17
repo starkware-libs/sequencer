@@ -3,6 +3,13 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::test_utils::{
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -28,11 +35,6 @@ use crate::test_utils::{
     CairoVersion,
     RunnableCairo1,
     BALANCE,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
     CommonAccountFields,

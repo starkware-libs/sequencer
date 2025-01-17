@@ -1,5 +1,10 @@
-name: Bootsrap rust installation
+name: Bootstrap rust installation
 description: Setup rust environment and its components, also caching the build results.
+
+inputs:
+  extra_rust_toolchains:
+    description: "Extra toolchains to install, but aren't used by default"
+    required: false
 
 runs:
   using: "composite"
@@ -8,6 +13,8 @@ runs:
       with:
         cache-base: main(-v[0-9].*)?
         inherit-toolchain: true
-        bins: taplo-cli@0.9.0
+        bins: taplo-cli@0.9.3, cargo-machete
+        # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
+        channel: ${{ inputs.extra_rust_toolchains }}
       env:
         RUSTFLAGS: "-C link-arg=-fuse-ld=lld"

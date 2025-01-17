@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::time::Duration;
 
 use futures::channel::mpsc;
@@ -10,26 +11,69 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
+use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_test_utils::{get_rng, GetTestInstance};
+use prost::DecodeError;
 
-use super::{MessageId, StreamHandler, StreamId};
+use super::{MessageId, StreamHandler};
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct TestStreamId(u64);
+
+impl From<TestStreamId> for Vec<u8> {
+    fn from(value: TestStreamId) -> Self {
+        value.0.to_be_bytes().to_vec()
+    }
+}
+
+impl TryFrom<Vec<u8>> for TestStreamId {
+    type Error = ProtobufConversionError;
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        if bytes.len() != 8 {
+            return Err(ProtobufConversionError::DecodeError(DecodeError::new("Invalid length")));
+        }
+        let mut array = [0; 8];
+        array.copy_from_slice(&bytes);
+        Ok(TestStreamId(u64::from_be_bytes(array)))
+    }
+}
+
+impl PartialOrd for TestStreamId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TestStreamId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+impl Display for TestStreamId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TestStreamId({})", self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use papyrus_protobuf::consensus::{ProposalInit, ProposalPart};
+
     use super::*;
 
     fn make_test_message(
-        stream_id: StreamId,
+        stream_id: TestStreamId,
         message_id: MessageId,
         fin: bool,
-    ) -> StreamMessage<ConsensusMessage> {
+    ) -> StreamMessage<ProposalPart, TestStreamId> {
         let content = match fin {
             true => StreamMessageBody::Fin,
-            false => StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::default())),
+            false => StreamMessageBody::Content(ProposalPart::Init(ProposalInit::default())),
         };
         StreamMessage { message: content, stream_id, message_id }
     }
@@ -47,23 +91,23 @@ mod tests {
     }
 
     async fn send(
-        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
+        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ProposalPart, TestStreamId>>,
         metadata: &BroadcastedMessageMetadata,
-        msg: StreamMessage<ConsensusMessage>,
+        msg: StreamMessage<ProposalPart, TestStreamId>,
     ) {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
     #[allow(clippy::type_complexity)]
     fn setup_test() -> (
-        StreamHandler<ConsensusMessage>,
-        MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
-        mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
+        StreamHandler<ProposalPart, TestStreamId>,
+        MockBroadcastedMessagesSender<StreamMessage<ProposalPart, TestStreamId>>,
+        mpsc::Receiver<mpsc::Receiver<ProposalPart>>,
         BroadcastedMessageMetadata,
-        mpsc::Sender<(StreamId, mpsc::Receiver<ConsensusMessage>)>,
+        mpsc::Sender<(TestStreamId, mpsc::Receiver<ProposalPart>)>,
         futures::stream::Map<
             mpsc::Receiver<Vec<u8>>,
-            fn(Vec<u8>) -> StreamMessage<ConsensusMessage>,
+            fn(Vec<u8>) -> StreamMessage<ProposalPart, TestStreamId>,
         >,
     ) {
         // The outbound_sender is the network connector for broadcasting messages.
@@ -81,7 +125,7 @@ mod tests {
         // The receiver goes into StreamHandler, sender is used by the test (as mock Consensus).
         // Note that each new channel comes in a tuple with (stream_id, receiver).
         let (outbound_channel_sender, outbound_channel_receiver) =
-            mpsc::channel::<(StreamId, mpsc::Receiver<ConsensusMessage>)>(CHANNEL_SIZE);
+            mpsc::channel::<(TestStreamId, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
 
         // The network_sender_to_inbound is the sender of the mock network, that is used by the
         // test to send messages into the StreamHandler (from the mock network).
@@ -99,7 +143,7 @@ mod tests {
         // each stream. The inbound_channel_receiver is given to the "mock consensus" that
         // gets new channels and inbounds to them.
         let (inbound_channel_sender, inbound_channel_receiver) =
-            mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(CHANNEL_SIZE);
+            mpsc::channel::<mpsc::Receiver<ProposalPart>>(CHANNEL_SIZE);
 
         // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
         // This will allow reporting to the network things like bad peers.
@@ -127,7 +171,7 @@ mod tests {
         let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
             setup_test();
 
-        let stream_id = 127;
+        let stream_id = TestStreamId(127);
         for i in 0..10 {
             let message = make_test_message(stream_id, i, i == 9);
             send(&mut network_sender, &metadata, message).await;
@@ -159,7 +203,7 @@ mod tests {
             _,
         ) = setup_test();
         let peer_id = inbound_metadata.originator_id.clone();
-        let stream_id = 127;
+        let stream_id = TestStreamId(127);
 
         for i in 0..5 {
             let message = make_test_message(stream_id, 5 - i, i == 0);
@@ -173,21 +217,29 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        // Get the receiver for the stream.
-        let mut receiver = inbound_channel_receiver.next().await.unwrap();
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver.try_next().is_err());
+        // No receiver should be created yet.
+        assert!(inbound_channel_receiver.try_next().is_err());
 
         assert_eq!(stream_handler.inbound_stream_data.len(), 1);
         assert_eq!(
             stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
             5
         );
+        // Still waiting for message 0.
+        assert_eq!(
+            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].next_message_id,
+            0
+        );
+        // Has a receiver, waiting to be sent when message 0 is received.
+        assert!(
+            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].receiver.is_some()
+        );
+
         let range: Vec<u64> = (1..6).collect();
         let keys: Vec<u64> = stream_handler.inbound_stream_data[&(peer_id, stream_id)]
-            .clone()
             .message_buffer
-            .into_keys()
+            .keys()
+            .copied()
             .collect();
         assert!(do_vecs_match_unordered(&keys, &range));
 
@@ -202,6 +254,9 @@ mod tests {
 
         let stream_handler = join_handle.await.expect("Task should succeed");
         assert!(stream_handler.inbound_stream_data.is_empty());
+
+        // Get the receiver for the stream.
+        let mut receiver = inbound_channel_receiver.next().await.unwrap();
 
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -223,9 +278,9 @@ mod tests {
         ) = setup_test();
         let peer_id = inbound_metadata.originator_id.clone();
 
-        let stream_id1 = 127; // Send all messages in order (except the first one).
-        let stream_id2 = 10; // Send in reverse order (except the first one).
-        let stream_id3 = 1; // Send in two batches, without the first one, don't send fin.
+        let stream_id1 = TestStreamId(127); // Send all messages in order (except the first one).
+        let stream_id2 = TestStreamId(10); // Send in reverse order (except the first one).
+        let stream_id3 = TestStreamId(1); // Send in two batches, without the first one, don't send fin.
 
         for i in 1..10 {
             let message = make_test_message(stream_id1, i, i == 9);
@@ -254,21 +309,21 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        let values = [(peer_id.clone(), 1), (peer_id.clone(), 10), (peer_id.clone(), 127)];
+        let values = [
+            (peer_id.clone(), TestStreamId(1)),
+            (peer_id.clone(), TestStreamId(10)),
+            (peer_id.clone(), TestStreamId(127)),
+        ];
         assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
+            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
         );
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id1)]
                 .message_buffer
-                .clone()
-                .into_keys()
+                .keys()
+                .copied()
                 .collect::<Vec<_>>(),
             &(1..10).collect::<Vec<_>>()
         ));
@@ -277,8 +332,8 @@ mod tests {
         assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id2)]
                 .message_buffer
-                .clone()
-                .into_keys()
+                .keys()
+                .copied()
                 .collect::<Vec<_>>(),
             &(1..6).collect::<Vec<_>>()
         ));
@@ -287,29 +342,14 @@ mod tests {
         assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id3)]
                 .message_buffer
-                .clone()
-                .into_keys()
+                .keys()
+                .copied()
                 .collect::<Vec<_>>(),
             &(1..10).collect::<Vec<_>>()
         ));
 
-        // Get the receiver for the first stream.
-        let mut receiver1 = inbound_channel_receiver.next().await.unwrap();
-
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver1.try_next().is_err());
-
-        // Get the receiver for the second stream.
-        let mut receiver2 = inbound_channel_receiver.next().await.unwrap();
-
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver2.try_next().is_err());
-
-        // Get the receiver for the third stream.
-        let mut receiver3 = inbound_channel_receiver.next().await.unwrap();
-
-        // Check that the channel is empty (no messages were sent yet).
-        assert!(receiver3.try_next().is_err());
+        // None of the streams should have emitted a receiver yet.
+        assert!(inbound_channel_receiver.try_next().is_err());
 
         // Send the last message on stream_id1:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id1, 0, false)).await;
@@ -320,6 +360,9 @@ mod tests {
             stream_handler
         });
 
+        // Get the receiver for the first stream.
+        let mut receiver1 = inbound_channel_receiver.next().await.unwrap();
+
         // Should be able to read all the messages for stream_id1.
         for _ in 0..9 {
             // message number 9 is Fin, so it will not be sent!
@@ -328,13 +371,9 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // stream_id1 should be gone
-        let values = [(peer_id.clone(), 1), (peer_id.clone(), 10)];
+        let values = [(peer_id.clone(), TestStreamId(1)), (peer_id.clone(), TestStreamId(10))];
         assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
+            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
         );
 
         // Send the last message on stream_id2:
@@ -346,6 +385,9 @@ mod tests {
             stream_handler
         });
 
+        // Get the receiver for the second stream.
+        let mut receiver2 = inbound_channel_receiver.next().await.unwrap();
+
         // Should be able to read all the messages for stream_id2.
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -355,13 +397,9 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Stream_id2 should also be gone.
-        let values = [(peer_id.clone(), 1)];
+        let values = [(peer_id.clone(), TestStreamId(1))];
         assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
+            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
         );
 
         // Send the last message on stream_id3:
@@ -373,6 +411,9 @@ mod tests {
             stream_handler
         });
 
+        // Get the receiver for the third stream.
+        let mut receiver3 = inbound_channel_receiver.next().await.unwrap();
+
         let stream_handler = join_handle.await.expect("Task should succeed");
         for _ in 0..10 {
             // All messages are received, including number 9 which is not Fin
@@ -380,19 +421,67 @@ mod tests {
         }
 
         // Stream_id3 should still be there, because we didn't send a fin.
-        let values = [(peer_id.clone(), 1)];
+        let values = [(peer_id.clone(), TestStreamId(1))];
         assert!(
-            stream_handler
-                .inbound_stream_data
-                .clone()
-                .into_keys()
-                .all(|item| values.contains(&item))
+            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
         );
 
         // But the buffer should be empty, as we've successfully drained it all.
         assert!(
             stream_handler.inbound_stream_data[&(peer_id, stream_id3)].message_buffer.is_empty()
         );
+    }
+
+    #[tokio::test]
+    async fn inbound_close_channel() {
+        let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
+            setup_test();
+
+        let stream_id = TestStreamId(127);
+        // Send two messages, no Fin.
+        for i in 0..2 {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &metadata, message).await;
+        }
+
+        // Allow the StreamHandler to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+        let mut stream_handler = join_handle.await.expect("Task should succeed");
+
+        let mut receiver = inbound_channel_receiver.next().await.unwrap();
+        for _ in 0..2 {
+            let _ = receiver.next().await.unwrap();
+        }
+
+        // Check that the stream handler contains the StreamData.
+        assert_eq!(stream_handler.inbound_stream_data.len(), 1);
+        assert_eq!(
+            stream_handler.inbound_stream_data.keys().next().unwrap(),
+            &(metadata.originator_id.clone(), stream_id)
+        );
+
+        // Close the channel.
+        drop(receiver);
+
+        // Send more messages.
+        // TODO(guyn): if we set this to 2..4 it fails... the last message opens a new StreamData!
+        for i in 2..3 {
+            let message = make_test_message(stream_id, i, false);
+            send(&mut network_sender, &metadata, message).await;
+        }
+
+        // Allow the StreamHandler to process the messages.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
+        let stream_handler = join_handle.await.expect("Task should succeed");
+
+        // Check that the stream handler no longer contains the StreamData.
+        assert_eq!(stream_handler.inbound_stream_data.len(), 0);
     }
 
     // This test does two things:
@@ -410,15 +499,15 @@ mod tests {
             mut broadcasted_messages_receiver,
         ) = setup_test();
 
-        let stream_id1: StreamId = 42;
-        let stream_id2: StreamId = 127;
+        let stream_id1 = TestStreamId(42);
+        let stream_id2 = TestStreamId(127);
 
         // Start a new stream by sending the (stream_id, receiver).
         let (mut sender1, receiver1) = mpsc::channel(CHANNEL_SIZE);
         broadcast_channel_sender.send((stream_id1, receiver1)).await.unwrap();
 
         // Send a message on the stream.
-        let message1 = ConsensusMessage::Proposal(Proposal::default());
+        let message1 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message1.clone()).await.unwrap();
 
         // Run the loop for a short duration to process the message.
@@ -438,14 +527,14 @@ mod tests {
 
         // Check that internally, stream_handler holds this receiver.
         assert_eq!(
-            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(),
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&TestStreamId>>(),
             vec![&stream_id1]
         );
         // Check that the number of messages sent on this stream is 1.
         assert_eq!(stream_handler.outbound_stream_number[&stream_id1], 1);
 
         // Send another message on the same stream.
-        let message2 = ConsensusMessage::Proposal(Proposal::default());
+        let message2 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message2.clone()).await.unwrap();
 
         // Run the loop for a short duration to process the message.
@@ -470,7 +559,7 @@ mod tests {
         broadcast_channel_sender.send((stream_id2, receiver2)).await.unwrap();
 
         // Send a message on the stream.
-        let message3 = ConsensusMessage::Proposal(Proposal::default());
+        let message3 = ProposalPart::Init(ProposalInit::default());
         sender2.send(message3.clone()).await.unwrap();
 
         // Run the loop for a short duration to process the message.
@@ -488,7 +577,8 @@ mod tests {
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message3));
         assert_eq!(broadcasted_message.stream_id, stream_id2);
         assert_eq!(broadcasted_message.message_id, 0);
-        let mut vec1 = stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>();
+        let mut vec1 =
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&TestStreamId>>();
         vec1.sort();
         let mut vec2 = vec![&stream_id1, &stream_id2];
         vec2.sort();
@@ -512,7 +602,7 @@ mod tests {
 
         // Check that the information about this stream is gone.
         assert_eq!(
-            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(),
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&TestStreamId>>(),
             vec![&stream_id2]
         );
     }

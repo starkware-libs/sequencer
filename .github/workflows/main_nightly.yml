@@ -1,8 +1,8 @@
 name: Main-CI-Nightly
 on:
   schedule:
-    - cron: '30 23 * * *'  # Uses ubuntu runner.
-  workflow_dispatch:  # Uses ubuntu runner.
+    - cron: "0 0 * * *" # Runs at 00:00 UTC every day
+  workflow_dispatch:
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -12,14 +12,26 @@ jobs:
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
-        with:
-          # Fetch the entire history.
-          fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-
+      - run: npm install -g ganache@7.4.3
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - run: npm install -g ganache@7.4.3
+
+      - name: "Run codecov"
+        run: cargo llvm-cov --codecov --output-path codecov.json
+        env:
+          SEED: 0
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+  feature_combos:
+    runs-on: starkware-ubuntu-latest-large
+    steps:
+      - uses: actions/checkout@v4
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -28,30 +40,17 @@ jobs:
           python-version: "pypy3.9"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+          LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      - name: "Run codecov on pull request"
-        id: run_codecov_pr
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+
+      - name: Setup Python venv
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --command codecov --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-          if [ -f codecov.json ]; then
-            echo "codecov_output=true" >> $GITHUB_OUTPUT
-          else
-            echo "codecov_output=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          SEED: 0
 
-      - name: Codecov
-        if: steps.run_codecov_pr.outputs.codecov_output == 'true'
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          version: "v0.1.15"
-
-
+      # Run feature combo test.
+      - name: "Run feature combo on all crates."
+        run: ci/bin/python scripts/run_feature_combos_test.py

@@ -5,7 +5,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -80,6 +80,7 @@ const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
 const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                           erc20_contract_without_some_syscalls_compiled.json";
 const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cairo";
+const ERC20_SIERRA_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.sierra.json";
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
 // The following contracts are compiled with a fixed version of the compiler. This compiler version
@@ -168,9 +169,10 @@ impl FeatureContract {
             CairoVersion::Cairo0 => {
                 ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
             }
-            CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
-            }
+            CairoVersion::Cairo1(RunnableCairo1::Casm) => ContractClass::V1((
+                CasmContractClass::from_file(&self.get_compiled_path()),
+                self.get_sierra_version(),
+            )),
             #[cfg(feature = "cairo_native")]
             CairoVersion::Cairo1(RunnableCairo1::Native) => {
                 panic!("Native contracts are not supported by this function.")
@@ -202,6 +204,10 @@ impl FeatureContract {
         let cairo_contract_class: CairoLangContractClass =
             serde_json::from_str(&raw_sierra).unwrap();
         SierraContractClass::from(cairo_contract_class)
+    }
+
+    pub fn get_sierra_version(&self) -> SierraVersion {
+        SierraVersion::extract_from_program(&self.get_sierra().sierra_program).unwrap()
     }
 
     pub fn get_raw_class(&self) -> String {
@@ -290,8 +296,12 @@ impl FeatureContract {
 
     pub fn get_sierra_path(&self) -> String {
         assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
-        // TODO (Meshi 01/01/2025): add a spacial case for ERC20 when ERC20 sierra is supported.
-        assert!(!matches!(self, &Self::ERC20(CairoVersion::Cairo1(_))));
+        // This is not the compiled Sierra file of the existing ERC20 contract,
+        // but a file that was taken from the compiler repo of another ERC20 contract.
+        if matches!(self, &Self::ERC20(CairoVersion::Cairo1(_))) {
+            return ERC20_SIERRA_CONTRACT_PATH.to_string();
+        }
+
         format!(
             "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
             self.get_non_erc20_base_name()

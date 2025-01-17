@@ -1,3 +1,4 @@
+mod block_data_stream_builder;
 mod class;
 #[cfg(test)]
 mod class_test;
@@ -7,7 +8,8 @@ mod header_test;
 mod state_diff;
 #[cfg(test)]
 mod state_diff_test;
-mod stream_builder;
+#[cfg(test)]
+mod test;
 #[cfg(test)]
 mod test_utils;
 mod transaction;
@@ -17,14 +19,16 @@ mod transaction_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use block_data_stream_builder::{BlockDataResult, BlockDataStreamBuilder};
 use class::ClassStreamBuilder;
-use futures::channel::mpsc::SendError;
+use futures::channel::mpsc::{Receiver, SendError, Sender};
+use futures::never::Never;
 use futures::stream::BoxStream;
-use futures::Stream;
+use futures::{SinkExt as _, Stream};
 use header::HeaderStreamBuilder;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_config::converters::deserialize_milliseconds_to_duration;
-use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::sync::{
@@ -43,9 +47,8 @@ use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
-use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
-use tracing::instrument;
+use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;
 
 const STEP: u64 = 1;
@@ -54,7 +57,7 @@ const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub struct P2PSyncClientConfig {
+pub struct P2pSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
     pub num_block_transactions_per_query: u64,
@@ -62,12 +65,11 @@ pub struct P2PSyncClientConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
-    pub stop_sync_at_block_number: Option<BlockNumber>,
 }
 
-impl SerializeConfig for P2PSyncClientConfig {
+impl SerializeConfig for P2pSyncClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([
+        BTreeMap::from_iter([
             ser_param(
                 "num_headers_per_query",
                 &self.num_headers_per_query,
@@ -106,22 +108,13 @@ impl SerializeConfig for P2PSyncClientConfig {
                 "Size of the buffer for read from the storage and for incoming responses.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        config.extend(ser_optional_param(
-            &self.stop_sync_at_block_number,
-            BlockNumber(1000),
-            "stop_sync_at_block_number",
-            "Stops the sync at given block number and closes the node cleanly. Used to run \
-             profiling on the node.",
-            ParamPrivacyInput::Public,
-        ));
-        config
+        ])
     }
 }
 
-impl Default for P2PSyncClientConfig {
+impl Default for P2pSyncClientConfig {
     fn default() -> Self {
-        P2PSyncClientConfig {
+        P2pSyncClientConfig {
             num_headers_per_query: 10000,
             // State diffs are split into multiple messages, so big queries can lead to a lot of
             // messages in the network buffers.
@@ -131,13 +124,12 @@ impl Default for P2PSyncClientConfig {
             wait_period_for_new_data: Duration::from_millis(50),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
-            stop_sync_at_block_number: None,
         }
     }
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum P2PSyncClientError {
+pub enum P2pSyncClientError {
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     #[error("Network returned more responses than expected for a query.")]
     TooManyResponses,
@@ -162,15 +154,14 @@ type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffC
 type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
 type ClassSqmrSender = SqmrClientSender<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 
-pub struct P2PSyncClientChannels {
+pub struct P2pSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
     transaction_sender: TransactionSqmrSender,
-    #[allow(dead_code)]
     class_sender: ClassSqmrSender,
 }
 
-impl P2PSyncClientChannels {
+impl P2pSyncClientChannels {
     pub fn new(
         header_sender: HeaderSqmrSender,
         state_diff_sender: StateSqmrDiffSender,
@@ -182,76 +173,155 @@ impl P2PSyncClientChannels {
     pub(crate) fn create_stream(
         self,
         storage_reader: StorageReader,
-        config: P2PSyncClientConfig,
-    ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
+        config: P2pSyncClientConfig,
+        internal_blocks_receivers: InternalBlocksReceivers,
+    ) -> impl Stream<Item = BlockDataResult> + Send + 'static {
         let header_stream = HeaderStreamBuilder::create_stream(
             self.header_sender,
             storage_reader.clone(),
-            None,
+            Some(internal_blocks_receivers.header_receiver),
             config.wait_period_for_new_data,
             config.num_headers_per_query,
-            config.stop_sync_at_block_number,
         );
 
         let state_diff_stream = StateDiffStreamBuilder::create_stream(
             self.state_diff_sender,
             storage_reader.clone(),
-            None,
+            Some(internal_blocks_receivers.state_diff_receiver),
             config.wait_period_for_new_data,
             config.num_block_state_diffs_per_query,
-            config.stop_sync_at_block_number,
         );
 
         let transaction_stream = TransactionStreamFactory::create_stream(
             self.transaction_sender,
             storage_reader.clone(),
-            None,
+            Some(internal_blocks_receivers.transaction_receiver),
             config.wait_period_for_new_data,
             config.num_block_transactions_per_query,
-            config.stop_sync_at_block_number,
         );
 
         let class_stream = ClassStreamBuilder::create_stream(
             self.class_sender,
             storage_reader.clone(),
-            None,
+            Some(internal_blocks_receivers.class_receiver),
             config.wait_period_for_new_data,
             config.num_block_classes_per_query,
-            config.stop_sync_at_block_number,
         );
 
         header_stream.merge(state_diff_stream).merge(transaction_stream).merge(class_stream)
     }
 }
 
-pub struct P2PSyncClient {
-    config: P2PSyncClientConfig,
+pub struct P2pSyncClient {
+    config: P2pSyncClientConfig,
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
-    p2p_sync_channels: P2PSyncClientChannels,
-    #[allow(dead_code)]
-    internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+    p2p_sync_channels: P2pSyncClientChannels,
+    internal_blocks_receiver: BoxStream<'static, SyncBlock>,
 }
 
-impl P2PSyncClient {
+impl P2pSyncClient {
     pub fn new(
-        config: P2PSyncClientConfig,
+        config: P2pSyncClientConfig,
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
-        p2p_sync_channels: P2PSyncClientChannels,
-        internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+        p2p_sync_channels: P2pSyncClientChannels,
+        internal_blocks_receiver: BoxStream<'static, SyncBlock>,
     ) -> Self {
         Self { config, storage_reader, storage_writer, p2p_sync_channels, internal_blocks_receiver }
     }
 
     #[instrument(skip(self), level = "debug", err)]
-    pub async fn run(mut self) -> Result<(), P2PSyncClientError> {
+    pub async fn run(self) -> Result<Never, P2pSyncClientError> {
+        info!("Starting p2p sync client");
+
+        let InternalBlocksChannels {
+            receivers: internal_blocks_receivers,
+            senders: mut internal_blocks_senders,
+        } = InternalBlocksChannels::new();
+        let P2pSyncClient {
+            config,
+            storage_reader,
+            mut storage_writer,
+            p2p_sync_channels,
+            mut internal_blocks_receiver,
+        } = self;
         let mut data_stream =
-            self.p2p_sync_channels.create_stream(self.storage_reader.clone(), self.config);
+            p2p_sync_channels.create_stream(storage_reader, config, internal_blocks_receivers);
 
         loop {
-            let data = data_stream.next().await.expect("Sync data stream should never end")?;
-            data.write_to_storage(&mut self.storage_writer)?;
+            tokio::select! {
+                maybe_internal_block = internal_blocks_receiver.next() => {
+                    let sync_block = maybe_internal_block.expect("Internal blocks stream should never end");
+                    internal_blocks_senders.send(sync_block).await?;
+                }
+                data = data_stream.next() => {
+                    let data = data.expect("Sync data stream should never end")?;
+                    data.write_to_storage(&mut storage_writer)?;
+                }
+            }
+        }
+    }
+}
+
+pub(crate) struct InternalBlocksReceivers {
+    header_receiver: Receiver<SyncBlock>,
+    state_diff_receiver: Receiver<SyncBlock>,
+    transaction_receiver: Receiver<SyncBlock>,
+    class_receiver: Receiver<SyncBlock>,
+}
+
+pub struct InternalBlocksSenders {
+    header_sender: Sender<SyncBlock>,
+    state_diff_sender: Sender<SyncBlock>,
+    transaction_sender: Sender<SyncBlock>,
+    class_sender: Sender<SyncBlock>,
+}
+
+impl InternalBlocksSenders {
+    pub async fn send(&mut self, sync_block: SyncBlock) -> Result<(), SendError> {
+        let header_send = self.header_sender.send(sync_block.clone());
+        let state_diff_send = self.state_diff_sender.send(sync_block.clone());
+        let transaction_send = self.transaction_sender.send(sync_block.clone());
+        let class_send = self.class_sender.send(sync_block);
+        let res =
+            futures::future::join4(header_send, state_diff_send, transaction_send, class_send)
+                .await;
+        match res {
+            (Ok(()), Ok(()), Ok(()), Ok(())) => Ok(()),
+            (Err(e), _, _, _) => Err(e),
+            (_, Err(e), _, _) => Err(e),
+            (_, _, Err(e), _) => Err(e),
+            (_, _, _, Err(e)) => Err(e),
+        }
+    }
+}
+
+struct InternalBlocksChannels {
+    receivers: InternalBlocksReceivers,
+    senders: InternalBlocksSenders,
+}
+
+impl InternalBlocksChannels {
+    pub fn new() -> Self {
+        let (header_sender, header_receiver) = futures::channel::mpsc::channel(100);
+        let (state_diff_sender, state_diff_receiver) = futures::channel::mpsc::channel(100);
+        let (transaction_sender, transaction_receiver) = futures::channel::mpsc::channel(100);
+        let (class_sender, class_receiver) = futures::channel::mpsc::channel(100);
+
+        Self {
+            receivers: InternalBlocksReceivers {
+                header_receiver,
+                state_diff_receiver,
+                transaction_receiver,
+                class_receiver,
+            },
+            senders: InternalBlocksSenders {
+                header_sender,
+                state_diff_sender,
+                transaction_sender,
+                class_sender,
+            },
         }
     }
 }

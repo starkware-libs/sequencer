@@ -213,6 +213,13 @@ macro_rules! add_tx_input {
             max_l2_gas_price: $max_l2_gas_price
         )
     };
+    (address: $address:expr) => {
+        add_tx_input!(
+            tx_hash: 0,
+            address: $address,
+            tip: 0
+        )
+    };
 }
 
 #[track_caller]
@@ -233,13 +240,14 @@ pub fn add_tx_expect_error(
 pub fn commit_block(
     mempool: &mut Mempool,
     nonces: impl IntoIterator<Item = (&'static str, u8)>,
-    tx_hashes: impl IntoIterator<Item = u8>,
+    rejected_tx_hashes: impl IntoIterator<Item = u8>,
 ) {
     let nonces = HashMap::from_iter(
         nonces.into_iter().map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
     );
-    let tx_hashes = HashSet::from_iter(tx_hashes.into_iter().map(|tx_hash| tx_hash!(tx_hash)));
-    let args = CommitBlockArgs { address_to_nonce: nonces, tx_hashes };
+    let rejected_tx_hashes =
+        HashSet::from_iter(rejected_tx_hashes.into_iter().map(|tx_hash| tx_hash!(tx_hash)));
+    let args = CommitBlockArgs { address_to_nonce: nonces, rejected_tx_hashes };
 
     assert_eq!(mempool.commit_block(args), Ok(()));
 }

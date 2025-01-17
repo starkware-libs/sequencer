@@ -1,5 +1,9 @@
+use std::path::PathBuf;
+
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
+use starknet_api::block::StarknetVersion;
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 
 use super::*;
 
@@ -19,7 +23,7 @@ fn test_successful_gas_costs_parsing() {
         "entry_point_initial_budget": {
             "step_gas_cost": 3
         },
-        "transaction_gas_cost": {
+        "syscall_base_gas_cost": {
             "entry_point_initial_budget": 4,
             "step_gas_cost": 5
         },
@@ -33,7 +37,10 @@ fn test_successful_gas_costs_parsing() {
     assert_eq!(versioned_constants.os_constants.gas_costs.base.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
 
     // entry_point_initial_budget * 4 + step_gas_cost * 5.
-    assert_eq!(versioned_constants.os_constants.gas_costs.base.transaction_gas_cost, 6 * 4 + 2 * 5);
+    assert_eq!(
+        versioned_constants.os_constants.gas_costs.base.syscall_base_gas_cost,
+        6 * 4 + 2 * 5
+    );
 }
 
 /// Assert versioned constants overrides are used when provided.

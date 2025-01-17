@@ -13,7 +13,6 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tracing::{debug, error, warn};
 
-use super::peer::PeerTrait;
 use super::{PeerManager, PeerManagerError};
 use crate::sqmr::OutboundSessionId;
 
@@ -140,13 +139,16 @@ impl NetworkBehaviour for PeerManager {
                         )
                         .add_connection_id(connection_id);
                 } else {
-                    let Some(peer) = self.peers.get_mut(&peer_id) else {
-                        // TODO(shahak): Consider tracking connection ids for peers we don't know
-                        // yet because once a connection is established we'll shortly receive an
-                        // identify message and add this peer.
+                    if let Some(peer) = self.peers.get_mut(&peer_id) {
+                        peer.add_connection_id(connection_id);
                         return;
                     };
-                    peer.add_connection_id(connection_id);
+                    match self.connections_for_unknown_peers.get_mut(&peer_id) {
+                        Some(connection_ids) => connection_ids.push(connection_id),
+                        None => {
+                            self.connections_for_unknown_peers.insert(peer_id, vec![connection_id]);
+                        }
+                    }
                 }
             }
             libp2p::swarm::FromSwarm::ConnectionClosed(ConnectionClosed {
@@ -154,17 +156,22 @@ impl NetworkBehaviour for PeerManager {
                 connection_id,
                 ..
             }) => {
-                if let Some(peer) = self.peers.get_mut(&peer_id) {
-                    let known_connection_ids = peer.connection_ids();
-                    if known_connection_ids.contains(&connection_id) {
-                        peer.remove_connection_id(connection_id);
-                    } else {
-                        error!(
-                            "Connection closed event for a peer with a different connection id. \
-                             known connection ids: {:?}, emitted connection id: {}",
-                            known_connection_ids, connection_id
-                        );
-                    }
+                let mut empty_connection_ids = vec![];
+                let known_connection_ids = match self.peers.get_mut(&peer_id) {
+                    Some(peer) => peer.connection_ids_mut(),
+                    None => self
+                        .connections_for_unknown_peers
+                        .get_mut(&peer_id)
+                        .unwrap_or(&mut empty_connection_ids),
+                };
+                if known_connection_ids.contains(&connection_id) {
+                    known_connection_ids.retain(|&id| id != connection_id);
+                } else {
+                    error!(
+                        "Connection id {:?} was closed and it should appear in the known \
+                         connection ids, but it doesn't. known connection ids: {:?}.",
+                        connection_id, known_connection_ids
+                    );
                 }
             }
             _ => {}

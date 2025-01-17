@@ -1,4 +1,0 @@
-[submodule "crates/blockifier/cairo_native"]
-    path = crates/blockifier/cairo_native
-    url = https://github.com/lambdaclass/cairo_native
-    rev = 6a4efafa26d6a0424dee593d2091206c6e9f428d

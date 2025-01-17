@@ -5,13 +5,18 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::constants;
 use starknet_api::{calldata, felt};
 
 use crate::context::BlockContext;
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    SierraGasRevertTracker,
+};
 use crate::state::state_api::State;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
@@ -77,10 +82,11 @@ fn fee_transfer_resources(
                 ),
                 ExecutionMode::Execute,
                 false,
+                // No need to limit gas in fee transfer.
+                SierraGasRevertTracker::new(GasAmount::MAX),
             ),
             &mut remaining_gas,
         )
         .unwrap()
-        .charged_resources
-        .vm_resources
+        .resources
 }

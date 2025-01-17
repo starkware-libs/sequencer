@@ -12,18 +12,18 @@ use papyrus_config::converters::{
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::NetworkConfig;
+use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
+use validator::Validate;
 
-use super::types::ValidatorId;
-use crate::types::DEFAULT_VALIDATOR_ID;
+use crate::types::ValidatorId;
 
 const CONSENSUS_TCP_PORT: u16 = 10100;
-const CONSENSUS_QUIC_PORT: u16 = 10101;
 
 /// Configuration for consensus.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ConsensusConfig {
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
@@ -41,8 +41,11 @@ pub struct ConsensusConfig {
     pub consensus_delay: Duration,
     /// Timeouts configuration for consensus.
     pub timeouts: TimeoutsConfig,
-    // TODO(Dan/Matan): validate configs (#[validate]).
+    /// The duration (seconds) between sync attempts.
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub sync_retry_interval: Duration,
     /// The network configuration for the consensus.
+    #[validate]
     pub network_config: NetworkConfig,
 }
 
@@ -85,6 +88,12 @@ impl SerializeConfig for ConsensusConfig {
                 "Delay (seconds) before starting consensus to give time for network peering.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "sync_retry_interval",
+                &self.sync_retry_interval.as_secs_f64(),
+                "The duration (seconds) between sync attempts.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
@@ -94,11 +103,7 @@ impl SerializeConfig for ConsensusConfig {
 
 impl Default for ConsensusConfig {
     fn default() -> Self {
-        let network_config = NetworkConfig {
-            tcp_port: CONSENSUS_TCP_PORT,
-            quic_port: CONSENSUS_QUIC_PORT,
-            ..Default::default()
-        };
+        let network_config = NetworkConfig { tcp_port: CONSENSUS_TCP_PORT, ..Default::default() };
         Self {
             chain_id: ChainId::Other("0x0".to_string()),
             validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
@@ -107,6 +112,7 @@ impl Default for ConsensusConfig {
             num_validators: 1,
             consensus_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
+            sync_retry_interval: Duration::from_secs_f64(1.0),
             network_config,
         }
     }

@@ -1,12 +1,12 @@
 import json
+import typing
 
-from itertools import chain
 from constructs import Construct
-from cdk8s import Names, ApiObjectMetadata
+from cdk8s import Names
 from imports import k8s
-from imports.com.google import cloud as google
+from imports.k8s import IngressTls
 
-from services import topology
+from services import topology, const
 
 
 class ServiceApp(Construct):
@@ -16,252 +16,204 @@ class ServiceApp(Construct):
         id: str,
         *,
         namespace: str,
-        topology: topology.ServiceTopology,
+        service_topology: topology.ServiceTopology,
     ):
         super().__init__(scope, id)
 
         self.namespace = namespace
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
-        self.topology = topology
-        self.node_config = topology.config.get_config()
+        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
+        self.service_topology = service_topology
+        self.node_config = service_topology.config.get_merged_config()
 
-        self.set_k8s_namespace()
+        k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
 
-        if topology.service is not None:
-            self.set_k8s_service()
-
-        if topology.config is not None:
-            self.set_k8s_configmap()
-
-        if topology.deployment is not None:
-            self.set_k8s_deployment()
-
-        if topology.ingress is not None:
-            self.set_k8s_ingress()
-
-        if topology.pvc is not None:
-            self.set_k8s_pvc()
-
-    def set_k8s_namespace(self):
-        return k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
-
-    def set_k8s_configmap(self):
-        return k8s.KubeConfigMap(
+        k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.topology.config.get_config())),
+            data=dict(config=json.dumps(self.service_topology.config.get_config())),
         )
 
-    def set_k8s_service(self):
-        return k8s.KubeService(
+        k8s.KubeService(
             self,
             "service",
             spec=k8s.ServiceSpec(
-                type=self.topology.service.type.value,
-                ports=[
-                    k8s.ServicePort(
-                        name=port.name,
-                        port=port.port,
-                        target_port=k8s.IntOrString.from_number(port.container_port),
-                    )
-                    for port in self.topology.service.ports
-                ],
+                type=const.ServiceType.CLUSTER_IP,
+                ports=self._get_service_ports(),
                 selector=self.label,
             ),
         )
 
-    def _get_container_ports(self):
-        ports = []
-        for c in ["http_server_config.port", "monitoring_endpoint_config.port"]:
-            ports.append(self.node_config[c].get("value"))
-        return ports
-
-    def set_k8s_deployment(self):
-        node_http_port = self.node_config["http_server_config.port"].get("value")
-        return k8s.KubeDeployment(
+        k8s.KubeDeployment(
             self,
             "deployment",
             spec=k8s.DeploymentSpec(
-                replicas=self.topology.deployment.replicas,
+                replicas=self.service_topology.deployment.replicas,
                 selector=k8s.LabelSelector(match_labels=self.label),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.label),
                     spec=k8s.PodSpec(
                         security_context=k8s.PodSecurityContext(fs_group=1000),
+                        volumes=self._get_volumes(),
                         containers=[
                             k8s.Container(
-                                name=f"{self.node.id}-{container.name}",
-                                image=container.image,
+                                name=self.node.id,
+                                image=self.service_topology.images.get("sequencer"),
+                                image_pull_policy="IfNotPresent",
                                 # command=["sleep", "infinity"],
-                                args=container.args,
-                                ports=[
-                                    k8s.ContainerPort(
-                                        container_port=port,
-                                    )
-                                    for port in self._get_container_ports()
-                                ],
-                                startup_probe=(
-                                    k8s.Probe(
-                                        http_get=k8s.HttpGetAction(
-                                            path=container.startup_probe.path,
-                                            port=k8s.IntOrString.from_number(node_http_port),
-                                        ),
-                                        period_seconds=container.startup_probe.period_seconds,
-                                        failure_threshold=container.startup_probe.failure_threshold,
-                                        timeout_seconds=container.startup_probe.timeout_seconds,
-                                    )
-                                    if container.startup_probe is not None
-                                    else None
-                                ),
-                                readiness_probe=(
-                                    k8s.Probe(
-                                        http_get=k8s.HttpGetAction(
-                                            path=container.readiness_probe.path,
-                                            port=k8s.IntOrString.from_number(node_http_port),
-                                        ),
-                                        period_seconds=container.readiness_probe.period_seconds,
-                                        failure_threshold=container.readiness_probe.failure_threshold,
-                                        timeout_seconds=container.readiness_probe.timeout_seconds,
-                                    )
-                                    if container.readiness_probe is not None
-                                    else None
-                                ),
-                                liveness_probe=(
-                                    k8s.Probe(
-                                        http_get=k8s.HttpGetAction(
-                                            path=container.liveness_probe.path,
-                                            port=k8s.IntOrString.from_number(node_http_port),
-                                        ),
-                                        period_seconds=container.liveness_probe.period_seconds,
-                                        failure_threshold=container.liveness_probe.failure_threshold,
-                                        timeout_seconds=container.liveness_probe.timeout_seconds,
-                                    )
-                                    if container.liveness_probe is not None
-                                    else None
-                                ),
-                                volume_mounts=[
-                                    k8s.VolumeMount(
-                                        name=mount.name,
-                                        mount_path=mount.mount_path,
-                                        read_only=mount.read_only,
-                                    )
-                                    for mount in container.volume_mounts
-                                ],
+                                args=const.CONTAINER_ARGS,
+                                ports=self._get_container_ports(),
+                                startup_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(),
+                                liveness_probe=self._get_http_probe(),
+                                volume_mounts=self._get_volume_mounts(),
                             )
-                            for container in self.topology.deployment.containers
                         ],
-                        volumes=list(
-                            chain(
-                                (
-                                    (
-                                        k8s.Volume(
-                                            name=f"{self.node.id}-{volume.name}",
-                                            config_map=k8s.ConfigMapVolumeSource(
-                                                name=f"{self.node.id}-{volume.name}"
-                                            ),
-                                        )
-                                        for volume in self.topology.deployment.configmap_volumes
-                                    )
-                                    if self.topology.deployment.configmap_volumes is not None
-                                    else None
-                                ),
-                                (
-                                    (
-                                        k8s.Volume(
-                                            name=f"{self.node.id}-{volume.name}",
-                                            persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
-                                                claim_name=f"{self.node.id}-{volume.name}",
-                                                read_only=volume.read_only,
-                                            ),
-                                        )
-                                        for volume in self.topology.deployment.pvc_volumes
-                                    )
-                                    if self.topology.deployment is not None
-                                    else None
-                                ),
-                            )
-                        ),
                     ),
                 ),
             ),
         )
 
-    def set_k8s_ingress(self):
-        return k8s.KubeIngress(
+        k8s.KubeIngress(
             self,
             "ingress",
             metadata=k8s.ObjectMeta(
                 name=f"{self.node.id}-ingress",
                 labels=self.label,
-                annotations=self.topology.ingress.annotations,
+                annotations={
+                    "kubernetes.io/tls-acme": "true",
+                    "cert-manager.io/common-name": self.host,
+                    "cert-manager.io/issue-temporary-certificate": "true",
+                    "cert-manager.io/issuer": "letsencrypt-prod",
+                    "acme.cert-manager.io/http01-edit-in-place": "true",
+                },
             ),
             spec=k8s.IngressSpec(
-                ingress_class_name=self.topology.ingress.class_name,
-                tls=[
-                    k8s.IngressTls(hosts=tls.hosts, secret_name=tls.secret_name)
-                    for tls in self.topology.ingress.tls or []
-                ],
-                rules=[
-                    k8s.IngressRule(
-                        host=rule.host,
-                        http=k8s.HttpIngressRuleValue(
-                            paths=[
-                                k8s.HttpIngressPath(
-                                    path=path.path,
-                                    path_type=path.path_type,
-                                    backend=k8s.IngressBackend(
-                                        service=k8s.IngressServiceBackend(
-                                            name=path.backend_service_name,
-                                            port=k8s.ServiceBackendPort(
-                                                number=path.backend_service_port_number
-                                            ),
-                                        )
-                                    ),
-                                )
-                                for path in rule.paths or []
-                            ]
-                        ),
-                    )
-                    for rule in self.topology.ingress.rules or []
-                ],
+                ingress_class_name="premium-rwo",
+                tls=self._get_ingress_tls(),
+                rules=self._get_ingress_rules()
             ),
         )
 
-    def set_k8s_pvc(self):
         k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.label),
             spec=k8s.PersistentVolumeClaimSpec(
-                storage_class_name=self.topology.pvc.storage_class_name,
-                access_modes=self.topology.pvc.access_modes,
-                volume_mode=self.topology.pvc.volume_mode,
+                storage_class_name=self.service_topology.pvc.storage_class_name,
+                access_modes=self.service_topology.pvc.access_modes,
+                volume_mode=self.service_topology.pvc.volume_mode,
                 resources=k8s.ResourceRequirements(
-                    requests={"storage": k8s.Quantity.from_string(self.topology.pvc.storage)}
+                    requests={"storage": k8s.Quantity.from_string(self.service_topology.pvc.storage)}
                 ),
             ),
         )
 
-    def set_k8s_backend_config(self):
-        return google.BackendConfig(
+
+    def _get_config_attr(self, attribute) -> str | int:
+        config_attr = self.node_config.get(attribute).get('value')
+        assert config_attr is not None, f'Config attribute "{attribute}" is missing.'
+
+        return config_attr
+
+    def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
+        return [
+            k8s.ContainerPort(
+                container_port=self._get_config_attr(port)
+            ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_container_resources(self): # TODO: implement method to calc resources based on config
+        pass
+
+    def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
+        return [
+            k8s.ServicePort(
+                name=attr.split("_")[0],
+                port=self._get_config_attr(attr),
+                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
+            ) for attr in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_http_probe(
             self,
-            "backendconfig",
-            metadata=ApiObjectMetadata(name=f"{self.node.id}-backendconfig", labels=self.label),
-            spec=google.BackendConfigSpec(
-                health_check=google.BackendConfigSpecHealthCheck(
-                    check_interval_sec=5,
-                    healthy_threshold=10,
-                    unhealthy_threshold=5,
-                    timeout_sec=5,
-                    request_path="/",
-                    type="http",
-                ),
-                iap=google.BackendConfigSpecIap(
-                    enabled=True,
-                    oauthclient_credentials=google.BackendConfigSpecIapOauthclientCredentials(
-                        secret_name=""
-                    ),
-                ),
+            period_seconds: int = const.PROBE_PERIOD_SECONDS,
+            failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
+            timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
+    ) -> k8s.Probe:
+        path = "/monitoring/alive"
+        # path = self.node_config['monitoring_path'].get("value") # TODO add monitoring path in node_config
+        port = self.node_config.get('monitoring_endpoint_config.port').get("value")
+
+        return k8s.Probe(
+            http_get=k8s.HttpGetAction(
+                path=path,
+                port=k8s.IntOrString.from_number(port),
             ),
+            period_seconds=period_seconds,
+            failure_threshold=failure_threshold,
+            timeout_seconds=timeout_seconds,
         )
+
+    def _get_volume_mounts(self) -> typing.List[k8s.VolumeMount]:
+        return [
+            k8s.VolumeMount(
+                name=f"{self.node.id}-config",
+                mount_path="/config/sequencer/presets/",
+                read_only=True
+            ),
+            k8s.VolumeMount(
+                name=f"{self.node.id}-data",
+                mount_path="/data",
+                read_only=False
+            )
+        ]
+
+    def _get_volumes(self) -> typing.List[k8s.Volume]:
+        return [
+            k8s.Volume(
+                name=f"{self.node.id}-config",
+                config_map=k8s.ConfigMapVolumeSource(
+                    name=f"{self.node.id}-config"
+                )
+            ),
+            k8s.Volume(
+                name=f"{self.node.id}-data",
+                persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
+                    claim_name=f"{self.node.id}-data",
+                    read_only=False
+                )
+            )
+        ]
+
+    def _get_ingress_rules(self) -> typing.List[k8s.IngressRule]:
+        return [
+            k8s.IngressRule(
+                host=self.host,
+                http=k8s.HttpIngressRuleValue(
+                    paths=[
+                        k8s.HttpIngressPath(
+                            path="/monitoring",
+                            path_type="Prefix",
+                            backend=k8s.IngressBackend(
+                                service=k8s.IngressServiceBackend(
+                                    name=f"{self.node.id}-service",
+                                    port=k8s.ServiceBackendPort(
+                                        number=self._get_config_attr("monitoring_endpoint_config.port")
+                                    ),
+                                )
+                            ),
+                        )
+                    ]
+                ),
+            )
+        ]
+
+    def _get_ingress_tls(self) -> typing.List[IngressTls]:
+        return [
+            k8s.IngressTls(
+                hosts=[self.host],
+                secret_name=f"{self.node.id}-tls"
+            )
+        ]

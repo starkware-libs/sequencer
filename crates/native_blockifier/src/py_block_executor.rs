@@ -4,16 +4,18 @@ use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
-use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
+use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutor,
+    TransactionExecutorError,
+};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
-use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::fee::receipt::TransactionReceipt;
-use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
-use blockifier::utils::usize_from_u64;
 use blockifier::versioned_constants::VersionedConstants;
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
@@ -45,7 +47,6 @@ use crate::storage::{
 };
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
-pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
 
 #[cfg(test)]
 #[path = "py_block_executor_test.rs"]
@@ -91,11 +92,10 @@ impl ThinTransactionExecutionInfo {
     }
 
     pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
-        let GasVector { l1_gas, l1_data_gas, l2_gas } = receipt.gas;
         let vm_resources = &receipt.resources.computation.vm_resources;
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps(),
+            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
         )]);
         resources.extend(
             vm_resources
@@ -103,26 +103,6 @@ impl ThinTransactionExecutionInfo {
                 .iter()
                 .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
         );
-        // TODO(Yoni) remove these since we pass the gas vector in separate.
-        resources.extend(HashMap::from([
-            (
-                abi_constants::L1_GAS_USAGE.to_string(),
-                usize_from_u64(l1_gas.0)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-            (
-                abi_constants::BLOB_GAS_USAGE.to_string(),
-                usize_from_u64(l1_data_gas.0)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-            (
-                abi_constants::L2_GAS_USAGE.to_string(),
-                usize_from_u64(l2_gas.0)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-        ]));
-        *resources.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
-            receipt.resources.computation.n_reverted_steps;
 
         ResourcesMapping(resources)
     }
@@ -137,8 +117,7 @@ pub struct PyBlockExecutor {
     pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
-    pub contract_class_manager_config: ContractClassManagerConfig,
-    pub global_contract_cache: GlobalContractCache<VersionedRunnableCompiledClass>,
+    pub contract_class_manager: ContractClassManager,
 }
 
 #[pymethods]
@@ -169,9 +148,8 @@ impl PyBlockExecutor {
             versioned_constants,
             tx_executor: None,
             storage: Box::new(storage),
-            contract_class_manager_config: contract_class_manager_config.into(),
-            global_contract_cache: GlobalContractCache::new(
-                contract_class_manager_config.contract_cache_size,
+            contract_class_manager: ContractClassManager::start(
+                contract_class_manager_config.into(),
             ),
         }
     }
@@ -279,29 +257,24 @@ impl PyBlockExecutor {
         })
     }
 
-    /// Returns the state diff, a list of contract class hash with the corresponding list of
-    /// visited segment values and the block weights.
+    /// Returns the state diff, the stateful-compressed state diff and the block weights.
     pub fn finalize(
         &mut self,
-    ) -> NativeBlockifierResult<(PyStateDiff, PyVisitedSegmentsMapping, Py<PyBytes>)> {
+    ) -> NativeBlockifierResult<(PyStateDiff, Option<PyStateDiff>, Py<PyBytes>)> {
         log::debug!("Finalizing execution...");
-        let (commitment_state_diff, visited_pcs, block_weights) = self.tx_executor().finalize()?;
-        let visited_pcs = visited_pcs
-            .into_iter()
-            .map(|(class_hash, class_visited_pcs_vec)| {
-                (PyFelt::from(class_hash), class_visited_pcs_vec)
-            })
-            .collect();
-        let py_state_diff = PyStateDiff::from(commitment_state_diff);
+        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
+            self.tx_executor().finalize()?;
+        let py_state_diff = PyStateDiff::from(state_diff);
+        let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
 
         let serialized_block_weights =
-            serde_json::to_vec(&block_weights).expect("Failed serializing bouncer weights.");
+            serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
         let raw_block_weights =
             Python::with_gil(|py| PyBytes::new(py, &serialized_block_weights).into());
 
         log::debug!("Finalized execution.");
 
-        Ok((py_state_diff, visited_pcs, raw_block_weights))
+        Ok((py_state_diff, py_compressed_state_diff, raw_block_weights))
     }
 
     // Storage Alignment API.
@@ -365,8 +338,8 @@ impl PyBlockExecutor {
     /// (this is true for every partial existence of information at tables).
     #[pyo3(signature = (block_number))]
     pub fn revert_block(&mut self, block_number: u64) -> NativeBlockifierResult<()> {
-        // Clear global class cache, to peroperly revert classes declared in the reverted block.
-        self.global_contract_cache.clear();
+        // Clear global class cache, to properly revert classes declared in the reverted block.
+        self.contract_class_manager.clear();
         self.storage.revert_block(block_number)
     }
 
@@ -407,9 +380,8 @@ impl PyBlockExecutor {
             chain_info: os_config.into_chain_info(),
             versioned_constants,
             tx_executor: None,
-            contract_class_manager_config: contract_class_manager_config.into(),
-            global_contract_cache: GlobalContractCache::new(
-                contract_class_manager_config.contract_cache_size,
+            contract_class_manager: ContractClassManager::start(
+                contract_class_manager_config.into(),
             ),
         }
     }
@@ -426,12 +398,11 @@ impl PyBlockExecutor {
         PapyrusReader::new(
             self.storage.reader().clone(),
             next_block_number,
-            self.global_contract_cache.clone(),
+            self.contract_class_manager.clone(),
         )
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
-        use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
         Self {
             bouncer_config: BouncerConfig::max(),
             tx_executor_config: TransactionExecutorConfig::create_for_testing(true),
@@ -439,12 +410,9 @@ impl PyBlockExecutor {
             chain_info: ChainInfo::default(),
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
-            contract_class_manager_config: ContractClassManagerConfig {
-                run_cairo_native: false,
-                wait_on_native_compilation: false,
-                contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
-            },
-            global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            contract_class_manager: ContractClassManager::start(
+                ContractClassManagerConfig::default(),
+            ),
         }
     }
 

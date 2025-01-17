@@ -7,6 +7,13 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{calculate_contract_address, ChainId};
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::{
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::transaction::{
     EventContent,
@@ -20,7 +27,7 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, OrderedEvent};
+use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -34,11 +41,6 @@ use crate::test_utils::{
     get_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
     CommonAccountFields,
@@ -153,9 +155,7 @@ fn test_nested_library_call() {
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
-        charged_resources: ChargedResources::from_execution_resources(
-            storage_entry_point_resources.clone(),
-        ),
+        resources: storage_entry_point_resources.clone(),
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
         ..Default::default()
@@ -170,18 +170,14 @@ fn test_nested_library_call() {
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
-        charged_resources: ChargedResources::from_execution_resources(
-            library_call_resources.clone(),
-        ),
+        resources: library_call_resources.clone(),
         inner_calls: vec![nested_storage_call_info],
         ..Default::default()
     };
     let storage_call_info = CallInfo {
         call: storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value)]),
-        charged_resources: ChargedResources::from_execution_resources(
-            storage_entry_point_resources.clone(),
-        ),
+        resources: storage_entry_point_resources.clone(),
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([storage_key!(key)]),
         ..Default::default()
@@ -198,7 +194,7 @@ fn test_nested_library_call() {
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution::from_retdata(retdata![felt!(0_u8)]),
-        charged_resources: ChargedResources::from_execution_resources(main_call_resources),
+        resources: main_call_resources,
         inner_calls: vec![library_call_info, storage_call_info],
         ..Default::default()
     };
@@ -243,11 +239,11 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution.clone(),
-        charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
+        resources: ExecutionResources {
             n_steps: 222,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
-        }),
+        },
         storage_read_values: vec![value],
         accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
         ..Default::default()
@@ -261,14 +257,12 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution,
-        charged_resources: ChargedResources::from_execution_resources(
-            &get_syscall_resources(DeprecatedSyscallSelector::CallContract)
-                + &ExecutionResources {
-                    n_steps: 261,
-                    n_memory_holes: 0,
-                    builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-                },
-        ),
+        resources: &get_syscall_resources(DeprecatedSyscallSelector::CallContract)
+            + &ExecutionResources {
+                n_steps: 261,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+            },
         ..Default::default()
     };
 

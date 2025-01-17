@@ -4,4 +4,5 @@
   "strk_fee_token_address": "0x7",
   "batcher_config.storage.db_config.path_prefix": "/data",
   "batcher_config.storage.db_config.enforce_file_exists": false,
+  "validator_id" : "0x1"
 }

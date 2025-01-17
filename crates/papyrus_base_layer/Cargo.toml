@@ -17,14 +17,14 @@ alloy-dyn-abi.workspace = true
 alloy-json-rpc.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
-alloy-sol-types.workspace = true
+alloy-rpc-types-eth.workspace = true
+alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport.workspace = true
 alloy-transport-http.workspace = true
 async-trait.workspace = true
 ethers.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tar = { workspace = true, optional = true }
@@ -32,6 +32,7 @@ tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 url = { workspace = true, features = ["serde"] }
+validator.workspace = true
 
 [dev-dependencies]
 ethers-core.workspace = true

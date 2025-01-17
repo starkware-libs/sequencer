@@ -18,10 +18,13 @@ starknet_api.workspace = true
 starknet_l1_provider_types.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+alloy-node-bindings.workspace = true
+alloy-primitives.workspace = true
 assert_matches.workspace = true
 pretty_assertions.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }

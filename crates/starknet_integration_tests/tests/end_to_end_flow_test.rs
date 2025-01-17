@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -15,18 +16,24 @@ use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_integration_tests::flow_test_setup::FlowTestSetup;
+use starknet_infra_utils::test_utils::TestIdentifier;
+use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::utils::{
+    create_funding_txs,
     create_integration_test_tx_generator,
+    create_txs_for_integration_test,
     run_integration_test_scenario,
+    test_tx_hashes_for_integration_test,
+    UNDEPLOYED_ACCOUNT_ID,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(2);
+const LAST_HEIGHT: BlockNumber = BlockNumber(4);
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -41,18 +48,16 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(50);
     // Setup.
-    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
+    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(
+        &tx_generator,
+        TestIdentifier::EndToEndFlowTest.into(),
+    )
+    .await;
 
-    let next_height = INITIAL_HEIGHT.unchecked_next();
-    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
-    let expected_content_ids = [
-        Felt::from_hex_unchecked(
-            "0x457e9172b9c70fb4363bb3ff31bf778d8f83828184a9a3f9badadc497f2b954",
-        ),
-        Felt::from_hex_unchecked(
-            "0x572373fe992ac8c2413d5e727036316023ed6a2e8a2256b4952e223969e0221",
-        ),
-    ];
+    tokio::join!(
+        wait_for_sequencer_node(&mock_running_system.sequencer_0),
+        wait_for_sequencer_node(&mock_running_system.sequencer_1),
+    );
 
     let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
     // We use only the first sequencer's gateway to test that the mempools are syncing.
@@ -62,18 +67,21 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     expected_proposer_iter.next().unwrap();
 
     // Build multiple heights to ensure heights are committed.
-    for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
+    for (height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id) in create_test_blocks()
+    {
         debug!("Starting height {}.", height);
         // Create and send transactions.
-        let expected_batched_tx_hashes =
-            run_integration_test_scenario(&mut tx_generator, &mut |tx| {
-                sequencer_to_add_txs.assert_add_tx_success(tx)
-            })
-            .await;
+        let expected_batched_tx_hashes = run_integration_test_scenario(
+            &mut tx_generator,
+            create_rpc_txs_fn,
+            &mut |tx| sequencer_to_add_txs.assert_add_tx_success(tx),
+            test_tx_hashes_fn,
+        )
+        .await;
         let expected_validator_id = expected_proposer_iter
             .next()
             .unwrap()
-            .config
+            .node_config
             .consensus_manager_config
             .consensus_config
             .validator_id;
@@ -93,8 +101,58 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     }
 }
 
+type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
+type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
+type ExpectedContentId = Felt;
+
+fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> {
+    let next_height = INITIAL_HEIGHT.unchecked_next();
+    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
+    let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
+        (
+            create_txs_for_integration_test,
+            test_tx_hashes_for_integration_test,
+            Felt::from_hex_unchecked(
+                "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
+            ),
+        ),
+        (
+            create_txs_for_integration_test,
+            test_tx_hashes_for_integration_test,
+            Felt::from_hex_unchecked(
+                "0x5c17ba5f9681bcc8ca5a9dee3fe3a9fd2da42e660a99c64aa1a95fa826a1b2",
+            ),
+        ),
+        (
+            create_funding_txs,
+            test_single_tx,
+            Felt::from_hex_unchecked(
+                "0x14155afd2c9f08ff4e5c1b946aafefab3ae8bd190ec47cdece8d5164fe6c795",
+            ),
+        ),
+        (
+            deploy_account,
+            test_single_tx,
+            Felt::from_hex_unchecked(
+                "0xa7c607b6c3a1f3153bf979b41999dd3fdce771fdc49b13d6f12a98085dcb9c",
+            ),
+        ),
+    ];
+    itertools::zip_eq(heights_to_build, test_scenarios)
+        .map(|(h, (create_txs_fn, test_tx_hashes_fn, expected_content_id))| {
+            (h, create_txs_fn, test_tx_hashes_fn, expected_content_id)
+        })
+        .collect()
+}
+
+async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
+    sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
+}
+
 async fn listen_to_broadcasted_messages(
-    consensus_proposals_channels: &mut BroadcastTopicChannels<StreamMessage<ProposalPart>>,
+    consensus_proposals_channels: &mut BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
     expected_content_id: Felt,
@@ -106,9 +164,8 @@ async fn listen_to_broadcasted_messages(
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
         height: expected_height,
-        round: 0,
-        valid_round: None,
         proposer: expected_proposer_id,
+        ..Default::default()
     };
     let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
 
@@ -181,4 +238,16 @@ async fn listen_to_broadcasted_messages(
         expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>(),
         "Unexpected transactions"
     );
+}
+
+fn deploy_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
+    let undeployed_account_tx_generator = tx_generator.account_with_id_mut(UNDEPLOYED_ACCOUNT_ID);
+    assert!(!undeployed_account_tx_generator.is_deployed());
+    let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
+    vec![deploy_tx]
+}
+
+fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
+    tx_hashes.to_vec()
 }

@@ -11,6 +11,7 @@ use starknet_mempool_p2p_types::communication::{
 use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use tracing::warn;
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
@@ -36,7 +37,16 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                     .broadcast_topic_client
                     .broadcast_message(RpcTransactionWrapper(transaction))
                     .await
-                    .map_err(|_| MempoolP2pPropagatorError::NetworkSendError);
+                    .or_else(|err| {
+                        if !err.is_full() {
+                            return Err(MempoolP2pPropagatorError::NetworkSendError);
+                        }
+                        warn!(
+                            "Trying to send a transaction to other mempool peers but the buffer \
+                             is full. Dropping the transaction."
+                        );
+                        Ok(())
+                    });
                 MempoolP2pPropagatorResponse::AddTransaction(result)
             }
             MempoolP2pPropagatorRequest::ContinuePropagation(propagation_manager) => {

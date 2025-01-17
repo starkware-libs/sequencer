@@ -7,7 +7,11 @@ license-file.workspace = true
 description = "A Bridge between the Rust blockifier crate and Python."
 
 [features]
-cairo_native = ["blockifier/cairo_native"]
+cairo_native = [
+  "blockifier/cairo_native",
+  "papyrus_state_reader/cairo_native",
+  "starknet_sierra_compile/cairo_native",
+]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
 # https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
@@ -42,6 +46,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_sierra_compile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

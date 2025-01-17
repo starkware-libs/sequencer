@@ -111,7 +111,7 @@ dependencies = [
  "alloy-eips",
  "alloy-primitives",
  "alloy-rlp",
- "alloy-serde",
+ "alloy-serde 0.3.6",
  "c-kzg",
  "serde",
 ]
@@ -185,12 +185,24 @@ dependencies = [
  "alloy-eip7702",
  "alloy-primitives",
  "alloy-rlp",
- "alloy-serde",
+ "alloy-serde 0.3.6",
  "c-kzg",
  "derive_more 1.0.0",
  "once_cell",
  "serde",
  "sha2",
+]
+
+[[package]]
+name = "alloy-genesis"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b2a4cf7b70f3495788e74ce1c765260ffe38820a2a774ff4aacb62e31ea73f9"
+dependencies = [
+ "alloy-primitives",
+ "alloy-serde 0.8.3",
+ "alloy-trie",
+ "serde",
 ]
 
 [[package]]
@@ -231,7 +243,7 @@ dependencies = [
  "alloy-network-primitives",
  "alloy-primitives",
  "alloy-rpc-types-eth",
- "alloy-serde",
+ "alloy-serde 0.3.6",
  "alloy-signer",
  "alloy-sol-types",
  "async-trait",
@@ -248,8 +260,25 @@ checksum = "94ad40869867ed2d9cd3842b1e800889e5b49e6b92da346e93862b4a741bedf3"
 dependencies = [
  "alloy-eips",
  "alloy-primitives",
- "alloy-serde",
+ "alloy-serde 0.3.6",
  "serde",
+]
+
+[[package]]
+name = "alloy-node-bindings"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aef9849fb8bbb28f69f2cbdb4b0dac2f0e35c04f6078a00dfb8486469aed02de"
+dependencies = [
+ "alloy-genesis",
+ "alloy-primitives",
+ "k256",
+ "rand 0.8.5",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.9",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -367,7 +396,7 @@ dependencies = [
  "alloy-network-primitives",
  "alloy-primitives",
  "alloy-rlp",
- "alloy-serde",
+ "alloy-serde 0.3.6",
  "alloy-sol-types",
  "cfg-if",
  "derive_more 1.0.0",
@@ -382,6 +411,17 @@ name = "alloy-serde"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "731f75ec5d383107fd745d781619bd9cedf145836c51ecb991623d41278e71fa"
+dependencies = [
+ "alloy-primitives",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "alloy-serde"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5851bf8d5ad33014bd0c45153c603303e730acc8a209450a7ae6b4a12c2789e2"
 dependencies = [
  "alloy-primitives",
  "serde",
@@ -422,6 +462,7 @@ version = "0.8.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19cc9c7f20b90f9be1a8f71a3d8e283a43745137b0837b1a1cb13159d37cad72"
 dependencies = [
+ "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
@@ -440,11 +481,13 @@ version = "0.8.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "713b7e6dfe1cb2f55c80fb05fd22ed085a1b4e48217611365ed0ae598a74c6ac"
 dependencies = [
+ "alloy-json-abi",
  "const-hex",
  "dunce",
  "heck 0.5.0",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn 2.0.95",
  "syn-solidity",
 ]
@@ -504,6 +547,21 @@ dependencies = [
  "tower 0.5.2",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "alloy-trie"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6917c79e837aa7b77b7a6dae9f89cbe15313ac161c4d3cfaf8909ef21f3d22d8"
+dependencies = [
+ "alloy-primitives",
+ "alloy-rlp",
+ "arrayvec",
+ "derive_more 1.0.0",
+ "nybbles",
+ "smallvec",
+ "tracing",
 ]
 
 [[package]]
@@ -1340,6 +1398,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
+name = "aws-lc-rs"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f409eb70b561706bf8abba8ca9c112729c481595893fd06a2dd9af8ed8441148"
+dependencies = [
+ "aws-lc-sys",
+ "paste",
+ "zeroize",
+]
+
+[[package]]
+name = "aws-lc-sys"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "923ded50f602b3007e5e63e3f094c479d9c8a9b42d7f4034e4afe456aa48bfd2"
+dependencies = [
+ "bindgen 0.69.5",
+ "cc",
+ "cmake",
+ "dunce",
+ "fs_extra",
+ "paste",
+]
+
+[[package]]
 name = "axum"
 version = "0.6.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1642,7 +1725,6 @@ dependencies = [
  "derive_more 0.99.18",
  "glob",
  "indexmap 2.7.0",
- "infra_utils",
  "itertools 0.12.1",
  "keccak",
  "log",
@@ -1657,14 +1739,15 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "rstest",
+ "rstest_reuse",
  "semver 1.0.24",
  "serde",
  "serde_json",
  "sha2",
- "sierra-emu",
  "stacker",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
  "starknet_sierra_compile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -2423,7 +2506,8 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.2.6"
-source = "git+https://github.com/lambdaclass/cairo_native.git?rev=6a4efafa26d6a0424dee593d2091206c6e9f428d#6a4efafa26d6a0424dee593d2091206c6e9f428d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bc77e0c934153cb074cff4d2e177d7a98a449ee06210ae8b18bfc61a3011b9f"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2476,7 +2560,8 @@ dependencies = [
 [[package]]
 name = "cairo-native-runtime"
 version = "0.2.6"
-source = "git+https://github.com/lambdaclass/cairo_native.git?rev=6a4efafa26d6a0424dee593d2091206c6e9f428d#6a4efafa26d6a0424dee593d2091206c6e9f428d"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "860e4d0c94d4e66e66b54d5ea82c6b5bdc40f5407072a27fe296daacb628ec35"
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.13.0",
@@ -2741,6 +2826,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cmake"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c682c223677e0e5b6b7f63a64b9351844c3f1b1678a68b7ee617e30fb082620e"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "coins-bip32"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2980,6 +3074,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "core-foundation"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b55271e5c8c478ad3f38ad24ef34923091e0548492a266d19b3c0b4d82574c63"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
 name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3023,6 +3127,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "futures",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -3035,6 +3140,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tinytemplate",
+ "tokio",
  "walkdir",
 ]
 
@@ -3569,7 +3675,6 @@ dependencies = [
  "ff",
  "generic-array",
  "group",
- "pem-rfc7468",
  "pkcs8",
  "rand_core 0.6.4",
  "sec1",
@@ -4262,6 +4367,12 @@ dependencies = [
  "libc",
  "winapi",
 ]
+
+[[package]]
+name = "fs_extra"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
 
 [[package]]
 name = "fuchsia-cprng"
@@ -5105,9 +5216,27 @@ dependencies = [
  "hyper 0.14.32",
  "log",
  "rustls 0.21.12",
- "rustls-native-certs",
+ "rustls-native-certs 0.6.3",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
+]
+
+[[package]]
+name = "hyper-rustls"
+version = "0.27.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d191583f3da1305256f22463b9bb0471acad48a4e534a5218b9963e9c1f59b2"
+dependencies = [
+ "futures-util",
+ "http 1.2.0",
+ "hyper 1.5.2",
+ "hyper-util",
+ "rustls 0.23.20",
+ "rustls-native-certs 0.8.1",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls 0.26.1",
+ "tower-service",
 ]
 
 [[package]]
@@ -5370,7 +5499,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdf9d64cfcf380606e64f9a0bcf493616b65331199f984151a6fa11a7b3cde38"
 dependencies = [
  "async-io 2.4.0",
- "core-foundation",
+ "core-foundation 0.9.4",
  "fnv",
  "futures",
  "if-addrs",
@@ -5530,17 +5659,6 @@ name = "indoc"
 version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
-
-[[package]]
-name = "infra_utils"
-version = "0.0.0"
-dependencies = [
- "pretty_assertions",
- "rstest",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "inout"
@@ -5725,11 +5843,11 @@ dependencies = [
  "http 0.2.12",
  "jsonrpsee-core",
  "pin-project",
- "rustls-native-certs",
+ "rustls-native-certs 0.6.3",
  "soketto",
  "thiserror 1.0.69",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
  "tokio-util",
  "tracing",
  "url",
@@ -5770,7 +5888,7 @@ checksum = "57c7b9f95208927653e7965a98525e7fc641781cab89f0e27c43fa2974405683"
 dependencies = [
  "async-trait",
  "hyper 0.14.32",
- "hyper-rustls",
+ "hyper-rustls 0.24.2",
  "jsonrpsee-core",
  "jsonrpsee-types",
  "serde",
@@ -6738,22 +6856,10 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
- "infra_utils",
- "pretty_assertions",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
-]
-
-[[package]]
-name = "metrics"
-version = "0.21.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fde3af1a009ed76a778cb84fdef9e7dbbdf5775ae3e4cc1f434a6a307f6f76c5"
-dependencies = [
- "ahash",
- "metrics-macros",
- "portable-atomic",
+ "starknet_infra_utils",
 ]
 
 [[package]]
@@ -6767,32 +6873,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "metrics-exporter-prometheus"
-version = "0.12.2"
+name = "metrics"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d4fa7ce7c4862db464a37b0b31d89bca874562f034bd7993895572783d02950"
+checksum = "7a7deb012b3b2767169ff203fadb4c6b0b82b947512e5eb9e0b78c2e186ad9e3"
 dependencies = [
- "base64 0.21.7",
- "hyper 0.14.32",
- "indexmap 1.9.3",
+ "ahash",
+ "portable-atomic",
+]
+
+[[package]]
+name = "metrics-exporter-prometheus"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12779523996a67c13c84906a876ac6fe4d07a6e1adb54978378e13f199251a62"
+dependencies = [
+ "base64 0.22.1",
+ "http-body-util",
+ "hyper 1.5.2",
+ "hyper-rustls 0.27.5",
+ "hyper-util",
+ "indexmap 2.7.0",
  "ipnet",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "metrics-util",
  "quanta",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "metrics-macros"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38b4faf00617defe497754acde3024865bc143d44a86799b24e191ecff91354f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.95",
 ]
 
 [[package]]
@@ -6812,16 +6920,17 @@ dependencies = [
 
 [[package]]
 name = "metrics-util"
-version = "0.15.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "111cb375987443c3de8d503580b536f77dc8416d32db62d9456db5d93bd7ac47"
+checksum = "dbd4884b1dd24f7d6628274a2f5ae22465c337c5ba065ec9b6edccddf8acc673"
 dependencies = [
  "crossbeam-epoch",
  "crossbeam-utils",
- "hashbrown 0.13.2",
- "metrics 0.21.1",
- "num_cpus",
+ "hashbrown 0.15.2",
+ "metrics 0.24.1",
  "quanta",
+ "rand 0.8.5",
+ "rand_xoshiro",
  "sketches-ddsketch",
 ]
 
@@ -7037,7 +7146,7 @@ dependencies = [
  "openssl-probe",
  "openssl-sys",
  "schannel",
- "security-framework",
+ "security-framework 2.11.1",
  "security-framework-sys",
  "tempfile",
 ]
@@ -7062,6 +7171,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_sierra_compile",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -7429,6 +7539,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nybbles"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8983bb634df7248924ee0c4c3a749609b5abcb082c28fffe3254b3eb3602b307"
+dependencies = [
+ "const-hex",
+ "smallvec",
+]
+
+[[package]]
 name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7557,18 +7677,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
-name = "p256"
-version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
-dependencies = [
- "ecdsa",
- "elliptic-curve",
- "primeorder",
- "sha2",
-]
-
-[[package]]
 name = "page_size"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7587,6 +7695,7 @@ dependencies = [
  "alloy-json-rpc",
  "alloy-primitives",
  "alloy-provider",
+ "alloy-rpc-types-eth",
  "alloy-sol-types",
  "alloy-transport",
  "alloy-transport-http",
@@ -7597,7 +7706,6 @@ dependencies = [
  "papyrus_config",
  "pretty_assertions",
  "serde",
- "serde_json",
  "starknet-types-core",
  "starknet_api",
  "tar",
@@ -7605,6 +7713,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "url",
+ "validator",
 ]
 
 [[package]]
@@ -7634,16 +7743,17 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "clap",
- "infra_utils",
  "itertools 0.12.1",
  "lazy_static",
  "papyrus_test_utils",
  "serde",
  "serde_json",
  "starknet_api",
+ "starknet_infra_utils",
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
+ "tracing",
  "validator",
 ]
 
@@ -7658,7 +7768,7 @@ dependencies = [
  "futures",
  "lazy_static",
  "lru",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "mockall",
  "nix 0.20.2",
  "papyrus_common",
@@ -7668,6 +7778,7 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "prost",
  "serde",
  "starknet-types-core",
  "starknet_api",
@@ -7675,28 +7786,48 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]
 name = "papyrus_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "async-trait",
+ "blockifier",
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
  "chrono",
  "futures",
+ "indexmap 2.7.0",
  "lazy_static",
  "mockall",
+ "mockito 1.6.1",
+ "num-bigint 0.4.6",
+ "papyrus_config",
  "papyrus_consensus",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "paste",
+ "reqwest 0.11.27",
+ "rstest",
+ "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_infra_utils",
+ "starknet_state_sync_types",
  "test-case",
+ "thiserror 1.0.69",
  "tokio",
+ "tokio-util",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -7752,7 +7883,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.32",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "metrics-process",
  "papyrus_config",
@@ -7784,7 +7915,7 @@ dependencies = [
  "lazy_static",
  "libp2p",
  "libp2p-swarm-test",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "mockall",
  "papyrus_common",
  "papyrus_config",
@@ -7818,13 +7949,11 @@ name = "papyrus_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "assert-json-diff",
  "clap",
  "colored",
  "const_format",
  "futures",
  "futures-util",
- "infra_utils",
  "insta",
  "itertools 0.12.1",
  "lazy_static",
@@ -7849,6 +7978,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_client",
+ "starknet_infra_utils",
  "strum 0.25.0",
  "tempfile",
  "tokio",
@@ -7869,7 +7999,7 @@ dependencies = [
  "futures",
  "indexmap 2.7.0",
  "lazy_static",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "papyrus_common",
  "papyrus_config",
  "papyrus_network",
@@ -7894,7 +8024,7 @@ dependencies = [
 name = "papyrus_proc_macros"
 version = "0.0.0"
 dependencies = [
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "papyrus_common",
  "papyrus_test_utils",
@@ -7908,6 +8038,7 @@ dependencies = [
 name = "papyrus_protobuf"
 version = "0.0.0"
 dependencies = [
+ "bytes",
  "indexmap 2.7.0",
  "lazy_static",
  "papyrus_common",
@@ -7949,7 +8080,7 @@ dependencies = [
  "jsonrpsee",
  "jsonschema",
  "lazy_static",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
  "papyrus_common",
@@ -8008,7 +8139,7 @@ dependencies = [
  "lazy_static",
  "libmdbx",
  "memmap2",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "num-bigint 0.4.6",
  "num-traits",
@@ -8056,7 +8187,7 @@ dependencies = [
  "indexmap 2.7.0",
  "itertools 0.12.1",
  "lru",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "mockall",
  "papyrus_base_layer",
  "papyrus_common",
@@ -8554,15 +8685,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "primeorder"
-version = "0.13.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
-dependencies = [
- "elliptic-curve",
-]
-
-[[package]]
 name = "primitive-types"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8891,13 +9013,12 @@ dependencies = [
 
 [[package]]
 name = "quanta"
-version = "0.11.1"
+version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a17e662a7a8291a865152364c20c7abc5e60486ab2001e8ec10b24862de0b9ab"
+checksum = "3bd1fe6824cea6538803de3ff1bc0cf3949024db3d43c9643024bfb33a807c0e"
 dependencies = [
  "crossbeam-utils",
  "libc",
- "mach2",
  "once_cell",
  "raw-cpuid",
  "wasi",
@@ -9171,12 +9292,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "raw-cpuid"
-version = "10.7.0"
+name = "rand_xoshiro"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c297679cb867470fa8c9f67dbba74a78d78e3e98d7cf2b08d6d71540f797332"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
 dependencies = [
- "bitflags 1.2.1",
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "raw-cpuid"
+version = "11.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ab240315c661615f2ee9f0f2cd32d5a7343a84d5ebcccb99d46e6637565e7b0"
+dependencies = [
+ "bitflags 2.6.0",
 ]
 
 [[package]]
@@ -9326,7 +9456,7 @@ dependencies = [
  "http 0.2.12",
  "http-body 0.4.6",
  "hyper 0.14.32",
- "hyper-rustls",
+ "hyper-rustls 0.24.2",
  "hyper-tls 0.5.0",
  "ipnet",
  "js-sys",
@@ -9345,7 +9475,7 @@ dependencies = [
  "system-configuration 0.5.1",
  "tokio",
  "tokio-native-tls",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
  "tokio-util",
  "tower-service",
  "url",
@@ -9547,6 +9677,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rstest_reuse"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3a8fb4672e840a587a66fc577a5491375df51ddb88f2a2c2a792598c326fe14"
+dependencies = [
+ "quote",
+ "rand 0.8.5",
+ "syn 2.0.95",
+]
+
+[[package]]
 name = "rtnetlink"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9732,6 +9873,7 @@ version = "0.23.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5065c3f250cbd332cd894be57c40fa52387247659b14a2d6041d121547903b1b"
 dependencies = [
+ "aws-lc-rs",
  "log",
  "once_cell",
  "ring 0.17.8",
@@ -9750,7 +9892,19 @@ dependencies = [
  "openssl-probe",
  "rustls-pemfile 1.0.4",
  "schannel",
- "security-framework",
+ "security-framework 2.11.1",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fcff2dd52b58a8d98a70243663a0d234c4e2b79235637849d15913394a247d3"
+dependencies = [
+ "openssl-probe",
+ "rustls-pki-types",
+ "schannel",
+ "security-framework 3.2.0",
 ]
 
 [[package]]
@@ -9796,6 +9950,7 @@ version = "0.102.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64ca1bc8749bd4cf37b5ce386cc146580777b4e8572c7b97baf22c83f444bee9"
 dependencies = [
+ "aws-lc-rs",
  "ring 0.17.8",
  "rustls-pki-types",
  "untrusted 0.9.0",
@@ -9961,7 +10116,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "897b2245f0b511c87893af39b033e5ca9cce68824c4d7e7630b5a1d339658d02"
 dependencies = [
  "bitflags 2.6.0",
- "core-foundation",
+ "core-foundation 0.9.4",
+ "core-foundation-sys",
+ "libc",
+ "security-framework-sys",
+]
+
+[[package]]
+name = "security-framework"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "271720403f46ca04f7ba6f55d438f8bd878d6b8ca0a1046e8228c4145bcbb316"
+dependencies = [
+ "bitflags 2.6.0",
+ "core-foundation 0.10.0",
  "core-foundation-sys",
  "libc",
  "security-framework-sys",
@@ -10210,40 +10378,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
-name = "sierra-emu"
-version = "0.1.0"
-source = "git+https://github.com/lambdaclass/sierra-emu.git?rev=b3c9d6bd193b2da881fab3dce57fe12c363aed86#b3c9d6bd193b2da881fab3dce57fe12c363aed86"
-dependencies = [
- "cairo-lang-compiler",
- "cairo-lang-filesystem",
- "cairo-lang-runner",
- "cairo-lang-sierra",
- "cairo-lang-sierra-ap-change",
- "cairo-lang-sierra-gas",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "clap",
- "k256",
- "keccak",
- "num-bigint 0.4.6",
- "num-traits",
- "p256",
- "rand 0.8.5",
- "sec1",
- "serde",
- "serde_json",
- "sha2",
- "smallvec",
- "starknet-crypto 0.7.3",
- "starknet-curve 0.5.1",
- "starknet-types-core",
- "tempfile",
- "thiserror 2.0.9",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "signal-hook-registry"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10317,9 +10451,9 @@ checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "sketches-ddsketch"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85636c14b73d81f541e525f585c0a2109e6744e1565b5c1668e31c70c10ed65c"
+checksum = "c1e9a774a6c28142ac54bb25d25562e6bcf957493a184f15ad4eebccb23e410a"
 
 [[package]]
 name = "slab"
@@ -10614,16 +10748,18 @@ dependencies = [
 name = "starknet_api"
 version = "0.0.0"
 dependencies = [
+ "assert-json-diff",
  "assert_matches",
  "bitvec",
+ "cached",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "derive_more 0.99.18",
  "hex",
  "indexmap 2.7.0",
- "infra_utils",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
+ "num-traits",
  "pretty_assertions",
  "primitive-types",
  "rstest",
@@ -10634,6 +10770,7 @@ dependencies = [
  "starknet-crypto 0.7.3",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
@@ -10683,6 +10820,18 @@ dependencies = [
  "starknet_batcher_types",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_class_manager_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_api",
+ "starknet_sequencer_infra",
  "thiserror 1.0.69",
 ]
 
@@ -10741,14 +10890,15 @@ name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "futures",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_network",
  "papyrus_protobuf",
  "serde",
+ "starknet_api",
  "starknet_batcher_types",
+ "starknet_infra_utils",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "tokio",
@@ -10766,6 +10916,8 @@ dependencies = [
  "blockifier",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "criterion",
+ "futures",
  "mempool_test_utils",
  "mockall",
  "mockito 1.6.1",
@@ -10786,6 +10938,7 @@ dependencies = [
  "starknet_mempool_types",
  "starknet_sequencer_infra",
  "starknet_sierra_compile",
+ "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -10798,7 +10951,6 @@ name = "starknet_gateway_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "axum",
  "enum-assoc",
  "mockall",
  "papyrus_network_types",
@@ -10818,13 +10970,20 @@ name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "blockifier",
  "hyper 0.14.32",
+ "jsonrpsee",
+ "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
  "starknet_api",
  "starknet_gateway_types",
+ "starknet_http_server",
+ "starknet_infra_utils",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
  "tokio",
@@ -10833,24 +10992,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_infra_utils"
+version = "0.0.0"
+dependencies = [
+ "nix 0.20.2",
+ "num-traits",
+ "pretty_assertions",
+ "regex",
+ "rstest",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "starknet_integration_tests"
 version = "0.0.0"
 dependencies = [
- "anyhow",
  "assert_matches",
+ "axum",
  "blockifier",
  "cairo-lang-starknet-classes",
  "futures",
  "indexmap 2.7.0",
- "infra_utils",
  "itertools 0.12.1",
  "mempool_test_utils",
- "papyrus_common",
+ "papyrus_config",
  "papyrus_consensus",
+ "papyrus_consensus_orchestrator",
  "papyrus_execution",
  "papyrus_network",
  "papyrus_protobuf",
- "papyrus_rpc",
  "papyrus_storage",
  "pretty_assertions",
  "rstest",
@@ -10858,11 +11030,11 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher",
- "starknet_client",
  "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
+ "starknet_infra_utils",
  "starknet_mempool_p2p",
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
@@ -10872,12 +11044,15 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
 name = "starknet_l1_provider"
 version = "0.0.0"
 dependencies = [
+ "alloy-node-bindings",
+ "alloy-primitives",
  "assert_matches",
  "async-trait",
  "indexmap 2.7.0",
@@ -10889,6 +11064,7 @@ dependencies = [
  "starknet_l1_provider_types",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
  "validator",
 ]
@@ -10899,6 +11075,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "mockall",
+ "papyrus_base_layer",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
@@ -10938,6 +11115,8 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "libp2p",
+ "mockall",
  "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
@@ -10989,13 +11168,15 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.32",
- "infra_utils",
- "metrics 0.21.1",
+ "metrics 0.24.1",
  "metrics-exporter-prometheus",
+ "num-traits",
  "papyrus_config",
  "pretty_assertions",
  "serde",
+ "starknet_infra_utils",
  "starknet_sequencer_infra",
+ "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
  "tracing",
@@ -11037,6 +11218,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -11049,17 +11231,15 @@ name = "starknet_sequencer_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "assert-json-diff",
  "assert_matches",
  "clap",
  "colored",
  "const_format",
  "futures",
- "infra_utils",
  "mempool_test_utils",
+ "papyrus_base_layer",
  "papyrus_config",
- "papyrus_consensus",
- "papyrus_proc_macros",
+ "papyrus_protobuf",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -11071,6 +11251,7 @@ dependencies = [
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
+ "starknet_infra_utils",
  "starknet_l1_provider",
  "starknet_l1_provider_types",
  "starknet_mempool",
@@ -11085,6 +11266,7 @@ dependencies = [
  "starknet_state_sync_types",
  "tokio",
  "tracing",
+ "url",
  "validator",
 ]
 
@@ -11097,17 +11279,33 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
- "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
+ "rlimit",
  "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
+ "starknet_sierra_compile_types",
  "tempfile",
  "thiserror 1.0.69",
  "validator",
+]
+
+[[package]]
+name = "starknet_sierra_compile_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "papyrus_proc_macros",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -11115,12 +11313,18 @@ name = "starknet_state_sync"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "cairo-lang-starknet-classes",
  "futures",
+ "indexmap 2.7.0",
+ "libp2p",
  "papyrus_config",
  "papyrus_network",
  "papyrus_p2p_sync",
  "papyrus_storage",
+ "papyrus_test_utils",
+ "rand_chacha 0.3.1",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
@@ -11133,11 +11337,15 @@ name = "starknet_state_sync_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
+ "mockall",
  "papyrus_proc_macros",
  "papyrus_storage",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
+ "starknet_state_sync_types",
  "thiserror 1.0.69",
 ]
 
@@ -11332,7 +11540,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba3a3adc5c275d719af8cb4272ea1c4a6d668a777f37e115f6d11ddbc1c8e0e7"
 dependencies = [
  "bitflags 1.2.1",
- "core-foundation",
+ "core-foundation 0.9.4",
  "system-configuration-sys 0.5.0",
 ]
 
@@ -11343,7 +11551,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c879d448e9d986b661742763247d3693ed13609438cf3d006f51f5368a5ba6b"
 dependencies = [
  "bitflags 2.6.0",
- "core-foundation",
+ "core-foundation 0.9.4",
  "system-configuration-sys 0.6.0",
 ]
 
@@ -11675,9 +11883,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.43.0"
+version = "1.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d61fa4ffa3de412bfea335c6ecff681de2b609ba3c77ef3e00e521813a9ed9e"
+checksum = "5cec9b21b0450273377fc97bd4c33a8acffc8c996c987a7c5b319a0083707551"
 dependencies = [
  "backtrace",
  "bytes",
@@ -11693,9 +11901,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.5.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8"
+checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11734,6 +11942,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-rustls"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f6d0975eaace0cf0fcadee4e4aaa5da15b5c079146f2cffb67c113be122bf37"
+dependencies = [
+ "rustls 0.23.20",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11768,7 +11986,7 @@ dependencies = [
  "log",
  "rustls 0.21.12",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
  "tungstenite",
  "webpki-roots 0.25.4",
 ]
@@ -11783,6 +12001,8 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-sink",
+ "futures-util",
+ "hashbrown 0.14.5",
  "pin-project-lite",
  "tokio",
 ]

@@ -47,7 +47,7 @@ where
 
     if bounds.iter().any(|p| **p >= modulus) {
         let error = match Felt::from_hex(INVALID_ARGUMENT) {
-            Ok(err) => SyscallExecutionError::SyscallError { error_data: vec![err] },
+            Ok(err) => SyscallExecutionError::Revert { error_data: vec![err] },
             Err(err) => SyscallExecutionError::from(err),
         };
 

@@ -11,7 +11,7 @@ use papyrus_network::network_manager::{
     GenericReceiver,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote};
+use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -24,10 +24,6 @@ use starknet_api::core::ContractAddress;
 pub type ValidatorId = ContractAddress;
 pub type Round = u32;
 pub type ProposalContentId = BlockHash;
-
-/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
-// TODO(Matan): Remove this once we have a proper validator set.
-pub const DEFAULT_VALIDATOR_ID: u64 = 100;
 
 /// Interface for consensus to call out to the node.
 ///
@@ -81,9 +77,7 @@ pub trait ConsensusContext {
     ///   by ConsensusContext.
     async fn validate_proposal(
         &mut self,
-        height: BlockNumber,
-        round: Round,
-        proposer: ValidatorId,
+        init: ProposalInit,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
@@ -106,7 +100,7 @@ pub trait ConsensusContext {
     /// Calculates the ID of the Proposer based on the inputs.
     fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
-    async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
+    async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
     /// Update the context that a decision has been reached for a given height.
     /// - `block` identifies the decision.
@@ -117,6 +111,10 @@ pub trait ConsensusContext {
         block: ProposalContentId,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;
+
+    /// Attempt to learn of a decision from the sync protocol.
+    /// Returns true if a decision was learned so consensus can proceed.
+    async fn try_sync(&mut self, height: BlockNumber) -> bool;
 
     /// Update the context with the current height and round.
     /// Must be called at the beginning of each height.
@@ -138,17 +136,15 @@ impl Debug for Decision {
     }
 }
 
-pub struct BroadcastConsensusMessageChannel {
-    pub broadcasted_messages_receiver: GenericReceiver<(
-        Result<ConsensusMessage, ProtobufConversionError>,
-        BroadcastedMessageMetadata,
-    )>,
-    pub broadcast_topic_client: BroadcastTopicClient<ConsensusMessage>,
+pub struct BroadcastVoteChannel {
+    pub broadcasted_messages_receiver:
+        GenericReceiver<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
+    pub broadcast_topic_client: BroadcastTopicClient<Vote>,
 }
 
-impl From<BroadcastTopicChannels<ConsensusMessage>> for BroadcastConsensusMessageChannel {
-    fn from(broadcast_topic_channels: BroadcastTopicChannels<ConsensusMessage>) -> Self {
-        BroadcastConsensusMessageChannel {
+impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
+    fn from(broadcast_topic_channels: BroadcastTopicChannels<Vote>) -> Self {
+        BroadcastVoteChannel {
             broadcasted_messages_receiver: Box::new(
                 broadcast_topic_channels.broadcasted_messages_receiver,
             ),
@@ -163,19 +159,17 @@ pub enum ConsensusError {
     Canceled(#[from] oneshot::Canceled),
     #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
-    /// This should never occur, since events are internally generated.
-    #[error("Invalid event: {0}")]
-    InvalidEvent(String),
-    #[error("Invalid proposal sent by peer {0:?} at height {1}: {2}")]
-    InvalidProposal(ValidatorId, BlockNumber, String),
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
-    #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]
-    Equivocation(BlockNumber, ConsensusMessage, ConsensusMessage),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
     #[error("{0}")]
     SyncError(String),
+    // For example the state machine and SHC are out of sync.
+    #[error("{0}")]
+    InternalInconsistency(String),
+    #[error("{0}")]
+    Other(String),
 }

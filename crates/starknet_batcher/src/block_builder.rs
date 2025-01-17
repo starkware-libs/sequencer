@@ -1,19 +1,18 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
     TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
-    VisitedSegmentsMapping,
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
-use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -26,8 +25,13 @@ use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher_types::batcher_types::ProposalCommitment;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
 
@@ -66,9 +70,44 @@ pub enum FailOnErrorCause {
 #[derive(Debug, PartialEq)]
 pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+    pub rejected_tx_hashes: HashSet<TransactionHash>,
     pub commitment_state_diff: CommitmentStateDiff,
-    pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
+    pub l2_gas_used: GasAmount,
+}
+
+impl BlockExecutionArtifacts {
+    pub fn address_to_nonce(&self) -> HashMap<ContractAddress, Nonce> {
+        HashMap::from_iter(
+            self.commitment_state_diff
+                .address_to_nonce
+                .iter()
+                .map(|(address, nonce)| (*address, *nonce)),
+        )
+    }
+
+    pub fn tx_hashes(&self) -> HashSet<TransactionHash> {
+        HashSet::from_iter(self.execution_infos.keys().copied())
+    }
+
+    pub fn state_diff(&self) -> ThinStateDiff {
+        // TODO(Ayelet): Remove the clones.
+        let storage_diffs = self.commitment_state_diff.storage_updates.clone();
+        let nonces = self.commitment_state_diff.address_to_nonce.clone();
+        ThinStateDiff {
+            deployed_contracts: IndexMap::new(),
+            storage_diffs,
+            declared_classes: IndexMap::new(),
+            nonces,
+            // TODO: Remove this when the structure of storage diffs changes.
+            deprecated_declared_classes: Vec::new(),
+            replaced_classes: IndexMap::new(),
+        }
+    }
+
+    pub fn commitment(&self) -> ProposalCommitment {
+        ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&self.state_diff()) }
+    }
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
@@ -122,6 +161,8 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
+        let mut l2_gas_used = GasAmount::ZERO;
+        let mut rejected_tx_hashes = HashSet::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
@@ -135,7 +176,10 @@ impl BlockBuilderTrait for BlockBuilder {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
-            let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
+            let next_txs =
+                self.tx_provider.get_txs(self.tx_chunk_size).await.inspect_err(|err| {
+                    error!("Failed to get transactions from the transaction provider: {}", err);
+                })?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
                 NextTxs::End => break,
@@ -158,19 +202,22 @@ impl BlockBuilderTrait for BlockBuilder {
             block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
+                &mut l2_gas_used,
                 &mut execution_infos,
+                &mut rejected_tx_hashes,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
             )
             .await?;
         }
-        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
+        let BlockExecutionSummary { state_diff, bouncer_weights, .. } =
             self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
-            commitment_state_diff,
-            visited_segments_mapping,
+            rejected_tx_hashes,
+            commitment_state_diff: state_diff,
             bouncer_weights,
+            l2_gas_used,
         })
     }
 }
@@ -179,13 +226,18 @@ impl BlockBuilderTrait for BlockBuilder {
 async fn collect_execution_results_and_stream_txs(
     tx_chunk: Vec<Transaction>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    l2_gas_used: &mut GasAmount,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
+    rejected_tx_hashes: &mut HashSet<TransactionHash>,
     output_content_sender: &Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
     fail_on_err: bool,
 ) -> BlockBuilderResult<bool> {
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
+                *l2_gas_used = l2_gas_used
+                    .checked_add(tx_execution_info.receipt.gas.l2_gas)
+                    .expect("Total L2 gas overflow.");
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;
@@ -207,6 +259,7 @@ async fn collect_execution_results_and_stream_txs(
                         FailOnErrorCause::TransactionFailed(err),
                     ));
                 }
+                rejected_tx_hashes.insert(input_tx.tx_hash());
             }
         }
     }
@@ -277,7 +330,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
-    pub global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
+    pub contract_class_manager: ContractClassManager,
 }
 
 impl BlockBuilderFactory {
@@ -300,7 +353,7 @@ impl BlockBuilderFactory {
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
             height,
-            self.global_class_hash_to_class.clone(),
+            self.contract_class_manager.clone(),
         );
 
         let executor = TransactionExecutor::pre_process_and_create(

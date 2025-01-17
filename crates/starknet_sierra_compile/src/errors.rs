@@ -2,9 +2,10 @@ use cairo_lang_starknet_classes::allowed_libfuncs::AllowedLibfuncsError;
 use cairo_lang_starknet_classes::casm_contract_class::StarknetSierraCompilationError;
 #[cfg(feature = "cairo_native")]
 use cairo_native;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CompilationUtilError {
     #[error("Starknet Sierra compilation error: {0}")]
     CompilationError(String),

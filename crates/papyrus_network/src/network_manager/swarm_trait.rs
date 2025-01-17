@@ -9,7 +9,7 @@ use super::BroadcastedMessageMetadata;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour;
 use crate::peer_manager::{ReputationModifier, MALICIOUS};
-use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
+use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
 
 pub type Event = SwarmEvent<<mixed_behaviour::MixedBehaviour as NetworkBehaviour>::ToSwarm>;
@@ -21,12 +21,7 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
         inbound_session_id: InboundSessionId,
     ) -> Result<(), SessionIdNotFoundError>;
 
-    fn send_query(
-        &mut self,
-        query: Vec<u8>,
-        peer_id: PeerId,
-        protocol: StreamProtocol,
-    ) -> Result<OutboundSessionId, PeerNotConnected>;
+    fn send_query(&mut self, query: Vec<u8>, protocol: StreamProtocol) -> OutboundSessionId;
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError>;
 
@@ -67,14 +62,8 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         self.behaviour_mut().sqmr.send_response(response, inbound_session_id)
     }
 
-    // TODO: change this function signature
-    fn send_query(
-        &mut self,
-        query: Vec<u8>,
-        _peer_id: PeerId,
-        protocol: StreamProtocol,
-    ) -> Result<OutboundSessionId, PeerNotConnected> {
-        Ok(self.behaviour_mut().sqmr.start_query(query, protocol))
+    fn send_query(&mut self, query: Vec<u8>, protocol: StreamProtocol) -> OutboundSessionId {
+        self.behaviour_mut().sqmr.start_query(query, protocol)
     }
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError> {

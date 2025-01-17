@@ -7,7 +7,6 @@ members = [
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
-  "crates/infra_utils",
   "crates/mempool_test_utils",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
@@ -32,12 +31,14 @@ members = [
   "crates/starknet_api",
   "crates/starknet_batcher",
   "crates/starknet_batcher_types",
+  "crates/starknet_class_manager_types",
   "crates/starknet_client",
   "crates/starknet_committer",
   "crates/starknet_consensus_manager",
   "crates/starknet_gateway",
   "crates/starknet_gateway_types",
   "crates/starknet_http_server",
+  "crates/starknet_infra_utils",
   "crates/starknet_integration_tests",
   "crates/starknet_l1_provider",
   "crates/starknet_l1_provider_types",
@@ -50,6 +51,7 @@ members = [
   "crates/starknet_sequencer_infra",
   "crates/starknet_sequencer_node",
   "crates/starknet_sierra_compile",
+  "crates/starknet_sierra_compile_types",
   "crates/starknet_state_sync",
   "crates/starknet_state_sync_types",
   "crates/starknet_task_executor",
@@ -69,8 +71,10 @@ license-file = "LICENSE"
 alloy-contract = "0.3.5"
 alloy-dyn-abi = "0.8.3"
 alloy-json-rpc = "0.3.5"
+alloy-node-bindings = "0.8.3"
 alloy-primitives = "0.8.3"
 alloy-provider = "0.3.5"
+alloy-rpc-types-eth = "0.3.5"
 alloy-sol-types = "0.8.3"
 alloy-transport = "0.3.5"
 alloy-transport-http = "0.3.5"
@@ -102,8 +106,7 @@ cairo-lang-sierra-to-casm = "2.10.0-rc.0"
 cairo-lang-starknet-classes = "2.10.0-rc.0"
 cairo-lang-utils = "2.10.0-rc.0"
 # Important: when updated, make sure to update the cairo-native submodule as well.
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native.git", rev = "6a4efafa26d6a0424dee593d2091206c6e9f428d" }
-sierra-emu = { git = "https://github.com/lambdaclass/sierra-emu.git", rev = "b3c9d6bd193b2da881fab3dce57fe12c363aed86" }
+cairo-native = "0.2.5-rc2"
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
@@ -134,7 +137,6 @@ http-body = "0.4.5"
 human_bytes = "0.4.3"
 hyper = "0.14"
 indexmap = "2.1.0"
-infra_utils = { path = "crates/infra_utils", version = "0.0.0" }
 insta = "1.29.0"
 integer-encoding = "3.0.4"
 itertools = "0.12.1"
@@ -149,8 +151,8 @@ log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
 mempool_test_utils = { path = "crates/mempool_test_utils", version = "0.0.0" }
-metrics = "0.21.0"
-metrics-exporter-prometheus = "0.12.1"
+metrics = "0.24.1"
+metrics-exporter-prometheus = "0.16.1"
 metrics-process = "1.0.11"
 mockall = "0.12.1"
 mockito = "1.4.0"
@@ -200,7 +202,9 @@ regex = "1.10.4"
 replace_with = "0.1.7"
 reqwest = "0.11"
 retry = "2.0.0"
+rlimit = "0.10.2"
 rstest = "0.17.0"
+rstest_reuse = "0.7.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
 semver = "1.0.23"
@@ -218,12 +222,14 @@ starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/starknet_batcher", version = "0.0.0" }
 starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.0.0" }
+starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.0.0" }
 starknet_gateway = { path = "crates/starknet_gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.0.0" }
 starknet_http_server = { path = "crates/starknet_http_server", version = "0.0.0" }
+starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0" }
 starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.0.0" }
 starknet_l1_provider_types = { path = "crates/starknet_l1_provider_types", version = "0.0.0" }
 starknet_mempool = { path = "crates/starknet_mempool", version = "0.0.0" }
@@ -235,6 +241,7 @@ starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
 starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
 starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
+starknet_sierra_compile_types = { path = "crates/starknet_sierra_compile_types", version = "0.0.0" }
 starknet_state_sync = { path = "crates/starknet_state_sync", version = "0.0.0" }
 starknet_state_sync_types = { path = "crates/starknet_state_sync_types", version = "0.0.0" }
 starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.0.0" }
@@ -253,6 +260,7 @@ tokio = "1.37.0"
 tokio-retry = "0.3"
 tokio-stream = "0.1.8"
 tokio-test = "0.4.4"
+tokio-util = "0.7.13"
 toml = "0.8"
 tower = "0.4.13"
 tracing = "0.1.37"

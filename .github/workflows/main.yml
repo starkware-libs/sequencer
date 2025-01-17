@@ -19,6 +19,8 @@ on:
 env:
   CI: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -26,6 +28,22 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    runs-on: starkware-ubuntu-20-04-medium
+    permissions:
+      pull-requests: read
+    outputs:
+      l1: ${{ steps.filter.outputs.l1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            l1:
+              - 'crates/starknet_l1_provider/**'
+              - 'crates/papyrus_base_layer/**'
+
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
@@ -49,6 +67,8 @@ jobs:
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
 
       - name: Setup Python venv
         run: |
@@ -62,9 +82,6 @@ jobs:
           git diff --exit-code Cargo.lock
 
       # Run code style on PR.
-      - name: "Run rustfmt pull request"
-        if: github.event_name == 'pull_request'
-        run: ci/bin/python scripts/run_tests.py --command rustfmt --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
@@ -73,9 +90,11 @@ jobs:
         run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
 
       # Run code style on push.
-      - name: "Run rustfmt on push"
-        if: github.event_name == 'push'
-        run: ci/bin/python scripts/run_tests.py --command rustfmt
+      - name: "Run rustfmt"
+        # The nightly here is coupled with the one in install_rust/action.yml.
+        # If we move the install here we can use a const.
+        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+
       - name: "Run clippy on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command clippy
@@ -86,7 +105,7 @@ jobs:
       - name: "Run taplo"
         run: scripts/taplo.sh
       - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
+        run: cargo machete
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
@@ -96,6 +115,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
+    needs: changes
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +133,16 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
+      # anvil, remove.
       - run: npm install -g ganache@7.4.3
+
+      # Note: Anvil's not on crates.io, so we have to install from git, which moonrepo doesn't
+      # know how to cache, so we're forced to reinstall it every time :(
+      - name: "Maybe install Anvil"
+        run: cargo install --git https://github.com/foundry-rs/foundry anvil --locked
+        if: needs.changes.outputs.l1 == 'true'
+
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |
