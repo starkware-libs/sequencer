@@ -3160,19 +3160,7 @@
       1339,
       [
         {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -2
-              }
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
+          "AllocSegment": {
             "dst": {
               "register": "AP",
               "offset": 0

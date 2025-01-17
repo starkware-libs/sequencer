@@ -158,3 +158,4 @@ async fn reset(mut proposal_manager: ProposalManager) {
     // Make sure there is no active proposal.
     assert!(!proposal_manager.await_active_proposal().await);
 }
+

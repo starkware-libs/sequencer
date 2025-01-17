@@ -77,13 +77,6 @@ fn assert_decision(res: RunHeightRes, id: Felt) {
     }
 }
 
-fn assert_decision(res: RunHeightRes, id: Felt) {
-    match res {
-        RunHeightRes::Decision(decision) => assert_eq!(decision.block, BlockHash(id)),
-        _ => panic!("Expected decision"),
-    }
-}
-
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
     let TestSubscriberChannels { mock_network, subscriber_channels } =

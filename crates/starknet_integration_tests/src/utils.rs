@@ -59,9 +59,6 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 2;
 
-// TODO(Tsabary): Get rid of this constant once we have a better way to set the port for testing.
-const STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING: u16 = 12345;
-
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
     // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
@@ -357,19 +354,4 @@ pub fn create_state_sync_configs(
             ..Default::default()
         })
         .collect()
-}
-
-pub fn create_state_sync_config(
-    state_sync_storage_config: StorageConfig,
-    sequencer_index: usize,
-) -> StateSyncConfig {
-    StateSyncConfig {
-        storage_config: state_sync_storage_config,
-        network_config: NetworkConfig {
-            tcp_port: STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING
-                + u16::try_from(sequencer_index).unwrap(),
-            ..Default::default()
-        },
-        ..Default::default()
-    }
 }

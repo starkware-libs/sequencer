@@ -309,6 +309,105 @@
                 "builtin_instance_counter": {
                     "range_check_builtin": 19
                 },
+                "n_memory_holes": 0,
+                "n_steps": 680
+            },
+            "LibraryCallL1Handler": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 15
+                },
+                "n_memory_holes": 0,
+                "n_steps": 659
+            },
+            "ReplaceClass": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 73
+            },
+            "Secp256k1Add": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 29
+                },
+                "n_memory_holes": 0,
+                "n_steps": 406
+            },
+            "Secp256k1GetPointFromX": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 30
+                },
+                "n_memory_holes": 20,
+                "n_steps": 391
+            },
+            "Secp256k1GetXy": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 11
+                },
+                "n_memory_holes": 40,
+                "n_steps": 239
+            },
+            "Secp256k1Mul": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 7045
+                },
+                "n_memory_holes": 0,
+                "n_steps": 76401
+            },
+            "Secp256k1New": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 35
+                },
+                "n_memory_holes": 40,
+                "n_steps": 475
+            },
+            "Secp256r1Add": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 57
+                },
+                "n_memory_holes": 0,
+                "n_steps": 589
+            },
+            "Secp256r1GetPointFromX": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 44
+                },
+                "n_memory_holes": 20,
+                "n_steps": 510
+            },
+            "Secp256r1GetXy": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 11
+                },
+                "n_memory_holes": 40,
+                "n_steps": 241
+            },
+            "Secp256r1Mul": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 13961
+                },
+                "n_memory_holes": 0,
+                "n_steps": 125240
+            },
+            "Secp256r1New": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 49
+                },
+                "n_memory_holes": 40,
+                "n_steps": 594
+            },
+            "SendMessageToL1": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 84
+            },
+            "Sha256ProcessBlock": {
+                "builtin_instance_counter": {},
+                "n_memory_holes": 0,
+                "n_steps": 0
+            },
+            "LibraryCall": {
+                "builtin_instance_counter": {
+                    "range_check_builtin": 19
+                },
                 "GetBlockTimestamp": {
                     "builtin_instance_counter": {},
                     "n_memory_holes": 0,

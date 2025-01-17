@@ -414,56 +414,6 @@
     "privacy": "Public",
     "value": "Enabled"
   },
-  "components.l1_provider.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.l1_provider.local_server_config.channel_buffer_size": {
-    "description": "The communication channel buffer size.",
-    "privacy": "Public",
-    "value": 32
-  },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 18446744073709551615
-  },
-  "components.l1_provider.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 90
-  },
-  "components.l1_provider.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "components.l1_provider.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.l1_provider.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.l1_provider.remote_server_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -927,7 +877,7 @@
   "state_sync_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
     "privacy": "Public",
-    "value": "2.0"
+    "value": ""
   },
   "state_sync_config.network_config.advertised_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
@@ -937,6 +887,41 @@
   "state_sync_config.network_config.bootstrap_peer_multiaddr": {
     "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
     "privacy": "Public",
+    "value": 2
+  },
+  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.network_config.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.network_config.idle_connection_timeout": {
+    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": {
+    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
+    "privacy": "Public",
+    "value": 31536000
+  },
+  "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": {
+    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.network_config.secret_key": {
+    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
+    "privacy": "Private",
     "value": ""
   },
   "state_sync_config.network_config.bootstrap_peer_multiaddr.#is_none": {

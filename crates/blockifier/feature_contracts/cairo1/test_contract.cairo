@@ -735,10 +735,4 @@ mod TestContract {
     #[external(v0)]
     fn empty_function(ref self: ContractState) {
     }
-
-    #[external(v0)]
-    fn return_result(ref self: ContractState, num: felt252) -> felt252 {
-        let result = num;
-        result
-    }
 }
