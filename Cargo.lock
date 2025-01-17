@@ -10213,7 +10213,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "sierra-emu"
 version = "0.1.0"
-source = "git+https://github.com/lambdaclass/sierra-emu.git?rev=b3c9d6bd193b2da881fab3dce57fe12c363aed86#b3c9d6bd193b2da881fab3dce57fe12c363aed86"
+source = "git+https://github.com/lambdaclass/sierra-emu.git?rev=cc5c7bc362a71304a3e0c3cecb547c01b75a7566#cc5c7bc362a71304a3e0c3cecb547c01b75a7566"
 dependencies = [
  "cairo-lang-compiler",
  "cairo-lang-filesystem",
