@@ -201,4 +201,3 @@ async fn test_mempool_receives_tx_from_other_peer(
         assert!(expected_txs.contains(&converted_tx));
     }
 }
-
