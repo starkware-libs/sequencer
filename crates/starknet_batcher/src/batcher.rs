@@ -36,7 +36,7 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::Mutex;
-use tracing::{Instrument, debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -50,11 +50,11 @@ use crate::block_builder::{
 use crate::config::BatcherConfig;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
-    ProposalResult,
-    ProposalTask,
     deadline_as_instant,
     proposal_status_from,
     verify_block_input,
+    ProposalResult,
+    ProposalTask,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
