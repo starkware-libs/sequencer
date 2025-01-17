@@ -8,13 +8,7 @@ use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLan
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::EntryPointType;
-use crate::core::{
-    calculate_contract_address,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-};
+use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
@@ -28,16 +22,18 @@ use crate::transaction::fields::{
     ValidResourceBounds,
 };
 use crate::transaction::{
+    CalculateContractAddress,
     DeclareTransaction,
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
+    DeployTransactionTrait,
     InvokeTransaction,
     InvokeTransactionV3,
     Transaction,
     TransactionHash,
 };
-use crate::StarknetApiError;
+use crate::{impl_deploy_transaction_trait, StarknetApiError};
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.
@@ -109,12 +105,7 @@ impl RpcTransaction {
         match self {
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => Ok(tx.sender_address),
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                calculate_contract_address(
-                    tx.contract_address_salt,
-                    tx.class_hash,
-                    &tx.constructor_calldata,
-                    ContractAddress::default(),
-                )
+                tx.calculate_contract_address()
             }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => Ok(tx.sender_address),
         }
@@ -247,6 +238,8 @@ pub struct RpcDeployAccountTransactionV3 {
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
+
+impl_deploy_transaction_trait!(RpcDeployAccountTransactionV3);
 
 impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     fn from(tx: RpcDeployAccountTransactionV3) -> Self {
