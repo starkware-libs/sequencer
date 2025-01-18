@@ -9,6 +9,7 @@ use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use tokio::sync::Mutex;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{
@@ -87,8 +88,14 @@ where
     client: Client<hyper::client::HttpConnector>,
     config: RemoteClientConfig,
     socket: SocketAddr,
-    _req: PhantomData<Request>,
-    _res: PhantomData<Response>,
+    // [`RemoteComponentClient<Request,Response>`] should be [`Send + Sync`] while [`Request`] and
+    // [`Response`] are only [`Send`]. [`Phantom<T>`] is [`Send + Sync`] only if [`T`] is, despite
+    // this bound making no sense as the phantom data field is unused. As such, we wrap it as
+    // [`PhantomData<Mutex<T>>`], not enforcing the redundant [`Sync`] bound. Alternatively,
+    // we could also use [`unsafe impl Sync for RemoteComponentClient<Request, Response> {}`], but
+    // we prefer the former for the sake of avoiding unsafe code.
+    _req: PhantomData<Mutex<Request>>,
+    _res: PhantomData<Mutex<Response>>,
 }
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
@@ -141,8 +148,8 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for RemoteComponentClient<Request, Response>
 where
-    Request: Send + Sync + Serialize + DeserializeOwned + Debug,
-    Response: Send + Sync + Serialize + DeserializeOwned + Debug,
+    Request: Send + Serialize + DeserializeOwned + Debug,
+    Response: Send + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
         // Serialize the request.
@@ -192,8 +199,8 @@ where
             client: self.client.clone(),
             config: self.config.clone(),
             socket: self.socket,
-            _req: PhantomData,
-            _res: PhantomData,
+            _req: self._req,
+            _res: self._res,
         }
     }
 }
