@@ -4,7 +4,7 @@ use std::time::Duration;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::swarm::ToSwarm;
+use libp2p::swarm::{ConnectionId, ToSwarm};
 use libp2p::PeerId;
 use papyrus_config::converters::{
     deserialize_milliseconds_to_duration,
@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
-use self::peer::PeerTrait;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::sqmr::OutboundSessionId;
@@ -52,6 +51,8 @@ pub struct PeerManager {
     peers_pending_dial_with_sessions: HashMap<PeerId, Vec<OutboundSessionId>>,
     sessions_received_when_no_peers: Vec<OutboundSessionId>,
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
+    // A peer is known only after we get the identify message.
+    connections_for_unknown_peers: HashMap<PeerId, Vec<ConnectionId>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -114,6 +115,7 @@ impl PeerManager {
             peers_pending_dial_with_sessions: HashMap::new(),
             sessions_received_when_no_peers: Vec::new(),
             sleep_waiting_for_unblocked_peer: None,
+            connections_for_unknown_peers: HashMap::default(),
         }
     }
 
@@ -174,10 +176,6 @@ impl PeerManager {
             let peer_connection_ids = peer.connection_ids();
             if !peer_connection_ids.is_empty() {
                 let connection_id = peer_connection_ids[0];
-                info!(
-                    "Session {:?} assigned to peer {:?} with connection id: {:?}",
-                    outbound_session_id, peer_id, connection_id
-                );
                 self.pending_events.push(ToSwarm::GenerateEvent(
                     ToOtherBehaviourEvent::SessionAssigned {
                         outbound_session_id,
@@ -281,7 +279,10 @@ impl BridgedBehaviour for PeerManager {
                     return;
                 };
 
-                let peer = Peer::new(*peer_id, address.clone());
+                let mut peer = Peer::new(*peer_id, address.clone());
+                if let Some(connection_ids) = self.connections_for_unknown_peers.remove(peer_id) {
+                    *peer.connection_ids_mut() = connection_ids;
+                }
                 self.add_peer(peer);
             }
             _ => {}

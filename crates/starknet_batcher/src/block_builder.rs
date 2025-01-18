@@ -3,10 +3,10 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
     TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
-    VisitedSegmentsMapping,
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
@@ -72,7 +72,6 @@ pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
     pub commitment_state_diff: CommitmentStateDiff,
-    pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
 }
@@ -211,13 +210,12 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
+        let BlockExecutionSummary { state_diff, bouncer_weights, .. } =
             self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
             rejected_tx_hashes,
-            commitment_state_diff,
-            visited_segments_mapping,
+            commitment_state_diff: state_diff,
             bouncer_weights,
             l2_gas_used,
         })
@@ -237,7 +235,9 @@ async fn collect_execution_results_and_stream_txs(
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
-                *l2_gas_used += tx_execution_info.receipt.gas.l2_gas;
+                *l2_gas_used = l2_gas_used
+                    .checked_add(tx_execution_info.receipt.gas.l2_gas)
+                    .expect("Total L2 gas overflow.");
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;

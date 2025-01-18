@@ -15,6 +15,7 @@ use std::time::Duration;
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use metrics::counter;
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -78,7 +79,7 @@ where
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
-        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
+        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
 
         let must_observer = current_height < start_active_height;
         match manager
@@ -97,26 +98,23 @@ where
                 // precommits to print.
                 info!("Decision reached. {:?}", decision);
                 context.decision_reached(decision.block, decision.precommits).await?;
-                current_height = current_height.unchecked_next();
             }
-            RunHeightRes::Sync(sync_height) => {
-                info!("Sync to height: {}. current_height={}", sync_height, current_height);
-                metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
-                current_height = sync_height.unchecked_next();
+            RunHeightRes::Sync => {
+                info!(height = current_height.0, "Decision learned via sync protocol.");
+                counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
             }
         }
+        current_height = current_height.unchecked_next();
     }
 }
 
 /// Run height can end either when consensus reaches a decision or when we learn, via sync, of the
 /// decision.
-// TODO(Matan): Sync may change when Shahak actually implements.
 pub enum RunHeightRes {
     /// Decision reached.
     Decision(Decision),
-    /// Sync protocol returned a future height.
-    // TODO(Asmaa): Remove BlockNumber since sync is only for the current block.
-    Sync(BlockNumber),
+    /// Decision learned via sync.
+    Sync,
 }
 
 type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
@@ -207,7 +205,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 _ = tokio::time::sleep(sync_retry_interval) => {
                     if context.try_sync(height).await {
-                        return Ok(RunHeightRes::Sync(height));
+                        return Ok(RunHeightRes::Sync);
                     }
                     continue;
                 }

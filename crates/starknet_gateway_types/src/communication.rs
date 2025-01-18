@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::component_client::{
@@ -62,7 +62,12 @@ where
     #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
-        let response = self.send(request).await;
-        handle_response_variants!(GatewayResponse, AddTransaction, GatewayClientError, GatewayError)
+        handle_all_response_variants!(
+            GatewayResponse,
+            AddTransaction,
+            GatewayClientError,
+            GatewayError,
+            Direct
+        )
     }
 }

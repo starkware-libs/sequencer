@@ -150,6 +150,23 @@ impl BlockContext {
             use_kzg_da: self.block_info.use_kzg_da,
         }
     }
+
+    /// Test util to allow overriding block gas limits.
+    #[cfg(any(test, feature = "testing"))]
+    pub fn set_sierra_gas_limits(
+        &mut self,
+        execute_max_gas: Option<GasAmount>,
+        validate_max_gas: Option<GasAmount>,
+    ) {
+        let mut new_os_constants = *self.versioned_constants.os_constants.clone();
+        if let Some(execute_max_gas) = execute_max_gas {
+            new_os_constants.execute_max_sierra_gas = execute_max_gas;
+        }
+        if let Some(validate_max_gas) = validate_max_gas {
+            new_os_constants.validate_max_sierra_gas = validate_max_gas;
+        }
+        self.versioned_constants.os_constants = std::sync::Arc::new(new_os_constants);
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -170,6 +187,7 @@ impl ChainInfo {
 impl Default for ChainInfo {
     fn default() -> Self {
         ChainInfo {
+            // TODO(guyn): should we remove the default value for chain_id?
             chain_id: ChainId::Other("0x0".to_string()),
             fee_token_addresses: FeeTokenAddresses::default(),
         }

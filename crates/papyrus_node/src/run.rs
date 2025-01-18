@@ -20,10 +20,10 @@ use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_network::{network_manager, NetworkConfig};
-use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
-use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
+use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels};
+use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::storage_metrics::update_storage_metrics;
@@ -192,8 +192,9 @@ fn spawn_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    let proposal_network_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>> =
-        network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    let proposal_network_channels: BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
@@ -293,13 +294,13 @@ async fn spawn_sync_client(
                 .register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
             let class_client_sender =
                 network_manager.register_sqmr_protocol_client(Protocol::Class.into(), BUFFER_SIZE);
-            let p2p_sync_client_channels = P2PSyncClientChannels::new(
+            let p2p_sync_client_channels = P2pSyncClientChannels::new(
                 header_client_sender,
                 state_diff_client_sender,
                 transaction_client_sender,
                 class_client_sender,
             );
-            let p2p_sync = P2PSyncClient::new(
+            let p2p_sync = P2pSyncClient::new(
                 p2p_sync_client_config,
                 storage_reader,
                 storage_writer,
@@ -316,7 +317,7 @@ fn spawn_p2p_sync_server(
     storage_reader: StorageReader,
 ) -> JoinHandle<anyhow::Result<()>> {
     let Some(network_manager) = network_manager else {
-        info!("P2P Sync is disabled.");
+        info!("P2p Sync is disabled.");
         return tokio::spawn(future::pending());
     };
 
@@ -331,7 +332,7 @@ fn spawn_p2p_sync_server(
     let event_server_receiver =
         network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
 
-    let p2p_sync_server_channels = P2PSyncServerChannels::new(
+    let p2p_sync_server_channels = P2pSyncServerChannels::new(
         header_server_receiver,
         state_diff_server_receiver,
         transaction_server_receiver,
@@ -339,7 +340,7 @@ fn spawn_p2p_sync_server(
         event_server_receiver,
     );
 
-    let p2p_sync_server = P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+    let p2p_sync_server = P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
     tokio::spawn(async move {
         p2p_sync_server.run().await;
         Ok(())
@@ -395,7 +396,7 @@ async fn run_threads(
         .await?
     };
 
-    // P2P Sync Server task.
+    // P2p Sync Server task.
     let p2p_sync_server_handle = if let Some(handle) = tasks.p2p_sync_server_handle {
         handle
     } else {
@@ -448,7 +449,7 @@ async fn run_threads(
             res??
         }
         res = p2p_sync_server_handle => {
-            error!("P2P Sync server stopped");
+            error!("P2p Sync server stopped");
             res??
         }
         res = network_handle => {

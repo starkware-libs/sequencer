@@ -22,6 +22,7 @@ use starknet_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
+    RevertBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -47,6 +48,7 @@ use crate::config::BatcherConfig;
 use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
+const LATEST_BLOCK_IN_STORAGE: BlockNumber = BlockNumber(INITIAL_HEIGHT.0 - 1);
 const STREAMING_CHUNK_SIZE: usize = 3;
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const PROPOSAL_ID: ProposalId = ProposalId(0);
@@ -170,15 +172,15 @@ async fn start_height_success() {
 #[rstest]
 #[case::height_already_passed(
     INITIAL_HEIGHT.prev().unwrap(),
-    BatcherError::HeightAlreadyPassed {
-        storage_height: INITIAL_HEIGHT,
+    BatcherError::StorageHeightMarkerMismatch {
+        marker_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.prev().unwrap()
     }
 )]
 #[case::storage_not_synced(
     INITIAL_HEIGHT.unchecked_next(),
-    BatcherError::StorageNotSynced {
-        storage_height: INITIAL_HEIGHT,
+    BatcherError::StorageHeightMarkerMismatch {
+        marker_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.unchecked_next()
     }
 )]
@@ -520,7 +522,6 @@ async fn add_sync_block() {
 
 #[rstest]
 #[tokio::test]
-#[should_panic(expected = "Synced block height 4 does not match the current height 3.")]
 async fn add_sync_block_mismatch_block_number() {
     let mut batcher = create_batcher(MockDependencies::default());
 
@@ -531,7 +532,64 @@ async fn add_sync_block_mismatch_block_number() {
         },
         ..Default::default()
     };
-    batcher.add_sync_block(sync_block).await.unwrap();
+    let result = batcher.add_sync_block(sync_block).await;
+    assert_eq!(
+        result,
+        Err(BatcherError::StorageHeightMarkerMismatch {
+            marker_height: BlockNumber(3),
+            requested_height: BlockNumber(4)
+        })
+    )
+}
+
+#[tokio::test]
+async fn revert_block() {
+    let mut mock_dependencies = MockDependencies::default();
+
+    mock_dependencies
+        .storage_writer
+        .expect_revert_block()
+        .times(1)
+        .with(eq(LATEST_BLOCK_IN_STORAGE))
+        .returning(|_| Ok(()));
+    let mut batcher = create_batcher(mock_dependencies);
+
+    let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
+    batcher.revert_block(revert_input).await.unwrap();
+}
+
+#[tokio::test]
+async fn revert_block_mismatch_block_number() {
+    let mut batcher = create_batcher(MockDependencies::default());
+
+    let revert_input = RevertBlockInput { height: INITIAL_HEIGHT };
+    let result = batcher.revert_block(revert_input).await;
+    assert_eq!(
+        result,
+        Err(BatcherError::StorageHeightMarkerMismatch {
+            marker_height: BlockNumber(3),
+            requested_height: BlockNumber(3)
+        })
+    )
+}
+
+#[tokio::test]
+async fn revert_block_empty_storage() {
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
+
+    let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+    let mut batcher = create_batcher(mock_dependencies);
+
+    let revert_input = RevertBlockInput { height: BlockNumber(0) };
+    let result = batcher.revert_block(revert_input).await;
+    assert_eq!(
+        result,
+        Err(BatcherError::StorageHeightMarkerMismatch {
+            marker_height: BlockNumber(0),
+            requested_height: BlockNumber(0)
+        })
+    );
 }
 
 #[rstest]

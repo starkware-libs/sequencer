@@ -1,3 +1,4 @@
+mod block_data_stream_builder;
 mod class;
 #[cfg(test)]
 mod class_test;
@@ -7,7 +8,8 @@ mod header_test;
 mod state_diff;
 #[cfg(test)]
 mod state_diff_test;
-mod stream_builder;
+#[cfg(test)]
+mod test;
 #[cfg(test)]
 mod test_utils;
 mod transaction;
@@ -17,6 +19,7 @@ mod transaction_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use block_data_stream_builder::{BlockDataResult, BlockDataStreamBuilder};
 use class::ClassStreamBuilder;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::never::Never;
@@ -44,7 +47,6 @@ use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
-use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;
@@ -55,7 +57,7 @@ const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
-pub struct P2PSyncClientConfig {
+pub struct P2pSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
     pub num_block_transactions_per_query: u64,
@@ -65,7 +67,7 @@ pub struct P2PSyncClientConfig {
     pub buffer_size: usize,
 }
 
-impl SerializeConfig for P2PSyncClientConfig {
+impl SerializeConfig for P2pSyncClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
@@ -110,9 +112,9 @@ impl SerializeConfig for P2PSyncClientConfig {
     }
 }
 
-impl Default for P2PSyncClientConfig {
+impl Default for P2pSyncClientConfig {
     fn default() -> Self {
-        P2PSyncClientConfig {
+        P2pSyncClientConfig {
             num_headers_per_query: 10000,
             // State diffs are split into multiple messages, so big queries can lead to a lot of
             // messages in the network buffers.
@@ -127,7 +129,7 @@ impl Default for P2PSyncClientConfig {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum P2PSyncClientError {
+pub enum P2pSyncClientError {
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     #[error("Network returned more responses than expected for a query.")]
     TooManyResponses,
@@ -152,14 +154,14 @@ type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffC
 type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
 type ClassSqmrSender = SqmrClientSender<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 
-pub struct P2PSyncClientChannels {
+pub struct P2pSyncClientChannels {
     header_sender: HeaderSqmrSender,
     state_diff_sender: StateSqmrDiffSender,
     transaction_sender: TransactionSqmrSender,
     class_sender: ClassSqmrSender,
 }
 
-impl P2PSyncClientChannels {
+impl P2pSyncClientChannels {
     pub fn new(
         header_sender: HeaderSqmrSender,
         state_diff_sender: StateSqmrDiffSender,
@@ -171,9 +173,9 @@ impl P2PSyncClientChannels {
     pub(crate) fn create_stream(
         self,
         storage_reader: StorageReader,
-        config: P2PSyncClientConfig,
+        config: P2pSyncClientConfig,
         internal_blocks_receivers: InternalBlocksReceivers,
-    ) -> impl Stream<Item = DataStreamResult> + Send + 'static {
+    ) -> impl Stream<Item = BlockDataResult> + Send + 'static {
         let header_stream = HeaderStreamBuilder::create_stream(
             self.header_sender,
             storage_reader.clone(),
@@ -210,34 +212,34 @@ impl P2PSyncClientChannels {
     }
 }
 
-pub struct P2PSyncClient {
-    config: P2PSyncClientConfig,
+pub struct P2pSyncClient {
+    config: P2pSyncClientConfig,
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
-    p2p_sync_channels: P2PSyncClientChannels,
-    internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+    p2p_sync_channels: P2pSyncClientChannels,
+    internal_blocks_receiver: BoxStream<'static, SyncBlock>,
 }
 
-impl P2PSyncClient {
+impl P2pSyncClient {
     pub fn new(
-        config: P2PSyncClientConfig,
+        config: P2pSyncClientConfig,
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
-        p2p_sync_channels: P2PSyncClientChannels,
-        internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
+        p2p_sync_channels: P2pSyncClientChannels,
+        internal_blocks_receiver: BoxStream<'static, SyncBlock>,
     ) -> Self {
         Self { config, storage_reader, storage_writer, p2p_sync_channels, internal_blocks_receiver }
     }
 
     #[instrument(skip(self), level = "debug", err)]
-    pub async fn run(self) -> Result<Never, P2PSyncClientError> {
-        info!("Starting P2P sync client");
+    pub async fn run(self) -> Result<Never, P2pSyncClientError> {
+        info!("Starting p2p sync client");
 
         let InternalBlocksChannels {
             receivers: internal_blocks_receivers,
             senders: mut internal_blocks_senders,
         } = InternalBlocksChannels::new();
-        let P2PSyncClient {
+        let P2pSyncClient {
             config,
             storage_reader,
             mut storage_writer,
@@ -250,8 +252,8 @@ impl P2PSyncClient {
         loop {
             tokio::select! {
                 maybe_internal_block = internal_blocks_receiver.next() => {
-                    let (block_number, sync_block) = maybe_internal_block.expect("Internal blocks stream should never end");
-                    internal_blocks_senders.send(block_number, sync_block).await?;
+                    let sync_block = maybe_internal_block.expect("Internal blocks stream should never end");
+                    internal_blocks_senders.send(sync_block).await?;
                 }
                 data = data_stream.next() => {
                     let data = data.expect("Sync data stream should never end")?;
@@ -263,29 +265,25 @@ impl P2PSyncClient {
 }
 
 pub(crate) struct InternalBlocksReceivers {
-    header_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    state_diff_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    transaction_receiver: Receiver<(BlockNumber, SyncBlock)>,
-    class_receiver: Receiver<(BlockNumber, SyncBlock)>,
+    header_receiver: Receiver<SyncBlock>,
+    state_diff_receiver: Receiver<SyncBlock>,
+    transaction_receiver: Receiver<SyncBlock>,
+    class_receiver: Receiver<SyncBlock>,
 }
 
 pub struct InternalBlocksSenders {
-    header_sender: Sender<(BlockNumber, SyncBlock)>,
-    state_diff_sender: Sender<(BlockNumber, SyncBlock)>,
-    transaction_sender: Sender<(BlockNumber, SyncBlock)>,
-    class_sender: Sender<(BlockNumber, SyncBlock)>,
+    header_sender: Sender<SyncBlock>,
+    state_diff_sender: Sender<SyncBlock>,
+    transaction_sender: Sender<SyncBlock>,
+    class_sender: Sender<SyncBlock>,
 }
 
 impl InternalBlocksSenders {
-    pub async fn send(
-        &mut self,
-        block_number: BlockNumber,
-        sync_block: SyncBlock,
-    ) -> Result<(), SendError> {
-        let header_send = self.header_sender.send((block_number, sync_block.clone()));
-        let state_diff_send = self.state_diff_sender.send((block_number, sync_block.clone()));
-        let transaction_send = self.transaction_sender.send((block_number, sync_block.clone()));
-        let class_send = self.class_sender.send((block_number, sync_block));
+    pub async fn send(&mut self, sync_block: SyncBlock) -> Result<(), SendError> {
+        let header_send = self.header_sender.send(sync_block.clone());
+        let state_diff_send = self.state_diff_sender.send(sync_block.clone());
+        let transaction_send = self.transaction_sender.send(sync_block.clone());
+        let class_send = self.class_sender.send(sync_block);
         let res =
             futures::future::join4(header_send, state_diff_send, transaction_send, class_send)
                 .await;

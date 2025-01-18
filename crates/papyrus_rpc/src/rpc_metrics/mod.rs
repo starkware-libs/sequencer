@@ -8,7 +8,7 @@ use std::time::Instant;
 use jsonrpsee::server::logger::{HttpRequest, Logger, MethodKind, TransportProtocol};
 use jsonrpsee::types::Params;
 use jsonrpsee::Methods;
-use metrics::{histogram, increment_counter, register_counter, register_histogram};
+use metrics::{counter, histogram};
 
 // Name of the metrics.
 const INCOMING_REQUEST: &str = "rpc_incoming_requests";
@@ -23,14 +23,15 @@ const ILLEGAL_METHOD: &str = "illegal_method";
 // Register the metrics and returns a set of the method names.
 fn init_metrics(methods: &Methods) -> HashSet<String> {
     let mut methods_set: HashSet<String> = HashSet::new();
-    register_counter!(INCOMING_REQUEST, METHOD_LABEL => ILLEGAL_METHOD);
-    register_counter!(FAILED_REQUESTS, METHOD_LABEL => ILLEGAL_METHOD);
+    counter!(INCOMING_REQUEST, METHOD_LABEL => ILLEGAL_METHOD).absolute(0);
+    counter!(FAILED_REQUESTS, METHOD_LABEL => ILLEGAL_METHOD).absolute(0);
     for method in methods.method_names() {
         methods_set.insert(method.to_string());
         let (method_name, version) = get_method_and_version(method);
-        register_counter!(FAILED_REQUESTS, METHOD_LABEL => method_name.clone(), VERSION_LABEL => version.clone());
-        register_counter!(INCOMING_REQUEST, METHOD_LABEL => method_name.clone(), VERSION_LABEL => version.clone());
-        register_histogram!(REQUEST_LATENCY, METHOD_LABEL => method_name, VERSION_LABEL => version);
+        counter!(FAILED_REQUESTS, METHOD_LABEL => method_name.clone(), VERSION_LABEL => version.clone()).absolute(0);
+        counter!(INCOMING_REQUEST, METHOD_LABEL => method_name.clone(), VERSION_LABEL => version.clone()).absolute(0);
+        histogram!(REQUEST_LATENCY, METHOD_LABEL => method_name, VERSION_LABEL => version)
+            .record(0);
     }
     methods_set
 }
@@ -61,14 +62,15 @@ impl Logger for MetricLogger {
         if self.methods_set.contains(method_name) {
             let (method, version) = get_method_and_version(method_name);
             if let jsonrpsee::helpers::MethodResponseResult::Failed(_) = success_or_error {
-                increment_counter!(FAILED_REQUESTS, METHOD_LABEL=> method.clone(), VERSION_LABEL=> version.clone());
+                counter!(FAILED_REQUESTS, METHOD_LABEL=> method.clone(), VERSION_LABEL=> version.clone()).increment(1);
             }
-            increment_counter!(INCOMING_REQUEST, METHOD_LABEL=> method.clone(), VERSION_LABEL=> version.clone());
+            counter!(INCOMING_REQUEST, METHOD_LABEL=> method.clone(), VERSION_LABEL=> version.clone()).increment(1);
             let latency = started_at.elapsed().as_secs_f64();
-            histogram!(REQUEST_LATENCY, latency,METHOD_LABEL=> method, VERSION_LABEL=> version);
+            histogram!(REQUEST_LATENCY, METHOD_LABEL=> method, VERSION_LABEL=> version)
+                .record(latency);
         } else {
-            increment_counter!(INCOMING_REQUEST, METHOD_LABEL => ILLEGAL_METHOD);
-            increment_counter!(FAILED_REQUESTS, METHOD_LABEL => ILLEGAL_METHOD);
+            counter!(INCOMING_REQUEST, METHOD_LABEL => ILLEGAL_METHOD).increment(1);
+            counter!(FAILED_REQUESTS, METHOD_LABEL => ILLEGAL_METHOD).increment(1);
         }
     }
 

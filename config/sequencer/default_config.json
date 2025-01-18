@@ -139,20 +139,65 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
+  },
   "batcher_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
     "value": 400
   },
-  "batcher_config.contract_class_manager_config.run_cairo_native": {
-    "description": "Enables Cairo native execution.",
+  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path": {
+    "description": "The path to the Cairo native runtime library file.",
     "privacy": "Public",
-    "value": false
+    "value": ""
   },
-  "batcher_config.contract_class_manager_config.wait_on_native_compilation": {
-    "description": "Block Sequencer main program while compiling sierra, for testing.",
+  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
+    "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",
-    "value": false
+    "value": 81920
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 15
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 15728640
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
@@ -224,30 +269,55 @@
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
+  "compiler_config.libcairo_native_runtime_path": {
+    "description": "The path to the Cairo native runtime library file.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "compiler_config.libcairo_native_runtime_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "compiler_config.max_casm_bytecode_size": {
-    "description": "Limitation of the result CASM contract bytecode size.",
+    "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",
     "value": 81920
+  },
+  "compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 15
+  },
+  "compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 15728640
+  },
+  "compiler_config.sierra_to_native_compiler_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "compiler_config.sierra_to_native_compiler_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.batcher.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.batcher.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.batcher.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -279,20 +349,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.gateway.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.gateway.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.gateway.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -324,20 +384,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.l1_provider.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.l1_provider.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.l1_provider.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -369,20 +419,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -409,20 +449,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.mempool_p2p.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.mempool_p2p.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.mempool_p2p.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -454,20 +484,10 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.state_sync.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.state_sync.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
-  },
-  "components.state_sync.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",

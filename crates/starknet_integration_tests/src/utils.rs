@@ -17,12 +17,8 @@ use mempool_test_utils::starknet_api_test_utils::{
 use papyrus_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use papyrus_consensus::types::ValidatorId;
 use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
-use papyrus_network::network_manager::test_utils::{
-    create_connected_network_configs,
-    create_network_configs_connected_to_broadcast_channels,
-};
-use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_network::network_manager::test_utils::create_connected_network_configs;
+use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
@@ -38,9 +34,9 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::test_utils::create_http_server_config;
+use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
     EthereumBaseLayerConfigRequiredParams,
@@ -49,7 +45,11 @@ use starknet_sequencer_node::config::config_utils::{
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinHandle;
+use tracing::{debug, Instrument};
 use url::Url;
+
+use crate::integration_test_setup::SequencerExecutionId;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -71,25 +71,26 @@ pub fn create_chain_info() -> ChainInfo {
 #[allow(clippy::too_many_arguments)]
 pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
-    sequencer_index: usize,
+    sequencer_execution_id: SequencerExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
-    state_sync_storage_config: StorageConfig,
+    state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     component_config: ComponentConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
-    let validator_id = set_validator_id(&mut consensus_manager_config, sequencer_index);
+    let validator_id = set_validator_id(
+        &mut consensus_manager_config,
+        sequencer_execution_id.get_sequencer_index(),
+    );
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
-    let gateway_config = create_gateway_config(chain_info.clone()).await;
+    let gateway_config = create_gateway_config(chain_info.clone());
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let monitoring_endpoint_config =
         MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
-    let state_sync_config =
-        create_state_sync_config(state_sync_storage_config, available_ports.get_next_port());
 
     (
         SequencerNodeConfig {
@@ -116,28 +117,19 @@ pub async fn create_node_config(
     )
 }
 
-// TODO(Nadin/Tsabary): refactor this function to separate the creation of network_configs and
-// broadcast_channels broadcast_channels into two distinct functions.
-pub fn create_consensus_manager_configs_and_channels(
-    n_managers: usize,
-    ports: Vec<u16>,
-) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
-    let (network_configs, broadcast_channels) =
-        create_network_configs_connected_to_broadcast_channels(
-            papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-            ),
-            ports,
-        );
-    // TODO: Need to also add a channel for votes, in addition to the proposals channel.
-
+pub(crate) fn create_consensus_manager_configs_from_network_configs(
+    network_configs: Vec<NetworkConfig>,
+    n_composed_nodes: usize,
+) -> Vec<ConsensusManagerConfig> {
     // TODO(Matan, Dan): set reasonable default timeouts.
     let mut timeouts = TimeoutsConfig::default();
     timeouts.precommit_timeout *= 3;
     timeouts.prevote_timeout *= 3;
     timeouts.proposal_timeout *= 3;
 
-    let consensus_manager_configs = network_configs
+    let num_validators = u64::try_from(n_composed_nodes).unwrap();
+
+    network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
@@ -146,28 +138,39 @@ pub fn create_consensus_manager_configs_and_channels(
 		// TODO(Matan, Dan): Set the right amount
                 consensus_delay: Duration::from_secs(15),
                 network_config,
-                num_validators: u64::try_from(n_managers).unwrap(),
+                num_validators,
                 timeouts: timeouts.clone(),
                 ..Default::default()
             },
             ..Default::default()
         })
-        .collect();
-
-    (consensus_manager_configs, broadcast_channels)
+        .collect()
 }
 
 // Creates a local recorder server that always returns a success status.
-pub fn spawn_success_recorder(port: u16) -> Url {
-    // [127, 0, 0, 1] is the localhost IP address.
-    let socket_addr = SocketAddr::from(([127, 0, 0, 1], port));
+pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let router = Router::new()
-            .route(RECORDER_WRITE_BLOB_PATH, post(move || async { StatusCode::OK.to_string() }));
-        axum::Server::bind(&socket_addr).serve(router.into_make_service()).await.unwrap();
-    });
+        let router = Router::new().route(
+            RECORDER_WRITE_BLOB_PATH,
+            post(move || {
+                async {
+                    debug!("Received a request to write a blob.");
+                    StatusCode::OK.to_string()
+                }
+                .instrument(tracing::debug_span!("success recorder write_blob"))
+            }),
+        );
+        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+    })
+}
 
-    Url::parse(&format!("http://{}", socket_addr)).expect("Parsing recorder url fail")
+pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
+    // [127, 0, 0, 1] is the localhost IP address.
+    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+    // TODO(Tsabary): create a socket-to-url function.
+    let url = Url::parse(&format!("http://{}", socket_address)).unwrap();
+    let join_handle = spawn_success_recorder(socket_address);
+    (url, join_handle)
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
@@ -302,7 +305,7 @@ where
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
-pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
+pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
@@ -339,12 +342,16 @@ fn set_validator_id(
     validator_id
 }
 
-pub fn create_state_sync_config(
+pub fn create_state_sync_configs(
     state_sync_storage_config: StorageConfig,
-    port: u16,
-) -> StateSyncConfig {
-    let mut config =
-        StateSyncConfig { storage_config: state_sync_storage_config, ..Default::default() };
-    config.network_config.tcp_port = port;
-    config
+    ports: Vec<u16>,
+) -> Vec<StateSyncConfig> {
+    create_connected_network_configs(ports)
+        .into_iter()
+        .map(|network_config| StateSyncConfig {
+            storage_config: state_sync_storage_config.clone(),
+            network_config,
+            ..Default::default()
+        })
+        .collect()
 }

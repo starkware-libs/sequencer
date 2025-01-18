@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
@@ -28,7 +28,7 @@ use crate::state_sync_types::{StateSyncResult, SyncBlock};
 #[async_trait]
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
-    /// If the block doesn't exist, or if the sync didn't download it yet, returns None.
+    /// Returns None if the block doesn't exist or the sync hasn't downloaded it yet.
     async fn get_block(
         &self,
         block_number: BlockNumber,
@@ -36,12 +36,13 @@ pub trait StateSyncClient: Send + Sync {
 
     /// Notify the sync that a new block has been created within the node so that other peers can
     /// learn about it through sync.
-    async fn add_new_block(
-        &self,
-        block_number: BlockNumber,
-        sync_block: SyncBlock,
-    ) -> StateSyncClientResult<()>;
+    async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()>;
 
+    /// Request storage value under the given key in the given contract instance.
+    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
+    /// the sync hasn't been downloaded yet.
+    /// Returns a [ContractNotFound](StateSyncError::ContractNotFound) error If the contract has not
+    /// been deployed.
     async fn get_storage_at(
         &self,
         block_number: BlockNumber,
@@ -49,12 +50,22 @@ pub trait StateSyncClient: Send + Sync {
         storage_key: StorageKey,
     ) -> StateSyncClientResult<Felt>;
 
+    /// Request nonce in the given contract instance.
+    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
+    /// the sync hasn't been downloaded yet.
+    /// Returns a [ContractNotFound](StateSyncError::ContractNotFound) error If the contract has not
+    /// been deployed.
     async fn get_nonce_at(
         &self,
         block_number: BlockNumber,
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<Nonce>;
 
+    /// Request class hash of contract class in the given contract instance.
+    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
+    /// the sync hasn't been downloaded yet.
+    /// Returns a [ContractNotFound](StateSyncError::ContractNotFound) error If the contract has not
+    /// been deployed.
     async fn get_class_hash_at(
         &self,
         block_number: BlockNumber,
@@ -68,6 +79,8 @@ pub trait StateSyncClient: Send + Sync {
         class_hash: ClassHash,
     ) -> StateSyncClientResult<ContractClass>;
 
+    /// Request latest block number the sync has downloaded.
+    /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
 
     // TODO: Add get_compiled_class_hash for StateSyncReader
@@ -89,10 +102,9 @@ pub type StateSyncRequestAndResponseSender =
     ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
-    AddNewBlock(BlockNumber, SyncBlock),
+    AddNewBlock(Box<SyncBlock>),
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
@@ -101,9 +113,8 @@ pub enum StateSyncRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[allow(clippy::large_enum_variant)]
 pub enum StateSyncResponse {
-    GetBlock(StateSyncResult<Option<SyncBlock>>),
+    GetBlock(StateSyncResult<Box<Option<SyncBlock>>>),
     AddNewBlock(StateSyncResult<()>),
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
@@ -122,22 +133,23 @@ where
         block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>> {
         let request = StateSyncRequest::GetBlock(block_number);
-        let response = self.send(request).await;
-        handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
+        handle_all_response_variants!(
+            StateSyncResponse,
+            GetBlock,
+            StateSyncClientError,
+            StateSyncError,
+            Boxed
+        )
     }
 
-    async fn add_new_block(
-        &self,
-        block_number: BlockNumber,
-        sync_block: SyncBlock,
-    ) -> StateSyncClientResult<()> {
-        let request = StateSyncRequest::AddNewBlock(block_number, sync_block);
-        let response = self.send(request).await;
-        handle_response_variants!(
+    async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
+        let request = StateSyncRequest::AddNewBlock(Box::new(sync_block));
+        handle_all_response_variants!(
             StateSyncResponse,
             AddNewBlock,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -148,12 +160,12 @@ where
         storage_key: StorageKey,
     ) -> StateSyncClientResult<Felt> {
         let request = StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetStorageAt,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -163,12 +175,12 @@ where
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<Nonce> {
         let request = StateSyncRequest::GetNonceAt(block_number, contract_address);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetNonceAt,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -178,12 +190,12 @@ where
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<ClassHash> {
         let request = StateSyncRequest::GetClassHashAt(block_number, contract_address);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetClassHashAt,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
@@ -193,23 +205,23 @@ where
         class_hash: ClassHash,
     ) -> StateSyncClientResult<ContractClass> {
         let request = StateSyncRequest::GetCompiledClassDeprecated(block_number, class_hash);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetCompiledClassDeprecated,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
         let request = StateSyncRequest::GetLatestBlockNumber();
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             StateSyncResponse,
             GetLatestBlockNumber,
             StateSyncClientError,
-            StateSyncError
+            StateSyncError,
+            Direct
         )
     }
 }

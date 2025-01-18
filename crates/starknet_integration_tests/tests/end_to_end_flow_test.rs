@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -17,8 +18,8 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
-use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_funding_txs,
     create_integration_test_tx_generator,
@@ -133,7 +134,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             deploy_account,
             test_single_tx,
             Felt::from_hex_unchecked(
-                "0x773f138ea0d89887a4982df74341ce6e6303e3528027f5a838e1c3f8c2cb701",
+                "0xa7c607b6c3a1f3153bf979b41999dd3fdce771fdc49b13d6f12a98085dcb9c",
             ),
         ),
     ];
@@ -149,7 +150,9 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 }
 
 async fn listen_to_broadcasted_messages(
-    consensus_proposals_channels: &mut BroadcastTopicChannels<StreamMessage<ProposalPart>>,
+    consensus_proposals_channels: &mut BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
     expected_content_id: Felt,

@@ -10,7 +10,7 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
+use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info, instrument, Span};
 
@@ -93,6 +93,7 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     gateway_compiler: Arc<GatewayCompiler>,
+    mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
 }
@@ -104,6 +105,7 @@ impl ProcessTxBlockingTask {
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
             gateway_compiler: gateway.gateway_compiler.clone(),
+            mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
         }
@@ -137,7 +139,12 @@ impl ProcessTxBlockingTask {
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
 
-        self.stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
+        self.stateful_tx_validator.run_validate(
+            &executable_tx,
+            nonce,
+            self.mempool_client,
+            validator,
+        )?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
@@ -147,7 +154,7 @@ impl ProcessTxBlockingTask {
 pub fn create_gateway(
     config: GatewayConfig,
     shared_state_sync_client: SharedStateSyncClient,
-    compiler_config: SierraToCasmCompilationConfig,
+    compiler_config: SierraCompilationConfig,
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });

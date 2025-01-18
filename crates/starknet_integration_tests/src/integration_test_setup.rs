@@ -9,23 +9,47 @@ use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
+use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
-use starknet_sequencer_infra::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
+use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
-use crate::utils::{create_node_config, spawn_success_recorder};
+use crate::utils::{create_node_config, spawn_local_success_recorder};
+
+#[derive(Debug, Copy, Clone)]
+pub struct SequencerExecutionId {
+    sequencer_index: usize,
+    sequencer_part_index: usize,
+}
+
+impl SequencerExecutionId {
+    pub fn new(sequencer_index: usize, sequencer_part_index: usize) -> Self {
+        Self { sequencer_index, sequencer_part_index }
+    }
+    pub fn get_sequencer_index(&self) -> usize {
+        self.sequencer_index
+    }
+    pub fn get_sequencer_part_index(&self) -> usize {
+        self.sequencer_part_index
+    }
+}
+
+impl From<SequencerExecutionId> for NodeRunner {
+    fn from(val: SequencerExecutionId) -> Self {
+        NodeRunner::new(val.sequencer_index, val.sequencer_part_index)
+    }
+}
 
 pub struct SequencerSetup {
-    /// Sequencer index in the test.
-    pub sequencer_index: usize,
-    /// Sequencer part index in the test, per sequencer index.
-    pub sequencer_part_index: usize,
+    // Sequencer test identifier.
+    pub sequencer_execution_id: SequencerExecutionId,
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
@@ -48,32 +72,36 @@ pub struct SequencerSetup {
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
+#[allow(clippy::too_many_arguments)]
 impl SequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
-        sequencer_index: usize,
-        sequencer_part_index: usize,
+        sequencer_execution_id: SequencerExecutionId,
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
+        mut state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
+        // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        let (recorder_url, _join_handle) =
+            spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
+
+        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
-            sequencer_index,
+            sequencer_execution_id,
             chain_info,
             storage_for_test.batcher_storage_config,
-            storage_for_test.state_sync_storage_config,
+            state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
             component_config,
@@ -95,8 +123,7 @@ impl SequencerSetup {
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         Self {
-            sequencer_index,
-            sequencer_part_index,
+            sequencer_execution_id,
             add_tx_http_client,
             monitoring_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,

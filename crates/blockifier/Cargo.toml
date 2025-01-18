@@ -14,7 +14,7 @@ cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cair
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
-testing = ["rand", "rstest", "starknet_api/testing"]
+testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -33,7 +33,6 @@ cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
-infra_utils.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
@@ -46,6 +45,7 @@ paste.workspace = true
 phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
+rstest_reuse = { workspace = true, optional = true }
 semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -53,7 +53,8 @@ sha2.workspace = true
 stacker = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_sierra_compile = { workspace = true, optional = true }
+starknet_infra_utils.workspace = true
+starknet_sierra_compile.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 tempfile.workspace = true
@@ -70,11 +71,12 @@ pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true
 rstest.workspace = true
+rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
 [build-dependencies]
-infra_utils.workspace = true
+starknet_infra_utils.workspace = true
 
 [[bench]]
 harness = false
@@ -86,3 +88,7 @@ required-features = ["testing"]
 name = "feature_contracts_compatibility_test"
 path = "tests/feature_contracts_compatibility_test.rs"
 required-features = ["testing"]
+
+[package.metadata.cargo-machete]
+# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste"]

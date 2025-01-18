@@ -5,7 +5,6 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use assert_matches::assert_matches;
 use colored::Colorize;
-use infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
@@ -13,6 +12,7 @@ use rstest::rstest;
 use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
 use validator::Validate;
 
@@ -39,24 +39,34 @@ const VALID_SOCKET: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 
 /// Test the validation of the struct ReactiveComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(ReactiveComponentExecutionMode::Disabled, None, None, VALID_SOCKET)]
 #[case::local(
-    ReactiveComponentExecutionMode::Remote,
-    None,
-    Some(RemoteClientConfig::default()),
+    ReactiveComponentExecutionMode::Disabled,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
     VALID_SOCKET
 )]
-#[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, VALID_SOCKET)]
+#[case::local(
+    ReactiveComponentExecutionMode::Remote,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
+    VALID_SOCKET
+)]
+#[case::local(
+    LOCAL_EXECUTION_MODE,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
+    VALID_SOCKET
+)]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
-    Some(LocalServerConfig::default()),
-    None,
+    LocalServerConfig::default(),
+    RemoteClientConfig::default(),
     VALID_SOCKET
 )]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
-    #[case] local_server_config: Option<LocalServerConfig>,
-    #[case] remote_client_config: Option<RemoteClientConfig>,
+    #[case] local_server_config: LocalServerConfig,
+    #[case] remote_client_config: RemoteClientConfig,
     #[case] socket: SocketAddr,
 ) {
     let component_exe_config = ReactiveComponentExecutionConfig {

@@ -12,8 +12,6 @@ use starknet_sequencer_infra::component_server::{
 };
 use tracing::instrument;
 
-use crate::L1Provider;
-
 pub type LocalL1ProviderServer =
     LocalComponentServer<L1Provider, L1ProviderRequest, L1ProviderResponse>;
 pub type RemoteL1ProviderServer = RemoteComponentServer<L1ProviderRequest, L1ProviderResponse>;
@@ -22,6 +20,7 @@ pub type L1ProviderRequestAndResponseSender =
 pub type LocalL1ProviderClient = LocalComponentClient<L1ProviderRequest, L1ProviderResponse>;
 pub type RemoteL1ProviderClient = RemoteComponentClient<L1ProviderRequest, L1ProviderResponse>;
 
+use crate::l1_provider::L1Provider;
 use crate::l1_scraper::L1Scraper;
 
 pub type L1ScraperServer<B> = WrapperServer<L1Scraper<B>>;

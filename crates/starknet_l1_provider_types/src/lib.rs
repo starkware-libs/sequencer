@@ -6,7 +6,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_base_layer::L1Event;
-use papyrus_proc_macros::handle_response_variants;
+use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -23,6 +23,7 @@ pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ValidationStatus {
+    AlreadyIncludedInPropsedBlock,
     AlreadyIncludedOnL2,
     ConsumedOnL1OrUnknown,
     Validated,
@@ -70,24 +71,24 @@ where
         height: BlockNumber,
     ) -> L1ProviderClientResult<Vec<L1HandlerTransaction>> {
         let request = L1ProviderRequest::GetTransactions { n_txs, height };
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             L1ProviderResponse,
             GetTransactions,
             L1ProviderClientError,
-            L1ProviderError
+            L1ProviderError,
+            Direct
         )
     }
 
     #[instrument(skip(self))]
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
         let request = L1ProviderRequest::AddEvents(events);
-        let response = self.send(request).await;
-        handle_response_variants!(
+        handle_all_response_variants!(
             L1ProviderResponse,
             AddEvents,
             L1ProviderClientError,
-            L1ProviderError
+            L1ProviderError,
+            Direct
         )
     }
 

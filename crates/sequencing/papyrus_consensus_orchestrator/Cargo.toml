@@ -9,6 +9,7 @@ description = "Implements the consensus context and orchestrates the node's comp
 [dependencies]
 assert_matches.workspace = true
 async-trait.workspace = true
+cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
@@ -17,12 +18,16 @@ papyrus_consensus.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
 starknet_state_sync_types = { workspace = true, features = ["testing"] }
+thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true
@@ -30,17 +35,24 @@ url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 blockifier.workspace = true
-infra_utils.workspace = true
+cairo-lang-casm.workspace = true
+cairo-lang-utils.workspace = true
 lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true
+num-bigint.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
 test-case.workspace = true
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-machete]
+# `paste`, `starknet_infra_utils` are used in the `define_versioned_constants!` macro but may be falsely detected as unused.
+ignored = ["paste", "starknet_infra_utils"]

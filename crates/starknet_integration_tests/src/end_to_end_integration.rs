@@ -3,11 +3,7 @@ use starknet_api::block::BlockNumber;
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
-use crate::sequencer_manager::{
-    get_sequencer_setup_configs,
-    verify_results,
-    SequencerSetupManager,
-};
+use crate::sequencer_manager::{get_sequencer_setup_configs, SequencerSetupManager};
 
 pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
@@ -34,9 +30,6 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     info!("Shutting down nodes.");
     sequencer_manager.shutdown_nodes();
 
-    // TODO(AlonH): Consider checking all sequencer storage readers.
-    let batcher_storage_reader = sequencer_manager.batcher_storage_reader();
-
     // Verify the results.
-    verify_results(sender_address, batcher_storage_reader, N_TXS).await;
+    sequencer_manager.verify_results(sender_address, N_TXS).await;
 }

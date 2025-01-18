@@ -19,6 +19,7 @@ on:
 env:
   CI: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
   EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
@@ -27,6 +28,22 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    runs-on: starkware-ubuntu-20-04-medium
+    permissions:
+      pull-requests: read
+    outputs:
+      l1: ${{ steps.filter.outputs.l1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            l1:
+              - 'crates/starknet_l1_provider/**'
+              - 'crates/papyrus_base_layer/**'
+
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
@@ -98,6 +115,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
+    needs: changes
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +133,16 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
+      # anvil, remove.
       - run: npm install -g ganache@7.4.3
+
+      # Note: Anvil's not on crates.io, so we have to install from git, which moonrepo doesn't
+      # know how to cache, so we're forced to reinstall it every time :(
+      - name: "Maybe install Anvil"
+        run: cargo install --git https://github.com/foundry-rs/foundry anvil --locked
+        if: needs.changes.outputs.l1 == 'true'
+
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |

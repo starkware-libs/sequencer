@@ -16,13 +16,14 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
-use super::{P2PSyncClientError, STEP};
+use super::{P2pSyncClientError, STEP};
 
-pub type DataStreamResult = Result<Box<dyn BlockData>, P2PSyncClientError>;
+pub type BlockDataResult = Result<Box<dyn BlockData>, P2pSyncClientError>;
 
 pub(crate) trait BlockData: Send {
+    /// Write the block data to the storage.
     fn write_to_storage(
         // This is Box<Self> in order to allow using it with `Box<dyn BlockData>`.
         self: Box<Self>,
@@ -36,7 +37,7 @@ pub(crate) enum BlockNumberLimit {
     StateDiffMarker,
 }
 
-pub(crate) trait DataStreamBuilder<InputFromNetwork>
+pub(crate) trait BlockDataStreamBuilder<InputFromNetwork>
 where
     InputFromNetwork: Send + 'static,
     DataOrFin<InputFromNetwork>: TryFrom<Vec<u8>, Error = ProtobufConversionError>,
@@ -47,25 +48,28 @@ where
     const BLOCK_NUMBER_LIMIT: BlockNumberLimit;
 
     // Async functions in trait don't work well with argument references
+    /// Parse data for a specific block received from the network and return a future resolving to
+    /// an optional block data output or a parse error.
     fn parse_data_for_block<'a>(
         client_response_manager: &'a mut ClientResponsesManager<DataOrFin<InputFromNetwork>>,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
     ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>>;
 
+    /// Get the starting block number for this stream.
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
-    // TODO(Eitan): Remove option on return once we have a class manager component.
-    /// Returning None happens when internal blocks are disabled for this stream.
+    /// Convert a sync block into block data.
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> Option<Self::Output>;
+    ) -> Self::Output;
 
     // Async functions in trait don't work well with argument references
+    /// Retrieve the internal block for a specific block number.
     fn get_internal_block_at<'a>(
         internal_blocks_received: &'a mut HashMap<BlockNumber, Self::Output>,
-        internal_block_receiver: &'a mut Option<Receiver<(BlockNumber, SyncBlock)>>,
+        internal_block_receiver: &'a mut Option<Receiver<SyncBlock>>,
         current_block_number: BlockNumber,
     ) -> BoxFuture<'a, Self::Output> {
         async move {
@@ -74,15 +78,11 @@ where
             }
             let internal_block_receiver =
                 internal_block_receiver.as_mut().expect("Internal block receiver not set");
-            while let Some((block_number, sync_block)) = internal_block_receiver.next().await {
+            while let Some(sync_block) = internal_block_receiver.next().await {
+                let block_number = sync_block.block_header_without_hash.block_number;
                 if block_number >= current_block_number {
-                    // If None is received then we don't use internal blocks for this stream
-                    // TODO(Eitan): Remove this once we have a class manager component.
-                    let Some(block_data) =
-                        Self::convert_sync_block_to_block_data(block_number, sync_block)
-                    else {
-                        continue;
-                    };
+                    let block_data =
+                        Self::convert_sync_block_to_block_data(block_number, sync_block);
                     if block_number == current_block_number {
                         return block_data;
                     }
@@ -94,13 +94,14 @@ where
         .boxed()
     }
 
+    /// Create a stream for fetching and processing block data.
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
-        mut internal_block_receiver: Option<Receiver<(BlockNumber, SyncBlock)>>,
+        mut internal_block_receiver: Option<Receiver<SyncBlock>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
-    ) -> BoxStream<'static, DataStreamResult>
+    ) -> BoxStream<'static, BlockDataResult>
     where
         TQuery: From<Query> + Send + 'static,
         Vec<u8>: From<TQuery>,
@@ -119,7 +120,7 @@ where
                         };
                         let limit = min(last_block_number.0 - current_block_number.0, num_blocks_per_query);
                         if limit == 0 {
-                            debug!("{:?} sync is waiting for a new {}", Self::TYPE_DESCRIPTION, description);
+                            trace!("{:?} sync is waiting for a new {}", Self::TYPE_DESCRIPTION, description);
                             tokio::time::sleep(wait_period_for_new_data).await;
                             continue;
                         }
@@ -129,7 +130,7 @@ where
                 if let Some(block) = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number)
                     .now_or_never()
                 {
-                    debug!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                    info!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                     yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
                     current_block_number = current_block_number.unchecked_next();
                     continue 'send_query_and_parse_responses;
@@ -189,7 +190,7 @@ where
                             }
                         }
                         block = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number) => {
-                                debug!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                                info!("Added internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                                 current_block_number = current_block_number.unchecked_next();
                                 yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
                                 debug!("Network query ending at block {} for {:?} being ignored due to internal block", end_block_number, Self::TYPE_DESCRIPTION);
@@ -203,8 +204,8 @@ where
                     Some(Ok(DataOrFin(None))) => {
                         debug!("Network query ending at block {} for {:?} finished", end_block_number, Self::TYPE_DESCRIPTION);
                     },
-                    Some(_) => Err(P2PSyncClientError::TooManyResponses)?,
-                    None => Err(P2PSyncClientError::ReceiverChannelTerminated {
+                    Some(_) => Err(P2pSyncClientError::TooManyResponses)?,
+                    None => Err(P2pSyncClientError::ReceiverChannelTerminated {
                         type_description: Self::TYPE_DESCRIPTION
                     })?,
                 }
@@ -254,20 +255,20 @@ pub(crate) enum BadPeerError {
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum ParseDataError {
     #[error(transparent)]
-    Fatal(#[from] P2PSyncClientError),
+    Fatal(#[from] P2pSyncClientError),
     #[error(transparent)]
     BadPeer(#[from] BadPeerError),
 }
 
 impl From<StorageError> for ParseDataError {
     fn from(err: StorageError) -> Self {
-        ParseDataError::Fatal(P2PSyncClientError::StorageError(err))
+        ParseDataError::Fatal(P2pSyncClientError::StorageError(err))
     }
 }
 
 impl From<tokio::time::error::Elapsed> for ParseDataError {
     fn from(err: tokio::time::error::Elapsed) -> Self {
-        ParseDataError::Fatal(P2PSyncClientError::NetworkTimeout(err))
+        ParseDataError::Fatal(P2pSyncClientError::NetworkTimeout(err))
     }
 }
 

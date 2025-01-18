@@ -13,14 +13,14 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
-use super::stream_builder::{
+use super::block_data_stream_builder::{
     BadPeerError,
     BlockData,
+    BlockDataStreamBuilder,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
 };
-use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage(
@@ -44,7 +44,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
 
 pub(crate) struct ClassStreamBuilder;
 
-impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
+impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
     type Output = (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "classes";
@@ -80,7 +80,7 @@ impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
                 let maybe_contract_class =
                     tokio::time::timeout(NETWORK_DATA_TIMEOUT, classes_response_manager.next())
                         .await?
-                        .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                        .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                             type_description: Self::TYPE_DESCRIPTION,
                         })?;
                 let Some((api_contract_class, class_hash)) = maybe_contract_class?.0 else {
@@ -131,11 +131,12 @@ impl DataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
         storage_reader.begin_ro_txn()?.get_class_marker()
     }
 
-    // TODO(Eitan): Implement this function once we have a class manager component.
+    // Returning empty set because we assume that internal block's classes are already added to the
+    // class manager by the caller.
     fn convert_sync_block_to_block_data(
-        _block_number: BlockNumber,
+        block_number: BlockNumber,
         _sync_block: SyncBlock,
-    ) -> Option<(DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber)> {
-        None
+    ) -> (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
+        (DeclaredClasses::new(), DeprecatedDeclaredClasses::new(), block_number)
     }
 }

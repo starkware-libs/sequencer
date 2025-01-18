@@ -57,8 +57,11 @@ async fn test_get_block() {
             expected_header.block_header_without_hash.block_number,
         ))
         .await;
-    let StateSyncResponse::GetBlock(Ok(Some(block))) = response else {
-        panic!("Expected StateSyncResponse::GetBlock::Ok(Some(_)), but got {:?}", response);
+    let StateSyncResponse::GetBlock(Ok(boxed_sync_block)) = response else {
+        panic!("Expected StateSyncResponse::GetBlock::Ok(Box(Some(_))), but got {:?}", response);
+    };
+    let Some(block) = *boxed_sync_block else {
+        panic!("Expected Box(Some(_)), but got {:?}", boxed_sync_block);
     };
 
     assert_eq!(block.block_header_without_hash, expected_header.block_header_without_hash);
@@ -86,6 +89,8 @@ async fn test_get_storage_at() {
         .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
         .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
+        .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
         .unwrap()
         .commit()
         .unwrap();
@@ -125,6 +130,8 @@ async fn test_get_nonce_at() {
         .unwrap()
         .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
         .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -160,6 +167,8 @@ async fn get_class_hash_at() {
         .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
         .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
+        .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
         .unwrap()
         .commit()
         .unwrap();
@@ -213,6 +222,8 @@ async fn test_get_compiled_class_deprecated() {
             &[(cairo1_class_hash, &sierra_contract_class)],
             &[(cairo0_class_hash, &cairo0_contract_class)],
         )
+        .unwrap()
+        .append_body(block_number, Default::default())
         .unwrap()
         .commit()
         .unwrap();
@@ -322,6 +333,8 @@ async fn test_contract_not_found() {
         .append_header(header.block_header_without_hash.block_number, &header)
         .unwrap()
         .append_state_diff(header.block_header_without_hash.block_number, diff)
+        .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
         .unwrap()
         .commit()
         .unwrap();

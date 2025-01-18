@@ -16,8 +16,12 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash};
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};
+use starknet_api::deprecated_contract_class::{
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
+    EntryPointV0,
+};
 use starknet_api::state::SierraContractClass;
 
 use super::test_utils::{
@@ -176,19 +180,151 @@ fn create_random_state_diff_chunk_with_class(
             class_hash,
             compiled_class_hash: CompiledClassHash(rng.next_u64().into()),
         };
+
+        // SierraContractClass::get_test_instance(rng) currently returns the same value every time,
+        // so we change the program to be random.
+        let mut sierra_contract_class = SierraContractClass::get_test_instance(rng);
+
+        sierra_contract_class.sierra_program = vec![rng.next_u64().into()];
         (
             StateDiffChunk::DeclaredClass(declared_class),
-            // TODO(noamsp): get_test_instance on these types returns the same value, making this
-            // test redundant. Fix this.
-            ApiContractClass::ContractClass(SierraContractClass::get_test_instance(rng)),
+            ApiContractClass::ContractClass(sierra_contract_class),
         )
     } else {
         let deprecated_declared_class = DeprecatedDeclaredClass { class_hash };
+
+        // DeprecatedContractClass::get_test_instance(rng) currently returns the same value every
+        // time, so we change the entry points to be random.
+        let mut deprecated_contract_class = DeprecatedContractClass::get_test_instance(rng);
+        deprecated_contract_class.entry_points_by_type.insert(
+            Default::default(),
+            vec![EntryPointV0 {
+                selector: EntryPointSelector::default(),
+                offset: EntryPointOffset(rng.next_u64().try_into().unwrap()),
+            }],
+        );
+
         (
             StateDiffChunk::DeprecatedDeclaredClass(deprecated_declared_class),
-            ApiContractClass::DeprecatedContractClass(DeprecatedContractClass::get_test_instance(
-                rng,
-            )),
+            ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
         )
     }
+}
+
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(NotEnoughClasses)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
+#[tokio::test]
+async fn not_enough_classes() {
+    let mut rng = get_rng();
+    let (state_diff_chunk, class) = create_random_state_diff_chunk_with_class(&mut rng);
+
+    validate_class_sync_fails(
+        vec![2],
+        vec![
+            Some(state_diff_chunk.clone()),
+            Some(create_random_state_diff_chunk_with_class(&mut rng).0),
+        ],
+        vec![Some((class, state_diff_chunk.get_class_hash())), None],
+    )
+    .await;
+}
+
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(ClassNotInStateDiff)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
+#[tokio::test]
+async fn class_not_in_state_diff() {
+    let mut rng = get_rng();
+    let (state_diff_chunk, class) = create_random_state_diff_chunk_with_class(&mut rng);
+
+    validate_class_sync_fails(
+        vec![1],
+        vec![Some(create_random_state_diff_chunk_with_class(&mut rng).0)],
+        vec![Some((class, state_diff_chunk.get_class_hash()))],
+    )
+    .await;
+}
+
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(DuplicateClass)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
+#[tokio::test]
+async fn duplicate_classes() {
+    let mut rng = get_rng();
+    let (state_diff_chunk, class) = create_random_state_diff_chunk_with_class(&mut rng);
+
+    // We provide a state diff with 3 classes to verify that we return the error once we encounter
+    // duplicate classes and not wait for the whole state diff classes to be sent.
+    validate_class_sync_fails(
+        vec![3],
+        vec![
+            Some(state_diff_chunk.clone()),
+            Some(create_random_state_diff_chunk_with_class(&mut rng).0),
+            Some(create_random_state_diff_chunk_with_class(&mut rng).0),
+        ],
+        vec![
+            Some((class.clone(), state_diff_chunk.get_class_hash())),
+            Some((class, state_diff_chunk.get_class_hash())),
+        ],
+    )
+    .await;
+}
+
+async fn validate_class_sync_fails(
+    header_state_diff_lengths: Vec<usize>,
+    state_diff_chunks: Vec<Option<StateDiffChunk>>,
+    classes: Vec<Option<(ApiContractClass, ClassHash)>>,
+) {
+    let mut rng = get_rng();
+
+    // TODO(noamsp): remove code duplication with state diff test.
+    let mut actions = vec![
+        Action::RunP2pSync,
+        // We already validate the header query content in other tests.
+        Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
+    ];
+
+    // Send headers with corresponding state diff length
+    for (i, state_diff_length) in header_state_diff_lengths.iter().copied().enumerate() {
+        actions.push(Action::SendHeader(DataOrFin(Some(random_header(
+            &mut rng,
+            BlockNumber(i.try_into().unwrap()),
+            Some(state_diff_length),
+            None,
+        )))));
+    }
+    actions.push(Action::SendHeader(DataOrFin(None)));
+
+    actions.push(
+        // We already validate the state diff query content in other tests.
+        Action::ReceiveQuery(Box::new(|_query| ()), DataType::StateDiff),
+    );
+
+    // Send state diff chunks.
+    for state_diff_chunk in state_diff_chunks {
+        actions.push(Action::SendStateDiff(DataOrFin(state_diff_chunk)));
+    }
+
+    actions.push(Action::SendStateDiff(DataOrFin(None)));
+
+    actions.push(
+        // We already validate the class query content in other tests.
+        Action::ReceiveQuery(Box::new(|_query| ()), DataType::Class),
+    );
+
+    // Send classes.
+    for class in classes {
+        actions.push(Action::SendClass(DataOrFin(class)));
+    }
+
+    // We validate the report is sent before we send fin.
+    actions.push(Action::ValidateReportSent(DataType::Class));
+
+    run_test(
+        HashMap::from([
+            (DataType::Header, header_state_diff_lengths.len().try_into().unwrap()),
+            (DataType::StateDiff, header_state_diff_lengths.len().try_into().unwrap()),
+            (DataType::Class, header_state_diff_lengths.len().try_into().unwrap()),
+        ]),
+        actions,
+    )
+    .await;
 }

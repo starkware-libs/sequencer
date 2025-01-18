@@ -87,6 +87,8 @@ where
 
 const CHANNEL_BUFFER_SIZE: usize = 10000;
 
+/// Mock register subscriber for a given topic. BroadcastNetworkMock is used to send and catch
+/// messages broadcasted by and to the subscriber respectively.
 pub fn mock_register_broadcast_topic<T>() -> Result<TestSubscriberChannels<T>, SubscriptionError>
 where
     T: TryFrom<Bytes> + 'static,
@@ -178,25 +180,22 @@ pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfi
     configs
 }
 
-pub fn create_network_configs_connected_to_broadcast_channels<T>(
+pub fn network_config_into_broadcast_channels<T>(
+    network_config: NetworkConfig,
     topic: Topic,
-    ports: Vec<u16>,
-) -> (Vec<NetworkConfig>, BroadcastTopicChannels<T>)
+) -> BroadcastTopicChannels<T>
 where
     T: TryFrom<Bytes> + 'static,
     Bytes: From<T>,
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let mut channels_configs = create_connected_network_configs(ports);
-    let broadcast_channels = channels_configs.pop().unwrap();
-
-    let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
+    let mut network_manager = NetworkManager::new(network_config, None);
     let broadcast_channels =
-        channels_network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
+        network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
 
     tokio::task::spawn(async move {
-        let result = channels_network_manager.run().await;
+        let result = network_manager.run().await;
         match result {
             Ok(()) => panic!("Network manager terminated."),
             // The user of this function can drop the broadcast channels if they want to. In that
@@ -207,7 +206,7 @@ where
         }
     });
 
-    (channels_configs, broadcast_channels)
+    broadcast_channels
 }
 
 pub struct MockClientResponsesManager<Query: TryFrom<Bytes>, Response: TryFrom<Bytes>> {
@@ -265,6 +264,9 @@ pub(crate) type MockBroadcastedMessagesFn<T> =
 
 pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> T>;
 
+/// Mock network for testing broadcast topics. It allows to send and catch messages broadcasted to
+/// and by a subscriber (respectively). The naming convension is to mimick BroadcastTopicChannels
+/// and replace sender and receiver.
 pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
     pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,

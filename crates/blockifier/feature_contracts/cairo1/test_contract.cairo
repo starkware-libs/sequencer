@@ -30,6 +30,7 @@ mod TestContract {
     #[storage]
     struct Storage {
         my_storage_var: felt252,
+        revert_test_storage_var: felt252,
         two_counters: starknet::storage::Map<felt252, (felt252, felt252)>,
         ec_point: (felt252, felt252),
     }
@@ -96,14 +97,77 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_revert_helper(ref self: ContractState, class_hash: ClassHash) {
+    fn test_revert_helper(ref self: ContractState, replacement_class_hash: ClassHash, to_panic: bool) {
         let dummy_span = array![0].span();
         syscalls::emit_event_syscall(dummy_span, dummy_span).unwrap_syscall();
-        syscalls::replace_class_syscall(class_hash).unwrap_syscall();
+        syscalls::replace_class_syscall(replacement_class_hash).unwrap_syscall();
         syscalls::send_message_to_l1_syscall(17.try_into().unwrap(), dummy_span).unwrap_syscall();
         self.my_storage_var.write(17);
-        panic(array!['test_revert_helper']);
+        if to_panic {
+            panic(array!['test_revert_helper']);
+        }
     }
+
+    #[external(v0)]
+    fn write_10_to_my_storage_var(ref self: ContractState) {
+        self.my_storage_var.write(10);
+    }
+
+    /// Tests the behavior of a revert scenario with an inner contract call.
+    /// The function performs the following:
+    /// 1. Calls `write_10_to_my_storage_var` to set the storage variable to 10.
+    /// 2. Calls `test_revert_helper` with `to_panic=true`.
+    ///    - `test_revert_helper` is expected to change the storage variable to 17 and then panic.
+    /// 3. Verifies that the `test_revert_helper` changes are reverted,
+    /// ensuring the storage variable remains 10.
+    #[external(v0)]
+    fn test_revert_with_inner_call_and_reverted_storage(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        replacement_class_hash: ClassHash,
+    ) {
+        // Step 1: Call the contract to set the storage variable to 10.
+        syscalls::call_contract_syscall(
+            contract_address,
+            selector!("write_10_to_my_storage_var"),
+            array![].span(),
+        )
+        .unwrap_syscall();
+
+        // Step 2: Prepare the call to `test_revert_helper` with `to_panic = true`.
+        let to_panic = true;
+        let call_data = array![replacement_class_hash.into(), to_panic.into()];
+
+        // Step 3: Call `test_revert_helper` and handle the expected panic.
+        match syscalls::call_contract_syscall(
+            contract_address,
+            selector!("test_revert_helper"),
+            call_data.span(),
+        ) {
+            Result::Ok(_) => panic(array!['should_panic']),
+            Result::Err(_revert_reason) => {
+                // Verify that the changes made by the second call are reverted.
+                assert(
+                    self.my_storage_var.read() == 10,
+                    'Wrong_storage_value.',
+                );
+            }
+        }
+    }
+
+    #[external(v0)]
+    fn middle_revert_contract(
+        ref self: ContractState,
+        contract_address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Array::<felt252>,
+    ) {
+        syscalls::call_contract_syscall(
+        contract_address, entry_point_selector, calldata.span()
+        ).unwrap_syscall();
+       panic(array!['execute_and_revert']);
+    }
+
 
     #[external(v0)]
     fn test_emit_events(
@@ -635,6 +699,7 @@ mod TestContract {
     ) {
         let class_hash_before_call = syscalls::get_class_hash_at_syscall(contract_address)
             .unwrap_syscall();
+        self.revert_test_storage_var.write(7);
         match syscalls::call_contract_syscall(
             contract_address, entry_point_selector, calldata.span()
         ) {
@@ -645,8 +710,12 @@ mod TestContract {
                 let inner_error = *error_span.pop_back().unwrap();
                 if entry_point_selector == selector!("bad_selector") {
                     assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'Unexpected error');
-                } else {
+                } else if entry_point_selector == selector!("test_revert_helper")  {
                     assert(inner_error == 'test_revert_helper', 'Unexpected error');
+                }
+                else {
+                    assert(entry_point_selector == selector!("middle_revert_contract"), 'Wrong Entry Point');
+                    assert(inner_error == 'execute_and_revert', 'Wrong_error');
                 }
             },
         };
@@ -654,11 +723,16 @@ mod TestContract {
             .unwrap_syscall();
         assert(self.my_storage_var.read() == 0, 'values should not change.');
         assert(class_hash_before_call == class_hash_after_call, 'class hash should not change.');
+        assert(self.revert_test_storage_var.read() == 7, 'test_storage_var_changed.');
     }
 
     #[external(v0)]
     fn return_result(ref self: ContractState, num: felt252) -> felt252 {
         let result = num;
         result
+    }
+
+    #[external(v0)]
+    fn empty_function(ref self: ContractState) {
     }
 }

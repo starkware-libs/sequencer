@@ -8,7 +8,6 @@ use std::sync::LazyLock;
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
-use infra_utils::path::resolve_project_relative_path;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -37,6 +36,7 @@ use starknet_api::{
     invoke_tx_args,
     nonce,
 };
+use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
@@ -398,7 +398,7 @@ impl AccountTransactionGenerator {
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
-    fn next_nonce(&mut self) -> Nonce {
+    pub fn next_nonce(&mut self) -> Nonce {
         let sender_address = self.sender_address();
         self.nonce_manager.borrow_mut().next(sender_address)
     }

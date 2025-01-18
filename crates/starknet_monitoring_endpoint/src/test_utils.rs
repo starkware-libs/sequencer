@@ -6,10 +6,10 @@ use axum::http::Request;
 use hyper::body::to_bytes;
 use hyper::client::HttpConnector;
 use hyper::Client;
-use infra_utils::metrics::parse_numeric_metric;
-use infra_utils::run_until::run_until;
-use infra_utils::tracing::{CustomLogger, TraceLevel};
 use num_traits::Num;
+use starknet_infra_utils::metrics::parse_numeric_metric;
+use starknet_infra_utils::run_until::run_until;
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use thiserror::Error;
 use tracing::info;
 

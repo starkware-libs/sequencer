@@ -7,8 +7,8 @@ use starknet_api::{l1_handler_tx_args, tx_hash};
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::ValidationStatus;
 
+use crate::l1_provider::L1Provider;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::L1Provider;
 use crate::ProviderState::{Pending, Propose, Uninitialized, Validate};
 
 macro_rules! tx {
@@ -42,7 +42,7 @@ fn validate_happy_flow() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([tx!(tx_hash: 1)])
-        .with_on_l2_awaiting_l1_consumption([tx_hash!(2)])
+        .with_committed([tx_hash!(2)])
         .with_state(Validate)
         .build_into_l1_provider();
 
@@ -62,7 +62,7 @@ fn validate_happy_flow() {
     // Transaction wasn't deleted after the validation.
     assert_eq!(
         l1_provider.validate(tx_hash!(1), BlockNumber(1)).unwrap(),
-        ValidationStatus::Validated
+        ValidationStatus::AlreadyIncludedInPropsedBlock
     );
 }
 

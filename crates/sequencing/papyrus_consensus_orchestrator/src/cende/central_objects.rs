@@ -1,4 +1,6 @@
 use assert_matches::assert_matches;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::NestedIntList;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
 use starknet_api::block::{
@@ -105,8 +107,16 @@ impl From<(ThinStateDiff, BlockInfo, StarknetVersion)> for CentralStateDiff {
     fn from(
         (state_diff, block_info, starknet_version): (ThinStateDiff, BlockInfo, StarknetVersion),
     ) -> CentralStateDiff {
+        assert!(
+            state_diff.deprecated_declared_classes.is_empty(),
+            "Deprecated classes are not supported"
+        );
+
+        let mut address_to_class_hash = state_diff.deployed_contracts;
+        address_to_class_hash.extend(state_diff.replaced_classes);
+
         CentralStateDiff {
-            address_to_class_hash: state_diff.deployed_contracts,
+            address_to_class_hash,
             nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.nonces),
             storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_diffs),
             declared_classes: state_diff.declared_classes,
@@ -138,19 +148,18 @@ impl From<ValidResourceBounds> for CentralResourceBounds {
     }
 }
 
-// TODO(Yael): organize the fields of transactions in the same order.
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralInvokeTransactionV3 {
-    pub sender_address: ContractAddress,
-    pub calldata: Calldata,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
     pub resource_bounds: CentralResourceBounds,
     pub tip: Tip,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub sender_address: ContractAddress,
+    pub calldata: Calldata,
     pub nonce_data_availability_mode: u32,
     pub fee_data_availability_mode: u32,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
     pub hash_value: TransactionHash,
 }
 
@@ -188,12 +197,12 @@ pub struct CentralDeployAccountTransactionV3 {
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
+    pub sender_address: ContractAddress,
     pub constructor_calldata: Calldata,
     pub nonce_data_availability_mode: u32,
     pub fee_data_availability_mode: u32,
     pub paymaster_data: PaymasterData,
     pub hash_value: TransactionHash,
-    pub sender_address: ContractAddress,
 }
 
 impl From<DeployAccountTransaction> for CentralDeployAccountTransactionV3 {
@@ -343,5 +352,21 @@ impl From<(Transaction, u64)> for CentralTransactionWritten {
             // sufficient to take the time during the batcher run.
             time_created: timestamp,
         }
+    }
+}
+
+// Converts the CasmContractClass into a format that serializes into the python object.
+// TODO(Yael): remove allow dead code once used
+#[allow(dead_code)]
+pub fn casm_contract_class_central_format(
+    compiled_class_hash: CasmContractClass,
+) -> CasmContractClass {
+    CasmContractClass {
+        // The rust object allows these fields to be none, while in python they are mandatory.
+        bytecode_segment_lengths: Some(
+            compiled_class_hash.bytecode_segment_lengths.unwrap_or(NestedIntList::Node(vec![])),
+        ),
+        pythonic_hints: Some(compiled_class_hash.pythonic_hints.unwrap_or_default()),
+        ..compiled_class_hash
     }
 }

@@ -12,14 +12,14 @@ use starknet_api::hash::StarkHash;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::debug;
 
-use super::stream_builder::{
+use super::block_data_stream_builder::{
     BadPeerError,
     BlockData,
+    BlockDataStreamBuilder,
     BlockNumberLimit,
-    DataStreamBuilder,
     ParseDataError,
 };
-use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
+use super::{P2pSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -44,9 +44,8 @@ impl BlockData for SignedBlockHeader {
                     .expect("Vec::first should return a value on a vector of size 1"),
             )?
             .commit()?;
-        gauge!(
-            papyrus_metrics::PAPYRUS_HEADER_MARKER,
-            self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64
+        gauge!(papyrus_metrics::PAPYRUS_HEADER_MARKER).set(
+            self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64,
         );
         // TODO(shahak): Fix code dup with central sync
         let time_delta = Utc::now()
@@ -57,7 +56,7 @@ impl BlockData for SignedBlockHeader {
         let header_latency = time_delta.num_seconds();
         debug!("Header latency: {}.", header_latency);
         if header_latency >= 0 {
-            gauge!(papyrus_metrics::PAPYRUS_HEADER_LATENCY_SEC, header_latency as f64);
+            gauge!(papyrus_metrics::PAPYRUS_HEADER_LATENCY_SEC).set(header_latency as f64);
         }
         Ok(())
     }
@@ -65,7 +64,7 @@ impl BlockData for SignedBlockHeader {
 
 pub(crate) struct HeaderStreamBuilder;
 
-impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
+impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     type Output = SignedBlockHeader;
 
     const TYPE_DESCRIPTION: &'static str = "headers";
@@ -82,7 +81,7 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             let maybe_signed_header =
                 tokio::time::timeout(NETWORK_DATA_TIMEOUT, signed_headers_response_manager.next())
                     .await?
-                    .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
+                    .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
                         type_description: Self::TYPE_DESCRIPTION,
                     })?;
             let Some(signed_block_header) = maybe_signed_header?.0 else {
@@ -119,8 +118,8 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> Option<SignedBlockHeader> {
-        Some(SignedBlockHeader {
+    ) -> SignedBlockHeader {
+        SignedBlockHeader {
             block_header: BlockHeader {
                 block_hash: BlockHash(StarkHash::from(block_number.0)),
                 block_header_without_hash: sync_block.block_header_without_hash,
@@ -129,6 +128,6 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
                 ..Default::default()
             },
             signatures: vec![BlockSignature::default()],
-        })
+        }
     }
 }
