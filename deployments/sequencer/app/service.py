@@ -124,7 +124,7 @@ class ServiceApp(Construct):
             ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
         ]
 
-    def _get_container_resources(self): # TODO: implement method to calc resources based on config
+    def _get_container_resources(self): # TODO(Idan): implement method to calc resources based on config
         pass
 
     def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
