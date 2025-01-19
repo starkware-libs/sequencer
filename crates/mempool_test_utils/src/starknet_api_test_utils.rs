@@ -143,18 +143,19 @@ pub fn generate_deploy_account_with_salt(
     rpc_deploy_account_tx(deploy_account_args)
 }
 
-// TODO: when moving this to Starknet API crate, move this const into a module alongside
+// TODO(AlonH): when moving this to Starknet API crate, move this const into a module alongside
 // MultiAcconutTransactionGenerator.
 pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
-// TODO: Separate MultiAccountTransactionGenerator to phases:
+// TODO(AlonH): Separate MultiAccountTransactionGenerator to phases:
 // 1. Setup phase - register erc20 contract and initialy deployed account with some balance (produce
 //    the state diff that represents the initial state so it can be used in the test).
 // 2. Execution phase - generate transactions.
 
-// TODO: Add optional StateReader and assert that the state supports each operation (e.g. nonce).
+// TODO(AlonH): Add optional StateReader and assert that the state supports each operation (e.g.
+// nonce).
 
 /// Manages transaction generation for multiple pre-funded accounts, internally bumping nonces
 /// as needed.
@@ -291,7 +292,7 @@ impl MultiAccountTransactionGenerator {
 /// This struct provides methods to generate both default and fully customized transactions,
 /// with room for future extensions.
 ///
-/// TODO: add more transaction generation methods as needed.
+/// TODO(AlonH): add more transaction generation methods as needed.
 #[derive(Clone, Debug)]
 pub struct AccountTransactionGenerator {
     pub account: Contract,
@@ -405,8 +406,8 @@ impl AccountTransactionGenerator {
 
     /// Private constructor, since only the multi-account transaction generator should create this
     /// struct.
-    // TODO: add a version that doesn't rely on the default deploy account constructor, but takes
-    // deploy account args.
+    // TODO(AlonH): add a version that doesn't rely on the default deploy account constructor, but
+    // takes deploy account args.
     fn new(
         account: FeatureContract,
         nonce_manager: SharedNonceManager,
