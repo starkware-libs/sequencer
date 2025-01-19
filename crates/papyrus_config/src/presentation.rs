@@ -56,7 +56,7 @@ fn remove_path_from_json(
     // be "v1".
     let mut path_to_entry = param_path.split('.').collect_vec();
     let Some(entry_to_remove) = path_to_entry.pop() else {
-        // TODO: Can we expect this to never happen?
+        // TODO(Yair): Can we expect this to never happen?
         return Ok(()); // Empty param path.
     };
     let mut inner_json = json;
