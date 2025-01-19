@@ -1,0 +1,14 @@
+[package]
+name = "starknet_class_manager"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+starknet_api.workspace = true
+starknet_class_manager_types.workspace = true
+starknet_sierra_compile_types.workspace = true
