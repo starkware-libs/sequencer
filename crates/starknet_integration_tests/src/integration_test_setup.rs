@@ -21,7 +21,7 @@ use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
-use crate::utils::{create_node_config, spawn_success_recorder};
+use crate::utils::{create_node_config, spawn_local_success_recorder};
 
 #[derive(Debug, Copy, Clone)]
 pub struct SequencerExecutionId {
@@ -89,7 +89,8 @@ impl SequencerSetup {
         // Creating the storage for the test.
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        let (recorder_url, _join_handle) =
+            spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         state_sync_config.storage_config = storage_for_test.state_sync_storage_config;

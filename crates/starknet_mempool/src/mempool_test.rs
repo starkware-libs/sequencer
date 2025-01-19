@@ -508,8 +508,8 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
         .with_priority_queue(expected_queue_txs)
         .build();
 
-    // TODO: currently hash comparison tie-breaks the two. Once more robust tie-breaks are added
-    // replace this assertion with a dedicated test.
+    // TODO(AlonH): currently hash comparison tie-breaks the two. Once more robust tie-breaks are
+    // added replace this assertion with a dedicated test.
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -811,7 +811,7 @@ async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
     let tx_args = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
     let propagateor_args =
         AddTransactionArgsWrapper { args: tx_args.clone(), p2p_message_metadata: None };
-    // TODO: use regular conversion once we have a compiler component
+    // TODO(AlonH): use regular conversion once we have a compiler component
     let rpc_tx = match tx_args.tx {
         AccountTransaction::Declare(_declare_tx) => {
             panic!("No implementation for converting DeclareTransaction to an RpcTransaction")

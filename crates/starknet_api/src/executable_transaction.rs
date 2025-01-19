@@ -1,14 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{
-    calculate_contract_address,
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-};
+use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -27,7 +20,12 @@ use crate::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use crate::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
+use crate::transaction::{
+    CalculateContractAddress,
+    TransactionHash,
+    TransactionHasher,
+    TransactionVersion,
+};
 use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
@@ -255,12 +253,7 @@ impl DeployAccountTransaction {
         deploy_account_tx: crate::transaction::DeployAccountTransaction,
         chain_id: &ChainId,
     ) -> Result<Self, StarknetApiError> {
-        let contract_address = calculate_contract_address(
-            deploy_account_tx.contract_address_salt(),
-            deploy_account_tx.class_hash(),
-            &deploy_account_tx.constructor_calldata(),
-            ContractAddress::default(),
-        )?;
+        let contract_address = deploy_account_tx.calculate_contract_address()?;
         let tx_hash =
             deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
         Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
