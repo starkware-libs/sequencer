@@ -49,7 +49,7 @@ use crate::sources::pending::{PendingError, PendingSource, PendingSourceTrait};
 
 // TODO(shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.
-// TODO: Consider moving to a more general place.
+// TODO(Matan): Consider moving to a more general place.
 pub const GENESIS_HASH: &str = "0x0";
 
 // TODO(dvir): add to config.
@@ -158,8 +158,8 @@ pub struct GenericStateSync<
 
 pub type StateSyncResult = Result<(), StateSyncError>;
 
-// TODO: Sort alphabetically.
-// TODO: Change this to CentralStateSyncError
+// TODO(Matan): Sort alphabetically.
+// TODO(Matan): Change this to CentralStateSyncError
 #[derive(thiserror::Error, Debug)]
 pub enum StateSyncError {
     #[error("Sync stopped progress.")]
@@ -286,7 +286,7 @@ impl<
                     warn!(
                         "Sequencer public key changed from {cur_key:?} to {sequencer_pub_key:?}."
                     );
-                    // TODO: Add alert.
+                    // TODO(Matan): Add alert.
                     self.sequencer_pub_key = Some(sequencer_pub_key);
                     return Err(StateSyncError::SequencerPubKeyChanged {
                         old: cur_key,
@@ -342,7 +342,7 @@ impl<
         )
         .fuse();
         // TODO(dvir): try use interval instead of stream.
-        // TODO: fix the bug and remove this check.
+        // TODO(Matan): fix the bug and remove this check.
         let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
         pin_mut!(
             block_stream,
@@ -494,7 +494,7 @@ impl<
         compiled_class: CasmContractClass,
     ) -> StateSyncResult {
         let txn = self.writer.begin_rw_txn()?;
-        // TODO: verifications - verify casm corresponds to a class on storage.
+        // TODO(Matan): verifications - verify casm corresponds to a class on storage.
         match txn.append_casm(&class_hash, &compiled_class) {
             #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(txn) => {
@@ -879,7 +879,7 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
 }
 
 // This function is used to check if the sync is stuck.
-// TODO: fix the bug and remove this function.
+// TODO(Matan): fix the bug and remove this function.
 // TODO(dvir): add a test for this scenario.
 fn check_sync_progress(
     reader: StorageReader,

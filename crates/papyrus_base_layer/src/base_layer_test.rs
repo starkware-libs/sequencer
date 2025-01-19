@@ -6,7 +6,7 @@ use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseL
 use crate::test_utils::get_test_ethereum_node;
 use crate::BaseLayerContract;
 
-// TODO: move to global test_utils crate and use everywhere instead of relying on the
+// TODO(Matan): move to global test_utils crate and use everywhere instead of relying on the
 // confusing `#[ignore]` api to mark slow tests.
 fn in_ci() -> bool {
     std::env::var("CI").is_ok()

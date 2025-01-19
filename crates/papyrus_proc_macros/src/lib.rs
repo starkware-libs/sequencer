@@ -133,9 +133,9 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
         .first()
         .expect("attribute should include metric name and controll with config boolean")
         .clone();
-    // TODO: consider naming the input value instead of providing a bool
-    // TODO: consider adding support for metrics levels (e.g. debug, info, warn, error) instead of
-    // boolean
+    // TODO(Matan): consider naming the input value instead of providing a bool
+    // TODO(Matan): consider adding support for metrics levels (e.g. debug, info, warn, error)
+    // instead of boolean
     let controll_with_config_as_tokenstream = parts
         .get(1)
         .expect("attribute should include metric name and controll with config boolean")

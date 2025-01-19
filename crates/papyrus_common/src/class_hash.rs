@@ -34,7 +34,7 @@ pub fn calculate_class_hash(class: &SierraContractClass) -> ClassHash {
         abi_hash,
         program_hash,
     ]);
-    // TODO: Modify ClassHash Be be PoseidonHash instead of StarkFelt.
+    // TODO(Matan): Modify ClassHash Be be PoseidonHash instead of StarkFelt.
     ClassHash(class_hash)
 }
 
