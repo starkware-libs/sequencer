@@ -64,12 +64,12 @@ impl ComposedComponentConfigs {
     }
 }
 
-pub struct SequencerSetupManager {
+pub struct NodeSetupManager {
     pub sequencers: Vec<SequencerSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
 }
 
-impl SequencerSetupManager {
+impl NodeSetupManager {
     pub async fn run(sequencers: Vec<SequencerSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
