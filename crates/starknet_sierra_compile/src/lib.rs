@@ -56,7 +56,7 @@ pub enum SierraCompilerError {
     SierraVersionFormat(StarknetApiError),
 }
 
-// TODO: consider generalizing the compiler if invocation implementations are added.
+// TODO(Elin): consider generalizing the compiler if invocation implementations are added.
 #[derive(Clone)]
 pub struct SierraCompiler {
     compiler: CommandLineCompiler,
