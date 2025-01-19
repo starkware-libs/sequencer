@@ -403,7 +403,7 @@ async fn sync_with_revert() {
                             return CheckStoragePredicateResult::Error;
                         }
 
-                        // TODO: add checks to the state diff.
+                        // TODO(Yair): add checks to the state diff.
                     }
 
                     CheckStoragePredicateResult::Passed

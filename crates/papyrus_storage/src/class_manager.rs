@@ -1,4 +1,4 @@
-//! TODO: Add Documentation
+//! TODO(DanB): Add Documentation
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
@@ -21,7 +21,7 @@ where
     // To enforce that no commit happen after a failure, we consume and return Self on success.
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self>;
 
-    // TODO: add revert functionality
+    // TODO(DanB): add revert functionality
 }
 
 impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
