@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_consensus::types::ValidatorId;
@@ -23,9 +21,11 @@ use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSe
 use starknet_integration_tests::utils::{
     create_funding_txs,
     create_integration_test_tx_generator,
-    create_txs_for_integration_test,
-    run_integration_test_scenario,
-    test_tx_hashes_for_integration_test,
+    create_many_invoke_txs,
+    create_multiple_account_txs,
+    run_test_scenario,
+    test_many_invoke_txs,
+    test_multiple_account_txs,
     UNDEPLOYED_ACCOUNT_ID,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -71,7 +71,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     {
         debug!("Starting height {}.", height);
         // Create and send transactions.
-        let expected_batched_tx_hashes = run_integration_test_scenario(
+        let expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
             &mut |tx| sequencer_to_add_txs.assert_add_tx_success(tx),
@@ -110,31 +110,34 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
         (
-            create_txs_for_integration_test,
-            test_tx_hashes_for_integration_test,
+            create_multiple_account_txs,
+            test_multiple_account_txs,
             Felt::from_hex_unchecked(
                 "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
-            ),
-        ),
-        (
-            create_txs_for_integration_test,
-            test_tx_hashes_for_integration_test,
-            Felt::from_hex_unchecked(
-                "0x5c17ba5f9681bcc8ca5a9dee3fe3a9fd2da42e660a99c64aa1a95fa826a1b2",
             ),
         ),
         (
             create_funding_txs,
             test_single_tx,
             Felt::from_hex_unchecked(
-                "0x14155afd2c9f08ff4e5c1b946aafefab3ae8bd190ec47cdece8d5164fe6c795",
+                "0x354a08374de0b194773930010006a0cc42f7f984f509ceb0d564da37ed15bab",
             ),
         ),
         (
             deploy_account,
             test_single_tx,
             Felt::from_hex_unchecked(
-                "0xa7c607b6c3a1f3153bf979b41999dd3fdce771fdc49b13d6f12a98085dcb9c",
+                "0x2942454db8523de50045d2cc28f9fe9342c56f1c07af35d6bdd5ba1f68700b6",
+            ),
+        ),
+        // Note: The following test scenario sends 15 transactions but only 12 are included in the
+        // block. This means that the last 3 transactions could be included in the next block if
+        // one is added to the test.
+        (
+            create_many_invoke_txs,
+            test_many_invoke_txs,
+            Felt::from_hex_unchecked(
+                "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
             ),
         ),
     ];
@@ -190,7 +193,7 @@ async fn listen_to_broadcasted_messages(
         incoming_proposal_init, expected_proposal_init
     );
 
-    let mut received_tx_hashes = HashSet::new();
+    let mut received_tx_hashes = Vec::new();
     let mut got_proposal_fin = false;
     let mut got_channel_fin = false;
     loop {
@@ -232,12 +235,10 @@ async fn listen_to_broadcasted_messages(
         }
     }
 
-    // Using HashSet to ignore the order of the transactions (broadcast can lead to reordering).
-    assert_eq!(
-        received_tx_hashes,
-        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>(),
-        "Unexpected transactions"
-    );
+    received_tx_hashes.sort();
+    let mut expected_batched_tx_hashes = expected_batched_tx_hashes.to_vec();
+    expected_batched_tx_hashes.sort();
+    assert_eq!(received_tx_hashes, expected_batched_tx_hashes, "Unexpected transactions");
 }
 
 fn deploy_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {

@@ -26,8 +26,8 @@ async fn main() {
     );
 
     // Creates a multi-account transaction generator for integration test
-    let tx_generator = create_integration_test_tx_generator();
+    let mut tx_generator = create_integration_test_tx_generator();
 
     // Run end to end integration test.
-    end_to_end_integration(tx_generator).await;
+    end_to_end_integration(&mut tx_generator).await;
 }
