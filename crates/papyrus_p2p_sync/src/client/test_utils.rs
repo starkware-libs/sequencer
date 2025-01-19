@@ -369,7 +369,7 @@ pub fn create_block_hashes_and_signatures(n_blocks: u8) -> Vec<(BlockHash, Block
         .collect()
 }
 
-// TODO: Consider moving this to storage and to use poll wakeup instead of sleep
+// TODO(Shahak): Consider moving this to storage and to use poll wakeup instead of sleep
 pub(crate) async fn wait_for_marker(
     data_type: DataType,
     storage_reader: &StorageReader,
