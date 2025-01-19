@@ -15,18 +15,19 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     get_node_executable_path();
 
     // Get the sequencer configurations.
-    let sequencers_setup = get_sequencer_setup_configs(tx_generator).await;
+    let (regular_sequencer_setups, _delayed_sequencer_setups) =
+        get_sequencer_setup_configs(tx_generator).await;
 
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
     // invocation. Consider using the builder pattern.
-    let sequencer_manager = SequencerSetupManager::run(sequencers_setup).await;
+    let regular_sequencer_manager = SequencerSetupManager::run(regular_sequencer_setups).await;
 
     // Run the integration test simulator and verify the results.
-    sequencer_manager
+    regular_sequencer_manager
         .test_and_verify(tx_generator, N_TXS, SENDER_ACCOUNT, sender_address, EXPECTED_BLOCK_NUMBER)
         .await;
 
     info!("Shutting down nodes.");
-    sequencer_manager.shutdown_nodes();
+    regular_sequencer_manager.shutdown_nodes();
 }

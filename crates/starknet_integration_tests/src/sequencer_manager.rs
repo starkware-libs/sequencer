@@ -49,9 +49,11 @@ use crate::utils::{
 };
 
 /// The number of consolidated local sequencers that participate in the test.
-const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+const N_CONSOLIDATED_SEQUENCERS: usize = 2;
 /// The number of distributed remote sequencers that participate in the test.
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+/// The number of delayed sequencers that participate in the test.
+const N_DELAYED_SEQUENCERS: usize = 1;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 struct ComposedComponentConfigs {
@@ -213,14 +215,14 @@ async fn await_block(
 
 pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
-) -> Vec<SequencerSetup> {
+) -> (Vec<SequencerSetup>, Vec<SequencerSetup>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
 
-    let component_configs: Vec<ComposedComponentConfigs> = {
+    let regular_component_configs: Vec<ComposedComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
@@ -231,49 +233,85 @@ pub(crate) async fn get_sequencer_setup_configs(
         combined
     };
 
+    let delayed_component_configs = create_consolidated_sequencer_configs(N_DELAYED_SEQUENCERS);
+
     info!("Creating sequencer configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let n_distributed_sequencers = component_configs
+    let n_distributed_sequencers = regular_component_configs
         .iter()
         .map(|composed_node_component_configs| composed_node_component_configs.len())
         .sum();
 
+    let total_sequencer_configs = n_distributed_sequencers + delayed_component_configs.len();
+
+    // Regular + delayed sequencers
+    let n_validators = regular_component_configs.len() + delayed_component_configs.len();
+
     let consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
-        create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
-        component_configs.len(),
+        create_connected_network_configs(available_ports.get_next_ports(total_sequencer_configs)),
+        n_validators,
     );
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
     // the SequencerSetup
     let state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
-        available_ports.get_next_ports(n_distributed_sequencers),
+        available_ports.get_next_ports(total_sequencer_configs),
     );
 
     let mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
-        available_ports.get_next_ports(n_distributed_sequencers),
+        available_ports.get_next_ports(total_sequencer_configs),
     );
-
+    let regular_component_configs_len = regular_component_configs.len();
     // Flatten while enumerating sequencer and sequencer part indices.
-    let indexed_component_configs = get_indexed_component_configs(component_configs);
+    let regular_indexed_component_configs =
+        get_indexed_component_configs(regular_component_configs, 0);
+    let delayed_indexed_component_configs =
+        get_indexed_component_configs(delayed_component_configs, regular_component_configs_len);
+
+    let (regular_consensus_configs, delayed_consensus_configs) =
+        consensus_manager_configs.split_at(n_distributed_sequencers);
+
+    let (regular_p2p_configs, delayed_p2p_configs) =
+        mempool_p2p_configs.split_at(n_distributed_sequencers);
+
+    let (regular_state_sync_configs, delayed_state_sync_configs) =
+        state_sync_configs.split_at(n_distributed_sequencers);
+
+    let regular_len = regular_indexed_component_configs.len();
 
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
+    let regular_sequencer_setups = create_sequencer_setups(
+        regular_indexed_component_configs,
+        regular_consensus_configs.to_vec(),
+        regular_p2p_configs.to_vec(),
+        regular_state_sync_configs.to_vec(),
+        accounts,
+        chain_info.clone(),
+        test_unique_id,
+        0,
+    )
+    .await;
 
-    create_sequencer_setups(
-        indexed_component_configs,
-        consensus_manager_configs,
-        mempool_p2p_configs,
-        state_sync_configs,
+    let delayed_sequencer_setups = create_sequencer_setups(
+        delayed_indexed_component_configs,
+        delayed_consensus_configs.to_vec(),
+        delayed_p2p_configs.to_vec(),
+        delayed_state_sync_configs.to_vec(),
         accounts,
         chain_info,
         test_unique_id,
+        regular_len,
     )
-    .await
+    .await;
+
+    (regular_sequencer_setups, delayed_sequencer_setups)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn create_sequencer_setups(
     indexed_component_configs: Vec<(SequencerExecutionId, ComponentConfig)>,
     consensus_manager_configs: Vec<ConsensusManagerConfig>,
@@ -282,6 +320,7 @@ async fn create_sequencer_setups(
     accounts: &[AccountTransactionGenerator],
     chain_info: ChainInfo,
     test_unique_id: TestIdentifier,
+    indent: usize,
 ) -> Vec<SequencerSetup> {
     stream::iter(
         izip!(
@@ -304,6 +343,7 @@ async fn create_sequencer_setups(
         )| {
             let chain_info = chain_info.clone();
             async move {
+                let new_index = index + indent;
                 SequencerSetup::new(
                     accounts.to_vec(),
                     sequencer_execution_id,
@@ -311,7 +351,7 @@ async fn create_sequencer_setups(
                     consensus_manager_config,
                     mempool_p2p_config,
                     state_sync_config,
-                    AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
+                    AvailablePorts::new(test_unique_id.into(), new_index.try_into().unwrap()),
                     component_config.clone(),
                 )
                 .await
@@ -324,6 +364,7 @@ async fn create_sequencer_setups(
 
 fn get_indexed_component_configs(
     component_configs: Vec<ComposedComponentConfigs>,
+    indent: usize,
 ) -> Vec<(SequencerExecutionId, ComponentConfig)> {
     component_configs
         .into_iter()
@@ -332,7 +373,7 @@ fn get_indexed_component_configs(
             parts_component_configs.into_iter().enumerate().map(
                 move |(sequencer_part_index, parts_component_config)| {
                     (
-                        SequencerExecutionId::new(sequencer_index, sequencer_part_index),
+                        SequencerExecutionId::new(sequencer_index + indent, sequencer_part_index),
                         parts_component_config,
                     ) // Combine indices with the value
                 },
