@@ -14,7 +14,7 @@ impl TryFrom<protobuf::Felt252> for starknet_types_core::felt::Felt {
     fn try_from(value: protobuf::Felt252) -> Result<Self, Self::Error> {
         let mut felt = [0; 32];
         felt.copy_from_slice(&value.elements);
-        // TODO: use from_bytes_checked once it's available.
+        // TODO(Shahak): use from_bytes_checked once it's available.
         Ok(Self::from_bytes_be(&felt))
         // if let Ok(stark_felt) = Self::from_bytes_be(&felt) {
         //     Ok(stark_felt)
@@ -79,7 +79,7 @@ impl TryFrom<protobuf::Hash> for starknet_api::hash::StarkHash {
             });
         }
         felt.copy_from_slice(&value.elements);
-        // TODO: use from_bytes_checked once it's available.
+        // TODO(Shahak): use from_bytes_checked once it's available.
         Ok(Self::from_bytes_be(&felt))
         // if let Ok(stark_hash) = Self::new(felt) {
         //     Ok(stark_hash)
@@ -104,7 +104,7 @@ impl TryFrom<protobuf::Address> for starknet_api::core::ContractAddress {
             });
         }
         felt.copy_from_slice(&value.elements);
-        // TODO: use from_bytes_checked once it's available.
+        // TODO(Shahak): use from_bytes_checked once it's available.
         let hash = starknet_types_core::felt::Felt::from_bytes_be(&felt);
         // if let Ok(hash) = starknet_api::hash::StarkHash::new(felt) {
         if let Ok(stark_felt) = starknet_api::core::PatriciaKey::try_from(hash) {
@@ -263,7 +263,7 @@ impl From<Query> for protobuf::Iteration {
     }
 }
 
-// TODO: Consider add this functionality to the Felt itself.
+// TODO(Shahak): Consider add this functionality to the Felt itself.
 pub(super) fn try_from_starkfelt_to_u128(
     felt: starknet_types_core::felt::Felt,
 ) -> Result<u128, &'static str> {
@@ -282,7 +282,7 @@ pub(super) fn try_from_starkfelt_to_u128(
     Ok(u128::from_be_bytes(bytes))
 }
 
-// TODO: Consider add this functionality to the Felt itself.
+// TODO(Shahak): Consider add this functionality to the Felt itself.
 pub(super) fn try_from_starkfelt_to_u32(
     felt: starknet_types_core::felt::Felt,
 ) -> Result<u32, &'static str> {
