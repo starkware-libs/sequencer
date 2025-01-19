@@ -200,7 +200,7 @@ pub fn create_consensus_manager_configs_and_channels(
 ) {
     let mut network_configs = create_connected_network_configs(ports);
 
-    // TODO: Need to also add a channel for votes, in addition to the proposals channel.
+    // TODO(Tsabary): Need to also add a channel for votes, in addition to the proposals channel.
     let channels_network_config = network_configs.pop().unwrap();
     let broadcast_channels = network_config_into_broadcast_channels(
         channels_network_config,
