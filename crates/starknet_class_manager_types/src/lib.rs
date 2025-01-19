@@ -1,5 +1,6 @@
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
 pub mod transaction_converter;
-
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -153,5 +154,37 @@ where
             ClassManagerError,
             Direct
         )
+    }
+}
+
+pub struct EmptyClassManagerClient;
+
+#[async_trait]
+impl ClassManagerClient for EmptyClassManagerClient {
+    async fn add_class(
+        &self,
+        _class_id: ClassId,
+        _class: Class,
+    ) -> ClassManagerClientResult<ExecutableClassHash> {
+        Ok(Default::default())
+    }
+
+    async fn add_deprecated_class(
+        &self,
+        _class_id: ClassId,
+        _class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()> {
+        Ok(())
+    }
+
+    async fn get_executable(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<ExecutableClass> {
+        Ok(ExecutableClass::V0(Default::default()))
+    }
+
+    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Class> {
+        Ok(Default::default())
     }
 }

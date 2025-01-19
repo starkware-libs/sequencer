@@ -11,6 +11,7 @@ use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClie
 use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_storage::{open_storage, StorageReader};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
 use starknet_sequencer_infra::errors::ComponentError;
@@ -46,6 +47,7 @@ impl StateSyncRunner {
     pub fn new(
         config: StateSyncConfig,
         new_block_receiver: Receiver<SyncBlock>,
+        class_manager_client: SharedClassManagerClient,
     ) -> (Self, StorageReader) {
         let (storage_reader, storage_writer) =
             open_storage(config.storage_config).expect("StateSyncRunner failed opening storage");
@@ -75,6 +77,7 @@ impl StateSyncRunner {
             storage_writer,
             p2p_sync_client_channels,
             new_block_receiver.boxed(),
+            class_manager_client.clone(),
         );
 
         let header_server_receiver = network_manager
@@ -94,7 +97,11 @@ impl StateSyncRunner {
             class_server_receiver,
             event_server_receiver,
         );
-        let p2p_sync_server = P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
+        let p2p_sync_server = P2pSyncServer::new(
+            storage_reader.clone(),
+            p2p_sync_server_channels,
+            class_manager_client,
+        );
 
         let network_future = network_manager.run().boxed();
         let p2p_sync_client_future = p2p_sync_client.run().boxed();
