@@ -1,7 +1,7 @@
 # Dockerfile with multi-stage builds for efficient dependency caching and lightweight final image.
 # For more on Docker stages, visit: https://docs.docker.com/build/building/multi-stage/
 
-FROM ubuntu:22.04 AS base
+FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .
