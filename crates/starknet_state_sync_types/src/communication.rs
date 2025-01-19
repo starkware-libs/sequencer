@@ -72,7 +72,7 @@ pub trait StateSyncClient: Send + Sync {
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<ClassHash>;
 
-    // TODO: Remove this and fix sync state reader once the compiler component is ready.
+    // TODO(Matan): Remove this and fix sync state reader once the compiler component is ready.
     async fn get_compiled_class_deprecated(
         &self,
         block_number: BlockNumber,
@@ -83,7 +83,7 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
 
-    // TODO: Add get_compiled_class_hash for StateSyncReader
+    // TODO(Matan): Add get_compiled_class_hash for StateSyncReader
 }
 
 #[derive(Clone, Debug, Error)]
