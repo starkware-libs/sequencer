@@ -15,7 +15,7 @@ use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusC
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_node::bin_utils::build_configs;
-use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles, NETWORK_TOPIC};
+use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles};
 use papyrus_p2p_sync::BUFFER_SIZE;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageReader;
@@ -58,13 +58,12 @@ fn build_consensus(
     storage_reader: StorageReader,
     network_manager: &mut NetworkManager,
 ) -> anyhow::Result<Option<JoinHandle<anyhow::Result<()>>>> {
-    let network_channels = network_manager.register_broadcast_topic(
-        Topic::new(consensus_config.network_topic.clone()),
-        BUFFER_SIZE,
-    )?;
+    let network_channels = network_manager
+        .register_broadcast_topic(Topic::new(consensus_config.votes_topic.clone()), BUFFER_SIZE)?;
     let proposal_network_channels: BroadcastTopicChannels<
         StreamMessage<ProposalPart, HeightAndRound>,
-    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    > = network_manager
+        .register_broadcast_topic(Topic::new(consensus_config.proposals_topic), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,

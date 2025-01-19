@@ -55,10 +55,6 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
 
-// TODO(guyn): move this to the config. (in the next PR this will happen!)
-pub const NETWORK_VOTES_TOPIC: &str = "consensus_votes";
-pub const NETWORK_TOPIC: &str = "consensus_proposals";
-
 // TODO(dvir): add this to config.
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
 const STORAGE_METRICS_UPDATE_INTERVAL: Duration = Duration::from_secs(10);
