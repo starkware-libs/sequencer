@@ -8,8 +8,9 @@ use starknet_api::transaction::TransactionHash;
 /// An IndexMap that supports soft deletion of entries.
 /// Entries marked as deleted remain hidden in the map, allowing for potential recovery,
 /// selective permanent deletion, or rollback before being purged.
-// TODO: replace with a fully generic struct if there's a need for it.
-// TODO: replace with a BTreeIndexMap if commit performance becomes an issue, see note in commit.
+// TODO(Gilad): replace with a fully generic struct if there's a need for it.
+// TODO(Gilad): replace with a BTreeIndexMap if commit performance becomes an issue, see note in
+// commit.
 #[derive(Clone, Debug, Default)]
 pub struct SoftDeleteIndexMap {
     txs: IndexMap<TransactionHash, TransactionEntry>,
