@@ -5,7 +5,7 @@ use tracing::info;
 
 use crate::sequencer_manager::{get_sequencer_setup_configs, SequencerSetupManager};
 
-pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
+pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
     const N_TXS: usize = 50;
     const SENDER_ACCOUNT: AccountId = 0;
