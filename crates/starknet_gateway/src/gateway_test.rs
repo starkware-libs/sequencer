@@ -12,7 +12,11 @@ use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_types::communication::{AddTransactionArgsWrapper, MockMempoolClient};
+use starknet_mempool_types::communication::{
+    AddTransactionArgsWrapper,
+    MempoolClientResult,
+    MockMempoolClient,
+};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sierra_compile::config::SierraCompilationConfig;
 
@@ -71,8 +75,8 @@ impl MockDependencies {
         )
     }
 
-    fn expect_add_tx(&mut self, args: AddTransactionArgsWrapper) {
-        self.mock_mempool_client.expect_add_tx().once().with(eq(args)).return_once(|_| Ok(()));
+    fn expect_add_tx(&mut self, args: AddTransactionArgsWrapper, result: MempoolClientResult<()>) {
+        self.mock_mempool_client.expect_add_tx().once().with(eq(args)).return_once(|_| result);
     }
 }
 
@@ -107,10 +111,13 @@ async fn test_add_tx(mut mock_dependencies: MockDependencies) {
         tx: executable_tx,
         account_state: AccountState { address, nonce: *rpc_tx.nonce() },
     };
-    mock_dependencies.expect_add_tx(AddTransactionArgsWrapper {
-        args: add_tx_args,
-        p2p_message_metadata: p2p_message_metadata.clone(),
-    });
+    mock_dependencies.expect_add_tx(
+        AddTransactionArgsWrapper {
+            args: add_tx_args,
+            p2p_message_metadata: p2p_message_metadata.clone(),
+        },
+        Ok(()),
+    );
 
     let gateway = mock_dependencies.gateway();
 
