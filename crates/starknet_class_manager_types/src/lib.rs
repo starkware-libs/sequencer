@@ -48,11 +48,17 @@ pub trait ClassManagerClient: Send + Sync {
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ClassManagerError {
-    #[error("Compilation failed: {0}")]
-    CompilationUtilError(String),
+pub enum ClassStorageError {
     #[error("Class of hash: {class_id} not found")]
     ClassNotFound { class_id: ClassId },
+    #[error("Storage error occurred: {0}")]
+    StorageError(String),
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ClassManagerError {
+    #[error(transparent)]
+    ClassStorageError(#[from] ClassStorageError),
 }
 
 #[derive(Clone, Debug, Error)]
