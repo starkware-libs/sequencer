@@ -11344,6 +11344,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_class_manager_types",
+ "starknet_client",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "tokio",
