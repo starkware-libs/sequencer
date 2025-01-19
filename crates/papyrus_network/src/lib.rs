@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
 
-// TODO: add peer manager config to the network config
+// TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 pub struct NetworkConfig {
     pub tcp_port: u16,

@@ -277,7 +277,7 @@ impl From<HashMap<Builtin, u64>> for ProtobufBuiltinCounter {
     fn from(value: HashMap<Builtin, u64>) -> Self {
         let builtin_counter = ProtobufBuiltinCounter {
             range_check: u32::try_from(*value.get(&Builtin::RangeCheck).unwrap_or(&0))
-                // TODO: should not panic
+                // TODO(Shahak): should not panic
                 .expect("Failed to convert u64 to u32"),
             pedersen: u32::try_from(*value.get(&Builtin::Pedersen).unwrap_or(&0))
                 .expect("Failed to convert u64 to u32"),
@@ -305,7 +305,7 @@ impl TryFrom<protobuf::receipt::ExecutionResources> for ExecutionResources {
             .ok_or(ProtobufConversionError::MissingField { field_description: "builtins" })?;
         let builtin_instance_counter = HashMap::<Builtin, u64>::try_from(builtin_instance_counter)?;
 
-        // TODO: remove all non-da gas consumed
+        // TODO(Shahak): remove all non-da gas consumed
         let gas_consumed = value
             .gas_consumed
             .ok_or(ProtobufConversionError::MissingField {
@@ -343,10 +343,10 @@ impl From<protobuf::receipt::execution_resources::GasVector> for GasVector {
 impl From<ExecutionResources> for protobuf::receipt::ExecutionResources {
     fn from(value: ExecutionResources) -> Self {
         let builtin_instance_counter = ProtobufBuiltinCounter::from(value.builtin_instance_counter);
-        // TODO: add all l1 gas consumed, not just da
+        // TODO(Shahak): add all l1 gas consumed, not just da
         let gas_consumed = value.gas_consumed.into();
         let da_gas_consumed = value.da_gas_consumed.into();
-        // TODO: should not panic
+        // TODO(Shahak): should not panic
         let steps = u32::try_from(value.steps).expect("Failed to convert u64 to u32");
         let memory_holes = u32::try_from(value.memory_holes).expect("Failed to convert u64 to u32");
 
