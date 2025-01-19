@@ -14,6 +14,8 @@ use crate::constants::CAIRO_LANG_BINARY_NAME;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
+#[cfg(feature = "cairo_native")]
+use crate::paths::target_dir;
 use crate::resource_limits::ResourceLimits;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
@@ -33,7 +35,7 @@ impl CommandLineCompiler {
         #[cfg(feature = "cairo_native")]
         let path_to_starknet_native_compile_binary = match &config.sierra_to_native_compiler_path {
             Some(path) => path.clone(),
-            None => binary_path(out_dir(), CAIRO_NATIVE_BINARY_NAME),
+            None => target_dir(out_dir()).join(CAIRO_NATIVE_BINARY_NAME),
         };
         Self {
             config,

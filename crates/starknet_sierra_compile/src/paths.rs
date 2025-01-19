@@ -2,7 +2,7 @@
 // It must not contain functionality that is available in only in one of these modes. Specifically,
 // it must avoid relying on env variables such as 'CARGO_*' or 'OUT_DIR'.
 
-fn target_dir(out_dir: std::path::PathBuf) -> std::path::PathBuf {
+pub fn target_dir(out_dir: std::path::PathBuf) -> std::path::PathBuf {
     out_dir
         .ancestors()
         .nth(3)
