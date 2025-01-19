@@ -14,3 +14,6 @@ pub mod cende;
 
 /// Fee market logic.
 pub mod fee_market;
+
+/// Consensus' versioned constants.
+pub mod versioned_constants;
