@@ -32,6 +32,8 @@ type MessageId = u64;
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 const MAX_STREAMS_PER_PEER: NonZeroUsize = NonZeroUsize::new(10).unwrap();
 const MAX_MESSAGES_PER_STREAM: usize = 100;
+const MAX_NUM_PEERS: usize = 200;
+const PEER_TIME_TO_LIVE_SECONDS: u64 = 60;
 
 /// A combination of trait bounds needed for the content of the stream.
 pub trait StreamContentTrait:
@@ -169,6 +171,9 @@ pub struct StreamHandler<StreamContent: StreamContentTrait, StreamId: StreamIdTr
     // (like the latest message ID). The mapping is {peer_id: {stream_id: StreamData}}.
     inbound_stream_data:
         HashMap<PeerId, LruCache<StreamIdAndNonce<StreamId>, StreamData<StreamContent, StreamId>>>,
+    // The amount of time (in milliseconds) that passed since the last message was received from a
+    // peer.
+    active_peers: HashMap<PeerId, u64>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
@@ -202,6 +207,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
             inbound_channel_sender,
             inbound_receiver,
             inbound_stream_data: HashMap::new(),
+            active_peers: HashMap::new(),
             outbound_channel_receiver,
             outbound_sender,
             outbound_stream_receivers: StreamHashMap::new(HashMap::new()),
@@ -395,6 +401,43 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
 
         let peer_id = metadata.originator_id.clone();
         let stream_id_and_nonce = message.stream_id.clone();
+
+        // Check if peer already exists in the active_peers map.
+        // If not, add it with the current time.
+        let now: u64 = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+            .try_into()
+            .unwrap();
+
+        if !self.active_peers.contains_key(&peer_id) {
+            // This is a new peer. Must check if the number of active peers is too high.
+            if self.active_peers.len() + 1 >= MAX_NUM_PEERS {
+                let (oldest_peer, last_used) =
+                    self.active_peers.iter().min_by_key(|x| x.1).unwrap();
+                let oldest_peer = oldest_peer.clone();
+
+                if now - last_used > PEER_TIME_TO_LIVE_SECONDS * 1000 {
+                    warn!(
+                        "Too many peers. Peer {:?} has been inactive for {} seconds. Dropping it. ",
+                        oldest_peer,
+                        (now - last_used) / 1000
+                    );
+                    self.inbound_stream_data.remove(&oldest_peer);
+                    self.active_peers.remove(&oldest_peer);
+                } else {
+                    warn!(
+                        "Too many peers. All Peers are active within {} seconds. Dropping message \
+                         from new peer: {:?}.",
+                        PEER_TIME_TO_LIVE_SECONDS, peer_id
+                    );
+                    return;
+                }
+            }
+        }
+        // Update the last used time for the peer.
+        self.active_peers.insert(peer_id.clone(), now);
 
         let data = match self.inbound_stream_data.entry(peer_id.clone()) {
             // If data exists, remove it (it will be returned to hash map at end of function).
