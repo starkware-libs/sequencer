@@ -43,7 +43,7 @@ pub enum NetworkError {
     BroadcastChannelsDropped { topic_hash: TopicHash },
 }
 
-// TODO: Understand whats the correct thing to do here.
+// TODO(Shahak): Understand whats the correct thing to do here.
 const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
 
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
@@ -130,7 +130,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    // TODO: Support multiple protocols where they're all different versions of the same protocol
+    // TODO(Shahak): Support multiple protocols where they're all different versions of the same
+    // protocol
     pub fn register_sqmr_protocol_server<Query, Response>(
         &mut self,
         protocol: String,
@@ -166,8 +167,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     /// Register a new subscriber for sending a single query and receiving multiple responses.
     /// Panics if the given protocol is already subscribed.
-    // TODO: Support multiple protocols where they're all different versions of the same protocol
-    // TODO: Seperate query and response buffer sizes.
+    // TODO(Shahak): Support multiple protocols where they're all different versions of the same
+    // protocol TODO(Shahak): Seperate query and response buffer sizes.
     pub fn register_sqmr_protocol_client<Query, Response>(
         &mut self,
         protocol: String,
@@ -196,7 +197,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     /// Register a new subscriber for broadcasting and receiving broadcasts for a given topic.
     /// Panics if this topic is already subscribed.
-    // TODO: consider splitting into register_broadcast_topic_client and
+    // TODO(Shahak): consider splitting into register_broadcast_topic_client and
     // register_broadcast_topic_server
     pub fn register_broadcast_topic<T>(
         &mut self,
@@ -477,7 +478,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     fn handle_sqmr_event_session_failed(&mut self, session_id: SessionId, error: SessionError) {
         error!("Session {session_id:?} failed on {error:?}");
         self.report_session_removed_to_metrics(session_id);
-        // TODO: Handle reputation and retry.
+        // TODO(Shahak): Handle reputation and retry.
         if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
             self.sqmr_outbound_response_senders.remove(&outbound_session_id);
             if let Some(_report_receiver) =
@@ -667,7 +668,7 @@ impl NetworkManager {
         .expect("Error building TCP transport")
         .with_dns()
         .expect("Error building DNS transport")
-        // TODO: quic transpot does not work (failure appears in the command line when running in debug mode)
+        // TODO(Shahak): quic transpot does not work (failure appears in the command line when running in debug mode)
         // .with_quic()
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
                 key.clone(),

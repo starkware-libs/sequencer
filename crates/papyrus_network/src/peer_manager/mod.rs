@@ -42,7 +42,7 @@ pub enum ReputationModifier {
 
 pub struct PeerManager {
     peers: HashMap<PeerId, Peer>,
-    // TODO: consider implementing a cleanup mechanism to not store all queries forever
+    // TODO(Shahak): consider implementing a cleanup mechanism to not store all queries forever
     session_to_peer_map: HashMap<OutboundSessionId, PeerId>,
     config: PeerManagerConfig,
     last_peer_index: usize,
@@ -137,7 +137,7 @@ impl PeerManager {
     // TODO(shahak): Remove return value and use events in tests.
     // TODO(shahak): Split this function for readability.
     fn assign_peer_to_session(&mut self, outbound_session_id: OutboundSessionId) -> Option<PeerId> {
-        // TODO: consider moving this logic to be async (on a different tokio task)
+        // TODO(Shahak): consider moving this logic to be async (on a different tokio task)
         // until then we can return the assignment even if we use events for the notification.
         if self.peers.is_empty() {
             info!("No peers. Waiting for a new peer to be connected for {outbound_session_id:?}");
@@ -171,7 +171,7 @@ impl PeerManager {
             return None;
         }
         peer.map(|(peer_id, peer)| {
-            // TODO: consider not allowing reassignment of the same session
+            // TODO(Shahak): consider not allowing reassignment of the same session
             self.session_to_peer_map.insert(outbound_session_id, *peer_id);
             let peer_connection_ids = peer.connection_ids();
             if !peer_connection_ids.is_empty() {
