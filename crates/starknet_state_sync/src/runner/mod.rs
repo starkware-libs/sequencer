@@ -20,7 +20,7 @@ use crate::config::StateSyncConfig;
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
-    // TODO: change client and server to requester and responder respectively
+    // TODO(Matan): change client and server to requester and responder respectively
     p2p_sync_client_future: BoxFuture<'static, Result<Never, P2pSyncClientError>>,
     p2p_sync_server_future: BoxFuture<'static, Never>,
 }
