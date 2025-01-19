@@ -42,7 +42,7 @@ pub enum P2pSyncServerError {
     DBInternalError(#[from] papyrus_storage::StorageError),
     #[error("Block number is out of range. Query: {query:?}, counter: {counter}")]
     BlockNumberOutOfRange { query: Query, counter: u64 },
-    // TODO: add data type to the error message.
+    // TODO(Shahak): add data type to the error message.
     #[error("Block not found. Block: {block_hash_or_number:?}")]
     BlockNotFound { block_hash_or_number: BlockHashOrNumber },
     #[error("Class not found. Class hash: {class_hash}")]
@@ -50,7 +50,7 @@ pub enum P2pSyncServerError {
     // This error should be non recoverable.
     #[error(transparent)]
     JoinError(#[from] tokio::task::JoinError),
-    // TODO: remove this error, use BlockNotFound instead.
+    // TODO(Shahak): remove this error, use BlockNotFound instead.
     // This error should be non recoverable.
     #[error("Block {block_number:?} is in the storage but its signature isn't.")]
     SignatureNotFound { block_number: BlockNumber },
@@ -430,7 +430,7 @@ where
             BlockNumber(utils::calculate_block_number(&query, start_block_number, block_counter)?);
         let data_vec = Data::fetch_block_data_from_db(block_number, &txn)?;
         for data in data_vec {
-            // TODO: consider implement retry mechanism.
+            // TODO(Shahak): consider implement retry mechanism.
             info!(
                 "Sending response for inbound {protocol_decription} query for block \
                  {block_number:?}"
