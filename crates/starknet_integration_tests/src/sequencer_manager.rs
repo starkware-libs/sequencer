@@ -31,7 +31,7 @@ use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
+use crate::integration_test_setup::{ExecutableSetup, SequencerExecutionId};
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -64,13 +64,13 @@ impl ComposedComponentConfigs {
     }
 }
 
-pub struct SequencerSetupManager {
-    pub sequencers: Vec<SequencerSetup>,
+pub struct IntegrationTestManager {
+    pub sequencers: Vec<ExecutableSetup>,
     pub sequencer_run_handles: Vec<JoinHandle<()>>,
 }
 
-impl SequencerSetupManager {
-    pub async fn run(sequencers: Vec<SequencerSetup>) -> Self {
+impl IntegrationTestManager {
+    pub async fn run(sequencers: Vec<ExecutableSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
             .iter()
@@ -192,7 +192,7 @@ async fn await_block(
 
 pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
-) -> Vec<SequencerSetup> {
+) -> Vec<ExecutableSetup> {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
@@ -224,7 +224,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     );
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
-    // the SequencerSetup
+    // the ExecutableSetup
     let state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
         available_ports.get_next_ports(n_distributed_sequencers),
@@ -275,7 +275,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         )| {
             let chain_info = chain_info.clone();
             async move {
-                SequencerSetup::new(
+                ExecutableSetup::new(
                     accounts.to_vec(),
                     sequencer_execution_id,
                     chain_info,

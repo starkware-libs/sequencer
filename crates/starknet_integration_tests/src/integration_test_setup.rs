@@ -47,7 +47,7 @@ impl From<SequencerExecutionId> for NodeRunner {
     }
 }
 
-pub struct SequencerSetup {
+pub struct ExecutableSetup {
     // Sequencer test identifier.
     pub sequencer_execution_id: SequencerExecutionId,
     // Client for adding transactions to the sequencer node.
@@ -73,7 +73,7 @@ pub struct SequencerSetup {
 
 // TODO(Tsabary/ Nadin): reduce number of args.
 #[allow(clippy::too_many_arguments)]
-impl SequencerSetup {
+impl ExecutableSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
