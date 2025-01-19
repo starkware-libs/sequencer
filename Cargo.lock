@@ -11226,6 +11226,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.32",
+ "once_cell",
  "papyrus_config",
  "pretty_assertions",
  "rstest",
