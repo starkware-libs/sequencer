@@ -148,7 +148,7 @@ lazy_static! {
         price_in_wei: (100 * u128::pow(10, 9)).into(),
         price_in_fri: 0_u8.into(),
     };
-    //TODO: Tests for data_gas_price and l2_gas_price.
+    //TODO(Matan): Tests for data_gas_price and l2_gas_price.
     pub static ref DATA_GAS_PRICE: GasPricePerToken = GasPricePerToken{
         price_in_wei: 1_u8.into(),
         price_in_fri: 0_u8.into(),
