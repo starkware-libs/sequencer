@@ -8,7 +8,7 @@ GRAFANA_ALERTS_TEMPLATE_FILE_PATH = "monitoring/templates/grafana_alerts.json"
 GRAFANA_DASHBOARD_DESTINATION_FILE_PATH = "helm/Monitoring/grafana_dashboard.json"
 GRAFANA_ALERTS_DESTINATION_FILE_PATH = "helm/Monitoring/grafana_alerts.json"
 
-# TODO: Add function to deploy monitoring dashboard.
+# TODO(AlonDo): Add function to deploy monitoring dashboard.
 def parse_command_line_args():
     parser = argparse.ArgumentParser(description="Install Papyrus node.")
     parser.add_argument("--release_name", type=str, required=True, help="Name for the helm release.")
