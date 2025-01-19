@@ -162,7 +162,7 @@ impl TryFrom<StarkHash> for ContractAddress {
     }
 }
 
-// TODO: Add a hash_function as a parameter
+// TODO(AlonH): Add a hash_function as a parameter
 pub fn calculate_contract_address(
     salt: ContractAddressSalt,
     class_hash: ClassHash,
