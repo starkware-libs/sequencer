@@ -32,7 +32,7 @@ pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
 pub type ClassManagerRequestAndResponseSender =
     ComponentRequestAndResponseSender<ClassManagerRequest, ClassManagerResponse>;
 
-// TODO: export.
+// TODO(Elin): export.
 pub type ClassId = ClassHash;
 pub type Class = SierraContractClass;
 pub type ExecutableClass = ContractClass;
