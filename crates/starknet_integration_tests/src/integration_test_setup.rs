@@ -23,6 +23,7 @@ use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{create_node_config, spawn_local_success_recorder};
 
+// TODO(Nadin): rename to NodeExecutionId.
 #[derive(Debug, Copy, Clone)]
 pub struct SequencerExecutionId {
     sequencer_index: usize,
