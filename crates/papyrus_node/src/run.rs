@@ -50,9 +50,9 @@ use crate::version::VERSION_FULL;
 // TODO(yair): Add to config.
 const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 
-// TODO(shahak): Consider adding genesis hash to the config to support chains that have
+// TODO(Shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.
-// TODO: Consider moving to a more general place.
+// TODO(Shahak): Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
 
 // TODO(guyn): move this to the config.
@@ -205,7 +205,7 @@ fn spawn_consensus(
         broadcast_topic_client: outbound_network_sender,
     } = proposal_network_channels;
 
-    // TODO(Matan): receive the handle for the StreamHandler and pass it into run_consensus below.
+    // TODO(GuyN): receive the handle for the StreamHandler and pass it into run_consensus below.
     let (outbound_internal_sender, inbound_internal_receiver, _) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 

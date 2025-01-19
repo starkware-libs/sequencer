@@ -80,7 +80,7 @@ impl StorageTestSetup {
     }
 }
 
-// TODO: Make the storage setup part of [MultiAccountTransactionGenerator] and remove this
+// TODO(Yair): Make the storage setup part of [MultiAccountTransactionGenerator] and remove this
 // functionality.
 /// A variable number of identical accounts and test contracts are initialized and funded.
 fn create_test_state(

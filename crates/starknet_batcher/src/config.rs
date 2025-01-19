@@ -69,7 +69,7 @@ impl Default for BatcherConfig {
                 scope: papyrus_storage::StorageScope::StateOnly,
                 ..Default::default()
             },
-            // TODO: set a more reasonable default value.
+            // TODO(AlonH): set a more reasonable default value.
             outstream_content_buffer_size: 100,
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),

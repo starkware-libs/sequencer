@@ -9,8 +9,8 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
-// TODO: optimistic proposer support, will add later to keep things simple, but the design here
-// is compatible with it.
+// TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
+// here is compatible with it.
 #[derive(Debug, Default)]
 pub struct L1Provider {
     pub current_height: BlockNumber,
@@ -71,8 +71,8 @@ impl L1Provider {
         }
     }
 
-    // TODO: when deciding on consensus, if possible, have commit_block also tell the node if it's
-    // about to [optimistically-]propose or validate the next block.
+    // TODO(Gilad): when deciding on consensus, if possible, have commit_block also tell the node if
+    // it's about to [optimistically-]propose or validate the next block.
     pub fn commit_block(
         &mut self,
         committed_txs: &[TransactionHash],
