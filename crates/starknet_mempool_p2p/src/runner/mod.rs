@@ -18,7 +18,7 @@ use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
 use starknet_sequencer_infra::errors::ComponentError;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 pub struct MempoolP2pRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
@@ -65,7 +65,8 @@ impl ComponentStarter for MempoolP2pRunner {
                     match message_result {
                         Ok(message) => {
                             //TODO(alonl): print the tx hash instead of the whole transaction.
-                            info!("Received a transaction from network, forwarding to gateway. Transaction: {:?}", message.0);
+                            info!("Received a transaction from network, forwarding to gateway");
+                            debug!("Received transaction: {:?}", message.0);
                             gateway_futures.push(self.gateway_client.add_tx(
                                 GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) }
                             ));
