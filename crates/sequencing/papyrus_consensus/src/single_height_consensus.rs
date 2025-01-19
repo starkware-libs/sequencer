@@ -304,7 +304,7 @@ impl SingleHeightConsensus {
             ) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-                info!(
+                debug!(
                     proposer = %leader_fn(round),
                     %round,
                     ?valid_round,
@@ -340,7 +340,7 @@ impl SingleHeightConsensus {
                     self.state_machine.round(),
                     "State machine should not progress while awaiting proposal"
                 );
-                info!(%round, proposal_content_id = ?proposal_id, "Built proposal.");
+                debug!(%round, proposal_content_id = ?proposal_id, "Built proposal.");
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 let sm_events = self
