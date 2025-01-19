@@ -547,9 +547,9 @@ async fn initialize_build(
     let now = chrono::Utc::now();
     let build_proposal_input = ProposeBlockInput {
         proposal_id,
-        // TODO: Discuss with batcher team passing std Duration instead.
+        // TODO(Matan): Discuss with batcher team passing std Duration instead.
         deadline: now + batcher_timeout,
-        // TODO: This is not part of Milestone 1.
+        // TODO(Matan): This is not part of Milestone 1.
         retrospective_block_hash: Some(BlockHashAndNumber {
             number: BlockNumber::default(),
             hash: BlockHash::default(),
@@ -565,7 +565,7 @@ async fn initialize_build(
             sequencer_address: proposal_init.proposer,
         },
     };
-    // TODO: Should we be returning an error?
+    // TODO(Matan): Should we be returning an error?
     // I think this implies defining an error type in this crate and moving the trait definition
     // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");

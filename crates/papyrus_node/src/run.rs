@@ -51,7 +51,7 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 
 // TODO(shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.
-// TODO: Consider moving to a more general place.
+// TODO(Matan): Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
 
 // TODO(guyn): move this to the config.
