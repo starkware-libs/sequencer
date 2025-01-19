@@ -21,7 +21,7 @@ use crate::transaction::fields::{
 };
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 
-// TODO: Delete this when starknet_api_test_util is moved to StarkNet API.
+// TODO(AlonH): Delete this when starknet_api_test_util is moved to StarkNet API.
 fn create_resource_bounds_for_testing() -> AllResourceBounds {
     AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: GasAmount(100), max_price_per_unit: GasPrice(12) },
