@@ -16,7 +16,7 @@ use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
 const ONE_MEGA: usize = 1 << 20;
 
-// TODO: consider reducing the pulicity of all behaviour to pub(crate)
+// TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
@@ -56,7 +56,7 @@ pub trait BridgedBehaviour {
 }
 
 impl MixedBehaviour {
-    // TODO: get config details from network manager config
+    // TODO(Shahak): get config details from network manager config
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
     pub fn new(
         keypair: Keypair,
@@ -97,7 +97,7 @@ impl MixedBehaviour {
                     public_key,
                 )),
             },
-            // TODO: change kademlia protocol name
+            // TODO(Shahak): change kademlia protocol name
             kademlia: kad::Behaviour::with_config(
                 local_peer_id,
                 MemoryStore::new(local_peer_id),

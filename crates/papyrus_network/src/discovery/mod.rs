@@ -174,7 +174,7 @@ impl NetworkBehaviour for Behaviour {
                 };
             }
             // We're already connected to the bootstrap peer. Nothing to do
-            // TODO: register a waker here and wake it when we receive an event that we've
+            // TODO(Shahak): register a waker here and wake it when we receive an event that we've
             // disconnected from the bootstrap peer.
             pending().await
         };

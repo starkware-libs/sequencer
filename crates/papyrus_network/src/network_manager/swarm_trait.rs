@@ -45,7 +45,7 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
 
-    // TODO: change this to report_peer and add an argument for the score.
+    // TODO(Shahak): change this to report_peer and add an argument for the score.
     fn report_peer_as_malicious(&mut self, peer_id: PeerId);
 
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
