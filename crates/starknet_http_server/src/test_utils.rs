@@ -28,7 +28,7 @@ impl HttpTestClient {
         response.json().await.unwrap()
     }
 
-    // TODO: implement when usage eventually arises.
+    // TODO(Tsabary): implement when usage eventually arises.
     pub async fn assert_add_tx_error(&self, _tx: RpcTransaction) -> GatewaySpecError {
         todo!()
     }

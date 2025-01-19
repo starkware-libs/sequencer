@@ -18,7 +18,7 @@ pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
 
 pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
 
-// TODO: export.
+// TODO(Elin): export.
 pub type ClassId = ClassHash;
 pub type Class = SierraContractClass;
 pub type ExecutableClass = ContractClass;
