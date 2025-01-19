@@ -45,7 +45,7 @@ const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 // TODO(Nadin): rename to NodeComponentConfigs.
-pub struct ComposedComponentConfigs {
+struct ComposedComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
@@ -68,18 +68,19 @@ impl ComposedComponentConfigs {
         self.component_configs.len()
     }
 
-    pub fn get_batcher_index(&self) -> usize {
+    fn get_batcher_index(&self) -> usize {
         self.batcher_index
     }
 
-    pub fn get_http_server_index(&self) -> usize {
+    fn get_http_server_index(&self) -> usize {
         self.http_server_index
     }
 }
 
 pub struct NodeSetup {
     pub executables: Vec<ExecutableSetup>,
-    // TODO(Nadin): add batcher and http server indexes.
+    pub batcher_index: usize,
+    pub http_server_index: usize,
 }
 
 pub struct IntegrationTestManager {
@@ -271,7 +272,11 @@ pub(crate) async fn get_sequencer_setup_configs(
     let mut global_index = 0;
 
     for (node_index, node_component_configs) in component_configs.into_iter().enumerate() {
-        let mut node = NodeSetup { executables: Vec::new() };
+        let mut node = NodeSetup {
+            executables: Vec::new(),
+            batcher_index: node_component_configs.get_batcher_index(),
+            http_server_index: node_component_configs.get_http_server_index(),
+        };
 
         for (executable_index, executable_component_config) in
             node_component_configs.into_iter().enumerate()
