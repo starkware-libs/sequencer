@@ -83,6 +83,19 @@ pub struct NodeSetup {
     pub http_server_index: usize,
 }
 
+impl NodeSetup {
+    async fn await_alive(&self, interval: u64, max_attempts: usize) {
+        let await_alive_tasks = self.executables.iter().map(|executable| {
+            let result = executable.monitoring_client.await_alive(interval, max_attempts);
+            result.unwrap_or_else(|_| {
+                panic!("Executable {:?} should be alive.", executable.sequencer_execution_id)
+            })
+        });
+
+        join_all(await_alive_tasks).await;
+    }
+}
+
 pub struct IntegrationTestManager {
     pub nodes: Vec<NodeSetup>,
     // TODO(Nadin): move to NodeSetup.
@@ -113,17 +126,8 @@ impl IntegrationTestManager {
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        let await_alive_tasks = self.nodes.iter().flat_map(|node| {
-            node.executables.iter().map(move |executable| {
-                let result = executable.monitoring_client.await_alive(interval, max_attempts);
-                result.unwrap_or_else(|_| {
-                    panic!(
-                        "Executable {:?} in node should be alive.",
-                        executable.sequencer_execution_id
-                    )
-                })
-            })
-        });
+        let await_alive_tasks =
+            self.nodes.iter().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
     }
