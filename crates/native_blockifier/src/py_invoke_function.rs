@@ -108,7 +108,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
 
 pub fn py_invoke_function(py_tx: &PyAny) -> NativeBlockifierResult<InvokeTransaction> {
     let version = py_attr::<PyFelt>(py_tx, "version")?.0;
-    // TODO: Make TransactionVersion an enum and use match here.
+    // TODO(Dori): Make TransactionVersion an enum and use match here.
     let tx = if version == Felt::ZERO {
         let py_invoke_tx: PyInvokeTransactionV0 = py_tx.extract()?;
         let invoke_tx = InvokeTransactionV0::try_from(py_invoke_tx)?;
