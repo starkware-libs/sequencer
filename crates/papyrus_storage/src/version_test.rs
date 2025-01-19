@@ -27,7 +27,7 @@ use crate::{
     STORAGE_VERSION_STATE,
 };
 
-// TODO: Add this test for set_blocks_version or combine the logic.
+// TODO(Dvir): Add this test for set_blocks_version or combine the logic.
 #[test]
 fn set_state_version_test() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();

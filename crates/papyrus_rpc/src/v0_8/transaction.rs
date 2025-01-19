@@ -1043,7 +1043,7 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
         ),
     ) -> Self {
         let (tx_output, tx_version, maybe_msg_hash) = tx_output_msg_hash;
-        // TODO: consider supporting match instead.
+        // TODO(DanB): consider supporting match instead.
         let actual_fee = if tx_version == TransactionVersion::ZERO
             || tx_version == TransactionVersion::ONE
             || tx_version == TransactionVersion::TWO
@@ -1263,7 +1263,7 @@ fn l1_handler_message_hash(
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct MessageFromL1 {
-    // TODO: fix serialization of EthAddress in SN_API to fit the spec.
+    // TODO(Shahak): fix serialization of EthAddress in SN_API to fit the spec.
     #[serde(serialize_with = "serialize_eth_address")]
     pub from_address: EthAddress,
     pub to_address: ContractAddress,

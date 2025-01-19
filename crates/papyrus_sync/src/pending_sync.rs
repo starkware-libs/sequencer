@@ -32,7 +32,7 @@ pub(crate) async fn sync_pending_data<
 ) -> Result<(), StateSyncError> {
     let txn = reader.begin_ro_txn()?;
     let header_marker = txn.get_header_marker()?;
-    // TODO: Consider extracting this functionality to different а function.
+    // TODO(Shahak): Consider extracting this functionality to different а function.
     let latest_block_hash = match header_marker {
         BlockNumber(0) => BlockHash(Felt::from_hex_unchecked(crate::GENESIS_HASH)),
         _ => {
