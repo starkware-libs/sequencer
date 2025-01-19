@@ -49,8 +49,8 @@ define_versioned_constants!(
 
 pub type ResourceCost = Ratio<u64>;
 
-// TODO: Delete this ratio-converter function once event keys / data length are no longer 128 bits
-//   (no other usage is expected).
+// TODO(Dori): Delete this ratio-converter function once event keys / data length are no longer 128
+// bits   (no other usage is expected).
 pub fn resource_cost_to_u128_ratio(cost: ResourceCost) -> Ratio<u128> {
     Ratio::new((*cost.numer()).into(), (*cost.denom()).into())
 }
@@ -85,8 +85,8 @@ impl AllocationCost {
     }
 }
 
-// TODO: This (along with the Serialize impl) is implemented in pub(crate) scope in the VM (named
-//   serde_generic_map_impl); use it if and when it's public.
+// TODO(Dori): This (along with the Serialize impl) is implemented in pub(crate) scope in the VM
+// (named   serde_generic_map_impl); use it if and when it's public.
 fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
     d: D,
 ) -> Result<HashMap<BuiltinName, ResourceCost>, D::Error> {
@@ -764,8 +764,8 @@ pub struct GasCosts {
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
 // `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
 // conversion into actual values.
-// TODO: consider encoding the * and + operations inside the json file, instead of hardcoded below
-// in the `try_from`.
+// TODO(Dori): consider encoding the * and + operations inside the json file, instead of hardcoded
+// below in the `try_from`.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize)]
 #[serde(try_from = "OsConstantsRawJson")]

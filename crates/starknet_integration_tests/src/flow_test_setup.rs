@@ -15,6 +15,7 @@ use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
+use starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
@@ -38,7 +39,7 @@ use crate::utils::{
     create_mempool_p2p_configs,
     create_node_config,
     create_state_sync_configs,
-    spawn_success_recorder,
+    spawn_local_success_recorder,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -143,7 +144,8 @@ impl FlowSequencerSetup {
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
-        let recorder_url = spawn_success_recorder(available_ports.get_next_port());
+        let (recorder_url, _join_handle) =
+            spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let component_config = ComponentConfig::default();
@@ -202,9 +204,7 @@ pub fn create_consensus_manager_configs_and_channels(
     let channels_network_config = network_configs.pop().unwrap();
     let broadcast_channels = network_config_into_broadcast_channels(
         channels_network_config,
-        papyrus_network::gossipsub_impl::Topic::new(
-            starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
-        ),
+        papyrus_network::gossipsub_impl::Topic::new(CONSENSUS_PROPOSALS_TOPIC),
     );
 
     let n_network_configs = network_configs.len();
