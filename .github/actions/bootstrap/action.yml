@@ -9,9 +9,9 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install rust.
-      uses: ./.github/actions/install_rust
-      with:
-        extra_rust_toolchains: ${{ inputs.extra_rust_toolchains }}
     - name: Install cairo native.
       uses: ./.github/actions/setup_native_deps
+    # TODO: Perhaps should be located elsewhere, for the cases where no cache is needed.
+    # Also, there are some places that use bootstrap where I didn't use container - fix.
+    - name: Cargo cache
+      uses: ./.github/actions/cargo_cache

@@ -49,4 +49,6 @@ jobs:
       - name: "Run rustfmt on merge queue"
         # The nightly here is coupled with the one in install_rust/action.yml.
         # If we move the install here we can use a const.
+
+        # TODO: How to address caching?
         run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check

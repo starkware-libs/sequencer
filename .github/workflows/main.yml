@@ -33,6 +33,9 @@ concurrency:
 
 jobs:
   code_style:
+    # Not sure if caching should be used in this job.
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       # Environment setup.
@@ -99,6 +102,8 @@ jobs:
         run: cargo machete
 
   run-workspace-tests:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
@@ -106,6 +111,8 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4

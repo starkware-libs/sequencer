@@ -22,6 +22,7 @@ on:
     paths:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
+      # TODO: Add cache action yml when necessary
       - '.github/actions/bootstrap/action.yml'
       - '.github/workflows/blockifier_ci.yml'
       - '.github/workflows/upload_artifacts_workflow.yml'
@@ -50,6 +51,8 @@ concurrency:
 
 jobs:
   feature-combo-builds:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4

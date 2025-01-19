@@ -32,6 +32,8 @@ concurrency:
 
 jobs:
   executable-run:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +49,8 @@ jobs:
           & sleep 30 ; kill $!
 
   executable-run-no-rpc:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
@@ -76,6 +80,8 @@ jobs:
   #       run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
   integration-test:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
@@ -89,6 +95,8 @@ jobs:
           cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
   test-no-rpc:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
@@ -98,6 +106,8 @@ jobs:
         env:
           SEED: 0
 
+
+  # TODO: Handle cache when we run cargo when we build a docker from a dockerfile.
   build-papyrus-utilities-image:
     runs-on: starkware-ubuntu-latest-medium
     steps:
@@ -115,6 +125,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=buildkit-ci
 
   random-table-test:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4

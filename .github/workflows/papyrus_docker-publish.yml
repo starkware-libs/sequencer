@@ -40,6 +40,8 @@ env:
 
 jobs:
   docker-build-push:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
 
     steps:

@@ -10,6 +10,8 @@ env:
 jobs:
   latest_deps:
     name: Latest Dependencies
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
@@ -17,6 +19,7 @@ jobs:
       - run: npm install -g ganache@7.4.3
       - name: Update Dependencies
         run: cargo update --verbose
+        # TODO: Try changing the order.
       - name: Build
         run: cargo build --verbose
       - name: Test
