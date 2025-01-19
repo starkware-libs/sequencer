@@ -19,7 +19,7 @@ use crate::event_identifiers_to_track;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
 use crate::test_utils::FakeL1ProviderClient;
 
-// TODO: move to global test_utils crate and use everywhere instead of relying on the
+// TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
 // confusing `#[ignore]` api to mark slow tests.
 fn in_ci() -> bool {
     std::env::var("CI").is_ok()
@@ -36,7 +36,7 @@ fn anvil() -> AnvilInstance {
     Anvil::new().spawn()
 }
 
-// TODO: Replace EthereumBaseLayerContract with a mock that has a provider initialized with
+// TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
 async fn scraper(
     anvil: &AnvilInstance,
@@ -62,7 +62,7 @@ async fn scraper(
 }
 
 #[tokio::test]
-// TODO: extract setup stuff into test helpers once more tests are added and patterns emerge.
+// TODO(Gilad): extract setup stuff into test helpers once more tests are added and patterns emerge.
 async fn txs_happy_flow() {
     if !in_ci() {
         // To run the test _locally_, remove the `in_ci` check and install the anvil binary:
