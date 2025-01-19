@@ -31,7 +31,7 @@ use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{SequencerExecutionId, SequencerSetup};
+use crate::integration_test_setup::{ExecutableSetup, SequencerExecutionId};
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -65,14 +65,14 @@ impl ComposedComponentConfigs {
 }
 
 pub struct NodeSetupManager {
-    pub sequencers: Vec<SequencerSetup>,
-    pub sequencer_run_handles: Vec<JoinHandle<()>>,
+    pub executables: Vec<ExecutableSetup>,
+    pub executable_run_handles: Vec<JoinHandle<()>>,
 }
 
 impl NodeSetupManager {
-    pub async fn run(sequencers: Vec<SequencerSetup>) -> Self {
+    pub async fn run(executables: Vec<ExecutableSetup>) -> Self {
         info!("Running sequencers.");
-        let sequencer_run_handles = sequencers
+        let executable_run_handles = executables
             .iter()
             .map(|sequencer_setup| {
                 spawn_run_node(
@@ -82,7 +82,7 @@ impl NodeSetupManager {
             })
             .collect::<Vec<_>>();
 
-        let sequencer_manager = Self { sequencers, sequencer_run_handles };
+        let sequencer_manager = Self { executables, executable_run_handles };
 
         // Wait for the nodes to start.
         sequencer_manager.await_alive(5000, 50).await;
@@ -91,7 +91,7 @@ impl NodeSetupManager {
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        let await_alive_tasks = self.sequencers.iter().map(|sequencer| {
+        let await_alive_tasks = self.executables.iter().map(|sequencer| {
             let result = sequencer.monitoring_client.await_alive(interval, max_attempts);
             result.unwrap_or_else(|_| {
                 panic!("Node {:?} should be alive.", sequencer.sequencer_execution_id)
@@ -102,18 +102,18 @@ impl NodeSetupManager {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.sequencers[0].assert_add_tx_success(rpc_tx).await
+        self.executables[0].assert_add_tx_success(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
         let (batcher_storage_reader, _) =
-            papyrus_storage::open_storage(self.sequencers[0].batcher_storage_config.clone())
+            papyrus_storage::open_storage(self.executables[0].batcher_storage_config.clone())
                 .expect("Failed to open batcher's storage");
         batcher_storage_reader
     }
 
     pub fn shutdown_nodes(&self) {
-        self.sequencer_run_handles.iter().for_each(|handle| {
+        self.executable_run_handles.iter().for_each(|handle| {
             assert!(!handle.is_finished(), "Node should still be running.");
             handle.abort()
         });
@@ -190,9 +190,9 @@ async fn await_block(
         .ok_or(())
 }
 
-pub(crate) async fn get_sequencer_setup_configs(
+pub(crate) async fn get_executable_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
-) -> Vec<SequencerSetup> {
+) -> Vec<ExecutableSetup> {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
@@ -224,7 +224,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     );
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
-    // the SequencerSetup
+    // the ExecutableSetup
     let state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
         available_ports.get_next_ports(n_distributed_sequencers),
@@ -275,7 +275,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         )| {
             let chain_info = chain_info.clone();
             async move {
-                SequencerSetup::new(
+                ExecutableSetup::new(
                     accounts.to_vec(),
                     sequencer_execution_id,
                     chain_info,

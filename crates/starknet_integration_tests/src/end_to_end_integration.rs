@@ -3,7 +3,7 @@ use starknet_api::block::BlockNumber;
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
-use crate::sequencer_manager::{get_sequencer_setup_configs, NodeSetupManager};
+use crate::sequencer_manager::{get_executable_setup_configs, NodeSetupManager};
 
 pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
@@ -15,7 +15,7 @@ pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerat
     get_node_executable_path();
 
     // Get the sequencer configurations.
-    let sequencers_setup = get_sequencer_setup_configs(&tx_generator).await;
+    let sequencers_setup = get_executable_setup_configs(&tx_generator).await;
 
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
