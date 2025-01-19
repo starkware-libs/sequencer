@@ -587,6 +587,7 @@ async fn get_proposal_content(
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
 ) -> Option<(ProposalContentId, Vec<ExecutableTransaction>)> {
+    // Change type to Vec<InternalConsensusTransaction>
     let mut content = Vec::new();
     loop {
         // We currently want one part of the node failing to cause all components to fail. If this

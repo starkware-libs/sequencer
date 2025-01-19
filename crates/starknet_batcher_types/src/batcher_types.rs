@@ -80,6 +80,7 @@ pub struct SendProposalContentInput {
 /// The content of the stream that the consensus sends to the batcher.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
+    // Change to InternalConsensusTransaction
     Txs(Vec<Transaction>),
     Finish,
     Abort,
