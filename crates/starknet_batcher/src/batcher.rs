@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
+use metrics::gauge;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -48,6 +49,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
+use crate::metrics::register_metrics;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -103,6 +105,10 @@ impl Batcher {
         mempool_client: SharedMempoolClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
     ) -> Self {
+        let storage_height = storage_reader
+            .height()
+            .expect("Failed to get height from storage during batcher creation.");
+        register_metrics(storage_height);
         Self {
             config: config.clone(),
             storage_reader,
@@ -327,7 +333,7 @@ impl Batcher {
         Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
     }
 
-    fn get_height_from_storage(&mut self) -> BatcherResult<BlockNumber> {
+    fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
         self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
@@ -335,7 +341,7 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
+    pub async fn get_height(&self) -> BatcherResult<GetHeightResponse> {
         let height = self.get_height_from_storage()?;
         Ok(GetHeightResponse { height })
     }
@@ -442,6 +448,7 @@ impl Batcher {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
+        gauge!(crate::metrics::STORAGE_HEIGHT.name).increment(1);
         let mempool_result = self
             .mempool_client
             .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
@@ -543,7 +550,9 @@ impl Batcher {
         }
     }
 
+    #[instrument(skip(self), err)]
     pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
+        info!("Reverting block at height {}.", input.height);
         let height = self.get_height_from_storage()?.prev().ok_or(
             BatcherError::StorageHeightMarkerMismatch {
                 marker_height: BlockNumber(0),
@@ -566,7 +575,9 @@ impl Batcher {
         self.storage_writer.revert_block(height).map_err(|err| {
             error!("Failed to revert block at height {}: {}", height, err);
             BatcherError::InternalError
-        })
+        })?;
+        gauge!(crate::metrics::STORAGE_HEIGHT.name).decrement(1);
+        Ok(())
     }
 }
 
