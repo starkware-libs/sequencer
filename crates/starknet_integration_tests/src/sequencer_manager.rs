@@ -70,6 +70,19 @@ pub struct SequencerSetupManager {
 }
 
 impl SequencerSetupManager {
+    pub async fn test_and_verify(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        n_txs: usize,
+        sender_account: AccountId,
+        sender_address: ContractAddress,
+        expected_block_number: BlockNumber,
+    ) {
+        self.run_integration_test_simulator(tx_generator, n_txs, sender_account).await;
+        self.await_execution(expected_block_number).await;
+        self.verify_results(sender_address, n_txs).await;
+    }
+
     pub async fn run(sequencers: Vec<SequencerSetup>) -> Self {
         info!("Running sequencers.");
         let sequencer_run_handles = sequencers
