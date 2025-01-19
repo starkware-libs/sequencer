@@ -30,8 +30,9 @@ use crate::StarknetApiError;
 /// A block.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Block {
-    // TODO: Consider renaming to BlockWithCommitments, for the header use BlockHeaderWithoutHash
-    // instead of BlockHeader, and add BlockHeaderCommitments and BlockHash fields.
+    // TODO(Gilad): Consider renaming to BlockWithCommitments, for the header use
+    // BlockHeaderWithoutHash instead of BlockHeader, and add BlockHeaderCommitments and
+    // BlockHash fields.
     pub header: BlockHeader,
     pub body: BlockBody,
 }
@@ -168,13 +169,13 @@ impl<'de> Deserialize<'de> for StarknetVersion {
 /// The header of a [Block](`crate::block::Block`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct BlockHeader {
-    // TODO: Consider removing the block hash from the header (note it can be computed from
+    // TODO(Gilad): Consider removing the block hash from the header (note it can be computed from
     // the rest of the fields.
     pub block_hash: BlockHash,
     pub block_header_without_hash: BlockHeaderWithoutHash,
     // The optional fields below are not included in older versions of the block.
     // Currently they are not included in any RPC spec, so we skip their serialization.
-    // TODO: Once all environments support these fields, remove the Option (make sure to
+    // TODO(Yair): Once all environments support these fields, remove the Option (make sure to
     // update/resync any storage is missing the data).
     #[serde(skip_serializing)]
     pub state_diff_commitment: Option<StateDiffCommitment>,

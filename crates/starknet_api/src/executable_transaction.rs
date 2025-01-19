@@ -97,8 +97,7 @@ impl AccountTransaction {
     }
 }
 
-// TODO: add a converter for Declare transactions as well.
-
+// TODO(AlonLukatch): add a converter for Declare transactions as well.
 impl From<InvokeTransaction> for RpcInvokeTransactionV3 {
     fn from(tx: InvokeTransaction) -> Self {
         Self {
