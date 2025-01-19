@@ -153,7 +153,7 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
             res.unwrap();
             // After gateway client fails to add the tx, the p2p runner should have reported the peer.
             let peer_reported = mock_reported_messages_receiver.next().await.expect("Failed to receive report");
-            // TODO: add this functionality to network manager test utils
+            // TODO(Shahak): add this functionality to network manager test utils
             assert_eq!(peer_reported, message_metadata.originator_id.private_get_peer_id())
         }
     }
