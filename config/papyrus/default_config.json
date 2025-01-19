@@ -60,9 +60,9 @@
     "privacy": "Public"
   },
   "chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "privacy": "TemporaryValue",
-    "value": "SN_MAIN"
+    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
   },
   "collect_metrics": {
     "description": "If true, collect metrics for the node.",
