@@ -38,7 +38,7 @@ use crate::transaction::objects::{
 };
 use crate::transaction::transactions::{Executable, ExecutableTransaction};
 
-// TODO: Move into transaction.rs, makes more sense to be defined there.
+// TODO(Dori): Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
 pub enum Transaction {
     Account(AccountTransaction),
