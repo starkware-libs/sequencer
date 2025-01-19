@@ -58,9 +58,9 @@ pub use crate::v0_8::transaction::{
 };
 pub use crate::v0_8::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_8;
 
-// TODO(shahak): Consider adding genesis hash to the config to support chains that have
+// TODO(Shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.
-// TODO: Consider moving to a more general place.
+// TODO(DanB): Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
 
 /// Maximum size of a supported transaction body - 10MB.
