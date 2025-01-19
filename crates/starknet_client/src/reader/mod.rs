@@ -281,7 +281,7 @@ impl StarknetReader for StarknetFeederGatewayClient {
         // FIXME: Remove the following default CasmContractClass once integration environment gets
         // regenesissed.
         // Use default value for CasmConractClass that are malformed in the integration environment.
-        // TODO: Make this array a const.
+        // TODO(YoavGr): Make this array a const.
         if [
             ClassHash(Felt::from_hex_unchecked(
                 "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c",
