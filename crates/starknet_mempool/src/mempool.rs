@@ -25,7 +25,7 @@ pub mod mempool_test;
 #[derive(Debug)]
 pub struct MempoolConfig {
     enable_fee_escalation: bool,
-    // TODO: consider adding validations; should be bounded?
+    // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
     fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
@@ -136,7 +136,7 @@ impl MempoolState {
 #[derive(Debug, Default)]
 pub struct Mempool {
     config: MempoolConfig,
-    // TODO: add docstring explaining visibility and coupling of the fields.
+    // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
     // All transactions currently held in the mempool.
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
@@ -154,7 +154,7 @@ impl Mempool {
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
-    // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
+    // TODO(AlonH): Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);

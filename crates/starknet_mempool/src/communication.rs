@@ -84,8 +84,8 @@ impl MempoolCommunicationWrapper {
         args_wrapper: AddTransactionArgsWrapper,
     ) -> MempoolResult<()> {
         self.mempool.add_tx(args_wrapper.args.clone())?;
-        // TODO: Verify that only transactions that were added to the mempool are sent.
-        // TODO: handle declare correctly and remove this match.
+        // TODO(AlonH): Verify that only transactions that were added to the mempool are sent.
+        // TODO(AlonH): handle declare correctly and remove this match.
         match args_wrapper.args.tx {
             AccountTransaction::Declare(_) => Ok(()),
             _ => self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await,
