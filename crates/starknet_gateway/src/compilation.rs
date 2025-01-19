@@ -17,7 +17,7 @@ use crate::errors::GatewayResult;
 #[path = "compilation_test.rs"]
 mod compilation_test;
 
-// TODO(Arni): Pass the compiler with dependancy injection.
+// TODO(Arni): Pass the compiler with dependency injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
     pub sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,

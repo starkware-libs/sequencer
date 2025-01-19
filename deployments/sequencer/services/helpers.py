@@ -11,7 +11,7 @@ def argument_parser():
         "--config-file", type=str, help="Optional: Path to sequencer configuration file."
     )
     parser.add_argument(
-        "--env", default="dev", type=str, help="Optional: Specify the enironment (e.g., dev, prod)"
+        "--env", default="dev", type=str, help="Optional: Specify the environment (e.g., dev, prod)"
     )
 
     return parser.parse_args()
