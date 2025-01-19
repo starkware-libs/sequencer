@@ -28,22 +28,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    runs-on: starkware-ubuntu-20-04-medium
-    permissions:
-      pull-requests: read
-    outputs:
-      l1: ${{ steps.filter.outputs.l1 }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            l1:
-              - 'crates/starknet_l1_provider/**'
-              - 'crates/papyrus_base_layer/**'
-
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
@@ -115,7 +99,6 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
-    needs: changes
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
@@ -141,7 +124,6 @@ jobs:
       # know how to cache, so we're forced to reinstall it every time :(
       - name: "Maybe install Anvil"
         run: cargo install --git https://github.com/foundry-rs/foundry anvil --locked
-        if: needs.changes.outputs.l1 == 'true'
 
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
