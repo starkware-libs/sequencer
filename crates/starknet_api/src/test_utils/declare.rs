@@ -85,7 +85,7 @@ macro_rules! declare_tx_args {
 }
 
 pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
-    // TODO: Make TransactionVersion an enum and use match here.
+    // TODO(Arni): Make TransactionVersion an enum and use match here.
     if declare_tx_args.version == TransactionVersion::ZERO {
         DeclareTransaction::V0(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
