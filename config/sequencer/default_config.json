@@ -339,6 +339,36 @@
     "privacy": "Public",
     "value": "0.0.0.0:0"
   },
+  "components.class_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.class_manager.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.class_manager.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.class_manager.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.class_manager.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.class_manager.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
+  },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -478,6 +508,36 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "Enabled"
+  },
+  "components.sierra_compiler.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.sierra_compiler.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.sierra_compiler.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.sierra_compiler.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.sierra_compiler.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.sierra_compiler.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:0"
   },
   "components.state_sync.execution_mode": {
     "description": "The component execution mode.",
