@@ -61,15 +61,7 @@ pub enum SierraCompilerError {
     SierraVersionFormat(StarknetApiError),
 }
 
-impl From<SierraCompilerError> for starknet_sierra_multicompile_types::SierraCompilerError {
-    fn from(error: SierraCompilerError) -> Self {
-        starknet_sierra_multicompile_types::SierraCompilerError::CompilationFailed(
-            error.to_string(),
-        )
-    }
-}
-
-// TODO: consider generalizing the compiler if invocation implementations are added.
+// TODO(Elin): consider generalizing the compiler if invocation implementations are added.
 #[derive(Clone)]
 pub struct SierraCompiler {
     compiler: CommandLineCompiler,
