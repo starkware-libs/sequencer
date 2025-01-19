@@ -50,7 +50,7 @@ pub enum ShcEvent {
     Prevote(StateMachineEvent),
     Precommit(StateMachineEvent),
     BuildProposal(StateMachineEvent),
-    // TODO: Replace ProposalContentId with the unvalidated signature from the proposer.
+    // TODO(Matan): Replace ProposalContentId with the unvalidated signature from the proposer.
     ValidateProposal(StateMachineEvent, Option<ProposalFin>),
 }
 
@@ -470,8 +470,8 @@ impl SingleHeightConsensus {
             "StateMachine is requesting a new proposal, but provided a content id."
         );
 
-        // TODO: Figure out how to handle failed proposal building. I believe this should be handled
-        // by applying timeoutPropose when we are the leader.
+        // TODO(Matan): Figure out how to handle failed proposal building. I believe this should be
+        // handled by applying timeoutPropose when we are the leader.
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
         let fin_receiver = context.build_proposal(init, self.timeouts.proposal_timeout).await;
