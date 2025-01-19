@@ -68,7 +68,7 @@ where
 
 pub fn create_test_server_query_manager<Query, Response>(
     query: Query,
-    // TODO: wrap the second and third types with a struct to make them more readable
+    // TODO(Shahak): wrap the second and third types with a struct to make them more readable
 ) -> (ServerQueryManager<Query, Response>, ReportReceiver, GenericReceiver<Response>)
 where
     Query: TryFrom<Bytes>,
