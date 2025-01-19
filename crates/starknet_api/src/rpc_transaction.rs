@@ -190,7 +190,7 @@ impl From<RpcInvokeTransaction> for InvokeTransaction {
 /// RPC.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct RpcDeclareTransactionV3 {
-    // TODO: Check with Shahak why we need to keep the DeclareType.
+    // TODO(AlonH): Check with Shahak why we need to keep the DeclareType.
     // pub r#type: DeclareType,
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
