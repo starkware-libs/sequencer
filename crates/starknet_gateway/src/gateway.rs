@@ -161,8 +161,7 @@ impl ProcessTxBlockingTask {
         )?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        // TODO(noamsp): put internal_tx instead of executable_tx
-        Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
+        Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
     }
 }
 
