@@ -106,17 +106,6 @@ impl NodeSetup {
         Self { executables, batcher_index, http_server_index }
     }
 
-    async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        let await_alive_tasks = self.executables.iter().map(|executable| {
-            let result = executable.monitoring_client.await_alive(interval, max_attempts);
-            result.unwrap_or_else(|_| {
-                panic!("Executable {:?} should be alive.", executable.node_execution_id)
-            })
-        });
-
-        join_all(await_alive_tasks).await;
-    }
-
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
     }
@@ -159,61 +148,95 @@ impl NodeSetup {
 }
 
 pub struct RunningNode {
-    #[allow(dead_code)]
     node_setup: NodeSetup,
-    #[allow(dead_code)]
     executable_handles: Vec<JoinHandle<()>>,
 }
 
+impl RunningNode {
+    async fn await_alive(&self, interval: u64, max_attempts: usize) {
+        let await_alive_tasks = self.node_setup.executables.iter().map(|executable| {
+            let result = executable.monitoring_client.await_alive(interval, max_attempts);
+            result.unwrap_or_else(|_| {
+                panic!("Executable {:?} should be alive.", executable.node_execution_id)
+            })
+        });
+
+        join_all(await_alive_tasks).await;
+    }
+}
+
 pub struct IntegrationTestManager {
-    pub nodes: Vec<NodeSetup>,
-    // TODO(Nadin): move to NodeSetup.
-    pub executable_handles: Vec<JoinHandle<()>>,
+    pub idle_nodes: Vec<NodeSetup>,
+    pub running_nodes: Vec<RunningNode>,
 }
 
 impl IntegrationTestManager {
     pub async fn run(nodes: Vec<NodeSetup>) -> Self {
         info!("Running nodes.");
-        let executable_handles = nodes
-            .iter()
-            .flat_map(|node| {
-                node.get_executables().iter().map(|executable| {
-                    spawn_run_node(
-                        executable.node_config_path.clone(),
-                        executable.node_execution_id.into(),
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
+        let running_nodes = nodes.into_iter().map(|node| node.run()).collect::<Vec<_>>();
 
-        let sequencer_manager = Self { nodes, executable_handles };
-
+        let integration_test_manager = Self { idle_nodes: Vec::new(), running_nodes };
         // Wait for the nodes to start.
-        sequencer_manager.await_alive(5000, 50).await;
+        integration_test_manager.await_alive(5000, 50).await;
 
-        sequencer_manager
+        integration_test_manager
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks =
-            self.nodes.iter().map(|node| node.await_alive(interval, max_attempts));
+            self.running_nodes.iter().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
     }
 
+    pub fn find_running_node_by_index(&self, node_index: usize) -> Option<&NodeSetup> {
+        self.running_nodes.iter().find_map(|running_node| {
+            if running_node
+                .node_setup
+                .executables
+                .iter()
+                .any(|executable| executable.node_execution_id.get_node_index() == node_index)
+            {
+                Some(&running_node.node_setup)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn find_idle_node_by_index(&self, node_index: usize) -> Option<&NodeSetup> {
+        self.idle_nodes.iter().find(|idle_node| {
+            idle_node
+                .executables
+                .iter()
+                .any(|executable| executable.node_execution_id.get_node_index() == node_index)
+        })
+    }
+
+    pub fn find_node_setup_by_index(&self, node_index: usize) -> Option<&NodeSetup> {
+        self.find_idle_node_by_index(node_index)
+            .or_else(|| self.find_running_node_by_index(node_index))
+    }
+
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.nodes[0].send_rpc_tx_fn(rpc_tx).await
+        let node_0 = self.find_running_node_by_index(0).expect("Node 0 should running.");
+        node_0.send_rpc_tx_fn(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
-        self.nodes[0].batcher_storage_reader()
+        let node_0 = self.find_node_setup_by_index(0).expect("Node 0 should be shut down.");
+        node_0.batcher_storage_reader()
     }
 
-    pub fn shutdown_nodes(&self) {
-        self.executable_handles.iter().for_each(|handle| {
-            assert!(!handle.is_finished(), "Node should still be running.");
-            handle.abort()
+    pub fn shutdown_nodes(mut self) -> Self {
+        self.running_nodes.drain(..).for_each(|running_node| {
+            running_node.executable_handles.iter().for_each(|handle| {
+                assert!(!handle.is_finished(), "Node should still be running.");
+                handle.abort();
+            });
+            self.idle_nodes.push(running_node.node_setup);
         });
+        self
     }
 
     pub async fn run_integration_test_simulator(
