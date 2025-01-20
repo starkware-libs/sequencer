@@ -1,9 +1,9 @@
-use std::collections::HashSet;
 use std::ops::Range;
 
 use async_trait::async_trait;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
@@ -74,8 +74,11 @@ impl BlockExecutionArtifacts {
     pub fn create_for_testing() -> Self {
         // Use a non-empty commitment_state_diff to make the tests more realistic.
         Self {
-            execution_infos: IndexMap::default(),
-            rejected_tx_hashes: HashSet::default(),
+            execution_infos: test_txs(0..10)
+                .iter()
+                .map(|tx| (tx.tx_hash(), TransactionExecutionInfo::default()))
+                .collect(),
+            rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
             commitment_state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
                     contract_address!("0x7"),
