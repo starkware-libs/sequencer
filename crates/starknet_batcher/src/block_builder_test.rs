@@ -167,11 +167,14 @@ fn empty_block_test_expectations() -> TestExpectations {
 fn mock_transaction_executor_block_full(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let execution_results = vec![Ok(execution_info())];
+    // When the block is full, the executor will return less results than the number of input txs.
+    assert!(input_txs.len() > execution_results.len());
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+        .return_once(move |_| execution_results);
     mock_transaction_executor
 }
 
