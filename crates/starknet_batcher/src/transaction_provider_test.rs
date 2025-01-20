@@ -4,9 +4,12 @@ use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{executable_invoke_tx, internal_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_l1_provider_types::{MockL1ProviderClient, ValidationStatus as L1ValidationStatus};
 use starknet_mempool_types::communication::MockMempoolClient;
 
@@ -28,6 +31,7 @@ struct MockDependencies {
     l1_provider_client: MockL1ProviderClient,
     tx_sender: tokio::sync::mpsc::Sender<Transaction>,
     tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    class_manager_client: SharedClassManagerClient,
 }
 
 impl MockDependencies {
@@ -40,7 +44,7 @@ impl MockDependencies {
 
     fn expect_get_mempool_txs(&mut self, n_to_request: usize) {
         self.mempool_client.expect_get_txs().with(eq(n_to_request)).returning(move |n_requested| {
-            Ok(vec![executable_invoke_tx(InvokeTxArgs::default()); n_requested])
+            Ok(vec![internal_invoke_tx(InvokeTxArgs::default()); n_requested])
         });
     }
 
@@ -61,6 +65,7 @@ impl MockDependencies {
         ProposeTransactionProvider::new(
             Arc::new(self.mempool_client),
             Arc::new(self.l1_provider_client),
+            TransactionConverter::new(self.class_manager_client, ChainId::create_for_testing()),
             MAX_L1_HANDLER_TXS_PER_BLOCK,
             HEIGHT,
         )
@@ -85,6 +90,8 @@ fn mock_dependencies(
         l1_provider_client: MockL1ProviderClient::new(),
         tx_sender,
         tx_receiver,
+        // TODO(noamsp): use MockTransactionConverter
+        class_manager_client: Arc::new(EmptyClassManagerClient),
     }
 }
 
