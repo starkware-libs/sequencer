@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_sequencer_infra::component_client::{
     ClientError,
     LocalComponentClient,
@@ -27,7 +27,7 @@ pub trait MempoolP2pPropagatorClient: Send + Sync {
     /// from other peers, use `continue_propagation`.
     async fn add_transaction(
         &self,
-        transaction: RpcTransaction,
+        transaction: InternalRpcTransaction,
     ) -> MempoolP2pPropagatorClientResult<()>;
 
     /// Continues the propagation of a transaction we've received from another peer.
@@ -48,7 +48,7 @@ pub type MempoolP2pPropagatorRequestAndResponseSender =
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MempoolP2pPropagatorRequest {
-    AddTransaction(RpcTransaction),
+    AddTransaction(InternalRpcTransaction),
     ContinuePropagation(BroadcastedMessageMetadata),
 }
 
@@ -74,7 +74,7 @@ where
 {
     async fn add_transaction(
         &self,
-        transaction: RpcTransaction,
+        transaction: InternalRpcTransaction,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::AddTransaction(transaction);
         handle_all_response_variants!(
