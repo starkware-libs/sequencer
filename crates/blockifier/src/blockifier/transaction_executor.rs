@@ -103,7 +103,7 @@ impl<S: StateReader> TransactionExecutor<S> {
     pub fn execute(
         &mut self,
         tx: &Transaction,
-    ) -> TransactionExecutorResult<TransactionExecutionInfo> {
+    ) -> TransactionExecutorResult<(TransactionExecutionInfo, CommitmentStateDiff)> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
@@ -116,6 +116,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             Ok(tx_execution_info) => {
                 let tx_state_changes_keys =
                     transactional_state.get_actual_state_changes()?.state_maps.into_keys();
+                let state_diff = transactional_state.to_state_diff()?.state_maps.into();
                 self.bouncer.try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
@@ -123,7 +124,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     &tx_execution_info.receipt.resources,
                 )?;
                 transactional_state.commit();
-                Ok(tx_execution_info)
+                Ok((tx_execution_info, state_diff))
             }
             Err(error) => {
                 transactional_state.abort();
@@ -139,7 +140,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         let mut results = Vec::new();
         for tx in txs {
             match self.execute(tx) {
-                Ok(tx_execution_info) => results.push(Ok(tx_execution_info)),
+                Ok((tx_execution_info, _state_diff)) => results.push(Ok(tx_execution_info)),
                 Err(TransactionExecutorError::BlockFull) => break,
                 Err(error) => results.push(Err(error)),
             }
