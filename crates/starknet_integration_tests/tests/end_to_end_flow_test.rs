@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_consensus::types::ValidatorId;
@@ -195,7 +193,7 @@ async fn listen_to_broadcasted_messages(
         incoming_proposal_init, expected_proposal_init
     );
 
-    let mut received_tx_hashes = HashSet::new();
+    let mut received_tx_hashes = Vec::new();
     let mut got_proposal_fin = false;
     let mut got_channel_fin = false;
     loop {
@@ -237,12 +235,10 @@ async fn listen_to_broadcasted_messages(
         }
     }
 
-    // Using HashSet to ignore the order of the transactions (broadcast can lead to reordering).
-    assert_eq!(
-        received_tx_hashes,
-        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>(),
-        "Unexpected transactions"
-    );
+    received_tx_hashes.sort();
+    let mut expected_batched_tx_hashes = expected_batched_tx_hashes.to_vec();
+    expected_batched_tx_hashes.sort();
+    assert_eq!(received_tx_hashes, expected_batched_tx_hashes, "Unexpected transactions");
 }
 
 fn deploy_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
