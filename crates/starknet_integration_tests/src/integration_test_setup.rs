@@ -40,6 +40,9 @@ impl NodeExecutionId {
     pub fn get_executable_index(&self) -> usize {
         self.executable_index
     }
+    pub fn get_node_description(&self) -> String {
+        format!("Node id {} part {}", self.node_index, self.executable_index)
+    }
 }
 
 impl From<NodeExecutionId> for NodeRunner {
