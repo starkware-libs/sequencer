@@ -78,6 +78,7 @@
 pub mod base_layer;
 pub mod body;
 pub mod class;
+pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
@@ -125,7 +126,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_proc_macros::latency_histogram;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
@@ -191,9 +192,13 @@ pub fn open_storage(
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
 
-        // Version tables
+        // Version tables.
         starknet_version: db_writer.create_simple_table("starknet_version")?,
         storage_version: db_writer.create_simple_table("storage_version")?,
+
+        // Class hashes.
+        class_hash_to_executable_class_hash: db_writer
+            .create_simple_table("class_hash_to_executable_class_hash")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -541,7 +546,10 @@ struct_field_names! {
 
         // Version tables
         starknet_version: TableIdentifier<BlockNumber, VersionZeroWrapper<StarknetVersion>, SimpleTable>,
-        storage_version: TableIdentifier<String, NoVersionValueWrapper<Version>, SimpleTable>
+        storage_version: TableIdentifier<String, NoVersionValueWrapper<Version>, SimpleTable>,
+
+        // Class hashes.
+        class_hash_to_executable_class_hash: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
     }
 }
 
