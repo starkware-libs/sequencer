@@ -9,7 +9,6 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -17,7 +16,6 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::{InvokeTransaction, TransactionHash, TransactionVersion};
-use starknet_class_manager_types::test_utils::MemoryClassManagerClient;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_gateway_types::errors::GatewaySpecError;

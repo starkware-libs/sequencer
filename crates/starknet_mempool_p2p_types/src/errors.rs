@@ -5,4 +5,6 @@ use thiserror::Error;
 pub enum MempoolP2pPropagatorError {
     #[error("Sender request error")]
     NetworkSendError,
+    #[error("Transaction conversion error: {0}")]
+    TransactionConversionError(String),
 }
