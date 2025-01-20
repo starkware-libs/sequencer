@@ -8,10 +8,9 @@ use starknet_api::transaction::TransactionHash;
 /// An IndexMap that supports soft deletion of entries.
 /// Entries marked as deleted remain hidden in the map, allowing for potential recovery,
 /// selective permanent deletion, or rollback before being purged.
-// TODO(Gilad): replace with a fully generic struct if there's a need for it.
-// TODO(Gilad): replace with a BTreeIndexMap if commit performance becomes an issue, see note in
-// commit.
-#[derive(Clone, Debug, Default)]
+// TODO: replace with a fully generic struct if there's a need for it.
+// TODO: replace with a BTreeIndexMap if commit performance becomes an issue, see note in commit.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SoftDeleteIndexMap {
     pub txs: IndexMap<TransactionHash, TransactionEntry>,
     pub staged_txs: HashSet<TransactionHash>,
@@ -23,7 +22,7 @@ impl SoftDeleteIndexMap {
     }
 
     /// Inserts a transaction into the map, returning the previous transaction if it existed.
-    pub fn _insert(&mut self, tx: L1HandlerTransaction) -> bool {
+    pub fn insert(&mut self, tx: L1HandlerTransaction) -> bool {
         let tx_hash = tx.tx_hash;
         match self.txs.entry(tx_hash) {
             Entry::Occupied(entry) => {
@@ -104,7 +103,7 @@ impl From<Vec<L1HandlerTransaction>> for SoftDeleteIndexMap {
 }
 
 /// Indicates whether a transaction is unstaged or staged.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TxState {
     Unstaged,
     Staged,
@@ -112,7 +111,7 @@ pub enum TxState {
 
 /// Wraps an L1HandlerTransaction along with its current TxState,
 /// and provides convenience methods for stage/unstage.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransactionEntry {
     pub transaction: L1HandlerTransaction,
     pub state: TxState,

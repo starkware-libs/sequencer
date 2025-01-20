@@ -5,7 +5,7 @@ use starknet_l1_provider_types::ValidationStatus;
 
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionManager {
     pub txs: SoftDeleteIndexMap,
     pub committed: IndexMap<TransactionHash, Option<L1HandlerTransaction>>,
@@ -46,10 +46,7 @@ impl TransactionManager {
         self.txs.commit(committed_txs);
     }
 
-    pub fn _add_unconsumed_l1_not_in_l2_block_tx(&mut self, _tx: L1HandlerTransaction) {
-        todo!(
-            "Check if tx is in L2, if it isn't on L2 add it to the txs buffer, otherwise print
-             debug and do nothing."
-        )
+    pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
+        self.committed.contains_key(&tx.tx_hash) || self.txs.insert(tx)
     }
 }
