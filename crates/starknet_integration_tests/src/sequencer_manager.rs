@@ -77,12 +77,36 @@ impl NodeComponentConfigs {
 }
 
 pub struct NodeSetup {
-    pub executables: Vec<ExecutableSetup>,
-    pub batcher_index: usize,
-    pub http_server_index: usize,
+    executables: Vec<ExecutableSetup>,
+    batcher_index: usize,
+    http_server_index: usize,
 }
 
 impl NodeSetup {
+    pub fn new(
+        executables: Vec<ExecutableSetup>,
+        batcher_index: usize,
+        http_server_index: usize,
+    ) -> Result<Self, String> {
+        fn validate_index(index: usize, len: usize, name: &str) -> Result<(), String> {
+            if index >= len {
+                Err(format!(
+                    "{} index {} is out of range. There are {} executables.",
+                    name, index, len
+                ))
+            } else {
+                Ok(())
+            }
+        }
+
+        let len = executables.len();
+
+        validate_index(batcher_index, len, "batcher_index")?;
+        validate_index(http_server_index, len, "http_server_index")?;
+
+        Ok(Self { executables, batcher_index, http_server_index })
+    }
+
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks = self.executables.iter().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
@@ -105,6 +129,18 @@ impl NodeSetup {
         .expect("Failed to open batcher's storage");
         batcher_storage_reader
     }
+
+    pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
+        &self.executables
+    }
+
+    pub fn get_batcher_index(&self) -> usize {
+        self.batcher_index
+    }
+
+    pub fn get_http_server_index(&self) -> usize {
+        self.http_server_index
+    }
 }
 
 pub struct IntegrationTestManager {
@@ -119,7 +155,7 @@ impl IntegrationTestManager {
         let executable_handles = nodes
             .iter()
             .flat_map(|node| {
-                node.executables.iter().map(|executable| {
+                node.get_executables().iter().map(|executable| {
                     spawn_run_node(
                         executable.node_config_path.clone(),
                         executable.node_execution_id.into(),
@@ -283,11 +319,9 @@ pub(crate) async fn get_sequencer_setup_configs(
     let mut global_index = 0;
 
     for (node_index, node_component_configs) in component_configs.into_iter().enumerate() {
-        let mut node = NodeSetup {
-            executables: Vec::new(),
-            batcher_index: node_component_configs.get_batcher_index(),
-            http_server_index: node_component_configs.get_http_server_index(),
-        };
+        let mut executables = Vec::new();
+        let batcher_index = node_component_configs.get_batcher_index();
+        let http_server_index = node_component_configs.get_http_server_index();
 
         for (executable_index, executable_component_config) in
             node_component_configs.into_iter().enumerate()
@@ -297,7 +331,7 @@ pub(crate) async fn get_sequencer_setup_configs(
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
             let chain_info = chain_info.clone();
-            node.executables.push(
+            executables.push(
                 ExecutableSetup::new(
                     accounts.to_vec(),
                     node_execution_id,
@@ -312,7 +346,7 @@ pub(crate) async fn get_sequencer_setup_configs(
             );
             global_index += 1;
         }
-        nodes.push(node);
+        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index).unwrap());
     }
 
     nodes
