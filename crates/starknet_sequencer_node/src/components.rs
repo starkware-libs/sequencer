@@ -55,7 +55,14 @@ pub fn create_node_components(
             let l1_provider_client = clients
                 .get_l1_provider_shared_client()
                 .expect("L1 Provider Client should be available");
-            Some(create_batcher(config.batcher_config.clone(), mempool_client, l1_provider_client))
+            // TODO(noamsp): Remove this and use the real client instead once implemented.
+            let class_manager_client = Arc::new(EmptyClassManagerClient);
+            Some(create_batcher(
+                config.batcher_config.clone(),
+                mempool_client,
+                l1_provider_client,
+                class_manager_client,
+            ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
