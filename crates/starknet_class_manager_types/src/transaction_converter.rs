@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
+use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_api::{executable_transaction, transaction};
@@ -36,11 +37,13 @@ pub trait TransactionConverterTrait {
 
 pub struct TransactionConverter {
     pub class_manager_client: SharedClassManagerClient,
+    #[allow(dead_code)]
+    chain_id: ChainId,
 }
 
 impl TransactionConverter {
-    pub fn new(class_manager_client: SharedClassManagerClient) -> Self {
-        Self { class_manager_client }
+    pub fn new(class_manager_client: SharedClassManagerClient, chain_id: ChainId) -> Self {
+        Self { class_manager_client, chain_id }
     }
 }
 
