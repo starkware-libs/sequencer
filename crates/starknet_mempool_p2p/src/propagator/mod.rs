@@ -4,7 +4,10 @@ mod test;
 use async_trait::async_trait;
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
-use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
 use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorRequest,
     MempoolP2pPropagatorResponse,
@@ -16,7 +19,7 @@ use tracing::warn;
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
-    _transaction_converter: TransactionConverter,
+    transaction_converter: TransactionConverter,
 }
 
 impl MempoolP2pPropagator {
@@ -24,7 +27,7 @@ impl MempoolP2pPropagator {
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
         transaction_converter: TransactionConverter,
     ) -> Self {
-        Self { broadcast_topic_client, _transaction_converter: transaction_converter }
+        Self { broadcast_topic_client, transaction_converter }
     }
 }
 
@@ -38,6 +41,19 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
     ) -> MempoolP2pPropagatorResponse {
         match request {
             MempoolP2pPropagatorRequest::AddTransaction(transaction) => {
+                let transaction = match self
+                    .transaction_converter
+                    .convert_internal_rpc_tx_to_rpc_tx(transaction)
+                    .await
+                {
+                    Ok(transaction) => transaction,
+                    Err(err) => {
+                        return MempoolP2pPropagatorResponse::AddTransaction(Err(
+                            MempoolP2pPropagatorError::TransactionConversionError(err.to_string()),
+                        ));
+                    }
+                };
+
                 let result = self
                     .broadcast_topic_client
                     .broadcast_message(RpcTransactionWrapper(transaction))
