@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use starknet_infra_utils::type_name::short_type_name;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{debug, error, info, warn};
 
 use crate::component_definitions::{
@@ -129,37 +129,29 @@ where
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
         request_response_loop(&mut self.rx, &mut self.component).await;
-        info!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
-        Ok(())
+        error!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
+        Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
 }
 
-pub type LocalActiveComponentServer<Component, Request, Response> =
+pub type ConcurrentLocalComponentServer<Component, Request, Response> =
     BaseLocalComponentServer<Component, Request, Response, NonBlockingLocalServerType>;
 pub struct NonBlockingLocalServerType {}
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
-    for LocalActiveComponentServer<Component, Request, Response>
+    for ConcurrentLocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send,
-    Request: Send + Debug,
-    Response: Send + Debug,
+    Component:
+        ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + 'static,
+    Request: Send + Debug + 'static,
+    Response: Send + Debug + 'static,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
-        let mut component = self.component.clone();
-        let component_future = async move { component.start().await };
-        let request_response_future = request_response_loop(&mut self.rx, &mut self.component);
-
-        tokio::select! {
-            _res = component_future => {
-                error!("Component stopped.");
-            }
-            _res = request_response_future => {
-                error!("Server stopped.");
-            }
-        };
-        error!("Server ended with unexpected Ok.");
+        info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
+        self.component.start().await?;
+        concurrent_request_response_loop(&mut self.rx, &mut self.component).await;
+        error!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
 }
@@ -230,13 +222,48 @@ async fn request_response_loop<Request, Response, Component>(
         let tx = request_and_res_tx.tx;
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
-        let response = component.handle_request(request).await;
-        debug!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
-
-        // Send the response to the client. This might result in a panic if the client has closed
-        // the response channel, which is considered a bug.
-        tx.send(response).await.expect("Response connection should be open.");
+        process_request(component, request, tx).await;
     }
 
-    info!("Stopping server for component {}", short_type_name::<Component>());
+    error!("Stopping server for component {}", short_type_name::<Component>());
+}
+
+// TODO(Itay): clean some code duplications here.
+async fn concurrent_request_response_loop<Request, Response, Component>(
+    rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    component: &mut Component,
+) where
+    Component: ComponentRequestHandler<Request, Response> + Clone + Send + 'static,
+    Request: Send + Debug + 'static,
+    Response: Send + Debug + 'static,
+{
+    info!("Starting concurrent server for component {}", short_type_name::<Component>());
+
+    while let Some(request_and_res_tx) = rx.recv().await {
+        let request = request_and_res_tx.request;
+        let tx = request_and_res_tx.tx;
+        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
+
+        let mut cloned_component = component.clone();
+        tokio::spawn(async move { process_request(&mut cloned_component, request, tx).await });
+    }
+
+    error!("Stopping concurrent server for component {}", short_type_name::<Component>());
+}
+
+async fn process_request<Request, Response, Component>(
+    component: &mut Component,
+    request: Request,
+    tx: Sender<Response>,
+) where
+    Component: ComponentRequestHandler<Request, Response> + Send,
+    Request: Send + Debug,
+    Response: Send + Debug,
+{
+    let response = component.handle_request(request).await;
+    debug!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
+
+    // Send the response to the client. This might result in a panic if the client has closed
+    // the response channel, which is considered a bug.
+    tx.send(response).await.expect("Response connection should be open.");
 }
