@@ -195,7 +195,7 @@ impl IntegrationTestManager {
 
     pub async fn run_integration_test_simulator(
         &self,
-        tx_generator: MultiAccountTransactionGenerator,
+        tx_generator: &mut MultiAccountTransactionGenerator,
         n_txs: usize,
         sender_account: AccountId,
     ) {
