@@ -15,7 +15,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_consensus_orchestrator::cende::RECORDER_WRITE_BLOB_PATH;
+use papyrus_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
@@ -141,7 +141,10 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 timeouts: timeouts.clone(),
                 ..Default::default()
             },
-            ..Default::default()
+            cende_config: CendeConfig{
+                skip_write_height: Some(BlockNumber(1)),
+                ..Default::default()
+            }
         })
         .collect()
 }
