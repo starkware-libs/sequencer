@@ -21,6 +21,7 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::crypto::utils::Signature;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::PoseidonHash;
 
 use super::common::{enum_int_to_l1_data_availability_mode, l1_data_availability_mode_to_enum_int};
@@ -192,6 +193,8 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
             .into(),
         };
 
+        let total_l2_gas_used = GasAmount(value.total_l2_gas_used);
+
         let receipt_commitment = value
             .receipts
             .map(|receipts| receipts.try_into().map(ReceiptCommitment))
@@ -216,6 +219,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     l1_gas_price,
                     l1_data_gas_price,
                     l2_gas_price,
+                    total_l2_gas_used,
                     state_root,
                     sequencer,
                     timestamp,
@@ -297,6 +301,7 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             l2_gas_price_fri: Some(
                 header.block_header_without_hash.l2_gas_price.price_in_fri.0.into(),
             ),
+            total_l2_gas_used: header.block_header_without_hash.total_l2_gas_used.0,
             l1_data_availability_mode: l1_data_availability_mode_to_enum_int(
                 header.block_header_without_hash.l1_da_mode,
             ),
