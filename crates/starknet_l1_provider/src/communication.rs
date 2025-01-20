@@ -39,6 +39,9 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
             L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, height } => {
                 L1ProviderResponse::CommitBlock(self.commit_block(&l1_handler_tx_hashes, height))
             }
+            L1ProviderRequest::Validate { tx_hash, height } => {
+                L1ProviderResponse::Validate(self.validate(tx_hash, height))
+            }
         }
     }
 }
