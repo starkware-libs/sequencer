@@ -58,6 +58,7 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use tracing::debug;
 
 use crate::db::serialization::NoVersionValueWrapper;
@@ -73,6 +74,7 @@ pub(crate) struct StorageBlockHeader {
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
     pub l2_gas_price: GasPricePerToken,
+    pub total_l2_gas_used: GasAmount,
     pub state_root: GlobalRoot,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
@@ -173,6 +175,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
                 l1_gas_price: block_header.l1_gas_price,
                 l1_data_gas_price: block_header.l1_data_gas_price,
                 l2_gas_price: block_header.l2_gas_price,
+                total_l2_gas_used: block_header.total_l2_gas_used,
                 state_root: block_header.state_root,
                 sequencer: block_header.sequencer,
                 timestamp: block_header.timestamp,
@@ -253,6 +256,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             l1_gas_price: block_header.block_header_without_hash.l1_gas_price,
             l1_data_gas_price: block_header.block_header_without_hash.l1_data_gas_price,
             l2_gas_price: block_header.block_header_without_hash.l2_gas_price,
+            total_l2_gas_used: block_header.block_header_without_hash.total_l2_gas_used,
             state_root: block_header.block_header_without_hash.state_root,
             sequencer: block_header.block_header_without_hash.sequencer,
             timestamp: block_header.block_header_without_hash.timestamp,
@@ -364,6 +368,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
                     l1_gas_price: reverted_header.l1_gas_price,
                     l1_data_gas_price: reverted_header.l1_data_gas_price,
                     l2_gas_price: reverted_header.l2_gas_price,
+                    total_l2_gas_used: reverted_header.total_l2_gas_used,
                     state_root: reverted_header.state_root,
                     sequencer: reverted_header.sequencer,
                     timestamp: reverted_header.timestamp,
