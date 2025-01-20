@@ -8,7 +8,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -31,6 +31,8 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
@@ -85,6 +87,7 @@ struct MockDependencies {
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
+    class_manager_client: SharedClassManagerClient,
 }
 
 impl Default for MockDependencies {
@@ -97,6 +100,8 @@ impl Default for MockDependencies {
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client: MockMempoolClient::new(),
             block_builder_factory: MockBlockBuilderFactoryTrait::new(),
+            // TODO(noamsp): use MockClassManagerClient
+            class_manager_client: Arc::new(EmptyClassManagerClient),
         }
     }
 }
@@ -108,6 +113,10 @@ fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         Box::new(mock_dependencies.storage_writer),
         Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
+        TransactionConverter::new(
+            mock_dependencies.class_manager_client,
+            ChainId::create_for_testing(),
+        ),
         Box::new(mock_dependencies.block_builder_factory),
     )
 }
