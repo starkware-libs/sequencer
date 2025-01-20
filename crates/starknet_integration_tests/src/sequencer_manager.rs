@@ -44,14 +44,13 @@ const N_CONSOLIDATED_SEQUENCERS: usize = 3;
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
-// TODO(Nadin): rename to NodeComponentConfigs.
-struct ComposedComponentConfigs {
+struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
 }
 
-impl ComposedComponentConfigs {
+impl NodeComponentConfigs {
     fn new(
         component_configs: Vec<ComponentConfig>,
         batcher_index: usize,
@@ -231,7 +230,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
 
-    let component_configs: Vec<ComposedComponentConfigs> = {
+    let component_configs: Vec<NodeComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
@@ -242,7 +241,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         combined
     };
 
-    info!("Creating sequencer configurations.");
+    info!("Creating node configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
     let n_distributed_sequencers = component_configs
@@ -317,14 +316,14 @@ pub(crate) async fn get_sequencer_setup_configs(
 fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<ComposedComponentConfigs> {
+) -> Vec<NodeComponentConfigs> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
 
-        ComposedComponentConfigs::new(
+        NodeComponentConfigs::new(
             vec![
                 get_http_container_config(
                     gateway_socket,
@@ -351,9 +350,9 @@ fn create_distributed_node_configs(
 
 fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
-) -> Vec<ComposedComponentConfigs> {
+) -> Vec<NodeComponentConfigs> {
     // Both batcher and http server are in executable index 0.
-    std::iter::repeat_with(|| ComposedComponentConfigs::new(vec![ComponentConfig::default()], 0, 0))
+    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0))
         .take(num_of_consolidated_nodes)
         .collect()
 }
