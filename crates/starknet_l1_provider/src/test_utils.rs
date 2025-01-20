@@ -21,6 +21,7 @@ use starknet_l1_provider_types::{
     ValidationStatus,
 };
 
+use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::transaction_manager::TransactionManager;
@@ -186,6 +187,7 @@ pub struct FakeL1ProviderClient {
     // Interior mutability needed since this is modifying during client API calls, which are all
     // immutable.
     pub events_received: Mutex<Vec<Event>>,
+    pub commit_blocks_received: Mutex<Vec<CommitBlockBacklog>>,
 }
 
 impl FakeL1ProviderClient {
@@ -221,10 +223,14 @@ impl L1ProviderClient for FakeL1ProviderClient {
 
     async fn commit_block(
         &self,
-        _l1_handler_tx_hashes: Vec<TransactionHash>,
-        _height: BlockNumber,
+        l1_handler_tx_hashes: Vec<TransactionHash>,
+        height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
-        todo!()
+        self.commit_blocks_received
+            .lock()
+            .unwrap()
+            .push(CommitBlockBacklog { height, committed_txs: l1_handler_tx_hashes });
+        Ok(())
     }
 
     async fn validate(
