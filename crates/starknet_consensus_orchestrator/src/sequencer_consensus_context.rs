@@ -353,8 +353,9 @@ impl ConsensusContext for SequencerConsensusContext {
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
         let l1_data_gas_price =
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+        // TODO(Ayelet): remove price in wei from l2_gas_price.
         let l2_gas_price =
-            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
+            GasPricePerToken { price_in_fri: self.l2_gas_price.into(), price_in_wei: GasPrice(1) };
         let sequencer = SequencerContractAddress(ContractAddress::from(123_u128));
         let block_header_without_hash = BlockHeaderWithoutHash {
             block_number: BlockNumber(height),
@@ -401,6 +402,17 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
         let sync_block = self.state_sync_client.get_block(height).await;
         if let Ok(Some(sync_block)) = sync_block {
+            self.l2_gas_price = calculate_next_base_gas_price(
+                sync_block
+                    .block_header_without_hash
+                    .l2_gas_price
+                    .price_in_fri
+                    .0
+                    .try_into()
+                    .unwrap(),
+                sync_block.block_header_without_hash.total_l2_gas_used.0,
+                VersionedConstants::latest_constants().max_block_size / 2,
+            );
             self.interrupt_active_proposal().await;
             self.batcher.add_sync_block(sync_block).await.unwrap();
             return true;
