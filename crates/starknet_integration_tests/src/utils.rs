@@ -5,6 +5,7 @@ use std::time::Duration;
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::Router;
+use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
@@ -202,7 +203,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     tx_generator
 }
 
-pub fn create_txs_for_integration_test(
+pub fn create_multiple_account_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     // Create RPC transactions.
@@ -214,6 +215,13 @@ pub fn create_txs_for_integration_test(
         tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_invoke_with_tip(4);
 
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
+}
+
+/// Creates and sends more transactions than can fit in a block.
+pub fn create_many_invoke_txs(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+) -> Vec<RpcTransaction> {
+    create_account_txs(tx_generator, ACCOUNT_ID_1, 15)
 }
 
 pub fn create_funding_txs(
@@ -235,7 +243,7 @@ fn fund_new_account(
 }
 
 fn create_account_txs(
-    mut tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
@@ -262,7 +270,7 @@ where
 // TODO(yair): Consolidate create_rpc_txs_fn and test_tx_hashes_fn into a single function.
 /// Creates and runs the integration test scenario for the sequencer integration test. Returns a
 /// list of transaction hashes, in the order they are expected to be in the mempool.
-pub async fn run_integration_test_scenario<'a, Fut>(
+pub async fn run_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     create_rpc_txs_fn: impl Fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
@@ -276,22 +284,31 @@ where
     test_tx_hashes_fn(&tx_hashes)
 }
 
-pub fn test_tx_hashes_for_integration_test(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+pub fn test_multiple_account_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     // Return the transaction hashes in the order they should be given by the mempool:
     // Transactions from the same account are ordered by nonce; otherwise, higher tips are given
     // priority.
     assert!(
         tx_hashes.len() == 3,
-        "Unexpected number of transactions sent in the integration test scenario. Found {} \
-         transactions",
+        "Unexpected number of transactions sent in the test scenario. Found {} transactions",
         tx_hashes.len()
     );
     vec![tx_hashes[2], tx_hashes[0], tx_hashes[1]]
 }
 
+pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert!(
+        tx_hashes.len() == 15,
+        "Unexpected number of transactions sent in the test scenario. Found {} transactions",
+        tx_hashes.len()
+    );
+    // Only 12 transactions make it into the block (because the block is full).
+    tx_hashes[..12].to_vec()
+}
+
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
 pub async fn send_account_txs<'a, Fut>(
-    tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     n_txs: usize,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
@@ -322,7 +339,13 @@ pub fn create_batcher_config(
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
+        block_builder_config: BlockBuilderConfig {
+            chain_info,
+            bouncer_config: BouncerConfig {
+                block_max_capacity: BouncerWeights { n_steps: 75000, ..Default::default() },
+            },
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
