@@ -57,7 +57,7 @@ async fn validate_proposal_success(repropose: bool) {
         let tx_part = ProposalPart::Transactions(TransactionBatch { transactions: vec![tx] });
         validate_sender.try_send(tx_part).unwrap();
     }
-    let fin_part = ProposalPart::Fin(ProposalFin { proposal_content_id: block.header.block_hash });
+    let fin_part = ProposalPart::Fin(ProposalFin { proposal_commitment: block.header.block_hash });
     validate_sender.try_send(fin_part).unwrap();
     validate_sender.close_channel();
 

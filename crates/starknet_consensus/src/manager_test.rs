@@ -60,7 +60,7 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt, tim
             block_sender
                 .send((
                     BlockHash(block_hash),
-                    ProposalFin { proposal_content_id: BlockHash(block_hash) },
+                    ProposalFin { proposal_commitment: BlockHash(block_hash) },
                 ))
                 .unwrap();
             block_receiver

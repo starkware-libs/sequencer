@@ -214,20 +214,20 @@ auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
-        let proposal_content_id: StarkHash = value
-            .proposal_content_id
+        let proposal_commitment: StarkHash = value
+            .proposal_commitment
             .ok_or(ProtobufConversionError::MissingField {
-                field_description: "proposal_content_id",
+                field_description: "proposal_commitment",
             })?
             .try_into()?;
-        let proposal_content_id = BlockHash(proposal_content_id);
-        Ok(ProposalFin { proposal_content_id })
+        let proposal_commitment = BlockHash(proposal_commitment);
+        Ok(ProposalFin { proposal_commitment })
     }
 }
 
 impl From<ProposalFin> for protobuf::ProposalFin {
     fn from(value: ProposalFin) -> Self {
-        protobuf::ProposalFin { proposal_content_id: Some(value.proposal_content_id.0.into()) }
+        protobuf::ProposalFin { proposal_commitment: Some(value.proposal_commitment.0.into()) }
     }
 }
 
