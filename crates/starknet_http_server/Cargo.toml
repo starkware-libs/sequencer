@@ -30,7 +30,7 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-blockifier = { workspace = true, features = ["testing"] }
+blockifier = { workspace = true, features = ["jemalloc", "testing"] }
 mempool_test_utils.workspace = true
 metrics-exporter-prometheus.workspace = true
 serde_json.workspace = true
