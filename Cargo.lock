@@ -11310,6 +11310,7 @@ name = "starknet_sierra_multicompile"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "async-trait",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",

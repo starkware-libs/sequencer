@@ -12,6 +12,7 @@ cairo_native = ["dep:cairo-native"]
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
