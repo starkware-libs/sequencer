@@ -59,7 +59,7 @@ fn tx_executor_test_body<S: StateReader>(
     // TODO(Arni, 30/03/2024): Consider adding a test for the transaction execution info. If A test
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
-    let _tx_execution_info = tx_executor.execute(&tx).unwrap();
+    let (_tx_execution_info, _state_diff) = tx_executor.execute(&tx).unwrap();
     let bouncer_weights = tx_executor.bouncer.get_accumulated_weights();
     assert_eq!(bouncer_weights.state_diff_size, expected_bouncer_weights.state_diff_size);
     assert_eq!(
