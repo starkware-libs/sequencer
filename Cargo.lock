@@ -1748,7 +1748,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_infra_utils",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -7171,7 +7171,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -10953,7 +10953,7 @@ dependencies = [
  "starknet_mempool",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
@@ -11281,8 +11281,8 @@ dependencies = [
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
- "starknet_sierra_compile",
  "starknet_sierra_compile_types",
+ "starknet_sierra_multicompile",
  "starknet_state_sync",
  "starknet_state_sync_types",
  "tokio",
@@ -11292,7 +11292,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_sierra_compile"
+name = "starknet_sierra_compile_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "papyrus_proc_macros",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_sierra_multicompile"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
@@ -11313,20 +11327,6 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "validator",
-]
-
-[[package]]
-name = "starknet_sierra_compile_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "bytes",
- "papyrus_proc_macros",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_sequencer_infra",
- "thiserror 1.0.69",
 ]
 
 [[package]]

@@ -21,7 +21,7 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{

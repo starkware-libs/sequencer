@@ -10,8 +10,8 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_sierra_compile::config::SierraCompilationConfig;
-use starknet_sierra_compile::errors::CompilationUtilError;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::errors::CompilationUtilError;
 use tracing_test::traced_test;
 
 use crate::compilation::GatewayCompiler;

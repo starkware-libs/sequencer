@@ -28,7 +28,7 @@ use starknet_l1_provider::l1_scraper::L1ScraperConfig;
 use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use validator::Validate;
 
