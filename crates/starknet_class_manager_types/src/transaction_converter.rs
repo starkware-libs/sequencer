@@ -60,6 +60,12 @@ pub struct TransactionConverter {
     chain_id: ChainId,
 }
 
+impl TransactionConverter {
+    pub fn new(class_manager_client: SharedClassManagerClient, chain_id: ChainId) -> Self {
+        Self { class_manager_client, chain_id }
+    }
+}
+
 #[async_trait]
 impl TransactionConverterTrait for TransactionConverter {
     async fn convert_internal_consensus_tx_to_consensus_tx(
