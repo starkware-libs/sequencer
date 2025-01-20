@@ -8,14 +8,14 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{StateMachine, StateMachineEvent};
-use crate::types::{ProposalContentId, ValidatorId};
+use crate::types::{ProposalCommitment, ValidatorId};
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
 }
 
-const PROPOSAL_ID: Option<ProposalContentId> = Some(BlockHash(Felt::ONE));
+const PROPOSAL_ID: Option<ProposalCommitment> = Some(BlockHash(Felt::ONE));
 const ROUND: Round = 0;
 
 struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
@@ -41,19 +41,19 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         self.events.append(&mut self.state_machine.start(&self.leader_fn))
     }
 
-    pub fn send_get_proposal(&mut self, proposal_id: Option<ProposalContentId>, round: Round) {
+    pub fn send_get_proposal(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         self.send_event(StateMachineEvent::GetProposal(proposal_id, round))
     }
 
-    pub fn send_proposal(&mut self, proposal_id: Option<ProposalContentId>, round: Round) {
+    pub fn send_proposal(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         self.send_event(StateMachineEvent::Proposal(proposal_id, round, None))
     }
 
-    pub fn send_prevote(&mut self, proposal_id: Option<ProposalContentId>, round: Round) {
+    pub fn send_prevote(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         self.send_event(StateMachineEvent::Prevote(proposal_id, round))
     }
 
-    pub fn send_precommit(&mut self, proposal_id: Option<ProposalContentId>, round: Round) {
+    pub fn send_precommit(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         self.send_event(StateMachineEvent::Precommit(proposal_id, round))
     }
 
@@ -154,7 +154,7 @@ fn validator_receives_votes_first() {
 
 #[test_case(PROPOSAL_ID ; "valid_proposal")]
 #[test_case(None ; "invalid_proposal")]
-fn buffer_events_during_get_proposal(vote: Option<ProposalContentId>) {
+fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
     let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();

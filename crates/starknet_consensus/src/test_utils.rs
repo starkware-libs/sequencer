@@ -8,7 +8,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
-use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
+use crate::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -63,18 +63,18 @@ mock! {
             &mut self,
             init: ProposalInit,
             timeout: Duration,
-        ) -> oneshot::Receiver<ProposalContentId>;
+        ) -> oneshot::Receiver<ProposalCommitment>;
 
         async fn validate_proposal(
             &mut self,
             init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<TestProposalPart>
-        ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
+        ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)>;
 
         async fn repropose(
             &mut self,
-            id: ProposalContentId,
+            id: ProposalCommitment,
             init: ProposalInit,
         );
 
@@ -86,7 +86,7 @@ mock! {
 
         async fn decision_reached(
             &mut self,
-            block: ProposalContentId,
+            block: ProposalCommitment,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
 
