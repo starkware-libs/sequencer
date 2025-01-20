@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
-use papyrus_config::{ParamPath, SerializedParam};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -40,11 +40,21 @@ pub struct ComponentConfig {
     pub l1_scraper: ActiveComponentExecutionConfig,
     #[validate]
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
+
+    // Delay in seconds before starting the node.
+    pub delay_in_sec: u64,
 }
 
 impl SerializeConfig for ComponentConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let sub_configs = vec![
+        let members = BTreeMap::from_iter([ser_param(
+            "delay_in_sec",
+            &self.delay_in_sec,
+            "The delay in seconds before starting the node.",
+            ParamPrivacyInput::Public,
+        )]);
+        vec![
+            members,
             append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.class_manager.dump(), "class_manager"),
             append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
@@ -57,9 +67,10 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
             append_sub_config_name(self.sierra_compiler.dump(), "sierra_compiler"),
             append_sub_config_name(self.state_sync.dump(), "state_sync"),
-        ];
-
-        sub_configs.into_iter().flatten().collect()
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
@@ -79,6 +90,7 @@ impl ComponentConfig {
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
+            delay_in_sec: 0,
         }
     }
 }
