@@ -18,7 +18,7 @@ use crate::core::{
 };
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
-use crate::execution_resources::GasVector;
+use crate::execution_resources::{GasAmount, GasVector};
 use crate::state::ThinStateDiff;
 use crate::transaction::fields::{Fee, TransactionSignature};
 use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
@@ -135,6 +135,7 @@ pub fn calculate_block_hash(
                     &header.l1_gas_price,
                     &header.l1_data_gas_price,
                     &header.l2_gas_price,
+                    &header.total_l2_gas_used,
                     &block_hash_version,
                 )
                 .iter(),
@@ -241,6 +242,7 @@ fn gas_prices_to_hash(
     l1_gas_price: &GasPricePerToken,
     l1_data_gas_price: &GasPricePerToken,
     l2_gas_price: &GasPricePerToken,
+    total_l2_gas_used: &GasAmount,
     block_hash_version: &BlockHashVersion,
 ) -> Vec<Felt> {
     if block_hash_version >= &BlockHashVersion::V0_13_4 {
@@ -253,6 +255,7 @@ fn gas_prices_to_hash(
                 .chain(&l1_data_gas_price.price_in_fri.0.into())
                 .chain(&l2_gas_price.price_in_wei.0.into())
                 .chain(&l2_gas_price.price_in_fri.0.into())
+                .chain(&total_l2_gas_used.0.into())
                 .get_poseidon_hash(),
         ]
     } else {

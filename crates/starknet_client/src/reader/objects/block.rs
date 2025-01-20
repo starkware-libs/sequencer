@@ -23,6 +23,7 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
@@ -205,6 +206,17 @@ impl Block {
         }
     }
 
+    pub fn total_l2_gas_used(&self) -> GasAmount {
+        match self {
+            Block::PostV0_13_1(block) => block
+                .transaction_receipts
+                .iter()
+                .filter_map(|receipt| receipt.execution_resources.total_gas_consumed)
+                .map(|gas| gas.l2_gas)
+                .sum(),
+        }
+    }
+
     pub fn state_root(&self) -> GlobalRoot {
         match self {
             Block::PostV0_13_1(block) => block.state_root,
@@ -305,6 +317,7 @@ impl Block {
                 block_number: self.block_number(),
                 l1_gas_price: self.l1_gas_price(),
                 l2_gas_price: self.l2_gas_price(),
+                total_l2_gas_used: self.total_l2_gas_used(),
                 state_root: self.state_root(),
                 sequencer: self.sequencer_address(),
                 timestamp: self.timestamp(),

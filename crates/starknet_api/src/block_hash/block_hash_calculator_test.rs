@@ -28,6 +28,7 @@ use crate::core::{
     TransactionCommitment,
 };
 use crate::data_availability::L1DataAvailabilityMode;
+use crate::execution_resources::GasAmount;
 use crate::hash::PoseidonHash;
 use crate::transaction::fields::TransactionSignature;
 use crate::{felt, tx_hash};
@@ -88,6 +89,7 @@ fn test_block_hash_regression(
             price_in_wei: 9_u8.into(),
         },
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
+        total_l2_gas_used: GasAmount(13),
         starknet_version: block_hash_version.clone().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
@@ -110,7 +112,7 @@ fn test_block_hash_regression(
             felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
         }
         BlockHashVersion::V0_13_4 => {
-            felt!("0x3d6174623c812f5dc03fa3faa07c42c06fd90ad425629ee5f39e149df65c3ca")
+            felt!("0x6f81c5fe8c8cb83d3f936416f660febffe094ac3b840d26814251179ce1d542")
         }
     };
 
@@ -161,6 +163,7 @@ fn change_field_of_hash_input() {
                 price_in_wei: 1_u8.into(),
             },
             l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
+            total_l2_gas_used: GasAmount(1),
             state_root: GlobalRoot(Felt::ONE),
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
             timestamp: BlockTimestamp(1)
