@@ -1,9 +1,7 @@
 use std::net::SocketAddr;
 
 use futures::future::join_all;
-use futures::stream::{self, StreamExt};
 use futures::TryFutureExt;
-use itertools::izip;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
@@ -46,6 +44,7 @@ const N_CONSOLIDATED_SEQUENCERS: usize = 3;
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
+// TODO(Nadin): rename to NodeComponentConfigs.
 struct ComposedComponentConfigs {
     component_configs: Vec<ComponentConfig>,
 }
@@ -64,25 +63,33 @@ impl ComposedComponentConfigs {
     }
 }
 
+pub struct NodeSetup {
+    pub executables: Vec<ExecutableSetup>,
+    // TODO(Nadin): add batcher and http server indexes.
+}
+
 pub struct IntegrationTestManager {
-    pub sequencers: Vec<ExecutableSetup>,
-    pub sequencer_run_handles: Vec<JoinHandle<()>>,
+    pub nodes: Vec<NodeSetup>,
+    // TODO(Nadin): move to NodeSetup.
+    pub executable_handles: Vec<JoinHandle<()>>,
 }
 
 impl IntegrationTestManager {
-    pub async fn run(sequencers: Vec<ExecutableSetup>) -> Self {
-        info!("Running sequencers.");
-        let sequencer_run_handles = sequencers
+    pub async fn run(nodes: Vec<NodeSetup>) -> Self {
+        info!("Running nodes.");
+        let executable_handles = nodes
             .iter()
-            .map(|sequencer_setup| {
-                spawn_run_node(
-                    sequencer_setup.node_config_path.clone(),
-                    sequencer_setup.sequencer_execution_id.into(),
-                )
+            .flat_map(|node| {
+                node.executables.iter().map(|executable| {
+                    spawn_run_node(
+                        executable.node_config_path.clone(),
+                        executable.sequencer_execution_id.into(),
+                    )
+                })
             })
             .collect::<Vec<_>>();
 
-        let sequencer_manager = Self { sequencers, sequencer_run_handles };
+        let sequencer_manager = Self { nodes, executable_handles };
 
         // Wait for the nodes to start.
         sequencer_manager.await_alive(5000, 50).await;
@@ -91,10 +98,15 @@ impl IntegrationTestManager {
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        let await_alive_tasks = self.sequencers.iter().map(|sequencer| {
-            let result = sequencer.monitoring_client.await_alive(interval, max_attempts);
-            result.unwrap_or_else(|_| {
-                panic!("Node {:?} should be alive.", sequencer.sequencer_execution_id)
+        let await_alive_tasks = self.nodes.iter().flat_map(|node| {
+            node.executables.iter().map(move |executable| {
+                let result = executable.monitoring_client.await_alive(interval, max_attempts);
+                result.unwrap_or_else(|_| {
+                    panic!(
+                        "Executable {:?} in node should be alive.",
+                        executable.sequencer_execution_id
+                    )
+                })
             })
         });
 
@@ -102,18 +114,19 @@ impl IntegrationTestManager {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.sequencers[0].assert_add_tx_success(rpc_tx).await
+        self.nodes[0].executables[0].assert_add_tx_success(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
-        let (batcher_storage_reader, _) =
-            papyrus_storage::open_storage(self.sequencers[0].batcher_storage_config.clone())
-                .expect("Failed to open batcher's storage");
+        let (batcher_storage_reader, _) = papyrus_storage::open_storage(
+            self.nodes[0].executables[0].batcher_storage_config.clone(),
+        )
+        .expect("Failed to open batcher's storage");
         batcher_storage_reader
     }
 
     pub fn shutdown_nodes(&self) {
-        self.sequencer_run_handles.iter().for_each(|handle| {
+        self.executable_handles.iter().for_each(|handle| {
             assert!(!handle.is_finished(), "Node should still be running.");
             handle.abort()
         });
@@ -192,7 +205,7 @@ async fn await_block(
 
 pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
-) -> Vec<ExecutableSetup> {
+) -> Vec<NodeSetup> {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
@@ -218,63 +231,43 @@ pub(crate) async fn get_sequencer_setup_configs(
         .map(|composed_node_component_configs| composed_node_component_configs.len())
         .sum();
 
-    let consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
+    // TODO (Nadin): Refactor to avoid directly mutating vectors
+
+    let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
         component_configs.len(),
     );
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
     // the ExecutableSetup
-    let state_sync_configs = create_state_sync_configs(
+    let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
         available_ports.get_next_ports(n_distributed_sequencers),
     );
 
-    let mempool_p2p_configs = create_mempool_p2p_configs(
+    let mut mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
         available_ports.get_next_ports(n_distributed_sequencers),
     );
 
-    // Flatten while enumerating sequencer and sequencer part indices.
-    let indexed_component_configs: Vec<(SequencerExecutionId, ComponentConfig)> = component_configs
-        .into_iter()
-        .enumerate()
-        .flat_map(|(sequencer_index, parts_component_configs)| {
-            parts_component_configs.into_iter().enumerate().map(
-                move |(sequencer_part_index, parts_component_config)| {
-                    (
-                        SequencerExecutionId::new(sequencer_index, sequencer_part_index),
-                        parts_component_config,
-                    ) // Combine indices with the value
-                },
-            )
-        })
-        .collect();
-
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
-    stream::iter(
-        izip!(
-            indexed_component_configs,
-            consensus_manager_configs,
-            mempool_p2p_configs,
-            state_sync_configs
-        )
-        .enumerate(),
-    )
-    .then(
-        |(
-            index,
-            (
-                (sequencer_execution_id, component_config),
-                consensus_manager_config,
-                mempool_p2p_config,
-                state_sync_config,
-            ),
-        )| {
+    let mut nodes = Vec::new();
+    let mut global_index = 0;
+
+    for (node_index, node_component_configs) in component_configs.into_iter().enumerate() {
+        let mut node = NodeSetup { executables: Vec::new() };
+
+        for (executable_index, executable_component_config) in
+            node_component_configs.into_iter().enumerate()
+        {
+            let sequencer_execution_id = SequencerExecutionId::new(node_index, executable_index);
+            let consensus_manager_config = consensus_manager_configs.remove(0);
+            let mempool_p2p_config = mempool_p2p_configs.remove(0);
+            let state_sync_config = state_sync_configs.remove(0);
             let chain_info = chain_info.clone();
-            async move {
+            node.executables.push(
                 ExecutableSetup::new(
                     accounts.to_vec(),
                     sequencer_execution_id,
@@ -282,15 +275,17 @@ pub(crate) async fn get_sequencer_setup_configs(
                     consensus_manager_config,
                     mempool_p2p_config,
                     state_sync_config,
-                    AvailablePorts::new(test_unique_id.into(), index.try_into().unwrap()),
-                    component_config.clone(),
+                    AvailablePorts::new(test_unique_id.into(), global_index.try_into().unwrap()),
+                    executable_component_config.clone(),
                 )
-                .await
-            }
-        },
-    )
-    .collect()
-    .await
+                .await,
+            );
+            global_index += 1;
+        }
+        nodes.push(node);
+    }
+
+    nodes
 }
 
 /// Generates configurations for a specified number of distributed sequencer nodes,
