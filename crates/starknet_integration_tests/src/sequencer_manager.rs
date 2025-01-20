@@ -29,7 +29,7 @@ use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{ExecutableSetup, SequencerExecutionId};
+use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -284,7 +284,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         for (executable_index, executable_component_config) in
             node_component_configs.into_iter().enumerate()
         {
-            let sequencer_execution_id = SequencerExecutionId::new(node_index, executable_index);
+            let sequencer_execution_id = NodeExecutionId::new(node_index, executable_index);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
