@@ -117,6 +117,8 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
+            log::debug!("Using cairo0 execution");
+            log::error!("Using cairo0 execution");
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
                 compiled_class,
@@ -125,6 +127,8 @@ pub fn execute_entry_point_call(
             )
         }
         RunnableCompiledClass::V1(compiled_class) => {
+            log::debug!("Using casm execution");
+            log::error!("Using casm execution");
             entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
@@ -132,6 +136,8 @@ pub fn execute_entry_point_call(
             if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).
+                log::debug!("Using casm (not Cairo Native) execution");
+                log::error!("Using casm (not Cairo Native) execution");
                 entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class.casm(),
@@ -139,13 +145,8 @@ pub fn execute_entry_point_call(
                     context,
                 )
             } else {
-                log::debug!(
-                    "Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, Class \
-                     Hash: {}.",
-                    context.tx_context.block_context.block_info.block_number,
-                    context.tx_context.tx_info.transaction_hash(),
-                    call.class_hash.expect("Missing Class Hash")
-                );
+                log::debug!("Using Cairo Native execution");
+                log::error!("Using Cairo Native execution");
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,

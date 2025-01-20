@@ -250,26 +250,28 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         std::thread::scope(|s| {
             for _ in 0..self.config.concurrency_config.n_workers {
                 let worker_executor = Arc::clone(&worker_executor);
-                s.spawn(move || {
-                    // Making sure that the program will abort if a panic accured while halting the
-                    // scheduler.
-                    let abort_guard = AbortIfPanic;
-                    // If a panic is not handled or the handling logic itself panics, then we abort
-                    // the program.
-                    if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
-                        worker_executor.run();
-                    })) {
-                        // If the program panics here, the abort guard will exit the program.
-                        // In this case, no panic message will be logged. Add the cargo flag
-                        // --nocapture to log the panic message.
+                let _handle = std::thread::Builder::new()
+                    .stack_size(200 * 1024 * 1024)
+                    .spawn_scoped(s, move || {
+                        // Making sure that the program will abort if a panic accured while halting
+                        // the scheduler.
+                        let abort_guard = AbortIfPanic;
+                        // If a panic is not handled or the handling logic itself panics, then we
+                        // abort the program.
+                        if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
+                            worker_executor.run();
+                        })) {
+                            // If the program panics here, the abort guard will exit the program.
+                            // In this case, no panic message will be logged. Add the cargo flag
+                            // --nocapture to log the panic message.
 
-                        worker_executor.scheduler.halt();
+                            worker_executor.scheduler.halt();
+                            abort_guard.release();
+                            panic::resume_unwind(err);
+                        }
+
                         abort_guard.release();
-                        panic::resume_unwind(err);
-                    }
-
-                    abort_guard.release();
-                });
+                    });
             }
         });
 
