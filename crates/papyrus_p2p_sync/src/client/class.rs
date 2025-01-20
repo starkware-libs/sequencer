@@ -32,7 +32,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
         async move {
             // TODO(noamsp): handle non fatal errors by reporting the peer instead of failing
             for (class_hash, class) in self.0 {
-                class_manager_client.add_class(class_hash, class).await?;
+                class_manager_client.add_class(class).await?;
             }
 
             for (class_hash, deprecated_class) in self.1 {
