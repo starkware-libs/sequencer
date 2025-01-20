@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use pretty_assertions::assert_eq;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::{contract_address, nonce, tx_hash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
@@ -21,7 +21,7 @@ macro_rules! tx {
     ) => {{
             use starknet_api::block::GasPrice;
             use starknet_api::{invoke_tx_args, tx_hash};
-            use starknet_api::test_utils::invoke::executable_invoke_tx;
+            use starknet_api::test_utils::invoke::internal_invoke_tx;
             use starknet_api::transaction::fields::{
                 AllResourceBounds,
                 ResourceBounds,
@@ -37,7 +37,7 @@ macro_rules! tx {
                 ..Default::default()
             });
 
-            executable_invoke_tx(invoke_tx_args!{
+            internal_invoke_tx(invoke_tx_args!{
                 tx_hash: tx_hash!($tx_hash),
                 sender_address: contract_address!($address),
                 nonce: nonce!($tx_nonce),
@@ -256,7 +256,7 @@ pub fn commit_block(
 pub fn get_txs_and_assert_expected(
     mempool: &mut Mempool,
     n_txs: usize,
-    expected_txs: &[AccountTransaction],
+    expected_txs: &[InternalRpcTransaction],
 ) {
     let txs = mempool.get_txs(n_txs).unwrap();
     assert_eq!(txs, expected_txs);
