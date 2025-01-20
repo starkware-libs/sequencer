@@ -7,7 +7,7 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_sequencer_infra::component_client::{
     ClientError,
     LocalComponentClient,
@@ -45,7 +45,7 @@ pub trait MempoolClient: Send + Sync {
     // TODO: Rename tx to transaction
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>>;
+    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>>;
     async fn contains_tx_from(
         &self,
         contract_address: ContractAddress,
@@ -64,7 +64,7 @@ pub enum MempoolRequest {
 pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
-    GetTransactions(MempoolResult<Vec<AccountTransaction>>),
+    GetTransactions(MempoolResult<Vec<InternalRpcTransaction>>),
     ContainsTransactionFrom(MempoolResult<bool>),
 }
 
@@ -103,7 +103,7 @@ where
         )
     }
 
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>> {
+    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         handle_all_response_variants!(
             MempoolResponse,

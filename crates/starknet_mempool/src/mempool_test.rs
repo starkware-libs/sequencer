@@ -7,12 +7,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
-use starknet_api::executable_transaction::AccountTransaction;
-use starknet_api::rpc_transaction::{
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
-};
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
@@ -88,7 +83,7 @@ impl MempoolContentBuilder {
 
     fn with_pool<P>(mut self, pool_txs: P) -> Self
     where
-        P: IntoIterator<Item = AccountTransaction>,
+        P: IntoIterator<Item = InternalRpcTransaction>,
     {
         self.tx_pool = Some(pool_txs.into_iter().collect());
         self
@@ -140,8 +135,8 @@ impl MempoolContentBuilder {
     }
 }
 
-impl FromIterator<AccountTransaction> for TransactionPool {
-    fn from_iter<T: IntoIterator<Item = AccountTransaction>>(txs: T) -> Self {
+impl FromIterator<InternalRpcTransaction> for TransactionPool {
+    fn from_iter<T: IntoIterator<Item = InternalRpcTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
         for tx in txs {
             pool.insert(tx).unwrap();
@@ -154,7 +149,7 @@ impl FromIterator<AccountTransaction> for TransactionPool {
 fn builder_with_queue(
     in_priority_queue: bool,
     in_pending_queue: bool,
-    tx: &AccountTransaction,
+    tx: &InternalRpcTransaction,
 ) -> MempoolContentBuilder {
     assert!(
         !(in_priority_queue && in_pending_queue),
@@ -164,11 +159,11 @@ fn builder_with_queue(
     let mut builder = MempoolContentBuilder::new();
 
     if in_priority_queue {
-        builder = builder.with_priority_queue([TransactionReference::deprecated_new(tx)]);
+        builder = builder.with_priority_queue([TransactionReference::new(tx)]);
     }
 
     if in_pending_queue {
-        builder = builder.with_pending_queue([TransactionReference::deprecated_new(tx)]);
+        builder = builder.with_pending_queue([TransactionReference::new(tx)]);
     }
 
     builder
@@ -209,7 +204,7 @@ fn add_tx_and_verify_replacement_in_pool(
 #[track_caller]
 fn add_txs_and_verify_no_replacement(
     mut mempool: Mempool,
-    existing_tx: AccountTransaction,
+    existing_tx: InternalRpcTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
     in_priority_queue: bool,
     in_pending_queue: bool,
@@ -235,7 +230,7 @@ fn add_txs_and_verify_no_replacement(
 #[track_caller]
 fn add_txs_and_verify_no_replacement_in_pool(
     mempool: Mempool,
-    existing_tx: AccountTransaction,
+    existing_tx: InternalRpcTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
 ) {
     let in_priority_queue = false;
@@ -276,7 +271,7 @@ fn test_get_txs_returns_by_priority(#[case] n_requested_txs: usize) {
     let tx_tip_30 = tx!(tx_hash: 2, address: "0x1", tip: 30);
     let tx_tip_10 = tx!(tx_hash: 3, address: "0x2", tip: 10);
 
-    let queue_txs = [&tx_tip_20, &tx_tip_30, &tx_tip_10].map(TransactionReference::deprecated_new);
+    let queue_txs = [&tx_tip_20, &tx_tip_30, &tx_tip_10].map(TransactionReference::new);
     let pool_txs = [&tx_tip_20, &tx_tip_30, &tx_tip_10].map(|tx| tx.clone());
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
@@ -292,7 +287,7 @@ fn test_get_txs_returns_by_priority(#[case] n_requested_txs: usize) {
     assert_eq!(fetched_txs, expected_fetched_txs);
 
     // Assert: non-returned transactions are still in the mempool.
-    let remaining_tx_references = remaining_txs.iter().map(TransactionReference::deprecated_new);
+    let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
     expected_mempool_content.assert_eq(&mempool);
@@ -306,9 +301,7 @@ fn test_get_txs_returns_by_secondary_priority_on_tie() {
 
     let mut mempool = MempoolContentBuilder::new()
         .with_pool([&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(|tx| tx.clone()))
-        .with_priority_queue(
-            [&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(TransactionReference::deprecated_new),
-        )
+        .with_priority_queue([&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(TransactionReference::new))
         .build_into_mempool();
 
     // Test and assert.
@@ -321,7 +314,7 @@ fn test_get_txs_does_not_return_pending_txs() {
     let tx = tx!();
 
     let mut mempool = MempoolContentBuilder::new()
-        .with_pending_queue([TransactionReference::deprecated_new(&tx)])
+        .with_pending_queue([TransactionReference::new(&tx)])
         .with_pool([tx])
         .build_into_mempool();
 
@@ -334,7 +327,7 @@ fn test_get_txs_does_not_remove_returned_txs_from_pool() {
     // Setup.
     let tx = tx!();
 
-    let queue_txs = [TransactionReference::deprecated_new(&tx)];
+    let queue_txs = [TransactionReference::new(&tx)];
     let pool_txs = [tx];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
@@ -355,8 +348,7 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 20);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, address: "0x1", tx_nonce: 0, tip: 10);
 
-    let queue_txs =
-        [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::deprecated_new);
+    let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
     let pool_txs =
         [&tx_address_0_nonce_0, &tx_address_0_nonce_1, &tx_address_1_nonce_0].map(|tx| tx.clone());
     let mut mempool = MempoolContentBuilder::new()
@@ -382,7 +374,7 @@ fn test_get_txs_with_nonce_gap() {
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 1);
     let tx_address_1_nonce_0 = tx!(tx_hash: 3, address: "0x1", tx_nonce: 0);
 
-    let queue_txs = [TransactionReference::deprecated_new(&tx_address_1_nonce_0)];
+    let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
     let pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_0.clone()];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
@@ -415,8 +407,8 @@ fn test_add_tx_insertion_sorted_by_priority(mut mempool: Mempool) {
     }
 
     // Assert: transactions are ordered by priority.
-    let expected_queue_txs = [&input_tip_100.tx, &input_tip_80.tx, &input_tip_50.tx]
-        .map(TransactionReference::deprecated_new);
+    let expected_queue_txs =
+        [&input_tip_100.tx, &input_tip_80.tx, &input_tip_50.tx].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
@@ -438,8 +430,8 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
     }
 
     // Assert: only the eligible transactions appear in the queue.
-    let expected_queue_txs = [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx]
-        .map(TransactionReference::deprecated_new);
+    let expected_queue_txs =
+        [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx].map(TransactionReference::new);
     let expected_pool_txs =
         [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
     let expected_mempool_content = MempoolContentBuilder::new()
@@ -504,7 +496,7 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     }
 
     // Assert: both transactions are in the mempool.
-    let expected_queue_txs = [&input1.tx, &input2.tx].map(TransactionReference::deprecated_new);
+    let expected_queue_txs = [&input1.tx, &input2.tx].map(TransactionReference::new);
     let expected_pool_txs = [input1.tx, input2.tx];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
@@ -535,7 +527,7 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_nonce_0);
 
     // Assert: only the eligible transaction appears in the queue.
-    let expected_queue_txs = [TransactionReference::deprecated_new(&input_nonce_0.tx)];
+    let expected_queue_txs = [TransactionReference::new(&input_nonce_0.tx)];
     let expected_pool_txs = [input_nonce_1.tx, input_nonce_0.tx];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
@@ -576,7 +568,7 @@ fn test_commit_block_includes_all_proposed_txs() {
     let tx_address_2_nonce_1 = tx!(tx_hash: 6, address: "0x2", tx_nonce: 1);
 
     let queue_txs = [&tx_address_2_nonce_1, &tx_address_1_nonce_3, &tx_address_0_nonce_4]
-        .map(TransactionReference::deprecated_new);
+        .map(TransactionReference::new);
     let pool_txs = [
         tx_address_0_nonce_3,
         tx_address_0_nonce_4.clone(),
@@ -762,7 +754,7 @@ fn test_update_gas_price_threshold_increases_threshold() {
         &tx!(tx_hash: 0, address: "0x0", max_l2_gas_price: 100),
         &tx!(tx_hash: 1, address: "0x1", max_l2_gas_price: 101),
     ]
-    .map(TransactionReference::deprecated_new);
+    .map(TransactionReference::new);
 
     let mut mempool: Mempool = MempoolContentBuilder::new()
         .with_priority_queue([tx_low_gas, tx_high_gas])
@@ -788,7 +780,7 @@ fn test_update_gas_price_threshold_decreases_threshold() {
         &tx!(tx_hash: 0, address: "0x0", max_l2_gas_price: 89),
         &tx!(tx_hash: 1, address: "0x1", max_l2_gas_price: 90),
     ]
-    .map(TransactionReference::deprecated_new);
+    .map(TransactionReference::new);
 
     let mut mempool: Mempool = MempoolContentBuilder::new()
         .with_pending_queue([tx_low_gas, tx_high_gas])
@@ -814,26 +806,11 @@ async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
     let tx_args = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
     let propagateor_args =
         AddTransactionArgsWrapper { args: tx_args.clone(), p2p_message_metadata: None };
-    // TODO: use regular conversion once we have a compiler component
-    let rpc_tx = match tx_args.tx {
-        AccountTransaction::Declare(_declare_tx) => {
-            panic!("No implementation for converting DeclareTransaction to an RpcTransaction")
-        }
-        AccountTransaction::DeployAccount(deploy_account_transaction) => {
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
-                deploy_account_transaction.clone().into(),
-            ))
-        }
-        AccountTransaction::Invoke(invoke_transaction) => {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_transaction.clone().into()))
-        }
-    };
-
     let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
     mock_mempool_p2p_propagator_client
         .expect_add_transaction()
         .times(1)
-        .with(predicate::eq(rpc_tx))
+        .with(predicate::eq(tx_args.tx))
         .returning(|_| Ok(()));
     let mut mempool_wrapper =
         MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));

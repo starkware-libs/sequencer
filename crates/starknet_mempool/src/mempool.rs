@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
@@ -157,7 +156,7 @@ impl Mempool {
     /// created.
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[instrument(skip(self), err)]
-    pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
+    pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
@@ -194,9 +193,9 @@ impl Mempool {
         skip(self, args),
         fields( // Log subset of (informative) fields.
             tx_nonce = %args.tx.nonce(),
-            tx_hash = %args.tx.tx_hash(),
-            tx_tip = %tip(&args.tx),
-            tx_max_l2_gas_price = %max_l2_gas_price(&args.tx),
+            tx_hash = %args.tx.tx_hash,
+            tx_tip = %args.tx.tip(),
+            tx_max_l2_gas_price = %args.tx.resource_bounds().l2_gas.max_price_per_unit,
             account_state = %args.account_state
         ),
         err
@@ -204,7 +203,7 @@ impl Mempool {
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
         debug!("Adding transaction to mempool: {tx:#?}.");
-        let tx_reference = TransactionReference::deprecated_new(&tx);
+        let tx_reference = TransactionReference::new(&tx);
         self.validate_incoming_tx(tx_reference)?;
 
         self.handle_fee_escalation(&tx)?;
@@ -319,8 +318,8 @@ impl Mempool {
     }
 
     #[instrument(level = "debug", skip(self, incoming_tx), err)]
-    fn handle_fee_escalation(&mut self, incoming_tx: &AccountTransaction) -> MempoolResult<()> {
-        let incoming_tx_reference = TransactionReference::deprecated_new(incoming_tx);
+    fn handle_fee_escalation(&mut self, incoming_tx: &InternalRpcTransaction) -> MempoolResult<()> {
+        let incoming_tx_reference = TransactionReference::new(incoming_tx);
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
 
         if !self.config.enable_fee_escalation {
@@ -386,15 +385,6 @@ impl Mempool {
     }
 }
 
-// TODO(Elin): move to a shared location with other next-gen node crates.
-fn tip(tx: &AccountTransaction) -> Tip {
-    tx.tip()
-}
-
-fn max_l2_gas_price(tx: &AccountTransaction) -> GasPrice {
-    tx.resource_bounds().get_l2_bounds().max_price_per_unit
-}
-
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
@@ -409,17 +399,6 @@ pub struct TransactionReference {
 }
 
 impl TransactionReference {
-    // TODO(noamsp): remove this once class manager client integration is complete.
-    pub fn deprecated_new(tx: &AccountTransaction) -> Self {
-        TransactionReference {
-            address: tx.contract_address(),
-            nonce: tx.nonce(),
-            tx_hash: tx.tx_hash(),
-            tip: tip(tx),
-            max_l2_gas_price: max_l2_gas_price(tx),
-        }
-    }
-
     pub fn new(tx: &InternalRpcTransaction) -> Self {
         TransactionReference {
             address: tx.contract_address(),
