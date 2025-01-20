@@ -56,7 +56,7 @@ use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
     ContextConfig,
-    ProposalContentId,
+    ProposalCommitment,
     Round,
     ValidatorId,
 };
@@ -89,7 +89,7 @@ const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
 // store one of them.
 type HeightToIdToContent =
-    BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<ExecutableTransaction>, ProposalId)>>;
+    BTreeMap<BlockNumber, HashMap<ProposalCommitment, (Vec<ExecutableTransaction>, ProposalId)>>;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
 const CHANNEL_SIZE: usize = 100;
@@ -97,7 +97,7 @@ const CHANNEL_SIZE: usize = 100;
 enum HandledProposalPart {
     Continue,
     Invalid,
-    Finished(ProposalContentId, ProposalFin),
+    Finished(ProposalCommitment, ProposalFin),
     Failed(String),
 }
 
@@ -133,7 +133,7 @@ pub struct SequencerConsensusContext {
     active_proposal: Option<(CancellationToken, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals:
-        BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalContentId, ProposalFin)>)>,
+        BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalCommitment, ProposalFin)>)>,
     outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<Vote>,
@@ -195,7 +195,7 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
-    ) -> oneshot::Receiver<ProposalContentId> {
+    ) -> oneshot::Receiver<ProposalCommitment> {
         let cende_write_success = AbortOnDropHandle::new(
             self.cende_ambassador.write_prev_height_blob(proposal_init.height),
         );
@@ -251,7 +251,7 @@ impl ConsensusContext for SequencerConsensusContext {
         proposal_init: ProposalInit,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
-    ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
+    ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)> {
         assert_eq!(Some(proposal_init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
         match proposal_init.round.cmp(&self.current_round) {
@@ -284,7 +284,7 @@ impl ConsensusContext for SequencerConsensusContext {
         }
     }
 
-    async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
+    async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
         info!(?id, ?init, "Reproposing.");
         let height = init.height;
         let (_transactions, _) = self
@@ -319,7 +319,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn decision_reached(
         &mut self,
-        block: ProposalContentId,
+        block: ProposalCommitment,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
@@ -458,7 +458,7 @@ impl SequencerConsensusContext {
         proposer: ValidatorId,
         timeout: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
-        fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
+        fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
@@ -509,7 +509,7 @@ async fn build_proposal(
     timeout: Duration,
     proposal_init: ProposalInit,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalContentId>,
+    fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
@@ -586,7 +586,7 @@ async fn get_proposal_content(
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
-) -> Option<(ProposalContentId, Vec<ExecutableTransaction>)> {
+) -> Option<(ProposalCommitment, Vec<ExecutableTransaction>)> {
     let mut content = Vec::new();
     loop {
         // We currently want one part of the node failing to cause all components to fail. If this
@@ -659,7 +659,7 @@ async fn validate_proposal(
     timeout: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     mut content_receiver: mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
+    fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
     cancel_token: CancellationToken,
     gas_prices: GasPrices,
 ) {
