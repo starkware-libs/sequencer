@@ -10730,6 +10730,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_class_manager_types",
  "starknet_infra_utils",
  "starknet_l1_provider_types",
  "starknet_mempool_types",
