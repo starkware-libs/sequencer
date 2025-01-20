@@ -97,6 +97,14 @@ impl NodeSetup {
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
     }
+
+    fn batcher_storage_reader(&self) -> StorageReader {
+        let (batcher_storage_reader, _) = papyrus_storage::open_storage(
+            self.executables[self.batcher_index].batcher_storage_config.clone(),
+        )
+        .expect("Failed to open batcher's storage");
+        batcher_storage_reader
+    }
 }
 
 pub struct IntegrationTestManager {
@@ -140,11 +148,7 @@ impl IntegrationTestManager {
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
-        let (batcher_storage_reader, _) = papyrus_storage::open_storage(
-            self.nodes[0].executables[0].batcher_storage_config.clone(),
-        )
-        .expect("Failed to open batcher's storage");
-        batcher_storage_reader
+        self.nodes[0].batcher_storage_reader()
     }
 
     pub fn shutdown_nodes(&self) {
