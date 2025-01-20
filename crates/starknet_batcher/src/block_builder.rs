@@ -232,6 +232,22 @@ async fn collect_execution_results_and_stream_txs(
     output_content_sender: &Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
     fail_on_err: bool,
 ) -> BlockBuilderResult<bool> {
+    assert!(
+        results.len() <= tx_chunk.len(),
+        "The number of results should be less than or equal to the number of transactions."
+    );
+    let mut block_is_full = false;
+    // If the block is full, we won't get an error from the executor. We will just get only the
+    // results of the transactions that were executed before the block was full.
+    // see [TransactionExecutor::execute_txs].
+    if results.len() < tx_chunk.len() {
+        info!("Block is full.");
+        if fail_on_err {
+            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+        } else {
+            block_is_full = true;
+        }
+    }
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
@@ -245,13 +261,6 @@ async fn collect_execution_results_and_stream_txs(
             }
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
-            Err(BlockifierTransactionExecutorError::BlockFull) => {
-                info!("Block is full");
-                if fail_on_err {
-                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
-                }
-                return Ok(true);
-            }
             Err(err) => {
                 debug!("Transaction {:?} failed with error: {}.", input_tx, err);
                 if fail_on_err {
@@ -263,7 +272,7 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
-    Ok(false)
+    Ok(block_is_full)
 }
 
 pub struct BlockMetadata {
