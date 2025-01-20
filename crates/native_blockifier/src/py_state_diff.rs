@@ -148,25 +148,29 @@ pub struct PyBlockInfo {
 /// Block info cannot have gas prices set to zero; implement `Default` explicitly.
 impl Default for PyBlockInfo {
     fn default() -> Self {
+        let l1_gas_price = PyResourcePrice {
+            price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.0,
+            price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.0,
+        };
+        let l1_data_gas_price = PyResourcePrice {
+            price_in_wei: DEFAULT_ETH_L1_DATA_GAS_PRICE.0,
+            price_in_fri: DEFAULT_STRK_L1_DATA_GAS_PRICE.0,
+        };
+        let l2_gas_price = PyResourcePrice {
+            price_in_wei: VersionedConstants::latest_constants()
+                .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
+                .0,
+            price_in_fri: VersionedConstants::latest_constants()
+                .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
+                .0,
+        };
+
         Self {
             block_number: u64::default(),
             block_timestamp: u64::default(),
-            l1_gas_price: PyResourcePrice {
-                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.0,
-                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.0,
-            },
-            l1_data_gas_price: PyResourcePrice {
-                price_in_wei: DEFAULT_ETH_L1_DATA_GAS_PRICE.0,
-                price_in_fri: DEFAULT_STRK_L1_DATA_GAS_PRICE.0,
-            },
-            l2_gas_price: PyResourcePrice {
-                price_in_wei: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
-                    .0,
-                price_in_fri: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
-                    .0,
-            },
+            l1_gas_price,
+            l1_data_gas_price,
+            l2_gas_price,
             sequencer_address: PyFelt::default(),
             use_kzg_da: bool::default(),
         }
