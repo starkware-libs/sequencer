@@ -109,6 +109,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "batcher_config.block_builder_config.execute_config.stack_size": {
+    "description": "The max stack size cording to gas.",
+    "privacy": "Public",
+    "value": 0
+  },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
     "privacy": "Public",
