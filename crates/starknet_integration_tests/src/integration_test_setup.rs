@@ -34,10 +34,10 @@ impl NodeExecutionId {
     pub fn new(node_index: usize, executable_index: usize) -> Self {
         Self { node_index, executable_index }
     }
-    pub fn get_sequencer_index(&self) -> usize {
+    pub fn get_node_index(&self) -> usize {
         self.node_index
     }
-    pub fn get_sequencer_part_index(&self) -> usize {
+    pub fn get_executable_index(&self) -> usize {
         self.executable_index
     }
 }
@@ -49,8 +49,8 @@ impl From<NodeExecutionId> for NodeRunner {
 }
 
 pub struct ExecutableSetup {
-    // Sequencer test identifier.
-    pub sequencer_execution_id: NodeExecutionId,
+    // Node test identifier.
+    pub node_execution_id: NodeExecutionId,
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
@@ -78,7 +78,7 @@ impl ExecutableSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
-        sequencer_execution_id: NodeExecutionId,
+        node_execution_id: NodeExecutionId,
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
@@ -99,7 +99,7 @@ impl ExecutableSetup {
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
-            sequencer_execution_id,
+            node_execution_id,
             chain_info,
             storage_for_test.batcher_storage_config,
             state_sync_config,
@@ -124,7 +124,7 @@ impl ExecutableSetup {
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         Self {
-            sequencer_execution_id,
+            node_execution_id,
             add_tx_http_client,
             monitoring_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,

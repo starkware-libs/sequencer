@@ -87,11 +87,23 @@ impl NodeSetup {
         let await_alive_tasks = self.executables.iter().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
             result.unwrap_or_else(|_| {
-                panic!("Executable {:?} should be alive.", executable.sequencer_execution_id)
+                panic!("Executable {:?} should be alive.", executable.node_execution_id)
             })
         });
 
         join_all(await_alive_tasks).await;
+    }
+
+    async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+        self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
+    }
+
+    fn batcher_storage_reader(&self) -> StorageReader {
+        let (batcher_storage_reader, _) = papyrus_storage::open_storage(
+            self.executables[self.batcher_index].batcher_storage_config.clone(),
+        )
+        .expect("Failed to open batcher's storage");
+        batcher_storage_reader
     }
 }
 
@@ -110,7 +122,7 @@ impl IntegrationTestManager {
                 node.executables.iter().map(|executable| {
                     spawn_run_node(
                         executable.node_config_path.clone(),
-                        executable.sequencer_execution_id.into(),
+                        executable.node_execution_id.into(),
                     )
                 })
             })
@@ -132,15 +144,11 @@ impl IntegrationTestManager {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.nodes[0].executables[0].assert_add_tx_success(rpc_tx).await
+        self.nodes[0].send_rpc_tx_fn(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
-        let (batcher_storage_reader, _) = papyrus_storage::open_storage(
-            self.nodes[0].executables[0].batcher_storage_config.clone(),
-        )
-        .expect("Failed to open batcher's storage");
-        batcher_storage_reader
+        self.nodes[0].batcher_storage_reader()
     }
 
     pub fn shutdown_nodes(&self) {
@@ -284,7 +292,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         for (executable_index, executable_component_config) in
             node_component_configs.into_iter().enumerate()
         {
-            let sequencer_execution_id = NodeExecutionId::new(node_index, executable_index);
+            let node_execution_id = NodeExecutionId::new(node_index, executable_index);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
@@ -292,7 +300,7 @@ pub(crate) async fn get_sequencer_setup_configs(
             node.executables.push(
                 ExecutableSetup::new(
                     accounts.to_vec(),
-                    sequencer_execution_id,
+                    node_execution_id,
                     chain_info,
                     consensus_manager_config,
                     mempool_p2p_config,
