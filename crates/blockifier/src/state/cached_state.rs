@@ -364,6 +364,16 @@ impl StateMaps {
             compiled_class_hash_keys: self.compiled_class_hashes.into_keys().collect(),
         }
     }
+
+    pub fn keys(&self) -> StateChangesKeys {
+        StateChangesKeys {
+            modified_contracts: self.get_contract_addresses(),
+            nonce_keys: self.nonces.keys().cloned().collect(),
+            class_hash_keys: self.class_hashes.keys().cloned().collect(),
+            storage_keys: self.storage.keys().cloned().collect(),
+            compiled_class_hash_keys: self.compiled_class_hashes.keys().cloned().collect(),
+        }
+    }
 }
 /// Caches read and write requests.
 /// The tracked changes are needed for block state commitment.
