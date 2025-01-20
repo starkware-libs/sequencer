@@ -72,8 +72,14 @@ const Configuration = {
             'starknet_patricia',
             'starknet_sequencer_infra',
             'starknet_sequencer_node',
+<<<<<<< HEAD
             'starknet_sierra_compile',
             'starknet_sierra_compile_types',
+||||||| 9bc61af7f
+            'starknet_sierra_compile',
+=======
+            'starknet_sierra_multicompile',
+>>>>>>> origin/main-v0.13.4
             'starknet_state_sync',
             'starknet_state_sync_types',
             'starknet_task_executor',

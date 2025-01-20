@@ -11,11 +11,11 @@ use starknet_api::core::ClassHash;
 #[cfg(feature = "cairo_native")]
 use starknet_api::state::SierraContractClass;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
+use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::utils::into_contract_class_for_compilation;
+use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::SierraToNativeCompiler;
+use starknet_sierra_multicompile::SierraToNativeCompiler;
 
 #[cfg(feature = "cairo_native")]
 use crate::blockifier::config::CairoNativeRunConfig;

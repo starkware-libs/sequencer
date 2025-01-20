@@ -10,9 +10,17 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+<<<<<<< HEAD
 use starknet_sierra_compile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{debug, error, instrument, Span};
+||||||| 9bc61af7f
+use starknet_sierra_compile::config::SierraCompilationConfig;
+use tracing::{error, info, instrument, Span};
+=======
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
+use tracing::{error, info, instrument, Span};
+>>>>>>> origin/main-v0.13.4
 
 use crate::compilation::GatewayCompiler;
 use crate::config::GatewayConfig;

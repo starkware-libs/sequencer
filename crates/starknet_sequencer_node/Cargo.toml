@@ -39,8 +39,14 @@ starknet_mempool_p2p_types.workspace = true
 starknet_mempool_types.workspace = true
 starknet_monitoring_endpoint.workspace = true
 starknet_sequencer_infra.workspace = true
+<<<<<<< HEAD
 starknet_sierra_compile.workspace = true
 starknet_sierra_compile_types.workspace = true
+||||||| 9bc61af7f
+starknet_sierra_compile.workspace = true
+=======
+starknet_sierra_multicompile.workspace = true
+>>>>>>> origin/main-v0.13.4
 starknet_state_sync.workspace = true
 starknet_state_sync_types.workspace = true
 tokio.workspace = true
