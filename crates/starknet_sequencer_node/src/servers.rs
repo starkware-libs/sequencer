@@ -21,11 +21,13 @@ use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
+    ConcurrentLocalComponentServer,
     LocalComponentServer,
     RemoteComponentServer,
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
+use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
 use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use tokio::task::{JoinError, JoinSet};
@@ -47,6 +49,7 @@ struct LocalServers {
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
+    pub(crate) sierra_compiler: Option<Box<LocalSierraCompilerServer>>,
     pub(crate) state_sync: Option<Box<LocalStateSyncServer>>,
 }
 
@@ -124,8 +127,9 @@ macro_rules! create_remote_server {
     };
 }
 
-/// A macro for creating a component server, determined by the component's execution mode. Returns a
-/// local server if the component is run locally, otherwise None.
+/// A macro for creating a local component server or a concurrent local component server, determined
+/// by the component's execution mode. Returns a [concurrent/regular] local server if the component
+/// is run locally, otherwise None.
 ///
 /// # Arguments
 ///
@@ -133,12 +137,14 @@ macro_rules! create_remote_server {
 ///   &ReactiveComponentExecutionMode.
 /// * $component - The component that will be taken to initialize the server if the execution mode
 ///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
-/// * $Receiver - receiver side for the server.
+/// * $receiver - receiver side for the server.
+/// * $server_type - the type of the server, one of litteral strings REGULAR_LOCAL_SERVER or
+///   CONCURRENT_LOCAL_SERVER.
 ///
 /// # Returns
 ///
-/// An Option<Box<LocalComponentServer<ComponentType, RequestType, ResponseType>>> containing the
-/// server if the execution mode is enabled(LocalExecutionWithRemoteDisabled /
+/// An Option<Box<[Concurrent]LocalComponentServer<ComponentType, RequestType, ResponseType>>>
+/// containing the server if the execution mode is enabled(LocalExecutionWithRemoteDisabled /
 /// LocalExecutionWithRemoteEnabled), or None if the execution mode is Disabled.
 ///
 /// # Example
@@ -147,7 +153,8 @@ macro_rules! create_remote_server {
 /// let batcher_server = create_local_server!(
 ///     &config.components.batcher.execution_mode,
 ///     components.batcher,
-///     communication.take_batcher_rx()
+///     communication.take_batcher_rx(),
+///     REGULAR_LOCAL_SERVER,
 /// );
 /// match batcher_server {
 ///     Some(server) => println!("Server created: {:?}", server),
@@ -155,11 +162,11 @@ macro_rules! create_remote_server {
 /// }
 /// ```
 macro_rules! create_local_server {
-    ($execution_mode:expr, $component:expr, $receiver:expr) => {
+    ($execution_mode:expr, $component:expr, $receiver:expr, $server_type:tt) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                Some(Box::new(LocalComponentServer::new(
+                Some(Box::new(create_local_server!(@create $server_type)(
                     $component
                         .take()
                         .expect(concat!(stringify!($component), " is not initialized.")),
@@ -170,6 +177,12 @@ macro_rules! create_local_server {
                 None
             }
         }
+    };
+    (@create REGULAR_LOCAL_SERVER) => {
+        LocalComponentServer::new
+    };
+    (@create CONCURRENT_LOCAL_SERVER) => {
+        ConcurrentLocalComponentServer::new
     };
 }
 
@@ -222,33 +235,45 @@ fn create_local_servers(
 ) -> LocalServers {
     let batcher_server = create_local_server!(
         &config.components.batcher.execution_mode,
-        components.batcher,
-        communication.take_batcher_rx()
+        &mut components.batcher,
+        communication.take_batcher_rx(),
+        REGULAR_LOCAL_SERVER
     );
     let gateway_server = create_local_server!(
         &config.components.gateway.execution_mode,
-        components.gateway,
-        communication.take_gateway_rx()
+        &mut components.gateway,
+        communication.take_gateway_rx(),
+        REGULAR_LOCAL_SERVER
     );
     let l1_provider_server = create_local_server!(
         &config.components.l1_provider.execution_mode,
-        components.l1_provider,
-        communication.take_l1_provider_rx()
+        &mut components.l1_provider,
+        communication.take_l1_provider_rx(),
+        REGULAR_LOCAL_SERVER
     );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
-        components.mempool,
-        communication.take_mempool_rx()
+        &mut components.mempool,
+        communication.take_mempool_rx(),
+        REGULAR_LOCAL_SERVER
     );
     let mempool_p2p_propagator_server = create_local_server!(
         &config.components.mempool_p2p.execution_mode,
-        components.mempool_p2p_propagator,
-        communication.take_mempool_p2p_propagator_rx()
+        &mut components.mempool_p2p_propagator,
+        communication.take_mempool_p2p_propagator_rx(),
+        REGULAR_LOCAL_SERVER
+    );
+    let sierra_compiler_server = create_local_server!(
+        &config.components.sierra_compiler.execution_mode,
+        &mut components.sierra_compiler,
+        communication.take_sierra_compiler_rx(),
+        CONCURRENT_LOCAL_SERVER
     );
     let state_sync_server = create_local_server!(
         &config.components.state_sync.execution_mode,
-        components.state_sync,
-        communication.take_state_sync_rx()
+        &mut components.state_sync,
+        communication.take_state_sync_rx(),
+        REGULAR_LOCAL_SERVER
     );
 
     LocalServers {
@@ -257,6 +282,7 @@ fn create_local_servers(
         l1_provider: l1_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
+        sierra_compiler: sierra_compiler_server,
         state_sync: state_sync_server,
     }
 }
@@ -284,6 +310,7 @@ impl LocalServers {
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
+            server_future_and_label(self.sierra_compiler, "Concurrent Local Sierra Compiler"),
             server_future_and_label(self.state_sync, "Local State Sync"),
         ])
         .await
