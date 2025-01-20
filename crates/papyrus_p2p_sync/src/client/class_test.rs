@@ -24,7 +24,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_class_manager_types::MockClassManagerClient;
+use starknet_class_manager_types::{ClassHashes, MockClassManagerClient};
 
 use super::test_utils::{
     random_header,
@@ -60,12 +60,14 @@ async fn class_basic_flow() {
             let class_hash = state_diff.get_class_hash();
             match class {
                 ApiContractClass::ContractClass(class) => {
-                    let compiled_class_hash = state_diff.get_compiled_class_hash();
+                    let executable_class_hash = state_diff.get_compiled_class_hash();
                     class_manager_client
                         .expect_add_class()
                         .times(1)
-                        .with(eq(class_hash), eq(class.clone()))
-                        .return_once(move |_, _| Ok(compiled_class_hash));
+                        .with(eq(class.clone()))
+                        .return_once(move |_| {
+                            Ok(ClassHashes { class_hash, executable_class_hash })
+                        });
                 }
                 ApiContractClass::DeprecatedContractClass(class) => {
                     class_manager_client

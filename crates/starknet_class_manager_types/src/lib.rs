@@ -39,18 +39,19 @@ pub type Class = SierraContractClass;
 pub type ExecutableClass = ContractClass;
 pub type ExecutableClassHash = CompiledClassHash;
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ClassHashes {
+    pub class_hash: ClassHash,
+    pub executable_class_hash: ExecutableClassHash,
+}
+
 /// Serves as the class manager's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
 #[cfg_attr(feature = "testing", automock)]
 #[async_trait]
 pub trait ClassManagerClient: Send + Sync {
-    // TODO(native): make generic in executable type.
-    async fn add_class(
-        &self,
-        class_id: ClassId,
-        class: Class,
-    ) -> ClassManagerClientResult<ExecutableClassHash>;
+    async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes>;
 
     async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass>;
 
@@ -87,7 +88,7 @@ pub enum ClassManagerClientError {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerRequest {
-    AddClass(ClassId, Class),
+    AddClass(Class),
     AddDeprecatedClass(ClassId, DeprecatedClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
@@ -95,7 +96,7 @@ pub enum ClassManagerRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerResponse {
-    AddClass(ClassManagerResult<ExecutableClassHash>),
+    AddClass(ClassManagerResult<ClassHashes>),
     AddDeprecatedClass(ClassManagerResult<()>),
     GetExecutable(ClassManagerResult<ExecutableClass>),
     GetSierra(ClassManagerResult<Class>),
@@ -106,12 +107,8 @@ impl<ComponentClientType> ClassManagerClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<ClassManagerRequest, ClassManagerResponse>,
 {
-    async fn add_class(
-        &self,
-        class_id: ClassId,
-        class: Class,
-    ) -> ClassManagerClientResult<ExecutableClassHash> {
-        let request = ClassManagerRequest::AddClass(class_id, class);
+    async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes> {
+        let request = ClassManagerRequest::AddClass(class);
         handle_all_response_variants!(
             ClassManagerResponse,
             AddClass,
@@ -163,11 +160,7 @@ pub struct EmptyClassManagerClient;
 
 #[async_trait]
 impl ClassManagerClient for EmptyClassManagerClient {
-    async fn add_class(
-        &self,
-        _class_id: ClassId,
-        _class: Class,
-    ) -> ClassManagerClientResult<ExecutableClassHash> {
+    async fn add_class(&self, _class: Class) -> ClassManagerClientResult<ClassHashes> {
         Ok(Default::default())
     }
 
