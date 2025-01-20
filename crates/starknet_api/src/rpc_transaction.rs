@@ -265,6 +265,28 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     }
 }
 
+impl From<DeployAccountTransactionV3> for RpcDeployAccountTransaction {
+    fn from(tx: DeployAccountTransactionV3) -> Self {
+        if let ValidResourceBounds::AllResources(resource_bounds) = tx.resource_bounds {
+            RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
+                resource_bounds,
+                tip: tx.tip,
+                signature: tx.signature,
+                nonce: tx.nonce,
+                class_hash: tx.class_hash,
+                contract_address_salt: tx.contract_address_salt,
+                constructor_calldata: tx.constructor_calldata,
+                nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                fee_data_availability_mode: tx.fee_data_availability_mode,
+                paymaster_data: tx.paymaster_data,
+            })
+        } else {
+            // TODO(alonl): don't panic
+            panic!("Attempted to convert an L1Transaction to RpcTransaction"); // Is this really the case?
+        }
+    }
+}
+
 /// An invoke account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcInvokeTransactionV3 {

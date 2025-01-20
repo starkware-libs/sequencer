@@ -170,9 +170,9 @@ impl From<RpcDeclareTransactionV3> for protobuf::mempool_transaction::DeclareV3 
     }
 }
 
-impl TryFrom<protobuf::transaction::DeployAccountV3> for RpcDeployAccountTransactionV3 {
+impl TryFrom<protobuf::DeployAccountV3> for RpcDeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::DeployAccountV3) -> Result<Self, Self::Error> {
         let resource_bounds = value
             .resource_bounds
             .clone()
@@ -208,7 +208,7 @@ impl TryFrom<protobuf::transaction::DeployAccountV3> for RpcDeployAccountTransac
     }
 }
 
-impl From<RpcDeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3 {
+impl From<RpcDeployAccountTransactionV3> for protobuf::DeployAccountV3 {
     fn from(value: RpcDeployAccountTransactionV3) -> Self {
         let RpcDeployAccountTransactionV3 {
             resource_bounds,
@@ -238,9 +238,9 @@ impl From<RpcDeployAccountTransactionV3> for protobuf::transaction::DeployAccoun
     }
 }
 
-impl TryFrom<protobuf::transaction::InvokeV3> for RpcInvokeTransactionV3 {
+impl TryFrom<protobuf::InvokeV3> for RpcInvokeTransactionV3 {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
         let resource_bounds = value
             .resource_bounds
             .clone()
@@ -275,7 +275,7 @@ impl TryFrom<protobuf::transaction::InvokeV3> for RpcInvokeTransactionV3 {
     }
 }
 
-impl From<RpcInvokeTransactionV3> for protobuf::transaction::InvokeV3 {
+impl From<RpcInvokeTransactionV3> for protobuf::InvokeV3 {
     fn from(value: RpcInvokeTransactionV3) -> Self {
         let RpcInvokeTransactionV3 {
             resource_bounds,

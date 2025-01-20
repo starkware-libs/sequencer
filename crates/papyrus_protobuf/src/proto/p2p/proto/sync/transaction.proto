@@ -1,6 +1,5 @@
 syntax = "proto3";
 import "p2p/proto/common.proto";
-import "p2p/proto/consensus.proto";
 import "p2p/proto/sync/common.proto";
 import "p2p/proto/sync/receipt.proto";
 import "p2p/proto/transaction.proto";
