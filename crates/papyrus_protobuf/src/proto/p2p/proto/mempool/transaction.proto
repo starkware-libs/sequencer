@@ -5,7 +5,7 @@ import "p2p/proto/common.proto";
 import "p2p/proto/transaction.proto";
 import "p2p/proto/sync/transaction.proto";
 // TODO(alonl): remove this import (used only for the old Transaction struct as an intermediate step)
-import "p2p/proto/consensus.proto";
+import "p2p/proto/consensus/consensus.proto";
 
 
 option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/mempool/transaction";
