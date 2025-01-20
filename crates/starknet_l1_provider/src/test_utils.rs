@@ -208,4 +208,8 @@ impl L1ProviderClient for FakeL1ProviderClient {
     ) -> L1ProviderClientResult<ValidationStatus> {
         todo!()
     }
+
+    async fn initialize(&self, _events: Vec<Event>) -> L1ProviderClientResult<()> {
+        todo!()
+    }
 }
