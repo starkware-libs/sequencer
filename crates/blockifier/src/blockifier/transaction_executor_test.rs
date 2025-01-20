@@ -6,10 +6,14 @@ use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::{NonceManager, DEFAULT_STRK_L1_GAS_PRICE};
 use starknet_api::transaction::fields::Fee;
+#[cfg(feature = "cairo_native")]
+use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
+#[cfg(feature = "cairo_native")]
+use crate::abi::constants::MAX_POSSIBLE_SIERRA_GAS;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -372,4 +376,64 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
             .unwrap(),
         nonce!(4_u32)
     );
+}
+
+#[cfg(feature = "cairo_native")]
+#[rstest::rstest]
+#[case(MAX_POSSIBLE_SIERRA_GAS , MAX_POSSIBLE_SIERRA_GAS - 2681170910 - 584789310)]
+#[case(MAX_POSSIBLE_SIERRA_GAS * 16, MAX_POSSIBLE_SIERRA_GAS - 2681170910 - 584789310)]
+#[case(MAX_POSSIBLE_SIERRA_GAS * 64, MAX_POSSIBLE_SIERRA_GAS - 2681170910 - 584789310)]
+#[case(MAX_POSSIBLE_SIERRA_GAS * 256, MAX_POSSIBLE_SIERRA_GAS - 2681170910 - 584789310)]
+#[case(MAX_POSSIBLE_SIERRA_GAS * 612 * 8, MAX_POSSIBLE_SIERRA_GAS - 2681170910 - 584789310)]
+/// Tests that Native can handle deep recursion calls without overflowing the stack.
+/// Note that the recursive function must be complicated, since the compiler might transform
+/// simple recursions into loops. The tested function was manually tested with higher gas and
+/// reached stack overflow.
+///
+/// Also, there is no need to test the VM here since it doesn't use the stack.
+fn test_stack_overflow(
+    #[case] initial_gas: u64,
+    #[case] gas_consumed: u64,
+    #[values(CairoVersion::Cairo1(RunnableCairo1::Native))] cairo_version: CairoVersion,
+    #[values(true, false)] concurrency_enabled: bool,
+) {
+    let block_context = BlockContext::create_for_account_testing();
+    let TestInitData { state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(&block_context.chain_info, cairo_version);
+    let depth = felt!(1000000_u128);
+    let entry_point_args = vec![depth];
+    let calldata = create_calldata(contract_address, "test_stack_overflow", &entry_point_args);
+    // Set resource bounds to limit recursion based on the provided initial gas.
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l2_gas: ResourceBounds { max_amount: initial_gas.into(), ..Default::default() },
+        ..Default::default()
+    });
+    let tx = executable_invoke_tx(invoke_tx_args! {
+        sender_address: account_address,
+        calldata,
+        nonce: nonce_manager.next(account_address),
+        resource_bounds
+    });
+    let account_tx = AccountTransaction::new_for_sequencing(tx);
+
+    // Run.
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
+    let mut executor = TransactionExecutor::new(state, block_context, config);
+    let results = executor.execute_txs(&vec![account_tx.into()]);
+
+    let err = match &results[0] {
+        // TODO(AvivG): remove err option
+        Err(execution_err) => execution_err.to_string(),
+        Ok(execution_res) => {
+            assert!(execution_res.is_reverted());
+            assert_eq!(
+                execution_res.receipt.resources.computation.reverted_sierra_gas,
+                gas_consumed.into()
+            );
+            execution_res.revert_error.clone().unwrap().to_string()
+        }
+    };
+    print!("{}", resource_bounds.get_l2_bounds());
+    // assert!(false);
+    assert!(err.contains("'Out of gas'"));
 }
