@@ -26,6 +26,7 @@ fn load_block_succeeds() {
     // TODO(Tzahi): Replace block_post_0_13_3 (copied from 0_13_2 and added additional fields) with
     // live data once available.
     for block_path in [
+        "reader/block_post_0_13_4.json",
         "reader/block_post_0_13_3.json",
         "reader/block_post_0_13_2.json",
         "reader/block_post_0_13_1.json",
