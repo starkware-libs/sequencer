@@ -34,7 +34,7 @@ use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
     ContextConfig,
-    ProposalContentId,
+    ProposalCommitment,
     Round,
     ValidatorId,
 };
@@ -42,7 +42,7 @@ use tracing::{debug, debug_span, info, warn, Instrument};
 
 // TODO(Asmaa): add debug messages and span to the tasks.
 
-type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
+type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalCommitment, Vec<Transaction>>>;
 
 const CHANNEL_SIZE: usize = 100;
 
@@ -89,7 +89,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         &mut self,
         proposal_init: ProposalInit,
         _timeout: Duration,
-    ) -> oneshot::Receiver<ProposalContentId> {
+    ) -> oneshot::Receiver<ProposalCommitment> {
         let height = proposal_init.height;
         let mut network_proposal_sender = self.network_proposal_sender.clone();
         let (fin_sender, fin_receiver) = oneshot::channel();
@@ -160,7 +160,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         proposal_init: ProposalInit,
         _timeout: Duration,
         mut content: mpsc::Receiver<ProposalPart>,
-    ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
+    ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)> {
         let height = proposal_init.height;
         let (fin_sender, fin_receiver) = oneshot::channel();
 
@@ -239,7 +239,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         fin_receiver
     }
 
-    async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
+    async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
         let height = init.height;
         let transactions = self
             .valid_proposals
@@ -287,7 +287,7 @@ impl ConsensusContext for PapyrusConsensusContext {
 
     async fn decision_reached(
         &mut self,
-        block: ProposalContentId,
+        block: ProposalCommitment,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;

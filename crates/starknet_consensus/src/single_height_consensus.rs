@@ -27,7 +27,7 @@ use crate::types::{
     ConsensusContext,
     ConsensusError,
     Decision,
-    ProposalContentId,
+    ProposalCommitment,
     Round,
     ValidatorId,
 };
@@ -50,7 +50,7 @@ pub enum ShcEvent {
     Prevote(StateMachineEvent),
     Precommit(StateMachineEvent),
     BuildProposal(StateMachineEvent),
-    // TODO(Matan): Replace ProposalContentId with the unvalidated signature from the proposer.
+    // TODO(Matan): Replace ProposalCommitment with the unvalidated signature from the proposer.
     ValidateProposal(StateMachineEvent, Option<ProposalFin>),
 }
 
@@ -71,14 +71,14 @@ pub enum ShcTask {
     ///    which can be sent to the SM.
     /// * During this process, the SM is frozen; it will accept and buffer other events, only
     ///   processing them once it receives the built proposal.
-    BuildProposal(Round, oneshot::Receiver<ProposalContentId>),
+    BuildProposal(Round, oneshot::Receiver<ProposalCommitment>),
     /// Validating a proposal is handled in 3 stages:
     /// 1. The SHC validates `ProposalInit`, then starts block validation within the context.
     /// 2. SHC returns, allowing the context to validate the content while the Manager await the
     ///    result without blocking consensus.
     /// 3. Once validation is complete, the manager returns the built proposal to the SHC as an
     ///    event, which can be sent to the SM.
-    ValidateProposal(ProposalInit, oneshot::Receiver<(ProposalContentId, ProposalFin)>),
+    ValidateProposal(ProposalInit, oneshot::Receiver<(ProposalCommitment, ProposalFin)>),
 }
 
 impl PartialEq for ShcTask {
@@ -166,7 +166,7 @@ pub(crate) struct SingleHeightConsensus {
     id: ValidatorId,
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
-    proposals: HashMap<Round, Option<ProposalContentId>>,
+    proposals: HashMap<Round, Option<ProposalCommitment>>,
     prevotes: HashMap<(Round, ValidatorId), Vote>,
     precommits: HashMap<(Round, ValidatorId), Vote>,
     last_prevote: Option<Vote>,
@@ -462,7 +462,7 @@ impl SingleHeightConsensus {
     async fn handle_state_machine_get_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: Round,
     ) -> Vec<ShcTask> {
         assert!(
@@ -481,7 +481,7 @@ impl SingleHeightConsensus {
     async fn handle_state_machine_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: Round,
         valid_round: Option<Round>,
     ) {
@@ -513,7 +513,7 @@ impl SingleHeightConsensus {
     async fn handle_state_machine_vote<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: Round,
         vote_type: VoteType,
     ) -> Result<Vec<ShcTask>, ConsensusError> {
@@ -569,7 +569,7 @@ impl SingleHeightConsensus {
 
     async fn handle_state_machine_decision(
         &mut self,
-        proposal_id: ProposalContentId,
+        proposal_id: ProposalCommitment,
         round: Round,
     ) -> Result<ShcReturn, ConsensusError> {
         let invalid_decision = |msg: String| {
