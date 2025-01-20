@@ -74,6 +74,9 @@ pub fn execute_entry_point_call(
         buffer_size: 5 * 1024 * 1024,
     };
     let stack_size_red_zone = stack_config.get_stack_size_red_zone(call_initial_gas);
+
+    let stack_size_red_zone = if !cfg!(feature = "profiling") { stack_size_red_zone } else { 0 };
+
     let target_stack_size =
         usize::try_from(stack_config.get_target_stack_size(stack_size_red_zone))
             .unwrap_or_else(|e| panic!("Failed to convert target stack size to usize: {}", e));

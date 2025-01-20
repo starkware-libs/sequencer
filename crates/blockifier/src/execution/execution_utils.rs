@@ -140,59 +140,15 @@ pub fn execute_entry_point_call(
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
-            // if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
-            //     // We cannot run native with cairo steps as the tracked resources (it's a vm
-            //     // resouorce).
-            //     entry_point_execution::execute_entry_point_call(
-            //         call,
-            //         compiled_class.casm(),
-            //         state,
-            //         context,
-            //     )
-            // } else {
-            log::debug!(
-                "Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, Class \
-                 Hash: {}.",
-                context.tx_context.block_context.block_info.block_number,
-                context.tx_context.tx_info.transaction_hash(),
-                call.class_hash.expect("Missing Class Hash")
-            );
-            native_entry_point_execution::execute_entry_point_call(
+            let pre_time = std::time::Instant::now();
+            let mut result = native_entry_point_execution::execute_entry_point_call(
                 call,
                 compiled_class,
                 state,
                 context,
-            )
-        }
-        RunnableCompiledClass::V1(compiled_class) => {
-            entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
-        }
-        #[cfg(feature = "cairo_native")]
-        RunnableCompiledClass::V1Native(compiled_class) => {
-            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
-                // We cannot run native with cairo steps as the tracked resources (it's a vm
-                // resouorce).
-                entry_point_execution::execute_entry_point_call(
-                    call,
-                    compiled_class.casm(),
-                    state,
-                    context,
-                )
-            } else {
-                log::debug!(
-                    "Using Cairo Native execution. Block Number: {}, Transaction Hash: {}, Class \
-                     Hash: {}.",
-                    context.tx_context.block_context.block_info.block_number,
-                    context.tx_context.tx_info.transaction_hash(),
-                    call.class_hash.expect("Missing Class Hash")
-                );
-                native_entry_point_execution::execute_entry_point_call(
-                    call,
-                    compiled_class,
-                    state,
-                    context,
-                )
-            }
+            )?;
+            result.time = pre_time.elapsed();
+            Ok(result)
         }
     }
 }
