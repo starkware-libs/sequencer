@@ -522,7 +522,7 @@ async fn build_proposal(
         .await
         .expect("Failed to send proposal init");
 
-    let Some((proposal_content_id, content)) =
+    let Some((proposal_commitment, content)) =
         get_proposal_content(proposal_id, batcher.as_ref(), proposal_sender, cende_write_success)
             .await
     else {
@@ -535,8 +535,8 @@ async fn build_proposal(
     valid_proposals
         .entry(proposal_init.height)
         .or_default()
-        .insert(proposal_content_id, (content, proposal_id));
-    if fin_sender.send(proposal_content_id).is_err() {
+        .insert(proposal_commitment, (content, proposal_id));
+    if fin_sender.send(proposal_commitment).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
     }
@@ -615,8 +615,8 @@ async fn get_proposal_content(
                     .expect("Failed to broadcast proposal content");
             }
             GetProposalContent::Finished(id) => {
-                let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
-                info!(?proposal_content_id, num_txs = content.len(), "Finished building proposal",);
+                let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
+                info!(?proposal_commitment, num_txs = content.len(), "Finished building proposal",);
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
@@ -639,10 +639,10 @@ async fn get_proposal_content(
                 }
 
                 proposal_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_content_id }))
+                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment }))
                     .await
                     .expect("Failed to broadcast proposal fin");
-                return Some((proposal_content_id, content));
+                return Some((proposal_commitment, content));
             }
         }
     }
@@ -790,7 +790,7 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }
-        Some(ProposalPart::Fin(ProposalFin { proposal_content_id: id })) => {
+        Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
             // Output this along with the ID from batcher, to compare them.
             let input =
                 SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
@@ -811,7 +811,7 @@ async fn handle_proposal_part(
                 num_txs = %content.len(),
                 "Finished validating proposal."
             );
-            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_content_id: id })
+            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
         }
         // TODO(Asmaa): Handle invalid proposal part by aborting the proposal, not the node.
         _ => panic!("Invalid proposal part: {:?}", proposal_part),

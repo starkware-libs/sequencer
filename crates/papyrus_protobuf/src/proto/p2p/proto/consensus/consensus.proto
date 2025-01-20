@@ -54,8 +54,8 @@ message TransactionBatch {
 }
 
 message ProposalFin {
-    // Identifies all of the content streamed in the proposal.
-    Hash proposal_content_id = 1;
+    // Identifies a Starknet block based on the content streamed in the proposal.
+    Hash proposal_commitment = 1;
 }
 
 // Network format:
