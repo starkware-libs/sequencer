@@ -486,8 +486,8 @@ async fn insert_to_class_manager_test_blocks_up_to(
             .map(|(class_hash, contract_class)| (*class_hash, contract_class))
             .collect::<Vec<_>>();
 
-        for (class_hash, contract_class) in classes_with_hashes {
-            class_manager_client.add_class(class_hash, contract_class.clone()).await.unwrap();
+        for (_class_hash, contract_class) in classes_with_hashes {
+            class_manager_client.add_class(contract_class.clone()).await.unwrap();
         }
 
         let deprecated_classes_with_hashes = DEPRECATED_CLASSES_WITH_HASHES[i]
