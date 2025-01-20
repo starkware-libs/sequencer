@@ -1,59 +1,76 @@
-use std::future::Future;
-
+use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_api::{executable_transaction, transaction};
 
-use crate::SharedClassManagerClient;
+use crate::{ClassManagerClientResult, SharedClassManagerClient};
 
+#[async_trait]
 pub trait TransactionConverterTrait {
-    fn convert_internal_tx_to_consensus_tx(
+    async fn convert_internal_consensus_tx_to_consensus_tx(
+        &self,
         tx: InternalConsensusTransaction,
-    ) -> ConsensusTransaction;
+    ) -> ClassManagerClientResult<ConsensusTransaction>;
 
-    fn convert_consensus_tx_to_internal_tx(
+    async fn convert_consensus_tx_to_internal_consensus_tx(
+        &self,
         tx: ConsensusTransaction,
-    ) -> impl Future<Output = InternalConsensusTransaction> + Send;
+    ) -> ClassManagerClientResult<InternalConsensusTransaction>;
 
-    fn convert_internal_rpc_tx_to_rpc_tx(tx: InternalRpcTransaction) -> RpcTransaction;
-
-    fn convert_rpc_tx_to_internal_rpc_tx(
-        tx: RpcTransaction,
-    ) -> impl Future<Output = InternalRpcTransaction> + Send;
-
-    fn convert_internal_rpc_tx_to_executable_tx(
+    async fn convert_internal_rpc_tx_to_rpc_tx(
+        &self,
         tx: InternalRpcTransaction,
-    ) -> executable_transaction::Transaction;
+    ) -> ClassManagerClientResult<RpcTransaction>;
+
+    async fn convert_rpc_tx_to_internal_rpc_tx(
+        &self,
+        tx: RpcTransaction,
+    ) -> ClassManagerClientResult<InternalRpcTransaction>;
+
+    async fn convert_internal_rpc_tx_to_executable_tx(
+        &self,
+        tx: InternalRpcTransaction,
+    ) -> ClassManagerClientResult<executable_transaction::Transaction>;
 }
 
 pub struct TransactionConverter {
     _class_manager_client: SharedClassManagerClient,
 }
 
+#[async_trait]
 impl TransactionConverterTrait for TransactionConverter {
-    fn convert_internal_tx_to_consensus_tx(
+    async fn convert_internal_consensus_tx_to_consensus_tx(
+        &self,
         _tx: InternalConsensusTransaction,
-    ) -> ConsensusTransaction {
+    ) -> ClassManagerClientResult<ConsensusTransaction> {
         todo!()
     }
 
-    async fn convert_consensus_tx_to_internal_tx(
+    async fn convert_consensus_tx_to_internal_consensus_tx(
+        &self,
         _tx: ConsensusTransaction,
-    ) -> InternalConsensusTransaction {
+    ) -> ClassManagerClientResult<InternalConsensusTransaction> {
         todo!()
     }
 
-    fn convert_internal_rpc_tx_to_rpc_tx(_tx: InternalRpcTransaction) -> RpcTransaction {
-        todo!()
-    }
-
-    async fn convert_rpc_tx_to_internal_rpc_tx(_tx: RpcTransaction) -> InternalRpcTransaction {
-        todo!()
-    }
-
-    fn convert_internal_rpc_tx_to_executable_tx(
+    async fn convert_internal_rpc_tx_to_rpc_tx(
+        &self,
         _tx: InternalRpcTransaction,
-    ) -> executable_transaction::Transaction {
+    ) -> ClassManagerClientResult<RpcTransaction> {
+        todo!()
+    }
+
+    async fn convert_rpc_tx_to_internal_rpc_tx(
+        &self,
+        _tx: RpcTransaction,
+    ) -> ClassManagerClientResult<InternalRpcTransaction> {
+        todo!()
+    }
+
+    async fn convert_internal_rpc_tx_to_executable_tx(
+        &self,
+        _tx: InternalRpcTransaction,
+    ) -> ClassManagerClientResult<executable_transaction::Transaction> {
         todo!()
     }
 }
