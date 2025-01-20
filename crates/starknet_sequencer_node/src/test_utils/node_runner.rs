@@ -12,14 +12,14 @@ pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
 pub struct NodeRunner {
     description: String,
-    sequencer_index: usize,
+    node_index: usize,
 }
 
 impl NodeRunner {
-    pub fn new(sequencer_index: usize, sequencer_part_index: usize) -> Self {
+    pub fn new(node_index: usize, executable_index: usize) -> Self {
         Self {
-            description: format! {"Node id {} part {}:", sequencer_index, sequencer_part_index},
-            sequencer_index,
+            description: format! {"Node id {} part {}:", node_index, executable_index},
+            node_index,
         }
     }
 
@@ -62,7 +62,7 @@ async fn spawn_node_child_process(
     let mut annotator_cmd: Child = create_shell_command("awk")
         .arg("-v")
         // Print the prefix in different colors.
-        .arg(format!("prefix=\u{1b}[3{}m{}\u{1b}[0m", node_runner.sequencer_index+1, node_runner.get_description()))
+        .arg(format!("prefix=\u{1b}[3{}m{}\u{1b}[0m", node_runner.node_index+1, node_runner.get_description()))
         .arg("{print prefix, $0}")
         .stdin(std::process::Stdio::piped())
         .stderr(Stdio::inherit())

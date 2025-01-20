@@ -147,8 +147,17 @@ impl<S: StateReader> TransactionExecutor<S> {
     }
 
     /// Returns the state diff and the block weights.
-    // TODO(Yoav): Consume "self".
+    // TODO(Aner): Consume "self", i.e., remove the reference, after removing the native blockifier.
     pub fn finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+        self.internal_finalize()
+    }
+
+    #[cfg(feature = "reexecution")]
+    pub fn non_consuming_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+        self.internal_finalize()
+    }
+
+    fn internal_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
         let block_state = self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR);
         let alias_contract_address = self

@@ -1,5 +1,6 @@
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
 pub mod transaction_converter;
-
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,14 +10,27 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
-use starknet_sequencer_infra::component_client::ClientError;
-use starknet_sequencer_infra::component_definitions::ComponentClient;
+use starknet_sequencer_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
 pub type ClassManagerClientResult<T> = Result<T, ClassManagerClientError>;
 
+pub type LocalClassManagerClient = LocalComponentClient<ClassManagerRequest, ClassManagerResponse>;
+pub type RemoteClassManagerClient =
+    RemoteComponentClient<ClassManagerRequest, ClassManagerResponse>;
+
 pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
+pub type ClassManagerRequestAndResponseSender =
+    ComponentRequestAndResponseSender<ClassManagerRequest, ClassManagerResponse>;
 
 // TODO: export.
 pub type ClassId = ClassHash;
@@ -48,11 +62,17 @@ pub trait ClassManagerClient: Send + Sync {
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ClassManagerError {
-    #[error("Compilation failed: {0}")]
-    CompilationUtilError(String),
+pub enum ClassStorageError {
     #[error("Class of hash: {class_id} not found")]
     ClassNotFound { class_id: ClassId },
+    #[error("Storage error occurred: {0}")]
+    StorageError(String),
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ClassManagerError {
+    #[error(transparent)]
+    ClassStorageError(#[from] ClassStorageError),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -134,5 +154,37 @@ where
             ClassManagerError,
             Direct
         )
+    }
+}
+
+pub struct EmptyClassManagerClient;
+
+#[async_trait]
+impl ClassManagerClient for EmptyClassManagerClient {
+    async fn add_class(
+        &self,
+        _class_id: ClassId,
+        _class: Class,
+    ) -> ClassManagerClientResult<ExecutableClassHash> {
+        Ok(Default::default())
+    }
+
+    async fn add_deprecated_class(
+        &self,
+        _class_id: ClassId,
+        _class: DeprecatedClass,
+    ) -> ClassManagerClientResult<()> {
+        Ok(())
+    }
+
+    async fn get_executable(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<ExecutableClass> {
+        Ok(ExecutableClass::V0(Default::default()))
+    }
+
+    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Class> {
+        Ok(Default::default())
     }
 }

@@ -10,9 +10,9 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{error, info, instrument, Span};
+use tracing::{debug, error, instrument, Span};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::GatewayConfig;
@@ -59,13 +59,13 @@ impl Gateway {
         }
     }
 
-    #[instrument(skip(self), ret)]
+    #[instrument(skip_all, ret)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
-        info!("Processing tx");
+        debug!("Processing tx: {:?}", tx);
         let blocking_task = ProcessTxBlockingTask::new(self, tx);
         // Run the blocking task in the current span.
         let curr_span = Span::current();

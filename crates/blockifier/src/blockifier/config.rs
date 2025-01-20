@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
@@ -80,6 +80,18 @@ impl Default for ContractClassManagerConfig {
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
             native_compiler_config: SierraCompilationConfig::default(),
         }
+    }
+}
+
+impl ContractClassManagerConfig {
+    #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
+    pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
+        let cairo_native_run_config = CairoNativeRunConfig {
+            run_cairo_native,
+            wait_on_native_compilation,
+            ..Default::default()
+        };
+        Self { cairo_native_run_config, ..Default::default() }
     }
 }
 

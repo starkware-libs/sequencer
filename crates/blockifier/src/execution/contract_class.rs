@@ -65,26 +65,6 @@ pub enum RunnableCompiledClass {
     V1Native(NativeCompiledClassV1),
 }
 
-/// Represents a runnable compiled class for Cairo, with the Sierra version (for Cairo 1).
-#[derive(Clone)]
-pub enum VersionedRunnableCompiledClass {
-    Cairo0(RunnableCompiledClass),
-    Cairo1((RunnableCompiledClass, SierraVersion)),
-}
-
-impl From<VersionedRunnableCompiledClass> for RunnableCompiledClass {
-    fn from(
-        versioned_runnable_compiled_class: VersionedRunnableCompiledClass,
-    ) -> RunnableCompiledClass {
-        match versioned_runnable_compiled_class {
-            VersionedRunnableCompiledClass::Cairo0(runnable_compiled_class)
-            | VersionedRunnableCompiledClass::Cairo1((runnable_compiled_class, _)) => {
-                runnable_compiled_class
-            }
-        }
-    }
-}
-
 impl TryFrom<ContractClass> for RunnableCompiledClass {
     type Error = ProgramError;
 

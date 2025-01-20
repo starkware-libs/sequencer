@@ -4,6 +4,7 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::indexmap;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
@@ -30,6 +31,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
@@ -75,10 +77,6 @@ fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
         deadline: chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT,
         block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() },
     }
-}
-
-fn invalid_proposal_result() -> ProposalResult<ProposalOutput> {
-    Err(Arc::new(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull)))
 }
 
 struct MockDependencies {
@@ -166,6 +164,87 @@ async fn batcher_with_active_validate_block(
     batcher
 }
 
+fn test_tx_hashes() -> HashSet<TransactionHash> {
+    (0..5u8).map(|i| tx_hash!(i + 12)).collect()
+}
+
+fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
+    HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
+}
+
+pub fn test_state_diff() -> ThinStateDiff {
+    ThinStateDiff {
+        storage_diffs: indexmap! {
+            4u64.into() => indexmap! {
+                5u64.into() => 6u64.into(),
+                7u64.into() => 8u64.into(),
+            },
+            9u64.into() => indexmap! {
+                10u64.into() => 11u64.into(),
+            },
+        },
+        nonces: test_contract_nonces().into_iter().collect(),
+        ..Default::default()
+    }
+}
+
+fn assert_proposal_metrics(
+    metrics: &str,
+    expected_started: u64,
+    expected_succeeded: u64,
+    expected_failed: u64,
+    expected_aborted: u64,
+) {
+    let n_expected_active_proposals =
+        expected_started - (expected_succeeded + expected_failed + expected_aborted);
+    assert!(n_expected_active_proposals <= 1);
+    let started = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_STARTED.name);
+    let succeeded = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_SUCCEEDED.name);
+    let failed = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_FAILED.name);
+    let aborted = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_ABORTED.name);
+
+    assert_eq!(
+        started,
+        Some(expected_started),
+        "unexpected value proposal_started, expected {} got {:?}",
+        expected_started,
+        started,
+    );
+    assert_eq!(
+        succeeded,
+        Some(expected_succeeded),
+        "unexpected value proposal_succeeded, expected {} got {:?}",
+        expected_succeeded,
+        succeeded,
+    );
+    assert_eq!(
+        failed,
+        Some(expected_failed),
+        "unexpected value proposal_failed, expected {} got {:?}",
+        expected_failed,
+        failed,
+    );
+    assert_eq!(
+        aborted,
+        Some(expected_aborted),
+        "unexpected value proposal_aborted, expected {} got {:?}",
+        expected_aborted,
+        aborted,
+    );
+}
+
+#[tokio::test]
+async fn metrics_registered() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let _batcher = create_batcher(MockDependencies::default());
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.0)
+    );
+}
+
 #[rstest]
 #[tokio::test]
 async fn start_height_success() {
@@ -222,8 +301,9 @@ async fn no_active_height() {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT));
-    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next()));
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
+    storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT.unchecked_next())); // second start_height
 
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
@@ -261,8 +341,12 @@ async fn consecutive_heights_success() {
 #[rstest]
 #[tokio::test]
 async fn validate_block_full_flow() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut batcher =
         batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
     let send_proposal_input_txs = SendProposalContentInput {
         proposal_id: PROPOSAL_ID,
@@ -279,6 +363,8 @@ async fn validate_block_full_flow() {
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
     );
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 1, 0, 0);
 }
 
 #[rstest]
@@ -343,8 +429,11 @@ async fn send_proposal_content_after_finish_or_abort(
 #[rstest]
 #[tokio::test]
 async fn send_proposal_content_abort() {
-    let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let mut batcher = batcher_with_active_validate_block(Err(BlockBuilderError::Aborted)).await;
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
     let send_abort_proposal =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Abort };
@@ -352,11 +441,21 @@ async fn send_proposal_content_abort() {
         batcher.send_proposal_content(send_abort_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Aborted }
     );
+
+    // The block builder is running in a separate task, and the proposal metrics are emitted from
+    // that task, so we need to wait for them (we don't have a way to wait for the completion of the
+    // abort).
+    // TODO(AlonH): Find a way to wait for the metrics to be emitted.
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 1);
 }
 
 #[rstest]
 #[tokio::test]
 async fn propose_block_full_flow() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
 
@@ -399,6 +498,9 @@ async fn propose_block_full_flow() {
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
     assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
+
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 1, 0, 0);
 }
 
 #[rstest]
@@ -407,7 +509,7 @@ async fn get_height() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
 
-    let mut batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
+    let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
 
     let result = batcher.get_height().await.unwrap();
     assert_eq!(result, GetHeightResponse { height: INITIAL_HEIGHT });
@@ -445,6 +547,8 @@ async fn get_content_from_unknown_proposal() {
 #[rstest]
 #[tokio::test]
 async fn consecutive_proposal_generation_success() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     for _ in 0..2 {
         mock_create_builder_for_propose_block(
@@ -475,11 +579,16 @@ async fn consecutive_proposal_generation_success() {
         batcher.send_proposal_content(finish_proposal).await.unwrap();
         batcher.await_active_proposal().await;
     }
+
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 4, 4, 0, 0);
 }
 
 #[rstest]
 #[tokio::test]
 async fn concurrent_proposals_generation_fail() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut batcher =
         batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
 
@@ -487,11 +596,26 @@ async fn concurrent_proposals_generation_fail() {
     let result = batcher.propose_block(propose_block_input(ProposalId(1))).await;
 
     assert_matches!(result, Err(BatcherError::AnotherProposalInProgress { .. }));
+
+    // Finish the first proposal.
+    batcher
+        .send_proposal_content(SendProposalContentInput {
+            proposal_id: ProposalId(0),
+            content: SendProposalContent::Finish,
+        })
+        .await
+        .unwrap();
+    batcher.await_active_proposal().await;
+
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 2, 1, 1, 0);
 }
 
 #[rstest]
 #[tokio::test]
 async fn add_sync_block() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut mock_dependencies = MockDependencies::default();
 
     mock_dependencies
@@ -522,6 +646,11 @@ async fn add_sync_block() {
         transaction_hashes: test_tx_hashes().into_iter().collect(),
     };
     batcher.add_sync_block(sync_block).await.unwrap();
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.unchecked_next().0)
+    );
 }
 
 #[rstest]
@@ -548,6 +677,8 @@ async fn add_sync_block_mismatch_block_number() {
 
 #[tokio::test]
 async fn revert_block() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut mock_dependencies = MockDependencies::default();
 
     mock_dependencies
@@ -558,8 +689,20 @@ async fn revert_block() {
         .returning(|_| Ok(()));
     let mut batcher = create_batcher(mock_dependencies);
 
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.0)
+    );
+
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
     batcher.revert_block(revert_input).await.unwrap();
+
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.0 - 1)
+    );
 }
 
 #[tokio::test]
@@ -599,6 +742,8 @@ async fn revert_block_empty_storage() {
 #[rstest]
 #[tokio::test]
 async fn decision_reached() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut mock_dependencies = MockDependencies::default();
     let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
 
@@ -608,7 +753,7 @@ async fn decision_reached() {
         .times(1)
         .with(eq(CommitBlockArgs {
             address_to_nonce: expected_artifacts.address_to_nonce(),
-            rejected_tx_hashes: [].into(),
+            rejected_tx_hashes: expected_artifacts.rejected_tx_hashes.clone(),
         }))
         .returning(|_| Ok(()));
 
@@ -634,6 +779,20 @@ async fn decision_reached() {
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
     assert_eq!(response.state_diff, expected_artifacts.state_diff());
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
+
+    let metrics = recorder.handle().render();
+    assert_eq!(
+        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        Some(INITIAL_HEIGHT.unchecked_next().0)
+    );
+    assert_eq!(
+        parse_numeric_metric::<usize>(&metrics, crate::metrics::BATCHED_TRANSACTIONS.name),
+        Some(expected_artifacts.execution_infos.len())
+    );
+    assert_eq!(
+        parse_numeric_metric::<usize>(&metrics, crate::metrics::REJECTED_TRANSACTIONS.name),
+        Some(expected_artifacts.rejected_tx_hashes.len())
+    );
 }
 
 #[rstest]
@@ -647,28 +806,4 @@ async fn decision_reached_no_executed_proposal() {
     let decision_reached_result =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
     assert_eq!(decision_reached_result, Err(expected_error));
-}
-
-fn test_tx_hashes() -> HashSet<TransactionHash> {
-    (0..5u8).map(|i| tx_hash!(i + 12)).collect()
-}
-
-fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
-    HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
-}
-
-pub fn test_state_diff() -> ThinStateDiff {
-    ThinStateDiff {
-        storage_diffs: indexmap! {
-            4u64.into() => indexmap! {
-                5u64.into() => 6u64.into(),
-                7u64.into() => 8u64.into(),
-            },
-            9u64.into() => indexmap! {
-                10u64.into() => 11u64.into(),
-            },
-        },
-        nonces: test_contract_nonces().into_iter().collect(),
-        ..Default::default()
-    }
 }

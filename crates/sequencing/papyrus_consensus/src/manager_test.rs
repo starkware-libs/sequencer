@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
@@ -15,7 +14,6 @@ use papyrus_protobuf::consensus::{ProposalFin, Vote, DEFAULT_VALIDATOR_ID};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
-use tokio::sync::Notify;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::config::TimeoutsConfig;
@@ -121,7 +119,6 @@ async fn manager_multiple_heights_unordered() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
-            &mut futures::stream::pending(),
         )
         .await
         .unwrap();
@@ -137,7 +134,6 @@ async fn manager_multiple_heights_unordered() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
-            &mut futures::stream::pending(),
         )
         .await
         .unwrap();
@@ -253,7 +249,6 @@ async fn test_timeouts() {
                 SYNC_RETRY_INTERVAL,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
-                &mut futures::stream::pending(),
             )
             .await
             .unwrap();

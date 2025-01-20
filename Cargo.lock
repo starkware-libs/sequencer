@@ -1750,7 +1750,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_infra_utils",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -7162,7 +7162,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -7980,6 +7980,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "starknet_class_manager_types",
  "starknet_client",
  "starknet_infra_utils",
  "strum 0.25.0",
@@ -7997,6 +7998,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-stream",
+ "async-trait",
  "chrono",
  "enum-iterator",
  "futures",
@@ -8015,6 +8017,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
  "starknet_state_sync_types",
  "static_assertions",
  "thiserror 1.0.69",
@@ -8120,6 +8123,7 @@ dependencies = [
  "blockifier",
  "indexmap 2.7.1",
  "papyrus_storage",
+ "rstest",
  "starknet-types-core",
  "starknet_api",
 ]
@@ -10833,6 +10837,8 @@ dependencies = [
  "futures",
  "indexmap 2.7.1",
  "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
  "mockall",
  "papyrus_config",
  "papyrus_state_reader",
@@ -10842,6 +10848,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_infra_utils",
  "starknet_l1_provider_types",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
@@ -10867,6 +10874,15 @@ dependencies = [
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_class_manager"
+version = "0.0.0"
+dependencies = [
+ "starknet_api",
+ "starknet_class_manager_types",
+ "starknet_sierra_compile_types",
 ]
 
 [[package]]
@@ -10983,7 +10999,7 @@ dependencies = [
  "starknet_mempool",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
@@ -11026,6 +11042,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
+ "starknet-types-core",
  "starknet_api",
  "starknet_gateway_types",
  "starknet_http_server",
@@ -11034,6 +11051,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "tracing-test",
  "validator",
 ]
 
@@ -11257,6 +11275,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.32",
+ "once_cell",
  "papyrus_config",
  "pretty_assertions",
  "rstest",
@@ -11293,6 +11312,7 @@ dependencies = [
  "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
+ "starknet_class_manager_types",
  "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_gateway_types",
@@ -11307,7 +11327,8 @@ dependencies = [
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
- "starknet_sierra_compile",
+ "starknet_sierra_compile_types",
+ "starknet_sierra_multicompile",
  "starknet_state_sync",
  "starknet_state_sync_types",
  "tokio",
@@ -11317,7 +11338,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_sierra_compile"
+name = "starknet_sierra_compile_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "papyrus_proc_macros",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_sierra_multicompile"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
@@ -11341,20 +11376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_sierra_compile_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "bytes",
- "papyrus_proc_macros",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_sequencer_infra",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "starknet_state_sync"
 version = "0.0.0"
 dependencies = [
@@ -11372,6 +11393,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "tokio",

@@ -14,7 +14,7 @@ use starknet_gateway::config::GatewayConfig;
 use starknet_gateway::gateway::Gateway;
 use starknet_gateway::state_reader_test_utils::local_test_state_reader_factory;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_sierra_compile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 const N_TXS: usize = 100;
 

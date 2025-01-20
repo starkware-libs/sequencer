@@ -7,8 +7,15 @@ use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
-use starknet_sequencer_infra::component_client::ClientError;
-use starknet_sequencer_infra::component_definitions::ComponentClient;
+use starknet_sequencer_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
@@ -16,7 +23,13 @@ pub type SierraCompilerClientResult<T> = Result<T, SierraCompilerClientError>;
 
 pub type RawExecutableHashedClass = (RawExecutableClass, CompiledClassHash);
 
+pub type LocalSierraCompilerClient =
+    LocalComponentClient<SierraCompilerRequest, SierraCompilerResponse>;
+pub type RemoteSierraCompilerClient =
+    RemoteComponentClient<SierraCompilerRequest, SierraCompilerResponse>;
 pub type SharedSierraCompilerClient = Arc<dyn SierraCompilerClient>;
+pub type SierraCompilerRequestAndResponseSender =
+    ComponentRequestAndResponseSender<SierraCompilerRequest, SierraCompilerResponse>;
 
 // TODO(Elin): change to a more efficient serde (bytes, or something similar).
 // A prerequisite for this is to solve serde-untagged lack of support.

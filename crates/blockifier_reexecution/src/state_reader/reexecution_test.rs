@@ -1,6 +1,7 @@
 use rstest::rstest;
+use starknet_api::block::BlockNumber;
 
-use crate::state_reader::utils::reexecute_block_for_testing;
+use crate::state_reader::utils::{get_block_numbers_for_reexecution, reexecute_block_for_testing};
 
 #[rstest]
 #[case::v_0_13_0(600001)]
@@ -18,5 +19,10 @@ use crate::state_reader::utils::reexecute_block_for_testing;
 #[case::example_l1_handler(868429)]
 #[ignore = "Requires downloading JSON files prior to running; Long test, run with --release flag."]
 fn test_block_reexecution(#[case] block_number: u64) {
+    // Assert that the block number exists in the json file.
+    assert!(
+        get_block_numbers_for_reexecution(Some("../../".to_owned()))
+            .contains(&BlockNumber(block_number))
+    );
     reexecute_block_for_testing(block_number);
 }

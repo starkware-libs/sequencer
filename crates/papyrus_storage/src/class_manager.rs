@@ -34,7 +34,11 @@ impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
 impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        markers_table.upsert(&self.txn, &MarkerKind::ClassManagerBlock, block_number)?;
+        markers_table.upsert(
+            &self.txn,
+            &MarkerKind::ClassManagerBlock,
+            &block_number.unchecked_next(),
+        )?;
         Ok(self)
     }
 }

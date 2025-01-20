@@ -11,11 +11,11 @@ use starknet_api::core::ClassHash;
 #[cfg(feature = "cairo_native")]
 use starknet_api::state::SierraContractClass;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
+use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::utils::into_contract_class_for_compilation;
+use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
 #[cfg(feature = "cairo_native")]
-use starknet_sierra_compile::SierraToNativeCompiler;
+use starknet_sierra_multicompile::SierraToNativeCompiler;
 
 #[cfg(feature = "cairo_native")]
 use crate::blockifier::config::CairoNativeRunConfig;
@@ -27,7 +27,6 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 #[cfg(feature = "cairo_native")]
 use crate::state::global_cache::CachedCairoNative;
 use crate::state::global_cache::{CachedCasm, ContractCaches};
-
 pub const DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE: usize = 1000;
 
 /// Represents a request to compile a sierra contract class to a native compiled class.
@@ -156,6 +155,11 @@ impl ContractClassManager {
     /// Sets the casm compiled class for the given class hash in the cache.
     pub fn set_casm(&self, class_hash: ClassHash, compiled_class: CachedCasm) {
         self.contract_caches.set_casm(class_hash, compiled_class);
+    }
+
+    #[cfg(all(feature = "cairo_native", feature = "testing"))]
+    pub fn set_native(&self, class_hash: ClassHash, compiled_class: NativeCompiledClassV1) {
+        self.contract_caches.set_native(class_hash, CachedCairoNative::Compiled(compiled_class));
     }
 
     #[cfg(feature = "cairo_native")]

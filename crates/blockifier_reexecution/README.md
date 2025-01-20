@@ -24,9 +24,9 @@ cargo run --bin blockifier_reexecution write-to-file -n <node_url> -d <directory
 ```
 
 - **Offline Reexecution:**
-Reexecution test where the data required for reexecuting the block, as well as the expected resulting state diff, are read from local JSON files. Offline reexecution should be run in release mode, as otherwise these tests can be very long. To run offline reexecution on blocks in the GC bucket, download the files as explained below.
+Reexecution test where the data required for reexecuting the block, as well as the expected resulting state diff, are read from local JSON files. Offline reexecution should be run in release mode, as otherwise these tests can be very long. To run offline reexecution on blocks in the GC bucket, first download the files as explained below. Then run
 ```
-cargo run --release --bin blockifier_reexecution reexecute -n <node_url> -d <directory_path> -b <optional_block_number_1> ... <optional_block_number_n>
+cargo run --release --bin blockifier_reexecution reexecute -d <directory_path> -b <optional_block_number_1> ... <optional_block_number_n>
 ```
 
 ### Downloading Offline Reexecution Files from the GC Bucket

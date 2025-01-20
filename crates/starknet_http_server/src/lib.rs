@@ -3,5 +3,5 @@ pub mod config;
 pub mod errors;
 pub mod http_server;
 mod metrics;
-#[cfg(feature = "testing")]
+#[cfg(any(feature = "testing", test))]
 pub mod test_utils;

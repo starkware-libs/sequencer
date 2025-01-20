@@ -31,7 +31,7 @@ use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
-use crate::integration_test_setup::SequencerExecutionId;
+use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
@@ -115,7 +115,7 @@ impl FlowTestSetup {
 
 pub struct FlowSequencerSetup {
     /// Used to differentiate between different sequencer nodes.
-    pub sequencer_index: usize,
+    pub node_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -135,7 +135,7 @@ impl FlowSequencerSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
-        sequencer_index: usize,
+        node_index: usize,
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
@@ -155,7 +155,7 @@ impl FlowSequencerSetup {
         // Derive the configuration for the sequencer node.
         let (node_config, _required_params) = create_node_config(
             &mut available_ports,
-            SequencerExecutionId::new(sequencer_index, 0),
+            NodeExecutionId::new(node_index, 0),
             chain_info,
             storage_for_test.batcher_storage_config,
             state_sync_config,
@@ -178,7 +178,7 @@ impl FlowSequencerSetup {
         tokio::spawn(run_component_servers(servers));
 
         Self {
-            sequencer_index,
+            node_index,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
