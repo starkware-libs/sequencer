@@ -35,7 +35,13 @@ pub trait TransactionConverterTrait {
 }
 
 pub struct TransactionConverter {
-    _class_manager_client: SharedClassManagerClient,
+    pub class_manager_client: SharedClassManagerClient,
+}
+
+impl TransactionConverter {
+    pub fn new(class_manager_client: SharedClassManagerClient) -> Self {
+        Self { class_manager_client }
+    }
 }
 
 #[async_trait]
