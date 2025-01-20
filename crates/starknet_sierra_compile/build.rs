@@ -90,6 +90,7 @@ fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_inst
             "install",
             "--root",
             temp_cargo_path.path().to_str().expect("Failed to convert cargo_path to str"),
+            "--locked",
         ])
         .args(cargo_install_args)
         .status()

@@ -22,3 +22,4 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 indexmap.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
+rstest.workspace = true
