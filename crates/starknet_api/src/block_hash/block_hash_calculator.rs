@@ -144,6 +144,7 @@ pub fn calculate_block_hash(
             )
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
+            .chain(&header.l2_gas_used.0.into())
             .get_poseidon_hash(),
     ))
 }

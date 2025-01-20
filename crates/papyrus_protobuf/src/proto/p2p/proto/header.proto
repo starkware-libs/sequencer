@@ -28,6 +28,7 @@ message SignedBlockHeader {
     // once we insert l2 gas fields to the p2p specs.
     optional Uint128 l2_gas_price_fri = 18;  // Added on v0.13.3.
     optional Uint128 l2_gas_price_wei = 19;  // Added on v0.13.3.
+    uint64 gas_used = 20;
     // can be more explicit here about the signature structure as this is not part of account abstraction
 }
 

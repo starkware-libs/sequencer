@@ -361,6 +361,7 @@ impl ConsensusContext for SequencerConsensusContext {
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price,
+            l2_gas_used,
             sequencer,
             ..Default::default()
         };
