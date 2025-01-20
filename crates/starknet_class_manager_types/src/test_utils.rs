@@ -5,17 +5,18 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
+use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
 use crate::{
     Class,
+    ClassHashes,
     ClassId,
     ClassManagerClient,
     ClassManagerClientResult,
     ClassManagerError,
     ClassStorageError,
     ExecutableClass,
-    ExecutableClassHash,
 };
 
 pub struct MemoryClassManagerClient {
@@ -40,16 +41,14 @@ impl Default for MemoryClassManagerClient {
 
 #[async_trait]
 impl ClassManagerClient for MemoryClassManagerClient {
-    async fn add_class(
-        &self,
-        class_id: ClassId,
-        class: Class,
-    ) -> ClassManagerClientResult<ExecutableClassHash> {
-        if self.sierras.lock().unwrap().insert(class_id, class).is_some() {
+    async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes> {
+        let classes = self.sierras.lock().unwrap();
+        let class_id = ClassHash(felt!(classes.len()));
+        if classes.insert(class_id, class).is_some() {
             panic!("Class already exists");
         }
 
-        Ok(CompiledClassHash(class_id.0))
+        Ok((class_id, CompiledClassHash(class_id.0)))
     }
 
     async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass> {
