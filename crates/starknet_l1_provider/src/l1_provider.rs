@@ -9,9 +9,9 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
-// TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
-// here is compatible with it.
-#[derive(Debug, Default)]
+// TODO: optimistic proposer support, will add later to keep things simple, but the design here
+// is compatible with it.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct L1Provider {
     pub current_height: BlockNumber,
     pub(crate) tx_manager: TransactionManager,
@@ -141,8 +141,17 @@ impl L1Provider {
         Ok(())
     }
 
-    pub fn process_l1_events(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
-        todo!()
+    pub fn process_l1_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        for event in events {
+            match event {
+                Event::L1HandlerTransaction(l1_handler_tx) => {
+                    // TODO(Gilad): can we ignore this silently?
+                    let _is_known_or_committed = self.tx_manager.add_tx(l1_handler_tx);
+                }
+                _ => todo!(),
+            }
+        }
+        Ok(())
     }
 
     /// Simple recovery from L1 and L2 reorgs by reseting the service, which rewinds L1 and L2

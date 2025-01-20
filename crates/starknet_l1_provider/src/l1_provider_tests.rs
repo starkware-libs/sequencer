@@ -13,7 +13,7 @@ use starknet_l1_provider_types::SessionState::{
     Propose as ProposeSession,
     Validate as ValidateSession,
 };
-use starknet_l1_provider_types::ValidationStatus;
+use starknet_l1_provider_types::{Event, ValidationStatus};
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog};
 use crate::test_utils::L1ProviderContentBuilder;
@@ -36,6 +36,10 @@ macro_rules! bootstrapper {
             catch_up_height: BlockNumber($catch),
         }
     }};
+}
+
+fn l1_handler_event(tx_hash: usize) -> Event {
+    Event::L1HandlerTransaction(l1_handler(tx_hash))
 }
 
 #[test]
@@ -81,6 +85,57 @@ fn validate_happy_flow() {
         l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap(),
         ValidationStatus::AlreadyIncludedInPropsedBlock
     );
+}
+
+#[test]
+fn process_events_happy_flow() {
+    // Setup.
+    for state in [ProviderState::Propose, ProviderState::Validate, ProviderState::Pending] {
+        let mut l1_provider = L1ProviderContentBuilder::new()
+            .with_txs([l1_handler(1)])
+            .with_committed(vec![])
+            .with_state(state.clone())
+            .build_into_l1_provider();
+
+        // Test.
+        l1_provider.process_l1_events(vec![l1_handler_event(4), l1_handler_event(3)]).unwrap();
+        l1_provider.process_l1_events(vec![l1_handler_event(6)]).unwrap();
+
+        let expected_l1_provider = L1ProviderContentBuilder::new()
+            .with_txs([
+                l1_handler(1),
+                l1_handler(4),
+                l1_handler(3),
+                l1_handler(6),
+            ])
+            .with_committed(vec![])
+            // State should be unchanged.
+            .with_state(state)
+            .build();
+
+        expected_l1_provider.assert_eq(&l1_provider);
+    }
+}
+
+#[test]
+fn process_events_committed_txs() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed(vec![tx_hash!(2)])
+        .with_state(ProviderState::Pending)
+        .build_into_l1_provider();
+
+    let expected_l1_provider = l1_provider.clone();
+
+    // Test.
+    // Unconsumed transaction, should fail silently.
+    l1_provider.process_l1_events(vec![l1_handler_event(1)]).unwrap();
+    assert_eq!(l1_provider, expected_l1_provider);
+
+    // Committed transaction, should fail silently.
+    l1_provider.process_l1_events(vec![l1_handler_event(2)]).unwrap();
+    assert_eq!(l1_provider, expected_l1_provider);
 }
 
 #[test]
