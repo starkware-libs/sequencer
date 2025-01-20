@@ -93,6 +93,10 @@ impl NodeSetup {
 
         join_all(await_alive_tasks).await;
     }
+
+    async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+        self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
+    }
 }
 
 pub struct IntegrationTestManager {
@@ -132,7 +136,7 @@ impl IntegrationTestManager {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.nodes[0].executables[0].assert_add_tx_success(rpc_tx).await
+        self.nodes[0].send_rpc_tx_fn(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
