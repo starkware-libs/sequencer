@@ -294,7 +294,7 @@ dependencies = [
  "derive_more 1.0.0",
  "foldhash",
  "hashbrown 0.15.2",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itoa",
  "k256",
  "keccak-asm",
@@ -466,7 +466,7 @@ dependencies = [
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
@@ -1725,7 +1725,7 @@ dependencies = [
  "criterion",
  "derive_more 0.99.18",
  "glob",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itertools 0.12.1",
  "keccak",
  "log",
@@ -1741,7 +1741,7 @@ dependencies = [
  "regex",
  "rstest",
  "rstest_reuse",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "sha2",
@@ -1771,7 +1771,7 @@ dependencies = [
  "clap",
  "flate2",
  "google-cloud-storage",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "papyrus_execution",
  "pretty_assertions",
  "retry",
@@ -1972,7 +1972,7 @@ dependencies = [
  "indoc 2.0.5",
  "rayon",
  "rust-analyzer-salsa",
- "semver 1.0.24",
+ "semver 1.0.25",
  "smol_str",
  "thiserror 1.0.69",
 ]
@@ -2035,7 +2035,7 @@ dependencies = [
  "cairo-lang-utils",
  "path-clean",
  "rust-analyzer-salsa",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "smol_str",
  "toml",
@@ -2471,7 +2471,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91b6546d9f285c7d4a2700c084f745c35e1884a1dc2e4fa54a71034cea5606aa"
 dependencies = [
  "hashbrown 0.14.5",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
  "num-traits",
@@ -2610,7 +2610,7 @@ checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
 dependencies = [
  "camino",
  "cargo-platform",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -2886,7 +2886,7 @@ dependencies = [
  "derive_more 0.99.18",
  "ethnum",
  "futures",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_distr",
@@ -4008,7 +4008,7 @@ dependencies = [
  "chrono",
  "ethers-core",
  "reqwest 0.11.27",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4117,7 +4117,7 @@ dependencies = [
  "path-slash",
  "rayon",
  "regex",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "solang-parser",
@@ -4852,7 +4852,7 @@ dependencies = [
  "futures-sink",
  "futures-util",
  "http 0.2.12",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "slab",
  "tokio",
  "tokio-util",
@@ -4871,7 +4871,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "http 1.2.0",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "slab",
  "tokio",
  "tokio-util",
@@ -5621,9 +5621,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "2.7.0"
+version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62f822373a4fe84d4bb149bf54e584a7f4abec90e072ed49cda0edea5b95471f"
+checksum = "8c9c992b02b5b4c94ea26e32fe5bccb7aa7d9f390ab5c1221ff895bc7ea8b652"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.2",
@@ -5704,9 +5704,9 @@ dependencies = [
 
 [[package]]
 name = "ipnet"
-version = "2.10.1"
+version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddc24109865250148c2e0f3d25d4f0f479571723792d3802153c60922a4fb708"
+checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
 
 [[package]]
 name = "is-terminal"
@@ -6675,7 +6675,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "regex-lite",
- "semver 1.0.24",
+ "semver 1.0.25",
 ]
 
 [[package]]
@@ -6884,7 +6884,7 @@ dependencies = [
  "hyper 1.5.2",
  "hyper-rustls 0.27.5",
  "hyper-util",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "ipnet",
  "metrics 0.24.1",
  "metrics-util",
@@ -7150,7 +7150,7 @@ dependencies = [
  "cached",
  "cairo-lang-starknet-classes",
  "cairo-vm",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "log",
  "num-bigint 0.4.6",
  "papyrus_state_reader",
@@ -7727,7 +7727,7 @@ dependencies = [
  "base64 0.13.1",
  "cairo-lang-starknet-classes",
  "flate2",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "lazy_static",
  "papyrus_test_utils",
  "pretty_assertions",
@@ -7804,7 +7804,7 @@ dependencies = [
  "cairo-lang-utils",
  "chrono",
  "futures",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "lazy_static",
  "mockall",
  "mockito 1.6.1",
@@ -7844,7 +7844,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itertools 0.12.1",
  "lazy_static",
  "papyrus_common",
@@ -8000,7 +8000,7 @@ dependencies = [
  "chrono",
  "enum-iterator",
  "futures",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "lazy_static",
  "metrics 0.24.1",
  "papyrus_common",
@@ -8042,7 +8042,7 @@ name = "papyrus_protobuf"
 version = "0.0.0"
 dependencies = [
  "bytes",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "lazy_static",
  "papyrus_common",
  "papyrus_test_utils",
@@ -8077,7 +8077,7 @@ dependencies = [
  "futures-util",
  "hex",
  "hyper 0.14.32",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "insta",
  "itertools 0.12.1",
  "jsonrpsee",
@@ -8118,7 +8118,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "papyrus_storage",
  "starknet-types-core",
  "starknet_api",
@@ -8136,7 +8136,7 @@ dependencies = [
  "camelpaste",
  "clap",
  "human_bytes",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "insta",
  "integer-encoding",
  "lazy_static",
@@ -8187,7 +8187,7 @@ dependencies = [
  "chrono",
  "futures",
  "futures-util",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itertools 0.12.1",
  "lru",
  "metrics 0.24.1",
@@ -8218,7 +8218,7 @@ dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "num-bigint 0.4.6",
  "pretty_assertions",
  "primitive-types",
@@ -8396,7 +8396,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
 dependencies = [
  "fixedbitset",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
 ]
 
 [[package]]
@@ -9756,7 +9756,7 @@ version = "0.17.0-pre.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "719825638c59fd26a55412a24561c7c5bcf54364c88b9a7a04ba08a6eafaba8d"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "lock_api",
  "oorandom",
  "parking_lot",
@@ -9828,7 +9828,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
- "semver 1.0.24",
+ "semver 1.0.25",
 ]
 
 [[package]]
@@ -10168,9 +10168,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.24"
+version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cb6eb87a131f756572d7fb904f6e7b68633f09cca868c5df1c4b8d1a694bbba"
+checksum = "f79dfe2d285b0488816f30e700a7438c5a73d816b5b7d3ac72fbc48b0d185e03"
 dependencies = [
  "serde",
 ]
@@ -10229,9 +10229,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.135"
+version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b0d7ba2887406110130a978386c4e1befb98c674b4fba677954e4db976630d9"
+checksum = "930cfb6e6abf99298aaad7d29abbef7a9999a9a8806a40088f55f0dcec03146b"
 dependencies = [
  "itoa",
  "memchr",
@@ -10444,9 +10444,9 @@ dependencies = [
 
 [[package]]
 name = "similar"
-version = "2.6.0"
+version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1de1d4f81173b03af4c0cbed3c898f6bff5b870e4a7f5d6f4057d62a7a4b686e"
+checksum = "bbbb5d9659141646ae647b42fe094daf6c6192d1620870b449d9557f748b2daa"
 
 [[package]]
 name = "simple_asn1"
@@ -10802,14 +10802,14 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "derive_more 0.99.18",
  "hex",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
  "num-traits",
  "pretty_assertions",
  "primitive-types",
  "rstest",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "sha3",
@@ -10831,7 +10831,7 @@ dependencies = [
  "blockifier",
  "chrono",
  "futures",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "mempool_test_utils",
  "mockall",
  "papyrus_config",
@@ -10890,7 +10890,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "enum-iterator",
  "http 0.2.12",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "mockall",
  "mockito 0.31.1",
  "os_info",
@@ -11060,7 +11060,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "futures",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_config",
@@ -11101,7 +11101,7 @@ dependencies = [
  "alloy-primitives",
  "assert_matches",
  "async-trait",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "papyrus_base_layer",
  "papyrus_config",
  "pretty_assertions",
@@ -11361,7 +11361,7 @@ dependencies = [
  "async-trait",
  "cairo-lang-starknet-classes",
  "futures",
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "libp2p",
  "papyrus_config",
  "papyrus_network",
@@ -11510,7 +11510,7 @@ dependencies = [
  "hex",
  "once_cell",
  "reqwest 0.11.27",
- "semver 1.0.24",
+ "semver 1.0.25",
  "serde",
  "serde_json",
  "sha2",
@@ -11731,9 +11731,9 @@ dependencies = [
 
 [[package]]
 name = "test-log"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3dffced63c2b5c7be278154d76b479f9f9920ed34e7574201407f0b14e2bbb93"
+checksum = "e7f46083d221181166e5b6f6b1e5f1d499f3a76888826e6cb1d057554157cd0f"
 dependencies = [
  "env_logger",
  "test-log-macros",
@@ -11742,9 +11742,9 @@ dependencies = [
 
 [[package]]
 name = "test-log-macros"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5999e24eaa32083191ba4e425deb75cdf25efefabe5aaccb7446dd0d4122a3f5"
+checksum = "888d0c3c6db53c0fdab160d2ed5e12ba745383d3e85813f2ea0f2b1475ab553f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12080,7 +12080,7 @@ version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "toml_datetime",
  "winnow 0.5.40",
 ]
@@ -12091,7 +12091,7 @@ version = "0.22.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
- "indexmap 2.7.0",
+ "indexmap 2.7.1",
  "serde",
  "serde_spanned",
  "toml_datetime",

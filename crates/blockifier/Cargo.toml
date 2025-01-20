@@ -10,7 +10,7 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cairo_native"]
+cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cairo_native", "dep:sierra-emu"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
