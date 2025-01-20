@@ -71,7 +71,7 @@ pub fn create_chain_info() -> ChainInfo {
 #[allow(clippy::too_many_arguments)]
 pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
-    sequencer_execution_id: NodeExecutionId,
+    node_execution_id: NodeExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
     state_sync_config: StateSyncConfig,
@@ -79,10 +79,8 @@ pub async fn create_node_config(
     mempool_p2p_config: MempoolP2pConfig,
     component_config: ComponentConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
-    let validator_id = set_validator_id(
-        &mut consensus_manager_config,
-        sequencer_execution_id.get_sequencer_index(),
-    );
+    let validator_id =
+        set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
