@@ -14,7 +14,7 @@ testing = []
 [dependencies]
 async-trait.workspace = true
 axum.workspace = true
-blockifier = { workspace = true, features = ["testing"] }
+blockifier = { workspace = true, features = ["jemalloc", "testing"] }
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true

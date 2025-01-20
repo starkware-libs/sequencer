@@ -11,7 +11,7 @@ workspace = true
 [dependencies]
 assert_matches.workspace = true
 axum.workspace = true
-blockifier.workspace = true
+blockifier = { workspace = true, features = ["jemalloc"] }
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true

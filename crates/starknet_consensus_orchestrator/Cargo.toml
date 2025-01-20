@@ -10,7 +10,7 @@ description = "Implements the consensus context and orchestrates the node's comp
 assert_matches.workspace = true
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
-blockifier.workspace = true
+blockifier = { workspace = true, features = ["jemalloc"] }
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
