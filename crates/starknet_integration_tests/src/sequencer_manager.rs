@@ -29,7 +29,7 @@ use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{ExecutableSetup, SequencerExecutionId};
+use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -44,14 +44,13 @@ const N_CONSOLIDATED_SEQUENCERS: usize = 3;
 const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
-// TODO(Nadin): rename to NodeComponentConfigs.
-pub struct ComposedComponentConfigs {
+struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
 }
 
-impl ComposedComponentConfigs {
+impl NodeComponentConfigs {
     fn new(
         component_configs: Vec<ComponentConfig>,
         batcher_index: usize,
@@ -68,18 +67,32 @@ impl ComposedComponentConfigs {
         self.component_configs.len()
     }
 
-    pub fn get_batcher_index(&self) -> usize {
+    fn get_batcher_index(&self) -> usize {
         self.batcher_index
     }
 
-    pub fn get_http_server_index(&self) -> usize {
+    fn get_http_server_index(&self) -> usize {
         self.http_server_index
     }
 }
 
 pub struct NodeSetup {
     pub executables: Vec<ExecutableSetup>,
-    // TODO(Nadin): add batcher and http server indexes.
+    pub batcher_index: usize,
+    pub http_server_index: usize,
+}
+
+impl NodeSetup {
+    async fn await_alive(&self, interval: u64, max_attempts: usize) {
+        let await_alive_tasks = self.executables.iter().map(|executable| {
+            let result = executable.monitoring_client.await_alive(interval, max_attempts);
+            result.unwrap_or_else(|_| {
+                panic!("Executable {:?} should be alive.", executable.sequencer_execution_id)
+            })
+        });
+
+        join_all(await_alive_tasks).await;
+    }
 }
 
 pub struct IntegrationTestManager {
@@ -112,17 +125,8 @@ impl IntegrationTestManager {
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        let await_alive_tasks = self.nodes.iter().flat_map(|node| {
-            node.executables.iter().map(move |executable| {
-                let result = executable.monitoring_client.await_alive(interval, max_attempts);
-                result.unwrap_or_else(|_| {
-                    panic!(
-                        "Executable {:?} in node should be alive.",
-                        executable.sequencer_execution_id
-                    )
-                })
-            })
-        });
+        let await_alive_tasks =
+            self.nodes.iter().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
     }
@@ -226,7 +230,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
 
-    let component_configs: Vec<ComposedComponentConfigs> = {
+    let component_configs: Vec<NodeComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
@@ -237,7 +241,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         combined
     };
 
-    info!("Creating sequencer configurations.");
+    info!("Creating node configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
     let n_distributed_sequencers = component_configs
@@ -271,12 +275,16 @@ pub(crate) async fn get_sequencer_setup_configs(
     let mut global_index = 0;
 
     for (node_index, node_component_configs) in component_configs.into_iter().enumerate() {
-        let mut node = NodeSetup { executables: Vec::new() };
+        let mut node = NodeSetup {
+            executables: Vec::new(),
+            batcher_index: node_component_configs.get_batcher_index(),
+            http_server_index: node_component_configs.get_http_server_index(),
+        };
 
         for (executable_index, executable_component_config) in
             node_component_configs.into_iter().enumerate()
         {
-            let sequencer_execution_id = SequencerExecutionId::new(node_index, executable_index);
+            let sequencer_execution_id = NodeExecutionId::new(node_index, executable_index);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
@@ -308,14 +316,14 @@ pub(crate) async fn get_sequencer_setup_configs(
 fn create_distributed_node_configs(
     available_ports: &mut AvailablePorts,
     distributed_sequencers_num: usize,
-) -> Vec<ComposedComponentConfigs> {
+) -> Vec<NodeComponentConfigs> {
     std::iter::repeat_with(|| {
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
 
-        ComposedComponentConfigs::new(
+        NodeComponentConfigs::new(
             vec![
                 get_http_container_config(
                     gateway_socket,
@@ -342,9 +350,9 @@ fn create_distributed_node_configs(
 
 fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
-) -> Vec<ComposedComponentConfigs> {
+) -> Vec<NodeComponentConfigs> {
     // Both batcher and http server are in executable index 0.
-    std::iter::repeat_with(|| ComposedComponentConfigs::new(vec![ComponentConfig::default()], 0, 0))
+    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0))
         .take(num_of_consolidated_nodes)
         .collect()
 }

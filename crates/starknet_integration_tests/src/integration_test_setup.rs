@@ -25,32 +25,32 @@ use crate::utils::{create_node_config, spawn_local_success_recorder};
 
 // TODO(Nadin): rename to NodeExecutionId.
 #[derive(Debug, Copy, Clone)]
-pub struct SequencerExecutionId {
-    sequencer_index: usize,
-    sequencer_part_index: usize,
+pub struct NodeExecutionId {
+    node_index: usize,
+    executable_index: usize,
 }
 
-impl SequencerExecutionId {
-    pub fn new(sequencer_index: usize, sequencer_part_index: usize) -> Self {
-        Self { sequencer_index, sequencer_part_index }
+impl NodeExecutionId {
+    pub fn new(node_index: usize, executable_index: usize) -> Self {
+        Self { node_index, executable_index }
     }
     pub fn get_sequencer_index(&self) -> usize {
-        self.sequencer_index
+        self.node_index
     }
     pub fn get_sequencer_part_index(&self) -> usize {
-        self.sequencer_part_index
+        self.executable_index
     }
 }
 
-impl From<SequencerExecutionId> for NodeRunner {
-    fn from(val: SequencerExecutionId) -> Self {
-        NodeRunner::new(val.sequencer_index, val.sequencer_part_index)
+impl From<NodeExecutionId> for NodeRunner {
+    fn from(val: NodeExecutionId) -> Self {
+        NodeRunner::new(val.node_index, val.executable_index)
     }
 }
 
 pub struct ExecutableSetup {
     // Sequencer test identifier.
-    pub sequencer_execution_id: SequencerExecutionId,
+    pub sequencer_execution_id: NodeExecutionId,
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
@@ -78,7 +78,7 @@ impl ExecutableSetup {
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
-        sequencer_execution_id: SequencerExecutionId,
+        sequencer_execution_id: NodeExecutionId,
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,

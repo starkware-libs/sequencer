@@ -49,7 +49,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, Instrument};
 use url::Url;
 
-use crate::integration_test_setup::SequencerExecutionId;
+use crate::integration_test_setup::NodeExecutionId;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -71,7 +71,7 @@ pub fn create_chain_info() -> ChainInfo {
 #[allow(clippy::too_many_arguments)]
 pub async fn create_node_config(
     available_ports: &mut AvailablePorts,
-    sequencer_execution_id: SequencerExecutionId,
+    sequencer_execution_id: NodeExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
     state_sync_config: StateSyncConfig,
@@ -331,11 +331,10 @@ pub fn create_batcher_config(
 
 fn set_validator_id(
     consensus_manager_config: &mut ConsensusManagerConfig,
-    sequencer_index: usize,
+    node_index: usize,
 ) -> ValidatorId {
     let validator_id = ValidatorId::try_from(
-        Felt::from(consensus_manager_config.consensus_config.validator_id)
-            + Felt::from(sequencer_index),
+        Felt::from(consensus_manager_config.consensus_config.validator_id) + Felt::from(node_index),
     )
     .unwrap();
     consensus_manager_config.consensus_config.validator_id = validator_id;
