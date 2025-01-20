@@ -11,7 +11,7 @@ use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
-use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
+use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::state::stateful_compression::{allocate_aliases_in_storage, compress, CompressionError};
@@ -26,6 +26,8 @@ pub mod transaction_executor_test;
 
 pub const BLOCK_STATE_ACCESS_ERR: &str = "Error: The block state should be `Some`.";
 pub const DEFAULT_STACK_SIZE: usize = 60 * 1024 * 1024;
+
+pub type TransactionExecutionOutput = (TransactionExecutionInfo, StateMaps);
 
 #[derive(Debug, Error)]
 pub enum TransactionExecutorError {
@@ -103,7 +105,7 @@ impl<S: StateReader> TransactionExecutor<S> {
     pub fn execute(
         &mut self,
         tx: &Transaction,
-    ) -> TransactionExecutorResult<TransactionExecutionInfo> {
+    ) -> TransactionExecutorResult<TransactionExecutionOutput> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
@@ -116,6 +118,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             Ok(tx_execution_info) => {
                 let tx_state_changes_keys =
                     transactional_state.get_actual_state_changes()?.state_maps.into_keys();
+                let state_diff = transactional_state.to_state_diff()?.state_maps;
                 self.bouncer.try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
@@ -123,7 +126,8 @@ impl<S: StateReader> TransactionExecutor<S> {
                     &tx_execution_info.receipt.resources,
                 )?;
                 transactional_state.commit();
-                Ok(tx_execution_info)
+
+                Ok((tx_execution_info, state_diff))
             }
             Err(error) => {
                 transactional_state.abort();
@@ -132,14 +136,16 @@ impl<S: StateReader> TransactionExecutor<S> {
         }
     }
 
-    pub fn execute_txs_sequentially_inner(
+    fn execute_txs_sequentially_inner(
         &mut self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let mut results = Vec::new();
         for tx in txs {
             match self.execute(tx) {
-                Ok(tx_execution_info) => results.push(Ok(tx_execution_info)),
+                Ok((tx_execution_info, state_diff)) => {
+                    results.push(Ok((tx_execution_info, state_diff)))
+                }
                 Err(TransactionExecutorError::BlockFull) => break,
                 Err(error) => results.push(Err(error)),
             }
@@ -196,6 +202,9 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs)
+                .into_iter()
+                .map(|result| result.map(|(info, _)| info))
+                .collect()
         } else {
             log::debug!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
@@ -228,10 +237,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
-    pub fn execute_txs_sequentially(
+    fn execute_txs_sequentially(
         &mut self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         #[cfg(not(feature = "cairo_native"))]
         return self.execute_txs_sequentially_inner(txs);
         #[cfg(feature = "cairo_native")]
@@ -261,7 +270,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
-    pub fn execute_chunk(
+    fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
