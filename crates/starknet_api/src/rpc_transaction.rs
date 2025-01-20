@@ -240,6 +240,24 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     }
 }
 
+impl From<InternalRpcDeclareTransactionV3> for DeclareTransactionV3 {
+    fn from(tx: InternalRpcDeclareTransactionV3) -> Self {
+        Self {
+            class_hash: tx.class_hash,
+            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            compiled_class_hash: tx.compiled_class_hash,
+            sender_address: tx.sender_address,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
+}
+
 /// A deploy account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcDeployAccountTransactionV3 {
