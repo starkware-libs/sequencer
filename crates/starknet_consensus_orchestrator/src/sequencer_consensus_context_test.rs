@@ -205,7 +205,7 @@ async fn validate_proposal_success() {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -255,7 +255,7 @@ async fn repropose() {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -313,7 +313,7 @@ async fn proposals_from_different_rounds() {
     let prop_part_txs =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
-        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
 
     // The proposal from the past round is ignored.
@@ -414,7 +414,7 @@ async fn interrupt_active_proposal() {
         .unwrap();
     content_sender_1
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();

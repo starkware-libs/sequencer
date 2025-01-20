@@ -26,9 +26,9 @@ lazy_static! {
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
     static ref VALIDATE_PROPOSAL_EVENT: ShcEvent = ShcEvent::ValidateProposal(
         StateMachineEvent::Proposal(Some(BLOCK.id), PROPOSAL_INIT.round, PROPOSAL_INIT.valid_round,),
-        Some(ProposalFin { proposal_content_id: BLOCK.id }),
+        Some(ProposalFin { proposal_commitment: BLOCK.id }),
     );
-    static ref PROPOSAL_FIN: ProposalFin = ProposalFin { proposal_content_id: BLOCK.id };
+    static ref PROPOSAL_FIN: ProposalFin = ProposalFin { proposal_commitment: BLOCK.id };
 }
 
 const CHANNEL_SIZE: usize = 1;

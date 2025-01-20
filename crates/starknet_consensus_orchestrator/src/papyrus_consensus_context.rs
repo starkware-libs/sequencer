@@ -134,7 +134,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .await
                     .expect("Failed to send transactions");
                 proposal_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_content_id: block_hash }))
+                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment: block_hash }))
                     .await
                     .expect("Failed to send fin");
                 {
@@ -189,7 +189,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                             }
                         }
                         Some(ProposalPart::Fin(fin)) => {
-                            break fin.proposal_content_id;
+                            break fin.proposal_commitment;
                         }
                         msg => panic!("Unexpected message: {msg:?}"),
                     }
@@ -226,7 +226,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                 // insertion and calls to `repropose`.
                 // This can happen as a result of sync interrupting `run_height`.
                 fin_sender
-                    .send((block_hash, ProposalFin { proposal_content_id: received_block_hash }))
+                    .send((block_hash, ProposalFin { proposal_commitment: received_block_hash }))
                     .unwrap_or_else(|_| {
                         warn!("Failed to send block to consensus. height={height}");
                     })
@@ -264,7 +264,7 @@ impl ConsensusContext for PapyrusConsensusContext {
             .await
             .expect("Failed to send transactions");
         proposal_sender
-            .send(ProposalPart::Fin(ProposalFin { proposal_content_id: id }))
+            .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
             .await
             .expect("Failed to send fin");
     }

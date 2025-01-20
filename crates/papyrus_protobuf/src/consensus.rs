@@ -83,7 +83,7 @@ pub struct TransactionBatch {
 pub struct ProposalFin {
     /// The block hash of the proposed block.
     /// TODO(Matan): Consider changing the content ID to a signature.
-    pub proposal_content_id: BlockHash,
+    pub proposal_commitment: BlockHash,
 }
 
 /// A part of the proposal.
