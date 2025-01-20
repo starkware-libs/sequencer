@@ -3,10 +3,12 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
+use config::SierraCompilationConfig;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_compile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use thiserror::Error;
 
@@ -84,3 +86,11 @@ impl SierraCompiler {
         Ok((executable_class, executable_class_hash))
     }
 }
+
+pub fn create_sierra_compiler(config: SierraCompilationConfig) -> SierraCompiler {
+    // TODO(Elin): rewrite this function
+    let compiler = CommandLineCompiler::new(config);
+    SierraCompiler::new(compiler)
+}
+
+impl ComponentStarter for SierraCompiler {}

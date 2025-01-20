@@ -17,6 +17,7 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
+use starknet_sierra_compile::{create_sierra_compiler, SierraCompiler};
 use starknet_state_sync::runner::StateSyncRunner;
 use starknet_state_sync::{create_state_sync_and_runner, StateSync};
 
@@ -39,6 +40,7 @@ pub struct SequencerNodeComponents {
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
     pub mempool_p2p_runner: Option<MempoolP2pRunner>,
+    pub sierra_compiler: Option<SierraCompiler>,
     pub state_sync: Option<StateSync>,
     pub state_sync_runner: Option<StateSyncRunner>,
 }
@@ -180,6 +182,14 @@ pub fn create_node_components(
         ActiveComponentExecutionMode::Disabled => None,
     };
 
+    let sierra_compiler = match config.components.sierra_compiler.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(create_sierra_compiler(config.compiler_config.clone()))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     SequencerNodeComponents {
         batcher,
         consensus_manager,
@@ -191,6 +201,7 @@ pub fn create_node_components(
         monitoring_endpoint,
         mempool_p2p_propagator,
         mempool_p2p_runner,
+        sierra_compiler,
         state_sync,
         state_sync_runner,
     }
