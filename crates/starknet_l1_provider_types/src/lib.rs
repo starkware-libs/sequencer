@@ -1,5 +1,6 @@
 pub mod errors;
 
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -21,7 +22,7 @@ pub type L1ProviderResult<T> = Result<T, L1ProviderError>;
 pub type L1ProviderClientResult<T> = Result<T, L1ProviderClientError>;
 pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationStatus {
     AlreadyIncludedInPropsedBlock,
     AlreadyIncludedOnL2,
@@ -34,6 +35,7 @@ pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock { l1_handler_tx_hashes: Vec<TransactionHash>, height: BlockNumber },
     GetTransactions { n_txs: usize, height: BlockNumber },
+    Validate { tx_hash: TransactionHash, height: BlockNumber },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,6 +43,7 @@ pub enum L1ProviderResponse {
     AddEvents(L1ProviderResult<()>),
     CommitBlock(L1ProviderResult<()>),
     GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
+    Validate(L1ProviderResult<ValidationStatus>),
 }
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
@@ -119,10 +122,17 @@ where
 
     async fn validate(
         &self,
-        _tx_hash: TransactionHash,
-        _height: BlockNumber,
+        tx_hash: TransactionHash,
+        height: BlockNumber,
     ) -> L1ProviderClientResult<ValidationStatus> {
-        todo!();
+        let request = L1ProviderRequest::Validate { tx_hash, height };
+        handle_all_response_variants!(
+            L1ProviderResponse,
+            Validate,
+            L1ProviderClientError,
+            L1ProviderError,
+            Direct
+        )
     }
 }
 
