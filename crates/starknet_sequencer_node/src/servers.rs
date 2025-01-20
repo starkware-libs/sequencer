@@ -21,11 +21,13 @@ use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
+    ConcurrentLocalComponentServer,
     LocalComponentServer,
     RemoteComponentServer,
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
+use starknet_sierra_compile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
 use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use tokio::task::{JoinError, JoinSet};
@@ -47,6 +49,7 @@ struct LocalServers {
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
+    pub(crate) sierra_compiler: Option<Box<LocalSierraCompilerServer>>,
     pub(crate) state_sync: Option<Box<LocalStateSyncServer>>,
 }
 
@@ -173,6 +176,55 @@ macro_rules! create_local_server {
     };
 }
 
+/// A macro for creating a concurrent component server, determined by the component's execution
+/// mode. Returns a concurrent local server if the component is run locally, otherwise None.
+///
+/// # Arguments
+///
+/// * $execution_mode - A reference to the component's execution mode, i.e., type
+///   &ReactiveComponentExecutionMode.
+/// * $component - The component that will be taken to initialize the server if the execution mode
+///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
+/// * $Receiver - receiver side for the server.
+///
+/// # Returns
+///
+/// An Option<Box<ConcurrentLocalComponentServer<ComponentType, RequestType, ResponseType>>>
+/// containing the server if the execution mode is enabled(LocalExecutionWithRemoteDisabled /
+/// LocalExecutionWithRemoteEnabled), or None if the execution mode is Disabled.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let sierra_compiler_server = create_concurrent_server!(
+///     &config.components.sierra_compiler.execution_mode,
+///     components.sierra_compiler,
+///     communication.take_sierra_compiler_rx()
+/// );
+/// match sierra_compiler_server {
+///     Some(server) => println!("Server created: {:?}", server),
+///     None => println!("Server not created because the execution mode is disabled."),
+/// }
+/// ```
+macro_rules! create_concurrent_server {
+    ($execution_mode:expr, $component:expr, $receiver:expr) => {
+        match *$execution_mode {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                Some(Box::new(ConcurrentLocalComponentServer::new(
+                    $component
+                        .take()
+                        .expect(concat!(stringify!($component), " is not initialized.")),
+                    $receiver,
+                )))
+            }
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                None
+            }
+        }
+    };
+}
+
 /// A macro for creating a WrapperServer, determined by the component's execution mode. Returns a
 /// wrapper server if the component is run locally, otherwise None.
 ///
@@ -245,6 +297,11 @@ fn create_local_servers(
         components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx()
     );
+    let sierra_compiler_server = create_concurrent_server!(
+        &config.components.sierra_compiler.execution_mode,
+        components.sierra_compiler,
+        communication.take_sierra_compiler_rx()
+    );
     let state_sync_server = create_local_server!(
         &config.components.state_sync.execution_mode,
         components.state_sync,
@@ -257,6 +314,7 @@ fn create_local_servers(
         l1_provider: l1_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
+        sierra_compiler: sierra_compiler_server,
         state_sync: state_sync_server,
     }
 }
@@ -284,6 +342,7 @@ impl LocalServers {
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
+            server_future_and_label(self.sierra_compiler, "Concurrent Local Sierra Compiler"),
             server_future_and_label(self.state_sync, "Local State Sync"),
         ])
         .await
