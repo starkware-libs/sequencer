@@ -373,3 +373,48 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
         nonce!(4_u32)
     );
 }
+
+#[cfg(feature = "cairo_native")]
+#[rstest::rstest]
+/// Tests that Native can handle deep recursion calls without causing a stack overflow.
+/// The recursive function must be complex enough to prevent the compiler from optimizing it into a
+/// loop. This function was manually tested with increased maximum gas to ensure it reaches a stack
+/// overflow.
+///
+/// Note: Testing the VM is unnecessary here as it does not utilize the stack.
+fn test_stack_overflow(#[values(true, false)] concurrency_enabled: bool) {
+    let block_context = BlockContext::create_for_account_testing();
+
+    // TODO (AvivG): remove this comment:
+    // To reach stack overflow, increase maximum gas by refacotring os_constants
+    //      let mut block_context = BlockContext::create_for_account_testing();
+    //      use std::sync::Arc;
+    //      use crate::abi::constants::MAX_POSSIBLE_SIERRA_GAS;
+    //      let os_constants = Arc::make_mut(&mut block_context.versioned_constants.os_constants);
+    //      os_constants.execute_max_sierra_gas = MAX_POSSIBLE_SIERRA_GAS.into();
+
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Native);
+    let TestInitData { state, account_address, contract_address, mut nonce_manager } =
+        create_test_init_data(&block_context.chain_info, cairo_version);
+    let depth = felt!(1000000_u128);
+    let entry_point_args = vec![depth];
+    let calldata = create_calldata(contract_address, "test_stack_overflow", &entry_point_args);
+    let tx = executable_invoke_tx(invoke_tx_args! {
+        sender_address: account_address,
+        calldata,
+        nonce: nonce_manager.next(account_address),
+    });
+    let account_tx = AccountTransaction::new_for_sequencing(tx);
+
+    // Run.
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
+    let mut executor = TransactionExecutor::new(state, block_context, config);
+    let results = executor.execute_txs(&vec![account_tx.into()]);
+
+    let execution_res = results[0].as_ref().unwrap();
+    assert!(execution_res.is_reverted());
+    let err = execution_res.revert_error.clone().unwrap().to_string();
+
+    // Recursion is terminated by resource bounds before stack overflow occurs.
+    assert!(err.contains("'Out of gas'"));
+}
