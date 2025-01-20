@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
+use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
@@ -136,9 +139,40 @@ impl TransactionConverterTrait for TransactionConverter {
 
     async fn convert_internal_rpc_tx_to_executable_tx(
         &self,
-        _tx: InternalRpcTransaction,
+        InternalRpcTransaction { tx, tx_hash }: InternalRpcTransaction,
     ) -> TransactionConverterResult<AccountTransaction> {
-        todo!()
+        match tx {
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => {
+                Ok(AccountTransaction::Invoke(executable_transaction::InvokeTransaction {
+                    tx: tx.into(),
+                    tx_hash,
+                }))
+            }
+            InternalRpcTransactionWithoutTxHash::Declare(tx) => {
+                let sierra = self.class_manager_client.get_sierra(tx.class_hash).await?;
+                let class_info = ClassInfo {
+                    contract_class: self.class_manager_client.get_executable(tx.class_hash).await?,
+                    sierra_program_length: sierra.sierra_program.len(),
+                    abi_length: sierra.abi.len(),
+                    sierra_version: SierraVersion::from_str(&sierra.contract_class_version)?,
+                };
+
+                Ok(AccountTransaction::Declare(executable_transaction::DeclareTransaction {
+                    tx: starknet_api::transaction::DeclareTransaction::V3(tx.into()),
+                    tx_hash,
+                    class_info,
+                }))
+            }
+            InternalRpcTransactionWithoutTxHash::DeployAccount(
+                DeployAccountTransactionV3WithAddress { tx, contract_address },
+            ) => Ok(AccountTransaction::DeployAccount(
+                executable_transaction::DeployAccountTransaction {
+                    tx: tx.into(),
+                    contract_address,
+                    tx_hash,
+                },
+            )),
+        }
     }
 }
 
