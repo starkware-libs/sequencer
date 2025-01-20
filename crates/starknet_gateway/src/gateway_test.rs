@@ -10,8 +10,14 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
-use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
+    RpcTransaction,
+};
+use starknet_api::transaction::{InvokeTransaction, TransactionHash, TransactionVersion};
+use starknet_class_manager_types::test_utils::MemoryClassManagerClient;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -119,18 +125,28 @@ async fn test_add_tx(
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
+    use starknet_api::transaction::TransactionHasher;
+
     let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
-    let executable_tx = AccountTransaction::Invoke(
-        InvokeTransaction::from_rpc_tx(rpc_invoke_tx, &ChainId::create_for_testing()).unwrap(),
-    );
 
-    let tx_hash = executable_tx.tx_hash();
+    let InvokeTransaction::V3(invoke_tx): InvokeTransaction = rpc_invoke_tx.clone().into() else {
+        panic!("Unexpected transaction version")
+    };
+
+    let tx_hash = invoke_tx
+        .calculate_transaction_hash(&ChainId::create_for_testing(), &TransactionVersion::THREE)
+        .unwrap();
+
+    let internal_invoke_tx = InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::Invoke(rpc_invoke_tx.clone()),
+        tx_hash,
+    };
 
     let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
     let add_tx_args = AddTransactionArgs {
-        tx: executable_tx,
+        tx: internal_invoke_tx,
         account_state: AccountState { address, nonce: *rpc_tx.nonce() },
     };
     mock_dependencies.expect_add_tx(

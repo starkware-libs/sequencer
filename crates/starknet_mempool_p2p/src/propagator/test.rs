@@ -12,7 +12,10 @@ use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
@@ -33,10 +36,14 @@ async fn process_handle_add_tx() {
     // TODO(noamsp): use MockTransactionConverterTrait
     let transaction_converter =
         TransactionConverter::new(Arc::new(EmptyClassManagerClient), ChainId::create_for_testing());
+    let internal_tx = transaction_converter
+        .convert_rpc_tx_to_internal_rpc_tx(rpc_transaction.clone())
+        .await
+        .unwrap();
     let mut mempool_p2p_propagator =
         MempoolP2pPropagator::new(broadcast_topic_client, transaction_converter);
     mempool_p2p_propagator
-        .handle_request(MempoolP2pPropagatorRequest::AddTransaction(rpc_transaction.clone()))
+        .handle_request(MempoolP2pPropagatorRequest::AddTransaction(internal_tx))
         .await;
     let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
     assert_eq!(message, RpcTransactionWrapper(rpc_transaction));
