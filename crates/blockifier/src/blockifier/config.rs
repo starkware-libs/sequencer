@@ -5,23 +5,38 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
+#[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
+use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
+    pub stack_size: usize,
 }
 impl TransactionExecutorConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
     pub fn create_for_testing(concurrency_enabled: bool) -> Self {
-        Self { concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled) }
+        Self {
+            concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
+            stack_size: DEFAULT_STACK_SIZE,
+        }
     }
 }
 
 impl SerializeConfig for TransactionExecutorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(self.concurrency_config.dump(), "concurrency_config")
+        let members = BTreeMap::from_iter([ser_param(
+            "stack_size",
+            &self.stack_size,
+            "The max stack size according to the MAX_POSSIBLE_SIERRA_GAS.",
+            ParamPrivacyInput::Public,
+        )]);
+        vec![append_sub_config_name(self.concurrency_config.dump(), "concurrency_config"), members]
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 
