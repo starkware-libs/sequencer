@@ -30,7 +30,7 @@ impl SerializeConfig for TransactionExecutorConfig {
         let members = BTreeMap::from_iter([ser_param(
             "stack_size",
             &self.stack_size,
-            "The max stack size according to the MAX_POSSIBLE_SIERRA_GAS",
+            "The max stack size according to the MAX_POSSIBLE_SIERRA_GAS.",
             ParamPrivacyInput::Public,
         )]);
         vec![append_sub_config_name(self.concurrency_config.dump(), "concurrency_config"), members]
