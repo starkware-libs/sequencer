@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_api::{executable_transaction, transaction};
 
@@ -30,7 +31,7 @@ pub trait TransactionConverterTrait {
     async fn convert_internal_rpc_tx_to_executable_tx(
         &self,
         tx: InternalRpcTransaction,
-    ) -> ClassManagerClientResult<executable_transaction::Transaction>;
+    ) -> ClassManagerClientResult<AccountTransaction>;
 }
 
 pub struct TransactionConverter {
@@ -70,7 +71,7 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_internal_rpc_tx_to_executable_tx(
         &self,
         _tx: InternalRpcTransaction,
-    ) -> ClassManagerClientResult<executable_transaction::Transaction> {
+    ) -> ClassManagerClientResult<AccountTransaction> {
         todo!()
     }
 }
