@@ -6,7 +6,13 @@ use crate::executable_transaction::{
     AccountTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
 };
-use crate::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use crate::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use crate::transaction::fields::{
     AccountDeploymentData,
@@ -148,4 +154,18 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
         paymaster_data: invoke_args.paymaster_data,
         account_deployment_data: invoke_args.account_deployment_data,
     }))
+}
+
+pub fn internal_invoke_tx(invoke_args: InvokeTxArgs) -> InternalRpcTransaction {
+    if invoke_args.version != TransactionVersion::THREE {
+        panic!("Unsupported transaction version: {:?}.", invoke_args.version);
+    }
+    let tx_hash = invoke_args.tx_hash;
+    let RpcTransaction::Invoke(tx) = rpc_invoke_tx(invoke_args) else {
+        panic!("Expected RpcTransaction::Invoke");
+    };
+
+    let invoke_tx = InternalRpcTransactionWithoutTxHash::Invoke(tx);
+
+    InternalRpcTransaction { tx: invoke_tx, tx_hash }
 }
