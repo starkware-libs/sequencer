@@ -87,7 +87,7 @@ impl NodeSetup {
         let await_alive_tasks = self.executables.iter().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
             result.unwrap_or_else(|_| {
-                panic!("Executable {:?} should be alive.", executable.sequencer_execution_id)
+                panic!("Executable {:?} should be alive.", executable.node_execution_id)
             })
         });
 
@@ -110,7 +110,7 @@ impl IntegrationTestManager {
                 node.executables.iter().map(|executable| {
                     spawn_run_node(
                         executable.node_config_path.clone(),
-                        executable.sequencer_execution_id.into(),
+                        executable.node_execution_id.into(),
                     )
                 })
             })
@@ -284,7 +284,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         for (executable_index, executable_component_config) in
             node_component_configs.into_iter().enumerate()
         {
-            let sequencer_execution_id = NodeExecutionId::new(node_index, executable_index);
+            let node_execution_id = NodeExecutionId::new(node_index, executable_index);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
@@ -292,7 +292,7 @@ pub(crate) async fn get_sequencer_setup_configs(
             node.executables.push(
                 ExecutableSetup::new(
                     accounts.to_vec(),
-                    sequencer_execution_id,
+                    node_execution_id,
                     chain_info,
                     consensus_manager_config,
                     mempool_p2p_config,
