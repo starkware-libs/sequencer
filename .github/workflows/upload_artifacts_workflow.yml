@@ -31,26 +31,14 @@
 #       - 'scripts/install_build_tools.sh'
 #       - 'scripts/sequencer-ci.Dockerfile'
 
-<<<<<<< HEAD
-# # On PR events, cancel existing CI runs on this same PR for this workflow.
-# concurrency:
-#   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
-#   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-||||||| aa2ef2cc4
-# On PR events, cancel existing CI runs on this same PR for this workflow.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-=======
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
-concurrency:
-  group: >
-    ${{ github.workflow }}-
-    ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
->>>>>>> origin/main-v0.13.4
+# concurrency:
+#   group: >
+#     ${{ github.workflow }}-
+#     ${{ github.ref }}-
+#     ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+#   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # env:
 #   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
