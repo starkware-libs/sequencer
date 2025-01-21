@@ -6,7 +6,7 @@ use starknet_api::{calldata, felt, storage_key};
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata, StorageAccessTracker};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::syscalls::syscall_tests::constants::{
     REQUIRED_GAS_LIBRARY_CALL_TEST,
@@ -161,8 +161,11 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             ..CallExecution::default()
         },
         tracked_resource,
-        storage_read_values: vec![felt!(value + 1)],
-        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: vec![felt!(value + 1)],
+            accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
@@ -185,8 +188,11 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             ..CallExecution::default()
         },
-        storage_read_values: vec![felt!(value)],
-        accessed_storage_keys: HashSet::from([storage_key!(key)]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: vec![felt!(value)],
+            accessed_storage_keys: HashSet::from([storage_key!(key)]),
+            ..Default::default()
+        },
         tracked_resource,
         ..Default::default()
     };

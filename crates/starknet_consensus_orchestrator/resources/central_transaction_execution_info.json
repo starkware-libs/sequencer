@@ -11,12 +11,6 @@
     "l2_gas": 1
   },
   "execute_call_info": {
-    "accessed_contract_addresses": [
-      "0x1"
-    ],
-    "accessed_storage_keys": [
-      "0x1"
-    ],
     "call": {
       "call_type": "Call",
       "calldata": [
@@ -70,12 +64,6 @@
     },
     "inner_calls": [
       {
-        "accessed_contract_addresses": [
-          "0x1"
-        ],
-        "accessed_storage_keys": [
-          "0x1"
-        ],
         "call": {
           "call_type": "Call",
           "calldata": [
@@ -127,9 +115,6 @@
             "0x56414c4944"
           ]
         },
-        "read_class_hash_values": [
-          "0x80020000"
-        ],
         "resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
@@ -138,17 +123,25 @@
           "n_memory_holes": 3,
           "n_steps": 2
         },
-        "storage_read_values": [
-          "0x0",
-          "0x1",
-          "0x2"
-        ],
+        "storage_access_tracker": {
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ]
+        },
         "tracked_resource": "SierraGas",
         "inner_calls": []
       }
-    ],
-    "read_class_hash_values": [
-      "0x80020000"
     ],
     "resources": {
       "builtin_instance_counter": {
@@ -158,20 +151,25 @@
       "n_memory_holes": 3,
       "n_steps": 2
     },
-    "storage_read_values": [
-      "0x0",
-      "0x1",
-      "0x2"
-    ],
+    "storage_access_tracker": {
+      "accessed_contract_addresses": [
+        "0x1"
+      ],
+      "accessed_storage_keys": [
+        "0x1"
+      ],
+      "read_class_hash_values": [
+        "0x80020000"
+      ],
+      "storage_read_values": [
+        "0x0",
+        "0x1",
+        "0x2"
+      ]
+    },
     "tracked_resource": "SierraGas"
   },
   "fee_transfer_call_info": {
-    "accessed_contract_addresses": [
-      "0x1"
-    ],
-    "accessed_storage_keys": [
-      "0x1"
-    ],
     "call": {
       "call_type": "Call",
       "calldata": [
@@ -225,12 +223,6 @@
     },
     "inner_calls": [
       {
-        "accessed_contract_addresses": [
-          "0x1"
-        ],
-        "accessed_storage_keys": [
-          "0x1"
-        ],
         "call": {
           "call_type": "Call",
           "calldata": [
@@ -282,9 +274,6 @@
             "0x56414c4944"
           ]
         },
-        "read_class_hash_values": [
-          "0x80020000"
-        ],
         "resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
@@ -293,17 +282,25 @@
           "n_memory_holes": 3,
           "n_steps": 2
         },
-        "storage_read_values": [
-          "0x0",
-          "0x1",
-          "0x2"
-        ],
+        "storage_access_tracker": {
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ]
+        },
         "tracked_resource": "SierraGas",
         "inner_calls": []
       }
-    ],
-    "read_class_hash_values": [
-      "0x80020000"
     ],
     "resources": {
       "builtin_instance_counter": {
@@ -313,11 +310,22 @@
       "n_memory_holes": 3,
       "n_steps": 2
     },
-    "storage_read_values": [
-      "0x0",
-      "0x1",
-      "0x2"
-    ],
+    "storage_access_tracker": {
+      "accessed_contract_addresses": [
+        "0x1"
+      ],
+      "accessed_storage_keys": [
+        "0x1"
+      ],
+      "read_class_hash_values": [
+        "0x80020000"
+      ],
+      "storage_read_values": [
+        "0x0",
+        "0x1",
+        "0x2"
+      ]
+    },
     "tracked_resource": "SierraGas"
   },
   "revert_error": "Insufficient fee token balance. Fee: 1, balance: low/high 2/3.",
@@ -327,12 +335,6 @@
     "l2_gas": 1
   },
   "validate_call_info": {
-    "accessed_contract_addresses": [
-      "0x1"
-    ],
-    "accessed_storage_keys": [
-      "0x1"
-    ],
     "call": {
       "call_type": "Call",
       "calldata": [
@@ -386,12 +388,6 @@
     },
     "inner_calls": [
       {
-        "accessed_contract_addresses": [
-          "0x1"
-        ],
-        "accessed_storage_keys": [
-          "0x1"
-        ],
         "call": {
           "call_type": "Call",
           "calldata": [
@@ -443,9 +439,6 @@
             "0x56414c4944"
           ]
         },
-        "read_class_hash_values": [
-          "0x80020000"
-        ],
         "resources": {
           "builtin_instance_counter": {
             "pedersen_builtin": 4,
@@ -454,17 +447,25 @@
           "n_memory_holes": 3,
           "n_steps": 2
         },
-        "storage_read_values": [
-          "0x0",
-          "0x1",
-          "0x2"
-        ],
+        "storage_access_tracker": {
+          "accessed_contract_addresses": [
+            "0x1"
+          ],
+          "accessed_storage_keys": [
+            "0x1"
+          ],
+          "read_class_hash_values": [
+            "0x80020000"
+          ],
+          "storage_read_values": [
+            "0x0",
+            "0x1",
+            "0x2"
+          ]
+        },
         "tracked_resource": "SierraGas",
         "inner_calls": []
       }
-    ],
-    "read_class_hash_values": [
-      "0x80020000"
     ],
     "resources": {
       "builtin_instance_counter": {
@@ -474,11 +475,22 @@
       "n_memory_holes": 3,
       "n_steps": 2
     },
-    "storage_read_values": [
-      "0x0",
-      "0x1",
-      "0x2"
-    ],
+    "storage_access_tracker": {
+      "accessed_contract_addresses": [
+        "0x1"
+      ],
+      "accessed_storage_keys": [
+        "0x1"
+      ],
+      "read_class_hash_values": [
+        "0x80020000"
+      ],
+      "storage_read_values": [
+        "0x0",
+        "0x1",
+        "0x2"
+      ]
+    },
     "tracked_resource": "SierraGas"
   }
 }
