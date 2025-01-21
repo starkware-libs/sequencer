@@ -25,8 +25,12 @@ mod base_layer_test;
 pub trait BaseLayerContract {
     type Error: Error + Display + Debug;
 
-    /// Get the latest Starknet block that is proved on the base layer.
-    /// Optionally, require minimum confirmations.
+    /// Get the Starknet block that is proved on the base layer at a specific L1 block number. If
+    /// the number is too low, return an error.
+    async fn get_proved_block_at(&self, l1_block: u64) -> Result<BlockHashAndNumber, Self::Error>;
+
+    /// Get the latest Starknet block that is proved on the base layer with minimum number of
+    /// confirmations (for no confirmations, pass `0`).
     async fn latest_proved_block(
         &self,
         finality: u64,
