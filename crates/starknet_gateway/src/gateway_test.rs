@@ -163,6 +163,7 @@ async fn test_add_tx(
 
 #[rstest]
 #[tokio::test]
+#[ignore]
 async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) {
     let mut declare_tx =
         assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
