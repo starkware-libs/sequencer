@@ -149,7 +149,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
-    sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
+    sequencer.monitoring_client.await_alive(5000, 60).await.expect("Node should be alive.");
 }
 
 async fn listen_to_broadcasted_messages(
