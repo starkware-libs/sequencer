@@ -51,8 +51,6 @@ pub trait SierraToNativeCompiler: Send + Sync {
     ) -> Result<AotContractExecutor, CompilationUtilError>;
 }
 
-// TODO(Elin): SierraCompilerError defined here and in the starknet_sierra_types_type crate. Should
-// be consolidated.
 #[derive(Debug, Error)]
 pub enum SierraCompilerError {
     #[error(transparent)]
@@ -61,6 +59,12 @@ pub enum SierraCompilerError {
     CompilationFailed(#[from] CompilationUtilError),
     #[error("Failed to parse Sierra version: {0}")]
     SierraVersionFormat(StarknetApiError),
+}
+
+impl From<SierraCompilerError> for starknet_sierra_multicompile_types::SierraCompilerError {
+    fn from(error: SierraCompilerError) -> Self {
+        starknet_sierra_multicompile_types::SierraCompilerError::SierraCompiler(error.to_string())
+    }
 }
 
 // TODO: consider generalizing the compiler if invocation implementations are added.
