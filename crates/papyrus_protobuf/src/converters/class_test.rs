@@ -10,4 +10,4 @@ fn convert_cairo_0_class_to_protobuf_and_back() {
     assert_eq!(cairo_0_class, expected_cairo_0_class);
 }
 
-// TODO: Add test for cairo 1 class conversion.
+// TODO(Shahak): Add test for cairo 1 class conversion.
