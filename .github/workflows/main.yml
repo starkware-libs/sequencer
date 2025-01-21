@@ -70,6 +70,9 @@ jobs:
           git diff --exit-code Cargo.lock
 
       # Run code style on PR.
+      - name: "Run TODO style pull request"
+        if: github.event_name == 'pull_request'
+        run: ci/bin/python scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
@@ -83,6 +86,9 @@ jobs:
         # If we move the install here we can use a const.
         run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
 
+      - name: "Run TODO style push"
+        if: github.event_name == 'push'
+        run: ci/bin/python scripts/named_todos.py
       - name: "Run clippy on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command clippy
