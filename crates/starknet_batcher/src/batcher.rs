@@ -434,10 +434,11 @@ impl Batcher {
         Ok(DecisionReachedResponse {
             state_diff,
             l2_gas_used: block_execution_artifacts.l2_gas_used,
-            central_objects: Box::new(CentralObjects {
+            central_objects: CentralObjects {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
-            }),
+                compressed_state_diff: block_execution_artifacts.compressed_state_diff
+            },
         })
     }
 

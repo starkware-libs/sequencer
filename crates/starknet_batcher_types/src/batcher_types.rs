@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use blockifier::bouncer::BouncerWeights;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -97,6 +98,7 @@ pub struct CentralObjects {
     // The box is required because the object is big and causes a large variance in enum size.
     pub execution_infos: Vec<TransactionExecutionInfo>,
     pub bouncer_weights: BouncerWeights,
+    pub compressed_state_diff: Option<CommitmentStateDiff>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

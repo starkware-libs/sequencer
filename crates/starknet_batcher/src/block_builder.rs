@@ -72,6 +72,7 @@ pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
     pub commitment_state_diff: CommitmentStateDiff,
+    pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
 }
@@ -210,12 +211,13 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        let BlockExecutionSummary { state_diff, bouncer_weights, .. } =
+        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
             self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
             rejected_tx_hashes,
             commitment_state_diff: state_diff,
+            compressed_state_diff,
             bouncer_weights,
             l2_gas_used,
         })
