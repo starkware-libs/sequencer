@@ -173,7 +173,10 @@ pub fn create_gateway(
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
 ) -> Gateway {
-    let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
+    let state_reader_factory = Arc::new(SyncStateReaderFactory {
+        shared_state_sync_client,
+        class_manager_client: class_manager_client.clone(),
+    });
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
 

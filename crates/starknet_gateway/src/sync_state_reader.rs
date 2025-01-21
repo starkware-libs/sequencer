@@ -7,6 +7,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::communication::{
     SharedStateSyncClient,
     StateSyncClientError,
@@ -20,14 +21,16 @@ use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 pub(crate) struct SyncStateReader {
     block_number: BlockNumber,
     state_sync_client: SharedStateSyncClient,
+    class_manager_client: SharedClassManagerClient,
 }
 
 impl SyncStateReader {
     pub fn from_number(
         state_sync_client: SharedStateSyncClient,
+        class_manager_client: SharedClassManagerClient,
         block_number: BlockNumber,
     ) -> Self {
-        Self { block_number, state_sync_client }
+        Self { block_number, state_sync_client, class_manager_client }
     }
 }
 
@@ -99,10 +102,17 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = block_on(
-            self.state_sync_client.get_compiled_class_deprecated(self.block_number, class_hash),
-        )
-        .map_err(|e| StateError::StateReadError(e.to_string()))?;
+        let contract_class = block_on(self.class_manager_client.get_executable(class_hash))
+            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        // TODO(noamsp): Remove this once class manager component is implemented.
+        let contract_class = match contract_class {
+            ContractClass::V0(ref inner) if inner == &Default::default() => block_on(
+                self.state_sync_client.get_compiled_class_deprecated(self.block_number, class_hash),
+            )
+            .map_err(|e| StateError::StateReadError(e.to_string()))?,
+            _ => contract_class,
+        };
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
@@ -134,6 +144,7 @@ impl BlockifierStateReader for SyncStateReader {
 
 pub struct SyncStateReaderFactory {
     pub shared_state_sync_client: SharedStateSyncClient,
+    pub class_manager_client: SharedClassManagerClient,
 }
 
 impl StateReaderFactory for SyncStateReaderFactory {
@@ -146,11 +157,16 @@ impl StateReaderFactory for SyncStateReaderFactory {
 
         Ok(Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
+            self.class_manager_client.clone(),
             latest_block_number,
         )))
     }
 
     fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
-        Box::new(SyncStateReader::from_number(self.shared_state_sync_client.clone(), block_number))
+        Box::new(SyncStateReader::from_number(
+            self.shared_state_sync_client.clone(),
+            self.class_manager_client.clone(),
+            block_number,
+        ))
     }
 }
