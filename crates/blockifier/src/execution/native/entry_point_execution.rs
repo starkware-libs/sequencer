@@ -3,7 +3,7 @@ use cairo_native::utils::BuiltinCosts;
 use num_rational::Ratio;
 use stacker;
 
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata, StorageAccessTracker};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -131,10 +131,12 @@ fn create_callinfo(
         },
         resources: vm_resources,
         inner_calls: syscall_handler.base.inner_calls,
-        storage_read_values: syscall_handler.base.read_values,
-        accessed_storage_keys: syscall_handler.base.accessed_keys,
-        accessed_contract_addresses: syscall_handler.base.accessed_contract_addresses,
-        read_class_hash_values: syscall_handler.base.read_class_hash_values,
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: syscall_handler.base.read_values,
+            accessed_storage_keys: syscall_handler.base.accessed_keys,
+            accessed_contract_addresses: syscall_handler.base.accessed_contract_addresses,
+            read_class_hash_values: syscall_handler.base.read_class_hash_values,
+        },
         tracked_resource: TrackedResource::SierraGas,
     })
 }

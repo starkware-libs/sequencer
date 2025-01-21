@@ -27,7 +27,7 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
+use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, StorageAccessTracker};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -156,8 +156,11 @@ fn test_nested_library_call() {
         call: nested_storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
         resources: storage_entry_point_resources.clone(),
-        storage_read_values: vec![felt!(value + 1)],
-        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: vec![felt!(value + 1)],
+            accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+            ..Default::default()
+        },
         ..Default::default()
     };
     let mut library_call_resources = &get_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
@@ -178,8 +181,11 @@ fn test_nested_library_call() {
         call: storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value)]),
         resources: storage_entry_point_resources.clone(),
-        storage_read_values: vec![felt!(value)],
-        accessed_storage_keys: HashSet::from([storage_key!(key)]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: vec![felt!(value)],
+            accessed_storage_keys: HashSet::from([storage_key!(key)]),
+            ..Default::default()
+        },
         ..Default::default()
     };
 
@@ -244,8 +250,11 @@ fn test_call_contract() {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
         },
-        storage_read_values: vec![value],
-        accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: vec![value],
+            accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
+            ..Default::default()
+        },
         ..Default::default()
     };
     let expected_call_info = CallInfo {
