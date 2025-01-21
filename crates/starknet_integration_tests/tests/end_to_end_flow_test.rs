@@ -125,9 +125,9 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
         ),
         (
             deploy_account,
-            test_single_tx,
+            test_two_txs,
             Felt::from_hex_unchecked(
-                "0x2942454db8523de50045d2cc28f9fe9342c56f1c07af35d6bdd5ba1f68700b6",
+                "0x1f8c6649763379bc0a862f88a6699a0d1094d4d656a3d0f8ddc5e6a83fc3cf5",
             ),
         ),
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
@@ -241,14 +241,22 @@ async fn listen_to_broadcasted_messages(
     assert_eq!(received_tx_hashes, expected_batched_tx_hashes, "Unexpected transactions");
 }
 
+/// Generates a deploy account transaction followed by an invoke transaction from the same deployed
+/// account.
 fn deploy_account(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
     let undeployed_account_tx_generator = tx_generator.account_with_id_mut(UNDEPLOYED_ACCOUNT_ID);
     assert!(!undeployed_account_tx_generator.is_deployed());
     let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
-    vec![deploy_tx]
+    let invoke = undeployed_account_tx_generator.generate_invoke_with_tip(1);
+    vec![deploy_tx, invoke]
 }
 
 fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
+    tx_hashes.to_vec()
+}
+
+fn test_two_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert_eq!(tx_hashes.len(), 2, "Expected two transactions");
     tx_hashes.to_vec()
 }
