@@ -27,8 +27,8 @@ impl HttpTestClient {
     pub async fn assert_add_tx_success(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         let response = self.add_tx(rpc_tx).await;
         assert!(response.status().is_success());
-
-        response.json().await.unwrap()
+        let text = response.text().await.unwrap();
+        serde_json::from_str(&text).unwrap()
     }
 
     // TODO: implement when usage eventually arises.
