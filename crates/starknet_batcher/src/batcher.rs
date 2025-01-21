@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
-use metrics::{counter, gauge};
+use metrics::gauge;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -49,7 +49,12 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
-use crate::metrics::{register_metrics, ProposalMetricsHandle};
+use crate::metrics::{
+    register_metrics,
+    ProposalMetricsHandle,
+    BATCHED_TRANSACTIONS,
+    REJECTED_TRANSACTIONS,
+};
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -443,8 +448,8 @@ impl Batcher {
             block_execution_artifacts.rejected_tx_hashes,
         )
         .await?;
-        counter!(crate::metrics::BATCHED_TRANSACTIONS.name).increment(n_txs);
-        counter!(crate::metrics::REJECTED_TRANSACTIONS.name).increment(n_rejected_txs);
+        BATCHED_TRANSACTIONS.increment(n_txs);
+        REJECTED_TRANSACTIONS.increment(n_rejected_txs);
         Ok(DecisionReachedResponse {
             state_diff,
             l2_gas_used: block_execution_artifacts.l2_gas_used,

@@ -1,12 +1,32 @@
 use std::str::FromStr;
 
+use metrics::{counter, describe_counter};
 use num_traits::Num;
 use regex::{escape, Regex};
 
 pub struct MetricCounter {
-    pub name: &'static str,
-    pub description: &'static str,
-    pub initial_value: u64,
+    name: &'static str,
+    description: &'static str,
+    initial_value: u64,
+}
+
+impl MetricCounter {
+    pub const fn new(name: &'static str, description: &'static str, initial_value: u64) -> Self {
+        Self { name, description, initial_value }
+    }
+
+    pub fn register(&self) {
+        counter!(self.name).absolute(self.initial_value);
+        describe_counter!(self.name, self.description);
+    }
+
+    pub fn increment(&self, value: u64) {
+        counter!(self.name).increment(value);
+    }
+
+    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.name)
+    }
 }
 
 pub struct MetricGauge {
