@@ -169,6 +169,8 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     }
 
     // TODO(dvir): add option to get transaction with its hash.
+    // Getting transactions from storage should return InternalConsensusTransactions, not
+    // Transactions.
     fn get_transaction(
         &self,
         transaction_index: TransactionIndex,
@@ -217,6 +219,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         Ok(Some(tx_metadata.tx_hash))
     }
 
+    // Getting blocks from storage should return InternalConsensusTransactions, not Transactions.
     fn get_block_transactions(
         &self,
         block_number: BlockNumber,

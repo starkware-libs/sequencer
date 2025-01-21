@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 
@@ -58,7 +58,7 @@ pub struct GetProposalContentResponse {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
-    Txs(Vec<Transaction>),
+    Txs(Vec<InternalConsensusTransaction>),
     Finished(ProposalCommitment),
 }
 
@@ -80,7 +80,7 @@ pub struct SendProposalContentInput {
 /// The content of the stream that the consensus sends to the batcher.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
-    Txs(Vec<Transaction>),
+    Txs(Vec<InternalConsensusTransaction>),
     Finish,
     Abort,
 }
