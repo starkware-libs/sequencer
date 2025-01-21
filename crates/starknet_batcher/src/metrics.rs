@@ -1,25 +1,31 @@
 use metrics::{counter, describe_counter, describe_gauge, gauge};
 use starknet_api::block::BlockNumber;
-use starknet_sequencer_metrics::metrics::Metric;
+use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
 // Height metrics.
-pub const STORAGE_HEIGHT: Metric =
-    Metric { name: "batcher_storage_height", description: "The height of the batcher's storage" };
+pub const STORAGE_HEIGHT: MetricGauge = MetricGauge {
+    name: "batcher_storage_height",
+    description: "The height of the batcher's storage",
+};
 
 // Proposal metrics.
-pub const PROPOSAL_STARTED: Metric =
-    Metric { name: "batcher_proposal_started", description: "Counter of proposals started" };
-pub const PROPOSAL_SUCCEEDED: Metric =
-    Metric { name: "batcher_proposal_succeeded", description: "Counter of successful proposals" };
-pub const PROPOSAL_FAILED: Metric =
-    Metric { name: "batcher_proposal_failed", description: "Counter of failed proposals" };
-pub const PROPOSAL_ABORTED: Metric =
-    Metric { name: "batcher_proposal_aborted", description: "Counter of aborted proposals" };
+pub const PROPOSAL_STARTED: MetricCounter =
+    MetricCounter { name: "batcher_proposal_started", description: "Counter of proposals started" };
+pub const PROPOSAL_SUCCEEDED: MetricCounter = MetricCounter {
+    name: "batcher_proposal_succeeded",
+    description: "Counter of successful proposals",
+};
+pub const PROPOSAL_FAILED: MetricCounter =
+    MetricCounter { name: "batcher_proposal_failed", description: "Counter of failed proposals" };
+pub const PROPOSAL_ABORTED: MetricCounter =
+    MetricCounter { name: "batcher_proposal_aborted", description: "Counter of aborted proposals" };
 
 // Transaction metrics.
-pub const BATCHED_TRANSACTIONS: Metric =
-    Metric { name: "batcher_batched_transactions", description: "Counter of batched transactions" };
-pub const REJECTED_TRANSACTIONS: Metric = Metric {
+pub const BATCHED_TRANSACTIONS: MetricCounter = MetricCounter {
+    name: "batcher_batched_transactions",
+    description: "Counter of batched transactions",
+};
+pub const REJECTED_TRANSACTIONS: MetricCounter = MetricCounter {
     name: "batcher_rejected_transactions",
     description: "Counter of rejected transactions",
 };
