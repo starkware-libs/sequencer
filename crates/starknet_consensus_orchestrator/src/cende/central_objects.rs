@@ -5,6 +5,7 @@ use blockifier::abi::constants as abi_constants;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::NestedIntList;
@@ -58,14 +59,15 @@ use starknet_types_core::felt::Felt;
 mod central_objects_test;
 
 pub type CentralBouncerWeights = BouncerWeights;
+pub type CentralCompressedStateDiff = CentralStateDiff;
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {
     pub price_in_wei: NonzeroGasPrice,
     pub price_in_fri: NonzeroGasPrice,
 }
 
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CentralBlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
@@ -113,9 +115,9 @@ pub struct CentralStateDiff {
 
 // We convert to CentralStateDiff from ThinStateDiff since this object is already sent to consensus
 // for the Sync service, otherwise we could have used the CommitmentStateDiff as well.
-impl From<(ThinStateDiff, BlockInfo, StarknetVersion)> for CentralStateDiff {
+impl From<(ThinStateDiff, CentralBlockInfo)> for CentralStateDiff {
     fn from(
-        (state_diff, block_info, starknet_version): (ThinStateDiff, BlockInfo, StarknetVersion),
+        (state_diff, central_block_info): (ThinStateDiff, CentralBlockInfo),
     ) -> CentralStateDiff {
         assert!(
             state_diff.deprecated_declared_classes.is_empty(),
@@ -130,7 +132,21 @@ impl From<(ThinStateDiff, BlockInfo, StarknetVersion)> for CentralStateDiff {
             nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.nonces),
             storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_diffs),
             declared_classes: state_diff.declared_classes,
-            block_info: (block_info, starknet_version).into(),
+            block_info: central_block_info,
+        }
+    }
+}
+
+impl From<(CommitmentStateDiff, CentralBlockInfo)> for CentralStateDiff {
+    fn from(
+        (state_diff, central_block_info): (CommitmentStateDiff, CentralBlockInfo),
+    ) -> CentralStateDiff {
+        CentralStateDiff {
+            address_to_class_hash: state_diff.address_to_class_hash,
+            nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.address_to_nonce),
+            storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_updates),
+            declared_classes: state_diff.class_hash_to_compiled_class_hash,
+            block_info: central_block_info,
         }
     }
 }

@@ -8,9 +8,12 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::bouncer::BouncerWeights;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
+    CentralBlockInfo,
     CentralBouncerWeights,
+    CentralCompressedStateDiff,
     CentralStateDiff,
     CentralTransactionExecutionInfo,
     CentralTransactionWritten,
@@ -32,9 +35,11 @@ use url::Url;
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize)]
 pub(crate) struct AerospikeBlob {
-    // TODO(yael, dvir): add the blob fields.
+    // TODO(yael, dvir): add the Casm and Sierra contract class
     block_number: BlockNumber,
     state_diff: CentralStateDiff,
+    // If the compressed_state_diff is None, it won't be written to Aerospike.
+    compressed_state_diff: Option<CentralCompressedStateDiff>,
     bouncer_weights: CentralBouncerWeights,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
@@ -201,6 +206,7 @@ pub struct BlobParameters {
     // bouncer_weights.
     pub(crate) block_info: BlockInfo,
     pub(crate) state_diff: ThinStateDiff,
+    pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) transactions: Vec<Transaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
@@ -210,16 +216,21 @@ impl From<BlobParameters> for AerospikeBlob {
     fn from(blob_parameters: BlobParameters) -> Self {
         let block_number = blob_parameters.block_info.block_number;
         let block_timestamp = blob_parameters.block_info.block_timestamp.0;
-        let state_diff = CentralStateDiff::from((
-            blob_parameters.state_diff,
-            blob_parameters.block_info,
-            StarknetVersion::LATEST,
-        ));
+
+        let block_info =
+            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
+        let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
+        let compressed_state_diff =
+            blob_parameters.compressed_state_diff.map(|compressed_state_diff| {
+                CentralStateDiff::from((compressed_state_diff, block_info))
+            });
+
         let transactions = blob_parameters
             .transactions
             .into_iter()
             .map(|tx| CentralTransactionWritten::from((tx, block_timestamp)))
             .collect();
+
         let execution_infos = blob_parameters
             .execution_infos
             .into_iter()
@@ -229,6 +240,7 @@ impl From<BlobParameters> for AerospikeBlob {
         AerospikeBlob {
             block_number,
             state_diff,
+            compressed_state_diff,
             bouncer_weights: blob_parameters.bouncer_weights,
             transactions,
             execution_infos,

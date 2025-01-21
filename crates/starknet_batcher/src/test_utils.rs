@@ -88,6 +88,7 @@ impl BlockExecutionArtifacts {
                 class_hash_to_compiled_class_hash: IndexMap::new(),
                 address_to_nonce: IndexMap::from_iter([(contract_address!("0x7"), nonce!(1_u64))]),
             },
+            compressed_state_diff: Default::default(),
             bouncer_weights: BouncerWeights::empty(),
             l2_gas_used: GasAmount::default(),
         }
