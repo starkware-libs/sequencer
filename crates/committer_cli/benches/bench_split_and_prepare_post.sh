@@ -5,7 +5,7 @@ set -e
 benchmarks_list=${1}
 benchmark_results=${2}
 # Benchmark the new code, splitting the benchmarks
-# TODO: split the output file instead.
+# TODO(Aner): split the output file instead.
 cat ${benchmarks_list} |
     while read line; do
         cargo bench -p committer_cli $line > ${line}.txt;

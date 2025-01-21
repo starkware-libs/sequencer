@@ -533,7 +533,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 .map_err(internal_server_error)?
                 .unwrap_or_else(|| panic!("Should have tx {}", transaction_hash));
 
-            // TODO: Add version function to transaction in SN_API.
+            // TODO(Shahak): Add version function to transaction in SN_API.
             let tx_version = match &tx {
                 StarknetApiTransaction::Declare(tx) => tx.version(),
                 StarknetApiTransaction::Deploy(tx) => tx.version,
@@ -765,7 +765,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                         break;
                     }
                 }
-                // TODO: Consider changing empty sets in the filer keys to None.
+                // TODO(Shahak): Consider changing empty sets in the filer keys to None.
                 if do_event_keys_match_filter(&content, &filter) {
                     if filtered_events.len() == filter.chunk_size {
                         return Ok(EventsChunk {

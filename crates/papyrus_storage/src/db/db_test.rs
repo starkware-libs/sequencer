@@ -227,7 +227,7 @@ fn with_version_zero_serialization() {
     let iter = DbIter::new(&mut cursor);
     assert_eq!(items, iter.collect::<DbResult<Vec<_>>>().unwrap());
 
-    // TODO: move to serialization tests.
+    // TODO(DanB): move to serialization tests.
     const A_RANDOM_U8: u8 = 123;
     let with_zero_version_serialization =
         VersionZeroWrapper::<u8>::serialize(&A_RANDOM_U8).unwrap();

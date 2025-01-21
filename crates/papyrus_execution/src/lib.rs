@@ -714,7 +714,7 @@ fn execute_transactions(
     for (transaction_index, (tx, tx_hash)) in txs.into_iter().zip(tx_hashes.into_iter()).enumerate()
     {
         let transaction_version = tx.transaction_version();
-        // TODO: consider supporting match instead.
+        // TODO(DanB): consider supporting match instead.
         let price_unit = if transaction_version == TransactionVersion::ZERO
             || transaction_version == TransactionVersion::ONE
             || transaction_version == TransactionVersion::TWO

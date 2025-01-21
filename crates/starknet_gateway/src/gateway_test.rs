@@ -96,7 +96,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
     (tx, sender_address)
 }
 
-// TODO: add test with Some broadcasted message metadata
+// TODO(AlonH): add test with Some broadcasted message metadata
 // We use default nonce, address, and tx_hash since Gateway errors drop these details when
 // converting Mempool errors.
 #[rstest]

@@ -118,7 +118,7 @@ fn test_max_casm_bytecode_size() {
     );
 }
 
-// TODO: mock compiler.
+// TODO(Elin): mock compiler.
 #[test]
 fn test_sierra_compiler() {
     // Setup.

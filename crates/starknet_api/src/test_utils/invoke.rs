@@ -83,7 +83,7 @@ macro_rules! invoke_tx_args {
 }
 
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
-    // TODO: Make TransactionVersion an enum and use match here.
+    // TODO(Arni): Make TransactionVersion an enum and use match here.
     if invoke_args.version == TransactionVersion::ZERO {
         InvokeTransaction::V0(InvokeTransactionV0 {
             max_fee: invoke_args.max_fee,

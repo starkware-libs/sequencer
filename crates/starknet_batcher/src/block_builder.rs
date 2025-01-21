@@ -99,7 +99,7 @@ impl BlockExecutionArtifacts {
             storage_diffs,
             declared_classes: IndexMap::new(),
             nonces,
-            // TODO: Remove this when the structure of storage diffs changes.
+            // TODO(AlonH): Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
             replaced_classes: IndexMap::new(),
         }
@@ -186,7 +186,7 @@ impl BlockBuilderTrait for BlockBuilder {
             };
             debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
             if next_tx_chunk.is_empty() {
-                // TODO: Consider what is the best sleep duration.
+                // TODO(AlonH): Consider what is the best sleep duration.
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 continue;
             }
@@ -307,7 +307,7 @@ pub struct BlockBuilderConfig {
 impl Default for BlockBuilderConfig {
     fn default() -> Self {
         Self {
-            // TODO: update the default values once the actual values are known.
+            // TODO(AlonH): update the default values once the actual values are known.
             chain_info: ChainInfo::default(),
             execute_config: TransactionExecutorConfig::default(),
             bouncer_config: BouncerConfig::default(),

@@ -15,7 +15,7 @@ pub type StateSyncResult<T> = Result<T, StateSyncError>;
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct SyncBlock {
     pub state_diff: ThinStateDiff,
-    // TODO: decide if we want block hash, parent block hash and full classes here.
+    // TODO(Matan): decide if we want block hash, parent block hash and full classes here.
     pub transaction_hashes: Vec<TransactionHash>,
     pub block_header_without_hash: BlockHeaderWithoutHash,
 }

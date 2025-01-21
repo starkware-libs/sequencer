@@ -568,7 +568,7 @@ pub(crate) struct TransactionMetadata {
     tx_output_location: LocationInFile,
 }
 
-// TODO: sort the variants alphabetically.
+// TODO(Yair): sort the variants alphabetically.
 /// Error type for the storage crate.
 #[allow(missing_docs)]
 #[derive(thiserror::Error, Debug)]
@@ -732,7 +732,7 @@ impl FileHandlers<RW> {
 
 impl<Mode: TransactionKind> FileHandlers<Mode> {
     pub fn stats(&self) -> HashMap<String, MMapFileStats> {
-        // TODO: use consts for the file names.
+        // TODO(Yair): use consts for the file names.
         HashMap::from_iter([
             ("thin_state_diff".to_string(), self.thin_state_diff.stats()),
             ("contract_class".to_string(), self.contract_class.stats()),

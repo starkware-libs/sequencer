@@ -322,7 +322,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
                 calldata: call_info.call.calldata,
             },
             caller_address: call_info.call.caller_address,
-            class_hash: call_info.call.class_hash.ok_or(ExecutionError::MissingClassHash)?, /* TODO: fix this. */
+            class_hash: call_info.call.class_hash.ok_or(ExecutionError::MissingClassHash)?, /* TODO(DanB): fix this. */
             entry_point_type: call_info.call.entry_point_type,
             call_type: call_info.call.call_type.into(),
             result: call_info.execution.retdata.into(),
@@ -383,7 +383,7 @@ fn vm_resources_to_execution_resources(
             BuiltinName::segment_arena => {
                 builtin_instance_counter.insert(Builtin::SegmentArena, count)
             }
-            // TODO: what about the following?
+            // TODO(DanB): what about the following?
             // BuiltinName::range_check96 => todo!(),
             // BuiltinName::add_mod => todo!(),
             // BuiltinName::mul_mod => todo!(),

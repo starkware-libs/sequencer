@@ -81,7 +81,7 @@ impl Gateway {
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
         mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
-        // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
+        // TODO(AlonH): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
         Ok(tx_hash)
     }
 }

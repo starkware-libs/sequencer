@@ -207,7 +207,7 @@ pub struct IntermediateDeclareTransaction {
 impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::DeclareTransaction {
     type Error = ReaderClientError;
 
-    // TODO: Consider using match instead.
+    // TODO(DanB): Consider using match instead.
     fn try_from(declare_tx: IntermediateDeclareTransaction) -> Result<Self, ReaderClientError> {
         if declare_tx.version == TransactionVersion::ZERO {
             return Ok(Self::V0(declare_tx.try_into()?));
@@ -740,7 +740,7 @@ pub struct TransactionReceipt {
     #[serde(default)]
     pub execution_resources: ExecutionResources,
     pub actual_fee: Fee,
-    // TODO: Check if we can remove the serde(default).
+    // TODO(Yair): Check if we can remove the serde(default).
     #[serde(default)]
     pub execution_status: TransactionExecutionStatus,
     // Note that in starknet_api this field is named `revert_reason`.

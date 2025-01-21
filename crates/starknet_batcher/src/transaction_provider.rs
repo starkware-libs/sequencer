@@ -150,7 +150,7 @@ impl TransactionProvider for ValidateTransactionProvider {
                 let l1_validation_status =
                     self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
                 if l1_validation_status != L1ValidationStatus::Validated {
-                    // TODO: add the validation status into the error.
+                    // TODO(AlonH): add the validation status into the error.
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed(
                         tx.tx_hash,
                     ));

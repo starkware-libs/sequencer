@@ -174,6 +174,6 @@ pub enum StorageSerdeError {
 // Make sure we are at EOF.
 fn is_all_bytes_read(bytes: &mut impl std::io::Read) -> bool {
     let mut buf = [0u8, 1];
-    // TODO: return an error instead of false.
+    // TODO(DvirYo): return an error instead of false.
     bytes.read(&mut buf[..]).ok() == Some(0)
 }

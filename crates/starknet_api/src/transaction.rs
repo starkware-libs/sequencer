@@ -865,7 +865,7 @@ pub enum TransactionExecutionStatus {
 /// A reverted transaction execution status.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct RevertedTransactionExecutionStatus {
-    // TODO: Validate it's an ASCII string.
+    // TODO(YoavGr): Validate it's an ASCII string.
     pub revert_reason: String,
 }
 /// The hash of a [Transaction](`crate::transaction::Transaction`).
@@ -945,7 +945,7 @@ impl TransactionVersion {
     pub const THREE: Self = { Self(Felt::THREE) };
 }
 
-// TODO: TransactionVersion and SignedTransactionVersion should probably be separate types.
+// TODO(Dori): TransactionVersion and SignedTransactionVersion should probably be separate types.
 // Returns the transaction version taking into account the transaction options.
 pub fn signed_tx_version_from_tx(
     tx: &Transaction,
@@ -998,7 +998,8 @@ pub struct L2ToL1Payload(pub Vec<Felt>);
 /// An event.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct Event {
-    // TODO: Add a TransactionHash element to this struct, and then remove EventLeafElements.
+    // TODO(Gilad): Add a TransactionHash element to this struct, and then remove
+    // EventLeafElements.
     pub from_address: ContractAddress,
     #[serde(flatten)]
     pub content: EventContent,

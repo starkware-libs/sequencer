@@ -6,7 +6,8 @@ use crate::db::serialization::{StorageSerde, StorageSerdeError};
 
 // TODO(dvir): create one compressor/decompressor only once (maybe only once per thread) to prevent
 // buffer reallocation.
-// TODO: fine tune the compression hyperparameters (and maybe even the compression algorithm).
+// TODO(Dvir): fine tune the compression hyperparameters (and maybe even the compression
+// algorithm).
 
 // The maximum size of the decompressed data.
 // TODO(Dvir): consider defining this for each type separately and pass it as an argument to the

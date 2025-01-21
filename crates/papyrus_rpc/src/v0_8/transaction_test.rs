@@ -132,7 +132,7 @@ auto_impl_get_test_instance! {
     }
 }
 
-// TODO: check the conversion against the expected GW transaction.
+// TODO(Yair): check the conversion against the expected GW transaction.
 #[test]
 fn test_gateway_trascation_from_starknet_api_transaction() {
     let mut rng = get_rng();

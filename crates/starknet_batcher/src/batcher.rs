@@ -381,8 +381,8 @@ impl Batcher {
         }
 
         // Finished streaming all the transactions.
-        // TODO: Consider removing the proposal from the proposal manager and keep it in the batcher
-        // for decision reached.
+        // TODO(AlonH): Consider removing the proposal from the proposal manager and keep it in the
+        // batcher for decision reached.
         self.propose_tx_streams.remove(&proposal_id);
         let commitment = self
             .get_completed_proposal_result(proposal_id)
@@ -474,7 +474,7 @@ impl Batcher {
 
         if let Err(mempool_err) = mempool_result {
             error!("Failed to commit block to mempool: {}", mempool_err);
-            // TODO: Should we rollback the state diff and return an error?
+            // TODO(AlonH): Should we rollback the state diff and return an error?
         };
 
         Ok(())
@@ -667,7 +667,7 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> papyrus_storage::StorageResult<()> {
-        // TODO: write casms.
+        // TODO(AlonH): write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
     }
 

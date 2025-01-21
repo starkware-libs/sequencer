@@ -316,7 +316,7 @@ async fn deprecated_contract_class() {
     assert!(class.is_none());
 }
 
-// TODO: Add test for pending_data.
+// TODO(DanB): Add test for pending_data.
 
 #[tokio::test]
 async fn deprecated_pending_data() {
