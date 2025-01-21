@@ -38,7 +38,7 @@ use starknet_mempool_types::communication::{
     SharedMempoolClient,
 };
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
-use starknet_sierra_compile_types::{
+use starknet_sierra_multicompile_types::{
     LocalSierraCompilerClient,
     RemoteSierraCompilerClient,
     SharedSierraCompilerClient,

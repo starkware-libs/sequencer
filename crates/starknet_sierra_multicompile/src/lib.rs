@@ -9,7 +9,7 @@ use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_compile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
+use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use thiserror::Error;
 
 use crate::command_line_compiler::CommandLineCompiler;

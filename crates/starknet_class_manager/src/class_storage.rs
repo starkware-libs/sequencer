@@ -1,6 +1,6 @@
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_class_manager_types::{ClassId, ClassStorageError, ExecutableClassHash};
-use starknet_sierra_compile_types::{RawClass, RawExecutableClass};
+use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 
 // TODO(Elin): restrict visibility once this code is used.
 
