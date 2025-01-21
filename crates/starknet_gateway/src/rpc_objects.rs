@@ -7,6 +7,7 @@ use starknet_api::block::{
     BlockNumber,
     BlockTimestamp,
     GasPrice,
+    GasPricePerToken,
     NonzeroGasPrice,
 };
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
@@ -66,12 +67,6 @@ pub struct GetBlockWithTxHashesParams {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct ResourcePrice {
-    pub price_in_wei: GasPrice,
-    pub price_in_fri: GasPrice,
-}
-
-#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct BlockHeader {
     pub block_hash: BlockHash,
     pub parent_hash: BlockHash,
@@ -79,9 +74,9 @@ pub struct BlockHeader {
     pub sequencer_address: ContractAddress,
     pub new_root: GlobalRoot,
     pub timestamp: BlockTimestamp,
-    pub l1_gas_price: ResourcePrice,
-    pub l1_data_gas_price: ResourcePrice,
-    pub l2_gas_price: ResourcePrice,
+    pub l1_gas_price: GasPricePerToken,
+    pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
