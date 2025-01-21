@@ -25,6 +25,7 @@ use crate::transaction::transactions::ExecutableTransaction;
 pub mod transaction_executor_test;
 
 pub const BLOCK_STATE_ACCESS_ERR: &str = "Error: The block state should be `Some`.";
+pub const DEFAULT_STACK_SIZE: usize = 60 * 1024 * 1024;
 
 #[derive(Debug, Error)]
 pub enum TransactionExecutorError {
