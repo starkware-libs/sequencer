@@ -2,6 +2,8 @@ syntax = "proto3";
 import "p2p/proto/common.proto";
 import "p2p/proto/sync/common.proto";
 
+option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/sync/header";
+
 // Note: commitments may change to be for the previous blocks like comet/tendermint
 // hash of block header sent to L1
 message SignedBlockHeader {
@@ -18,17 +20,15 @@ message SignedBlockHeader {
     Patricia events = 9;   // By order of issuance. TBD: in receipts?
     Hash receipts = 10;  // By order of issuance. This is a patricia root. No need for length because it's the same length as transactions.
     string protocol_version = 11; // Starknet version
-    Uint128 gas_price_fri = 12;
-    Uint128 gas_price_wei = 13;
-    Uint128 data_gas_price_fri = 14;
-    Uint128 data_gas_price_wei = 15;
-    L1DataAvailabilityMode l1_data_availability_mode = 16;
+    Uint128 l1_gas_price_fri = 12;
+    Uint128 l1_gas_price_wei = 13;
+    Uint128 l1_data_gas_price_fri = 14;
+    Uint128 l1_data_gas_price_wei = 15;
+    Uint128 l2_gas_price_fri = 16;
+    Uint128 l2_gas_price_wei = 17;
+    L1DataAvailabilityMode l1_data_availability_mode = 18;
     // for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
-    repeated ConsensusSignature signatures = 17;
-    // TODO(Shahak): Move l2_gas_price up next to the gas price context and renumber,
-    // once we insert l2 gas fields to the p2p specs.
-    optional Uint128 l2_gas_price_fri = 18;  // Added on v0.13.3.
-    optional Uint128 l2_gas_price_wei = 19;  // Added on v0.13.3.
+    repeated ConsensusSignature signatures = 19;
     // can be more explicit here about the signature structure as this is not part of account abstraction
 }
 
@@ -36,7 +36,7 @@ message SignedBlockHeader {
 // for a fraction of peers, also send the GetBlockHeaders response (as if they asked for it for this block)
 message NewBlock {
     oneof maybe_full {
-        BlockID              id     = 1;
+        BlockID id = 1;
         BlockHeadersResponse header = 2;
     }
 }
@@ -50,6 +50,6 @@ message BlockHeadersRequest {
 message BlockHeadersResponse {
     oneof header_message {
         SignedBlockHeader header = 1;
-        Fin               fin    = 2; // Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its header.
+        Fin fin = 2; // Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its header.
     }
 }
