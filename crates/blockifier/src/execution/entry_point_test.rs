@@ -491,9 +491,9 @@ fn test_storage_related_members() {
         ..trivial_external_entry_point_new(test_contract)
     };
     let actual_call_info = entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(actual_call_info.storage_read_values, vec![felt!(39_u8)]);
+    assert_eq!(actual_call_info.storage_access_tracker.storage_read_values, vec![felt!(39_u8)]);
     assert_eq!(
-        actual_call_info.accessed_storage_keys,
+        actual_call_info.storage_access_tracker.accessed_storage_keys,
         HashSet::from([get_storage_var_address("number_map", &[felt!(1_u8)])])
     );
 
@@ -508,8 +508,11 @@ fn test_storage_related_members() {
         ..trivial_external_entry_point_new(test_contract)
     };
     let actual_call_info = entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(actual_call_info.storage_read_values, vec![value]);
-    assert_eq!(actual_call_info.accessed_storage_keys, HashSet::from([storage_key!(key_int)]));
+    assert_eq!(actual_call_info.storage_access_tracker.storage_read_values, vec![value]);
+    assert_eq!(
+        actual_call_info.storage_access_tracker.accessed_storage_keys,
+        HashSet::from([storage_key!(key_int)])
+    );
 }
 
 #[test]
