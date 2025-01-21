@@ -23,7 +23,11 @@ use blockifier::fee::resources::{
     StateResources,
     TransactionResources,
 };
-use blockifier::state::cached_state::{StateChangesCount, StateChangesCountForFee};
+use blockifier::state::cached_state::{
+    CommitmentStateDiff,
+    StateChangesCount,
+    StateChangesCountForFee,
+};
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{CellRef, Register};
@@ -132,8 +136,8 @@ fn felt_vector() -> Vec<Felt> {
     vec![felt!(0_u8), felt!(1_u8), felt!(2_u8)]
 }
 
-fn central_state_diff_json() -> Value {
-    let state_diff = ThinStateDiff {
+fn thin_state_diff() -> ThinStateDiff {
+    ThinStateDiff {
         deployed_contracts: indexmap! {
                 contract_address!(1_u8) =>
                 ClassHash(felt!(1_u8)),
@@ -143,9 +147,11 @@ fn central_state_diff_json() -> Value {
         nonces: indexmap!(contract_address!(2_u8)=> nonce!(2)),
         replaced_classes: indexmap!(contract_address!(5_u8)=> ClassHash(felt!(5_u8))),
         ..Default::default()
-    };
+    }
+}
 
-    let block_info = BlockInfo {
+fn block_info() -> BlockInfo {
+    BlockInfo {
         block_number: BlockNumber(5),
         block_timestamp: BlockTimestamp(6),
         sequencer_address: contract_address!(7_u8),
@@ -162,11 +168,38 @@ fn central_state_diff_json() -> Value {
             },
         },
         use_kzg_da: true,
-    };
+    }
+}
 
+fn central_state_diff_from_thin_state_diff_json() -> Value {
+    let state_diff = thin_state_diff();
+    let block_info = block_info();
     let starknet_version = StarknetVersion::V0_13_4;
 
-    let central_state_diff: CentralStateDiff = (state_diff, block_info, starknet_version).into();
+    let central_state_diff: CentralStateDiff =
+        (state_diff, (block_info, starknet_version).into()).into();
+    serde_json::to_value(central_state_diff).unwrap()
+}
+
+fn commitment_state_diff() -> CommitmentStateDiff {
+    CommitmentStateDiff {
+        address_to_class_hash: indexmap! {
+                contract_address!(1_u8) => ClassHash(felt!(1_u8)),
+                contract_address!(5_u8)=> ClassHash(felt!(5_u8)),
+        },
+        storage_updates: indexmap!(contract_address!(3_u8) => indexmap!(storage_key!(3_u8) => felt!(3_u8))),
+        class_hash_to_compiled_class_hash: indexmap!(ClassHash(felt!(4_u8))=> CompiledClassHash(felt!(4_u8))),
+        address_to_nonce: indexmap!(contract_address!(2_u8)=> nonce!(2)),
+    }
+}
+
+fn central_state_diff_from_commitment_state_diff_json() -> Value {
+    let state_diff = commitment_state_diff();
+    let block_info = block_info();
+    let starknet_version = StarknetVersion::V0_13_4;
+
+    let central_state_diff: CentralStateDiff =
+        (state_diff, (block_info, starknet_version).into()).into();
     serde_json::to_value(central_state_diff).unwrap()
 }
 
@@ -510,7 +543,14 @@ fn central_transaction_execution_info() -> Value {
 }
 
 #[rstest]
-#[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
+#[case::from_commitment_state_diff(
+    central_state_diff_from_commitment_state_diff_json(),
+    CENTRAL_STATE_DIFF_JSON_PATH
+)]
+#[case::from_thin_state_diff(
+    central_state_diff_from_thin_state_diff_json(),
+    CENTRAL_STATE_DIFF_JSON_PATH
+)]
 #[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
 #[case::deploy_account_tx(central_deploy_account_tx_json(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
 #[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
