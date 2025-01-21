@@ -137,6 +137,16 @@ impl AddAssign<&ChargedResources> for ChargedResources {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+pub struct StorageAccessTracker {
+    pub storage_read_values: Vec<Felt>,
+    pub accessed_storage_keys: HashSet<StorageKey>,
+    pub read_class_hash_values: Vec<ClassHash>,
+    pub accessed_contract_addresses: HashSet<ContractAddress>,
+}
+
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -149,10 +159,7 @@ pub struct CallInfo {
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
-    pub storage_read_values: Vec<Felt>,
-    pub accessed_storage_keys: HashSet<StorageKey>,
-    pub read_class_hash_values: Vec<ClassHash>,
-    pub accessed_contract_addresses: HashSet<ContractAddress>,
+    pub storage_access_tracker: StorageAccessTracker,
 }
 
 impl CallInfo {
@@ -185,6 +192,7 @@ impl CallInfo {
 
             // Storage entries.
             let call_storage_entries = call_info
+                .storage_access_tracker
                 .accessed_storage_keys
                 .iter()
                 .map(|storage_key| (call_info.call.storage_address, *storage_key));

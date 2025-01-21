@@ -165,6 +165,7 @@ pub fn test_commit_tx() {
                     .fee_transfer_call_info
                     .as_ref()
                     .unwrap()
+                    .storage_access_tracker
                     .storage_read_values[read_storage_index];
                 assert_eq!(felt!(expected_sequencer_storage_read), actual_sequencer_storage_read,);
             }
@@ -221,7 +222,8 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let execution_result = &execution_task_outputs.as_ref().unwrap().result;
     let fee_transfer_call_info =
         execution_result.as_ref().unwrap().fee_transfer_call_info.as_ref().unwrap();
-    let read_values_before_commit = fee_transfer_call_info.storage_read_values.clone();
+    let read_values_before_commit =
+        fee_transfer_call_info.storage_access_tracker.storage_read_values.clone();
     drop(execution_task_outputs);
 
     let tx_context = &executor.block_context.to_tx_context(&sequencer_tx[0]);
@@ -239,7 +241,10 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let fee_transfer_call_info =
         commit_result.as_ref().unwrap().fee_transfer_call_info.as_ref().unwrap();
     // Check that the result call info is the same as before the commit.
-    assert_eq!(read_values_before_commit, fee_transfer_call_info.storage_read_values);
+    assert_eq!(
+        read_values_before_commit,
+        fee_transfer_call_info.storage_access_tracker.storage_read_values
+    );
 
     let sequencer_balance_low_after =
         tx_versioned_state.get_storage_at(fee_token_address, sequencer_balance_key_low).unwrap();
