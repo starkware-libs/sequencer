@@ -105,8 +105,6 @@ jobs:
   run-tests:
     runs-on: starkware-ubuntu-latest-large
     steps:
-      # Note: Anvil's not on crates.io, so we have to install from git, which moonrepo doesn't
-      # know how to cache, so we're forced to reinstall it every time :(
       - name: Install Anvil
         uses: foundry-rs/foundry-toolchain@v1
         with:

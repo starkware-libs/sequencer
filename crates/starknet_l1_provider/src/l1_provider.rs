@@ -71,6 +71,7 @@ impl L1Provider {
         }
     }
 
+    // test
     // TODO(Gilad): when deciding on consensus, if possible, have commit_block also tell the node if
     // it's about to [optimistically-]propose or validate the next block.
     pub fn commit_block(
