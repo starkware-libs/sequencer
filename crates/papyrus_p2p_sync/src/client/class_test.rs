@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use futures::FutureExt;
+use mockall::predicate::eq;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
@@ -16,7 +17,6 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -24,6 +24,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
 };
 use starknet_api::state::SierraContractClass;
+use starknet_class_manager_types::MockClassManagerClient;
 
 use super::test_utils::{
     random_header,
@@ -39,6 +40,8 @@ use super::test_utils::{
 async fn class_basic_flow() {
     let mut rng = get_rng();
 
+    let mut class_manager_client = MockClassManagerClient::new();
+
     let state_diffs_and_classes_of_blocks = [
         vec![
             create_random_state_diff_chunk_with_class(&mut rng),
@@ -50,6 +53,30 @@ async fn class_basic_flow() {
             create_random_state_diff_chunk_with_class(&mut rng),
         ],
     ];
+
+    // Fill class manager client with expectations.
+    for state_diffs_and_classes in &state_diffs_and_classes_of_blocks {
+        for (state_diff, class) in state_diffs_and_classes {
+            let class_hash = state_diff.get_class_hash();
+            match class {
+                ApiContractClass::ContractClass(class) => {
+                    let compiled_class_hash = state_diff.get_compiled_class_hash();
+                    class_manager_client
+                        .expect_add_class()
+                        .times(1)
+                        .with(eq(class_hash), eq(class.clone()))
+                        .return_once(move |_, _| Ok(compiled_class_hash));
+                }
+                ApiContractClass::DeprecatedContractClass(class) => {
+                    class_manager_client
+                        .expect_add_deprecated_class()
+                        .times(1)
+                        .with(eq(class_hash), eq(class.clone()))
+                        .return_once(|_, _| Ok(()));
+                }
+            }
+        }
+    }
 
     let mut actions = vec![
         Action::RunP2pSync,
@@ -99,7 +126,7 @@ async fn class_basic_flow() {
             let class_hash = state_diff.get_class_hash();
 
             // Check that before the last class was sent, the classes aren't written.
-            actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
+            actions.push(Action::CheckStorage(Box::new(move |reader| {
                 async move {
                     assert_eq!(
                         u64::try_from(i).unwrap(),
@@ -111,7 +138,7 @@ async fn class_basic_flow() {
             actions.push(Action::SendClass(DataOrFin(Some((class.clone(), class_hash)))));
         }
         // Check that a block's classes are written before the entire query finished.
-        actions.push(Action::CheckStorage(Box::new(move |(reader, class_manager_client)| {
+        actions.push(Action::CheckStorage(Box::new(move |reader| {
             async move {
                 let block_number = BlockNumber(i.try_into().unwrap());
                 wait_for_marker(
@@ -122,22 +149,6 @@ async fn class_basic_flow() {
                     TIMEOUT_FOR_TEST,
                 )
                 .await;
-
-                for (state_diff, expected_class) in state_diffs_and_classes {
-                    let class_hash = state_diff.get_class_hash();
-                    match expected_class {
-                        ApiContractClass::ContractClass(expected_class) => {
-                            let actual_class =
-                                class_manager_client.get_sierra(class_hash).await.unwrap();
-                            assert_eq!(actual_class, expected_class.clone());
-                        }
-                        ApiContractClass::DeprecatedContractClass(expected_class) => {
-                            let actual_class =
-                                class_manager_client.get_executable(class_hash).await.unwrap();
-                            assert_eq!(actual_class, ContractClass::V0(expected_class.clone()));
-                        }
-                    }
-                }
             }
             .boxed()
         })));
@@ -149,6 +160,7 @@ async fn class_basic_flow() {
             (DataType::StateDiff, len.try_into().unwrap()),
             (DataType::Class, len.try_into().unwrap()),
         ]),
+        Some(class_manager_client),
         actions,
     )
     .await;
@@ -158,6 +170,7 @@ async fn class_basic_flow() {
 // we need to define this trait because StateDiffChunk is defined in an other crate.
 trait GetClassHash {
     fn get_class_hash(&self) -> ClassHash;
+    fn get_compiled_class_hash(&self) -> CompiledClassHash;
 }
 
 impl GetClassHash for StateDiffChunk {
@@ -167,6 +180,13 @@ impl GetClassHash for StateDiffChunk {
             StateDiffChunk::DeprecatedDeclaredClass(deprecated_declared_class) => {
                 deprecated_declared_class.class_hash
             }
+            _ => unreachable!(),
+        }
+    }
+
+    fn get_compiled_class_hash(&self) -> CompiledClassHash {
+        match self {
+            StateDiffChunk::DeclaredClass(declared_class) => declared_class.compiled_class_hash,
             _ => unreachable!(),
         }
     }
@@ -325,6 +345,7 @@ async fn validate_class_sync_fails(
             (DataType::StateDiff, header_state_diff_lengths.len().try_into().unwrap()),
             (DataType::Class, header_state_diff_lengths.len().try_into().unwrap()),
         ]),
+        None,
         actions,
     )
     .await;

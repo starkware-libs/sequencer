@@ -1,9 +1,10 @@
-#[cfg(any(feature = "testing", test))]
-pub mod test_utils;
 pub mod transaction_converter;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
+#[cfg(feature = "testing")]
+use mockall::automock;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
@@ -41,6 +42,7 @@ pub type ExecutableClassHash = CompiledClassHash;
 /// Serves as the class manager's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
+#[cfg_attr(feature = "testing", automock)]
 #[async_trait]
 pub trait ClassManagerClient: Send + Sync {
     // TODO(native): make generic in executable type.
