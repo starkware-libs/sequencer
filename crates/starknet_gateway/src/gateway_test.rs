@@ -3,16 +3,15 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
+use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
-use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
-    RpcDeclareTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::{InvokeTransaction, TransactionHash, TransactionVersion};
@@ -170,17 +169,5 @@ async fn test_add_tx(
 // result of `add_tx`).
 // TODO(shahak): Test that when an error occurs in handle_request, then it returns the given p2p
 // metadata.
-
-#[rstest]
-#[tokio::test]
-async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) {
-    let mut declare_tx =
-        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx.compiled_class_hash = CompiledClassHash::default();
-    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
-
-    let gateway = mock_dependencies.gateway();
-
-    let err = gateway.add_tx(tx, None).await.unwrap_err();
-    assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
-}
+// TODO(noamsp): Restore test_compiled_class_hash_mismatch once class manager component is
+// implemented.
