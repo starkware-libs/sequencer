@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
@@ -164,6 +166,15 @@ async fn listen_to_broadcasted_messages(
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let broadcasted_messages_receiver =
         &mut consensus_proposals_channels.broadcasted_messages_receiver;
+
+    // Instead of having a StreamHandler here, we just get all messages into a HashMap.
+    // Then we can loop over them in order. This prevents a sporadic bug where sometimes
+    // a message with id 1 comes before id 0.
+    let mut messages_cache = HashMap::new();
+    while let Some((Ok(message), _)) = broadcasted_messages_receiver.next().await {
+        messages_cache.insert(message.message_id, message);
+    }
+
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
         height: expected_height,
@@ -176,7 +187,7 @@ async fn listen_to_broadcasted_messages(
         stream_id: first_stream_id,
         message: init_message,
         message_id: incoming_message_id,
-    } = broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
+    } = messages_cache.remove(&0).unwrap();
 
     assert_eq!(
         incoming_message_id, 0,
@@ -196,9 +207,9 @@ async fn listen_to_broadcasted_messages(
     let mut received_tx_hashes = Vec::new();
     let mut got_proposal_fin = false;
     let mut got_channel_fin = false;
-    loop {
+    for i in 1_u64..messages_cache.len().try_into().unwrap() {
         let StreamMessage { message, stream_id, message_id: _ } =
-            broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
+            messages_cache.remove(&i).unwrap();
         assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
         match message {
             StreamMessageBody::Content(ProposalPart::Init(init)) => {
