@@ -381,6 +381,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 // TODO(dvir): use the real `BlockInfo` when consensus will save it.
                 block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
                 state_diff,
+                compressed_state_diff: central_objects.compressed_state_diff,
                 transactions,
                 execution_infos: central_objects.execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,

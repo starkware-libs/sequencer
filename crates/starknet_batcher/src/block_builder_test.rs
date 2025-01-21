@@ -60,6 +60,7 @@ fn block_execution_artifacts(
         execution_infos,
         rejected_tx_hashes,
         commitment_state_diff: Default::default(),
+        compressed_state_diff: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
         l2_gas_used,
