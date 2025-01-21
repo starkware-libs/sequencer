@@ -69,7 +69,7 @@ impl SoftDeleteIndexMap {
     // every new tx is inserted to the map with key counter++ and the counter is not reduced
     // when removing entries. Once the counter reaches u32::MAX/2 we recreate the DS in Theta(n).
     pub fn _commit(&mut self, tx_hashes: &[TransactionHash]) -> Vec<L1HandlerTransaction> {
-        self._rollback_staging();
+        self.rollback_staging();
         let tx_hashes: HashSet<_> = tx_hashes.iter().copied().collect();
         if tx_hashes.is_empty() {
             return Vec::new();
@@ -84,7 +84,7 @@ impl SoftDeleteIndexMap {
     }
 
     /// Rolls back all staged transactions, converting them to unstaged.
-    pub fn _rollback_staging(&mut self) {
+    pub fn rollback_staging(&mut self) {
         for tx_hash in self.staged_txs.drain() {
             self.txs.entry(tx_hash).and_modify(|entry| entry.set_state(TxState::Unstaged));
         }

@@ -26,6 +26,7 @@ validator.workspace = true
 alloy-node-bindings.workspace = true
 alloy-primitives.workspace = true
 assert_matches.workspace = true
+itertools.workspace = true
 pretty_assertions.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 
