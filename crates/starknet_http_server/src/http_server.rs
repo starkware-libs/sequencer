@@ -87,6 +87,7 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, 
     record_added_transaction_status(add_tx_result.is_ok());
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn add_tx_result_as_json(
     result: HttpServerResult<TransactionHash>,
 ) -> HttpServerResult<Json<TransactionHash>> {
