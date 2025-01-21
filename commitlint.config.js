@@ -18,6 +18,7 @@ const Configuration = {
      * Any rules defined here will override rules from @commitlint/config-conventional
      */
     rules: {
+        'scope-empty': [2, 'never'],
         'scope-enum': [2, 'always', [
             'blockifier',
             'blockifier_reexecution',
