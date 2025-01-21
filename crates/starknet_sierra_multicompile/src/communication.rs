@@ -4,7 +4,7 @@ use starknet_sequencer_infra::component_server::{
     ConcurrentLocalComponentServer,
     RemoteComponentServer,
 };
-use starknet_sierra_compile_types::{
+use starknet_sierra_multicompile_types::{
     RawClass,
     RawExecutableHashedClass,
     SierraCompilerRequest,
