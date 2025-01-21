@@ -8002,6 +8002,7 @@ dependencies = [
  "indexmap 2.7.0",
  "lazy_static",
  "metrics 0.24.1",
+ "mockall",
  "papyrus_common",
  "papyrus_config",
  "papyrus_network",
@@ -10844,6 +10845,7 @@ name = "starknet_class_manager_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "mockall",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",

@@ -44,8 +44,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::FullTransaction;
-use starknet_class_manager_types::test_utils::MemoryClassManagerClient;
-use starknet_class_manager_types::SharedClassManagerClient;
+use starknet_class_manager_types::MockClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
@@ -113,7 +112,7 @@ pub fn setup() -> TestArgs {
         transaction_sender,
         class_sender,
     };
-    let class_manager_client = Arc::new(MemoryClassManagerClient::new());
+    let class_manager_client = Arc::new(MockClassManagerClient::new());
     let p2p_sync = P2pSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
@@ -161,9 +160,7 @@ pub enum Action {
     SendClass(DataOrFin<(ApiContractClass, ClassHash)>),
     /// Perform custom validations on the storage. Returns back the storage reader it received as
     /// input
-    CheckStorage(
-        Box<dyn FnOnce((StorageReader, SharedClassManagerClient)) -> BoxFuture<'static, ()>>,
-    ),
+    CheckStorage(Box<dyn FnOnce(StorageReader) -> BoxFuture<'static, ()>>),
     /// Check that a report was sent on the current header query.
     ValidateReportSent(DataType),
     /// Sends an internal block to the sync.
@@ -172,7 +169,11 @@ pub enum Action {
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
-pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Action>) {
+pub async fn run_test(
+    max_query_lengths: HashMap<DataType, u64>,
+    class_manager_client: Option<MockClassManagerClient>,
+    actions: Vec<Action>,
+) {
     let p2p_sync_config = P2pSyncClientConfig {
         num_headers_per_query: max_query_lengths.get(&DataType::Header).cloned().unwrap_or(1),
         num_block_state_diffs_per_query: max_query_lengths
@@ -187,6 +188,8 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         buffer_size: BUFFER_SIZE,
     };
+    let class_manager_client = class_manager_client.unwrap_or_default();
+    let class_manager_client = Arc::new(class_manager_client);
     let buffer_size = p2p_sync_config.buffer_size;
     let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
     let (header_sender, mut mock_header_network) = mock_register_sqmr_protocol_client(buffer_size);
@@ -202,14 +205,13 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         class_sender,
     };
     let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
-    let class_manager_client = Arc::new(MemoryClassManagerClient::new());
     let p2p_sync = P2pSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
         internal_block_receiver.boxed(),
-        class_manager_client.clone(),
+        class_manager_client,
     );
 
     let mut headers_current_query_responses_manager = None;
@@ -275,7 +277,7 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                     }
                     Action::CheckStorage(check_storage_fn) => {
                         // We tried avoiding the clone here but it causes lifetime issues.
-                        check_storage_fn((storage_reader.clone(), class_manager_client.clone())).await;
+                        check_storage_fn(storage_reader.clone()).await;
                     }
                     Action::ValidateReportSent(DataType::Header) => {
                         let responses_manager = headers_current_query_responses_manager.take()
