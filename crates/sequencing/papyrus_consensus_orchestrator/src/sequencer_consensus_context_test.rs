@@ -12,7 +12,6 @@ use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
-    TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
@@ -79,7 +78,7 @@ fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
-    let TestSubscriberChannels { mock_network: mock_proposal_stream_network, subscriber_channels } =
+    let (subscriber_channels, mock_proposal_stream_network) =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
@@ -88,7 +87,7 @@ fn setup(
     let (outbound_proposal_stream_sender, _, _) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
-    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
+    let (subscriber_channels, mock_vote_network) =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;

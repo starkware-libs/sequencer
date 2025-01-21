@@ -1,8 +1,5 @@
 use futures::{SinkExt, StreamExt};
-use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    TestSubscriberChannels,
-};
+use papyrus_network::network_manager::test_utils::mock_register_broadcast_topic;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::Vote;
 use papyrus_test_utils::{get_rng, GetTestInstance};
@@ -19,8 +16,7 @@ const INVALID_PROBABILITY: f64 = 0.5;
 #[test_case(false; "repeat_vote")]
 #[tokio::test]
 async fn test_invalid(distinct_messages: bool) {
-    let TestSubscriberChannels { subscriber_channels, mut mock_network } =
-        mock_register_broadcast_topic().unwrap();
+    let (subscriber_channels, mut mock_network) = mock_register_broadcast_topic().unwrap();
     let mut receiver = NetworkReceiver::new(
         subscriber_channels.broadcasted_messages_receiver,
         CACHE_SIZE,
@@ -50,8 +46,7 @@ async fn test_invalid(distinct_messages: bool) {
 #[test_case(false; "repeat_vote")]
 #[tokio::test]
 async fn test_drops(distinct_messages: bool) {
-    let TestSubscriberChannels { subscriber_channels, mut mock_network } =
-        mock_register_broadcast_topic().unwrap();
+    let (subscriber_channels, mut mock_network) = mock_register_broadcast_topic().unwrap();
     let mut receiver = NetworkReceiver::new(
         subscriber_channels.broadcasted_messages_receiver,
         CACHE_SIZE,

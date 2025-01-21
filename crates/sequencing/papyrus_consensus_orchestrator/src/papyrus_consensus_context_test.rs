@@ -7,15 +7,12 @@ use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
-    TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
-    StreamMessage,
     TransactionBatch,
     Vote,
 };
@@ -128,25 +125,23 @@ fn test_setup()
         .commit()
         .unwrap();
 
-    let network_channels = mock_register_broadcast_topic().unwrap();
-    let network_proposal_channels: TestSubscriberChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
-    > = mock_register_broadcast_topic().unwrap();
+    let (voting_channels, mock_voting_network) = mock_register_broadcast_topic().unwrap();
+    let (proposal_channels, _) = mock_register_broadcast_topic().unwrap();
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
-    } = network_proposal_channels.subscriber_channels;
+    } = proposal_channels;
     let (outbound_internal_sender, _inbound_internal_receiver, _) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
-    let sync_channels = mock_register_broadcast_topic().unwrap();
+    let (sync_channels, mock_sync_network) = mock_register_broadcast_topic().unwrap();
 
     let papyrus_context = PapyrusConsensusContext::new(
         storage_reader.clone(),
-        network_channels.subscriber_channels.broadcast_topic_client,
+        voting_channels.broadcast_topic_client,
         outbound_internal_sender,
         4,
-        Some(sync_channels.subscriber_channels.broadcast_topic_client),
+        Some(sync_channels.broadcast_topic_client),
     );
-    (block, papyrus_context, network_channels.mock_network, sync_channels.mock_network)
+    (block, papyrus_context, mock_voting_network, mock_sync_network)
 }

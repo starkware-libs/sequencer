@@ -2,7 +2,6 @@ use futures::stream::StreamExt;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
-    TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -19,7 +18,7 @@ const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
 
 #[tokio::test]
 async fn process_handle_add_tx() {
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
+    let (subscriber_channels, mock_network) =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
@@ -35,7 +34,7 @@ async fn process_handle_add_tx() {
 
 #[tokio::test]
 async fn process_handle_continue_propagation() {
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
+    let (subscriber_channels, mock_network) =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;

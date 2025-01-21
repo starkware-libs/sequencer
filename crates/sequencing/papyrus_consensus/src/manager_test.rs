@@ -7,7 +7,6 @@ use lazy_static::lazy_static;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
-    TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ProposalFin, Vote, DEFAULT_VALIDATOR_ID};
@@ -77,8 +76,7 @@ fn assert_decision(res: RunHeightRes, id: Felt) {
 
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
-        mock_register_broadcast_topic().unwrap();
+    let (subscriber_channels, mock_network) = mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
 
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
@@ -173,8 +171,7 @@ async fn run_consensus_sync() {
         vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
     )
     .await;
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
-        mock_register_broadcast_topic().unwrap();
+    let (subscriber_channels, mock_network) = mock_register_broadcast_topic().unwrap();
     let mut network_sender = mock_network.broadcasted_messages_sender;
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
@@ -201,8 +198,7 @@ async fn run_consensus_sync() {
 
 #[tokio::test]
 async fn test_timeouts() {
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
-        mock_register_broadcast_topic().unwrap();
+    let (subscriber_channels, mock_network) = mock_register_broadcast_topic().unwrap();
     let mut sender = mock_network.broadcasted_messages_sender;
 
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
