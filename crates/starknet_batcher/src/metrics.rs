@@ -1,5 +1,6 @@
 use metrics::{counter, describe_counter, describe_gauge, gauge};
 use starknet_api::block::BlockNumber;
+use starknet_sequencer_metrics::metrics::Metric;
 
 // Height metrics.
 pub const STORAGE_HEIGHT: Metric =
@@ -23,10 +24,7 @@ pub const REJECTED_TRANSACTIONS: Metric = Metric {
     description: "Counter of rejected transactions",
 };
 
-pub struct Metric {
-    pub name: &'static str,
-    pub description: &'static str,
-}
+
 
 pub fn register_metrics(storage_height: BlockNumber) {
     let storage_height_metric = gauge!(STORAGE_HEIGHT.name);
