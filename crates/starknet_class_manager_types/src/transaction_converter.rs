@@ -11,7 +11,8 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcTransaction,
 };
-use starknet_api::transaction::CalculateContractAddress;
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::{CalculateContractAddress, TransactionHasher, TransactionVersion};
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
 
@@ -64,16 +65,32 @@ pub struct TransactionConverter {
 impl TransactionConverterTrait for TransactionConverter {
     async fn convert_internal_consensus_tx_to_consensus_tx(
         &self,
-        _tx: InternalConsensusTransaction,
+        tx: InternalConsensusTransaction,
     ) -> TransactionConverterResult<ConsensusTransaction> {
-        todo!()
+        match tx {
+            InternalConsensusTransaction::RpcTransaction(tx) => self
+                .convert_internal_rpc_tx_to_rpc_tx(tx)
+                .await
+                .map(ConsensusTransaction::RpcTransaction),
+            InternalConsensusTransaction::L1Handler(tx) => {
+                Ok(ConsensusTransaction::L1Handler(tx.tx))
+            }
+        }
     }
 
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
-        _tx: ConsensusTransaction,
+        tx: ConsensusTransaction,
     ) -> TransactionConverterResult<InternalConsensusTransaction> {
-        todo!()
+        match tx {
+            ConsensusTransaction::RpcTransaction(tx) => self
+                .convert_rpc_tx_to_internal_rpc_tx(tx)
+                .await
+                .map(InternalConsensusTransaction::RpcTransaction),
+            ConsensusTransaction::L1Handler(tx) => self
+                .convert_consensus_l1_handler_to_internal_l1_handler(tx)
+                .map(InternalConsensusTransaction::L1Handler),
+        }
     }
 
     async fn convert_internal_rpc_tx_to_rpc_tx(
@@ -142,17 +159,17 @@ impl TransactionConverterTrait for TransactionConverter {
     }
 }
 
-// TODO(alonl): remove this once the conversion functions are implemented.
-#[allow(dead_code)]
-fn convert_consensus_l1_handler_to_internal_l1_handler(
-    _tx: transaction::L1HandlerTransaction,
-) -> executable_transaction::L1HandlerTransaction {
-    todo!()
-}
-
-#[allow(dead_code)]
-fn convert_internal_l1_handler_to_consensus_l1_handler(
-    _tx: executable_transaction::L1HandlerTransaction,
-) -> transaction::L1HandlerTransaction {
-    todo!()
+impl TransactionConverter {
+    fn convert_consensus_l1_handler_to_internal_l1_handler(
+        &self,
+        tx: transaction::L1HandlerTransaction,
+    ) -> TransactionConverterResult<executable_transaction::L1HandlerTransaction> {
+        let tx_hash = tx.calculate_transaction_hash(&self.chain_id, &TransactionVersion::ZERO)?;
+        Ok(executable_transaction::L1HandlerTransaction {
+            tx,
+            tx_hash,
+            // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
+            paid_fee_on_l1: Fee(1),
+        })
+    }
 }
