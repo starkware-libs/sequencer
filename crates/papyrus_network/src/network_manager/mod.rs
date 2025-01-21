@@ -517,6 +517,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             event;
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
+            encoded_message_length: message.len(),
         };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
             panic!(
