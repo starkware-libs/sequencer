@@ -140,7 +140,7 @@ jobs:
 
       - name: "Run tests on push"
         if: github.event_name == 'push'
-        # TODO: Better support for running tests on push.
+        # TODO(AdiY/Dori): Better support for running tests on push.
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
