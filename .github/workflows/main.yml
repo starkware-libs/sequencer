@@ -70,6 +70,9 @@ jobs:
           git diff --exit-code Cargo.lock
 
       # Run code style on PR.
+      - name: "Run named todo pull request"
+        if: github.event_name == 'pull_request'
+        run: ci/bin/python scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
