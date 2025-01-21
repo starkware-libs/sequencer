@@ -10734,6 +10734,7 @@ dependencies = [
  "starknet_l1_provider_types",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
+ "starknet_sequencer_metrics",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
