@@ -36,6 +36,7 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 lazy_static.workspace = true
+mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
