@@ -12,8 +12,8 @@ use starknet_api::transaction::TransactionHash;
 // TODO: replace with a BTreeIndexMap if commit performance becomes an issue, see note in commit.
 #[derive(Clone, Debug, Default)]
 pub struct SoftDeleteIndexMap {
-    txs: IndexMap<TransactionHash, TransactionEntry>,
-    staged_txs: HashSet<TransactionHash>,
+    pub txs: IndexMap<TransactionHash, TransactionEntry>,
+    pub staged_txs: HashSet<TransactionHash>,
 }
 
 impl SoftDeleteIndexMap {
@@ -68,7 +68,7 @@ impl SoftDeleteIndexMap {
     // BTreeMap<u32, TransactionEntry>, Hashmap<TransactionHash, u32> and a counter: u32, such that
     // every new tx is inserted to the map with key counter++ and the counter is not reduced
     // when removing entries. Once the counter reaches u32::MAX/2 we recreate the DS in Theta(n).
-    pub fn _commit(&mut self, tx_hashes: &[TransactionHash]) -> Vec<L1HandlerTransaction> {
+    pub fn commit(&mut self, tx_hashes: &[TransactionHash]) -> Vec<L1HandlerTransaction> {
         self.rollback_staging();
         let tx_hashes: HashSet<_> = tx_hashes.iter().copied().collect();
         if tx_hashes.is_empty() {
@@ -104,7 +104,7 @@ impl From<Vec<L1HandlerTransaction>> for SoftDeleteIndexMap {
 
 /// Indicates whether a transaction is unstaged or staged.
 #[derive(Debug, Clone)]
-enum TxState {
+pub enum TxState {
     Unstaged,
     Staged,
 }
@@ -112,7 +112,7 @@ enum TxState {
 /// Wraps an L1HandlerTransaction along with its current TxState,
 /// and provides convenience methods for stage/unstage.
 #[derive(Debug, Clone)]
-struct TransactionEntry {
+pub struct TransactionEntry {
     pub transaction: L1HandlerTransaction,
     pub state: TxState,
 }
