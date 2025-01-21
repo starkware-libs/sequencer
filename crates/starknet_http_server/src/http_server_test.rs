@@ -1,10 +1,15 @@
+use std::panic::AssertUnwindSafe;
+
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier::test_utils::CairoVersion;
+use futures::FutureExt;
+use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
+use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
@@ -88,4 +93,40 @@ async fn record_region_gateway_failing_tx() {
     let rpc_tx = invoke_tx(CairoVersion::default());
     add_tx_http_client.add_tx(rpc_tx).await;
     assert!(!logs_contain("Recorded transaction with hash: "));
+}
+
+#[tokio::test]
+async fn getting_error_response() {
+    let mut mock_gateway_client = MockGatewayClient::new();
+    // Set the successful response.
+    let expected_tx_hash = TransactionHash(Felt::ONE);
+    let expected_error = GatewaySpecError::ClassAlreadyDeclared;
+    let expected_err_str = format!(
+        "Gateway responded with: {}",
+        serde_json::to_string(&ErrorObjectOwned::from(expected_error.clone().into_rpc())).unwrap()
+    );
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(expected_tx_hash));
+    mock_gateway_client.expect_add_tx().times(1).return_const(Err(
+        GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
+            source: expected_error,
+            p2p_message_metadata: None,
+        }),
+    ));
+
+    let ip = "127.0.0.1".parse().unwrap();
+    // TODO(Tsabary): replace the const port with something that is not hardcoded.
+    let port = 15126;
+    let http_server_config = HttpServerConfig { ip, port };
+    let add_tx_http_client =
+        http_client_server_setup(mock_gateway_client, http_server_config).await;
+
+    let rpc_tx = invoke_tx(CairoVersion::default());
+    let tx_hash = add_tx_http_client.assert_add_tx_success(rpc_tx).await;
+    assert_eq!(tx_hash, expected_tx_hash);
+
+    let rpc_tx = invoke_tx(CairoVersion::default());
+    let panicking_task = AssertUnwindSafe(add_tx_http_client.assert_add_tx_success(rpc_tx));
+    let error = panicking_task.catch_unwind().await.unwrap_err().downcast::<String>().unwrap();
+    let error_str = format!("{}", error);
+    assert_eq!(error_str, expected_err_str);
 }
