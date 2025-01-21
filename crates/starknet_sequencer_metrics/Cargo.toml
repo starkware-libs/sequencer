@@ -1,0 +1,13 @@
+[package]
+name = "starknet_sequencer_metrics"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+
+[features]
+testing = []
+
+[lints]
+workspace = true
