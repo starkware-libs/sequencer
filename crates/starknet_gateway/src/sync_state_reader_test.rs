@@ -19,6 +19,7 @@ use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
+use starknet_class_manager_types::MockClassManagerClient;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
@@ -27,6 +28,7 @@ use crate::sync_state_reader::SyncStateReader;
 #[tokio::test]
 async fn test_get_block_info() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
     let block_timestamp = BlockTimestamp(2);
     let sequencer_address = contract_address!("0x3");
@@ -55,8 +57,11 @@ async fn test_get_block_info() {
         },
     );
 
-    let state_sync_reader =
-        SyncStateReader::from_number(Arc::new(mock_state_sync_client), block_number);
+    let state_sync_reader = SyncStateReader::from_number(
+        Arc::new(mock_state_sync_client),
+        Arc::new(mock_class_manager_client),
+        block_number,
+    );
     let result = state_sync_reader.get_block_info().unwrap();
 
     assert_eq!(
@@ -92,6 +97,7 @@ async fn test_get_block_info() {
 #[tokio::test]
 async fn test_get_storage_at() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
     let contract_address = contract_address!("0x2");
     let storage_key = storage_key!("0x3");
@@ -106,8 +112,11 @@ async fn test_get_storage_at() {
         )
         .returning(move |_, _, _| Ok(value));
 
-    let state_sync_reader =
-        SyncStateReader::from_number(Arc::new(mock_state_sync_client), block_number);
+    let state_sync_reader = SyncStateReader::from_number(
+        Arc::new(mock_state_sync_client),
+        Arc::new(mock_class_manager_client),
+        block_number,
+    );
 
     let result = state_sync_reader.get_storage_at(contract_address, storage_key).unwrap();
     assert_eq!(result, value);
@@ -116,6 +125,7 @@ async fn test_get_storage_at() {
 #[tokio::test]
 async fn test_get_nonce_at() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
     let contract_address = contract_address!("0x2");
     let expected_result = nonce!(0x3);
@@ -126,8 +136,11 @@ async fn test_get_nonce_at() {
         .with(predicate::eq(block_number), predicate::eq(contract_address))
         .returning(move |_, _| Ok(expected_result));
 
-    let state_sync_reader =
-        SyncStateReader::from_number(Arc::new(mock_state_sync_client), block_number);
+    let state_sync_reader = SyncStateReader::from_number(
+        Arc::new(mock_state_sync_client),
+        Arc::new(mock_class_manager_client),
+        block_number,
+    );
 
     let result = state_sync_reader.get_nonce_at(contract_address).unwrap();
     assert_eq!(result, expected_result);
@@ -136,6 +149,7 @@ async fn test_get_nonce_at() {
 #[tokio::test]
 async fn test_get_class_hash_at() {
     let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
     let contract_address = contract_address!("0x2");
     let expected_result = class_hash!("0x3");
@@ -146,8 +160,11 @@ async fn test_get_class_hash_at() {
         .with(predicate::eq(block_number), predicate::eq(contract_address))
         .returning(move |_, _| Ok(expected_result));
 
-    let state_sync_reader =
-        SyncStateReader::from_number(Arc::new(mock_state_sync_client), block_number);
+    let state_sync_reader = SyncStateReader::from_number(
+        Arc::new(mock_state_sync_client),
+        Arc::new(mock_class_manager_client),
+        block_number,
+    );
 
     let result = state_sync_reader.get_class_hash_at(contract_address).unwrap();
     assert_eq!(result, expected_result);
@@ -155,7 +172,8 @@ async fn test_get_class_hash_at() {
 
 #[tokio::test]
 async fn test_get_compiled_class() {
-    let mut mock_state_sync_client = MockStateSyncClient::new();
+    let mock_state_sync_client = MockStateSyncClient::new();
+    let mut mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
     let class_hash = class_hash!("0x2");
     let casm_contract_class = CasmContractClass {
@@ -169,16 +187,19 @@ async fn test_get_compiled_class() {
     };
     let expected_result = casm_contract_class.clone();
 
-    mock_state_sync_client
-        .expect_get_compiled_class_deprecated()
+    mock_class_manager_client
+        .expect_get_executable()
         .times(1)
-        .with(predicate::eq(block_number), predicate::eq(class_hash))
-        .returning(move |_, _| {
+        .with(predicate::eq(class_hash))
+        .returning(move |_| {
             Ok(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default())))
         });
 
-    let state_sync_reader =
-        SyncStateReader::from_number(Arc::new(mock_state_sync_client), block_number);
+    let state_sync_reader = SyncStateReader::from_number(
+        Arc::new(mock_state_sync_client),
+        Arc::new(mock_class_manager_client),
+        block_number,
+    );
 
     let result = state_sync_reader.get_compiled_class(class_hash).unwrap();
     assert_eq!(
