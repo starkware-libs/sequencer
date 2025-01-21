@@ -13,8 +13,6 @@ testing = []
 workspace = true
 
 [dependencies]
-num-traits.workspace = true
-regex.workspace = true
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 tracing.workspace = true
 

@@ -3,8 +3,8 @@ use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
-use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_sequencer_infra::component_client::ClientError;
+use starknet_sequencer_metrics::metrics::parse_numeric_metric;
 
 use crate::config::HttpServerConfig;
 use crate::metrics::{

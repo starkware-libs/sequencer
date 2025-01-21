@@ -11005,6 +11005,7 @@ dependencies = [
  "starknet_http_server",
  "starknet_infra_utils",
  "starknet_sequencer_infra",
+ "starknet_sequencer_metrics",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -11017,9 +11018,7 @@ name = "starknet_infra_utils"
 version = "0.0.0"
 dependencies = [
  "nix 0.20.2",
- "num-traits",
  "pretty_assertions",
- "regex",
  "rstest",
  "tokio",
  "tracing",
@@ -11198,6 +11197,7 @@ dependencies = [
  "serde",
  "starknet_infra_utils",
  "starknet_sequencer_infra",
+ "starknet_sequencer_metrics",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
@@ -11252,6 +11252,10 @@ dependencies = [
 [[package]]
 name = "starknet_sequencer_metrics"
 version = "0.0.0"
+dependencies = [
+ "num-traits",
+ "regex",
+]
 
 [[package]]
 name = "starknet_sequencer_node"

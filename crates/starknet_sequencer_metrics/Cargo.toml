@@ -11,3 +11,7 @@ testing = []
 
 [lints]
 workspace = true
+
+[dependencies]
+num-traits.workspace = true
+regex.workspace = true
