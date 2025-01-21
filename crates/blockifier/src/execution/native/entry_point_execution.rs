@@ -90,6 +90,13 @@ pub fn execute_entry_point_call(
             &mut syscall_handler,
         )
     });
+    // let execution_result = compiled_class.executor.run(
+    //     entry_point.selector.0,
+    //     &syscall_handler.base.call.calldata.0.clone(),
+    //     call_initial_gas,
+    //     Some(builtin_costs),
+    //     &mut syscall_handler,
+    // );
     syscall_handler.finalize();
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
