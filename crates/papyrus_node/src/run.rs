@@ -28,7 +28,7 @@ use papyrus_storage::{open_storage, StorageReader, StorageWriter};
 use papyrus_sync::sources::base_layer::EthereumBaseLayerSource;
 use papyrus_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use papyrus_sync::sources::pending::PendingSource;
-use papyrus_sync::{StateSync, SyncConfig};
+use papyrus_sync::{StateSync as CentralStateSync, SyncConfig as CentralSyncConfig};
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
@@ -243,7 +243,7 @@ fn spawn_consensus(
 }
 
 async fn run_sync(
-    configs: (SyncConfig, CentralSourceConfig, EthereumBaseLayerConfig),
+    configs: (CentralSyncConfig, CentralSourceConfig, EthereumBaseLayerConfig),
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
@@ -257,7 +257,7 @@ async fn run_sync(
     let pending_source =
         PendingSource::new(central_config, VERSION_FULL).map_err(CentralError::ClientCreation)?;
     let base_layer_source = Some(EthereumBaseLayerSource::new(base_layer_config));
-    let sync = StateSync::new(
+    let sync = CentralStateSync::new(
         sync_config,
         shared_highest_block,
         pending_data,
