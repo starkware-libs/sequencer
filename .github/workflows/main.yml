@@ -126,7 +126,7 @@ jobs:
 
       # Note: Anvil's not on crates.io, so we have to install from git, which moonrepo doesn't
       # know how to cache, so we're forced to reinstall it every time :(
-      - name: "Maybe install Anvil"
+      - name: "Install Anvil"
         run: cargo install --git https://github.com/foundry-rs/foundry anvil --locked
 
       - name: "Run tests pull request"
