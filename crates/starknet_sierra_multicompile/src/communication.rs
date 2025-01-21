@@ -5,11 +5,9 @@ use starknet_sequencer_infra::component_server::{
     RemoteComponentServer,
 };
 use starknet_sierra_multicompile_types::{
-    RawClass,
-    RawExecutableHashedClass,
+    SierraCompilerError,
     SierraCompilerRequest,
     SierraCompilerResponse,
-    SierraCompilerResult,
 };
 
 use crate::SierraCompiler;
@@ -19,20 +17,15 @@ pub type LocalSierraCompilerServer =
 pub type RemoteSierraCompilerServer =
     RemoteComponentServer<SierraCompilerRequest, SierraCompilerResponse>;
 
-// TODO(Elin): change this function as needed.
 #[async_trait]
 impl ComponentRequestHandler<SierraCompilerRequest, SierraCompilerResponse> for SierraCompiler {
     async fn handle_request(&mut self, request: SierraCompilerRequest) -> SierraCompilerResponse {
         match request {
             SierraCompilerRequest::Compile(contract_class) => {
-                // Cant use self.compile(..) because of needed consolidation in the
-                // SierraCompilerResult.
-                SierraCompilerResponse::Compile(compile(contract_class).await)
+                let compilation_result =
+                    self.compile(contract_class).map_err(SierraCompilerError::from);
+                SierraCompilerResponse::Compile(compilation_result)
             }
         }
     }
-}
-
-async fn compile(_contract_class: RawClass) -> SierraCompilerResult<RawExecutableHashedClass> {
-    unimplemented!()
 }
