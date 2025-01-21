@@ -31,7 +31,10 @@ async fn write_prev_height_blob(
     let url = server.url();
     let mock = server.mock("POST", RECORDER_WRITE_BLOB_PATH).with_status(mock_status_code).create();
 
-    let cende_ambassador = CendeAmbassador::new(CendeConfig { recorder_url: url.parse().unwrap() });
+    let cende_ambassador = CendeAmbassador::new(CendeConfig {
+        recorder_url: url.parse().unwrap(),
+        ..Default::default()
+    });
 
     if let Some(prev_block) = prev_block {
         cende_ambassador
@@ -47,8 +50,10 @@ async fn write_prev_height_blob(
 
 #[tokio::test]
 async fn prepare_blob_for_next_height() {
-    let cende_ambassador =
-        CendeAmbassador::new(CendeConfig { recorder_url: "http://parsable_url".parse().unwrap() });
+    let cende_ambassador = CendeAmbassador::new(CendeConfig {
+        recorder_url: "http://parsable_url".parse().unwrap(),
+        ..Default::default()
+    });
 
     cende_ambassador
         .prepare_blob_for_next_height(BlobParameters::with_block_number(HEIGHT_TO_WRITE))
@@ -57,4 +62,20 @@ async fn prepare_blob_for_next_height() {
         cende_ambassador.prev_height_blob.lock().await.as_ref().unwrap().block_number.0,
         HEIGHT_TO_WRITE
     );
+}
+
+#[tokio::test]
+async fn no_write_at_skipped_height() {
+    const SKIP_WRITE_HEIGHT: u64 = HEIGHT_TO_WRITE;
+    let cende_ambassador = CendeAmbassador::new(CendeConfig {
+        recorder_url: "http://parsable_url".parse().unwrap(),
+        skip_write_height: Some(BlockNumber(SKIP_WRITE_HEIGHT)),
+    });
+
+    // Returns false since the blob is missing and the height is different than skip_write_height.
+    assert!(
+        !cende_ambassador.write_prev_height_blob(BlockNumber(HEIGHT_TO_WRITE + 1)).await.unwrap()
+    );
+
+    assert!(cende_ambassador.write_prev_height_blob(BlockNumber(HEIGHT_TO_WRITE)).await.unwrap());
 }
