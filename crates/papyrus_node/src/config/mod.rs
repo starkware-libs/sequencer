@@ -25,7 +25,6 @@ use papyrus_config::dumping::{
 };
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_consensus::config::ConsensusConfig;
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
@@ -39,6 +38,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
 use starknet_client::RetryConfig;
+use starknet_consensus::config::ConsensusConfig;
 use validator::Validate;
 
 use crate::version::VERSION_FULL;

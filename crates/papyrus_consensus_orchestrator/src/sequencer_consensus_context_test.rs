@@ -7,8 +7,6 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::pending;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
-use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -44,6 +42,8 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
+use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::types::ConsensusContext;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
