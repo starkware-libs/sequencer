@@ -26,7 +26,9 @@ validator.workspace = true
 alloy-node-bindings.workspace = true
 alloy-primitives.workspace = true
 assert_matches.workspace = true
+colored.workspace = true
 itertools.workspace = true
+papyrus_base_layer = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 
