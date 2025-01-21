@@ -90,7 +90,7 @@ pub trait SierraCompilerClient: Send + Sync {
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
 pub enum SierraCompilerError {
     #[error("Compilation failed: {0}")]
-    SierraCompilerError(String),
+    CompilationFailed(String),
 }
 
 #[derive(Clone, Debug, Error)]
