@@ -204,11 +204,17 @@ impl StateReader for PapyrusReader {
 
             // Try fetching native from cache.
             if let Some(cached_native) = self.contract_class_manager.get_native(&class_hash) {
+                log::debug!("Noa Found native in cache for class hash. Returning cached native.");
+                log::error!("Noa Found native in cache for class hash. Returning cached native.");
                 match cached_native {
                     CachedCairoNative::Compiled(compiled_native) => {
+                        log::debug!("Noa Compilation succeeded. Returning compiled native.");
+                        log::error!("Noa Compilation succeeded. Returning compiled native.");
                         return Ok(RunnableCompiledClass::from(compiled_native));
                     }
                     CachedCairoNative::CompilationFailed => {
+                        log::debug!("Noa Compilation failed. Fetching casm.");
+                        log::error!("Noa Compilation failed. Fetching casm.");
                         // The compilation previously failed. Make no further compilation attempts.
                         // Fetch and return the casm.
                         return self.get_casm(class_hash);
@@ -226,6 +232,8 @@ impl StateReader for PapyrusReader {
             match cached_casm {
                 CachedCasm::WithSierra(runnable_casm, sierra) => {
                     if let RunnableCompiledClass::V1(casm_v1) = runnable_casm.clone() {
+                        log::debug!("Noa Cached with sierra. Sending compilation request.");
+                        log::error!("Noa Cached with sierra. Sending compilation request.");
                         self.contract_class_manager.send_compilation_request((
                             class_hash,
                             sierra.clone(),
@@ -250,7 +258,21 @@ impl StateReader for PapyrusReader {
 
                     Ok(runnable_casm)
                 }
-                CachedCasm::WithoutSierra(runnable_casm) => Ok(runnable_casm),
+                CachedCasm::WithoutSierra(runnable_casm) => {
+                    // match runnable_casm {
+                    //     RunnableCompiledClass::V0(_) => {
+                    //         log::error!("Noa Cached without sierra cairo 0. Returning casm");
+                    //     }
+                    //     RunnableCompiledClass::V1(_) => {
+                    //         log::error!("Noa Cached without sierra cairo 1. Returning casm");
+                    //     }
+                    //     RunnableCompiledClass::V1Native(_) => {
+                    //         log::error!("Noa Cached without sierra native!. Returning casm");
+                    //     }
+                    // }
+                    log::error!("Noa Cached without sierra class hash. Returning casm");
+                    Ok(runnable_casm)
+                }
             }
         }
     }
