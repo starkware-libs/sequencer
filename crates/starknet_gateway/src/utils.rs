@@ -67,6 +67,7 @@ fn compile_contract_and_build_executable_declare_tx(
     chain_id: &ChainId,
 ) -> GatewayResult<ExecutableDeclareTransaction> {
     let class_info = gateway_compiler.process_declare_tx(&rpc_tx)?;
+    // TODO(Arni): Convert to internal tx and use the class manager to create the executable tx.
     let declare_tx: starknet_api::transaction::DeclareTransaction = rpc_tx.into();
     let executable_declare_tx =
         ExecutableDeclareTransaction::create(declare_tx, class_info, chain_id).map_err(|err| {
