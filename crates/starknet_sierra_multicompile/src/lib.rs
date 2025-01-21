@@ -17,6 +17,7 @@ use crate::errors::CompilationUtilError;
 use crate::utils::into_contract_class_for_compilation;
 
 pub mod command_line_compiler;
+pub mod communication;
 pub mod config;
 pub mod constants;
 pub mod errors;
@@ -31,6 +32,8 @@ pub mod test_utils;
 #[path = "compile_test.rs"]
 pub mod compile_test;
 
+// TODO(Elin): SierraCompilerResult defined here and in the starknet_sierra_types_type crate. Should
+// be consolidated.
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 
 pub trait SierraToCasmCompiler: Send + Sync {
@@ -48,6 +51,8 @@ pub trait SierraToNativeCompiler: Send + Sync {
     ) -> Result<AotContractExecutor, CompilationUtilError>;
 }
 
+// TODO(Elin): SierraCompilerError defined here and in the starknet_sierra_types_type crate. Should
+// be consolidated.
 #[derive(Debug, Error)]
 pub enum SierraCompilerError {
     #[error(transparent)]
