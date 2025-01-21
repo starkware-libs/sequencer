@@ -23,6 +23,7 @@ use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_node::clients::SequencerNodeClients;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
@@ -129,6 +130,11 @@ pub struct FlowSequencerSetup {
 
     // Monitoring client.
     pub monitoring_client: MonitoringClient,
+
+    // Retain clients to avoid closing communication channels, which crashes the server and
+    // subsequently the test. This occurs for components who are wrapped by servers, but no other
+    // component has their client, usually due to these clients being added in a later date.
+    _clients: SequencerNodeClients,
 }
 
 impl FlowSequencerSetup {
@@ -184,6 +190,7 @@ impl FlowSequencerSetup {
             state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             node_config,
             monitoring_client,
+            _clients,
         }
     }
 
