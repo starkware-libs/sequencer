@@ -3,10 +3,18 @@ use std::sync::LazyLock;
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
-use crate::core::{ascii_as_felt, ChainId};
+use crate::core::{ascii_as_felt, ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
-use crate::transaction::fields::{ResourceBounds, Tip, ValidResourceBounds};
+use crate::transaction::fields::{
+    AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
+    PaymasterData,
+    ResourceBounds,
+    Tip,
+    ValidResourceBounds,
+};
 use crate::transaction::{
     signed_tx_version_from_tx,
     CalculateContractAddress,
@@ -343,39 +351,81 @@ pub(crate) fn get_invoke_transaction_v1_hash(
     ))
 }
 
-pub(crate) fn get_invoke_transaction_v3_hash(
-    transaction: &InvokeTransactionV3,
+pub trait InvokeTransactionV3Trait {
+    fn resource_bounds(&self) -> ValidResourceBounds;
+    fn tip(&self) -> &Tip;
+    fn paymaster_data(&self) -> &PaymasterData;
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode;
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode;
+    fn account_deployment_data(&self) -> &AccountDeploymentData;
+    fn calldata(&self) -> &Calldata;
+    fn sender_address(&self) -> &ContractAddress;
+    fn nonce(&self) -> &Nonce;
+}
+
+pub(crate) fn get_invoke_transaction_v3_hash<T: InvokeTransactionV3Trait>(
+    transaction: &T,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
 ) -> Result<TransactionHash, StarknetApiError> {
     let tip_resource_bounds_hash =
-        get_tip_resource_bounds_hash(&transaction.resource_bounds, &transaction.tip)?;
+        get_tip_resource_bounds_hash(&transaction.resource_bounds(), transaction.tip())?;
     let paymaster_data_hash =
-        HashChain::new().chain_iter(transaction.paymaster_data.0.iter()).get_poseidon_hash();
+        HashChain::new().chain_iter(transaction.paymaster_data().0.iter()).get_poseidon_hash();
     let data_availability_mode = concat_data_availability_mode(
-        &transaction.nonce_data_availability_mode,
-        &transaction.fee_data_availability_mode,
+        transaction.nonce_data_availability_mode(),
+        transaction.fee_data_availability_mode(),
     );
     let account_deployment_data_hash = HashChain::new()
-        .chain_iter(transaction.account_deployment_data.0.iter())
+        .chain_iter(transaction.account_deployment_data().0.iter())
         .get_poseidon_hash();
     let calldata_hash =
-        HashChain::new().chain_iter(transaction.calldata.0.iter()).get_poseidon_hash();
+        HashChain::new().chain_iter(transaction.calldata().0.iter()).get_poseidon_hash();
 
     Ok(TransactionHash(
         HashChain::new()
             .chain(&INVOKE)
             .chain(&transaction_version.0)
-            .chain(transaction.sender_address.0.key())
+            .chain(transaction.sender_address().0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
             .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
-            .chain(&transaction.nonce.0)
+            .chain(&transaction.nonce().0)
             .chain(&data_availability_mode)
             .chain(&account_deployment_data_hash)
             .chain(&calldata_hash)
             .get_poseidon_hash(),
     ))
+}
+
+impl InvokeTransactionV3Trait for InvokeTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        self.resource_bounds
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn account_deployment_data(&self) -> &AccountDeploymentData {
+        &self.account_deployment_data
+    }
+    fn sender_address(&self) -> &ContractAddress {
+        &self.sender_address
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn calldata(&self) -> &Calldata {
+        &self.calldata
+    }
 }
 
 #[derive(PartialEq, PartialOrd)]
@@ -522,38 +572,84 @@ pub(crate) fn get_declare_transaction_v2_hash(
     ))
 }
 
-pub(crate) fn get_declare_transaction_v3_hash(
-    transaction: &DeclareTransactionV3,
+pub trait DeclareTransactionV3Trait {
+    fn resource_bounds(&self) -> ValidResourceBounds;
+    fn tip(&self) -> &Tip;
+    fn paymaster_data(&self) -> &PaymasterData;
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode;
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode;
+    fn account_deployment_data(&self) -> &AccountDeploymentData;
+    fn sender_address(&self) -> &ContractAddress;
+    fn nonce(&self) -> &Nonce;
+    fn class_hash(&self) -> &ClassHash;
+    fn compiled_class_hash(&self) -> &CompiledClassHash;
+}
+
+pub(crate) fn get_declare_transaction_v3_hash<T: DeclareTransactionV3Trait>(
+    transaction: &T,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
 ) -> Result<TransactionHash, StarknetApiError> {
     let tip_resource_bounds_hash =
-        get_tip_resource_bounds_hash(&transaction.resource_bounds, &transaction.tip)?;
+        get_tip_resource_bounds_hash(&transaction.resource_bounds(), transaction.tip())?;
     let paymaster_data_hash =
-        HashChain::new().chain_iter(transaction.paymaster_data.0.iter()).get_poseidon_hash();
+        HashChain::new().chain_iter(transaction.paymaster_data().0.iter()).get_poseidon_hash();
     let data_availability_mode = concat_data_availability_mode(
-        &transaction.nonce_data_availability_mode,
-        &transaction.fee_data_availability_mode,
+        transaction.nonce_data_availability_mode(),
+        transaction.fee_data_availability_mode(),
     );
     let account_deployment_data_hash = HashChain::new()
-        .chain_iter(transaction.account_deployment_data.0.iter())
+        .chain_iter(transaction.account_deployment_data().0.iter())
         .get_poseidon_hash();
 
     Ok(TransactionHash(
         HashChain::new()
             .chain(&DECLARE)
             .chain(&transaction_version.0)
-            .chain(transaction.sender_address.0.key())
+            .chain(transaction.sender_address().0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
             .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
-            .chain(&transaction.nonce.0)
+            .chain(&transaction.nonce().0)
             .chain(&data_availability_mode)
             .chain(&account_deployment_data_hash)
-            .chain(&transaction.class_hash.0)
-            .chain(&transaction.compiled_class_hash.0)
+            .chain(&transaction.class_hash().0)
+            .chain(&transaction.compiled_class_hash().0)
             .get_poseidon_hash(),
     ))
+}
+
+impl DeclareTransactionV3Trait for DeclareTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        self.resource_bounds
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn account_deployment_data(&self) -> &AccountDeploymentData {
+        &self.account_deployment_data
+    }
+    fn sender_address(&self) -> &ContractAddress {
+        &self.sender_address
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn class_hash(&self) -> &ClassHash {
+        &self.class_hash
+    }
+    fn compiled_class_hash(&self) -> &CompiledClassHash {
+        &self.compiled_class_hash
+    }
 }
 
 pub(crate) fn get_deploy_account_transaction_v1_hash(
@@ -583,22 +679,37 @@ pub(crate) fn get_deploy_account_transaction_v1_hash(
     ))
 }
 
-pub(crate) fn get_deploy_account_transaction_v3_hash(
-    transaction: &DeployAccountTransactionV3,
+pub trait DeployAccountTransactionV3Trait {
+    fn resource_bounds(&self) -> ValidResourceBounds;
+    fn tip(&self) -> &Tip;
+    fn paymaster_data(&self) -> &PaymasterData;
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode;
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode;
+    fn constructor_calldata(&self) -> &Calldata;
+    fn nonce(&self) -> &Nonce;
+    fn class_hash(&self) -> &ClassHash;
+    fn contract_address_salt(&self) -> &ContractAddressSalt;
+}
+
+pub(crate) fn get_deploy_account_transaction_v3_hash<
+    T: DeployAccountTransactionV3Trait + CalculateContractAddress,
+>(
+    transaction: &T,
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
 ) -> Result<TransactionHash, StarknetApiError> {
     let contract_address = transaction.calculate_contract_address()?;
     let tip_resource_bounds_hash =
-        get_tip_resource_bounds_hash(&transaction.resource_bounds, &transaction.tip)?;
+        get_tip_resource_bounds_hash(&transaction.resource_bounds(), transaction.tip())?;
     let paymaster_data_hash =
-        HashChain::new().chain_iter(transaction.paymaster_data.0.iter()).get_poseidon_hash();
+        HashChain::new().chain_iter(transaction.paymaster_data().0.iter()).get_poseidon_hash();
     let data_availability_mode = concat_data_availability_mode(
-        &transaction.nonce_data_availability_mode,
-        &transaction.fee_data_availability_mode,
+        transaction.nonce_data_availability_mode(),
+        transaction.fee_data_availability_mode(),
     );
-    let constructor_calldata_hash =
-        HashChain::new().chain_iter(transaction.constructor_calldata.0.iter()).get_poseidon_hash();
+    let constructor_calldata_hash = HashChain::new()
+        .chain_iter(transaction.constructor_calldata().0.iter())
+        .get_poseidon_hash();
 
     Ok(TransactionHash(
         HashChain::new()
@@ -609,10 +720,40 @@ pub(crate) fn get_deploy_account_transaction_v3_hash(
             .chain(&paymaster_data_hash)
             .chain(&ascii_as_felt(chain_id.to_string().as_str())?)
             .chain(&data_availability_mode)
-            .chain(&transaction.nonce.0)
+            .chain(&transaction.nonce().0)
             .chain(&constructor_calldata_hash)
-            .chain(&transaction.class_hash.0)
-            .chain(&transaction.contract_address_salt.0)
+            .chain(&transaction.class_hash().0)
+            .chain(&transaction.contract_address_salt().0)
             .get_poseidon_hash(),
     ))
+}
+
+impl DeployAccountTransactionV3Trait for DeployAccountTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        self.resource_bounds
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn class_hash(&self) -> &ClassHash {
+        &self.class_hash
+    }
+    fn contract_address_salt(&self) -> &ContractAddressSalt {
+        &self.contract_address_salt
+    }
 }

@@ -8,7 +8,7 @@ use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLan
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::EntryPointType;
-use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
@@ -32,6 +32,16 @@ use crate::transaction::{
     InvokeTransactionV3,
     Transaction,
     TransactionHash,
+    TransactionHasher,
+    TransactionVersion,
+};
+use crate::transaction_hash::{
+    get_declare_transaction_v3_hash,
+    get_deploy_account_transaction_v3_hash,
+    get_invoke_transaction_v3_hash,
+    DeclareTransactionV3Trait,
+    DeployAccountTransactionV3Trait,
+    InvokeTransactionV3Trait,
 };
 use crate::{impl_deploy_transaction_trait, StarknetApiError};
 
@@ -55,6 +65,26 @@ pub struct InternalRpcDeployAccountTransaction {
     pub contract_address: ContractAddress,
 }
 
+impl InternalRpcDeployAccountTransaction {
+    fn version(&self) -> TransactionVersion {
+        self.tx.version()
+    }
+}
+
+impl TransactionHasher for InternalRpcDeployAccountTransaction {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        match &self.tx {
+            RpcDeployAccountTransaction::V3(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
@@ -65,6 +95,34 @@ pub enum InternalRpcTransactionWithoutTxHash {
     DeployAccount(InternalRpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
     Invoke(RpcInvokeTransaction),
+}
+
+impl InternalRpcTransactionWithoutTxHash {
+    pub fn version(&self) -> TransactionVersion {
+        match self {
+            InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.version(),
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => tx.version(),
+            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.version(),
+        }
+    }
+
+    pub fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        let transaction_version = &self.version();
+        match self {
+            InternalRpcTransactionWithoutTxHash::Declare(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+            InternalRpcTransactionWithoutTxHash::Invoke(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -197,6 +255,14 @@ pub enum RpcDeployAccountTransaction {
     V3(RpcDeployAccountTransactionV3),
 }
 
+impl RpcDeployAccountTransaction {
+    fn version(&self) -> TransactionVersion {
+        match self {
+            RpcDeployAccountTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+}
+
 impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
     fn from(rpc_deploy_account_transaction: RpcDeployAccountTransaction) -> Self {
         match rpc_deploy_account_transaction {
@@ -216,6 +282,28 @@ impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
 pub enum RpcInvokeTransaction {
     #[serde(rename = "0x3")]
     V3(RpcInvokeTransactionV3),
+}
+
+impl RpcInvokeTransaction {
+    fn version(&self) -> TransactionVersion {
+        match self {
+            RpcInvokeTransaction::V3(_) => TransactionVersion::THREE,
+        }
+    }
+}
+
+impl TransactionHasher for RpcInvokeTransaction {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        match self {
+            RpcInvokeTransaction::V3(tx) => {
+                tx.calculate_transaction_hash(chain_id, transaction_version)
+            }
+        }
+    }
 }
 
 impl From<RpcInvokeTransaction> for InvokeTransaction {
@@ -279,6 +367,55 @@ pub struct InternalRpcDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
+impl InternalRpcDeclareTransactionV3 {
+    fn version(&self) -> TransactionVersion {
+        TransactionVersion::THREE
+    }
+}
+
+impl DeclareTransactionV3Trait for InternalRpcDeclareTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        ValidResourceBounds::AllResources(self.resource_bounds)
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn account_deployment_data(&self) -> &AccountDeploymentData {
+        &self.account_deployment_data
+    }
+    fn sender_address(&self) -> &ContractAddress {
+        &self.sender_address
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn class_hash(&self) -> &ClassHash {
+        &self.class_hash
+    }
+    fn compiled_class_hash(&self) -> &CompiledClassHash {
+        &self.compiled_class_hash
+    }
+}
+
+impl TransactionHasher for InternalRpcDeclareTransactionV3 {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        get_declare_transaction_v3_hash(self, chain_id, transaction_version)
+    }
+}
+
 impl From<InternalRpcDeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: InternalRpcDeclareTransactionV3) -> Self {
         Self {
@@ -331,6 +468,46 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     }
 }
 
+impl DeployAccountTransactionV3Trait for RpcDeployAccountTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        ValidResourceBounds::AllResources(self.resource_bounds)
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn constructor_calldata(&self) -> &Calldata {
+        &self.constructor_calldata
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn class_hash(&self) -> &ClassHash {
+        &self.class_hash
+    }
+    fn contract_address_salt(&self) -> &ContractAddressSalt {
+        &self.contract_address_salt
+    }
+}
+
+impl TransactionHasher for RpcDeployAccountTransactionV3 {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        get_deploy_account_transaction_v3_hash(self, chain_id, transaction_version)
+    }
+}
+
 /// An invoke account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcInvokeTransactionV3 {
@@ -344,6 +521,46 @@ pub struct RpcInvokeTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
+}
+
+impl InvokeTransactionV3Trait for RpcInvokeTransactionV3 {
+    fn resource_bounds(&self) -> ValidResourceBounds {
+        ValidResourceBounds::AllResources(self.resource_bounds)
+    }
+    fn tip(&self) -> &Tip {
+        &self.tip
+    }
+    fn paymaster_data(&self) -> &PaymasterData {
+        &self.paymaster_data
+    }
+    fn nonce_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.nonce_data_availability_mode
+    }
+    fn fee_data_availability_mode(&self) -> &DataAvailabilityMode {
+        &self.fee_data_availability_mode
+    }
+    fn account_deployment_data(&self) -> &AccountDeploymentData {
+        &self.account_deployment_data
+    }
+    fn sender_address(&self) -> &ContractAddress {
+        &self.sender_address
+    }
+    fn nonce(&self) -> &Nonce {
+        &self.nonce
+    }
+    fn calldata(&self) -> &Calldata {
+        &self.calldata
+    }
+}
+
+impl TransactionHasher for RpcInvokeTransactionV3 {
+    fn calculate_transaction_hash(
+        &self,
+        chain_id: &ChainId,
+        transaction_version: &TransactionVersion,
+    ) -> Result<TransactionHash, StarknetApiError> {
+        get_invoke_transaction_v3_hash(self, chain_id, transaction_version)
+    }
 }
 
 impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
