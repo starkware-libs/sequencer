@@ -31,6 +31,7 @@ pub struct L1ProviderContent {
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
 }
+
 impl L1ProviderContent {
     #[track_caller]
     pub fn assert_eq(&self, l1_provider: &L1Provider) {
@@ -106,6 +107,7 @@ struct TransactionManagerContent {
     pub txs: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<HashSet<TransactionHash>>,
 }
+
 impl TransactionManagerContent {
     #[track_caller]
     fn assert_eq(&self, tx_manager: &TransactionManager) {
