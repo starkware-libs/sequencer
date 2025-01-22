@@ -124,7 +124,7 @@ impl ProcessTxBlockingTask {
             block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
                 .map_err(|err| {
                     error!(
-                        "Failed to convert internal RPC transaction to executable transaction: {}",
+                        "Failed to convert RPC transaction to internal RPC transaction: {}",
                         err
                     );
                     GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
@@ -134,7 +134,10 @@ impl ProcessTxBlockingTask {
             self.transaction_converter
                 .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
         )
-        .unwrap();
+        .map_err(|err| {
+            error!("Failed to convert internal RPC transaction to executable transaction: {}", err);
+            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+        })?;
 
         // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
@@ -171,7 +174,6 @@ pub fn create_gateway(
     class_manager_client: SharedClassManagerClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
-
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
 

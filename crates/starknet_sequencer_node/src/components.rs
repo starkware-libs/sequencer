@@ -91,7 +91,7 @@ pub fn create_node_components(
             let state_sync_client = clients
                 .get_state_sync_shared_client()
                 .expect("State Sync Client should be available");
-            // TODO: Remove this and use the real client instead once implemented.
+            // TODO(noamsp): Remove this and use the real client instead once implemented.
             let class_manager_client = Arc::new(EmptyClassManagerClient);
             Some(create_gateway(
                 config.gateway_config.clone(),
@@ -119,7 +119,7 @@ pub fn create_node_components(
                 let gateway_client = clients
                     .get_gateway_shared_client()
                     .expect("Gateway Client should be available");
-                // TODO: Remove this and use the real client instead once implemented.
+                // TODO(noamsp): Remove this and use the real client instead once implemented.
                 let class_manager_client = Arc::new(EmptyClassManagerClient);
                 let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
                     config.mempool_p2p_config.clone(),
@@ -156,7 +156,7 @@ pub fn create_node_components(
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            // TODO: Remove this and use the real client instead once implemented.
+            // TODO(noamsp): Remove this and use the real client instead once implemented.
             let class_manager_client = Arc::new(EmptyClassManagerClient);
             let (state_sync, state_sync_runner) = create_state_sync_and_runner(
                 config.state_sync_config.clone(),

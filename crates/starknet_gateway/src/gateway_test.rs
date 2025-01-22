@@ -15,7 +15,12 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
 };
-use starknet_api::transaction::{InvokeTransaction, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{
+    InvokeTransaction,
+    TransactionHash,
+    TransactionHasher,
+    TransactionVersion,
+};
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -70,11 +75,12 @@ struct MockDependencies {
 
 impl MockDependencies {
     fn gateway(self) -> Gateway {
+        let chain_id = self.config.chain_info.chain_id.clone();
         Gateway::new(
-            self.config.clone(),
+            self.config,
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
-            TransactionConverter::new(self.class_manager_client, self.config.chain_info.chain_id),
+            TransactionConverter::new(self.class_manager_client, chain_id),
         )
     }
 
@@ -123,8 +129,6 @@ async fn test_add_tx(
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
-    use starknet_api::transaction::TransactionHasher;
-
     let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
@@ -138,7 +142,7 @@ async fn test_add_tx(
         .unwrap();
 
     let internal_invoke_tx = InternalRpcTransaction {
-        tx: InternalRpcTransactionWithoutTxHash::Invoke(rpc_invoke_tx.clone()),
+        tx: InternalRpcTransactionWithoutTxHash::Invoke(rpc_invoke_tx),
         tx_hash,
     };
 

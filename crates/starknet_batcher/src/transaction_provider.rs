@@ -105,10 +105,10 @@ impl ProposeTransactionProvider {
             .into_iter()
             .map(|tx| self.transaction_converter.convert_internal_rpc_tx_to_executable_tx(tx));
 
-        let converted_txs =
+        let executable_txs =
             try_join_all(txs_futures).await?.into_iter().map(Transaction::Account).collect();
 
-        Ok(converted_txs)
+        Ok(executable_txs)
     }
 }
 
