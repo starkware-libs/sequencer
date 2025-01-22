@@ -7,6 +7,7 @@ use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     DeployAccountTransactionV3WithAddress,
+    InternalRpcDeclareTransactionV3,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
@@ -19,7 +20,7 @@ use starknet_api::transaction::{CalculateContractAddress, TransactionHasher, Tra
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
 
-use crate::{ClassManagerClientError, SharedClassManagerClient};
+use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
 
 #[derive(Error, Debug, Clone)]
 pub enum TransactionConverterError {
@@ -141,10 +142,22 @@ impl TransactionConverterTrait for TransactionConverter {
 
         let tx_without_hash = match tx {
             RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx),
-            RpcTransaction::Declare(_tx) => {
-                // TODO(shahak): Implement this once Elin adds class hash to return value of
-                // add_class.
-                todo!()
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
+                let ClassHashes { class_hash, .. } =
+                    self.class_manager_client.add_class(tx.contract_class).await?;
+                InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
+                    sender_address: tx.sender_address,
+                    compiled_class_hash: tx.compiled_class_hash,
+                    signature: tx.signature,
+                    nonce: tx.nonce,
+                    class_hash,
+                    resource_bounds: tx.resource_bounds,
+                    tip: tx.tip,
+                    paymaster_data: tx.paymaster_data,
+                    account_deployment_data: tx.account_deployment_data,
+                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                    fee_data_availability_mode: tx.fee_data_availability_mode,
+                })
             }
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
                 let contract_address = tx.calculate_contract_address()?;
