@@ -112,8 +112,8 @@ impl RpcTransaction {
     }
 }
 
-// TODO(Arni): Replace this with RPCTransacion -> InternalRpcTransaction conversion (don't use From
-// becuase it contains hash calculations).
+// TODO(Arni): Replace this with RPCTransaction -> InternalRpcTransaction conversion (don't use From
+// because it contains hash calculations).
 impl From<RpcTransaction> for Transaction {
     fn from(rpc_transaction: RpcTransaction) -> Self {
         match rpc_transaction {
@@ -245,22 +245,6 @@ pub struct RpcDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-/// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct InternalRpcDeclareTransactionV3 {
-    pub sender_address: ContractAddress,
-    pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub class_hash: ClassHash,
-    pub resource_bounds: AllResourceBounds,
-    pub tip: Tip,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-}
-
 impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: RpcDeclareTransactionV3) -> Self {
         Self {
@@ -277,6 +261,22 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
             account_deployment_data: tx.account_deployment_data,
         }
     }
+}
+
+/// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+pub struct InternalRpcDeclareTransactionV3 {
+    pub sender_address: ContractAddress,
+    pub compiled_class_hash: CompiledClassHash,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub resource_bounds: AllResourceBounds,
+    pub tip: Tip,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
 impl From<InternalRpcDeclareTransactionV3> for DeclareTransactionV3 {
