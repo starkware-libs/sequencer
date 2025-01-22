@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
-use metrics::gauge;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -54,6 +53,7 @@ use crate::metrics::{
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     REJECTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
 };
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
@@ -471,7 +471,7 @@ impl Batcher {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
-        gauge!(crate::metrics::STORAGE_HEIGHT.name).increment(1);
+        STORAGE_HEIGHT.increment(1);
         let mempool_result = self
             .mempool_client
             .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
@@ -611,7 +611,7 @@ impl Batcher {
             error!("Failed to revert block at height {}: {}", height, err);
             BatcherError::InternalError
         })?;
-        gauge!(crate::metrics::STORAGE_HEIGHT.name).decrement(1);
+        STORAGE_HEIGHT.decrement(1);
         Ok(())
     }
 }
