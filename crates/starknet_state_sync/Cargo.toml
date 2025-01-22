@@ -25,9 +25,15 @@ tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+<<<<<<< HEAD
 cairo-lang-starknet-classes.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 rand_chacha.workspace = true
+||||||| e779088d2
+papyrus_storage = { workspace = true, features = ["testing"] }
+=======
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+>>>>>>> origin/main-v0.13.4

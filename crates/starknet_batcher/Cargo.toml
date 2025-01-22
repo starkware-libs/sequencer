@@ -33,14 +33,30 @@ validator.workspace = true
 assert_matches.workspace = true
 chrono = { workspace = true }
 futures.workspace = true
+<<<<<<< HEAD
 mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
+||||||| e779088d2
+mempool_test_utils.workspace = true
+=======
+mempool_test_utils.path = "../mempool_test_utils"
+>>>>>>> origin/main-v0.13.4
 mockall.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
+<<<<<<< HEAD
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_infra_utils.workspace = true
 starknet_l1_provider_types = { workspace = true, features = ["testing"] }
 starknet_mempool_types = { workspace = true, features = ["testing"] }
 starknet_sequencer_metrics.workspace = true
+||||||| e779088d2
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_l1_provider_types = { workspace = true, features = ["testing"] }
+starknet_mempool_types = { workspace = true, features = ["testing"] }
+=======
+starknet_api = { path = "../starknet_api", features = ["testing"] }
+starknet_l1_provider_types = { path = "../starknet_l1_provider_types", features = ["testing"] }
+starknet_mempool_types = { path = "../starknet_mempool_types", features = ["testing"] }
+>>>>>>> origin/main-v0.13.4
