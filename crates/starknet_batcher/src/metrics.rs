@@ -1,32 +1,19 @@
 use starknet_api::block::BlockNumber;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
-
-// Height metrics.
-pub const STORAGE_HEIGHT: MetricGauge =
-    MetricGauge::new("batcher_storage_height", "The height of the batcher's storage");
-
-// Proposal metrics.
-pub const PROPOSAL_STARTED: MetricCounter =
-    MetricCounter::new("batcher_proposal_started", "Counter of proposals started", 0);
-pub const PROPOSAL_SUCCEEDED: MetricCounter =
-    MetricCounter::new("batcher_proposal_succeeded", "Counter of successful proposals", 0);
-pub const PROPOSAL_FAILED: MetricCounter =
-    MetricCounter::new("batcher_proposal_failed", "Counter of failed proposals", 0);
-pub const PROPOSAL_ABORTED: MetricCounter =
-    MetricCounter::new("batcher_proposal_aborted", "Counter of aborted proposals", 0);
-
-// Transaction metrics.
-pub const BATCHED_TRANSACTIONS: MetricCounter =
-    MetricCounter::new("batcher_batched_transactions", "Counter of batched transactions", 0);
-pub const REJECTED_TRANSACTIONS: MetricCounter =
-    MetricCounter::new("batcher_rejected_transactions", "Counter of rejected transactions", 0);
+use starknet_sequencer_metrics::metric_definitions::{
+    BATCHED_TRANSACTIONS,
+    PROPOSAL_ABORTED,
+    PROPOSAL_FAILED,
+    PROPOSAL_STARTED,
+    PROPOSAL_SUCCEEDED,
+    REJECTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
+};
 
 pub fn register_metrics(storage_height: BlockNumber) {
     let storage_height_metric = STORAGE_HEIGHT.register();
     #[allow(clippy::as_conversions)]
     storage_height_metric.set(storage_height.0 as f64);
 
-    PROPOSAL_STARTED.register();
     PROPOSAL_STARTED.register();
     PROPOSAL_SUCCEEDED.register();
     PROPOSAL_FAILED.register();
