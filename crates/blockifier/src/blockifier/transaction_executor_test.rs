@@ -4,7 +4,7 @@ use rstest::rstest;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::test_utils::{NonceManager, DEFAULT_STRK_L1_GAS_PRICE};
+use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
@@ -146,14 +146,11 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let deploy_account_tx = executable_deploy_account_tx(
-        deploy_account_tx_args! {
-            class_hash: account_contract.get_class_hash(),
-            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
-            version,
-        },
-        &mut NonceManager::default(),
-    );
+    let deploy_account_tx = executable_deploy_account_tx(deploy_account_tx_args! {
+        class_hash: account_contract.get_class_hash(),
+        resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
+        version,
+    });
     let tx = AccountTransaction::new_for_sequencing(deploy_account_tx).into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,

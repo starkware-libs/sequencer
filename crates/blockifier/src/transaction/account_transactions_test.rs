@@ -203,27 +203,24 @@ fn test_fee_enforcement(
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let tx = executable_deploy_account_tx(
-        deploy_account_tx_args! {
-            class_hash: account.get_class_hash(),
-            max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
-            resource_bounds: match gas_bounds_mode {
-                GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
-                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                    DEFAULT_STRK_L1_GAS_PRICE.into()
-                ),
-                GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(
-                    GasVector{
-                        l1_gas: (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                        l2_gas: (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
-                        l1_data_gas: (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
-                    },
-                ),
-            },
-            version,
+    let tx = executable_deploy_account_tx(deploy_account_tx_args! {
+        class_hash: account.get_class_hash(),
+        max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
+        resource_bounds: match gas_bounds_mode {
+            GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
+                (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                DEFAULT_STRK_L1_GAS_PRICE.into()
+            ),
+            GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(
+                GasVector{
+                    l1_gas: (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                    l2_gas: (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
+                    l1_data_gas: (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
+                },
+            ),
         },
-        &mut NonceManager::default(),
-    );
+        version,
+    });
     let deploy_account_tx = AccountTransaction::new_for_sequencing(tx);
 
     let enforce_fee = deploy_account_tx.enforce_fee();

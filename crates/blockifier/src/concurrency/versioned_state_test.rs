@@ -7,7 +7,7 @@ use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
-use starknet_api::test_utils::{NonceManager, DEFAULT_STRK_L1_GAS_PRICE};
+use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
 use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
     calldata,
@@ -227,16 +227,13 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let mut state_2 = TransactionalState::create_transactional(&mut versioned_state_proxy_2);
 
     // Prepare transactions
-    let tx = executable_deploy_account_tx(
-        deploy_account_tx_args! {
-            class_hash: account_without_validation.get_class_hash(),
-            resource_bounds: l1_resource_bounds(
-                u8::from(!zero_bounds).into(),
-                DEFAULT_STRK_L1_GAS_PRICE.into()
-            ),
-        },
-        &mut NonceManager::default(),
-    );
+    let tx = executable_deploy_account_tx(deploy_account_tx_args! {
+        class_hash: account_without_validation.get_class_hash(),
+        resource_bounds: l1_resource_bounds(
+            u8::from(!zero_bounds).into(),
+            DEFAULT_STRK_L1_GAS_PRICE.into()
+        ),
+    });
     let deploy_account_tx_1 = AccountTransaction::new_for_sequencing(tx);
     let enforce_fee = deploy_account_tx_1.enforce_fee();
 
@@ -249,8 +246,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         resource_bounds: default_all_resource_bounds,
         constructor_calldata: constructor_calldata.clone(),
     };
-    let nonce_manager = &mut NonceManager::default();
-    let tx = executable_deploy_account_tx(deploy_tx_args, nonce_manager);
+    let tx = executable_deploy_account_tx(deploy_tx_args);
     let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
 
     let account_address = delpoy_account_tx_2.sender_address();

@@ -22,7 +22,6 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::Resource;
 use starknet_api::{deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -142,7 +141,7 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
-    executable_deploy_account_tx(deploy_account_tx_args!(), &mut NonceManager::default()),
+    executable_deploy_account_tx(deploy_account_tx_args!()),
     nonce!(0),
     true,
     false
