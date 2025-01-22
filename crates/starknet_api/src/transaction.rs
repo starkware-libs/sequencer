@@ -164,7 +164,7 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
                 executable_transaction::L1HandlerTransaction {
                     tx,
                     tx_hash,
-                    // TODO (yael 1/12/2024): The paid fee should be an input from the l1_handler.
+                    // TODO(Yael): The paid fee should be an input from the l1_handler.
                     paid_fee_on_l1: Fee(1),
                 },
             )),
@@ -423,7 +423,7 @@ pub trait CalculateContractAddress {
 }
 
 /// A trait intended for deploy account transactions. Structs implementing this trait derive the
-/// implementation of [`CalculateContractAddress`].
+/// implementation of [CalculateContractAddress].
 pub trait DeployTransactionTrait {
     fn contract_address_salt(&self) -> ContractAddressSalt;
     fn class_hash(&self) -> ClassHash;
