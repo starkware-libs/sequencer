@@ -17,7 +17,10 @@ use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
-use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
+use starknet_api::executable_transaction::{
+    AccountTransaction as ApiExecutableTransaction,
+    DeployAccountTransaction,
+};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
@@ -1978,15 +1981,21 @@ fn test_deploy_account_tx(
 
     // Negative flow.
     // Deploy to an existing address.
-    let deploy_account = AccountTransaction::new_with_default_flags(
-        create_executable_deploy_account_tx_and_update_nonce(
-            deploy_account_tx_args! {
-                resource_bounds: default_all_resource_bounds,
-                class_hash: account_class_hash
-            },
-            &mut nonce_manager,
-        ),
-    );
+    let mut tx: ApiExecutableTransaction = executable_deploy_account_tx(deploy_account_tx_args! {
+        resource_bounds: default_all_resource_bounds,
+        class_hash: account_class_hash
+    });
+    let nonce = nonce_manager.next(tx.contract_address());
+    if let ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
+        ref mut tx, ..
+    }) = tx
+    {
+        match tx {
+            starknet_api::transaction::DeployAccountTransaction::V1(ref mut tx) => tx.nonce = nonce,
+            starknet_api::transaction::DeployAccountTransaction::V3(ref mut tx) => tx.nonce = nonce,
+        }
+    }
+    let deploy_account = AccountTransaction::new_with_default_flags(tx);
     let error = deploy_account.execute(state, block_context).unwrap_err();
     assert_matches!(
         error,
