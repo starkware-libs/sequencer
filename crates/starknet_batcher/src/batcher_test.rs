@@ -55,7 +55,12 @@ use crate::metrics::{
     REJECTED_TRANSACTIONS,
     STORAGE_HEIGHT,
 };
-use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
+use crate::test_utils::{
+    test_txs,
+    verify_indexed_execution_infos,
+    FakeProposeBlockBuilder,
+    FakeValidateBlockBuilder,
+};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const LATEST_BLOCK_IN_STORAGE: BlockNumber = BlockNumber(INITIAL_HEIGHT.0 - 1);
@@ -805,4 +810,41 @@ async fn decision_reached_no_executed_proposal() {
     let decision_reached_result =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
     assert_eq!(decision_reached_result, Err(expected_error));
+}
+
+// Test that the batcher returns the execution_infos in the same order as returned from the
+// block_builder. It is crucial that the execution_infos will be ordered in the same order as
+// the transactions in the block for the correct execution of starknet.
+// This test together with [block_builder_test::test_execution_info_order] covers this requirement.
+#[tokio::test]
+async fn test_execution_info_order_is_kept() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
+
+    let block_builder_result = BlockExecutionArtifacts::create_for_testing();
+    // Check that the execution_infos were initiated properly for this test.
+    verify_indexed_execution_infos(&block_builder_result.execution_infos);
+
+    mock_create_builder_for_propose_block(
+        &mut mock_dependencies.block_builder_factory,
+        vec![],
+        Ok(block_builder_result.clone()),
+    );
+
+    let mut batcher = create_batcher(mock_dependencies);
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal().await;
+
+    let response =
+        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+
+    // Verify that the execution_infos are in the same order as returned from the block_builder.
+    for i in 0..EXECUTION_INFO_LEN {
+        assert_eq!(
+            &response.central_objects.execution_infos[i],
+            block_builder_result.execution_infos.get_index(i).unwrap().1
+        );
+    }
 }

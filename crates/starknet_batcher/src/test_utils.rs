@@ -2,17 +2,22 @@ use std::ops::Range;
 
 use async_trait::async_trait;
 use blockifier::bouncer::BouncerWeights;
+use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::block_builder::{BlockBuilderResult, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::transaction_provider::{NextTxs, TransactionProvider};
+
+pub const EXECUTION_INFO_LEN: usize = 10;
 
 // A fake block builder for validate flow, that fetches transactions from the transaction provider
 // until it is exhausted.
@@ -70,14 +75,40 @@ pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
         .collect()
 }
 
+// Create `execution_infos` with an indexed field to enable verification of the order.
+fn indexed_execution_infos() -> IndexMap<TransactionHash, TransactionExecutionInfo> {
+    test_txs(0..EXECUTION_INFO_LEN)
+        .iter()
+        .enumerate()
+        .map(|(i, tx)| {
+            (
+                tx.tx_hash(),
+                TransactionExecutionInfo {
+                    receipt: TransactionReceipt {
+                        fee: Fee(i.try_into().unwrap()),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+            )
+        })
+        .collect()
+}
+
+// Verify that `execution_infos` was initiated with an indexed fields.
+pub fn verify_indexed_execution_infos(
+    execution_infos: &IndexMap<TransactionHash, TransactionExecutionInfo>,
+) {
+    for (i, execution_info) in execution_infos.iter().enumerate() {
+        assert_eq!(execution_info.1.receipt.fee, Fee(i.try_into().unwrap()));
+    }
+}
+
 impl BlockExecutionArtifacts {
     pub fn create_for_testing() -> Self {
-        // Use a non-empty commitment_state_diff to make the tests more realistic.
+        // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
         Self {
-            execution_infos: test_txs(0..10)
-                .iter()
-                .map(|tx| (tx.tx_hash(), TransactionExecutionInfo::default()))
-                .collect(),
+            execution_infos: indexed_execution_infos(),
             rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
             commitment_state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
