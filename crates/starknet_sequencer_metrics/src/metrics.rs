@@ -11,6 +11,16 @@ pub enum MetricScope {
     HttpServer,
 }
 
+pub trait MetricPresenter {
+    fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
+    }
+
+    fn get_name(&self) -> &'static str;
+
+    fn get_scope(&self) -> MetricScope;
+}
+
 pub struct MetricCounter {
     scope: MetricScope,
     name: &'static str,
@@ -36,12 +46,14 @@ impl MetricCounter {
     pub fn increment(&self, value: u64) {
         counter!(self.name).increment(value);
     }
+}
 
-    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.name)
+impl MetricPresenter for MetricCounter {
+    fn get_name(&self) -> &'static str {
+        self.name
     }
 
-    pub fn get_scope(&self) -> MetricScope {
+    fn get_scope(&self) -> MetricScope {
         self.scope
     }
 }
@@ -72,12 +84,14 @@ impl MetricGauge {
     pub fn decrement<T: IntoF64>(&self, value: T) {
         gauge!(self.name).decrement(value.into_f64());
     }
+}
 
-    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.name)
+impl MetricPresenter for MetricGauge {
+    fn get_name(&self) -> &'static str {
+        self.name
     }
 
-    pub fn get_scope(&self) -> MetricScope {
+    fn get_scope(&self) -> MetricScope {
         self.scope
     }
 }
