@@ -21,7 +21,11 @@ use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTra
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
-use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
+use starknet_api::test_utils::deploy_account::{
+    create_executable_deploy_account_tx_and_update_nonce,
+    executable_deploy_account_tx,
+    DeployAccountTxArgs,
+};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
@@ -1036,7 +1040,6 @@ fn test_max_fee_exceeds_balance(
             resource_bounds,
             class_hash: FeatureContract::TestContract(cairo_version).get_class_hash()
         },
-        &mut NonceManager::default(),
     ));
     assert_resource_bounds_exceed_balance_failure(&mut state, &block_context, invalid_tx);
 
@@ -1812,13 +1815,15 @@ fn test_deploy_account_tx(
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
-        deploy_account_tx_args! {
-            resource_bounds: default_all_resource_bounds,
-            class_hash: account_class_hash
-        },
-        &mut nonce_manager,
-    ));
+    let deploy_account = AccountTransaction::new_with_default_flags(
+        create_executable_deploy_account_tx_and_update_nonce(
+            deploy_account_tx_args! {
+                resource_bounds: default_all_resource_bounds,
+                class_hash: account_class_hash
+            },
+            &mut nonce_manager,
+        ),
+    );
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
@@ -1973,13 +1978,15 @@ fn test_deploy_account_tx(
 
     // Negative flow.
     // Deploy to an existing address.
-    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
-        deploy_account_tx_args! {
-            resource_bounds: default_all_resource_bounds,
-            class_hash: account_class_hash
-        },
-        &mut nonce_manager,
-    ));
+    let deploy_account = AccountTransaction::new_with_default_flags(
+        create_executable_deploy_account_tx_and_update_nonce(
+            deploy_account_tx_args! {
+                resource_bounds: default_all_resource_bounds,
+                class_hash: account_class_hash
+            },
+            &mut nonce_manager,
+        ),
+    );
     let error = deploy_account.execute(state, block_context).unwrap_err();
     assert_matches!(
         error,
@@ -2002,13 +2009,11 @@ fn test_fail_deploy_account_undeclared_class_hash(
     let block_context = &block_context;
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[]);
-    let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
     let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,  class_hash: undeclared_hash
         },
-        &mut nonce_manager,
     ));
     let tx_context = block_context.to_tx_context(&deploy_account);
     let fee_type = tx_context.tx_info.fee_type();
@@ -2847,7 +2852,6 @@ fn test_deploy_max_sierra_gas_validate_execute(
     #[case] tx_args: DeployAccountTxArgs,
 ) {
     let chain_info = &block_context.chain_info;
-    let mut nonce_manager = NonceManager::default();
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
@@ -2856,7 +2860,6 @@ fn test_deploy_max_sierra_gas_validate_execute(
             class_hash: account_class_hash,
             .. tx_args
         },
-        &mut nonce_manager,
     ));
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an

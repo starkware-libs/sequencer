@@ -5,7 +5,10 @@ use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::declare::executable_declare_tx;
-use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
+use starknet_api::test_utils::deploy_account::{
+    create_executable_deploy_account_tx_and_update_nonce,
+    DeployAccountTxArgs,
+};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
@@ -127,7 +130,7 @@ pub fn deploy_and_fund_account(
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
     let deploy_account_tx = AccountTransaction::new_with_default_flags(
-        executable_deploy_account_tx(deploy_tx_args, nonce_manager),
+        create_executable_deploy_account_tx_and_update_nonce(deploy_tx_args, nonce_manager),
     );
     let account_address = deploy_account_tx.sender_address();
 
@@ -281,7 +284,7 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            let tx = executable_deploy_account_tx(
+            let tx = create_executable_deploy_account_tx_and_update_nonce(
                 deploy_account_tx_args! {
                     max_fee,
                     resource_bounds,
