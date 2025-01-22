@@ -423,7 +423,7 @@ pub trait CalculateContractAddress {
 }
 
 /// A trait intended for deploy account transactions. Structs implementing this trait derive the
-/// implementation of [`CalculateContractAddress`].
+/// implementation of [CalculateContractAddress].
 pub trait DeployTransactionTrait {
     fn contract_address_salt(&self) -> ContractAddressSalt;
     fn class_hash(&self) -> ClassHash;
