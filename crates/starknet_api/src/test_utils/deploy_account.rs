@@ -127,24 +127,19 @@ pub fn executable_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> Acco
     AccountTransaction::DeployAccount(deploy_account_tx)
 }
 
-// TODO(Arni): Consider using [ExecutableDeployAccountTransaction::create] in the body of this
-// function. We don't use it now to avoid tx_hash calculation.
-// TODO(Arni): Streamline this function by using nonce = 0 always.
 pub fn create_executable_deploy_account_tx_and_update_nonce(
     deploy_tx_args: DeployAccountTxArgs,
     nonce_manager: &mut NonceManager,
 ) -> AccountTransaction {
-    let tx_hash = deploy_tx_args.tx_hash;
-    let mut tx = deploy_account_tx(deploy_tx_args, Nonce(Felt::ZERO));
-    let contract_address = tx.calculate_contract_address().unwrap();
+    let tx = executable_deploy_account_tx(deploy_tx_args);
+    let contract_address = tx.contract_address();
     let nonce = nonce_manager.next(contract_address);
-    match tx {
-        DeployAccountTransaction::V1(ref mut tx) => tx.nonce = nonce,
-        DeployAccountTransaction::V3(ref mut tx) => tx.nonce = nonce,
-    }
-    let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
-
-    AccountTransaction::DeployAccount(deploy_account_tx)
+    assert_eq!(
+        nonce,
+        Nonce(Felt::ZERO),
+        "Account already deployed at this address: {contract_address}."
+    );
+    tx
 }
 
 pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
