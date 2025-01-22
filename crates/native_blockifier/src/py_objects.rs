@@ -11,7 +11,7 @@ use blockifier::blockifier::config::{
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
-use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+use blockifier::state::global_cache::DEFAULT_GLOBAL_CONTRACT_CACHE_SIZE;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -239,7 +239,7 @@ pub struct PyContractClassManagerConfig {
 impl Default for PyContractClassManagerConfig {
     fn default() -> Self {
         Self {
-            contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            contract_cache_size: DEFAULT_GLOBAL_CONTRACT_CACHE_SIZE,
             cairo_native_run_config: PyCairoNativeRunConfig::default(),
             native_compiler_config: PySierraCompilationConfig::default(),
         }

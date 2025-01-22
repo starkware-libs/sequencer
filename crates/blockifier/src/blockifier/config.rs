@@ -8,7 +8,7 @@ use starknet_sierra_multicompile::config::SierraCompilationConfig;
 #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
-use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+use crate::state::global_cache::DEFAULT_GLOBAL_CONTRACT_CACHE_SIZE;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
@@ -90,7 +90,7 @@ impl Default for ContractClassManagerConfig {
     fn default() -> Self {
         Self {
             cairo_native_run_config: CairoNativeRunConfig::default(),
-            contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            contract_cache_size: DEFAULT_GLOBAL_CONTRACT_CACHE_SIZE,
             native_compiler_config: SierraCompilationConfig::default(),
         }
     }
