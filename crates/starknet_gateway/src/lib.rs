@@ -1,5 +1,4 @@
 pub mod communication;
-pub mod compilation;
 mod compiler_version;
 pub mod config;
 pub mod errors;
@@ -18,4 +17,3 @@ mod sync_state_reader;
 mod sync_state_reader_test;
 #[cfg(test)]
 mod test_utils;
-mod utils;

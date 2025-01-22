@@ -4,6 +4,7 @@ use std::sync::Arc;
 use futures::channel::mpsc::Sender;
 use futures::StreamExt;
 use lazy_static::lazy_static;
+use mockall::predicate::eq;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::state::create_random_state_diff;
 use papyrus_network::network_manager::test_utils::{
@@ -41,6 +42,7 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
+use starknet_api::contract_class::ContractClass;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::{
@@ -50,8 +52,7 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionOutput,
 };
-use starknet_class_manager_types::test_utils::MemoryClassManagerClient;
-use starknet_class_manager_types::SharedClassManagerClient;
+use starknet_class_manager_types::{MockClassManagerClient, SharedClassManagerClient};
 
 use super::{split_thin_state_diff, FetchBlockData, P2pSyncServer, P2pSyncServerChannels};
 use crate::server::register_query;
@@ -329,23 +330,12 @@ async fn run_test<T, F, TQuery>(
     let TestArgs {
         p2p_sync_server,
         storage_reader,
-        mut storage_writer,
         header_sender: _header_sender,
         state_diff_sender: _state_diff_sender,
         transaction_sender: _transaction_sender,
         class_sender: _class_sender,
         event_sender: _event_sender,
-    } = setup();
-
-    // put some data in the storage.
-    insert_to_storage_test_blocks_up_to(&mut storage_writer);
-
-    // put classes into class manager and update marker in storage
-    insert_to_class_manager_test_blocks_up_to(
-        &mut storage_writer,
-        p2p_sync_server.class_manager_client.clone(),
-    )
-    .await;
+    } = setup_sync_server_and_storage();
 
     let block_number = BlockNumber(start_block_number.try_into().unwrap());
     let start_block = match start_block_type {
@@ -398,7 +388,6 @@ pub struct TestArgs {
     #[allow(clippy::type_complexity)]
     pub p2p_sync_server: P2pSyncServer,
     pub storage_reader: StorageReader,
-    pub storage_writer: StorageWriter,
     pub header_sender: Sender<ServerQueryManager<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
     pub state_diff_sender: Sender<ServerQueryManager<StateDiffQuery, DataOrFin<StateDiffChunk>>>,
     pub transaction_sender:
@@ -409,8 +398,15 @@ pub struct TestArgs {
 }
 
 #[allow(clippy::type_complexity)]
-fn setup() -> TestArgs {
-    let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
+fn setup_sync_server_and_storage() -> TestArgs {
+    let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
+
+    // put some data in the storage.
+    insert_to_storage_test_blocks_up_to(&mut storage_writer);
+
+    // put classes into class manager and update marker in storage
+    let class_manager_client = create_mock_class_manager_with_blocks_up_to(&mut storage_writer);
+
     let (header_receiver, header_sender) = mock_register_sqmr_protocol_server(BUFFER_SIZE);
     let (state_diff_receiver, state_diff_sender) = mock_register_sqmr_protocol_server(BUFFER_SIZE);
     let (transaction_receiver, transaction_sender) =
@@ -425,8 +421,6 @@ fn setup() -> TestArgs {
         event_receiver,
     };
 
-    let class_manager_client = Arc::new(MemoryClassManagerClient::new());
-
     let p2p_sync_server = super::P2pSyncServer::new(
         storage_reader.clone(),
         p2p_sync_server_channels,
@@ -435,7 +429,6 @@ fn setup() -> TestArgs {
     TestArgs {
         p2p_sync_server,
         storage_reader,
-        storage_writer,
         header_sender,
         state_diff_sender,
         transaction_sender,
@@ -475,10 +468,10 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
     }
 }
 
-async fn insert_to_class_manager_test_blocks_up_to(
+fn create_mock_class_manager_with_blocks_up_to(
     storage_writer: &mut StorageWriter,
-    class_manager_client: SharedClassManagerClient,
-) {
+) -> SharedClassManagerClient {
+    let mut class_manager_client = MockClassManagerClient::new();
     for i in 0..NUM_OF_BLOCKS {
         let block_number = BlockNumber(i.try_into().unwrap());
         let classes_with_hashes = CLASSES_WITH_HASHES[i]
@@ -487,7 +480,10 @@ async fn insert_to_class_manager_test_blocks_up_to(
             .collect::<Vec<_>>();
 
         for (class_hash, contract_class) in classes_with_hashes {
-            class_manager_client.add_class(class_hash, contract_class.clone()).await.unwrap();
+            class_manager_client
+                .expect_get_sierra()
+                .with(eq(class_hash))
+                .returning(|_| Ok(contract_class.clone()));
         }
 
         let deprecated_classes_with_hashes = DEPRECATED_CLASSES_WITH_HASHES[i]
@@ -496,10 +492,11 @@ async fn insert_to_class_manager_test_blocks_up_to(
             .collect::<Vec<_>>();
 
         for (class_hash, contract_class) in deprecated_classes_with_hashes {
+            // TODO(shahak): test the case where class manager client returned error.
             class_manager_client
-                .add_deprecated_class(class_hash, contract_class.clone())
-                .await
-                .unwrap();
+                .expect_get_executable()
+                .with(eq(class_hash))
+                .returning(|_| Ok(ContractClass::V0(contract_class.clone())));
         }
 
         storage_writer
@@ -510,6 +507,7 @@ async fn insert_to_class_manager_test_blocks_up_to(
             .commit()
             .unwrap();
     }
+    Arc::new(class_manager_client)
 }
 
 lazy_static! {

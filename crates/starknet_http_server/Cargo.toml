@@ -15,7 +15,6 @@ workspace = true
 axum.workspace = true
 hyper.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
-metrics.workspace = true
 papyrus_config.workspace = true
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
@@ -24,6 +23,7 @@ starknet_api.workspace = true
 starknet_gateway_types = { workspace = true, features = ["testing"] }
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_sequencer_metrics.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
@@ -32,6 +32,7 @@ validator.workspace = true
 [dev-dependencies]
 blockifier = { workspace = true, features = ["testing"] }
 mempool_test_utils.workspace = true
+metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true

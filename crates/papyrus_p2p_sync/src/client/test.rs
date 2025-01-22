@@ -35,10 +35,11 @@ async fn receive_block_internally() {
 
     run_test(
         HashMap::new(),
+        None,
         vec![
             Action::SendInternalBlock(sync_block),
             Action::RunP2pSync,
-            Action::CheckStorage(Box::new(move |(reader, _)| {
+            Action::CheckStorage(Box::new(move |reader| {
                 async move {
                     wait_for_marker(
                         DataType::StateDiff,
@@ -109,11 +110,12 @@ async fn receive_blocks_out_of_order() {
 
     run_test(
         HashMap::new(),
+        None,
         vec![
             Action::SendInternalBlock(sync_block_1),
             Action::SendInternalBlock(sync_block_0),
             Action::RunP2pSync,
-            Action::CheckStorage(Box::new(move |(reader, _)| {
+            Action::CheckStorage(Box::new(move |reader| {
                 async move {
                     wait_for_marker(
                         DataType::StateDiff,
@@ -183,6 +185,7 @@ async fn receive_blocks_first_externally_and_then_internally() {
     let sync_block_1 = create_random_sync_block(BlockNumber(1), 1, rng);
     run_test(
         HashMap::from([(DataType::Header, 2)]),
+        None,
         vec![
             Action::RunP2pSync,
             // We already validate the query content in other tests.
@@ -193,7 +196,7 @@ async fn receive_blocks_first_externally_and_then_internally() {
                 None,
                 None,
             )))),
-            Action::CheckStorage(Box::new(|(reader, _)| {
+            Action::CheckStorage(Box::new(|reader| {
                 async move {
                     wait_for_marker(
                         DataType::Header,
@@ -212,7 +215,7 @@ async fn receive_blocks_first_externally_and_then_internally() {
             })),
             Action::SendInternalBlock(sync_block_0),
             Action::SendInternalBlock(sync_block_1),
-            Action::CheckStorage(Box::new(|(reader, _)| {
+            Action::CheckStorage(Box::new(|reader| {
                 async move {
                     wait_for_marker(
                         DataType::Header,

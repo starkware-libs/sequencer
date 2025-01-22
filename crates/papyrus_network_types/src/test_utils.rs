@@ -14,5 +14,6 @@ impl GetTestInstance for OpaquePeerId {
 auto_impl_get_test_instance! {
     pub struct BroadcastedMessageMetadata {
         pub originator_id: OpaquePeerId,
+        pub encoded_message_length: usize,
     }
 }

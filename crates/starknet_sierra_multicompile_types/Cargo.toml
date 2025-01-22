@@ -10,7 +10,6 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-bytes = { workspace = true, features = ["serde"] }
 papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

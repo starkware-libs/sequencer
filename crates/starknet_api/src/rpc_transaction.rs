@@ -112,6 +112,8 @@ impl RpcTransaction {
     }
 }
 
+// TODO(Arni): Replace this with RPCTransacion -> InternalRpcTransaction conversion (don't use From
+// becuase it contains hash calculations).
 impl From<RpcTransaction> for Transaction {
     fn from(rpc_transaction: RpcTransaction) -> Self {
         match rpc_transaction {
@@ -122,6 +124,44 @@ impl From<RpcTransaction> for Transaction {
     }
 }
 
+macro_rules! implement_internal_getters_for_internal_rpc {
+    ($(($field_name:ident, $field_ty:ty)),* $(,)?) => {
+        $(
+            pub fn $field_name(&self) -> $field_ty {
+                match &self.tx {
+                    InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.$field_name.clone(),
+                    InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => tx.$field_name.clone(),
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => {
+                        let RpcDeployAccountTransaction::V3(tx) = &tx.tx;
+                        tx.$field_name.clone()
+                    },
+                }
+            }
+        )*
+    };
+}
+
+impl InternalRpcTransaction {
+    implement_internal_getters_for_internal_rpc!(
+        (nonce, Nonce),
+        (resource_bounds, AllResourceBounds),
+        (tip, Tip),
+    );
+
+    pub fn contract_address(&self) -> ContractAddress {
+        match &self.tx {
+            InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.sender_address,
+            InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => {
+                tx.sender_address
+            }
+            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
+        }
+    }
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        self.tx_hash
+    }
+}
 /// A RPC declare transaction.
 ///
 /// This transaction is equivalent to the component DECLARE_TXN in the
@@ -224,8 +264,7 @@ pub struct InternalRpcDeclareTransactionV3 {
 impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: RpcDeclareTransactionV3) -> Self {
         Self {
-            class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
-                                               * function once ready */
+            class_hash: tx.contract_class.calculate_class_hash(),
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
             signature: tx.signature,

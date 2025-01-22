@@ -202,6 +202,7 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
 async fn wrong_block_number() {
     run_test(
         HashMap::from([(DataType::Header, 1)]),
+        None,
         vec![
             Action::RunP2pSync,
             // We already validate the query content in other tests.
@@ -213,7 +214,7 @@ async fn wrong_block_number() {
                 None,
             )))),
             Action::ValidateReportSent(DataType::Header),
-            Action::CheckStorage(Box::new(|(reader, _)| {
+            Action::CheckStorage(Box::new(|reader| {
                 async move {
                     assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
                 }

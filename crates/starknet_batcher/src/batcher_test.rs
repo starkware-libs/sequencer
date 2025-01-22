@@ -8,7 +8,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -31,7 +31,8 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
-use starknet_infra_utils::metrics::parse_numeric_metric;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
@@ -47,6 +48,15 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::config::BatcherConfig;
+use crate::metrics::{
+    BATCHED_TRANSACTIONS,
+    PROPOSAL_ABORTED,
+    PROPOSAL_FAILED,
+    PROPOSAL_STARTED,
+    PROPOSAL_SUCCEEDED,
+    REJECTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
+};
 use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -85,6 +95,7 @@ struct MockDependencies {
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
+    class_manager_client: SharedClassManagerClient,
 }
 
 impl Default for MockDependencies {
@@ -97,6 +108,8 @@ impl Default for MockDependencies {
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client: MockMempoolClient::new(),
             block_builder_factory: MockBlockBuilderFactoryTrait::new(),
+            // TODO(noamsp): use MockClassManagerClient
+            class_manager_client: Arc::new(EmptyClassManagerClient),
         }
     }
 }
@@ -108,6 +121,10 @@ fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         Box::new(mock_dependencies.storage_writer),
         Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
+        TransactionConverter::new(
+            mock_dependencies.class_manager_client,
+            ChainId::create_for_testing(),
+        ),
         Box::new(mock_dependencies.block_builder_factory),
     )
 }
@@ -198,10 +215,10 @@ fn assert_proposal_metrics(
     let n_expected_active_proposals =
         expected_started - (expected_succeeded + expected_failed + expected_aborted);
     assert!(n_expected_active_proposals <= 1);
-    let started = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_STARTED.name);
-    let succeeded = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_SUCCEEDED.name);
-    let failed = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_FAILED.name);
-    let aborted = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_ABORTED.name);
+    let started = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
+    let succeeded = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
+    let failed = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
+    let aborted = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
 
     assert_eq!(
         started,
@@ -239,10 +256,7 @@ async fn metrics_registered() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let _batcher = create_batcher(MockDependencies::default());
     let metrics = recorder.handle().render();
-    assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
-        Some(INITIAL_HEIGHT.0)
-    );
+    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 }
 
 #[rstest]
@@ -648,7 +662,7 @@ async fn add_sync_block() {
     batcher.add_sync_block(sync_block).await.unwrap();
     let metrics = recorder.handle().render();
     assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
 }
@@ -690,19 +704,13 @@ async fn revert_block() {
     let mut batcher = create_batcher(mock_dependencies);
 
     let metrics = recorder.handle().render();
-    assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
-        Some(INITIAL_HEIGHT.0)
-    );
+    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
     batcher.revert_block(revert_input).await.unwrap();
 
     let metrics = recorder.handle().render();
-    assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
-        Some(INITIAL_HEIGHT.0 - 1)
-    );
+    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
 }
 
 #[tokio::test]
@@ -782,15 +790,15 @@ async fn decision_reached() {
 
     let metrics = recorder.handle().render();
     assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
     assert_eq!(
-        parse_numeric_metric::<usize>(&metrics, crate::metrics::BATCHED_TRANSACTIONS.name),
+        BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(expected_artifacts.execution_infos.len())
     );
     assert_eq!(
-        parse_numeric_metric::<usize>(&metrics, crate::metrics::REJECTED_TRANSACTIONS.name),
+        REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(expected_artifacts.rejected_tx_hashes.len())
     );
 }
