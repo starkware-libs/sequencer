@@ -4,7 +4,7 @@ use std::sync::Arc;
 use blockifier::context::ChainInfo;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::AccountTransaction;
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
@@ -120,10 +120,14 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
-        let (_optional_class_info, _tx) = compile_contract_and_build_internal_rpc_tx(
+        let (_optional_class_info, tx_without_hash) = compile_contract_and_build_internal_rpc_tx(
             self.tx.clone(),
             self.gateway_compiler.as_ref(),
         )?;
+        let _internal_rpc_tx = InternalRpcTransaction::try_from_tx_without_hash(
+            tx_without_hash,
+            &self.chain_info.chain_id,
+        );
         let executable_tx = compile_contract_and_build_executable_tx(
             self.tx,
             self.gateway_compiler.as_ref(),

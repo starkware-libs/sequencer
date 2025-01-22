@@ -132,6 +132,16 @@ pub struct InternalRpcTransaction {
     pub tx_hash: TransactionHash,
 }
 
+impl InternalRpcTransaction {
+    pub fn try_from_tx_without_hash(
+        tx: InternalRpcTransactionWithoutTxHash,
+        chain_id: &ChainId,
+    ) -> Result<Self, StarknetApiError> {
+        let tx_hash = tx.calculate_transaction_hash(chain_id)?;
+        Ok(Self { tx, tx_hash })
+    }
+}
+
 macro_rules! implement_ref_getters {
     ($(($member_name:ident, $member_type:ty)), *) => {
         $(pub fn $member_name(&self) -> &$member_type {
