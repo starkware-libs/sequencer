@@ -1,7 +1,9 @@
 use std::fs::File;
 use std::process::Command;
 
+use alloy_node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy_primitives::Address as EthereumContractAddress;
+use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
@@ -60,4 +62,21 @@ pub fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddr
     let ganache = Ganache::new().args(["--db", db_path.to_str().unwrap()]).spawn();
 
     ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
+}
+
+// Spin up Anvil instance, a local Ethereum node, dies when dropped.
+pub fn anvil() -> AnvilInstance {
+    Anvil::new().try_spawn().unwrap_or_else(|error| match error {
+        AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
+            panic!(
+                "\n{}\n{}\n",
+                "Anvil binary not found!".bold().red(),
+                "Install instructions (for local development):\n
+                 cargo install --git \
+                 https://github.com/foundry-rs/foundry anvil --locked --tag=v0.3.0"
+                    .yellow()
+            )
+        }
+        _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
+    })
 }
