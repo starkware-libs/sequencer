@@ -36,21 +36,11 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 lazy_static.workspace = true
-<<<<<<< HEAD
 mockall.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_protobuf = { workspace = true, features = ["testing"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
-starknet_class_manager_types = { workspace = true, features = ["testing"] }
-||||||| e779088d2
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_protobuf = { workspace = true, features = ["testing"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
-=======
 papyrus_network = { path = "../papyrus_network", features = ["testing"] }
 papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"] }
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
->>>>>>> origin/main-v0.13.4
+starknet_class_manager_types = { path = "../starknet_class_manager_types", features = ["testing"] }
 static_assertions.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
