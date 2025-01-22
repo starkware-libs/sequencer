@@ -27,8 +27,10 @@ message Receipt {
       uint32 poseidon = 6;
       uint32 keccak = 7;
       uint32 output = 8;
+      // TODO(alonl): add the missing builtins
     }
 
+    //TODO(alonl): remove GasVector and unsplit gas_consumed and da_gas_consumed
     message GasVector {
       uint64 l1_gas = 1;
       uint64 l1_data_gas = 2;
@@ -57,7 +59,7 @@ message Receipt {
 
   message L1Handler {
     Common common = 1;
-    Hash msg_hash = 2;
+    Hash256 msg_hash = 2;
   }
 
   message Declare {
