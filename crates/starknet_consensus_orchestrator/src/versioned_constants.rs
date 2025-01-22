@@ -18,11 +18,10 @@ pub struct VersionedConstants {
     pub gas_target: u64,
 }
 
-// TODO(Ayelet): Change version and path to 0.14 once added.
 define_versioned_constants!(
     VersionedConstants,
     VersionedConstantsError,
-    (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
+    (V0_14_0, "../resources/versioned_constants_0_14_0.json"),
 );
 
 /// Error type for the Consensus' versioned constants.
