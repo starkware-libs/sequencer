@@ -11195,6 +11195,14 @@ dependencies = [
 [[package]]
 name = "starknet_os"
 version = "0.0.0"
+dependencies = [
+ "papyrus_common",
+ "serde",
+ "serde_json",
+ "sha3",
+ "starknet-types-core",
+ "starknet_api",
+]
 
 [[package]]
 name = "starknet_os_cli"
