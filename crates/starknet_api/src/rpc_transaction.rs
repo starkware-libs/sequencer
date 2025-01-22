@@ -59,19 +59,20 @@ pub enum RpcTransaction {
     Invoke(RpcInvokeTransaction),
 }
 
+/// Holds an an external [RpcDeployAccountTransaction] and the deployed contract's expected address.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct DeployAccountTransactionV3WithAddress {
+pub struct InternalRpcDeployAccountTransaction {
     pub tx: RpcDeployAccountTransaction,
     pub contract_address: ContractAddress,
 }
 
-impl DeployAccountTransactionV3WithAddress {
+impl InternalRpcDeployAccountTransaction {
     fn version(&self) -> TransactionVersion {
         self.tx.version()
     }
 }
 
-impl TransactionHasher for DeployAccountTransactionV3WithAddress {
+impl TransactionHasher for InternalRpcDeployAccountTransaction {
     fn calculate_transaction_hash(
         &self,
         chain_id: &ChainId,
@@ -94,7 +95,7 @@ pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "INVOKE")]
     Invoke(RpcInvokeTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
-    DeployAccount(DeployAccountTransactionV3WithAddress),
+    DeployAccount(InternalRpcDeployAccountTransaction),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -293,22 +294,6 @@ pub struct RpcDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-/// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct InternalRpcDeclareTransactionV3 {
-    pub sender_address: ContractAddress,
-    pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub class_hash: ClassHash,
-    pub resource_bounds: AllResourceBounds,
-    pub tip: Tip,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-}
-
 impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: RpcDeclareTransactionV3) -> Self {
         Self {
@@ -326,6 +311,22 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
             account_deployment_data: tx.account_deployment_data,
         }
     }
+}
+
+/// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+pub struct InternalRpcDeclareTransactionV3 {
+    pub sender_address: ContractAddress,
+    pub compiled_class_hash: CompiledClassHash,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub resource_bounds: AllResourceBounds,
+    pub tip: Tip,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
 impl InternalRpcDeclareTransactionV3 {
