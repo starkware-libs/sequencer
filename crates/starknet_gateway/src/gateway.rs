@@ -21,7 +21,10 @@ use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
-use crate::utils::compile_contract_and_build_executable_tx;
+use crate::utils::{
+    compile_contract_and_build_executable_tx,
+    compile_contract_and_build_internal_rpc_tx,
+};
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -117,6 +120,10 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
+        let (_optional_class_info, _tx) = compile_contract_and_build_internal_rpc_tx(
+            self.tx.clone(),
+            self.gateway_compiler.as_ref(),
+        )?;
         let executable_tx = compile_contract_and_build_executable_tx(
             self.tx,
             self.gateway_compiler.as_ref(),
