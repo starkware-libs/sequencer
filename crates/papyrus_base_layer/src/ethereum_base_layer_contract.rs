@@ -24,6 +24,7 @@ use validator::Validate;
 use crate::{BaseLayerContract, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
+type L1BLockNumber = u64;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
@@ -52,6 +53,27 @@ impl EthereumBaseLayerContract {
 #[async_trait]
 impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
+    async fn get_proved_block_at(
+        &self,
+        l1_block: L1BLockNumber,
+    ) -> EthereumBaseLayerResult<BlockHashAndNumber> {
+        let block_id = l1_block.into();
+        let call_state_block_number = self.contract.stateBlockNumber().block(block_id);
+        let call_state_block_hash = self.contract.stateBlockHash().block(block_id);
+
+        let (state_block_number, state_block_hash) = tokio::try_join!(
+            call_state_block_number.call_raw().into_future(),
+            call_state_block_hash.call_raw().into_future()
+        )?;
+
+        let validate = true;
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
+        Ok(BlockHashAndNumber {
+            number: BlockNumber(block_number),
+            hash: BlockHash(StarkHash::from_bytes_be(&block_hash)),
+        })
+    }
 
     /// Returns the latest proved block on Ethereum, where finality determines how many
     /// blocks back (0 = latest).
@@ -62,24 +84,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let Some(ethereum_block_number) = self.latest_l1_block_number(finality).await? else {
             return Ok(None);
         };
-
-        let call_state_block_number =
-            self.contract.stateBlockNumber().block(ethereum_block_number.into());
-        let call_state_block_hash =
-            self.contract.stateBlockHash().block(ethereum_block_number.into());
-
-        let (state_block_number, state_block_hash) = tokio::try_join!(
-            call_state_block_number.call_raw().into_future(),
-            call_state_block_hash.call_raw().into_future()
-        )?;
-
-        let validate = true;
-        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
-        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
-        Ok(Some(BlockHashAndNumber {
-            number: BlockNumber(block_number),
-            hash: BlockHash(StarkHash::from_bytes_be(&block_hash)),
-        }))
+        self.get_proved_block_at(ethereum_block_number).await.map(Some)
     }
 
     async fn events(
@@ -93,7 +98,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         matching_logs.into_iter().map(TryInto::try_into).collect()
     }
 
-    async fn latest_l1_block_number(&self, finality: u64) -> EthereumBaseLayerResult<Option<u64>> {
+    async fn latest_l1_block_number(
+        &self,
+        finality: u64,
+    ) -> EthereumBaseLayerResult<Option<L1BLockNumber>> {
         Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
     }
 }
