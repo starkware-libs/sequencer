@@ -37,6 +37,7 @@ url = { workspace = true, features = ["serde"] }
 [dev-dependencies]
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
+cairo-vm.workspace = true
 lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true

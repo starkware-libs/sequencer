@@ -10894,6 +10894,7 @@ dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-vm",
  "chrono",
  "futures",
  "indexmap 2.7.0",
