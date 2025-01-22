@@ -137,7 +137,7 @@
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
-    "value": 1000
+    "value": 2000
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
@@ -152,7 +152,7 @@
   "batcher_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
-    "value": 400
+    "value": 600
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path": {
     "description": "The path to the Cairo native runtime library file.",
