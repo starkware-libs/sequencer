@@ -199,7 +199,7 @@ fn store_base_layer_block_test() {
         central_source: Arc::new(MockCentralSourceTrait::new()),
         pending_source: Arc::new(MockPendingSourceTrait::new()),
         pending_classes: Arc::new(RwLock::new(PendingClasses::default())),
-        base_layer_source: Arc::new(MockBaseLayerSourceTrait::new()),
+        base_layer_source: Some(Arc::new(MockBaseLayerSourceTrait::new())),
         reader,
         writer,
         sequencer_pub_key: None,
