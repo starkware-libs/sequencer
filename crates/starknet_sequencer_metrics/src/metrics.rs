@@ -4,15 +4,28 @@ use metrics::{counter, describe_counter, describe_gauge, gauge, Gauge, IntoF64};
 use num_traits::Num;
 use regex::{escape, Regex};
 
+/// Relevant components for which metrics can be defined.
+#[derive(Clone, Copy, Debug)]
+pub enum MetricScope {
+    Batcher,
+    HttpServer,
+}
+
 pub struct MetricCounter {
+    scope: MetricScope,
     name: &'static str,
     description: &'static str,
     initial_value: u64,
 }
 
 impl MetricCounter {
-    pub const fn new(name: &'static str, description: &'static str, initial_value: u64) -> Self {
-        Self { name, description, initial_value }
+    pub const fn new(
+        scope: MetricScope,
+        name: &'static str,
+        description: &'static str,
+        initial_value: u64,
+    ) -> Self {
+        Self { scope, name, description, initial_value }
     }
 
     pub fn register(&self) {
@@ -27,16 +40,21 @@ impl MetricCounter {
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.name)
     }
+
+    pub fn get_scope(&self) -> MetricScope {
+        self.scope
+    }
 }
 
 pub struct MetricGauge {
+    scope: MetricScope,
     name: &'static str,
     description: &'static str,
 }
 
 impl MetricGauge {
-    pub const fn new(name: &'static str, description: &'static str) -> Self {
-        Self { name, description }
+    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
+        Self { scope, name, description }
     }
 
     pub fn register(&self) -> Gauge {
@@ -57,6 +75,10 @@ impl MetricGauge {
 
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.name)
+    }
+
+    pub fn get_scope(&self) -> MetricScope {
+        self.scope
     }
 }
 
