@@ -69,6 +69,8 @@ pub enum FailOnErrorCause {
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq)]
 pub struct BlockExecutionArtifacts {
+    // Note: The execution_infos must be ordered to match the order of the transactions in the
+    // block.
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
     pub commitment_state_diff: CommitmentStateDiff,
