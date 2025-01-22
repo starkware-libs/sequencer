@@ -35,11 +35,11 @@ assert_matches.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils.workspace = true
+papyrus_test_utils.path = "../papyrus_test_utils"
 
 [package.metadata.cargo-machete]
 # The `rand` crate is used in the `testing` feature, which is optional.

@@ -23,4 +23,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 # Enable self with "testing" feature in tests.
-starknet_mempool_types = { workspace = true, features = ["testing"] }
+starknet_mempool_types = { path = ".", features = ["testing"] }

@@ -50,9 +50,9 @@ starknet_sierra_multicompile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-blockifier = { workspace = true, features = ["native_blockifier", "testing"] }
+blockifier = { path = "../blockifier", features = ["native_blockifier", "testing"] }
 cached.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 pretty_assertions.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api = { path = "../starknet_api", features = ["testing"] }
 tempfile.workspace = true

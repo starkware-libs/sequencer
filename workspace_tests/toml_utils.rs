@@ -48,8 +48,17 @@ pub(crate) struct CrateCargoToml {
     pub(crate) package: HashMap<String, PackageEntryValue>,
     dependencies: Option<HashMap<String, DependencyValue>>,
     #[serde(rename = "dev-dependencies")]
-    dev_dependencies: Option<HashMap<String, DependencyValue>>,
+    pub(crate) dev_dependencies: Option<HashMap<String, DependencyValue>>,
     pub(crate) lints: Option<HashMap<String, LintValue>>,
+}
+
+impl CrateCargoToml {
+    pub(crate) fn package_name(&self) -> &String {
+        match self.package.get("name") {
+            Some(PackageEntryValue::String(name)) => name,
+            _ => panic!("No name found in crate toml {self:?}."),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -108,14 +117,12 @@ impl CargoToml {
 
 impl CrateCargoToml {
     pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().chain(self.dev_dependencies.iter()).flatten().filter_map(
-            |(_name, value)| {
-                if let DependencyValue::Object { path: Some(path), .. } = value {
-                    Some(path.to_string())
-                } else {
-                    None
-                }
-            },
-        )
+        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
+            if let DependencyValue::Object { path: Some(path), .. } = value {
+                Some(path.to_string())
+            } else {
+                None
+            }
+        })
     }
 }
