@@ -15,8 +15,10 @@ workspace = true
 [dependencies]
 num-traits.workspace = true
 regex.workspace = true
-tokio = { workspace = true, features = ["process", "rt", "time"] }
+tokio = { workspace = true, features = ["net", "process", "rt", "time"] }
 tracing.workspace = true
+
+# TODO(Tsabary): Remove tokio/net when get_available_port is removed.
 
 [dev-dependencies]
 nix.workspace = true
