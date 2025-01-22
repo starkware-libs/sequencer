@@ -125,7 +125,7 @@ async fn run_sync(
         central_source: Arc::new(central),
         pending_source: Arc::new(pending_source),
         pending_classes: Arc::new(RwLock::new(PendingClasses::default())),
-        base_layer_source: Arc::new(base_layer),
+        base_layer_source: Some(Arc::new(base_layer)),
         reader,
         writer,
         sequencer_pub_key: None,

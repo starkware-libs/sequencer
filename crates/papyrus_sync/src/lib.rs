@@ -16,6 +16,7 @@ use std::time::Duration;
 use async_stream::try_stream;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
+use futures::stream;
 use futures_util::{pin_mut, select, Stream, StreamExt};
 use indexmap::IndexMap;
 use papyrus_common::metrics as papyrus_metrics;
@@ -150,7 +151,7 @@ pub struct GenericStateSync<
     central_source: Arc<TCentralSource>,
     pending_source: Arc<TPendingSource>,
     pending_classes: Arc<RwLock<PendingClasses>>,
-    base_layer_source: Arc<TBaseLayerSource>,
+    base_layer_source: Option<Arc<TBaseLayerSource>>,
     reader: StorageReader,
     writer: StorageWriter,
     sequencer_pub_key: Option<SequencerPublicKey>,
@@ -335,12 +336,16 @@ impl<
             self.config.state_updates_max_stream_size,
         )
         .fuse();
-        let base_layer_block_stream = stream_new_base_layer_block(
-            self.reader.clone(),
-            self.base_layer_source.clone(),
-            self.config.base_layer_propagation_sleep_duration,
-        )
-        .fuse();
+        let base_layer_block_stream = match &self.base_layer_source {
+            Some(base_layer_source) => stream_new_base_layer_block(
+                self.reader.clone(),
+                base_layer_source.clone(),
+                self.config.base_layer_propagation_sleep_duration,
+            )
+            .boxed()
+            .fuse(),
+            None => stream::pending().boxed().fuse(),
+        };
         // TODO(dvir): try use interval instead of stream.
         // TODO: fix the bug and remove this check.
         let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
@@ -778,10 +783,11 @@ impl StateSync {
         pending_classes: Arc<RwLock<PendingClasses>>,
         central_source: CentralSource,
         pending_source: PendingSource,
-        base_layer_source: EthereumBaseLayerSource,
+        base_layer_source: Option<EthereumBaseLayerSource>,
         reader: StorageReader,
         writer: StorageWriter,
     ) -> Self {
+        let base_layer_source = base_layer_source.map(Arc::new);
         Self {
             config,
             shared_highest_block,
@@ -789,7 +795,7 @@ impl StateSync {
             pending_classes,
             central_source: Arc::new(central_source),
             pending_source: Arc::new(pending_source),
-            base_layer_source: Arc::new(base_layer_source),
+            base_layer_source,
             reader,
             writer,
             sequencer_pub_key: None,
