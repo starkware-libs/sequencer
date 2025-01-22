@@ -4,6 +4,7 @@ license.workspace = true
 name = "starknet_sierra_multicompile"
 repository.workspace = true
 version.workspace = true
+description = "A utility crate for compiling Sierra code into CASM and / or native."
 
 [features]
 cairo_native = ["dep:cairo-native"]
