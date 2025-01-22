@@ -62,7 +62,7 @@ impl Display for TestStreamId {
 
 #[cfg(test)]
 mod tests {
-    use papyrus_protobuf::consensus::{ProposalInit, ProposalPart};
+    use papyrus_protobuf::consensus::{IntoFromProto, ProposalInit, ProposalPart};
 
     use super::*;
 
@@ -90,26 +90,29 @@ mod tests {
         a == b
     }
 
-    async fn send(
-        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ProposalPart, TestStreamId>>,
+    async fn send<T: IntoFromProto>(
+        sender: &mut MockBroadcastedMessagesSender<StreamMessage<T, TestStreamId>>,
         metadata: &BroadcastedMessageMetadata,
-        msg: StreamMessage<ProposalPart, TestStreamId>,
+        msg: StreamMessage<T, TestStreamId>,
     ) {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
     #[allow(clippy::type_complexity)]
-    fn setup_test() -> (
-        StreamHandler<ProposalPart, TestStreamId>,
-        MockBroadcastedMessagesSender<StreamMessage<ProposalPart, TestStreamId>>,
-        mpsc::Receiver<mpsc::Receiver<ProposalPart>>,
+    fn setup_test<T>() -> (
+        StreamHandler<T, TestStreamId>,
+        MockBroadcastedMessagesSender<StreamMessage<T, TestStreamId>>,
+        mpsc::Receiver<mpsc::Receiver<T>>,
         BroadcastedMessageMetadata,
-        mpsc::Sender<(TestStreamId, mpsc::Receiver<ProposalPart>)>,
+        mpsc::Sender<(TestStreamId, mpsc::Receiver<T>)>,
         futures::stream::Map<
             mpsc::Receiver<Vec<u8>>,
-            fn(Vec<u8>) -> StreamMessage<ProposalPart, TestStreamId>,
+            fn(Vec<u8>) -> StreamMessage<T, TestStreamId>,
         >,
-    ) {
+    )
+    where
+        T: IntoFromProto + Clone + Send + 'static,
+    {
         // The outbound_sender is the network connector for broadcasting messages.
         // The network_broadcast_receiver is used to catch those messages in the test.
         let TestSubscriberChannels { mock_network: mock_broadcast_network, subscriber_channels } =
@@ -125,7 +128,7 @@ mod tests {
         // The receiver goes into StreamHandler, sender is used by the test (as mock Consensus).
         // Note that each new channel comes in a tuple with (stream_id, receiver).
         let (outbound_channel_sender, outbound_channel_receiver) =
-            mpsc::channel::<(TestStreamId, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
+            mpsc::channel::<(TestStreamId, mpsc::Receiver<T>)>(CHANNEL_SIZE);
 
         // The network_sender_to_inbound is the sender of the mock network, that is used by the
         // test to send messages into the StreamHandler (from the mock network).
@@ -143,7 +146,7 @@ mod tests {
         // each stream. The inbound_channel_receiver is given to the "mock consensus" that
         // gets new channels and inbounds to them.
         let (inbound_channel_sender, inbound_channel_receiver) =
-            mpsc::channel::<mpsc::Receiver<ProposalPart>>(CHANNEL_SIZE);
+            mpsc::channel::<mpsc::Receiver<T>>(CHANNEL_SIZE);
 
         // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
         // This will allow reporting to the network things like bad peers.
