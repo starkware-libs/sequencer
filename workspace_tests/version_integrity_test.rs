@@ -1,5 +1,9 @@
 use crate::toml_utils::{DependencyValue, LocalCrate, PackageEntryValue, ROOT_TOML};
 
+const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");
+const MAIN_PARENT_BRANCH: &str = "main";
+const EXPECTED_MAIN_VERSION: &str = "0.0.0";
+
 #[test]
 fn test_path_dependencies_are_members() {
     let non_member_path_crates: Vec<_> = ROOT_TOML
@@ -85,4 +89,16 @@ fn test_no_features_in_workspace() {
          {dependencies_with_features:#?}. Features should only be activated in the crate that \
          needs them."
     );
+}
+
+#[test]
+fn test_main_branch_is_versionless() {
+    if PARENT_BRANCH.trim() == MAIN_PARENT_BRANCH {
+        let workspace_version = ROOT_TOML.workspace_version();
+        assert_eq!(
+            workspace_version, EXPECTED_MAIN_VERSION,
+            "The workspace version should be '{EXPECTED_MAIN_VERSION}' when the parent branch is \
+             '{MAIN_PARENT_BRANCH}'; found {workspace_version}.",
+        );
+    }
 }
