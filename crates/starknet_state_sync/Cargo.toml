@@ -24,4 +24,4 @@ tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }

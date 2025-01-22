@@ -42,10 +42,10 @@ cairo-lang-sierra-to-casm.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
+papyrus_network_types = { path = "../papyrus_network_types", features = ["testing"] }
+papyrus_test_utils.path = "../papyrus_test_utils"
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_mempool.workspace = true
-starknet_mempool_types = { workspace = true, features = ["testing"] }
+starknet_mempool.path = "../starknet_mempool"
+starknet_mempool_types = { path = "../starknet_mempool_types", features = ["testing"] }
 tracing-test.workspace = true

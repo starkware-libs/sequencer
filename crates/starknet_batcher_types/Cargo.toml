@@ -26,4 +26,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 # Enable self with "testing" feature in tests.
-starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_batcher_types = { path = ".", features = ["testing"] }

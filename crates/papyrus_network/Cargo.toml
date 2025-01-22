@@ -51,7 +51,7 @@ defaultmap.workspace = true
 libp2p-swarm-test.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
-starknet_sequencer_infra = { workspace = true, features = ["testing"] }
+starknet_sequencer_infra = { path = "../starknet_sequencer_infra", features = ["testing"] }
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 void.workspace = true
