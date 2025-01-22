@@ -34,7 +34,6 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
-use starknet_sequencer_metrics::metrics::parse_numeric_metric;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
@@ -54,6 +53,7 @@ use crate::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
 };
 use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
 
@@ -247,10 +247,7 @@ async fn metrics_registered() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let _batcher = create_batcher(MockDependencies::default());
     let metrics = recorder.handle().render();
-    assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
-        Some(INITIAL_HEIGHT.0)
-    );
+    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 }
 
 #[rstest]
@@ -656,7 +653,7 @@ async fn add_sync_block() {
     batcher.add_sync_block(sync_block).await.unwrap();
     let metrics = recorder.handle().render();
     assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
 }
@@ -698,19 +695,13 @@ async fn revert_block() {
     let mut batcher = create_batcher(mock_dependencies);
 
     let metrics = recorder.handle().render();
-    assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
-        Some(INITIAL_HEIGHT.0)
-    );
+    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
     batcher.revert_block(revert_input).await.unwrap();
 
     let metrics = recorder.handle().render();
-    assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
-        Some(INITIAL_HEIGHT.0 - 1)
-    );
+    assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
 }
 
 #[tokio::test]
@@ -790,7 +781,7 @@ async fn decision_reached() {
 
     let metrics = recorder.handle().render();
     assert_eq!(
-        parse_numeric_metric::<u64>(&metrics, crate::metrics::STORAGE_HEIGHT.name),
+        STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
     assert_eq!(

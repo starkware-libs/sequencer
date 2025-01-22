@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use metrics::{counter, describe_counter};
+use metrics::{counter, describe_counter, describe_gauge, gauge, Gauge, IntoF64};
 use num_traits::Num;
 use regex::{escape, Regex};
 
@@ -30,8 +30,34 @@ impl MetricCounter {
 }
 
 pub struct MetricGauge {
-    pub name: &'static str,
-    pub description: &'static str,
+    name: &'static str,
+    description: &'static str,
+}
+
+impl MetricGauge {
+    pub const fn new(name: &'static str, description: &'static str) -> Self {
+        Self { name, description }
+    }
+
+    pub fn register(&self) -> Gauge {
+        let storage_height_metric = gauge!(self.name);
+        describe_gauge!(self.name, self.description);
+        storage_height_metric
+    }
+
+    /// Increments the gauge.
+    pub fn increment<T: IntoF64>(&self, value: T) {
+        gauge!(self.name).increment(value.into_f64());
+    }
+
+    /// Decrements the gauge.
+    pub fn decrement<T: IntoF64>(&self, value: T) {
+        gauge!(self.name).decrement(value.into_f64());
+    }
+
+    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.name)
+    }
 }
 
 /// Parses a specific numeric metric value from a metrics string.

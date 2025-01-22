@@ -1,12 +1,9 @@
-use metrics::{describe_gauge, gauge};
 use starknet_api::block::BlockNumber;
 use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
 // Height metrics.
-pub const STORAGE_HEIGHT: MetricGauge = MetricGauge {
-    name: "batcher_storage_height",
-    description: "The height of the batcher's storage",
-};
+pub const STORAGE_HEIGHT: MetricGauge =
+    MetricGauge::new("batcher_storage_height", "The height of the batcher's storage");
 
 // Proposal metrics.
 pub const PROPOSAL_STARTED: MetricCounter =
@@ -25,8 +22,7 @@ pub const REJECTED_TRANSACTIONS: MetricCounter =
     MetricCounter::new("batcher_rejected_transactions", "Counter of rejected transactions", 0);
 
 pub fn register_metrics(storage_height: BlockNumber) {
-    let storage_height_metric = gauge!(STORAGE_HEIGHT.name);
-    describe_gauge!(STORAGE_HEIGHT.name, STORAGE_HEIGHT.description);
+    let storage_height_metric = STORAGE_HEIGHT.register();
     #[allow(clippy::as_conversions)]
     storage_height_metric.set(storage_height.0 as f64);
 

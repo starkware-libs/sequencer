@@ -13,7 +13,6 @@ async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
 indexmap.workspace = true
-metrics.workspace = true
 papyrus_config.workspace = true
 papyrus_state_reader.workspace = true
 papyrus_storage.workspace = true
@@ -35,6 +34,7 @@ assert_matches.workspace = true
 chrono = { workspace = true }
 futures.workspace = true
 mempool_test_utils.workspace = true
+metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 rstest.workspace = true
