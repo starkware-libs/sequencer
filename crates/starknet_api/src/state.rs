@@ -3,13 +3,17 @@
 mod state_test;
 
 use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint as CairoLangContractEntryPoint;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use sha3::Digest;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash as SNTypsCoreStarkHash};
 
 use crate::block::{BlockHash, BlockNumber};
+use crate::contract_class::EntryPointType;
 use crate::core::{
     ClassHash,
     CompiledClassHash,
@@ -20,12 +24,15 @@ use crate::core::{
     PatriciaKey,
 };
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use crate::hash::StarkHash;
+use crate::hash::{PoseidonHash, StarkHash};
 use crate::rpc_transaction::EntryPointByType;
 use crate::{impl_from_through_intermediate, StarknetApiError};
 
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
+
+static API_VERSION: LazyLock<Felt> =
+    LazyLock::new(|| Felt::from_bytes_be_slice(b"CONTRACT_CLASS_V0.1.0"));
 
 /// The differences between two states before and after a block with hash block_hash
 /// and their respective roots.
@@ -229,6 +236,27 @@ impl Default for SierraContractClass {
     }
 }
 
+impl SierraContractClass {
+    pub fn calculate_class_hash(&self) -> ClassHash {
+        let external_entry_points_hash = entry_points_hash(self, &EntryPointType::External);
+        let l1_handler_entry_points_hash = entry_points_hash(self, &EntryPointType::L1Handler);
+        let constructor_entry_points_hash = entry_points_hash(self, &EntryPointType::Constructor);
+        let abi_keccak = sha3::Keccak256::default().chain_update(self.abi.as_bytes()).finalize();
+        let abi_hash = truncated_keccak(abi_keccak.into());
+        let program_hash = Poseidon::hash_array(self.sierra_program.as_slice());
+
+        let class_hash = Poseidon::hash_array(&[
+            *API_VERSION,
+            external_entry_points_hash.0,
+            l1_handler_entry_points_hash.0,
+            constructor_entry_points_hash.0,
+            abi_hash,
+            program_hash,
+        ]);
+        ClassHash(class_hash)
+    }
+}
+
 #[cfg(any(test, feature = "testing"))]
 impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for SierraContractClass {
     fn from(
@@ -267,3 +295,31 @@ impl From<CairoLangContractEntryPoint> for EntryPoint {
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
 pub struct FunctionIndex(pub usize);
+
+fn entry_points_hash(
+    class: &SierraContractClass,
+    entry_point_type: &EntryPointType,
+) -> PoseidonHash {
+    PoseidonHash(Poseidon::hash_array(
+        class
+            .entry_points_by_type
+            .to_hash_map()
+            .get(entry_point_type)
+            .unwrap_or(&vec![])
+            .iter()
+            .flat_map(|ep| [ep.selector.0, usize_into_felt(ep.function_idx.0)])
+            .collect::<Vec<_>>()
+            .as_slice(),
+    ))
+}
+
+// Python code masks with (2**250 - 1) which starts 0x03 and is followed by 31 0xff in be.
+// Truncation is needed not to overflow the field element.
+fn truncated_keccak(mut plain: [u8; 32]) -> Felt {
+    plain[0] &= 0x03;
+    Felt::from_bytes_be(&plain)
+}
+
+fn usize_into_felt(u: usize) -> Felt {
+    u128::try_from(u).expect("Expect at most 128 bits").into()
+}

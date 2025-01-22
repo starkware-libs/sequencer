@@ -112,6 +112,8 @@ impl RpcTransaction {
     }
 }
 
+// TODO(Arni): Replace this with RPCTransacion -> InternalRpcTransaction conversion (don't use From
+// becuase it contains hash calculations).
 impl From<RpcTransaction> for Transaction {
     fn from(rpc_transaction: RpcTransaction) -> Self {
         match rpc_transaction {
@@ -224,8 +226,7 @@ pub struct InternalRpcDeclareTransactionV3 {
 impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: RpcDeclareTransactionV3) -> Self {
         Self {
-            class_hash: ClassHash::default(), /* FIXME(yael 15/4/24): call the starknet-api
-                                               * function once ready */
+            class_hash: tx.contract_class.calculate_class_hash(),
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
             signature: tx.signature,
