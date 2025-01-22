@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use bytes::Bytes;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
@@ -35,14 +34,13 @@ pub type SierraCompilerRequestAndResponseSender =
 // A prerequisite for this is to solve serde-untagged lack of support.
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RawClass(Bytes);
+pub struct RawClass(serde_json::Value);
 
 impl TryFrom<SierraContractClass> for RawClass {
     type Error = serde_json::Error;
 
     fn try_from(class: SierraContractClass) -> Result<Self, Self::Error> {
-        let class = serde_json::to_vec(&class)?.into();
-        Ok(Self(class))
+        Ok(Self(serde_json::to_value(class)?))
     }
 }
 
@@ -50,20 +48,18 @@ impl TryFrom<RawClass> for SierraContractClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawClass) -> Result<Self, Self::Error> {
-        let class: SierraContractClass = serde_json::from_slice(class.0.as_ref())?;
-        Ok(class)
+        serde_json::from_value(class.0)
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RawExecutableClass(Bytes);
+pub struct RawExecutableClass(serde_json::Value);
 
 impl TryFrom<ContractClass> for RawExecutableClass {
     type Error = serde_json::Error;
 
     fn try_from(class: ContractClass) -> Result<Self, Self::Error> {
-        let class = serde_json::to_vec(&class)?.into();
-        Ok(Self(class))
+        Ok(Self(serde_json::to_value(class)?))
     }
 }
 
@@ -71,8 +67,7 @@ impl TryFrom<RawExecutableClass> for ContractClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
-        let class: ContractClass = serde_json::from_slice(class.0.as_ref())?;
-        Ok(class)
+        serde_json::from_value(class.0)
     }
 }
 

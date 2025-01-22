@@ -11334,7 +11334,6 @@ name = "starknet_sierra_multicompile_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "bytes",
  "papyrus_proc_macros",
  "serde",
  "serde_json",
