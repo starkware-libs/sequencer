@@ -1,5 +1,7 @@
+mod concurrent_servers_test;
 mod local_component_client_server_test;
 mod remote_component_client_server_test;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
