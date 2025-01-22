@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use alloy_node_bindings::{Anvil, AnvilInstance};
+use alloy_node_bindings::AnvilInstance;
 use alloy_primitives::U256;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     Starknet,
 };
+use papyrus_base_layer::test_utils::anvil;
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
@@ -30,11 +31,6 @@ fn in_ci() -> bool {
 const DEFAULT_ANVIL_ACCOUNT_ADDRESS: StarkHash =
     StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
-
-// Spin up Anvil instance, a local Ethereum node, dies when dropped.
-fn anvil() -> AnvilInstance {
-    Anvil::new().spawn()
-}
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
@@ -65,8 +61,6 @@ async fn scraper(
 // TODO(Gilad): extract setup stuff into test helpers once more tests are added and patterns emerge.
 async fn txs_happy_flow() {
     if !in_ci() {
-        // To run the test _locally_, remove the `in_ci` check and install the anvil binary:
-        // cargo install --git https://github.com/foundry-rs/foundry anvil --locked
         return;
     }
 
