@@ -10764,6 +10764,7 @@ dependencies = [
  "starknet_api",
  "starknet_class_manager_types",
  "starknet_sierra_multicompile_types",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
