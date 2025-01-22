@@ -10,6 +10,7 @@ runs:
   using: "composite"
   steps:
     - uses: moonrepo/setup-rust@v1
+      name: Install Rust toolchain and binaries
       with:
         cache-base: main(-v[0-9].*)?
         inherit-toolchain: true
@@ -18,3 +19,12 @@ runs:
         channel: ${{ inputs.extra_rust_toolchains }}
       env:
         RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+
+    # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged
+    # binaries.
+    # TODO(Gilad): once we migrate to a cached Docker image, we can remove this step and just
+    # install it during dependencies.sh (which we don't do now since dependencies.sh isn't cached).
+    - name: Install Anvil
+      uses: foundry-rs/foundry-toolchain@v1
+      with:
+          version: v0.3.0
