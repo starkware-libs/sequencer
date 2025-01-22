@@ -137,10 +137,6 @@ impl TransactionConverterTrait for TransactionConverter {
         &self,
         tx: RpcTransaction,
     ) -> TransactionConverterResult<InternalRpcTransaction> {
-        // TODO(Arni): add calculate_transaction_hash to rpc transaction and use it here.
-        let starknet_api_tx = starknet_api::transaction::Transaction::from(tx.clone());
-        let tx_hash = starknet_api_tx.calculate_transaction_hash(&self.chain_id)?;
-
         let tx_without_hash = match tx {
             RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx),
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
@@ -170,6 +166,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 )
             }
         };
+        let tx_hash = tx_without_hash.calculate_transaction_hash(&self.chain_id)?;
 
         Ok(InternalRpcTransaction { tx: tx_without_hash, tx_hash })
     }
