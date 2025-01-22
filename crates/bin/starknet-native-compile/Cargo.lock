@@ -429,7 +429,7 @@ dependencies = [
  "bitflags",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.12.1",
  "lazy_static",
  "lazycell",
  "log",
@@ -1123,21 +1123,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-<<<<<<< HEAD
-version = "0.2.6"
-||||||| e779088d2
-version = "0.2.5-rc2"
-=======
 version = "0.2.9"
->>>>>>> origin/main-v0.13.4
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
-checksum = "6bc77e0c934153cb074cff4d2e177d7a98a449ee06210ae8b18bfc61a3011b9f"
-||||||| e779088d2
-checksum = "5e832d9687639e5e8fa0668d4144896a541b1b7391b9ce20168c674524897a2e"
-=======
 checksum = "63428bf6a1c51044224ce186209d1913a0504728f5c4601c11422bbf78dce168"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -1189,21 +1177,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native-runtime"
-<<<<<<< HEAD
-version = "0.2.6"
-||||||| e779088d2
-version = "0.2.5-rc2"
-=======
 version = "0.2.9"
->>>>>>> origin/main-v0.13.4
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
-checksum = "860e4d0c94d4e66e66b54d5ea82c6b5bdc40f5407072a27fe296daacb628ec35"
-||||||| e779088d2
-checksum = "9d73cacb57dbe06ca622c23e47bbfc48f8b0001fc116eb244ab05c8a7a79bbf9"
-=======
 checksum = "e582ea1c91df4315fb38ec655c5be0b30733d551218feddf2268260367ace3a7"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.14.0",
