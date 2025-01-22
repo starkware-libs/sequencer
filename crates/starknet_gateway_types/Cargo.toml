@@ -28,4 +28,4 @@ tracing.workspace = true
 
 [dev-dependencies]
 # Enable self with "testing" feature in tests.
-starknet_gateway_types = { workspace = true, features = ["testing"] }
+starknet_gateway_types = { path = ".", features = ["testing"] }

@@ -35,7 +35,7 @@ thiserror.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 rstest.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api = { path = ".", features = ["testing"] }
 
 [lints]
 workspace = true

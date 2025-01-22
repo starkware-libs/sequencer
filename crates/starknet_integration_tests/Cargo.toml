@@ -48,4 +48,4 @@ futures.workspace = true
 itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_sequencer_infra.workspace = true
+starknet_sequencer_infra.path = "../starknet_sequencer_infra"
