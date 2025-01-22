@@ -72,6 +72,7 @@ const Configuration = {
             'starknet_monitoring_endpoint',
             'starknet_patricia',
             'starknet_sequencer_infra',
+            'starknet_sequencer_metrics',
             'starknet_sequencer_node',
             'starknet_sierra_multicompile',
             'starknet_sierra_multicompile_types',

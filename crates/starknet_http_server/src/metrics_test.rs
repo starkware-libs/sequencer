@@ -3,7 +3,6 @@ use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
-use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_sequencer_infra::component_client::ClientError;
 
 use crate::config::HttpServerConfig;
@@ -54,11 +53,11 @@ async fn get_metrics_test() {
     // Obtain and parse metrics.
     let metrics = prometheus_handle.render();
     let added_transactions_total_count =
-        parse_numeric_metric::<usize>(&metrics, ADDED_TRANSACTIONS_TOTAL.0);
+        ADDED_TRANSACTIONS_TOTAL.parse_numeric_metric::<usize>(&metrics);
     let added_transactions_success_count =
-        parse_numeric_metric::<usize>(&metrics, ADDED_TRANSACTIONS_SUCCESS.0);
+        ADDED_TRANSACTIONS_SUCCESS.parse_numeric_metric::<usize>(&metrics);
     let added_transactions_failure_count =
-        parse_numeric_metric::<usize>(&metrics, ADDED_TRANSACTIONS_FAILURE.0);
+        ADDED_TRANSACTIONS_FAILURE.parse_numeric_metric::<usize>(&metrics);
 
     // Ensure the metric values are as expected.
     assert_eq!(

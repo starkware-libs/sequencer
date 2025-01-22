@@ -20,6 +20,7 @@ papyrus_config.workspace = true
 serde.workspace = true
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_sequencer_metrics.workspace = true
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }

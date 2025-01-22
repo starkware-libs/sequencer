@@ -7,9 +7,9 @@ use hyper::body::to_bytes;
 use hyper::client::HttpConnector;
 use hyper::Client;
 use num_traits::Num;
-use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_sequencer_metrics::metrics::parse_numeric_metric;
 use thiserror::Error;
 use tracing::info;
 

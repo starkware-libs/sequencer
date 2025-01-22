@@ -31,10 +31,10 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
-use starknet_infra_utils::metrics::parse_numeric_metric;
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
+use starknet_sequencer_metrics::metrics::parse_numeric_metric;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
@@ -47,6 +47,14 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::config::BatcherConfig;
+use crate::metrics::{
+    BATCHED_TRANSACTIONS,
+    PROPOSAL_ABORTED,
+    PROPOSAL_FAILED,
+    PROPOSAL_STARTED,
+    PROPOSAL_SUCCEEDED,
+    REJECTED_TRANSACTIONS,
+};
 use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -198,10 +206,10 @@ fn assert_proposal_metrics(
     let n_expected_active_proposals =
         expected_started - (expected_succeeded + expected_failed + expected_aborted);
     assert!(n_expected_active_proposals <= 1);
-    let started = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_STARTED.name);
-    let succeeded = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_SUCCEEDED.name);
-    let failed = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_FAILED.name);
-    let aborted = parse_numeric_metric::<u64>(metrics, crate::metrics::PROPOSAL_ABORTED.name);
+    let started = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
+    let succeeded = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
+    let failed = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
+    let aborted = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
 
     assert_eq!(
         started,
@@ -786,11 +794,11 @@ async fn decision_reached() {
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
     assert_eq!(
-        parse_numeric_metric::<usize>(&metrics, crate::metrics::BATCHED_TRANSACTIONS.name),
+        BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(expected_artifacts.execution_infos.len())
     );
     assert_eq!(
-        parse_numeric_metric::<usize>(&metrics, crate::metrics::REJECTED_TRANSACTIONS.name),
+        REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(expected_artifacts.rejected_tx_hashes.len())
     );
 }
