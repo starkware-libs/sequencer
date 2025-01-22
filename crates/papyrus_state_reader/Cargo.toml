@@ -12,14 +12,14 @@ cairo_native = ["blockifier/cairo_native"]
 workspace = true
 
 [dependencies]
-blockifier = { workspace = true, features = ["jemalloc"] }
+blockifier.workspace = true
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-blockifier = { path = "../blockifier", features = ["jemalloc", "testing"] }
+blockifier = { path = "../blockifier", features = ["testing"] }
 indexmap.workspace = true
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 rstest.workspace = true

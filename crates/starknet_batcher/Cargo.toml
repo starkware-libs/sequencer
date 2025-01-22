@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
-blockifier = { workspace = true, features = ["jemalloc"] }
+blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true

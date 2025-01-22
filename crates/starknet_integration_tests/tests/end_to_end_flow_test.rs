@@ -40,6 +40,20 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     create_integration_test_tx_generator()
 }
 
+// With feature on.
+
+// elapsed in millis: 42438
+// elapsed in millis: 42501
+
+// Without feature.
+
+// elapsed in millis: 42515
+// elapsed in millis: 42296
+// elapsed in millis: 42522
+// elapsed in millis: 42445
+// elapsed in millis: 42439
+// elapsed in millis: 42431
+
 #[rstest]
 #[tokio::test]
 async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
@@ -66,6 +80,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // We start at height 1, so we need to skip the proposer of the initial height.
     expected_proposer_iter.next().unwrap();
 
+    let start = std::time::Instant::now();
     // Build multiple heights to ensure heights are committed.
     for (height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id) in create_test_blocks()
     {
@@ -99,6 +114,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         .await
         .expect("listen to broadcasted messages should finish in time");
     }
+    let elapsed = start.elapsed().as_millis();
+    tracing::error!("elapsed in millis: {elapsed} ")
 }
 
 type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;

@@ -30,7 +30,7 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-blockifier = { path = "../blockifier", features = ["jemalloc", "testing"] }
+blockifier = { path = "../blockifier", features = ["testing"] }
 futures.workspace = true
 mempool_test_utils.path = "../mempool_test_utils"
 metrics.workspace = true
