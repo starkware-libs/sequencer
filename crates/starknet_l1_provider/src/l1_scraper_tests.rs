@@ -15,8 +15,7 @@ use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 use starknet_l1_provider_types::Event;
 
-use crate::event_identifiers_to_track;
-use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
+use crate::l1_scraper::{event_identifiers_to_track, L1Scraper, L1ScraperConfig};
 use crate::test_utils::FakeL1ProviderClient;
 
 // TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the

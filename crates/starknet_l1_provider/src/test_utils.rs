@@ -19,9 +19,9 @@ use starknet_l1_provider_types::{
 };
 
 use crate::l1_provider::L1Provider;
+use crate::provider_state::ProviderState;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::transaction_manager::TransactionManager;
-use crate::ProviderState;
 
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.

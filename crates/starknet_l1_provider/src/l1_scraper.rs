@@ -3,7 +3,13 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use async_trait::async_trait;
-use papyrus_base_layer::constants::EventIdentifier;
+use papyrus_base_layer::constants::{
+    EventIdentifier,
+    CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+    LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+};
 use papyrus_base_layer::{BaseLayerContract, L1Event};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -182,4 +188,13 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
+}
+
+pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
+    &[
+        LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+        CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+        MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+        MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
+    ]
 }

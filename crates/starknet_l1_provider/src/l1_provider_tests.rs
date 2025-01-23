@@ -16,8 +16,8 @@ use starknet_l1_provider_types::SessionState::{
 use starknet_l1_provider_types::{Event, ValidationStatus};
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog};
+use crate::provider_state::ProviderState;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::ProviderState;
 
 fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
     let tx_hash = TransactionHash(StarkHash::from(tx_hash));

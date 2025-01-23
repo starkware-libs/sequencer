@@ -1,14 +1,26 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::collections::BTreeMap;
+use std::time::Duration;
 
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::{Event, L1ProviderResult, SessionState, ValidationStatus};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use validator::Validate;
 
+use crate::provider_state::ProviderState;
 use crate::transaction_manager::TransactionManager;
-use crate::{L1ProviderConfig, ProviderState};
+
+#[cfg(test)]
+#[path = "l1_provider_tests.rs"]
+pub mod l1_provider_tests;
+
 // TODO: optimistic proposer support, will add later to keep things simple, but the design here
 // is compatible with it.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -189,4 +201,21 @@ impl ComponentStarter for L1Provider {}
 
 pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {
     L1Provider { state: ProviderState::Propose, ..Default::default() }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct L1ProviderConfig {
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub _poll_interval: Duration,
+}
+
+impl SerializeConfig for L1ProviderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "_poll_interval",
+            &Duration::from_millis(100).as_millis(),
+            "Interval in milliseconds between each scraping attempt of L1.",
+            ParamPrivacyInput::Public,
+        )])
+    }
 }
