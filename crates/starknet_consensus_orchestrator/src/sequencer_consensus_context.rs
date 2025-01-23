@@ -175,9 +175,10 @@ impl SequencerConsensusContext {
     }
 
     fn gas_prices(&self) -> GasPrices {
+        // TODO(Ayelet): Remove unwrap when deleting NonzeroGasPrice.
         GasPrices {
             strk_gas_prices: GasPriceVector {
-                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price.into())
+                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price.try_into().unwrap())
                     .expect("Failed to convert l2_gas_price to NonzeroGasPrice, should not be 0."),
                 ..TEMPORARY_GAS_PRICES.strk_gas_prices
             },

@@ -179,11 +179,12 @@ impl From<starknet_api::transaction::fields::DeprecatedResourceBoundsMapping>
 impl TryFrom<ResourceBoundsMapping> for starknet_api::transaction::fields::ValidResourceBounds {
     type Error = ErrorObjectOwned;
     fn try_from(value: ResourceBoundsMapping) -> Result<Self, Self::Error> {
-        if !value.l2_gas.is_zero() {
-            Err(internal_server_error("Got a transaction with non zero l2 gas."))
-        } else {
-            Ok(Self::L1Gas(value.l1_gas))
-        }
+        // TODO(Ayelet): Fill l1_data_gas.
+        Ok(Self::AllResources(AllResourceBounds {
+            l1_gas: value.l1_gas,
+            l2_gas: value.l2_gas,
+            l1_data_gas: ResourceBounds::default(),
+        }))
     }
 }
 

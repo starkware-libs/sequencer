@@ -70,7 +70,7 @@
   {
     "block_number": 636864,
     "chain_id": "SN_MAIN",
-    "only_query_transaction_hash": "0x63548034064bb4bc4aff845f0350e286e695225480627c1048d3216735bc9af",
+    "only_query_transaction_hash": "0x9fab3f6aa4ca159a642ee495d0f06aa36fc801fd315ad3cdfff8a26e5cacbc",
     "transaction": {
       "Invoke": {
         "V3": {
@@ -94,7 +94,7 @@
             },
             "L2_GAS": {
               "max_amount": "0x0",
-              "max_price_per_unit": "0x0"
+              "max_price_per_unit": "0x1"
             }
           },
           "sender_address": "0x69c0f9bcd79697bdceaf7748e3ff8f34aa39e4063ce44896af664c0c96f6c10",
@@ -107,7 +107,7 @@
         }
       }
     },
-    "transaction_hash": "0x1d4735f4ba73a67be2f648d9b21cab3783383b8c229566b46b027c46012219"
+    "transaction_hash": "0x2ca30c12945a6e70039b46bd5aa8298074fbe0ced39b734c484bb64c90d041"
   },
   {
     "block_number": 2700,
@@ -170,7 +170,7 @@
   {
     "block_number": 630721,
     "chain_id": "SN_MAIN",
-    "only_query_transaction_hash": "0x71aa91a887080fa2fb1e473713123dca182eae42433c5422bbada8125819dc9",
+    "only_query_transaction_hash": "0x6d54715979e773081f04821d224d40df59ee3b429a41765b44598da63a56ed9",
     "transaction": {
       "Declare": {
         "V3": {
@@ -188,7 +188,7 @@
             },
             "L2_GAS": {
               "max_amount": "0x0",
-              "max_price_per_unit": "0x0"
+              "max_price_per_unit": "0x1"
             }
           },
           "sender_address": "0x46d3a562c606077c14c3479946e4145b7a372538875eb4e635e758fcd1d2c80",
@@ -200,7 +200,7 @@
         }
       }
     },
-    "transaction_hash": "0x50ca961fd1b5f7f1ea1e8620ac980cc3c3fb4e434f0661c3a2d50893082b9fb"
+    "transaction_hash": "0x7c5c20c8108e86f348b81556068995460a52167b77822ae19723c5862f4a6bc"
   },
   {
     "block_number": 636864,
@@ -241,7 +241,7 @@
   {
     "block_number": 636864,
     "chain_id": "SN_MAIN",
-    "only_query_transaction_hash": "0xe035fefb0a5f799d4c4b651f86937a848e1394fb161c80148024e143f6839c",
+    "only_query_transaction_hash": "0x2ab9ab4d5209d9e144949eb4c1edadbf41df192b1475d4e3e55c19f3f650f51",
     "transaction": {
       "DeployAccount": {
         "V3": {
@@ -261,7 +261,7 @@
             },
             "L2_GAS": {
               "max_amount": "0x0",
-              "max_price_per_unit": "0x0"
+              "max_price_per_unit": "0x1"
             }
           },
           "signature": [
@@ -285,7 +285,7 @@
         }
       }
     },
-    "transaction_hash": "0x25cbbc1e197e1e6dd8886b4b359c2dbe26245a282547624d7e54e7c3e2cf15"
+    "transaction_hash": "0xfaf2fc6dcae16156e85145b9c1ad356ff83a20c4264012000635814ab55313"
   },
   {
     "block_number": 6864,

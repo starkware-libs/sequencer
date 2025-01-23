@@ -5,7 +5,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::block::{BlockInfo, BlockNumber, GasPrice};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
@@ -57,9 +57,12 @@ async fn test_get_block_info() {
     let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
 
     // GasPrice must be non-zero.
-    let l1_gas_price = ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
-    let l1_data_gas_price = ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
-    let l2_gas_price = ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
+    let l1_gas_price =
+        ResourcePrice { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
+    let l1_data_gas_price =
+        ResourcePrice { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
+    let l2_gas_price =
+        ResourcePrice { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
     let gas_prices = validated_gas_prices(
         l1_gas_price.price_in_wei.try_into().unwrap(),
         l1_gas_price.price_in_fri.try_into().unwrap(),

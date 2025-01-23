@@ -4,16 +4,16 @@
     "parent_hash": "0x43e4033e5c881610a6d6aff2ee84eb9ae703ea7e5412ed19b285852d5c3812b",
     "block_number": 832,
     "l1_gas_price": {
-      "price_in_fri": "0x0",
-      "price_in_wei": "0x0"
+      "price_in_fri": "0x1",
+      "price_in_wei": "0x1"
     },
     "l1_data_gas_price": {
       "price_in_fri": "0x1",
       "price_in_wei": "0x1"
     },
     "l2_gas_price": {
-      "price_in_fri": "0x0",
-      "price_in_wei": "0x0"
+      "price_in_fri": "0x1",
+      "price_in_wei": "0x1"
     },
     "state_root": "0x3810b7805897aff09b3bba1d41fe2eb21a3853d98553794928684d1089f25cf",
     "sequencer": "0x0",

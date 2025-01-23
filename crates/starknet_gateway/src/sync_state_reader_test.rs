@@ -10,6 +10,7 @@ use starknet_api::block::{
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
     GasPricePerToken,
     GasPriceVector,
     GasPrices,
@@ -32,10 +33,18 @@ async fn test_get_block_info() {
     let block_number = BlockNumber(1);
     let block_timestamp = BlockTimestamp(2);
     let sequencer_address = contract_address!("0x3");
-    let l1_gas_price = GasPricePerToken { price_in_wei: 4_u8.into(), price_in_fri: 5_u8.into() };
-    let l1_data_gas_price =
-        GasPricePerToken { price_in_wei: 6_u8.into(), price_in_fri: 7_u8.into() };
-    let l2_gas_price = GasPricePerToken { price_in_wei: 8_u8.into(), price_in_fri: 9_u8.into() };
+    let l1_gas_price = GasPricePerToken {
+        price_in_wei: GasPrice::new_unchecked(4),
+        price_in_fri: GasPrice::new_unchecked(5),
+    };
+    let l1_data_gas_price = GasPricePerToken {
+        price_in_wei: GasPrice::new_unchecked(6),
+        price_in_fri: GasPrice::new_unchecked(7),
+    };
+    let l2_gas_price = GasPricePerToken {
+        price_in_wei: GasPrice::new_unchecked(8),
+        price_in_fri: GasPrice::new_unchecked(9),
+    };
     let l1_da_mode = L1DataAvailabilityMode::get_test_instance(&mut get_rng());
 
     mock_state_sync_client.expect_get_block().times(1).with(predicate::eq(block_number)).returning(

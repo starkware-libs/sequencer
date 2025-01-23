@@ -9,11 +9,11 @@
     "l1_da_mode": "CALLDATA",
     "l1_gas_price": {
         "price_in_wei": "0x59682f08",
-        "price_in_fri": "0x0"
+        "price_in_fri": "0x1"
     },
     "l1_data_gas_price": {
-        "price_in_wei": "0x0",
-        "price_in_fri": "0x0"
+        "price_in_wei": "0x1",
+        "price_in_fri": "0x1"
     },
     "transactions": [
         {
