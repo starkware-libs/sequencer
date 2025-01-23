@@ -466,9 +466,7 @@ fn test_tx_info(
     let mut state =
         test_state_ex(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract_data, 1)]);
     let mut version = felt!(3_u8);
-    // TODO(lior): Uncomment the following line once version bound accounts are supported.
-    //   let mut expected_version = if v1_bound_account { felt!(1_u8) } else { version };
-    let mut expected_version = version;
+    let mut expected_version = if v1_bound_account { felt!(1_u8) } else { version };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
