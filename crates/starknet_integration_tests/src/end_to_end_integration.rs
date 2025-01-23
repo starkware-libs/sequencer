@@ -30,8 +30,8 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     integration_test_manager.await_execution(EXPECTED_BLOCK_NUMBER).await;
 
     info!("Shutting down nodes.");
-    integration_test_manager.shutdown_nodes();
+    let post_shutdown_manager = integration_test_manager.shutdown_nodes();
 
     // Verify the results.
-    integration_test_manager.verify_results(sender_address, N_TXS).await;
+    post_shutdown_manager.verify_results(sender_address, N_TXS).await;
 }
