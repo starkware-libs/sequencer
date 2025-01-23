@@ -3,7 +3,9 @@ mod cende_test;
 mod central_objects;
 
 use std::collections::BTreeMap;
+use std::fs::File;
 use std::future::ready;
+use std::io::Read;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -19,7 +21,7 @@ use central_objects::{
 use mockall::automock;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use reqwest::{Client, RequestBuilder};
+use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::executable_transaction::Transaction;
@@ -74,9 +76,24 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_WRITE_BLOB_PATH)
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
-            client: Client::new(),
+            client: Self::build_client(cende_config.certificates_file_path),
             skip_write_height: cende_config.skip_write_height,
         }
+    }
+
+    fn build_client(certificates_file_path: Option<String>) -> Client {
+        let mut client_builder = ClientBuilder::new();
+        if let Some(certificates_file_path) = certificates_file_path {
+            let mut buf = Vec::new();
+            File::open(certificates_file_path)
+                .expect("Failed to open cende certificates file.")
+                .read_to_end(&mut buf)
+                .expect("Failed to read cende certificates file.");
+            let certificates =
+                Certificate::from_pem(&buf).expect("Failed to parse the certificates");
+            client_builder = client_builder.add_root_certificate(certificates);
+        }
+        client_builder.build().expect("Failed to build the client")
     }
 }
 
@@ -84,6 +101,7 @@ impl CendeAmbassador {
 pub struct CendeConfig {
     pub recorder_url: Url,
     pub skip_write_height: Option<BlockNumber>,
+    pub certificates_file_path: Option<String>,
 }
 
 impl Default for CendeConfig {
@@ -96,6 +114,7 @@ impl Default for CendeConfig {
                 .parse()
                 .expect("recorder_url must be a valid Recorder URL"),
             skip_write_height: None,
+            certificates_file_path: None,
         }
     }
 }
@@ -114,6 +133,14 @@ impl SerializeConfig for CendeConfig {
             "skip_write_height",
             "A height that the consensus can skip writing to Aerospike. Needed for booting up (no \
              previous height blob to write) or to handle extreme cases (all the nodes failed).",
+            ParamPrivacyInput::Private,
+        ));
+        config.extend(ser_optional_param(
+            &self.certificates_file_path,
+            "".to_string(),
+            "certificates_file_path",
+            "The path to the certificates file. The certificates are used when sending a request \
+             to the cende_recorder.",
             ParamPrivacyInput::Private,
         ));
         config

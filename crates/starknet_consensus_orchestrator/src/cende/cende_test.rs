@@ -70,6 +70,7 @@ async fn no_write_at_skipped_height() {
     let cende_ambassador = CendeAmbassador::new(CendeConfig {
         recorder_url: "http://parsable_url".parse().unwrap(),
         skip_write_height: Some(BlockNumber(SKIP_WRITE_HEIGHT)),
+        ..Default::default()
     });
 
     // Returns false since the blob is missing and the height is different than skip_write_height.
