@@ -101,7 +101,7 @@ impl StateSyncRunner {
 
         // Creating the sync clients futures
         // Exactly one of the sync clients must be turned on.
-        let (p2p_sync_client_future, central_sync_client_future, new_block_receiver_future) =
+        let (p2p_sync_client_future, central_sync_client_future, new_block_dev_null_future) =
             match (p2p_sync_client_config, central_sync_client_config) {
                 (Some(p2p_sync_client_config), None) => {
                     let p2p_sync_client = Self::new_p2p_state_sync_client(
@@ -110,25 +110,26 @@ impl StateSyncRunner {
                         p2p_sync_client_config,
                         &mut network_manager,
                         new_block_receiver,
-                        class_manager_client.clone(),
+                        class_manager_client,
                     );
                     let p2p_sync_client_future = p2p_sync_client.run().boxed();
                     let central_sync_client_future = future::pending().boxed();
-                    let new_block_receiver_future = future::pending().boxed();
-                    (p2p_sync_client_future, central_sync_client_future, new_block_receiver_future)
+                    let new_block_dev_null_future = future::pending().boxed();
+                    (p2p_sync_client_future, central_sync_client_future, new_block_dev_null_future)
                 }
                 (None, Some(central_sync_client_config)) => {
                     let central_sync_client = Self::new_central_state_sync_client(
                         storage_reader.clone(),
                         storage_writer,
                         central_sync_client_config,
+                        class_manager_client,
                     );
                     let p2p_sync_client_future = future::pending().boxed();
                     let central_sync_client_future = central_sync_client.run().boxed();
-                    let new_block_receiver_future =
+                    let new_block_dev_null_future =
                         create_new_block_receiver_future_dev_null(new_block_receiver);
 
-                    (p2p_sync_client_future, central_sync_client_future, new_block_receiver_future)
+                    (p2p_sync_client_future, central_sync_client_future, new_block_dev_null_future)
                 }
                 _ => {
                     panic!(
@@ -143,7 +144,7 @@ impl StateSyncRunner {
                 p2p_sync_client_future,
                 p2p_sync_server_future,
                 central_sync_client_future,
-                new_block_dev_null_future: new_block_receiver_future,
+                new_block_dev_null_future,
             },
             storage_reader,
         )
@@ -210,6 +211,7 @@ impl StateSyncRunner {
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
         central_sync_client_config: CentralSyncClientConfig,
+        class_manager_client: SharedClassManagerClient,
     ) -> CentralStateSync {
         let CentralSyncClientConfig { sync_config, central_source_config } =
             central_sync_client_config;
@@ -242,6 +244,7 @@ impl StateSyncRunner {
             base_layer_source,
             storage_reader,
             storage_writer,
+            Some(class_manager_client),
         )
     }
 }

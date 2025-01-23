@@ -1,3 +1,4 @@
+use core::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -5,7 +6,7 @@ use assert_matches::assert_matches;
 use async_stream::stream;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
 use papyrus_storage::base_layer::BaseLayerStorageReader;
@@ -13,6 +14,7 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{
     Block,
     BlockBody,
@@ -23,12 +25,14 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
-use starknet_api::core::{ClassHash, SequencerPublicKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::felt;
-use starknet_api::state::StateDiff;
+use starknet_api::state::{SierraContractClass, StateDiff};
+use starknet_class_manager_types::{ClassHashes, ClassManagerClient, MockClassManagerClient};
 use starknet_client::reader::PendingData;
 use tokio::sync::{Mutex, RwLock};
+use tokio::time::sleep;
 use tracing::{debug, error};
 
 use super::pending::MockPendingSourceTrait;
@@ -113,6 +117,7 @@ async fn run_sync(
     central: impl CentralSourceTrait + Send + Sync + 'static,
     base_layer: impl BaseLayerSourceTrait + Send + Sync,
     config: SyncConfig,
+    class_manager_client: Option<Arc<dyn ClassManagerClient>>,
 ) -> StateSyncResult {
     // Mock to the pending source that always returns the default pending data.
     let mut pending_source = MockPendingSourceTrait::new();
@@ -129,6 +134,7 @@ async fn run_sync(
         reader,
         writer,
         sequencer_pub_key: None,
+        class_manager_client,
     };
 
     state_sync.run().await?;
@@ -148,12 +154,14 @@ async fn sync_empty_chain() {
     base_layer_mock.expect_latest_proved_block().returning(|| Ok(None));
 
     let ((reader, writer), _temp_dir) = get_test_storage();
+    let class_manager_client = None;
     let sync_future = run_sync(
         reader.clone(),
         writer,
         central_mock,
         base_layer_mock,
         get_test_sync_config(false),
+        class_manager_client,
     );
 
     // Check that the header marker is 0.
@@ -214,14 +222,23 @@ async fn sync_happy_flow() {
     });
     central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
         let state_stream: StateUpdatesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
+            for (i, block_number) in initial.iter_up_to(up_to).enumerate() {
+                // TODO(Eitan): add deprecated declared classes
+                let mut declared_classes = IndexMap::new();
+                declared_classes.insert(
+                    ClassHash(felt!(format!("0x{}", i).as_str())),
+                    (CompiledClassHash(felt!(format!("0x{}", i).as_str())), SierraContractClass::default()),
+                );
                 if block_number.0 >= N_BLOCKS {
                     yield Err(CentralError::BlockNotFound { block_number })
                 }
                 yield Ok((
                     block_number,
                     create_block_hash(block_number, false),
-                    StateDiff::default(),
+                    StateDiff {
+                        declared_classes,
+                        ..Default::default()
+                    },
                     IndexMap::new(),
                 ));
             }
@@ -230,6 +247,17 @@ async fn sync_happy_flow() {
         state_stream
     });
     central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
+    central_mock.expect_stream_compiled_classes().returning(move |_, _| {
+        let res: CompiledClassesStream<'_> = stream! {
+            for i in 0..N_BLOCKS {
+                yield Ok((ClassHash(felt!(format!("0x{}", i).as_str())),
+                    CompiledClassHash(felt!(format!("0x{}", i).as_str())),
+                    CasmContractClass::get_test_instance(&mut get_rng())));
+            }
+        }
+        .boxed();
+        res
+    });
 
     // TODO(dvir): find a better way to do this.
     let mut base_layer_mock = MockBaseLayerSourceTrait::new();
@@ -248,6 +276,13 @@ async fn sync_happy_flow() {
             )),
         })
     });
+    let mut class_manager_client = MockClassManagerClient::new();
+    let class_list_0 = Arc::new(Mutex::new(vec![]));
+    let class_list_1 = Arc::clone(&class_list_0);
+    class_manager_client.expect_add_class().returning(move |class| {
+        class_list_1.lock().now_or_never().unwrap().push(class);
+        Ok(ClassHashes::default())
+    });
 
     let ((reader, writer), _temp_dir) = get_test_storage();
     let sync_future = run_sync(
@@ -256,6 +291,7 @@ async fn sync_happy_flow() {
         central_mock,
         base_layer_mock,
         get_test_sync_config(false),
+        Some(Arc::new(class_manager_client)),
     );
 
     // Check that the storage reached N_BLOCKS within MAX_TIME_TO_SYNC_MS.
@@ -293,8 +329,11 @@ async fn sync_happy_flow() {
         });
 
     tokio::select! {
+        _ = sleep(Duration::from_secs(1)) => panic!("Test timed out."),
         sync_result = sync_future => sync_result.unwrap(),
-        storage_check_result = check_storage_future => assert!(storage_check_result),
+        class = check_storage_future.then(|storage_check_result| async move {
+            assert!(storage_check_result);
+        class_list_0.lock().await.pop().unwrap() }) => assert_eq!(class, SierraContractClass::default() ),
     }
 }
 
@@ -313,8 +352,15 @@ async fn sync_with_revert() {
     let mock = MockedCentralWithRevert { reverted: reverted_mutex.clone() };
     let mut base_layer_mock = MockBaseLayerSourceTrait::new();
     base_layer_mock.expect_latest_proved_block().returning(|| Ok(None));
-    let sync_future =
-        run_sync(reader.clone(), writer, mock, base_layer_mock, get_test_sync_config(false));
+    let class_manager_client = None;
+    let sync_future = run_sync(
+        reader.clone(),
+        writer,
+        mock,
+        base_layer_mock,
+        get_test_sync_config(false),
+        class_manager_client,
+    );
 
     // Prepare functions that check that the sync worked up to N_BLOCKS_BEFORE_REVERT and then
     // reacted correctly to the revert.
@@ -652,12 +698,14 @@ async fn test_unrecoverable_sync_error_flow() {
         .returning(|_| Ok(Some(create_block_hash(WRONG_BLOCK_NUMBER, false))));
 
     let ((reader, writer), _temp_dir) = get_test_storage();
+    let class_manager_client = None;
     let sync_future = run_sync(
         reader.clone(),
         writer,
         mock,
         MockBaseLayerSourceTrait::new(),
         get_test_sync_config(false),
+        class_manager_client,
     );
     let sync_res = tokio::join! {sync_future};
     assert!(sync_res.0.is_err());
@@ -692,7 +740,15 @@ async fn sequencer_pub_key_management() {
 
     let ((reader, writer), _temp_dir) = get_test_storage();
     let config = get_test_sync_config(true);
-    let sync_future = run_sync(reader.clone(), writer, central_mock, base_layer_mock, config);
+    let class_manager_client = None;
+    let sync_future = run_sync(
+        reader.clone(),
+        writer,
+        central_mock,
+        base_layer_mock,
+        config,
+        class_manager_client,
+    );
 
     let sync_result =
         tokio::time::timeout(config.block_propagation_sleep_duration * 4, sync_future)
