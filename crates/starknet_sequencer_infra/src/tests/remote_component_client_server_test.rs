@@ -7,16 +7,15 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
-use once_cell::sync::Lazy;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio::task;
 
+use super::AVAILABLE_PORTS;
 use crate::component_client::{
     ClientError,
     ClientResult,
@@ -64,12 +63,6 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 // ClientError::ResponseDeserializationFailure error message.
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 const VALID_VALUE_A: ValueA = Felt::ONE;
-
-// Define the shared fixture
-static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
-    let available_ports = AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), 0);
-    Arc::new(Mutex::new(available_ports))
-});
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
