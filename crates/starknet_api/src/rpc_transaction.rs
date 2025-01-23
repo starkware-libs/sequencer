@@ -325,6 +325,28 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
     }
 }
 
+impl From<InvokeTransactionV3> for RpcInvokeTransactionV3 {
+    fn from(tx: InvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: match tx.resource_bounds {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
+}
+
 // TODO(Aviv): remove duplication with sequencer/crates/papyrus_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {

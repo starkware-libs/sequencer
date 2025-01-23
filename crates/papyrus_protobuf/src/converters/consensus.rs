@@ -6,8 +6,8 @@ use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::Transaction;
 
 use crate::consensus::{
     IntoFromProto,
@@ -197,7 +197,7 @@ impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
             .transactions
             .into_iter()
             .map(|tx| tx.try_into())
-            .collect::<Result<Vec<Transaction>, ProtobufConversionError>>()?;
+            .collect::<Result<Vec<ConsensusTransaction>, ProtobufConversionError>>()?;
         Ok(TransactionBatch { transactions })
     }
 }

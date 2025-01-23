@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ChainId;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{
     DeployAccountTransactionV3WithAddress,
     InternalRpcDeclareTransactionV3,
@@ -15,6 +15,7 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcTransaction,
 };
+use starknet_api::test_utils::declare;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{CalculateContractAddress, TransactionHasher, TransactionVersion};
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
@@ -33,7 +34,7 @@ pub enum TransactionConverterError {
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
 
 #[async_trait]
-pub trait TransactionConverterTrait {
+pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_internal_consensus_tx_to_consensus_tx(
         &self,
         tx: InternalConsensusTransaction,
@@ -54,10 +55,17 @@ pub trait TransactionConverterTrait {
         tx: RpcTransaction,
     ) -> TransactionConverterResult<InternalRpcTransaction>;
 
+    // Why not change this to internal to executable (including L1 variant)?
     async fn convert_internal_rpc_tx_to_executable_tx(
         &self,
         tx: InternalRpcTransaction,
     ) -> TransactionConverterResult<AccountTransaction>;
+
+    // // Same here
+    // async fn convert_executable_tx_to_internal_rpc_tx(
+    //     &self,
+    //     tx: AccountTransaction,
+    // ) -> TransactionConverterResult<InternalRpcTransaction>;
 }
 
 pub struct TransactionConverter {
@@ -210,6 +218,35 @@ impl TransactionConverterTrait for TransactionConverter {
             )),
         }
     }
+
+    // async fn convert_executable_tx_to_internal_rpc_tx(
+    //     &self,
+    //     tx: AccountTransaction,
+    // ) -> TransactionConverterResult<InternalRpcTransaction> { match tx {
+    //   AccountTransaction::Invoke(executable_transaction::InvokeTransaction { tx:
+    //   starknet_api::transaction::InvokeTransaction::V3(invoke_tx), tx_hash, }) => { let
+    //   internal_rpc_without_hash = InternalRpcTransactionWithoutTxHash::Invoke(
+    //   starknet_api::rpc_transaction::RpcInvokeTransaction::V3(invoke_tx.into()), );
+    //   Ok(InternalRpcTransaction { tx: internal_rpc_without_hash, tx_hash }) }
+    //   AccountTransaction::Declare(executable_transaction::DeclareTransaction { tx:
+    //   starknet_api::transaction::DeclareTransaction::V3(declare_tx), tx_hash, class_info, }) => {
+    //   let internal_rpc_without_hash = InternalRpcTransactionWithoutTxHash::Declare(
+    //   self.convert_rpc_tx_to_internal_rpc_tx(RpcTransaction
+    //   starknet_api::rpc_transaction::RpcDeclareTransaction::V3(declare_tx.into()), ) .await
+    //   .map_err(TransactionConverterError::from)?, ); Ok(InternalRpcTransaction { tx:
+    //   internal_rpc_without_hash, tx_hash }) }
+
+    //         AccountTransaction::Declare(tx) => {
+    //             let rpc_tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(tx.tx.into()));
+    //             self.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await
+    //         }
+    //         AccountTransaction::DeployAccount(tx) => {
+    //             let rpc_tx =
+    //                 RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx.tx.into()));
+    //             self.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await
+    //         }
+    //     }
+    // }
 }
 
 impl TransactionConverter {
