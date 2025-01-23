@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 
 use futures::future::join_all;
@@ -156,6 +157,9 @@ impl NodeSetup {
 
         RunningNode { node_setup: self, executable_handles }
     }
+    pub fn get_node_index(&self) -> Option<usize> {
+        self.executables.first().map(|executable| executable.node_execution_id.get_node_index())
+    }
 }
 
 pub struct RunningNode {
@@ -181,12 +185,18 @@ impl RunningNode {
 }
 
 pub struct IntegrationTestManager {
-    pub nodes: Vec<NodeSetup>,
+    nodes: HashMap<usize, NodeSetup>,
     // TODO(Nadin): move to NodeSetup.
-    pub executable_handles: Vec<JoinHandle<()>>,
+    executable_handles: Vec<JoinHandle<()>>,
 }
 
 impl IntegrationTestManager {
+    // TODO(Nadin): take idle_nodes: Vec<NodeSetup>, running_nodes: Vec<RunningNode> as arguments.
+    pub fn new(nodes: Vec<NodeSetup>, executable_handles: Vec<JoinHandle<()>>) -> Self {
+        let nodes_map = create_map(nodes, |node| node.get_node_index());
+
+        Self { nodes: nodes_map, executable_handles }
+    }
     pub async fn run(nodes: Vec<NodeSetup>) -> Self {
         info!("Running nodes.");
         let executable_handles = nodes
@@ -201,27 +211,29 @@ impl IntegrationTestManager {
             })
             .collect::<Vec<_>>();
 
-        let sequencer_manager = Self { nodes, executable_handles };
+        let integration_test_manager = Self::new(nodes, executable_handles);
 
         // Wait for the nodes to start.
-        sequencer_manager.await_alive(5000, 50).await;
+        integration_test_manager.await_alive(5000, 50).await;
 
-        sequencer_manager
+        integration_test_manager
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks =
-            self.nodes.iter().map(|node| node.await_alive(interval, max_attempts));
+            self.nodes.values().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.nodes[0].send_rpc_tx_fn(rpc_tx).await
+        let node_0 = self.nodes.get(&0).expect("Node 0 should be in the map.");
+        node_0.send_rpc_tx_fn(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
-        self.nodes[0].batcher_storage_reader()
+        let node_0 = self.nodes.get(&0).expect("Node 0 should be in the map.");
+        node_0.batcher_storage_reader()
     }
 
     pub fn shutdown_nodes(&self) {
@@ -469,4 +481,12 @@ fn get_non_http_container_config(
         state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(state_sync_socket),
         ..ComponentConfig::default()
     }
+}
+
+fn create_map<T, K, F>(items: Vec<T>, key_extractor: F) -> HashMap<K, T>
+where
+    F: Fn(&T) -> Option<K>,
+    K: std::hash::Hash + Eq,
+{
+    items.into_iter().filter_map(|item| key_extractor(&item).map(|key| (key, item))).collect()
 }
