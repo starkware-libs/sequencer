@@ -378,6 +378,23 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_args)
     }
 
+    pub fn generate_deploy_account_with_tip(&mut self, tip: u64) -> RpcTransaction {
+        assert!(
+            !self.is_deployed(),
+            "Cannot deploy an already deployed account: the first transaction of every account \
+             must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+        assert_eq!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
+        let deploy_account_args = deploy_account_tx_args!(
+            tip : Tip(tip),
+            class_hash: self.account.class_hash(),
+            resource_bounds: test_valid_resource_bounds(),
+            contract_address_salt: ContractAddressSalt(self.contract_address_salt.0)
+        );
+        rpc_deploy_account_tx(deploy_account_args)
+    }
+
     pub fn generate_deploy_account(&mut self) -> RpcTransaction {
         assert!(
             !self.is_deployed(),

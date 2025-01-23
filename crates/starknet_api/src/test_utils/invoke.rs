@@ -139,7 +139,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
     }
 
     let ValidResourceBounds::AllResources(resource_bounds) = invoke_args.resource_bounds else {
-        panic!("Unspported resource bounds type: {:?}.", invoke_args.resource_bounds)
+        panic!("Unsupported resource bounds type: {:?}.", invoke_args.resource_bounds)
     };
 
     RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {

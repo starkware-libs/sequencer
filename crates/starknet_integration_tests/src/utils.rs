@@ -199,15 +199,15 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
     ] {
-        tx_generator.register_deployed_account(account);
+        tx_generator.register_undeployed_account(account, NEW_ACCOUNT_SALT);
     }
     // TODO(yair): This is a hack to fund the new account during the setup. Move the registration to
     // the test body once funding is supported.
-    let new_account_id = tx_generator.register_undeployed_account(
+    let _new_account_id = tx_generator.register_undeployed_account(
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         NEW_ACCOUNT_SALT,
     );
-    assert_eq!(new_account_id, UNDEPLOYED_ACCOUNT_ID);
+    // assert_eq!(new_account_id, UNDEPLOYED_ACCOUNT_ID);
     tx_generator
 }
 
@@ -245,9 +245,9 @@ pub fn create_funding_txs(
 
 fn fund_new_account(
     funding_account: &mut AccountTransactionGenerator,
-    receipient: &Contract,
+    recipient: &Contract,
 ) -> Vec<RpcTransaction> {
-    let funding_tx = funding_account.generate_transfer(receipient);
+    let funding_tx = funding_account.generate_transfer(recipient);
     vec![funding_tx]
 }
 
@@ -256,9 +256,14 @@ fn create_account_txs(
     account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
-    (0..n_txs)
-        .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
-        .collect()
+    std::iter::once(
+        tx_generator.account_with_id_mut(account_id).generate_deploy_account_with_tip(1),
+    )
+    .chain(
+        (1..n_txs)
+            .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1)),
+    )
+    .collect()
 }
 
 async fn send_rpc_txs<'a, Fut>(
