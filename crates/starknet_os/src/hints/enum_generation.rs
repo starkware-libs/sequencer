@@ -19,6 +19,13 @@ macro_rules! define_hint_enum_base {
                 }
             }
         }
+
+        /// Auto-implement conversion to the main Hints enum, to ensure all hints are accounted for.
+        impl From<$enum_name> for $crate::hints::Hints {
+            fn from(hint: $enum_name) -> Self {
+                Self::$enum_name(hint)
+            }
+        }
     }
 }
 
