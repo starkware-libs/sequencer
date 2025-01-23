@@ -172,7 +172,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
-    "value": 15
+    "value": 20
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
@@ -282,7 +282,7 @@
   "compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
-    "value": 15
+    "value": 20
   },
   "compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
