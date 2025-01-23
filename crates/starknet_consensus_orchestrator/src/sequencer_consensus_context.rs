@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use blockifier::test_utils::l1_handler;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
@@ -23,7 +22,6 @@ use papyrus_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use papyrus_protobuf::protobuf::transaction;
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -39,7 +37,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, SequencerContractAddress};
-use starknet_api::executable_transaction::{self, Transaction as ExecutableTransaction};
+use starknet_api::executable_transaction::{self};
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -55,8 +53,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
-use starknet_class_manager_types::transaction_converter::{self, TransactionConverterTrait};
-use starknet_class_manager_types::ClassManagerClient;
+use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
 use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -814,7 +811,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<InternalConsensusTransaction>,
-    chain_id: ChainId,
+    _chain_id: ChainId, // was used for conversion to ExecutableTransaction, should it be verified?
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {

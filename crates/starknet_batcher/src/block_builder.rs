@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -26,12 +27,15 @@ use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::ProposalCommitment;
+use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
+use starknet_class_manager_types::SharedClassManagerClient;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
 
@@ -134,6 +138,8 @@ pub struct BlockBuilder {
     // Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
     execution_params: BlockBuilderExecutionParams,
+
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
 }
 
 impl BlockBuilder {
@@ -144,6 +150,7 @@ impl BlockBuilder {
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         tx_chunk_size: usize,
         execution_params: BlockBuilderExecutionParams,
+        transaction_converter: Arc<dyn TransactionConverterTrait>,
     ) -> Self {
         Self {
             executor,
@@ -152,6 +159,7 @@ impl BlockBuilder {
             abort_signal_receiver,
             tx_chunk_size,
             execution_params,
+            transaction_converter,
         }
     }
 }
@@ -194,7 +202,23 @@ impl BlockBuilderTrait for BlockBuilder {
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
                 // TODO(yair): Avoid this clone.
-                let executable_tx = BlockifierTransaction::new_for_sequencing(tx.clone());
+                let executable_tx = BlockifierTransaction::new_for_sequencing(match tx {
+                    InternalConsensusTransaction::L1Handler(tx) => {
+                        starknet_api::executable_transaction::Transaction::L1Handler(tx.clone())
+                    }
+                    InternalConsensusTransaction::RpcTransaction(tx) => {
+                        starknet_api::executable_transaction::Transaction::Account(
+                            self.transaction_converter
+                                .convert_internal_rpc_tx_to_executable_tx(tx.clone())
+                                .await
+                                .map_err(|err| {
+                                    BlockBuilderError::GetTransactionError(
+                                        TransactionProviderError::TransactionConverterError(err),
+                                    )
+                                })?,
+                        )
+                    }
+                });
                 executor_input_chunk.push(executable_tx);
             }
             let results = self.executor.add_txs_to_block(&executor_input_chunk);
@@ -224,12 +248,14 @@ impl BlockBuilderTrait for BlockBuilder {
 
 /// Returns true if the block is full and should be closed, false otherwise.
 async fn collect_execution_results_and_stream_txs(
-    tx_chunk: Vec<Transaction>,
+    tx_chunk: Vec<InternalConsensusTransaction>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     l2_gas_used: &mut GasAmount,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
     rejected_tx_hashes: &mut HashSet<TransactionHash>,
-    output_content_sender: &Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+    output_content_sender: &Option<
+        tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+    >,
     fail_on_err: bool,
 ) -> BlockBuilderResult<bool> {
     assert!(
@@ -291,7 +317,9 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        output_content_sender: Option<
+            tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+        >,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
 

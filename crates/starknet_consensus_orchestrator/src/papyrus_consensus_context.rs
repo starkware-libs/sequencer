@@ -30,6 +30,7 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
+use starknet_api::transaction::Transaction;
 use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -109,6 +110,11 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .unwrap_or_else(|| {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     });
+
+                let consensus_transactions = transactions.iter().map(|tx| match tx {
+                    Transaction::L1Handler(tx) => ConsensusTransaction::L1Handler(tx.clone()),
+                    Transaction::Declare(tx) => ConsensusTransaction::RpcTransaction(tx.clone()),
+                });
 
                 let block_hash = txn
                     .get_block_header(height)
