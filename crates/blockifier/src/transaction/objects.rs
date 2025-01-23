@@ -83,12 +83,13 @@ impl TransactionInfo {
     }
 
     pub fn enforce_fee(&self) -> bool {
-        match self {
-            TransactionInfo::Current(context) => {
-                context.resource_bounds.max_possible_fee() > Fee(0)
-            }
-            TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
-        }
+        false
+        // match self {
+        //     TransactionInfo::Current(context) => {
+        //         context.resource_bounds.max_possible_fee() > Fee(0)
+        //     }
+        //     TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
+        // }
     }
 
     pub fn gas_mode(&self) -> GasVectorComputationMode {
