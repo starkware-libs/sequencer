@@ -33,8 +33,8 @@ pub type SierraCompilerRequestAndResponseSender =
 // TODO(Elin): change to a more efficient serde (bytes, or something similar).
 // A prerequisite for this is to solve serde-untagged lack of support.
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RawClass(serde_json::Value);
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RawClass(pub serde_json::Value);
 
 impl TryFrom<SierraContractClass> for RawClass {
     type Error = serde_json::Error;
@@ -52,8 +52,8 @@ impl TryFrom<RawClass> for SierraContractClass {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RawExecutableClass(serde_json::Value);
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RawExecutableClass(pub serde_json::Value);
 
 impl TryFrom<ContractClass> for RawExecutableClass {
     type Error = serde_json::Error;

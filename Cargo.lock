@@ -10748,9 +10748,12 @@ dependencies = [
 name = "starknet_class_manager"
 version = "0.0.0"
 dependencies = [
+ "hex",
+ "serde_json",
  "starknet_api",
  "starknet_class_manager_types",
  "starknet_sierra_multicompile_types",
+ "tempfile",
  "thiserror 1.0.69",
 ]
 
@@ -11309,6 +11312,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
+ "hex",
  "mempool_test_utils",
  "papyrus_config",
  "rlimit",
