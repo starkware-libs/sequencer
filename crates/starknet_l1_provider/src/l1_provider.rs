@@ -9,6 +9,11 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
+
+#[cfg(test)]
+#[path = "l1_provider_tests.rs"]
+pub mod l1_provider_tests;
+
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -33,6 +38,11 @@ impl L1Provider {
         self.validate_height(height)?;
         self.state = state.into();
         self.tx_manager.start_block();
+        Ok(())
+    }
+
+    // TODO(Gilad): will be added soon.
+    pub async fn initialize(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
         Ok(())
     }
 
