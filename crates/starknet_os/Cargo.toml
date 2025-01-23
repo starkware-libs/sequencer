@@ -8,6 +8,10 @@ license-file.workspace = true
 description = "The Starknet OS."
 
 [dependencies]
+cairo-vm.workspace = true
+indoc.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true
