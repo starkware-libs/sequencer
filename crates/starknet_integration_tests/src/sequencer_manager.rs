@@ -107,17 +107,6 @@ impl NodeSetup {
         Self { executables, batcher_index, http_server_index }
     }
 
-    async fn await_alive(&self, interval: u64, max_attempts: usize) {
-        let await_alive_tasks = self.executables.iter().map(|executable| {
-            let result = executable.monitoring_client.await_alive(interval, max_attempts);
-            result.unwrap_or_else(|_| {
-                panic!("Executable {:?} should be alive.", executable.node_execution_id)
-            })
-        });
-
-        join_all(await_alive_tasks).await;
-    }
-
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
     }
@@ -163,15 +152,11 @@ impl NodeSetup {
 }
 
 pub struct RunningNode {
-    #[allow(dead_code)]
     node_setup: NodeSetup,
-    #[allow(dead_code)]
     executable_handles: Vec<JoinHandle<()>>,
 }
 
 impl RunningNode {
-    // TODO(Nadin): use this function instead of the one in NodeSetup.
-    #[allow(dead_code)]
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks = self.node_setup.executables.iter().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
@@ -185,61 +170,63 @@ impl RunningNode {
 }
 
 pub struct IntegrationTestManager {
-    nodes: HashMap<usize, NodeSetup>,
-    // TODO(Nadin): move to NodeSetup.
-    executable_handles: Vec<JoinHandle<()>>,
+    idle_nodes: HashMap<usize, NodeSetup>,
+    running_nodes: HashMap<usize, RunningNode>,
 }
 
 impl IntegrationTestManager {
-    // TODO(Nadin): take idle_nodes: Vec<NodeSetup>, running_nodes: Vec<RunningNode> as arguments.
-    pub fn new(nodes: Vec<NodeSetup>, executable_handles: Vec<JoinHandle<()>>) -> Self {
-        let nodes_map = create_map(nodes, |node| node.get_node_index());
+    pub fn new(idle_nodes: Vec<NodeSetup>, running_nodes: Vec<RunningNode>) -> Self {
+        let idle_nodes_map = create_map(idle_nodes, |node| node.get_node_index());
+        let running_nodes_map =
+            create_map(running_nodes, |running_node| running_node.node_setup.get_node_index());
 
-        Self { nodes: nodes_map, executable_handles }
+        Self { idle_nodes: idle_nodes_map, running_nodes: running_nodes_map }
     }
-    pub async fn run(nodes: Vec<NodeSetup>) -> Self {
+    pub async fn run(&mut self) {
         info!("Running nodes.");
-        let executable_handles = nodes
-            .iter()
-            .flat_map(|node| {
-                node.get_executables().iter().map(|executable| {
-                    spawn_run_node(
-                        executable.node_config_path.clone(),
-                        executable.node_execution_id.into(),
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
 
-        let integration_test_manager = Self::new(nodes, executable_handles);
+        // Transition nodes from idle to running.
+        self.running_nodes.extend(self.idle_nodes.drain().map(|(index, node_setup)| {
+            let running_node = node_setup.run();
+            (index, running_node)
+        }));
 
         // Wait for the nodes to start.
-        integration_test_manager.await_alive(5000, 50).await;
-
-        integration_test_manager
+        self.await_alive(5000, 50).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks =
-            self.nodes.values().map(|node| node.await_alive(interval, max_attempts));
+            self.running_nodes.values().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        let node_0 = self.nodes.get(&0).expect("Node 0 should be in the map.");
-        node_0.send_rpc_tx_fn(rpc_tx).await
+        let node_0 = self.running_nodes.get(&0).expect("Node 0 should running.");
+        node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
     }
 
     fn batcher_storage_reader(&self) -> StorageReader {
-        let node_0 = self.nodes.get(&0).expect("Node 0 should be in the map.");
-        node_0.batcher_storage_reader()
+        self.idle_nodes
+            .get(&0)
+            .map(|node| node.batcher_storage_reader())
+            .or_else(|| {
+                self.running_nodes
+                    .get(&0)
+                    .map(|running_node| running_node.node_setup.batcher_storage_reader())
+            })
+            .expect("Node 0 should be either idle or running.")
     }
 
-    pub fn shutdown_nodes(&self) {
-        self.executable_handles.iter().for_each(|handle| {
-            assert!(!handle.is_finished(), "Node should still be running.");
-            handle.abort()
+    pub fn shutdown_nodes(&mut self) {
+        self.running_nodes.drain().for_each(|(_, running_node)| {
+            running_node.executable_handles.iter().for_each(|handle| {
+                assert!(!handle.is_finished(), "Node should still be running.");
+                handle.abort();
+            });
+            self.idle_nodes
+                .insert(running_node.node_setup.get_node_index().unwrap(), running_node.node_setup);
         });
     }
 
