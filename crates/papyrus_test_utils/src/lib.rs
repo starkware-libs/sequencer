@@ -659,7 +659,6 @@ auto_impl_get_test_instance! {
         Function = 0,
     }
     pub struct GasAmount(pub u64);
-    pub struct GasPrice(pub u128);
     pub struct GasPricePerToken {
         pub price_in_fri: GasPrice,
         pub price_in_wei: GasPrice,
@@ -1181,6 +1180,12 @@ impl GetTestInstance for GasVector {
             l2_gas: GasAmount(rng.next_u64()),
             l1_data_gas: GasAmount(rng.next_u64()),
         }
+    }
+}
+
+impl GetTestInstance for GasPrice {
+    fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
+        GasPrice(rng.gen_range(1..u128::MAX)) // Ensure non-zero value.
     }
 }
 

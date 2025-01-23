@@ -205,6 +205,22 @@ use crate::{
 
 const NODE_VERSION: &str = "NODE VERSION";
 
+fn random_nonzero_u128() -> u128 {
+    let mut value = random::<u128>();
+    while value == 0 {
+        value = random::<u128>();
+    }
+    value
+}
+
+fn rng_next_u64_nonzero(rng: &mut ChaCha8Rng) -> u64 {
+    let mut value = rng.next_u64();
+    while value == 0 {
+        value = rng.next_u64();
+    }
+    value
+}
+
 #[tokio::test]
 async fn spec_version() {
     let (module, _) = get_test_rpc_server_and_storage_writer::<JsonRpcServerImpl>();
@@ -603,11 +619,11 @@ async fn get_block_w_full_transactions() {
     let pending_sequencer_address = SequencerContractAddress(random::<u64>().into());
     let pending_timestamp = BlockTimestamp(random::<u64>());
     let pending_l1_gas_price = GasPricePerToken {
-        price_in_wei: random::<u128>().into(),
-        price_in_fri: random::<u128>().into(),
+        price_in_wei: GasPrice::new_unchecked(random_nonzero_u128()),
+        price_in_fri: GasPrice::new_unchecked(random_nonzero_u128()),
     };
     let pending_l2_gas_price =
-        GasPricePerToken { price_in_wei: 0_u8.into(), price_in_fri: 0_u8.into() };
+        GasPricePerToken { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -795,11 +811,11 @@ async fn get_block_w_full_transactions_and_receipts() {
     let pending_sequencer_address = SequencerContractAddress(random::<u64>().into());
     let pending_timestamp = BlockTimestamp(random::<u64>());
     let pending_l1_gas_price = GasPricePerToken {
-        price_in_wei: rng.next_u64().into(),
-        price_in_fri: rng.next_u64().into(),
+        price_in_wei: rng_next_u64_nonzero(&mut rng).try_into().unwrap(),
+        price_in_fri: rng_next_u64_nonzero(&mut rng).try_into().unwrap(),
     };
     let pending_l2_gas_price =
-        GasPricePerToken { price_in_wei: 0_u8.into(), price_in_fri: 0_u8.into() };
+        GasPricePerToken { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -987,11 +1003,11 @@ async fn get_block_w_transaction_hashes() {
     let pending_sequencer_address = SequencerContractAddress(random::<u64>().into());
     let pending_timestamp = BlockTimestamp(random::<u64>());
     let pending_l1_gas_price = GasPricePerToken {
-        price_in_wei: random::<u128>().into(),
-        price_in_fri: random::<u128>().into(),
+        price_in_wei: GasPrice::new_unchecked(random_nonzero_u128()),
+        price_in_fri: GasPrice::new_unchecked(random_nonzero_u128()),
     };
     let pending_l2_gas_price =
-        GasPricePerToken { price_in_wei: 0_u8.into(), price_in_fri: 0_u8.into() };
+        GasPricePerToken { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,

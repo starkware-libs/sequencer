@@ -194,7 +194,7 @@ fn test_discounted_gas_overdraft(
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
     let tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
-        resource_bounds: l1_resource_bounds(gas_bound, (gas_price.get().0 * 10).into()),
+        resource_bounds: l1_resource_bounds(gas_bound, (gas_price.get().0 * 10).try_into().unwrap()),
     });
 
     let tx_receipt = TransactionReceipt {

@@ -1342,7 +1342,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     );
 
     // Max L1 gas price too low, old resource bounds.
-    let insufficient_max_l1_gas_price = (actual_strk_l1_gas_price.get().0 - 1).into();
+    let insufficient_max_l1_gas_price = (actual_strk_l1_gas_price.get().0 - 1).try_into().unwrap();
     let invalid_v3_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(minimal_l1_gas, insufficient_max_l1_gas_price),
         ..valid_invoke_tx_args.clone()

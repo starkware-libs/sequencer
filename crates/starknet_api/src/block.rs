@@ -320,7 +320,6 @@ pub struct GasPricePerToken {
     Debug,
     Copy,
     Clone,
-    Default,
     derive_more::Display,
     Eq,
     PartialEq,
@@ -336,9 +335,11 @@ pub struct GasPrice(pub u128);
 macro_rules! impl_from_uint_for_gas_price {
     ($($uint:ty),*) => {
         $(
-            impl From<$uint> for GasPrice {
-                fn from(val: $uint) -> Self {
-                    GasPrice(u128::from(val))
+            impl TryFrom<$uint> for GasPrice {
+                type Error = StarknetApiError;
+
+                fn try_from(val: $uint) -> Result<Self, Self::Error> {
+                    GasPrice::new(u128::from(val))
                 }
             }
         )*
@@ -349,7 +350,7 @@ impl_from_uint_for_gas_price!(u8, u16, u32, u64, u128);
 
 impl From<PrefixedBytesAsHex<16_usize>> for GasPrice {
     fn from(val: PrefixedBytesAsHex<16_usize>) -> Self {
-        u128::from_be_bytes(val.0).into()
+        Self::new(u128::from_be_bytes(val.0)).expect("Invalid gas price")
     }
 }
 
@@ -366,6 +367,16 @@ impl From<GasPrice> for Felt {
 }
 
 impl GasPrice {
+    pub const MIN: Self = Self(1);
+
+    pub fn new(price: u128) -> Result<Self, StarknetApiError> {
+        if price == 0 { Err(StarknetApiError::ZeroGasPrice) } else { Ok(Self(price)) }
+    }
+
+    pub const fn get(&self) -> u128 {
+        self.0
+    }
+
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
         #[allow(clippy::as_conversions)]
         Fee(self.0.saturating_mul(rhs.0 as u128))
@@ -373,6 +384,17 @@ impl GasPrice {
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
         self.0.checked_mul(u128::from(rhs.0)).map(Fee)
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub const fn new_unchecked(price: u128) -> Self {
+        Self(price)
+    }
+}
+
+impl Default for GasPrice {
+    fn default() -> Self {
+        Self::MIN
     }
 }
 
@@ -432,7 +454,7 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
                 type Error = StarknetApiError;
 
                 fn try_from(val: $uint) -> Result<Self, Self::Error> {
-                    NonzeroGasPrice::new(GasPrice::from(val))
+                    NonzeroGasPrice::new(GasPrice::try_from(val)?)
                 }
             }
         )*

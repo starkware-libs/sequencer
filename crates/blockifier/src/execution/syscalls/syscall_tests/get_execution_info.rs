@@ -237,7 +237,7 @@ fn test_get_execution_info(
             max_price_per_unit.into(),       // Max price per unit.
             felt!(Resource::L2Gas.to_hex()), // Resource.
             Felt::ZERO,                      // Max amount.
-            Felt::ZERO,                      // Max price per unit.
+            Felt::ONE,                       // Max price per unit.
         ],
     };
 

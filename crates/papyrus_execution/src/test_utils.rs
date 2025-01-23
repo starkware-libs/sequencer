@@ -54,7 +54,7 @@ use crate::{simulate_transactions, ExecutableTransactionInput, OnlyQuery, Sierra
 lazy_static! {
     pub static ref CHAIN_ID: ChainId = ChainId::Other(String::from("TEST_CHAIN_ID"));
     pub static ref GAS_PRICE: GasPricePerToken = GasPricePerToken{
-        price_in_wei: (100 * u128::pow(10, 9)).into(),
+        price_in_wei: GasPrice::new_unchecked(100 * u128::pow(10, 9)),
         // TODO(yair): add value and tests.
         price_in_fri: GasPrice::default(),
     };

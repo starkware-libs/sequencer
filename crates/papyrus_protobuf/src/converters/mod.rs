@@ -15,6 +15,7 @@ mod deprecated_transaction;
 
 use papyrus_common::compression_utils::CompressionError;
 use prost::DecodeError;
+use starknet_api::StarknetApiError;
 
 #[derive(thiserror::Error, PartialEq, Debug, Clone)]
 pub enum ProtobufConversionError {
@@ -38,6 +39,8 @@ pub enum ProtobufConversionError {
     CompressionError(String),
     #[error("Unexpected serde_json error: {0}")]
     SerdeJsonError(String),
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
 }
 
 impl From<CompressionError> for ProtobufConversionError {

@@ -1180,7 +1180,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
     // Convert L1 gas units to steps.
     let l1_gas_bound = 200_u64;
     let account_tx_l1_bounds = invoke_tx_with_default_flags(invoke_tx_args! {
-        resource_bounds: l1_resource_bounds(l1_gas_bound.into(), 1_u8.into()),
+        resource_bounds: l1_resource_bounds(l1_gas_bound.into(), GasPrice::default()),
         version: TransactionVersion::THREE
     });
     assert_max_steps_as_expected!(

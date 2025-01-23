@@ -154,10 +154,11 @@ impl VersionedConstants {
     /// Converts from L1 gas price to L2 gas price with **upward rounding**, based on the
     /// conversion of a Cairo step from Sierra gas to L1 gas.
     pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
-        (*(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
-            .ceil()
-            .numer())
-        .into()
+        GasPrice(
+            *(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
+                .ceil()
+                .numer(),
+        )
     }
 
     /// Converts L1 gas amount to Sierra (L2) gas amount with **upward rounding**.

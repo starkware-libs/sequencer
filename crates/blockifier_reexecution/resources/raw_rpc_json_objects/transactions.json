@@ -54,7 +54,7 @@
             },
             "l2_gas": {
                 "max_amount": "0x0",
-                "max_price_per_unit": "0x0"
+                "max_price_per_unit": "0x1"
             }
         },
         "sender_address": "0x614872dd2f3324f3e9a047d0cfaab9e9573bbdfa6081877f49f7108116b8ae0",
@@ -121,7 +121,7 @@
             },
             "l2_gas": {
                 "max_amount": "0x0",
-                "max_price_per_unit": "0x0"
+                "max_price_per_unit": "0x1"
             }
         },
         "tip": "0x0",
@@ -175,7 +175,7 @@
             },
             "l2_gas": {
                 "max_amount": "0x0",
-                "max_price_per_unit": "0x0"
+                "max_price_per_unit": "0x1"
             }
         },
         "tip": "0x0",

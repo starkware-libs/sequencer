@@ -23,7 +23,7 @@
         },
         "L2_GAS": {
             "max_amount": "0x0",
-            "max_price_per_unit": "0x0"
+            "max_price_per_unit": "0x1"
         }
     },
     "sender_address": "0x2da4d93784af6b4427c32533dd7e5780c9d642c3a3348f6adacebc97edab4c",
