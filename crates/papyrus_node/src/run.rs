@@ -257,6 +257,7 @@ async fn run_sync(
     let pending_source =
         PendingSource::new(central_config, VERSION_FULL).map_err(CentralError::ClientCreation)?;
     let base_layer_source = Some(EthereumBaseLayerSource::new(base_layer_config));
+    let class_manager_client = None;
     let sync = CentralStateSync::new(
         sync_config,
         shared_highest_block,
@@ -267,6 +268,7 @@ async fn run_sync(
         base_layer_source,
         storage_reader.clone(),
         storage_writer,
+        class_manager_client,
     );
     Ok(sync.run().await?)
 }
