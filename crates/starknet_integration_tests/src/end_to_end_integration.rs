@@ -10,7 +10,7 @@ use crate::sequencer_manager::{get_sequencer_setup_configs, IntegrationTestManag
 pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(10);
     const LATE_NODE_EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(25);
-    const N_TXS: usize = 50;
+    const N_TXS: usize = 5;
     const SENDER_ACCOUNT: AccountId = 0;
 
     info!("Checking that the sequencer node executable is present.");

@@ -45,6 +45,16 @@ fn log_susceptible_ports() {
     }
 }
 
+// When running `cargo build` - you get the error message:
+// ERROR: ld.so: object '/usr/lib/x86_64-linux-gnu/libjemalloc.so' from LD_PRELOAD cannot be
+// preloaded (cannot open shared object file): ignored.
+//
+// Copilot wrote the following comment:
+// This is because the `jemalloc` library is not installed on the system. To fix this, you can
+// install the library by running `sudo apt-get install libjemalloc2`.
+//
+// Time compare logs:
+// End to end integration test took 147.841780323s
 #[tokio::main]
 async fn main() {
     configure_tracing().await;
@@ -71,5 +81,7 @@ async fn main() {
     let mut tx_generator = create_integration_test_tx_generator();
 
     // Run end to end integration test.
+    let start = std::time::Instant::now();
     end_to_end_integration(&mut tx_generator).await;
+    tracing::error!("End to end integration test took {:?}", start.elapsed());
 }
