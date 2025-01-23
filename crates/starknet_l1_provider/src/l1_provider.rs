@@ -36,6 +36,11 @@ impl L1Provider {
         Ok(())
     }
 
+    // TODO(Gilad): will be added soon.
+    pub async fn initialize(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
+        Ok(())
+    }
+
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
     pub fn get_txs(
         &mut self,

@@ -172,7 +172,7 @@ impl FlowSequencerSetup {
         .await;
 
         debug!("Sequencer config: {:#?}", node_config);
-        let (_clients, servers) = create_node_modules(&node_config);
+        let (_clients, servers) = create_node_modules(&node_config).await;
 
         let MonitoringEndpointConfig { ip, port, .. } = node_config.monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
