@@ -28,6 +28,7 @@ use papyrus_proc_macros::latency_histogram;
 use papyrus_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
+use papyrus_storage::class_manager::ClassManagerStorageWriter;
 use papyrus_storage::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use papyrus_storage::db::DbError;
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
@@ -39,6 +40,11 @@ use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, Blo
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
+use starknet_class_manager_types::{
+    ClassManagerClientError,
+    ClassManagerError,
+    SharedClassManagerClient,
+};
 use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -155,6 +161,7 @@ pub struct GenericStateSync<
     reader: StorageReader,
     writer: StorageWriter,
     sequencer_pub_key: Option<SequencerPublicKey>,
+    class_manager_client: Option<SharedClassManagerClient>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -195,6 +202,8 @@ pub enum StateSyncError {
     },
     #[error("Sequencer public key changed from {old:?} to {new:?}.")]
     SequencerPubKeyChanged { old: SequencerPublicKey, new: SequencerPublicKey },
+    #[error(transparent)]
+    ClassManagerClientError(#[from] ClassManagerClientError),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -268,6 +277,7 @@ impl<
                 | StateSyncError::BaseLayerSourceError(_)
                 | StateSyncError::ParentBlockHashMismatch { .. }
                 | StateSyncError::BaseLayerHashMismatch { .. }
+                | StateSyncError::ClassManagerClientError(_)
                 | StateSyncError::BaseLayerBlockWithoutMatchingHeader { .. } => true,
                 StateSyncError::SequencerPubKeyChanged { .. } => false,
             }
@@ -385,12 +395,15 @@ impl<
                 block_hash,
                 state_diff,
                 deployed_contract_class_definitions,
-            } => self.store_state_diff(
-                block_number,
-                block_hash,
-                state_diff,
-                deployed_contract_class_definitions,
-            ),
+            } => {
+                self.store_state_diff(
+                    block_number,
+                    block_hash,
+                    state_diff,
+                    deployed_contract_class_definitions,
+                )
+                .await
+            }
             SyncEvent::CompiledClassAvailable {
                 class_hash,
                 compiled_class_hash,
@@ -449,7 +462,7 @@ impl<
     #[latency_histogram("sync_store_state_diff_latency_seconds", false)]
     #[instrument(skip(self, state_diff, deployed_contract_class_definitions), level = "debug", err)]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-    fn store_state_diff(
+    async fn store_state_diff(
         &mut self,
         block_number: BlockNumber,
         block_hash: BlockHash,
@@ -477,7 +490,29 @@ impl<
                     .collect::<Vec<_>>(),
             )?
             .commit()?;
+        if let Some(class_manager_client) = &self.class_manager_client {
+            for (expected_class_hash, class) in classes {
+                let class_hash = class_manager_client.add_class(class).await?.class_hash;
+                if class_hash != expected_class_hash {
+                    return Err(StateSyncError::ClassManagerClientError(
+                        ClassManagerClientError::ClassManagerError(
+                            ClassManagerError::ClassStorage(format!(
+                                "Class hash mismatch. Expected: {expected_class_hash}, got: \
+                                 {class_hash}."
+                            )),
+                        ),
+                    ));
+                }
+            }
 
+            for (class_hash, deprecated_class) in deprecated_classes {
+                class_manager_client.add_deprecated_class(class_hash, deprecated_class).await?;
+            }
+            self.writer
+                .begin_rw_txn()?
+                .update_class_manager_block_marker(&block_number)?
+                .commit()?;
+        }
         metrics::gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER)
             .set(block_number.unchecked_next().0 as f64);
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
@@ -785,6 +820,7 @@ impl StateSync {
         base_layer_source: Option<EthereumBaseLayerSource>,
         reader: StorageReader,
         writer: StorageWriter,
+        class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
         let base_layer_source = base_layer_source.map(Arc::new);
         Self {
@@ -798,6 +834,7 @@ impl StateSync {
             reader,
             writer,
             sequencer_pub_key: None,
+            class_manager_client,
         }
     }
 }
