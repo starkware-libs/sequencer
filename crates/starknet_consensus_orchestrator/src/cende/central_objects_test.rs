@@ -164,7 +164,7 @@ fn central_state_diff_json() -> Value {
         use_kzg_da: true,
     };
 
-    let starknet_version = StarknetVersion::V0_13_4;
+    let starknet_version = StarknetVersion::V0_14_0;
 
     let central_state_diff: CentralStateDiff = (state_diff, block_info, starknet_version).into();
     serde_json::to_value(central_state_diff).unwrap()
