@@ -140,6 +140,22 @@ impl NodeSetup {
     pub fn get_http_server_index(&self) -> usize {
         self.http_server_index
     }
+
+    pub fn run(self) -> RunningNode {
+        let executable_handles = self
+            .get_executables()
+            .iter()
+            .map(|executable| {
+                info!("Running {}.", executable.node_execution_id);
+                spawn_run_node(
+                    executable.node_config_path.clone(),
+                    executable.node_execution_id.into(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        RunningNode { node_setup: self, executable_handles }
+    }
 }
 
 pub struct RunningNode {

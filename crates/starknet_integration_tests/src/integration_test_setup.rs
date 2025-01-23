@@ -42,6 +42,12 @@ impl NodeExecutionId {
     }
 }
 
+impl std::fmt::Display for NodeExecutionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Node id {} part {}", self.node_index, self.executable_index)
+    }
+}
+
 impl From<NodeExecutionId> for NodeRunner {
     fn from(val: NodeExecutionId) -> Self {
         NodeRunner::new(val.node_index, val.executable_index)
