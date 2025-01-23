@@ -11,12 +11,8 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction,
 };
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::{
-    Event,
-    L1ProviderClient,
-    L1ProviderClientResult,
-    ValidationStatus,
-};
+use starknet_l1_provider_types::api_types::{Event, ValidationStatus};
+use starknet_l1_provider_types::provider_client::{L1ProviderClient, L1ProviderClientResult};
 
 use crate::l1_provider::L1Provider;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;

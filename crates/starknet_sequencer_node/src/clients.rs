@@ -22,7 +22,8 @@ use starknet_gateway_types::communication::{
     SharedGatewayClient,
 };
 use starknet_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
-use starknet_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
+use starknet_l1_provider_types::api_types::{L1ProviderRequest, L1ProviderResponse};
+use starknet_l1_provider_types::provider_client::SharedL1ProviderClient;
 use starknet_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
     MempoolP2pPropagatorRequest,

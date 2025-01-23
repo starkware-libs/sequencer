@@ -31,7 +31,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
-use starknet_l1_provider_types::MockL1ProviderClient;
+use starknet_l1_provider_types::provider_client::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_state_sync_types::state_sync_types::SyncBlock;

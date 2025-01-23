@@ -7,13 +7,13 @@ use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
-use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::SessionState::{
+use starknet_l1_provider_types::api_types::SessionState::{
     self,
     Propose as ProposeSession,
     Validate as ValidateSession,
 };
-use starknet_l1_provider_types::{Event, ValidationStatus};
+use starknet_l1_provider_types::api_types::{Event, ValidationStatus};
+use starknet_l1_provider_types::errors::L1ProviderError;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog};
 use crate::test_utils::L1ProviderContentBuilder;

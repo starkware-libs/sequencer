@@ -7,8 +7,9 @@ use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_l1_provider_types::api_types::ValidationStatus as L1ValidationStatus;
 use starknet_l1_provider_types::errors::L1ProviderClientError;
-use starknet_l1_provider_types::{SharedL1ProviderClient, ValidationStatus as L1ValidationStatus};
+use starknet_l1_provider_types::provider_client::SharedL1ProviderClient;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 

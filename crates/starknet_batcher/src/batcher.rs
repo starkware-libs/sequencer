@@ -31,7 +31,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
-use starknet_l1_provider_types::SharedL1ProviderClient;
+use starknet_l1_provider_types::provider_client::SharedL1ProviderClient;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;

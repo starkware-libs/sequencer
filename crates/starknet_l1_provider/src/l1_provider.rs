@@ -3,8 +3,9 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_l1_provider_types::api_types::{Event, SessionState, ValidationStatus};
 use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::{Event, L1ProviderResult, SessionState, ValidationStatus};
+use starknet_l1_provider_types::provider_client::L1ProviderResult;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use crate::transaction_manager::TransactionManager;

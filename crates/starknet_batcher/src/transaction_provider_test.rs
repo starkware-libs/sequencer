@@ -7,7 +7,8 @@ use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
-use starknet_l1_provider_types::{MockL1ProviderClient, ValidationStatus as L1ValidationStatus};
+use starknet_l1_provider_types::api_types::ValidationStatus as L1ValidationStatus;
+use starknet_l1_provider_types::provider_client::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::transaction_provider::{

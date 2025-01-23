@@ -23,7 +23,7 @@ use papyrus_config::converters::deserialize_milliseconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_l1_provider_types::SessionState;
+use starknet_l1_provider_types::api_types::SessionState;
 use validator::Validate;
 
 use crate::bootstrapper::Bootstrapper;

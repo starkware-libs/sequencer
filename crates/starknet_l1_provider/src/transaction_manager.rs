@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::ValidationStatus;
+use starknet_l1_provider_types::api_types::ValidationStatus;
 
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
