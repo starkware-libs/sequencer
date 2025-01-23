@@ -155,12 +155,12 @@ fn change_field_of_hash_input() {
         BlockHeaderWithoutHash {
             parent_hash: BlockHash(Felt::ONE),
             block_number: BlockNumber(1),
-            l1_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
+            l1_gas_price: GasPricePerToken { price_in_fri: 2_u8.into(), price_in_wei: 2_u8.into() },
             l1_data_gas_price: GasPricePerToken {
-                price_in_fri: 1_u8.into(),
-                price_in_wei: 1_u8.into(),
+                price_in_fri: 2_u8.into(),
+                price_in_wei: 2_u8.into(),
             },
-            l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
+            l2_gas_price: GasPricePerToken { price_in_fri: 2_u8.into(), price_in_wei: 2_u8.into() },
             state_root: GlobalRoot(Felt::ONE),
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
             timestamp: BlockTimestamp(1)

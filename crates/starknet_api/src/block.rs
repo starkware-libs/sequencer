@@ -320,7 +320,6 @@ pub struct GasPricePerToken {
     Debug,
     Copy,
     Clone,
-    Default,
     derive_more::Display,
     Eq,
     PartialEq,
@@ -366,6 +365,16 @@ impl From<GasPrice> for Felt {
 }
 
 impl GasPrice {
+    pub const MIN: Self = Self(1);
+
+    pub fn new(price: u128) -> Result<Self, StarknetApiError> {
+        if price == 0 { Err(StarknetApiError::ZeroGasPrice) } else { Ok(Self(price)) }
+    }
+
+    pub const fn get(&self) -> u128 {
+        self.0
+    }
+
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
         #[allow(clippy::as_conversions)]
         Fee(self.0.saturating_mul(rhs.0 as u128))
@@ -373,6 +382,17 @@ impl GasPrice {
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
         self.0.checked_mul(u128::from(rhs.0)).map(Fee)
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub const fn new_unchecked(price: u128) -> Self {
+        Self(price)
+    }
+}
+
+impl Default for GasPrice {
+    fn default() -> Self {
+        Self::MIN
     }
 }
 

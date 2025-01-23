@@ -205,9 +205,9 @@ impl std::fmt::Display for ResourceBounds {
 }
 
 impl ResourceBounds {
-    /// Returns true iff both the max amount and the max amount per unit is zero.
+    /// Returns true if ResourceBounds is zero (i.e., max_amount is 0 and max_price_per_unit is min).
     pub fn is_zero(&self) -> bool {
-        self.max_amount == GasAmount(0) && self.max_price_per_unit == GasPrice(0)
+        self.max_amount == GasAmount(0) && self.max_price_per_unit == GasPrice::MIN
     }
 }
 
