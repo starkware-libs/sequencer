@@ -40,6 +40,11 @@ enum Command {
         /// File path to output.
         #[clap(long, short = 'o', default_value = "stdout")]
         output_path: String,
+
+        /// Size of stdin input (used to preallocate memory). If not set, no memory is
+        /// preallocated.
+        #[clap(long, short = 's', default_value = None)]
+        input_size: Option<usize>,
     },
     PythonTest {
         /// File path to output.
@@ -66,8 +71,8 @@ async fn main() {
     info!("Starting committer-cli with args: \n{:?}", args);
 
     match args.command {
-        Command::Commit { output_path } => {
-            let input_string = read_from_stdin();
+        Command::Commit { output_path, input_size } => {
+            let input_string = read_from_stdin(input_size);
             info!(
                 "Successfully read {} characters from stdin. Parsing and committing...",
                 input_string.len()
@@ -80,7 +85,7 @@ async fn main() {
             // Create PythonTest from test_name.
             let test = PythonTest::try_from(test_name)
                 .unwrap_or_else(|error| panic!("Failed to create PythonTest: {}", error));
-            let stdin_input = read_from_stdin();
+            let stdin_input = read_from_stdin(None);
 
             // Run relevant test.
             let output = test

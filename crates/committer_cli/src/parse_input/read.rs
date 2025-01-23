@@ -12,24 +12,29 @@ use crate::parse_input::raw_input::RawInput;
 #[path = "read_test.rs"]
 pub mod read_test;
 
-// TODO(Dori): Increase to 50_000_000 after testing performance with under-allocated string.
-pub const PREALLOC_STDIN_BUFFER_SIZE: usize = 1_000;
-
 type DeserializationResult<T> = Result<T, DeserializationError>;
 
 pub fn parse_input(input: &str) -> DeserializationResult<InputImpl> {
     serde_json::from_str::<RawInput>(input)?.try_into()
 }
 
-pub fn read_from_stdin() -> String {
-    let mut buffer = String::with_capacity(PREALLOC_STDIN_BUFFER_SIZE);
+pub fn read_from_stdin(input_size: Option<usize>) -> String {
+    let mut buffer = match input_size {
+        Some(size) => {
+            info!("Preallocating buffer of size {size}.");
+            let s = String::with_capacity(size);
+            info!("Buffer preallocated.");
+            s
+        }
+        None => String::new(),
+    };
     let read_chars = io::stdin().read_to_string(&mut buffer).expect("Failed to read from stdin.");
     info!("Read {read_chars} from stdin.");
     buffer
 }
 
 pub fn load_from_stdin<T: for<'a> Deserialize<'a>>() -> T {
-    let stdin = read_from_stdin();
+    let stdin = read_from_stdin(None);
     serde_json::from_str(&stdin).expect("Failed to load from stdin")
 }
 
