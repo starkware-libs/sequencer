@@ -8121,6 +8121,7 @@ dependencies = [
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
  "starknet_client",
  "thiserror 1.0.69",
  "tokio",
