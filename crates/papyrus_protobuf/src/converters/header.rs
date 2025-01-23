@@ -152,14 +152,14 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     field_description: "SignedBlockHeader::gas_price_fri",
                 },
             )?)
-            .into(),
+            .try_into()?,
 
             price_in_wei: u128::from(value.l1_gas_price_wei.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::gas_price_wei",
                 },
             )?)
-            .into(),
+            .try_into()?,
         };
 
         let l1_data_gas_price = GasPricePerToken {
@@ -168,28 +168,30 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     field_description: "SignedBlockHeader::data_gas_price_fri",
                 },
             )?)
-            .into(),
+            .try_into()?,
+
             price_in_wei: u128::from(value.l1_data_gas_price_wei.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::data_gas_price_wei",
                 },
             )?)
-            .into(),
+            .try_into()?,
         };
+
         let l2_gas_price = GasPricePerToken {
             price_in_fri: u128::from(value.l2_gas_price_fri.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::l2_gas_price_fri",
                 },
             )?)
-            .into(),
+            .try_into()?,
 
             price_in_wei: u128::from(value.l2_gas_price_wei.ok_or(
                 ProtobufConversionError::MissingField {
                     field_description: "SignedBlockHeader::l2_gas_price_wei",
                 },
             )?)
-            .into(),
+            .try_into()?,
         };
 
         let receipt_commitment = value

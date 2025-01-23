@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::block::FeeType;
+use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
@@ -267,7 +267,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // First scenario: minimal fee not covered. Actual fee is precomputed.
     let err = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee: Fee(10),
-        resource_bounds: l1_resource_bounds(10_u8.into(), 10_u8.into()),
+        resource_bounds: l1_resource_bounds(10_u8.into(), GasPrice::new_unchecked(10)),
         nonce: nonce_manager.next(account_address),
 
         ..pre_validation_base_args.clone()
@@ -340,7 +340,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         let tx = executable_invoke_tx(invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into()),
+            resource_bounds: l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).try_into().unwrap()),
             nonce: nonce_manager.next(account_address),
 
             ..pre_validation_base_args
@@ -428,7 +428,10 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     }
 
     // First scenario: minimal fee not covered. Actual fee is precomputed.
-    execute_and_check_gas_and_fee!(Fee(10), l1_resource_bounds(10_u8.into(), 10_u8.into()));
+    execute_and_check_gas_and_fee!(
+        Fee(10),
+        l1_resource_bounds(10_u8.into(), GasPrice::new_unchecked(10))
+    );
 
     // Second scenario: resource bounds greater than balance.
     let gas_price = block_context.block_info.gas_prices.l1_gas_price(&fee_type);
@@ -442,7 +445,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     if !is_deprecated {
         execute_and_check_gas_and_fee!(
             pre_validation_base_args.max_fee,
-            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into())
+            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).try_into().unwrap())
         );
     }
 }

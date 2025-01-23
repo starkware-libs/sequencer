@@ -15,7 +15,14 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier::versioned_constants::VersionedConstants;
 use serde::Serialize;
 use serde_json::{json, to_value};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    GasPrice,
+    StarknetVersion,
+};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -191,7 +198,10 @@ impl TestStateReader {
             // In old blocks, the l2_gas_price field is not present.
             block_header_map.insert(
                 "l2_gas_price".to_string(),
-                to_value(ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() })?,
+                to_value(ResourcePrice {
+                    price_in_wei: GasPrice::default(),
+                    price_in_fri: GasPrice::default(),
+                })?,
             );
         }
 
