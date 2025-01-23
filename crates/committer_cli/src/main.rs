@@ -67,8 +67,13 @@ async fn main() {
 
     match args.command {
         Command::Commit { output_path } => {
+            let input_string = read_from_stdin();
+            info!(
+                "Successfully read {} characters from stdin. Parsing and committing...",
+                input_string.len()
+            );
             // TODO(Aner, 15/7/24): try moving read_from_stdin into function.
-            parse_and_commit(&read_from_stdin(), output_path, log_filter_handle).await;
+            parse_and_commit(&input_string, output_path, log_filter_handle).await;
         }
 
         Command::PythonTest { output_path, test_name } => {
