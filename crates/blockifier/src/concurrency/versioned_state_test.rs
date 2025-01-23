@@ -5,10 +5,10 @@ use std::thread;
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
-use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::{
     calldata,
     class_hash,
@@ -206,7 +206,6 @@ fn test_versioned_state_proxy() {
 fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
-    let zero_bounds = true;
 
     // Test Accounts
     let grindy_account = FeatureContract::AccountWithLongValidate(CairoVersion::Cairo0);
@@ -227,33 +226,31 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let mut state_2 = TransactionalState::create_transactional(&mut versioned_state_proxy_2);
 
     // Prepare transactions
+    let max_amount = 0_u8.into();
+    let max_price_per_unit = DEFAULT_STRK_L1_GAS_PRICE.into();
     let tx = executable_deploy_account_tx(deploy_account_tx_args! {
         class_hash: account_without_validation.get_class_hash(),
-        resource_bounds: l1_resource_bounds(
-            u8::from(!zero_bounds).into(),
-            DEFAULT_STRK_L1_GAS_PRICE.into()
-        ),
+        resource_bounds: l1_resource_bounds(max_amount, max_price_per_unit),
     });
     let deploy_account_tx_1 = AccountTransaction::new_for_sequencing(tx);
     let enforce_fee = deploy_account_tx_1.enforce_fee();
 
-    let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
     let ctor_grind_arg = felt!(0_u8); // Do not grind in deploy phase.
     let constructor_calldata = calldata![ctor_grind_arg, ctor_storage_arg];
     let deploy_tx_args = deploy_account_tx_args! {
-        class_hash,
+        class_hash: grindy_account.get_class_hash(),
         resource_bounds: default_all_resource_bounds,
-        constructor_calldata: constructor_calldata.clone(),
+        constructor_calldata: constructor_calldata,
     };
     let tx = executable_deploy_account_tx(deploy_tx_args);
-    let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
+    let deploy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
 
-    let account_address = delpoy_account_tx_2.sender_address();
-    let tx_context = block_context.to_tx_context(&delpoy_account_tx_2);
+    let deployed_contract_address = deploy_account_tx_2.sender_address();
+    let tx_context = block_context.to_tx_context(&deploy_account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();
 
-    let deployed_account_balance_key = get_fee_token_var_address(account_address);
+    let deployed_account_balance_key = get_fee_token_var_address(deployed_contract_address);
     let fee_token_address = chain_info.fee_token_address(&fee_type);
     state_2
         .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE.0))
@@ -266,19 +263,15 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     thread::scope(|s| {
         s.spawn(move || {
             let result = deploy_account_tx_1.execute(&mut state_1, &block_context_1);
-            assert_eq!(result.is_err(), enforce_fee); // Transaction fails iff we enforced the fee charge (as the acount is not funded).
+            // TODO(Arni): Check that the storage updated as expected.
+            // Transaction fails iff we enforced the fee charge (as the account is not funded).
+            assert!(!enforce_fee, "Expected fee enforcement to be disabled for this transaction.");
+            assert!(result.is_ok());
         });
         s.spawn(move || {
-            delpoy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
+            deploy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
             // Check that the constructor wrote ctor_arg to the storage.
             let storage_key = get_storage_var_address("ctor_arg", &[]);
-            let deployed_contract_address = calculate_contract_address(
-                ContractAddressSalt::default(),
-                class_hash,
-                &constructor_calldata,
-                ContractAddress::default(),
-            )
-            .unwrap();
             let read_storage_arg =
                 state_2.get_storage_at(deployed_contract_address, storage_key).unwrap();
             assert_eq!(ctor_storage_arg, read_storage_arg);
