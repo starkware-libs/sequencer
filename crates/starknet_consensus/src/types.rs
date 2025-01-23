@@ -1,10 +1,13 @@
 //! Types for interfacing between consensus and the node.
 
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
@@ -13,8 +16,10 @@ use papyrus_network::network_manager::{
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ChainId, ContractAddress};
+use validator::Validate;
 
 /// Used to identify the node by consensus.
 /// 1. This ID is derived from the id registered with Starknet's L2 staking contract.
@@ -24,6 +29,49 @@ use starknet_api::core::ContractAddress;
 pub type ValidatorId = ContractAddress;
 pub type Round = u32;
 pub type ProposalContentId = BlockHash;
+
+// TODO(guyn): move this to another file.
+/// Configuration for the Context struct.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+pub struct ContextConfig {
+    /// The buffer size for streaming outbound proposals.
+    pub batcher_build_buffer: usize,
+    /// The number of validators.
+    pub num_validators: u64,
+    /// The chain id of the Starknet chain.
+    pub chain_id: ChainId,
+}
+
+impl SerializeConfig for ContextConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "batcher_build_buffer",
+                &self.batcher_build_buffer,
+                "The buffer size for the batcher when building proposals.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "num_validators",
+                &self.num_validators,
+                "The number of validators.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain id of the Starknet chain.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+impl Default for ContextConfig {
+    fn default() -> Self {
+        Self { batcher_build_buffer: 100, num_validators: 1, chain_id: ChainId::Mainnet }
+    }
+}
 
 /// Interface for consensus to call out to the node.
 ///

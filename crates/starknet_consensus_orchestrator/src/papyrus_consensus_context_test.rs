@@ -23,7 +23,7 @@ use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
 use starknet_api::block::{Block, BlockHash};
 use starknet_consensus::stream_handler::StreamHandler;
-use starknet_consensus::types::ConsensusContext;
+use starknet_consensus::types::{ConsensusContext, ContextConfig};
 use test_case::test_case;
 
 use crate::papyrus_consensus_context::PapyrusConsensusContext;
@@ -142,10 +142,10 @@ fn test_setup()
     let sync_channels = mock_register_broadcast_topic().unwrap();
 
     let papyrus_context = PapyrusConsensusContext::new(
+        ContextConfig::default(),
         storage_reader.clone(),
         network_channels.subscriber_channels.broadcast_topic_client,
         outbound_internal_sender,
-        4,
         Some(sync_channels.subscriber_channels.broadcast_topic_client),
     );
     (block, papyrus_context, network_channels.mock_network, sync_channels.mock_network)

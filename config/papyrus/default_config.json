@@ -204,6 +204,26 @@
     "privacy": "Public",
     "value": "0x64"
   },
+  "context.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "context.batcher_build_buffer": {
+    "description": "The buffer size for the batcher when building proposals.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "context.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "context.num_validators": {
+    "description": "The number of validators.",
+    "privacy": "Public",
+    "value": 1
+  },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
     "pointer_target": "collect_metrics",

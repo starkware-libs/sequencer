@@ -33,6 +33,7 @@ use starknet_api::transaction::Transaction;
 use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
+    ContextConfig,
     ProposalContentId,
     Round,
     ValidatorId,
@@ -59,12 +60,13 @@ pub struct PapyrusConsensusContext {
 
 impl PapyrusConsensusContext {
     pub fn new(
+        config: ContextConfig,
         storage_reader: StorageReader,
         network_broadcast_client: BroadcastTopicClient<Vote>,
         network_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-        num_validators: u64,
         sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     ) -> Self {
+        let num_validators = config.num_validators;
         Self {
             storage_reader,
             network_broadcast_client,
