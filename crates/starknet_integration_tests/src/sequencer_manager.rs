@@ -142,6 +142,13 @@ impl NodeSetup {
     }
 }
 
+pub struct RunningNode {
+    #[allow(dead_code)]
+    node_setup: NodeSetup,
+    #[allow(dead_code)]
+    executable_handles: Vec<JoinHandle<()>>,
+}
+
 pub struct IntegrationTestManager {
     pub nodes: Vec<NodeSetup>,
     // TODO(Nadin): move to NodeSetup.
