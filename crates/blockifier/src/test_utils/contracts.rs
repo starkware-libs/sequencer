@@ -491,3 +491,36 @@ impl FeatureContract {
             .into_group_map()
     }
 }
+
+/// The information needed to test a [FeatureContract].
+pub struct FeatureContractData {
+    pub class_hash: ClassHash,
+    pub runnable_class: RunnableCompiledClass,
+    pub require_funding: bool,
+    _get_instance_address: Box<dyn Fn(u16) -> ContractAddress>,
+}
+impl FeatureContractData {
+    pub fn get_instance_address(&self, instance: u16) -> ContractAddress {
+        (self._get_instance_address)(instance)
+    }
+}
+
+impl From<FeatureContract> for FeatureContractData {
+    fn from(contract: FeatureContract) -> Self {
+        let require_funding = matches!(
+            contract,
+            FeatureContract::AccountWithLongValidate(_)
+                | FeatureContract::AccountWithoutValidations(_)
+                | FeatureContract::FaultyAccount(_)
+        );
+
+        Self {
+            class_hash: contract.get_class_hash(),
+            runnable_class: contract.get_runnable_class(),
+            require_funding,
+            _get_instance_address: Box::new(move |instance| {
+                contract.get_instance_address(instance)
+            }),
+        }
+    }
+}
