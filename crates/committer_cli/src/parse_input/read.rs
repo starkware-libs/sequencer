@@ -1,8 +1,9 @@
 use std::fs::File;
-use std::io::{self, BufWriter};
+use std::io::{self, BufWriter, Read};
 
 use serde::{Deserialize, Serialize};
 use starknet_patricia::storage::errors::DeserializationError;
+use tracing::info;
 
 use crate::parse_input::cast::InputImpl;
 use crate::parse_input::raw_input::RawInput;
@@ -11,6 +12,9 @@ use crate::parse_input::raw_input::RawInput;
 #[path = "read_test.rs"]
 pub mod read_test;
 
+// TODO(Dori): Increase to 50_000_000 after testing performance with under-allocated string.
+pub const PREALLOC_STDIN_BUFFER_SIZE: usize = 1_000;
+
 type DeserializationResult<T> = Result<T, DeserializationError>;
 
 pub fn parse_input(input: &str) -> DeserializationResult<InputImpl> {
@@ -18,7 +22,10 @@ pub fn parse_input(input: &str) -> DeserializationResult<InputImpl> {
 }
 
 pub fn read_from_stdin() -> String {
-    io::read_to_string(io::stdin()).expect("Failed to read from stdin.")
+    let mut buffer = String::with_capacity(PREALLOC_STDIN_BUFFER_SIZE);
+    let read_chars = io::stdin().read_to_string(&mut buffer).expect("Failed to read from stdin.");
+    info!("Read {read_chars} from stdin.");
+    buffer
 }
 
 pub fn load_from_stdin<T: for<'a> Deserialize<'a>>() -> T {
