@@ -106,6 +106,7 @@ impl NodeSetup {
         Self { executables, batcher_index, http_server_index }
     }
 
+    // TODO(Nadin): remove this function and use the one in RunningNode.
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks = self.executables.iter().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
@@ -147,6 +148,21 @@ pub struct RunningNode {
     node_setup: NodeSetup,
     #[allow(dead_code)]
     executable_handles: Vec<JoinHandle<()>>,
+}
+
+impl RunningNode {
+    // TODO(Nadin): use this function instead of the one in NodeSetup.
+    #[allow(dead_code)]
+    async fn await_alive(&self, interval: u64, max_attempts: usize) {
+        let await_alive_tasks = self.node_setup.executables.iter().map(|executable| {
+            let result = executable.monitoring_client.await_alive(interval, max_attempts);
+            result.unwrap_or_else(|_| {
+                panic!("Executable {:?} should be alive.", executable.node_execution_id)
+            })
+        });
+
+        join_all(await_alive_tasks).await;
+    }
 }
 
 pub struct IntegrationTestManager {
