@@ -60,7 +60,7 @@ class ServiceApp(Construct):
                             k8s.Container(
                                 name=self.node.id,
                                 image=self.service_topology.images.get("sequencer"),
-                                image_pull_policy="IfNotPresent",
+                                image_pull_policy="Always",
                                 # command=["sleep", "infinity"],
                                 args=const.CONTAINER_ARGS,
                                 ports=self._get_container_ports(),
@@ -90,7 +90,6 @@ class ServiceApp(Construct):
                 },
             ),
             spec=k8s.IngressSpec(
-                ingress_class_name="premium-rwo",
                 tls=self._get_ingress_tls(),
                 rules=self._get_ingress_rules()
             ),
