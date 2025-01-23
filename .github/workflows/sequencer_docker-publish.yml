@@ -16,7 +16,6 @@ on:
   pull_request:
     paths:
       - '.github/workflows/sequencer_docker-publish.yml'
-      - 'crates/**'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'deployments/images/base/Dockerfile'
