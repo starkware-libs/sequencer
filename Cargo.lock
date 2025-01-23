@@ -11200,6 +11200,12 @@ dependencies = [
 [[package]]
 name = "starknet_os"
 version = "0.0.0"
+dependencies = [
+ "cairo-vm",
+ "indoc 2.0.5",
+ "starknet-types-core",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "starknet_os_cli"
