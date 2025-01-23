@@ -45,7 +45,7 @@ pub struct SequencerNodeComponents {
     pub state_sync_runner: Option<StateSyncRunner>,
 }
 
-pub fn create_node_components(
+pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
@@ -183,12 +183,19 @@ pub fn create_node_components(
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
 
-            Some(L1Scraper::new(
-                l1_scraper_config,
-                l1_provider_client,
-                base_layer,
-                event_identifiers_to_track(),
-            ))
+            // FIXME: make the integration/flow tests use `new` instead of this constructor,
+            // once `Anvil` support is added there.
+            Some(
+                L1Scraper::new_at_l1_block(
+                    0,
+                    l1_scraper_config,
+                    l1_provider_client,
+                    base_layer,
+                    event_identifiers_to_track(),
+                )
+                .await
+                .unwrap(),
+            )
         }
         ActiveComponentExecutionMode::Disabled => None,
     };
