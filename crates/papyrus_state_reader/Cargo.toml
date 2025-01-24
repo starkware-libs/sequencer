@@ -19,7 +19,7 @@ starknet_api.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-blockifier = { path = "../blockifier", features = ["testing"] }
+blockifier = { workspace = true, features = ["testing"] }
 indexmap.workspace = true
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
 rstest.workspace = true

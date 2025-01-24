@@ -21,4 +21,4 @@ starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-starknet_api = { path = "../starknet_api", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
