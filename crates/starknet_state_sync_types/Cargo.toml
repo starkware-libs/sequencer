@@ -24,5 +24,4 @@ starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-# Enable self with "testing" feature in tests.
-starknet_state_sync_types = { path = "../starknet_state_sync_types", features = ["testing"] }
+mockall.workspace = true

@@ -26,5 +26,4 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
-# Enable self with "testing" feature in tests.
-starknet_gateway_types = { path = ".", features = ["testing"] }
+mockall.workspace = true

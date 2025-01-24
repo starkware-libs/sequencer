@@ -34,7 +34,7 @@ blockifier = { path = "../blockifier", features = ["testing"] }
 mempool_test_utils.path = "../mempool_test_utils"
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
+reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
-starknet_http_server = { path = "../starknet_http_server", features = ["testing"] }
 tracing-test.workspace = true
