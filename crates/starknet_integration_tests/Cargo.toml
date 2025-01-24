@@ -50,4 +50,4 @@ url.workspace = true
 futures.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_sequencer_infra.path = "../starknet_sequencer_infra"
+starknet_sequencer_infra.workspace = true
