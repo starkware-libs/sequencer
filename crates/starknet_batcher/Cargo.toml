@@ -38,16 +38,16 @@ assert_matches.workspace = true
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
 futures.workspace = true
-mempool_test_utils.path = "../mempool_test_utils"
+mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 rstest.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", features = ["testing"] }
-starknet_class_manager_types = { path = "../starknet_class_manager_types", features = ["testing"] }
-starknet_infra_utils.path = "../starknet_infra_utils"
-starknet_l1_provider_types = { path = "../starknet_l1_provider_types", features = ["testing"] }
-starknet_mempool_types = { path = "../starknet_mempool_types", features = ["testing"] }
-starknet_sequencer_metrics.path = "../starknet_sequencer_metrics"
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_class_manager_types = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
+starknet_l1_provider_types = { workspace = true, features = ["testing"] }
+starknet_mempool_types = { workspace = true, features = ["testing"] }
+starknet_sequencer_metrics.workspace = true

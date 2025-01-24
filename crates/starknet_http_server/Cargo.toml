@@ -30,10 +30,10 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-blockifier = { path = "../blockifier", features = ["testing"] }
-blockifier_test_utils.path = "../blockifier_test_utils"
+blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils.workspace = true
 futures.workspace = true
-mempool_test_utils.path = "../mempool_test_utils"
+mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 reqwest.workspace = true

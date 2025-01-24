@@ -32,10 +32,10 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-mempool_test_utils.path = "../mempool_test_utils"
+mempool_test_utils.workspace = true
 rstest.workspace = true
-starknet_api.path = "../starknet_api"
-starknet_infra_utils.path = "../starknet_infra_utils"
+starknet_api.workspace = true
+starknet_infra_utils.workspace = true
 
 [build-dependencies]
 starknet_infra_utils.workspace = true

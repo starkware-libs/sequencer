@@ -86,7 +86,7 @@ rand.workspace = true
 regex.workspace = true
 rstest.workspace = true
 rstest_reuse.workspace = true
-starknet_api = { path = "../starknet_api", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 tikv-jemallocator.workspace = true
 
