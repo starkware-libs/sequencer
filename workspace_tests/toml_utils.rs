@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -53,6 +53,10 @@ pub(crate) struct CrateCargoToml {
 }
 
 impl CrateCargoToml {
+    pub(crate) fn from_name(name: &String) -> Self {
+        MEMBER_TOMLS.get(name).unwrap_or_else(|| panic!("No member crate '{name}' found.")).clone()
+    }
+
     pub(crate) fn package_name(&self) -> &String {
         match self.package.get("name") {
             Some(PackageEntryValue::String(name)) => name,
@@ -68,6 +72,62 @@ impl CrateCargoToml {
                 None
             }
         })
+    }
+
+    /// Returns all direct member dependencies of self.
+    pub(crate) fn member_dependency_names(
+        &self,
+        include_dev_dependencies: bool,
+    ) -> HashSet<String> {
+        let member_crate_names: HashSet<&String> =
+            MEMBER_TOMLS.values().map(CrateCargoToml::package_name).collect();
+
+        self.dependencies
+            .iter()
+            .flatten()
+            .chain(if include_dev_dependencies {
+                self.dev_dependencies.iter().flatten()
+            } else {
+                None.iter().flatten()
+            })
+            .filter_map(
+                |(name, _value)| {
+                    if member_crate_names.contains(name) { Some(name.clone()) } else { None }
+                },
+            )
+            .collect()
+    }
+
+    /// Helper function for member_dependency_names_recursive.
+    fn member_dependency_names_recursive_aux(
+        &self,
+        include_dev_dependencies: bool,
+        processed_member_names: &mut HashSet<String>,
+    ) -> HashSet<String> {
+        let direct_member_dependencies = self.member_dependency_names(include_dev_dependencies);
+        let mut members = HashSet::new();
+        for toml in direct_member_dependencies.iter().map(CrateCargoToml::from_name) {
+            // To prevent infinite recursion, we only recurse on members that have not been
+            // processed yet. If a member depends on itself, this can lead to a loop.
+            let dep_name = toml.package_name();
+            members.insert(dep_name.clone());
+            if !processed_member_names.contains(dep_name) {
+                processed_member_names.insert(dep_name.clone());
+                members.extend(toml.member_dependency_names_recursive_aux(
+                    include_dev_dependencies,
+                    processed_member_names,
+                ));
+            }
+        }
+        members
+    }
+
+    /// Returns all member dependencies of self in the dependency tree.
+    pub(crate) fn member_dependency_names_recursive(
+        &self,
+        include_dev_dependencies: bool,
+    ) -> HashSet<String> {
+        self.member_dependency_names_recursive_aux(include_dev_dependencies, &mut HashSet::new())
     }
 }
 
