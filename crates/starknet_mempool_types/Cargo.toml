@@ -22,5 +22,4 @@ starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-# Enable self with "testing" feature in tests.
-starknet_mempool_types = { path = ".", features = ["testing"] }
+mockall.workspace = true

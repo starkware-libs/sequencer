@@ -36,7 +36,8 @@ validator.workspace = true
 
 [dev-dependencies]
 ethers-core.workspace = true
-papyrus_base_layer = { path = "../papyrus_base_layer", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
+tar.workspace = true
+tempfile.workspace = true

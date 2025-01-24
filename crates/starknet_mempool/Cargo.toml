@@ -25,14 +25,15 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 itertools.workspace = true
+mempool_test_utils.path = "../mempool_test_utils"
 mockall.workspace = true
 papyrus_network = { path = "../papyrus_network", features = ["testing"] }
 papyrus_network_types = { path = "../papyrus_network_types", features = ["testing"] }
 papyrus_test_utils.path = "../papyrus_test_utils"
+pretty_assertions.workspace = true
 rstest.workspace = true
+starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
-# Enable test utils feature for integration tests.
-starknet_mempool = { path = ".", features = ["testing"] }
 starknet_mempool_p2p_types = { path = "../starknet_mempool_p2p_types", features = ["testing"] }
 
 [features]
@@ -40,3 +41,8 @@ testing = ["mempool_test_utils", "pretty_assertions", "starknet-types-core"]
 
 [package.metadata.cargo-machete]
 ignored = ["starknet-types-core"]
+
+[[test]]
+name = "flow_test"
+path = "tests/flow_test.rs"
+required-features = ["testing"]
