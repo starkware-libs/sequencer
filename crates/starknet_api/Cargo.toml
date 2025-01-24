@@ -38,7 +38,7 @@ thiserror.workspace = true
 assert-json-diff.workspace = true
 assert_matches.workspace = true
 rstest.workspace = true
-starknet_infra_utils.path = "../starknet_infra_utils"
+starknet_infra_utils.workspace = true
 
 [lints]
 workspace = true
