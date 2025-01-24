@@ -33,4 +33,4 @@ assert_matches.workspace = true
 once_cell.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
-starknet_infra_utils = { path = "../starknet_infra_utils", features = ["testing"] }
+starknet_infra_utils = { workspace = true, features = ["testing"] }

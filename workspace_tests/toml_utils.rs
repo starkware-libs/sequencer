@@ -65,13 +65,15 @@ impl CrateCargoToml {
     }
 
     pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), .. } = value {
-                Some(path.to_string())
-            } else {
-                None
-            }
-        })
+        self.dependencies.iter().flatten().chain(self.dev_dependencies.iter().flatten()).filter_map(
+            |(_name, value)| {
+                if let DependencyValue::Object { path: Some(path), .. } = value {
+                    Some(path.to_string())
+                } else {
+                    None
+                }
+            },
+        )
     }
 
     /// Returns all direct member dependencies of self.
