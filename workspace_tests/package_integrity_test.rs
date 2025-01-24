@@ -16,6 +16,31 @@ static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 6] = [
     "starknet_committer_and_os_cli",
 ];
 
+/// Tests that no member crate has itself in it's dependency tree.
+/// This may occur if, for example, a developer wants to activate a feature of a crate in tests, and
+/// adds a dependency on itself in dev-dependencies with this feature active.
+/// Note: a common (erroneous) use case would be to activate the "testing" feature of a crate in
+/// tests by adding a dependency on itself in dev-dependencies. This is not allowed; any code gated
+/// by the testing feature should also be gated by `test`.
+#[test]
+fn test_no_self_dependencies() {
+    let members_with_self_deps: Vec<String> = MEMBER_TOMLS
+        .iter()
+        .filter_map(|(name, toml)| {
+            if toml.member_dependency_names_recursive(true).contains(toml.package_name()) {
+                Some(name.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert!(
+        members_with_self_deps.is_empty(),
+        "The following crates have themselves in their dependency tree: \
+         {members_with_self_deps:?}. This is not allowed."
+    );
+}
+
 #[test]
 fn test_package_names_match_directory() {
     let mismatched_packages: Vec<_> = MEMBER_TOMLS
