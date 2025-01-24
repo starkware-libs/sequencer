@@ -35,6 +35,11 @@ use starknet_l1_provider_types::SharedL1ProviderClient;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_metrics::metric_definitions::{
+    BATCHED_TRANSACTIONS,
+    REJECTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
+};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, trace, Instrument};
@@ -49,13 +54,7 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
-use crate::metrics::{
-    register_metrics,
-    ProposalMetricsHandle,
-    BATCHED_TRANSACTIONS,
-    REJECTED_TRANSACTIONS,
-    STORAGE_HEIGHT,
-};
+use crate::metrics::{register_metrics, ProposalMetricsHandle};
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,

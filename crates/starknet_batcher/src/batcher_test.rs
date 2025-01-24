@@ -34,6 +34,15 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_l1_provider_types::MockL1ProviderClient;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
+use starknet_sequencer_metrics::metric_definitions::{
+    BATCHED_TRANSACTIONS,
+    PROPOSAL_ABORTED,
+    PROPOSAL_FAILED,
+    PROPOSAL_STARTED,
+    PROPOSAL_SUCCEEDED,
+    REJECTED_TRANSACTIONS,
+    STORAGE_HEIGHT,
+};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
@@ -46,15 +55,6 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::config::BatcherConfig;
-use crate::metrics::{
-    BATCHED_TRANSACTIONS,
-    PROPOSAL_ABORTED,
-    PROPOSAL_FAILED,
-    PROPOSAL_STARTED,
-    PROPOSAL_SUCCEEDED,
-    REJECTED_TRANSACTIONS,
-    STORAGE_HEIGHT,
-};
 use crate::test_utils::{test_txs, FakeProposeBlockBuilder, FakeValidateBlockBuilder};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
