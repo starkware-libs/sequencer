@@ -119,13 +119,10 @@ impl RunnableCompiledClass {
         min_sierra_version: &SierraVersion,
         last_tracked_resource: Option<&TrackedResource>,
     ) -> TrackedResource {
+        let _ = min_sierra_version;
         let contract_tracked_resource = match self {
             Self::V0(_) => TrackedResource::CairoSteps,
-            Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
-            #[cfg(feature = "cairo_native")]
-            Self::V1Native(contract_class) => {
-                contract_class.casm().tracked_resource(min_sierra_version)
-            }
+            _ => TrackedResource::SierraGas,
         };
         match last_tracked_resource {
             // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
