@@ -33,6 +33,6 @@ colored.workspace = true
 ethers-core.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { path = "../starknet_api", features = ["testing"] }
+starknet_api = { workspace = true, features = ["testing"] }
 tar.workspace = true
 tempfile.workspace = true

@@ -54,10 +54,10 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 colored.workspace = true
-mempool_test_utils.path = "../mempool_test_utils"
+mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json.workspace = true
-starknet_infra_utils.path = "../starknet_infra_utils"
+starknet_infra_utils.workspace = true
 
 [package.metadata.cargo-machete]
 ignored = ["tikv-jemallocator"]
