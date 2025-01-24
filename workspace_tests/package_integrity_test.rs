@@ -1,12 +1,11 @@
 use std::path::PathBuf;
 
-use crate::toml_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, ROOT_TOML};
+use crate::toml_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, MEMBER_TOMLS};
 
 #[test]
 fn test_package_names_match_directory() {
-    let mismatched_packages: Vec<_> = ROOT_TOML
-        .member_cargo_tomls()
-        .into_iter()
+    let mismatched_packages: Vec<_> = MEMBER_TOMLS
+        .iter()
         .filter_map(|(path_str, toml)| {
             let path = PathBuf::from(&path_str);
             let directory_name = path.file_name()?.to_str()?;
@@ -38,14 +37,12 @@ fn test_package_names_match_directory() {
 ///   dependency, we will not be able to publish starknet_api.
 #[test]
 fn test_member_dev_dependencies_are_by_path() {
-    let member_tomls = ROOT_TOML.member_cargo_tomls();
     let member_crate_names: Vec<&String> =
-        member_tomls.values().map(CrateCargoToml::package_name).collect();
-    let package_to_bad_local_dev_deps: Vec<(String, Vec<String>)> = ROOT_TOML
-        .member_cargo_tomls()
-        .into_iter()
+        MEMBER_TOMLS.values().map(CrateCargoToml::package_name).collect();
+    let package_to_bad_local_dev_deps: Vec<(String, Vec<String>)> = MEMBER_TOMLS
+        .iter()
         .filter_map(|(path_str, toml)| {
-            if let Some(dev_dependencies) = toml.dev_dependencies {
+            if let Some(ref dev_dependencies) = toml.dev_dependencies {
                 // For each dep in dev-dependencies: if it's a workspace member, and not by path,
                 // add it to the list of bad local dev deps.
                 let mut bad_local_dev_deps: Vec<String> = dev_dependencies
@@ -66,7 +63,7 @@ fn test_member_dev_dependencies_are_by_path() {
                     None
                 } else {
                     bad_local_dev_deps.sort();
-                    Some((path_str, bad_local_dev_deps))
+                    Some((path_str.clone(), bad_local_dev_deps))
                 }
             } else {
                 None
