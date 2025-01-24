@@ -59,6 +59,16 @@ impl CrateCargoToml {
             _ => panic!("No name found in crate toml {self:?}."),
         }
     }
+
+    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
+        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
+            if let DependencyValue::Object { path: Some(path), .. } = value {
+                Some(path.to_string())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -112,17 +122,5 @@ impl CargoToml {
                 (member.clone(), cargo_toml)
             })
             .collect()
-    }
-}
-
-impl CrateCargoToml {
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), .. } = value {
-                Some(path.to_string())
-            } else {
-                None
-            }
-        })
     }
 }
