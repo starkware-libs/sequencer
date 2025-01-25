@@ -78,6 +78,7 @@
 pub mod base_layer;
 pub mod body;
 pub mod class;
+pub mod class_hash;
 pub mod class_manager;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
