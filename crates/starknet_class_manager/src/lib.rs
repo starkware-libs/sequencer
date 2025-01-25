@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 
@@ -16,6 +17,20 @@ pub mod communication;
 struct ClassManagerConfig;
 
 struct ClassManager<S: ClassStorage> {
+=======
+use starknet_class_manager_types::{ClassId, ClassManagerResult, ExecutableClassHash};
+use starknet_sierra_compile_types::{RawClass, RawExecutableClass, SharedSierraCompilerClient};
+
+use crate::class_storage::{CachedClassStorage, CachedClassStorageConfig, ClassStorage};
+pub mod class_storage;
+
+#[derive(Clone, Copy, Debug)]
+struct ClassManagerConfig {
+    cached_class_storage_config: CachedClassStorageConfig,
+}
+
+pub struct ClassManager<S: ClassStorage> {
+>>>>>>> Stashed changes
     config: ClassManagerConfig,
     compiler: SharedSierraCompilerClient,
     classes: CachedClassStorage<S>,
@@ -23,7 +38,15 @@ struct ClassManager<S: ClassStorage> {
 
 impl<S: ClassStorage> ClassManager<S> {
     fn new(config: ClassManagerConfig, compiler: SharedSierraCompilerClient, storage: S) -> Self {
+<<<<<<< Updated upstream
         Self { config, compiler, classes: CachedClassStorage::new(storage) }
+=======
+        Self {
+            config,
+            compiler,
+            classes: CachedClassStorage::new(config.cached_class_storage_config, storage),
+        }
+>>>>>>> Stashed changes
     }
 }
 
@@ -41,7 +64,11 @@ impl<S: ClassStorage> ClassManager<S> {
         Ok(executable_class_hash)
     }
 
+<<<<<<< Updated upstream
     fn get_executable(&self, class_id: ClassId) -> ClassManagerResult<RawClass> {
+=======
+    fn get_executable(&self, class_id: ClassId) -> ClassManagerResult<RawExecutableClass> {
+>>>>>>> Stashed changes
         Ok(self.classes.get_executable(class_id)?)
     }
 
@@ -52,12 +79,17 @@ impl<S: ClassStorage> ClassManager<S> {
     fn add_deprecated_class(
         &mut self,
         class_id: ClassId,
+<<<<<<< Updated upstream
         class: RawClass,
+=======
+        class: RawExecutableClass,
+>>>>>>> Stashed changes
     ) -> ClassManagerResult<()> {
         self.classes.set_deprecated_class(class_id, class)?;
         Ok(())
     }
 }
+<<<<<<< Updated upstream
 
 impl<S: ClassStorage> ComponentStarter for ClassManager<S> {}
 
@@ -188,3 +220,5 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         self.storage.set_deprecated_class(class_id, class)
     }
 }
+=======
+>>>>>>> Stashed changes
