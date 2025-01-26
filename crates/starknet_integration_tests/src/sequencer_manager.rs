@@ -457,11 +457,27 @@ fn get_http_container_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
-    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(gateway_socket);
-    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_socket);
-    config.mempool_p2p =
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(mempool_p2p_socket);
-    config.state_sync = ReactiveComponentExecutionConfig::remote(state_sync_socket);
+    let local_url = "127.0.0.1".to_string();
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        gateway_socket.ip(),
+        gateway_socket.port(),
+    );
+    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        mempool_socket.ip(),
+        mempool_socket.port(),
+    );
+    config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        mempool_p2p_socket.ip(),
+        mempool_p2p_socket.port(),
+    );
+    config.state_sync = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        state_sync_socket.ip(),
+        state_sync_socket.port(),
+    );
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
@@ -472,13 +488,30 @@ fn get_non_http_container_config(
     mempool_p2p_socket: SocketAddr,
     state_sync_socket: SocketAddr,
 ) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),
-        gateway: ReactiveComponentExecutionConfig::remote(gateway_socket),
-        mempool: ReactiveComponentExecutionConfig::remote(mempool_socket),
-        mempool_p2p: ReactiveComponentExecutionConfig::remote(mempool_p2p_socket),
-        state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(state_sync_socket),
+        gateway: ReactiveComponentExecutionConfig::remote(
+            local_url.clone(),
+            gateway_socket.ip(),
+            gateway_socket.port(),
+        ),
+        mempool: ReactiveComponentExecutionConfig::remote(
+            local_url.clone(),
+            mempool_socket.ip(),
+            mempool_socket.port(),
+        ),
+        mempool_p2p: ReactiveComponentExecutionConfig::remote(
+            local_url.clone(),
+            mempool_p2p_socket.ip(),
+            mempool_p2p_socket.port(),
+        ),
+        state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            local_url.clone(),
+            state_sync_socket.ip(),
+            state_sync_socket.port(),
+        ),
         ..ComponentConfig::default()
     }
 }

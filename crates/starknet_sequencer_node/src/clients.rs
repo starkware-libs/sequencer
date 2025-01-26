@@ -210,6 +210,8 @@ impl SequencerNodeClients {
 ///   client type should have a function $remote_client_type::new(config).
 /// * $channel_expr - Sender side for the local client.
 /// * $remote_client_config - Configuration for the remote client, passed as Option(config).
+/// * $url - The remote component's URL.
+/// * $port - The remote component's port.
 ///
 /// # Example
 ///
@@ -222,7 +224,9 @@ impl SequencerNodeClients {
 ///     LocalBatcherClient,
 ///     RemoteBatcherClient,
 ///     channels.take_batcher_tx(),
-///     config.components.batcher.remote_client_config
+///     config.components.batcher.remote_client_config,
+///     config.components.batcher.url,
+///     config.components.batcher.port
 /// );
 /// ```
 macro_rules! create_client {
@@ -232,7 +236,8 @@ macro_rules! create_client {
         $remote_client_type:ty,
         $channel_expr:expr,
         $remote_client_config:expr,
-        $socket:expr
+        $url:expr,
+        $port:expr
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -242,7 +247,7 @@ macro_rules! create_client {
             }
             ReactiveComponentExecutionMode::Remote => {
                 let remote_client =
-                    Some(<$remote_client_type>::new($remote_client_config.clone(), $socket));
+                    Some(<$remote_client_type>::new($remote_client_config.clone(), $url, $port));
                 Client::new(None, remote_client)
             }
             ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
@@ -260,7 +265,8 @@ pub fn create_node_clients(
         RemoteBatcherClient,
         channels.take_batcher_tx(),
         &config.components.batcher.remote_client_config,
-        config.components.batcher.socket
+        &config.components.batcher.url,
+        config.components.batcher.port
     );
 
     let class_manager_client = create_client!(
@@ -269,7 +275,8 @@ pub fn create_node_clients(
         RemoteClassManagerClient,
         channels.take_class_manager_tx(),
         &config.components.class_manager.remote_client_config,
-        config.components.class_manager.socket
+        &config.components.class_manager.url,
+        config.components.class_manager.port
     );
 
     let gateway_client = create_client!(
@@ -278,7 +285,8 @@ pub fn create_node_clients(
         RemoteGatewayClient,
         channels.take_gateway_tx(),
         &config.components.gateway.remote_client_config,
-        config.components.gateway.socket
+        &config.components.gateway.url,
+        config.components.gateway.port
     );
 
     let l1_provider_client = create_client!(
@@ -287,7 +295,8 @@ pub fn create_node_clients(
         RemoteL1ProviderClient,
         channels.take_l1_provider_tx(),
         &config.components.l1_provider.remote_client_config,
-        config.components.l1_provider.socket
+        &config.components.l1_provider.url,
+        config.components.l1_provider.port
     );
 
     let mempool_client = create_client!(
@@ -296,7 +305,8 @@ pub fn create_node_clients(
         RemoteMempoolClient,
         channels.take_mempool_tx(),
         &config.components.mempool.remote_client_config,
-        config.components.mempool.socket
+        &config.components.mempool.url,
+        config.components.mempool.port
     );
 
     let mempool_p2p_propagator_client = create_client!(
@@ -305,7 +315,8 @@ pub fn create_node_clients(
         RemoteMempoolP2pPropagatorClient,
         channels.take_mempool_p2p_propagator_tx(),
         &config.components.mempool_p2p.remote_client_config,
-        config.components.mempool_p2p.socket
+        &config.components.mempool_p2p.url,
+        config.components.mempool_p2p.port
     );
 
     let sierra_compiler_client = create_client!(
@@ -314,7 +325,8 @@ pub fn create_node_clients(
         RemoteSierraCompilerClient,
         channels.take_sierra_compiler_tx(),
         &config.components.sierra_compiler.remote_client_config,
-        config.components.sierra_compiler.socket
+        &config.components.sierra_compiler.url,
+        config.components.sierra_compiler.port
     );
 
     let state_sync_client = create_client!(
@@ -323,7 +335,8 @@ pub fn create_node_clients(
         RemoteStateSyncClient,
         channels.take_state_sync_tx(),
         &config.components.state_sync.remote_client_config,
-        config.components.state_sync.socket
+        &config.components.state_sync.url,
+        config.components.state_sync.port
     );
 
     SequencerNodeClients {

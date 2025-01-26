@@ -319,10 +319,20 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.batcher.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.batcher.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.batcher.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -339,20 +349,30 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.batcher.socket": {
-    "description": "The remote component socket.",
+  "components.batcher.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.class_manager.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.class_manager.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.class_manager.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.class_manager.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.class_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -369,10 +389,10 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.class_manager.socket": {
-    "description": "The remote component socket.",
+  "components.class_manager.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
@@ -384,10 +404,20 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.gateway.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.gateway.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.gateway.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -404,10 +434,10 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.gateway.socket": {
-    "description": "The remote component socket.",
+  "components.gateway.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
@@ -419,10 +449,20 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.l1_provider.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.l1_provider.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.l1_provider.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -439,10 +479,10 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.l1_provider.socket": {
-    "description": "The remote component socket.",
+  "components.l1_provider.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.l1_scraper.execution_mode": {
     "description": "The component execution mode.",
@@ -454,10 +494,20 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.mempool.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.mempool.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.mempool.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -474,20 +524,30 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.mempool.socket": {
-    "description": "The remote component socket.",
+  "components.mempool.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.mempool_p2p.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.mempool_p2p.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.mempool_p2p.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.mempool_p2p.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -504,10 +564,10 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.mempool_p2p.socket": {
-    "description": "The remote component socket.",
+  "components.mempool_p2p.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.monitoring_endpoint.execution_mode": {
     "description": "The component execution mode.",
@@ -519,10 +579,20 @@
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.sierra_compiler.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.sierra_compiler.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.sierra_compiler.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.sierra_compiler.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -539,20 +609,30 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.sierra_compiler.socket": {
-    "description": "The remote component socket.",
+  "components.sierra_compiler.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "components.state_sync.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
+  "components.state_sync.ip": {
+    "description": "The remote component ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "components.state_sync.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.state_sync.port": {
+    "description": "The remote component port.",
+    "privacy": "Public",
+    "value": 0
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -569,10 +649,10 @@
     "privacy": "Public",
     "value": 3
   },
-  "components.state_sync.socket": {
-    "description": "The remote component socket.",
+  "components.state_sync.url": {
+    "description": "The remote component url.",
     "privacy": "Public",
-    "value": "0.0.0.0:0"
+    "value": "127.0.0.1"
   },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",

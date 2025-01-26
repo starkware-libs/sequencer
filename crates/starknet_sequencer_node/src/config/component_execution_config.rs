@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -8,8 +8,9 @@ use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteC
 use tracing::error;
 use validator::{Validate, ValidationError};
 
-const DEFAULT_INVALID_SOCKET: SocketAddr =
-    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+const DEFAULT_URL: &str = "127.0.0.1";
+const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+const DEFAULT_INVALID_PORT: u16 = 0;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
@@ -35,7 +36,10 @@ pub struct ReactiveComponentExecutionConfig {
     pub execution_mode: ReactiveComponentExecutionMode,
     pub local_server_config: LocalServerConfig,
     pub remote_client_config: RemoteClientConfig,
-    pub socket: SocketAddr,
+    #[validate(custom = "validate_url")]
+    pub url: String,
+    pub ip: IpAddr,
+    pub port: u16,
 }
 
 impl SerializeConfig for ReactiveComponentExecutionConfig {
@@ -47,12 +51,14 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
                 "The component execution mode.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param("url", &self.url, "The remote component url.", ParamPrivacyInput::Public),
             ser_param(
-                "socket",
-                &self.socket.to_string(),
-                "The remote component socket.",
+                "ip",
+                &self.ip.to_string(),
+                "The remote component ip.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param("port", &self.port, "The remote component port.", ParamPrivacyInput::Public),
         ]);
         vec![
             members,
@@ -78,25 +84,31 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
-            socket: DEFAULT_INVALID_SOCKET,
+            url: DEFAULT_URL.to_string(),
+            ip: DEFAULT_IP,
+            port: DEFAULT_INVALID_PORT,
         }
     }
 
-    pub fn remote(socket: SocketAddr) -> Self {
+    pub fn remote(url: String, ip: IpAddr, port: u16) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Remote,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
-            socket,
+            url,
+            ip,
+            port,
         }
     }
 
-    pub fn local_with_remote_enabled(socket: SocketAddr) -> Self {
+    pub fn local_with_remote_enabled(url: String, ip: IpAddr, port: u16) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
-            socket,
+            url,
+            ip,
+            port,
         }
     }
 }
@@ -107,11 +119,13 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
-            socket: DEFAULT_INVALID_SOCKET,
+            url: DEFAULT_URL.to_string(),
+            ip: DEFAULT_IP,
+            port: DEFAULT_INVALID_PORT,
         }
     }
     fn is_valid_socket(&self) -> bool {
-        self.socket.port() != 0
+        self.port != 0
     }
 }
 
@@ -146,6 +160,30 @@ impl ActiveComponentExecutionConfig {
 
     pub fn enabled() -> Self {
         Self { execution_mode: ActiveComponentExecutionMode::Enabled }
+    }
+}
+
+fn check_domain(domain: &str) -> Result<(), String> {
+    let socket_addrs = (domain, 0).to_socket_addrs().map_err(|e| e.to_string())?;
+    if socket_addrs.count() > 0 {
+        Ok(())
+    } else {
+        Err("No IP address found for the domain".to_string())
+    }
+}
+
+fn validate_url(url: &str) -> Result<(), ValidationError> {
+    if url.is_empty() {
+        return Ok(());
+    }
+    match check_domain(url) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            error!("Failed to resolve url IP: {}", e);
+            let mut error = ValidationError::new("Failed to resolve url IP");
+            error.message = Some("Ensure the url is valid.".into());
+            Err(error)
+        }
     }
 }
 
