@@ -87,8 +87,12 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
+    DeployAccountTransactionV3WithAddress,
     EntryPointByType as RpcEntryPointByType,
     EntryPointByType,
+    InternalRpcDeclareTransactionV3,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
@@ -749,6 +753,32 @@ auto_impl_get_test_instance! {
     pub struct ResourceBounds {
         pub max_amount: GasAmount,
         pub max_price_per_unit: GasPrice,
+    }
+    pub struct InternalRpcTransaction {
+        pub tx: InternalRpcTransactionWithoutTxHash,
+        pub tx_hash: TransactionHash,
+    }
+    pub enum InternalRpcTransactionWithoutTxHash {
+        Declare(InternalRpcDeclareTransactionV3) = 0,
+        DeployAccount(DeployAccountTransactionV3WithAddress) = 1,
+        Invoke(RpcInvokeTransaction) = 2,
+    }
+    pub struct InternalRpcDeclareTransactionV3 {
+        pub sender_address: ContractAddress,
+        pub compiled_class_hash: CompiledClassHash,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+    }
+    pub struct DeployAccountTransactionV3WithAddress {
+        pub tx: RpcDeployAccountTransaction,
+        pub contract_address: ContractAddress,
     }
     pub enum RpcTransaction {
         Declare(RpcDeclareTransaction) = 0,

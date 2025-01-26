@@ -2,11 +2,17 @@ use std::cmp::min;
 use std::vec;
 
 use async_trait::async_trait;
+use futures::future::try_join_all;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
 use starknet_l1_provider_types::errors::L1ProviderClientError;
 use starknet_l1_provider_types::{SharedL1ProviderClient, ValidationStatus as L1ValidationStatus};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
@@ -22,6 +28,8 @@ pub enum TransactionProviderError {
     L1HandlerTransactionValidationFailed(TransactionHash),
     #[error(transparent)]
     L1ProviderError(#[from] L1ProviderClientError),
+    #[error(transparent)]
+    TransactionConverterError(#[from] TransactionConverterError),
 }
 
 #[derive(Debug, PartialEq)]
@@ -40,6 +48,7 @@ pub trait TransactionProvider: Send {
 pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
     pub l1_provider_client: SharedL1ProviderClient,
+    pub transaction_converter: TransactionConverter,
     pub max_l1_handler_txs_per_block: usize,
     pub height: BlockNumber,
     phase: TxProviderPhase,
@@ -57,12 +66,14 @@ impl ProposeTransactionProvider {
     pub fn new(
         mempool_client: SharedMempoolClient,
         l1_provider_client: SharedL1ProviderClient,
+        transaction_converter: TransactionConverter,
         max_l1_handler_txs_per_block: usize,
         height: BlockNumber,
     ) -> Self {
         Self {
             mempool_client,
             l1_provider_client,
+            transaction_converter,
             max_l1_handler_txs_per_block,
             height,
             phase: TxProviderPhase::L1,
@@ -87,13 +98,17 @@ impl ProposeTransactionProvider {
         &mut self,
         n_txs: usize,
     ) -> TransactionProviderResult<Vec<Transaction>> {
-        Ok(self
+        let txs_futures = self
             .mempool_client
             .get_txs(n_txs)
             .await?
             .into_iter()
-            .map(Transaction::Account)
-            .collect())
+            .map(|tx| self.transaction_converter.convert_internal_rpc_tx_to_executable_tx(tx));
+
+        let executable_txs =
+            try_join_all(txs_futures).await?.into_iter().map(Transaction::Account).collect();
+
+        Ok(executable_txs)
     }
 }
 

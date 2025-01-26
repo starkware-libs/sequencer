@@ -31,6 +31,8 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_l1_provider_types::SharedL1ProviderClient;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
@@ -73,6 +75,7 @@ pub struct Batcher {
     pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
+    pub transaction_converter: TransactionConverter,
 
     // Used to create block builders.
     // Using the factory pattern to allow for easier testing.
@@ -108,6 +111,7 @@ impl Batcher {
         storage_writer: Box<dyn BatcherStorageWriterTrait>,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
+        transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
     ) -> Self {
         let storage_height = storage_reader
@@ -120,6 +124,7 @@ impl Batcher {
             storage_writer,
             l1_provider_client,
             mempool_client,
+            transaction_converter,
             block_builder_factory,
             active_height: None,
             active_proposal: Arc::new(Mutex::new(None)),
@@ -170,6 +175,7 @@ impl Batcher {
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
+            self.transaction_converter.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
         );
@@ -628,6 +634,7 @@ pub fn create_batcher(
     config: BatcherConfig,
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
+    class_manager_client: SharedClassManagerClient,
 ) -> Batcher {
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
@@ -641,12 +648,16 @@ pub fn create_batcher(
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
+    let transaction_converter =
+        TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
+
     Batcher::new(
         config,
         storage_reader,
         storage_writer,
         l1_provider_client,
         mempool_client,
+        transaction_converter,
         block_builder_factory,
     )
 }
