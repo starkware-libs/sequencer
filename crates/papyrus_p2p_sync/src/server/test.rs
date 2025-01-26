@@ -381,8 +381,8 @@ async fn run_test<T, F, TQuery>(
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
-        _ = p2p_sync_server.run() => {
-            panic!("p2p_sync_server should never finish its run.");
+        _never = p2p_sync_server.run() => {
+            unreachable!("Return type Never should never be constructed");
         },
         mut res = response_reciever.collect::<Vec<_>>() => {
             assert_eq!(DataOrFin(None), res.pop().unwrap());

@@ -352,8 +352,8 @@ fn spawn_p2p_sync_server(
     let p2p_sync_server =
         P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels, class_manager_client);
     tokio::spawn(async move {
-        p2p_sync_server.run().await;
-        Ok(())
+        let _never = p2p_sync_server.run().await;
+        unreachable!("Return type Never should never be constructed.");
     })
 }
 

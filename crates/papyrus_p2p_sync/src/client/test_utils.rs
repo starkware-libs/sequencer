@@ -319,7 +319,7 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
             p2p_sync.run().await
         }) => {
             res.unwrap();
-            panic!("P2p sync client finished running");
+            unreachable!("Return type Never should never be constructed.");
         }
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");
