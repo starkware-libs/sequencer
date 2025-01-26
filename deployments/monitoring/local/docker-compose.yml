@@ -1,0 +1,26 @@
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    volumes:
+      - ${PWD}/deployments/monitoring/local/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:10.4.14-ubuntu
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    ports:
+      - 3000:3000
+    volumes:
+      - ${PWD}/deployments/monitoring/local/config/grafana/datasources:/etc/grafana/provisioning/datasources
+
+  node:
+    build:
+      context: ../../../
+      dockerfile: ${PWD}/deployments/images/sequencer/Dockerfile
+    command:
+      - --config_file
+      - /app/config/sequencer/presets/config.json

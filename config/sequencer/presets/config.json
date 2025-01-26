@@ -4,5 +4,6 @@
   "eth_fee_token_address": "0x2",
   "recorder_url": "https://recorder_url/",
   "strk_fee_token_address": "0x3",
-  "validator_id": "0x64"
+  "validator_id": "0x64",
+  "monitoring_endpoint_config.collect_metrics": true
 }
