@@ -29,7 +29,7 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
     )
 }
 
-// TODO(Arni): Redesign this test once the compiler is passed with dependancy injection.
+// TODO(Arni): Redesign this test once the compiler is passed with dependency injection.
 #[traced_test]
 #[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
