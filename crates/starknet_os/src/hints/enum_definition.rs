@@ -136,6 +136,16 @@ use crate::hints::patricia::{
     write_case_not_left_to_ap,
 };
 use crate::hints::secp::read_ec_point_from_address;
+use crate::hints::state::{
+    decode_node,
+    enter_scope_commitment_info_by_address,
+    load_bottom,
+    load_edge,
+    set_preimage_for_class_commitments,
+    set_preimage_for_current_commitment_info,
+    set_preimage_for_state_commitments,
+    write_split_result,
+};
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -1176,7 +1186,111 @@ else:
         ReadEcPointFromAddress,
         read_ec_point_from_address,
         r#"memory[ap] = to_felt_or_relocatable(ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add())"#
-    )
+    ),
+    (
+        SetPreimageForStateCommitments,
+        set_preimage_for_state_commitments,
+        indoc! {r#"
+	ids.initial_root = os_input.contract_state_commitment_info.previous_root
+	ids.final_root = os_input.contract_state_commitment_info.updated_root
+	preimage = {
+	    int(root): children
+	    for root, children in os_input.contract_state_commitment_info.commitment_facts.items()
+	}
+	assert os_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
+        }
+    ),
+    (
+        SetPreimageForClassCommitments,
+        set_preimage_for_class_commitments,
+        indoc! {r#"
+	ids.initial_root = os_input.contract_class_commitment_info.previous_root
+	ids.final_root = os_input.contract_class_commitment_info.updated_root
+	preimage = {
+	    int(root): children
+	    for root, children in os_input.contract_class_commitment_info.commitment_facts.items()
+	}
+	assert os_input.contract_class_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
+        }
+    ),
+    (
+        SetPreimageForCurrentCommitmentInfo,
+        set_preimage_for_current_commitment_info,
+        indoc! {r#"
+	commitment_info = commitment_info_by_address[ids.contract_address]
+	ids.initial_contract_state_root = commitment_info.previous_root
+	ids.final_contract_state_root = commitment_info.updated_root
+	preimage = {
+	    int(root): children
+	    for root, children in commitment_info.commitment_facts.items()
+	}
+	assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
+        }
+    ),
+    (
+        LoadEdge,
+        load_edge,
+        indoc! {r#"
+	ids.edge = segments.add()
+	ids.edge.length, ids.edge.path, ids.edge.bottom = preimage[ids.node]
+	ids.hash_ptr.result = ids.node - ids.edge.length
+	if __patricia_skip_validation_runner is not None:
+	    # Skip validation of the preimage dict to speed up the VM. When this flag is set,
+	    # mistakes in the preimage dict will be discovered only in the prover.
+	    __patricia_skip_validation_runner.verified_addresses.add(
+	        ids.hash_ptr + ids.HashBuiltin.result)"#
+        }
+    ),
+    (
+        LoadBottom,
+        load_bottom,
+        indoc! {r#"
+	ids.hash_ptr.x, ids.hash_ptr.y = preimage[ids.edge.bottom]
+	if __patricia_skip_validation_runner:
+	    # Skip validation of the preimage dict to speed up the VM. When this flag is
+	    # set, mistakes in the preimage dict will be discovered only in the prover.
+	    __patricia_skip_validation_runner.verified_addresses.add(
+	        ids.hash_ptr + ids.HashBuiltin.result)"#
+        }
+    ),
+    (
+        DecodeNode,
+        decode_node,
+        indoc! {r#"
+	from starkware.python.merkle_tree import decode_node
+	left_child, right_child, case = decode_node(node)
+	memory[ap] = int(case != 'both')"#
+        }
+    ),
+    (
+        DecodeNode2,
+        decode_node,
+        indoc! {r#"
+from starkware.python.merkle_tree import decode_node
+left_child, right_child, case = decode_node(node)
+memory[ap] = 1 if case != 'both' else 0"#
+        }
+    ),
+    (
+        EnterScopeCommitmentInfoByAddress,
+        enter_scope_commitment_info_by_address,
+        indoc! {r#"
+	# This hint shouldn't be whitelisted.
+	vm_enter_scope(dict(
+	    commitment_info_by_address=execution_helper.compute_storage_commitments(),
+	    os_input=os_input,
+	))"#
+        }
+    ),
+    (
+        WriteSplitResult,
+        write_split_result,
+        indoc! {r#"
+    from starkware.starknet.core.os.data_availability.bls_utils import split
+
+    segments.write_arg(ids.res.address_, split(ids.value))"#
+        }
+    ),
 );
 
 define_hint_extension_enum!(
