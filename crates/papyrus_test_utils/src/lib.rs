@@ -759,8 +759,8 @@ auto_impl_get_test_instance! {
     }
     pub enum InternalRpcTransactionWithoutTxHash {
         Declare(InternalRpcDeclareTransactionV3) = 0,
-        Invoke(RpcInvokeTransaction) = 1,
-        DeployAccount(DeployAccountTransactionV3WithAddress) = 2,
+        DeployAccount(DeployAccountTransactionV3WithAddress) = 1,
+        Invoke(RpcInvokeTransaction) = 2,
     }
     pub struct InternalRpcDeclareTransactionV3 {
         pub sender_address: ContractAddress,

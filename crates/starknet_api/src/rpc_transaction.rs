@@ -61,10 +61,10 @@ pub struct DeployAccountTransactionV3WithAddress {
 pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "DECLARE")]
     Declare(InternalRpcDeclareTransactionV3),
-    #[serde(rename = "INVOKE")]
-    Invoke(RpcInvokeTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
     DeployAccount(DeployAccountTransactionV3WithAddress),
+    #[serde(rename = "INVOKE")]
+    Invoke(RpcInvokeTransaction),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -130,11 +130,11 @@ macro_rules! implement_internal_getters_for_internal_rpc {
             pub fn $field_name(&self) -> $field_ty {
                 match &self.tx {
                     InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.$field_name.clone(),
-                    InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => tx.$field_name.clone(),
                     InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => {
                         let RpcDeployAccountTransaction::V3(tx) = &tx.tx;
                         tx.$field_name.clone()
                     },
+                    InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => tx.$field_name.clone(),
                 }
             }
         )*
@@ -151,10 +151,10 @@ impl InternalRpcTransaction {
     pub fn contract_address(&self) -> ContractAddress {
         match &self.tx {
             InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.sender_address,
+            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
             InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => {
                 tx.sender_address
             }
-            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
         }
     }
 
