@@ -33,6 +33,12 @@ use crate::hints::compiled_class::{
     set_ap_to_segment_hash,
 };
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
+use crate::hints::stateless_compression::{
+    compression_hint,
+    dictionary_from_bucket,
+    get_prev_offset,
+    set_decompressed_dst,
+};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
@@ -229,7 +235,34 @@ define_hint_enum!(
         indoc! {r#"
             memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash())"#
         }
-    )
+    ),
+    (
+        DictionaryFromBucket,
+        dictionary_from_bucket,
+        indoc! {
+            r#"initial_dict = {bucket_index: 0 for bucket_index in range(ids.TOTAL_N_BUCKETS)}"#
+        }
+    ),
+    (
+        GetPrevOffset,
+        get_prev_offset,
+        indoc! {r#"dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
+            ids.prev_offset = dict_tracker.data[ids.bucket_index]"#
+        }
+    ),
+    (
+        CompressionHint,
+        compression_hint,
+        indoc! {r#"from starkware.starknet.core.os.data_availability.compression import compress
+    data = memory.get_range_as_ints(addr=ids.data_start, size=ids.data_end - ids.data_start)
+    segments.write_arg(ids.compressed_dst, compress(data))"#}
+    ),
+    (
+        SetDecompressedDst,
+        set_decompressed_dst,
+        indoc! {r#"memory[ids.decompressed_dst] = ids.packed_felt % ids.elm_bound"#
+        }
+    ),
 );
 
 define_hint_extension_enum!(
