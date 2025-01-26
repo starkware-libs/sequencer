@@ -12,6 +12,7 @@ function install_essential_deps_linux() {
             git \
             gnupg \
             jq \
+            openssl \
             libssl-dev \
             lsb-release \
             pkg-config \
