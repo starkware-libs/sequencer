@@ -129,6 +129,9 @@ jobs:
       - name: "Maybe install Anvil"
         run: cargo install --git https://github.com/foundry-rs/foundry anvil --locked
 
+      - name: "test ssl version"
+        run: openssl version
+
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |
