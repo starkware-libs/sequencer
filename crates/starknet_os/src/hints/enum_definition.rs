@@ -210,6 +210,10 @@ use crate::hints::transaction_hash::{additional_data_new_segment, data_to_hash_n
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
+#[cfg(test)]
+#[path = "enum_definition_test.rs"]
+pub mod test;
+
 define_hint_enum!(
     Hint,
     (
