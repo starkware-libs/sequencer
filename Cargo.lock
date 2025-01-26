@@ -10873,9 +10873,11 @@ name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "mockall",
  "papyrus_config",
  "papyrus_network",
  "papyrus_protobuf",
+ "rstest",
  "serde",
  "starknet_api",
  "starknet_batcher_types",

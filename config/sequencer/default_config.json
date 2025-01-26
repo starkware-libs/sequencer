@@ -819,6 +819,16 @@
     "privacy": "Public",
     "value": 1
   },
+  "consensus_manager_config.revert_up_to_and_including": {
+    "description": "The batcher will revert blocks up to this block number (including). Use this configurations carefully to prevent significant revert operations and data loss.",
+    "privacy": "Private",
+    "value": 18446744073709551615
+  },
+  "consensus_manager_config.revert_up_to_and_including.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
     "param_type": "String",
