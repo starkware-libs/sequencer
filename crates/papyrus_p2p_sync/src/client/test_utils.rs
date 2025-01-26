@@ -321,7 +321,7 @@ pub async fn run_test(
             p2p_sync.run().await
         }) => {
             res.unwrap();
-            panic!("P2p sync client finished running");
+            unreachable!("Return type Never should never be constructed.");
         }
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");
