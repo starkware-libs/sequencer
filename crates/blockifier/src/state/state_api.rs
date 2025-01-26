@@ -1,3 +1,5 @@
+#[cfg(feature = "testing")]
+use mockall::automock;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -19,6 +21,7 @@ pub enum DataAvailabilityMode {
 ///
 /// The `self` argument is mutable for flexibility during reads (for example, caching reads),
 /// and to allow for the `State` trait below to also be considered a `StateReader`.
+#[cfg_attr(feature = "testing", automock)]
 pub trait StateReader {
     /// Returns the storage value under the given key in the given contract instance (represented by
     /// its address).

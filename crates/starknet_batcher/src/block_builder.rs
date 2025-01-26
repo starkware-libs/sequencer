@@ -32,9 +32,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::ProposalCommitment;
+use starknet_class_manager_types::SharedClassManagerClient;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
 
+use crate::reader_with_class_manager::ReaderWithClassManager;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -340,13 +342,14 @@ pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
     pub contract_class_manager: ContractClassManager,
+    pub class_manager_client: SharedClassManagerClient,
 }
 
 impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
-    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
+    ) -> BlockBuilderResult<TransactionExecutor<ReaderWithClassManager<PapyrusReader>>> {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -359,11 +362,13 @@ impl BlockBuilderFactory {
             block_builder_config.bouncer_config,
         );
 
-        let state_reader = PapyrusReader::new(
+        let papyrus_state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
             height,
             self.contract_class_manager.clone(),
         );
+        let state_reader =
+            ReaderWithClassManager::new(papyrus_state_reader, self.class_manager_client.clone());
 
         let executor = TransactionExecutor::pre_process_and_create(
             state_reader,
