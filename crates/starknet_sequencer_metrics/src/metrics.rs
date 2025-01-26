@@ -4,15 +4,38 @@ use metrics::{counter, describe_counter, describe_gauge, gauge, Gauge, IntoF64};
 use num_traits::Num;
 use regex::{escape, Regex};
 
+/// Relevant components for which metrics can be defined.
+#[derive(Clone, Copy, Debug)]
+pub enum MetricScope {
+    Batcher,
+    HttpServer,
+}
+
+pub trait MetricPresenter {
+    fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
+    }
+
+    fn get_name(&self) -> &'static str;
+
+    fn get_scope(&self) -> MetricScope;
+}
+
 pub struct MetricCounter {
+    scope: MetricScope,
     name: &'static str,
     description: &'static str,
     initial_value: u64,
 }
 
 impl MetricCounter {
-    pub const fn new(name: &'static str, description: &'static str, initial_value: u64) -> Self {
-        Self { name, description, initial_value }
+    pub const fn new(
+        scope: MetricScope,
+        name: &'static str,
+        description: &'static str,
+        initial_value: u64,
+    ) -> Self {
+        Self { scope, name, description, initial_value }
     }
 
     pub fn register(&self) {
@@ -23,20 +46,27 @@ impl MetricCounter {
     pub fn increment(&self, value: u64) {
         counter!(self.name).increment(value);
     }
+}
 
-    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.name)
+impl MetricPresenter for MetricCounter {
+    fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.scope
     }
 }
 
 pub struct MetricGauge {
+    scope: MetricScope,
     name: &'static str,
     description: &'static str,
 }
 
 impl MetricGauge {
-    pub const fn new(name: &'static str, description: &'static str) -> Self {
-        Self { name, description }
+    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
+        Self { scope, name, description }
     }
 
     pub fn register(&self) -> Gauge {
@@ -54,9 +84,15 @@ impl MetricGauge {
     pub fn decrement<T: IntoF64>(&self, value: T) {
         gauge!(self.name).decrement(value.into_f64());
     }
+}
 
-    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.name)
+impl MetricPresenter for MetricGauge {
+    fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    fn get_scope(&self) -> MetricScope {
+        self.scope
     }
 }
 
