@@ -191,7 +191,7 @@ pub struct IntegrationTestManager {
 }
 
 impl IntegrationTestManager {
-    // TODO(Nadin): take idle_nodes: Vec<NodeSetup>, running_nodes: Vec<RunningNode> as arguments.
+    // TODO(Nadin): take idle_nodes: Vec<NodeSetup>, running_nodes: Vec<RunningNode> as arguments
     pub fn new(nodes: Vec<NodeSetup>, executable_handles: Vec<JoinHandle<()>>) -> Self {
         let nodes_map = create_map(nodes, |node| node.get_node_index());
 
