@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -60,12 +59,11 @@ use crate::serde_utils::SerdeWrapper;
 /// async fn main() {
 ///     // Create a channel for sending requests and receiving responses
 ///     // Instantiate the client.
-///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
+///     let url = "127.0.0.1".to_string();
 ///     let port: u16 = 8080;
-///     let socket = std::net::SocketAddr::new(ip_address, port);
 ///     let config =
 ///         RemoteClientConfig { retries: 3, idle_connections: usize::MAX, idle_timeout: 90 };
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config, socket);
+///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config, &url, port);
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -87,7 +85,6 @@ where
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     config: RemoteClientConfig,
-    socket: SocketAddr,
     // [`RemoteComponentClient<Request,Response>`] should be [`Send + Sync`] while [`Request`] and
     // [`Response`] are only [`Send`]. [`Phantom<T>`] is [`Send + Sync`] only if [`T`] is, despite
     // this bound making no sense as the phantom data field is unused. As such, we wrap it as
@@ -103,19 +100,14 @@ where
     Request: Serialize + DeserializeOwned + Debug,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(config: RemoteClientConfig, socket: SocketAddr) -> Self {
-        let ip_address = socket.ip();
-        let port = socket.port();
-        let uri = match ip_address {
-            IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
-            IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
-        };
+    pub fn new(config: RemoteClientConfig, url: &str, port: u16) -> Self {
+        let uri = format!("http://{}:{}/", url, port).parse().unwrap();
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
             .build_http();
-        Self { uri, client, config, socket, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, config, _req: PhantomData, _res: PhantomData }
     }
 
     fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
@@ -198,7 +190,6 @@ where
             uri: self.uri.clone(),
             client: self.client.clone(),
             config: self.config.clone(),
-            socket: self.socket,
             _req: PhantomData,
             _res: PhantomData,
         }
