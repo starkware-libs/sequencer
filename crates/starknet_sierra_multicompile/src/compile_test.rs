@@ -24,7 +24,6 @@ use crate::SierraToNativeCompiler;
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
     sierra_to_native_compiler_path: None,
-    libcairo_native_runtime_path: None,
     max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,

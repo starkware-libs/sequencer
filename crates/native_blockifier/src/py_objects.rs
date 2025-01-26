@@ -169,7 +169,6 @@ impl From<PyConcurrencyConfig> for ConcurrencyConfig {
 #[derive(Clone, Debug, Default, FromPyObject)]
 pub struct PySierraCompilationConfig {
     pub sierra_to_native_compiler_path: String,
-    pub libcairo_native_runtime_path: String,
     pub max_native_bytecode_size: u64,
     pub max_cpu_time: u64,
     pub max_memory_usage: u64,
@@ -185,14 +184,6 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
                 None
             } else {
                 Some(PathBuf::from(py_sierra_compilation_config.sierra_to_native_compiler_path))
-            },
-            libcairo_native_runtime_path: if py_sierra_compilation_config
-                .libcairo_native_runtime_path
-                .is_empty()
-            {
-                None
-            } else {
-                Some(PathBuf::from(py_sierra_compilation_config.libcairo_native_runtime_path))
             },
             max_native_bytecode_size: py_sierra_compilation_config.max_native_bytecode_size,
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
