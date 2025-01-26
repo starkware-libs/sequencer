@@ -253,20 +253,29 @@ impl IntegrationTestManager {
         let send_rpc_tx_fn = &mut |rpc_tx| self.send_rpc_tx_fn(rpc_tx);
 
         info!("Sending {n_txs} txs.");
-        let tx_hashes = send_account_txs(tx_generator, sender_account, n_txs, send_rpc_tx_fn).await;
+        let tx_hashes = send_account_txs(
+            tx_generator,
+            sender_account,
+            n_txs,
+            send_rpc_tx_fn,
+            &self.batcher_storage_reader(),
+        )
+        .await;
+        info!("Yaellllllll Sent {n_txs} txs.");
         assert_eq!(tx_hashes.len(), n_txs);
+        info!("Yaellllllll after assert.");
     }
 
     pub async fn await_execution(&self, expected_block_number: BlockNumber) {
         info!("Awaiting until {expected_block_number} blocks have been created.");
-        await_block(5000, expected_block_number, 50, &self.batcher_storage_reader())
+        await_block(5000, expected_block_number, 1000, &self.batcher_storage_reader())
             .await
             .expect("Block number should have been reached.");
     }
 
     pub async fn verify_results(&self, sender_address: ContractAddress, n_txs: usize) {
         info!("Verifying tx sender account nonce.");
-        let expected_nonce_value = n_txs + 1;
+        let expected_nonce_value = n_txs;
         let expected_nonce =
             Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
         let nonce = get_account_nonce(&self.batcher_storage_reader(), sender_address);
@@ -275,7 +284,7 @@ impl IntegrationTestManager {
 }
 
 /// Reads the latest block number from the storage.
-fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
+pub fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
     let txn = storage_reader.begin_ro_txn().unwrap();
     txn.get_state_marker()
         .expect("There should always be a state marker")

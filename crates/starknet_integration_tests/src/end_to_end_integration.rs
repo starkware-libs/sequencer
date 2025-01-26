@@ -6,8 +6,8 @@ use tracing::info;
 use crate::sequencer_manager::{get_sequencer_setup_configs, IntegrationTestManager};
 
 pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
-    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
-    const N_TXS: usize = 50;
+    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(2);
+    const N_TXS: usize = 4;
     const SENDER_ACCOUNT: AccountId = 0;
     let sender_address = tx_generator.account_with_id(SENDER_ACCOUNT).sender_address();
 

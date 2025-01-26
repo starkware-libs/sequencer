@@ -17,7 +17,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
-use papyrus_storage::StorageConfig;
+use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -47,10 +47,11 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
-use tracing::{debug, Instrument};
+use tracing::{debug, info, Instrument};
 use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
+use crate::sequencer_manager::get_latest_block_number;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -266,7 +267,7 @@ fn create_invoke_txs(
     account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
-    (1..n_txs)
+    (0..n_txs)
         .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()
 }
@@ -280,8 +281,11 @@ where
 {
     let mut tx_hashes = vec![];
     for rpc_tx in rpc_txs {
+        info!("yael sending transaction - sleep");
         tokio::time::sleep(Duration::from_millis(1000 / TPS)).await;
+        info!("yael sending transaction - send");
         tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
+        info!("yael sent transaction done ");
     }
     tx_hashes
 }
@@ -331,19 +335,26 @@ pub async fn send_account_txs<'a, Fut>(
     account_id: AccountId,
     n_txs: usize,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
+    storage_reader: &StorageReader,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
     let mut tx_hashes: Vec<TransactionHash> = Vec::new();
     let rpc_txs = create_deploy_account_tx_and_first_invoke_tx(tx_generator, account_id);
+    info!("yael sending first 2 transactions");
     tx_hashes.append(&mut send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
 
     // Wait for the block with deploy_account tx to be ready and synced.
-    // tokio::time::sleep(Duration::from_secs(20)).await;
+    while get_latest_block_number(storage_reader) < BlockNumber(1) {
+        info!("yael waiting for the first block to be ready");
+        tokio::time::sleep(Duration::from_secs(10)).await;
+    }
 
-    // let rpc_txs = create_invoke_txs(tx_generator, account_id, n_txs - 2);
-    // tx_hashes.append(&mut send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
+    let rpc_txs = create_invoke_txs(tx_generator, account_id, n_txs - 2);
+    info!("yael sending next {:?} transactions", rpc_txs.len());
+    tx_hashes.append(&mut send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
+    info!("yael sent all transactions");
 
     tx_hashes
 }
