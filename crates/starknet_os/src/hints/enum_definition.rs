@@ -206,6 +206,7 @@ use crate::hints::syscalls::{
     storage_read,
     storage_write,
 };
+use crate::hints::transaction_hash::{additional_data_new_segment, data_to_hash_new_segment};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
@@ -1614,6 +1615,20 @@ memory[ap] = 1 if case != 'both' else 0"#
         exit_storage_write_syscall,
         "exit_syscall(selector=ids.STORAGE_WRITE_SELECTOR)"
     ),
+    (
+        AdditionalDataNewSegment,
+        additional_data_new_segment,
+        indoc! {r#"
+            ids.additional_data = segments.add()"#
+        }
+    ),
+    (
+        DataToHashNewSegment,
+        data_to_hash_new_segment,
+        indoc! {r#"
+        ids.data_to_hash = segments.add()"#
+        }
+    )
 );
 
 define_hint_extension_enum!(
