@@ -38,6 +38,14 @@ use crate::hints::deprecated_compiled_class::{
     load_deprecated_class_inner,
 };
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
+use crate::hints::execute_transactions::{
+    fill_holes_in_rc96_segment,
+    log_remaining_txs,
+    set_component_hashes,
+    set_sha256_segment_in_syscall_handler,
+    sha2_finalize,
+    start_tx_validate_declare_execution_context,
+};
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -296,6 +304,68 @@ define_hint_enum!(
     ids.compiled_class = segments.gen_arg(cairo_contract)"#
         }
     ),
+    (
+        StartTxValidateDeclareExecutionContext,
+        start_tx_validate_declare_execution_context,
+        indoc! {r#"
+    execution_helper.start_tx(
+        tx_info_ptr=ids.validate_declare_execution_context.deprecated_tx_info.address_
+    )"#
+        }
+    ),
+    (
+        SetSha256SegmentInSyscallHandler,
+        set_sha256_segment_in_syscall_handler,
+        indoc! {r#"syscall_handler.sha256_segment = ids.sha256_ptr"#}
+    ),
+    (
+        LogRemainingTxs,
+        log_remaining_txs,
+        indoc! {r#"print(f"execute_transactions_inner: {ids.n_txs} transactions remaining.")"#}
+    ),
+    (
+        FillHolesInRc96Segment,
+        fill_holes_in_rc96_segment,
+        indoc! {r#"
+rc96_ptr = ids.range_check96_ptr
+segment_size = rc96_ptr.offset
+base = rc96_ptr - segment_size
+
+for i in range(segment_size):
+    memory.setdefault(base + i, 0)"#}
+    ),
+    (
+        SetComponentHashes,
+        set_component_hashes,
+        indoc! {r#"
+class_component_hashes = component_hashes[tx.class_hash]
+assert (
+    len(class_component_hashes) == ids.ContractClassComponentHashes.SIZE
+), "Wrong number of class component hashes."
+ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
+        }
+    ),
+    (
+        Sha2Finalize,
+        sha2_finalize,
+        indoc! {r#"# Add dummy pairs of input and output.
+from starkware.cairo.common.cairo_sha256.sha256_utils import (
+    IV,
+    compute_message_schedule,
+    sha2_compress_function,
+)
+
+number_of_missing_blocks = (-ids.n) % ids.BATCH_SIZE
+assert 0 <= number_of_missing_blocks < 20
+_sha256_input_chunk_size_felts = ids.SHA256_INPUT_CHUNK_SIZE_FELTS
+assert 0 <= _sha256_input_chunk_size_felts < 100
+
+message = [0] * _sha256_input_chunk_size_felts
+w = compute_message_schedule(message)
+output = sha2_compress_function(IV, w)
+padding = (message + IV + output) * number_of_missing_blocks
+segments.write_arg(ids.sha256_ptr_end, padding)"#}
+    )
 );
 
 define_hint_extension_enum!(
