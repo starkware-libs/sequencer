@@ -408,8 +408,6 @@ pub fn get_test_state_diff() -> StateDiff {
     // hashes than the deprecated_contract_classes.
     let (_, data) = res.declared_classes.pop().unwrap();
     res.declared_classes.insert(class_hash!("0x001"), data);
-    // TODO(yair): Find a way to create replaced classes in a test instance of StateDiff.
-    res.replaced_classes.clear();
     res
 }
 
@@ -847,7 +845,6 @@ auto_impl_get_test_instance! {
         pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, SierraContractClass)>,
         pub deprecated_declared_classes: IndexMap<ClassHash, DeprecatedContractClass>,
         pub nonces: IndexMap<ContractAddress, Nonce>,
-        pub replaced_classes: IndexMap<ContractAddress, ClassHash>,
     }
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct StructMember {
@@ -864,7 +861,6 @@ auto_impl_get_test_instance! {
         pub declared_classes: IndexMap<ClassHash, CompiledClassHash>,
         pub deprecated_declared_classes: Vec<ClassHash>,
         pub nonces: IndexMap<ContractAddress, Nonce>,
-        pub replaced_classes: IndexMap<ContractAddress, ClassHash>,
     }
     pub struct Tip(pub u64);
     pub enum Transaction {

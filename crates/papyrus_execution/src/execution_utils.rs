@@ -8,7 +8,6 @@ use blockifier::execution::contract_class::{
     RunnableCompiledClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
-use blockifier::state::state_api::StateReader;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use indexmap::IndexMap;
@@ -27,13 +26,7 @@ use thiserror::Error;
 
 use crate::objects::TransactionTrace;
 use crate::state_reader::ExecutionStateReader;
-use crate::{
-    BlockifierError,
-    ExecutableTransactionInput,
-    ExecutionConfig,
-    ExecutionError,
-    ExecutionResult,
-};
+use crate::{ExecutableTransactionInput, ExecutionConfig, ExecutionError, ExecutionResult};
 
 // An error that can occur during the use of the execution utils.
 #[derive(Debug, Error)]
@@ -131,34 +124,20 @@ pub fn induced_state_diff(
 ) -> ExecutionResult<ThinStateDiff> {
     let blockifier_state_diff =
         CommitmentStateDiff::from(transactional_state.to_state_diff()?.state_maps);
-    // Determine which contracts were deployed and which were replaced by comparing their
-    // previous class hash (default value suggests it didn't exist before).
-    let mut deployed_contracts = IndexMap::new();
-    let mut replaced_classes = IndexMap::new();
-    let default_class_hash = ClassHash::default();
-    for (address, class_hash) in blockifier_state_diff.address_to_class_hash.iter() {
-        let prev_class_hash =
-            transactional_state.state.get_class_hash_at(*address).map_err(BlockifierError::new)?;
-        if prev_class_hash == default_class_hash {
-            deployed_contracts.insert(*address, *class_hash);
-        } else {
-            replaced_classes.insert(*address, *class_hash);
-        }
-    }
+
     Ok(ThinStateDiff {
-        deployed_contracts,
+        deployed_contracts: blockifier_state_diff.address_to_class_hash,
         storage_diffs: blockifier_state_diff.storage_updates,
         declared_classes: blockifier_state_diff.class_hash_to_compiled_class_hash,
         deprecated_declared_classes: deprecated_declared_class_hash
             .map_or_else(Vec::new, |class_hash| vec![class_hash]),
         nonces: blockifier_state_diff.address_to_nonce,
-        replaced_classes,
     })
 }
 
 /// Get the storage at the given contract and key in the given state. If there's a given pending
 /// storage diffs, apply them on top of the given state.
-// TODO(shahak) If the structure of storage diffs changes, remove this function and move its code
+// TODO(shahak): If the structure of storage diffs changes, remove this function and move its code
 // into papyrus_rpc.
 pub fn get_storage_at<Mode: TransactionKind>(
     txn: &StorageTxn<'_, Mode>,
