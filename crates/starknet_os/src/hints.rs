@@ -11,5 +11,6 @@ pub mod execution;
 pub mod find_element;
 pub mod kzg;
 pub mod math;
+pub mod os;
 pub mod stateless_compression;
 pub mod types;
