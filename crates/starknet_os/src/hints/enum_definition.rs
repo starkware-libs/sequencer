@@ -117,6 +117,12 @@ use crate::hints::os::{
     set_ap_to_prev_block_hash,
     write_full_output_to_memory,
 };
+use crate::hints::output::{
+    set_compressed_start,
+    set_n_updates_small,
+    set_state_updates_start,
+    set_tree_structure,
+};
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -1015,6 +1021,66 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         set_ap_to_new_block_hash,
         "memory[ap] = to_felt_or_relocatable(os_input.new_block_hash)"
     ),
+    (
+        SetTreeStructure,
+        set_tree_structure,
+        indoc! {r#"from starkware.python.math_utils import div_ceil
+
+    if __serialize_data_availability_create_pages__:
+        onchain_data_start = ids.da_start
+        onchain_data_size = ids.output_ptr - onchain_data_start
+
+        max_page_size = 3800
+        n_pages = div_ceil(onchain_data_size, max_page_size)
+        for i in range(n_pages):
+            start_offset = i * max_page_size
+            output_builtin.add_page(
+                page_id=1 + i,
+                page_start=onchain_data_start + start_offset,
+                page_size=min(onchain_data_size - start_offset, max_page_size),
+            )
+        # Set the tree structure to a root with two children:
+        # * A leaf which represents the main part
+        # * An inner node for the onchain data part (which contains n_pages children).
+        #
+        # This is encoded using the following sequence:
+        output_builtin.add_attribute('gps_fact_topology', [
+            # Push 1 + n_pages pages (all of the pages).
+            1 + n_pages,
+            # Create a parent node for the last n_pages.
+            n_pages,
+            # Don't push additional pages.
+            0,
+            # Take the first page (the main part) and the node that was created (onchain data)
+            # and use them to construct the root of the fact tree.
+            2,
+        ])"#}
+    ),
+    (
+        SetStateUpdatesStart,
+        set_state_updates_start,
+        indoc! {r#"# `use_kzg_da` is used in a hint in `process_data_availability`.
+    use_kzg_da = ids.use_kzg_da
+    if use_kzg_da or ids.compress_state_updates:
+        ids.state_updates_start = segments.add()
+    else:
+        # Assign a temporary segment, to be relocated into the output segment.
+        ids.state_updates_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetCompressedStart,
+        set_compressed_start,
+        indoc! {r#"if use_kzg_da:
+    ids.compressed_start = segments.add()
+else:
+    # Assign a temporary segment, to be relocated into the output segment.
+    ids.compressed_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetNUpdatesSmall,
+        set_n_updates_small,
+        indoc! {r#"ids.is_n_updates_small = ids.n_actual_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
+    )
 );
 
 define_hint_extension_enum!(
