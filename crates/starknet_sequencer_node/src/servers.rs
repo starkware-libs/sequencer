@@ -89,7 +89,8 @@ pub struct SequencerNodeServers {
 /// * `$execution_mode` - Component execution mode reference.
 /// * `$local_client_getter` - Local client getter function, used for the remote server
 ///   initialization if needed.
-/// * `$config` - Remote server configuration.
+/// * `$ip` - Remote component server binding address, default "0.0.0.0".
+/// * `$port` - Remote component server listening port.
 ///
 /// # Returns
 ///
@@ -103,7 +104,8 @@ pub struct SequencerNodeServers {
 /// let batcher_remote_server = create_remote_server!(
 ///     &config.components.batcher.execution_mode,
 ///     || {clients.get_gateway_local_client()},
-///     config.socket
+///     config.components.batcher.ip,
+///    config.components.batcher.port
 /// );
 /// match batcher_remote_server {
 ///     Some(server) => println!("Remote server created: {:?}", server),
@@ -112,13 +114,13 @@ pub struct SequencerNodeServers {
 /// ```
 #[macro_export]
 macro_rules! create_remote_server {
-    ($execution_mode:expr, $local_client_getter:expr, $socket:expr) => {
+    ($execution_mode:expr, $local_client_getter:expr, $url:expr, $port:expr) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client_getter()
                     .expect("Local client should be set for inbound remote connections.");
 
-                Some(Box::new(RemoteComponentServer::new(local_client, $socket.clone())))
+                Some(Box::new(RemoteComponentServer::new(local_client, $url, $port)))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::Remote
@@ -325,37 +327,43 @@ pub fn create_remote_servers(
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
-        config.components.batcher.socket
+        config.components.batcher.ip,
+        config.components.batcher.port
     );
 
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
-        config.components.gateway.socket
+        config.components.gateway.ip,
+        config.components.gateway.port
     );
 
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
-        config.components.l1_provider.socket
+        config.components.l1_provider.ip,
+        config.components.l1_provider.port
     );
 
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
-        config.components.mempool.socket
+        config.components.mempool.ip,
+        config.components.mempool.port
     );
 
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
-        config.components.mempool_p2p.socket
+        config.components.mempool_p2p.ip,
+        config.components.mempool_p2p.port
     );
 
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
-        config.components.state_sync.socket
+        config.components.state_sync.ip,
+        config.components.state_sync.port
     );
 
     RemoteServers {
@@ -477,7 +485,7 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     let mut remote_servers = servers.remote_servers.run().await;
     let mut wrapper_servers = servers.wrapper_servers.run().await;
 
-    // TODO (Lev/Itay): Consider using JoinSet instead of tokio::select!.
+    // TODO(Lev/Itay): Consider using JoinSet instead of tokio::select!.
     let (result, servers_type) = tokio::select! {
         res = local_servers.join_next() => {
             (res, "Local")
