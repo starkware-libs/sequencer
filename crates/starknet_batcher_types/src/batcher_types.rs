@@ -129,7 +129,7 @@ pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RevertBlockInput {
     pub height: BlockNumber,
 }
