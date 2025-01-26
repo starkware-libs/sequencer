@@ -139,7 +139,7 @@ use super::super::state::{
     ContractNonce,
     DeployedContract,
     PendingStateUpdate,
-    ReplacedClasses,
+    ReplacedClass,
     StateUpdate,
     StorageDiff,
     StorageEntry,
@@ -2605,7 +2605,7 @@ async fn get_state_update() {
                     .map(|ContractNonce { contract_address, nonce }| (contract_address, nonce)),
             ),
             replaced_classes: Vec::from_iter(expected_state_diff.replaced_classes.into_iter().map(
-                |ReplacedClasses { contract_address, class_hash }| ClientReplacedClass {
+                |ReplacedClass { contract_address, class_hash }| ClientReplacedClass {
                     address: contract_address,
                     class_hash,
                 },
