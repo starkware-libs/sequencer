@@ -964,6 +964,96 @@
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
+  "state_sync_config.central_sync_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.class_cache_size": {
+    "description": "Size of class cache, must be a positive integer.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.concurrent_requests": {
+    "description": "Maximum number of concurrent requests to Starknet feeder-gateway for getting a type of data (for example, blocks).",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.http_headers": {
+    "description": "'k1:v1 k2:v2 ...' headers for SN-client.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.max_classes_to_download": {
+    "description": "Maximum number of classes to download at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_download": {
+    "description": "Maximum number of state updates to download at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_store_in_memory": {
+    "description": "Maximum number of state updates to store in memory at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.retry_config.max_retries": {
+    "description": "Maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.retry_config.retry_base_millis": {
+    "description": "Base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 30
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.retry_config.retry_max_delay_millis": {
+    "description": "Max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "state_sync_config.central_sync_client_config.central_source_config.starknet_url": {
+    "description": "Starknet feeder-gateway URL. It should match chain_id.",
+    "privacy": "Public",
+    "value": "https://alpha-mainnet.starknet.io/"
+  },
+  "state_sync_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
+    "description": "Time in seconds to poll the base layer to get the latest proved block.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.central_sync_client_config.sync_config.block_propagation_sleep_duration": {
+    "description": "Time in seconds before checking for a new block after the node is synchronized.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "state_sync_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
+    "description": "Max amount of blocks to download in a stream.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.central_sync_client_config.sync_config.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": {
+    "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "state_sync_config.central_sync_client_config.sync_config.state_updates_max_stream_size": {
+    "description": "Max amount of state updates to download in a stream.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.central_sync_client_config.sync_config.verify_blocks": {
+    "description": "Whether to verify incoming blocks.",
+    "privacy": "Public",
+    "value": true
+  },
   "state_sync_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
     "privacy": "Public",
@@ -1038,6 +1128,11 @@
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 12345
+  },
+  "state_sync_config.p2p_sync_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "state_sync_config.p2p_sync_client_config.buffer_size": {
     "description": "Size of the buffer for read from the storage and for incoming responses.",
