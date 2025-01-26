@@ -167,10 +167,10 @@ impl<S: StateReader> TransactionExecutor<S> {
             .os_constants
             .os_contract_addresses
             .alias_contract_address();
-        if self.block_context.versioned_constants.enable_stateful_compression {
-            allocate_aliases_in_storage(block_state, alias_contract_address)?;
-        }
-        let state_diff = block_state.to_state_diff()?.state_maps;
+        let state_diff = match self.block_context.versioned_constants.enable_stateful_compression {
+            true => allocate_aliases_in_storage(block_state, alias_contract_address)?,
+            false => block_state.to_state_diff()?.state_maps,
+        };
         let compressed_state_diff =
             if self.block_context.versioned_constants.enable_stateful_compression {
                 Some(compress(&state_diff, block_state, alias_contract_address)?.into())

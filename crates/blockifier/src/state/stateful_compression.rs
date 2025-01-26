@@ -49,7 +49,7 @@ pub const MIN_VALUE_FOR_ALIAS_ALLOC: PatriciaKey =
 pub fn allocate_aliases_in_storage<S: StateReader>(
     state: &mut CachedState<S>,
     alias_contract_address: ContractAddress,
-) -> StateResult<()> {
+) -> StateResult<StateMaps> {
     let state_diff = state.to_state_diff()?.state_maps;
 
     // Collect the contract addresses and the storage keys that need aliases.
@@ -76,7 +76,9 @@ pub fn allocate_aliases_in_storage<S: StateReader>(
         alias_updater.insert_alias(&StorageKey(contract_address.0))?;
     }
 
-    alias_updater.finalize_updates()
+    alias_updater.finalize_updates()?;
+
+    Ok(state.to_state_diff()?.state_maps)
 }
 
 /// Updates the alias contract with the new keys.
