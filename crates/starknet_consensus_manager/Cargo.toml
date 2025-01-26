@@ -24,3 +24,7 @@ starknet_state_sync_types.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+starknet_batcher_types = { path = "../starknet_batcher_types", features = ["testing"] }
