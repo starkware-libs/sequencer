@@ -70,7 +70,7 @@ pub fn create_chain_info() -> ChainInfo {
 
 // TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
 #[allow(clippy::too_many_arguments)]
-pub async fn create_node_config(
+pub fn create_node_config(
     available_ports: &mut AvailablePorts,
     node_execution_id: NodeExecutionId,
     chain_info: ChainInfo,
@@ -78,6 +78,7 @@ pub async fn create_node_config(
     state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
+    monitoring_endpoint_config: MonitoringEndpointConfig,
     component_config: ComponentConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
     let validator_id =
@@ -88,8 +89,6 @@ pub async fn create_node_config(
     let gateway_config = create_gateway_config(chain_info.clone());
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let monitoring_endpoint_config =
-        MonitoringEndpointConfig { port: available_ports.get_next_port(), ..Default::default() };
 
     (
         SequencerNodeConfig {

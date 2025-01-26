@@ -16,7 +16,7 @@ pub struct MonitoringEndpointConfig {
 
 impl Default for MonitoringEndpointConfig {
     fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8082, collect_metrics: false }
+        Self { ip: "0.0.0.0".parse().unwrap(), port: 8082, collect_metrics: true }
     }
 }
 

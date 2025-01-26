@@ -158,6 +158,15 @@ impl FlowSequencerSetup {
 
         state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
+        // Explicitly avoid collect metrics in the monitoring endpoint; metrics are collected using
+        // a global recorder, which fails when being set multiple times in the same process, as in
+        // this test.
+        let monitoring_endpoint_config = MonitoringEndpointConfig {
+            port: available_ports.get_next_port(),
+            collect_metrics: false,
+            ..Default::default()
+        };
+
         // Derive the configuration for the sequencer node.
         let (node_config, _required_params) = create_node_config(
             &mut available_ports,
@@ -167,9 +176,9 @@ impl FlowSequencerSetup {
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
+            monitoring_endpoint_config,
             component_config,
-        )
-        .await;
+        );
 
         debug!("Sequencer config: {:#?}", node_config);
         let (_clients, servers) = create_node_modules(&node_config);
