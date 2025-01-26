@@ -111,6 +111,9 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
 
+      - name: "test ssl version"
+        run: openssl version
+
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
         id: setup-pypy
