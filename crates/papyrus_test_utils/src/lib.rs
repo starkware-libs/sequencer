@@ -87,10 +87,10 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
-    DeployAccountTransactionV3WithAddress,
     EntryPointByType as RpcEntryPointByType,
     EntryPointByType,
     InternalRpcDeclareTransactionV3,
+    InternalRpcDeployAccountTransaction,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
@@ -760,7 +760,7 @@ auto_impl_get_test_instance! {
     }
     pub enum InternalRpcTransactionWithoutTxHash {
         Declare(InternalRpcDeclareTransactionV3) = 0,
-        DeployAccount(DeployAccountTransactionV3WithAddress) = 1,
+        DeployAccount(InternalRpcDeployAccountTransaction) = 1,
         Invoke(RpcInvokeTransaction) = 2,
     }
     pub struct InternalRpcDeclareTransactionV3 {
@@ -776,7 +776,7 @@ auto_impl_get_test_instance! {
         pub nonce_data_availability_mode: DataAvailabilityMode,
         pub fee_data_availability_mode: DataAvailabilityMode,
     }
-    pub struct DeployAccountTransactionV3WithAddress {
+    pub struct InternalRpcDeployAccountTransaction {
         pub tx: RpcDeployAccountTransaction,
         pub contract_address: ContractAddress,
     }

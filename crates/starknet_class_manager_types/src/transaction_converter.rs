@@ -6,8 +6,8 @@ use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
-    DeployAccountTransactionV3WithAddress,
     InternalRpcDeclareTransactionV3,
+    InternalRpcDeployAccountTransaction,
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
@@ -128,7 +128,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 })))
             }
             InternalRpcTransactionWithoutTxHash::DeployAccount(
-                DeployAccountTransactionV3WithAddress { tx, .. },
+                InternalRpcDeployAccountTransaction { tx, .. },
             ) => Ok(RpcTransaction::DeployAccount(tx)),
         }
     }
@@ -163,7 +163,7 @@ impl TransactionConverterTrait for TransactionConverter {
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
                 let contract_address = tx.calculate_contract_address()?;
                 InternalRpcTransactionWithoutTxHash::DeployAccount(
-                    DeployAccountTransactionV3WithAddress {
+                    InternalRpcDeployAccountTransaction {
                         tx: RpcDeployAccountTransaction::V3(tx),
                         contract_address,
                     },
@@ -201,7 +201,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 }))
             }
             InternalRpcTransactionWithoutTxHash::DeployAccount(
-                DeployAccountTransactionV3WithAddress { tx, contract_address },
+                InternalRpcDeployAccountTransaction { tx, contract_address },
             ) => Ok(AccountTransaction::DeployAccount(
                 executable_transaction::DeployAccountTransaction {
                     tx: tx.into(),
