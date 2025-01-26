@@ -6,11 +6,16 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait.workspace = true
+mockall.workspace = true
+papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 validator.workspace = true
 
 [lints]

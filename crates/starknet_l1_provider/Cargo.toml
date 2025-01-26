@@ -12,6 +12,7 @@ testing = ["itertools", "pretty_assertions"]
 async-trait.workspace = true
 indexmap.workspace = true
 itertools = { workspace = true, optional = true }
+mockall.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
 pretty_assertions = { workspace = true, optional = true }

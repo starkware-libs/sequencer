@@ -19,7 +19,7 @@ pub mod l1_gas_price_provider_tests;
 // This is an interface that allows sharing the provider with the scraper across threads.
 pub trait L1GasPriceProviderClient: Send + Sync {
     fn add_price_info(
-        &self,
+        &mut self,
         height: BlockNumber,
         timestamp: BlockTimestamp,
         gas_price: u128,
