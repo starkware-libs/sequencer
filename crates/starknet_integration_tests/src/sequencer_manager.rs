@@ -209,13 +209,17 @@ impl IntegrationTestManager {
         &mut self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         n_txs: usize,
+        offset: usize,
         sender_account: AccountId,
         expected_block_number: BlockNumber,
     ) {
         self.run_integration_test_simulator(tx_generator, n_txs, sender_account).await;
         self.await_execution(expected_block_number).await;
-        self.verify_results(tx_generator.account_with_id(sender_account).sender_address(), n_txs)
-            .await;
+        self.verify_results(
+            tx_generator.account_with_id(sender_account).sender_address(),
+            n_txs + offset,
+        )
+        .await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
