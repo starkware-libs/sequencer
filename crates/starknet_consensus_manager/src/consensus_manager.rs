@@ -19,7 +19,7 @@ use tracing::{error, info};
 use crate::config::ConsensusManagerConfig;
 
 // TODO(Dan, Guy): move to config.
-pub const BROADCAST_BUFFER_SIZE: usize = 100;
+pub const BROADCAST_BUFFER_SIZE: usize = 10000;
 pub const CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
 pub const CONSENSUS_VOTES_TOPIC: &str = "consensus_votes";
 
