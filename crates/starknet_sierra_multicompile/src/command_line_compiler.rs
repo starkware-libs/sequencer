@@ -82,16 +82,6 @@ impl SierraToNativeCompiler for CommandLineCompiler {
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
         let additional_args = [output_file_path];
-        let mut env_vars = vec![];
-        // Overrides the cairo native runtime library environment variable defined in config.toml.
-        if let Some(path) = &self.config.libcairo_native_runtime_path {
-            env_vars.push((
-                "CAIRO_NATIVE_RUNTIME_LIBRARY",
-                path.to_str()
-                    .expect("Failed to convert cairo native runtime library path to string"),
-            ));
-        };
-
         let resource_limits = ResourceLimits::new(
             Some(self.config.max_cpu_time),
             Some(self.config.max_native_bytecode_size),
@@ -101,7 +91,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
             compiler_binary_path,
             contract_class,
             &additional_args,
-            env_vars,
+            vec![],
             resource_limits,
         )?;
 

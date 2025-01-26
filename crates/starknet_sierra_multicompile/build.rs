@@ -43,12 +43,6 @@ fn install_starknet_native_compile() {
     let repo_root_dir =
         starknet_infra_utils::path::project_path().expect("Should be able to get the project path");
 
-    // Set the runtime library path. This is required for Cairo native compilation.
-    let runtime_library_path = repo_root_dir
-        .join("crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a");
-    println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
-    println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
-
     let starknet_native_compile_crate_path = repo_root_dir.join("crates/bin").join(binary_name);
     let starknet_native_compile_crate_path_str = starknet_native_compile_crate_path
         .to_str()

@@ -7,10 +7,6 @@ function clean() {
     rm -rf venv || true
 }
 
-function init_submodule() {
-    echo "Initializing submodule..."
-    git submodule update --init --recursive
-}
 
 function build() {
     echo "Building..."
@@ -20,5 +16,4 @@ function build() {
     clean
 }
 
-init_submodule &&
 build
