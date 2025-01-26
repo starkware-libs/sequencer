@@ -49,42 +49,6 @@ pub struct ThinStateDiff {
     pub replaced_classes: Vec<ReplacedClasses>,
 }
 
-impl From<starknet_api_ThinStateDiff> for ThinStateDiff {
-    fn from(diff: starknet_api_ThinStateDiff) -> Self {
-        Self {
-            deployed_contracts: Vec::from_iter(
-                diff.deployed_contracts
-                    .into_iter()
-                    .map(|(address, class_hash)| DeployedContract { address, class_hash }),
-            ),
-            storage_diffs: Vec::from_iter(diff.storage_diffs.into_iter().map(
-                |(address, entries)| {
-                    let storage_entries = Vec::from_iter(
-                        entries.into_iter().map(|(key, value)| StorageEntry { key, value }),
-                    );
-                    StorageDiff { address, storage_entries }
-                },
-            )),
-            declared_classes: diff
-                .declared_classes
-                .into_iter()
-                .map(|(class_hash, compiled_class_hash)| ClassHashes {
-                    class_hash,
-                    compiled_class_hash,
-                })
-                .collect(),
-            deprecated_declared_classes: diff.deprecated_declared_classes,
-            nonces: Vec::from_iter(
-                diff.nonces
-                    .into_iter()
-                    .map(|(contract_address, nonce)| ContractNonce { contract_address, nonce }),
-            ),
-            // TODO(AlonH): Get replaced classes.
-            replaced_classes: Vec::new(),
-        }
-    }
-}
-
 impl From<ClientStateDiff> for ThinStateDiff {
     fn from(diff: ClientStateDiff) -> Self {
         Self {
@@ -141,6 +105,44 @@ impl ThinStateDiff {
             contract_storage_diffs
                 .storage_entries
                 .sort_unstable_by_key(|storage_entry| storage_entry.key);
+        }
+    }
+
+    pub fn from(
+        diff: starknet_api_ThinStateDiff,
+        replaced_classes: Vec<(ContractAddress, ClassHash)>,
+    ) -> Self {
+        Self {
+            deployed_contracts: Vec::from_iter(
+                diff.deployed_contracts
+                    .into_iter()
+                    .map(|(address, class_hash)| DeployedContract { address, class_hash }),
+            ),
+            storage_diffs: Vec::from_iter(diff.storage_diffs.into_iter().map(
+                |(address, entries)| {
+                    let storage_entries = Vec::from_iter(
+                        entries.into_iter().map(|(key, value)| StorageEntry { key, value }),
+                    );
+                    StorageDiff { address, storage_entries }
+                },
+            )),
+            declared_classes: diff
+                .declared_classes
+                .into_iter()
+                .map(|(class_hash, compiled_class_hash)| ClassHashes {
+                    class_hash,
+                    compiled_class_hash,
+                })
+                .collect(),
+            deprecated_declared_classes: diff.deprecated_declared_classes,
+            nonces: Vec::from_iter(
+                diff.nonces
+                    .into_iter()
+                    .map(|(contract_address, nonce)| ContractNonce { contract_address, nonce }),
+            ),
+            replaced_classes: Vec::from_iter(replaced_classes.into_iter().map(
+                |(contract_address, class_hash)| ReplacedClasses { contract_address, class_hash },
+            )),
         }
     }
 }

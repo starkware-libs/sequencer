@@ -12,7 +12,6 @@ use papyrus_execution::objects::{
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::state::ThinStateDiff as StarknetApiThinStateDiff;
 
 use super::state::ThinStateDiff;
 use super::transaction::{ComputationResources, ExecutionResources};
@@ -130,9 +129,8 @@ pub struct FunctionInvocation {
     pub execution_resources: ComputationResources,
 }
 
-impl From<(ExecutionTransactionTrace, StarknetApiThinStateDiff)> for TransactionTrace {
-    fn from((trace, state_diff): (ExecutionTransactionTrace, StarknetApiThinStateDiff)) -> Self {
-        let mut state_diff = ThinStateDiff::from(state_diff);
+impl From<(ExecutionTransactionTrace, ThinStateDiff)> for TransactionTrace {
+    fn from((trace, mut state_diff): (ExecutionTransactionTrace, ThinStateDiff)) -> Self {
         // TODO(Shahak): Investigate why blockifier sometimes returns unsorted state diff
         state_diff.sort();
         match trace {
