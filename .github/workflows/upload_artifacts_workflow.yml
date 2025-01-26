@@ -132,10 +132,3 @@ jobs:
         with:
           path: "target/release/shared_executables/starknet-native-compile"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
-
-      - name: Upload libcairo_native_runtime.a to GCP
-        id: upload_lnr_file
-        uses: "google-github-actions/upload-cloud-storage@v2"
-        with:
-          path: "crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a"
-          destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
