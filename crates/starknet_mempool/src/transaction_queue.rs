@@ -49,7 +49,10 @@ impl TransactionQueue {
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
         );
+        self.insert_tx_reference(tx_reference);
+    }
 
+    fn insert_tx_reference(&mut self, tx_reference: TransactionReference) {
         let new_tx_successfully_inserted =
             if tx_reference.max_l2_gas_price < self.gas_price_threshold {
                 self.pending_queue.insert(tx_reference.into())
