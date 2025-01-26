@@ -277,25 +277,8 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         add_query(StorageQuery::GetNonceAt(state_number, *address));
 
         // State diff updates are indexed by the block_number at which they occurred.
-        let first_irrelevant_block: BlockNumber = state_number.block_after();
-        // The relevant update is the last update strictly before `first_irrelevant_block`.
-        let db_key = (*address, first_irrelevant_block);
-        // Find the previous db item.
-        let mut cursor = self.nonces_table.cursor(self.txn)?;
-        cursor.lower_bound(&db_key)?;
-        let res = cursor.prev()?;
-        match res {
-            None => Ok(None),
-            Some(((got_address, _got_block_number), value)) => {
-                if got_address != *address {
-                    // The previous item belongs to different address, which means there is no
-                    // previous state diff for this item.
-                    return Ok(None);
-                };
-                // The previous db item indeed belongs to this address and key.
-                Ok(Some(value))
-            }
-        }
+        let block_number: BlockNumber = state_number.block_after();
+        get_nonce_at(block_number, address, self.txn, &self.nonces_table)
     }
 
     /// Returns the storage value at a given state number for a given contract and key.
@@ -446,7 +429,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             block_number,
             &deployed_contracts_table,
             &nonces_table,
-            &thin_state_diff.nonces,
         )?;
         write_storage_diffs(
             &thin_state_diff.storage_diffs,
@@ -454,13 +436,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             block_number,
             &storage_table,
         )?;
+        // Must be called after write_deployed_contracts since the nonces are updated there.
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
-        write_replaced_classes(
-            &thin_state_diff.replaced_classes,
-            &self.txn,
-            block_number,
-            &deployed_contracts_table,
-        )?;
 
         // We don't store the deprecated declared classes' block number.
         for (class_hash, _) in &thin_state_diff.declared_classes {
@@ -559,12 +536,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         delete_storage_diffs(&self.txn, block_number, &thin_state_diff, &storage_table)?;
         delete_nonces(&self.txn, block_number, &thin_state_diff, &nonces_table)?;
         state_diffs_table.delete(&self.txn, &block_number)?;
-        delete_replaced_classes(
-            &self.txn,
-            block_number,
-            &thin_state_diff,
-            &deployed_contracts_table,
-        )?;
 
         Ok((
             self,
@@ -638,16 +609,14 @@ fn write_deployed_contracts<'env>(
     block_number: BlockNumber,
     deployed_contracts_table: &'env DeployedContractsTable<'env>,
     nonces_table: &'env NoncesTable<'env>,
-    nonces_diffs: &IndexMap<ContractAddress, Nonce>,
 ) -> StorageResult<()> {
     for (address, class_hash) in deployed_contracts {
         deployed_contracts_table.insert(txn, &(*address, block_number), class_hash)?;
 
-        // In old blocks, there is no nonce diff, so we must add the default value if the diff is
-        // not specified.
-        // TODO(DvirYo): check what happens in case of a contract that was deployed and its nonce is
-        // still zero (does it in the nonce diff?).
-        if !nonces_diffs.contains_key(address) {
+        // In old blocks, there is no nonce diff, so we must add the default value for newly
+        // deployed contracts. Replaced classes will already have a nonce and thus won't enter this
+        // condition.
+        if get_nonce_at(block_number, address, txn, nonces_table)?.is_none() {
             nonces_table.append_greater_sub_key(
                 txn,
                 &(*address, block_number),
@@ -667,19 +636,6 @@ fn write_nonces<'env>(
 ) -> StorageResult<()> {
     for (contract_address, nonce) in nonces {
         contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
-    }
-    Ok(())
-}
-
-#[latency_histogram("storage_write_replaced_classes_latency_seconds", true)]
-fn write_replaced_classes<'env>(
-    replaced_classes: &IndexMap<ContractAddress, ClassHash>,
-    txn: &DbTransaction<'env, RW>,
-    block_number: BlockNumber,
-    deployed_contracts_table: &'env DeployedContractsTable<'env>,
-) -> StorageResult<()> {
-    for (contract_address, class_hash) in replaced_classes {
-        deployed_contracts_table.insert(txn, &(*contract_address, block_number), class_hash)?;
     }
     Ok(())
 }
@@ -794,7 +750,11 @@ fn delete_deployed_contracts<'env>(
 ) -> StorageResult<()> {
     for contract_address in thin_state_diff.deployed_contracts.keys() {
         deployed_contracts_table.delete(txn, &(*contract_address, block_number))?;
-        nonces_table.delete(txn, &(*contract_address, block_number))?;
+        // Delete the nonce if the contract was deployed in this block (i.e didn't have a nonce in
+        // the previous block).
+        if get_nonce_at(block_number, contract_address, txn, nonces_table)?.is_none() {
+            nonces_table.delete(txn, &(*contract_address, block_number))?;
+        }
     }
     Ok(())
 }
@@ -827,14 +787,28 @@ fn delete_nonces<'env>(
     Ok(())
 }
 
-fn delete_replaced_classes<'env>(
-    txn: &'env DbTransaction<'env, RW>,
-    block_number: BlockNumber,
-    thin_state_diff: &ThinStateDiff,
-    deployed_contracts_table: &'env DeployedContractsTable<'env>,
-) -> StorageResult<()> {
-    for contract_address in thin_state_diff.replaced_classes.keys() {
-        deployed_contracts_table.delete(txn, &(*contract_address, block_number))?;
+fn get_nonce_at<'env, Mode: TransactionKind>(
+    first_irrelevant_block: BlockNumber,
+    address: &ContractAddress,
+    txn: &'env DbTransaction<'env, Mode>,
+    nonces_table: &'env NoncesTable<'env>,
+) -> StorageResult<Option<Nonce>> {
+    // The relevant update is the last update strictly before `first_irrelevant_block`.
+    let db_key = (*address, first_irrelevant_block);
+    // Find the previous db item.
+    let mut cursor = nonces_table.cursor(txn)?;
+    cursor.lower_bound(&db_key)?;
+    let res = cursor.prev()?;
+    match res {
+        None => Ok(None),
+        Some(((got_address, _got_block_number), value)) => {
+            if got_address != *address {
+                // The previous item belongs to different address, which means there is no
+                // previous state diff for this item.
+                return Ok(None);
+            };
+            // The previous db item indeed belongs to this address and key.
+            Ok(Some(value))
+        }
     }
-    Ok(())
 }

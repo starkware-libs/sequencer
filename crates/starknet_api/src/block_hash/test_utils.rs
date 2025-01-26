@@ -45,6 +45,7 @@ pub(crate) fn get_state_diff() -> ThinStateDiff {
         deployed_contracts: indexmap! {
             0u64.into() => ClassHash(1u64.into()),
             2u64.into() => ClassHash(3u64.into()),
+            19u64.into() => ClassHash(20u64.into()),
         },
         storage_diffs: indexmap! {
             4u64.into() => indexmap! {
@@ -62,9 +63,6 @@ pub(crate) fn get_state_diff() -> ThinStateDiff {
         deprecated_declared_classes: vec![ClassHash(16u64.into())],
         nonces: indexmap! {
             17u64.into() => Nonce(18u64.into()),
-        },
-        replaced_classes: indexmap! {
-            19u64.into() => ClassHash(20u64.into()),
         },
     }
 }

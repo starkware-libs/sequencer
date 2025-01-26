@@ -376,16 +376,11 @@ pub fn split_thin_state_diff(thin_state_diff: ThinStateDiff) -> Vec<StateDiffChu
         thin_state_diff
             .deployed_contracts
             .keys()
-            .chain(thin_state_diff.replaced_classes.keys())
             .chain(thin_state_diff.nonces.keys())
             .chain(thin_state_diff.storage_diffs.keys()),
     );
     for contract_address in contract_addresses {
-        let class_hash = thin_state_diff
-            .deployed_contracts
-            .get(&contract_address)
-            .or_else(|| thin_state_diff.replaced_classes.get(&contract_address))
-            .cloned();
+        let class_hash = thin_state_diff.deployed_contracts.get(&contract_address).cloned();
         let storage_diffs =
             thin_state_diff.storage_diffs.get(&contract_address).cloned().unwrap_or_default();
         let nonce = thin_state_diff.nonces.get(&contract_address).cloned();

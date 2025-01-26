@@ -12,7 +12,7 @@ use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use pyo3::prelude::*;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateDiff, StateNumber, ThinStateDiff};
@@ -31,7 +31,8 @@ pub type RawDeprecatedDeclaredClassMapping = HashMap<PyFelt, String>;
 
 // Invariant: Only one instance of this struct should exist.
 // Reader and writer fields must be cleared before the struct goes out of scope in Python;
-// to prevent possible memory leaks (TODO(Dori): see if this is indeed necessary).
+// to prevent possible memory leaks
+// TODO(Dori): see if this is indeed necessary.
 pub struct PapyrusStorage {
     reader: Option<papyrus_storage::StorageReader>,
     writer: Option<papyrus_storage::StorageWriter>,
@@ -151,27 +152,6 @@ impl Storage for PapyrusStorage {
             }
         }
 
-        // Collect replaced classes (changed class hash of an already allocated address;
-        // i.e.: pointing to a non-zeroed class hash). Rest would be (newly) deployed classes.
-        let mut replaced_classes = IndexMap::<ContractAddress, ClassHash>::new();
-        for (address, class_hash) in &py_state_diff.address_to_class_hash {
-            let address = ContractAddress::try_from(address.0)?;
-            let address_assigned: bool = self
-                .reader()
-                .begin_ro_txn()?
-                .get_state_reader()?
-                .get_class_hash_at(state_number, &address)?
-                .is_some();
-
-            if address_assigned {
-                replaced_classes.insert(address, ClassHash(class_hash.0));
-            }
-        }
-        let mut py_state_diff = py_state_diff;
-        replaced_classes.keys().for_each(|&address| {
-            py_state_diff.address_to_class_hash.remove(&address.into());
-        });
-
         let mut declared_classes =
             IndexMap::<ClassHash, (CompiledClassHash, SierraContractClass)>::new();
         let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
@@ -206,7 +186,6 @@ impl Storage for PapyrusStorage {
         let mut state_diff = StateDiff::try_from(py_state_diff)?;
         state_diff.deprecated_declared_classes = deprecated_declared_classes;
         state_diff.declared_classes = declared_classes;
-        state_diff.replaced_classes = replaced_classes;
 
         let (thin_state_diff, declared_classes, deprecated_declared_classes) =
             ThinStateDiff::from_state_diff(state_diff);

@@ -124,11 +124,8 @@ impl From<(ThinStateDiff, CentralBlockInfo)> for CentralStateDiff {
             "Deprecated classes are not supported"
         );
 
-        let mut address_to_class_hash = state_diff.deployed_contracts;
-        address_to_class_hash.extend(state_diff.replaced_classes);
-
         CentralStateDiff {
-            address_to_class_hash,
+            address_to_class_hash: state_diff.deployed_contracts,
             nonces: indexmap!(DataAvailabilityMode::L1=> state_diff.nonces),
             storage_updates: indexmap!(DataAvailabilityMode::L1=> state_diff.storage_diffs),
             declared_classes: state_diff.declared_classes,

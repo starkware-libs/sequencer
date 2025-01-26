@@ -106,7 +106,6 @@ impl BlockExecutionArtifacts {
             nonces,
             // TODO(AlonH): Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
-            replaced_classes: IndexMap::new(),
         }
     }
 

@@ -79,9 +79,8 @@ impl From<starknet_api_ThinStateDiff> for ThinStateDiff {
                     .into_iter()
                     .map(|(contract_address, nonce)| ContractNonce { contract_address, nonce }),
             ),
-            replaced_classes: Vec::from_iter(diff.replaced_classes.into_iter().map(
-                |(contract_address, class_hash)| ReplacedClasses { contract_address, class_hash },
-            )),
+            // TODO(AlonH): Get replaced classes.
+            replaced_classes: Vec::new(),
         }
     }
 }
