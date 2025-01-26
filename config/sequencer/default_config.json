@@ -809,6 +809,16 @@
     "privacy": "Public",
     "value": 1
   },
+  "consensus_manager_config.first_block_to_revert": {
+    "description": "The block number from which start to revert the batcher blocks. Be careful with this to prevent significant revert operations and data loss.",
+    "privacy": "Private",
+    "value": 18446744073709551615
+  },
+  "consensus_manager_config.first_block_to_revert.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
     "param_type": "String",
