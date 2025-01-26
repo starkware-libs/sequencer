@@ -3,15 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::contract_class::{ClassInfo, ContractClass};
 use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::rpc_transaction::{
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
-};
+use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction};
 use crate::transaction::fields::{
     AccountDeploymentData,
-    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
@@ -93,51 +87,6 @@ impl AccountTransaction {
             AccountTransaction::Declare(tx_data) => tx_data.tx_hash,
             AccountTransaction::DeployAccount(tx_data) => tx_data.tx_hash,
             AccountTransaction::Invoke(tx_data) => tx_data.tx_hash,
-        }
-    }
-}
-
-// TODO(AlonLukatch): add a converter for Declare transactions as well.
-impl From<InvokeTransaction> for RpcInvokeTransactionV3 {
-    fn from(tx: InvokeTransaction) -> Self {
-        Self {
-            sender_address: tx.sender_address(),
-            tip: tx.tip(),
-            nonce: tx.nonce(),
-            resource_bounds: match tx.resource_bounds() {
-                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
-                ValidResourceBounds::L1Gas(l1_gas) => {
-                    AllResourceBounds { l1_gas, ..Default::default() }
-                }
-            },
-            signature: tx.signature(),
-            calldata: tx.calldata(),
-            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
-            fee_data_availability_mode: tx.fee_data_availability_mode(),
-            paymaster_data: tx.paymaster_data(),
-            account_deployment_data: tx.account_deployment_data(),
-        }
-    }
-}
-
-impl From<DeployAccountTransaction> for RpcDeployAccountTransactionV3 {
-    fn from(tx: DeployAccountTransaction) -> Self {
-        Self {
-            class_hash: tx.class_hash(),
-            constructor_calldata: tx.constructor_calldata(),
-            contract_address_salt: tx.contract_address_salt(),
-            nonce: tx.nonce(),
-            signature: tx.signature(),
-            resource_bounds: match tx.resource_bounds() {
-                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
-                ValidResourceBounds::L1Gas(l1_gas) => {
-                    AllResourceBounds { l1_gas, ..Default::default() }
-                }
-            },
-            tip: tx.tip(),
-            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
-            fee_data_availability_mode: tx.fee_data_availability_mode(),
-            paymaster_data: tx.paymaster_data(),
         }
     }
 }
