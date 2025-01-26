@@ -50,7 +50,7 @@ pub enum RpcTransaction {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct DeployAccountTransactionV3WithAddress {
+pub struct InternalRpcDeployAccountTransaction {
     pub tx: RpcDeployAccountTransaction,
     pub contract_address: ContractAddress,
 }
@@ -62,7 +62,7 @@ pub enum InternalRpcTransactionWithoutTxHash {
     #[serde(rename = "DECLARE")]
     Declare(InternalRpcDeclareTransactionV3),
     #[serde(rename = "DEPLOY_ACCOUNT")]
-    DeployAccount(DeployAccountTransactionV3WithAddress),
+    DeployAccount(InternalRpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
     Invoke(RpcInvokeTransaction),
 }
