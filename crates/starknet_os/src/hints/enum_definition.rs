@@ -109,6 +109,7 @@ use crate::hints::execution::{
     write_syscall_result_deprecated,
 };
 use crate::hints::find_element::search_sorted_optimistic;
+use crate::hints::kzg::store_da_segment;
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -957,6 +958,27 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     else:
         ids.index = n_elms
         ids.exists = 0"#}
+    ),
+    (
+        StoreDaSegment,
+        store_da_segment,
+        indoc! {r#"import itertools
+
+    from starkware.python.utils import blockify
+
+    kzg_manager.store_da_segment(
+        da_segment=memory.get_range_as_ints(addr=ids.state_updates_start, size=ids.da_size)
+    )
+    kzg_commitments = [
+        kzg_manager.polynomial_coefficients_to_kzg_commitment_callback(chunk)
+        for chunk in blockify(kzg_manager.da_segment, chunk_size=ids.BLOB_LENGTH)
+    ]
+
+    ids.n_blobs = len(kzg_commitments)
+    ids.kzg_commitments = segments.add_temp_segment()
+    ids.evals = segments.add_temp_segment()
+
+    segments.write_arg(ids.kzg_commitments.address_, list(itertools.chain(*kzg_commitments)))"#}
     )
 );
 
