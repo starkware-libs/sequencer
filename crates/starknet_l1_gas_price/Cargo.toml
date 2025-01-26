@@ -7,10 +7,21 @@ license.workspace = true
 
 [dependencies]
 papyrus_base_layer.workspace = true
+papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
 validator.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+papyrus_base_layer = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
+
+[features]
+testing = []
