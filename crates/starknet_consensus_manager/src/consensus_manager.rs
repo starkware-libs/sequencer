@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "consensus_manager_test.rs"]
+mod consensus_manager_test;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -5,6 +9,7 @@ use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
+use starknet_batcher_types::batcher_types::RevertBlockInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_consensus::stream_handler::StreamHandler;
 use starknet_consensus::types::ConsensusError;
@@ -40,6 +45,8 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        self.revert_batcher_blocks_if_needed().await;
+
         let mut network_manager =
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
 
@@ -116,6 +123,62 @@ impl ConsensusManager {
                 panic!("Consensus' stream handler task finished unexpectedly: {:?}", stream_handler_result);
             }
         }
+    }
+
+    // Performs reverts to the batcher if needed.
+    async fn revert_batcher_blocks_if_needed(&self) {
+        let Some(first_block_to_revert) = self.config.first_block_to_revert else {
+            return;
+        };
+        // If we revert all blocks from height X (including), the new height marker will be X.
+        let target_batcher_height_marker = first_block_to_revert;
+
+        let mut batcher_height_marker = self
+            .batcher_client
+            .get_height()
+            .await
+            .expect("Failed to get height from batcher")
+            .height;
+
+        if batcher_height_marker <= target_batcher_height_marker {
+            panic!(
+                "Batcher height marker {batcher_height_marker} is not larger than the target \
+                 height marker {target_batcher_height_marker}. No reverts are needed."
+            );
+        }
+
+        info!(
+            "Reverting batcher from block marker {batcher_height_marker} to block marker \
+             {target_batcher_height_marker}"
+        );
+
+        while batcher_height_marker > target_batcher_height_marker {
+            let batcher_height = batcher_height_marker.prev().expect(
+                "Failed to get the height of the batcher based on the height marker. The current \
+                 height marker can't be zero because a check that it is larger than the \
+                 `target_height_marker`.",
+            );
+
+            info!("Reverting batcher block at height {batcher_height}.");
+
+            self.batcher_client
+                .revert_block(RevertBlockInput { height: batcher_height })
+                .await
+                .unwrap_or_else(|_| {
+                    panic!("Failed to revert block at height {batcher_height} in the batcher")
+                });
+
+            batcher_height_marker = batcher_height;
+        }
+
+        info!("Done reverting batcher to block marker {target_batcher_height_marker}!!!");
+        info!("Start eternal loop!!!");
+        std::future::pending::<()>().await;
+
+        unreachable!(
+            "In case reverts to the batcher are needed, after the reverts are done, the consensus
+              manager should start an eternal loop."
+        );
     }
 }
 
