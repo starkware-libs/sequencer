@@ -2532,7 +2532,7 @@ async fn get_state_update() {
         .unwrap();
 
     let expected_old_root = parent_header.block_header_without_hash.state_root;
-    let expected_state_diff = ThinStateDiff::from(diff);
+    let expected_state_diff = ThinStateDiff::from((diff, vec![]));
     let expected_update = StateUpdate::AcceptedStateUpdate(AcceptedStateUpdate {
         block_hash: header.block_hash,
         new_root: header.block_header_without_hash.state_root,
@@ -2659,6 +2659,90 @@ async fn get_state_update() {
 }
 
 #[tokio::test]
+async fn get_state_update_with_replaced_class() {
+    let method_name = "starknet_V0_8_getStateUpdate";
+    let pending_data = get_test_pending_data();
+    let (module, mut storage_writer) = get_test_rpc_server_and_storage_writer_from_params::<
+        JsonRpcServerImpl,
+    >(None, None, Some(pending_data.clone()), None, None);
+    let parent_header = BlockHeader::default();
+    let expected_pending_old_root = GlobalRoot(felt!("0x1234"));
+    let header = BlockHeader {
+        block_hash: BlockHash(felt!("0x1")),
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: BlockNumber(1),
+            parent_hash: parent_header.block_hash,
+            state_root: expected_pending_old_root,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let contract_address_0 = contract_address!("0x1234");
+    let contract_address_1 = contract_address!("0x5678");
+    let class_hash_0 = class_hash!("0x12");
+    let class_hash_1 = class_hash!("0x34");
+    let class_hash_2 = class_hash!("0x56");
+    let diff_0 = starknet_api::state::ThinStateDiff {
+        deployed_contracts: indexmap! {
+            contract_address_0 => class_hash_0,
+        },
+        ..Default::default()
+    };
+    let diff_1 = starknet_api::state::ThinStateDiff {
+        deployed_contracts: indexmap! {
+            contract_address_0 => class_hash_2,
+            contract_address_1 => class_hash_1,
+        },
+        ..Default::default()
+    };
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(parent_header.block_header_without_hash.block_number, &parent_header)
+        .unwrap()
+        .append_state_diff(
+            parent_header.block_header_without_hash.block_number,
+            diff_0,
+        )
+        .unwrap()
+        .append_header(header.block_header_without_hash.block_number, &header)
+        .unwrap()
+        .append_state_diff(header.block_header_without_hash.block_number, diff_1.clone())
+        .unwrap()
+        // No need to write the class definitions
+        .commit()
+        .unwrap();
+
+    let expected_old_root = parent_header.block_header_without_hash.state_root;
+    let expected_state_diff = ThinStateDiff::from((
+        starknet_api::state::ThinStateDiff {
+            deployed_contracts: indexmap! {
+                contract_address_1 => class_hash_1,
+            },
+            ..Default::default()
+        },
+        vec![(contract_address_0, class_hash_2)],
+    ));
+    let expected_update = StateUpdate::AcceptedStateUpdate(AcceptedStateUpdate {
+        block_hash: header.block_hash,
+        new_root: header.block_header_without_hash.state_root,
+        old_root: expected_old_root,
+        state_diff: expected_state_diff.clone(),
+    });
+
+    let res = module
+        .call::<_, StateUpdate>(
+            method_name,
+            [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+                header.block_header_without_hash.block_number,
+            ))],
+        )
+        .await
+        .unwrap();
+    assert_eq!(res, expected_update);
+}
+
+#[tokio::test]
 async fn get_state_update_with_empty_storage_diff() {
     let method_name = "starknet_V0_8_getStateUpdate";
     let pending_data = get_test_pending_data();
@@ -2680,8 +2764,10 @@ async fn get_state_update_with_empty_storage_diff() {
         .unwrap();
 
     // The empty storage diff should be removed in the result.
-    let expected_state_diff =
-        ThinStateDiff::from(starknet_api::state::ThinStateDiff::from(StateDiff::default()));
+    let expected_state_diff = ThinStateDiff::from((
+        starknet_api::state::ThinStateDiff::from(StateDiff::default()),
+        vec![],
+    ));
     let expected_update = StateUpdate::AcceptedStateUpdate(AcceptedStateUpdate {
         state_diff: expected_state_diff.clone(),
         ..Default::default()
