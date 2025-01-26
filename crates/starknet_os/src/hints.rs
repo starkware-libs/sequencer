@@ -17,4 +17,5 @@ pub mod patricia;
 pub mod secp;
 pub mod state;
 pub mod stateless_compression;
+pub mod syscalls;
 pub mod types;
