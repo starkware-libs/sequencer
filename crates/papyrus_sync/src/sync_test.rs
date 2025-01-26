@@ -64,8 +64,6 @@ fn state_sorted() {
     let deprecated_declared_1 = (ClassHash(hash1), DeprecatedContractClass::default());
     let nonce_0 = (contract_address_0, Nonce(hash0));
     let nonce_1 = (contract_address_1, Nonce(hash1));
-    let replaced_class_0 = (contract_address_0, ClassHash(hash0));
-    let replaced_class_1 = (contract_address_1, ClassHash(hash1));
 
     let unsorted_deployed_contracts = IndexMap::from([dep_contract_1, dep_contract_0]);
     let unsorted_declared_classes =
@@ -78,7 +76,6 @@ fn state_sorted() {
         (contract_address_1, unsorted_storage_entries.clone()),
         (contract_address_0, unsorted_storage_entries),
     ]);
-    let unsorted_replaced_classes = IndexMap::from([replaced_class_1, replaced_class_0]);
 
     let mut state_diff = StateDiff {
         deployed_contracts: unsorted_deployed_contracts,
@@ -86,7 +83,6 @@ fn state_sorted() {
         deprecated_declared_classes: unsorted_deprecated_declared,
         declared_classes: unsorted_declared_classes,
         nonces: unsorted_nonces,
-        replaced_classes: unsorted_replaced_classes,
     };
 
     let sorted_deployed_contracts = IndexMap::from([dep_contract_0, dep_contract_1]);
@@ -98,7 +94,6 @@ fn state_sorted() {
         (contract_address_0, sorted_storage_entries.clone()),
         (contract_address_1, sorted_storage_entries.clone()),
     ]);
-    let sorted_replaced_classes = IndexMap::from([replaced_class_0, replaced_class_1]);
 
     sort_state_diff(&mut state_diff);
     assert_eq!(
@@ -122,10 +117,6 @@ fn state_sorted() {
         sorted_storage_entries.get_index(0).unwrap(),
     );
     assert_eq!(state_diff.nonces.get_index(0).unwrap(), sorted_nonces.get_index(0).unwrap());
-    assert_eq!(
-        state_diff.replaced_classes.get_index(0).unwrap(),
-        sorted_replaced_classes.get_index(0).unwrap(),
-    );
 }
 
 #[tokio::test]

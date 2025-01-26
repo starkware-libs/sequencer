@@ -123,7 +123,6 @@ fn read_state() {
                     address0 => nonce0,
                     address1 => Nonce::default(),
                 ),
-                replaced_classes: indexmap!(),
             },
         )
         .unwrap()

@@ -3,10 +3,10 @@ use indexmap::indexmap;
 use crate::block_hash::state_diff_hash::{
     calculate_state_diff_hash,
     chain_declared_classes,
+    chain_deployed_contracts,
     chain_deprecated_declared_classes,
     chain_nonces,
     chain_storage_diffs,
-    chain_updated_contracts,
 };
 use crate::block_hash::test_utils::get_state_diff;
 use crate::core::{ClassHash, CompiledClassHash, Nonce, StateDiffCommitment};
@@ -30,22 +30,16 @@ fn test_sorting_deployed_contracts() {
     let deployed_contracts_0 = indexmap! {
         0u64.into() => ClassHash(3u64.into()),
         1u64.into() => ClassHash(2u64.into()),
-    };
-    let replaced_classes_0 = indexmap! {
         2u64.into() => ClassHash(1u64.into()),
     };
     let deployed_contracts_1 = indexmap! {
         2u64.into() => ClassHash(1u64.into()),
         0u64.into() => ClassHash(3u64.into()),
-    };
-    let replaced_classes_1 = indexmap! {
         1u64.into() => ClassHash(2u64.into()),
     };
     assert_eq!(
-        chain_updated_contracts(&deployed_contracts_0, &replaced_classes_0, HashChain::new())
-            .get_poseidon_hash(),
-        chain_updated_contracts(&deployed_contracts_1, &replaced_classes_1, HashChain::new())
-            .get_poseidon_hash(),
+        chain_deployed_contracts(&deployed_contracts_0, HashChain::new()).get_poseidon_hash(),
+        chain_deployed_contracts(&deployed_contracts_1, HashChain::new()).get_poseidon_hash(),
     );
 }
 

@@ -55,7 +55,6 @@ pub struct StateDiff {
     pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, SierraContractClass)>,
     pub deprecated_declared_classes: IndexMap<ClassHash, DeprecatedContractClass>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
-    pub replaced_classes: IndexMap<ContractAddress, ClassHash>,
 }
 
 // Invariant: Addresses are strictly increasing.
@@ -68,7 +67,6 @@ pub struct ThinStateDiff {
     pub declared_classes: IndexMap<ClassHash, CompiledClassHash>,
     pub deprecated_declared_classes: Vec<ClassHash>,
     pub nonces: IndexMap<ContractAddress, Nonce>,
-    pub replaced_classes: IndexMap<ContractAddress, ClassHash>,
 }
 
 impl ThinStateDiff {
@@ -89,7 +87,6 @@ impl ThinStateDiff {
                     .copied()
                     .collect(),
                 nonces: diff.nonces,
-                replaced_classes: diff.replaced_classes,
             },
             diff.declared_classes
                 .into_iter()
@@ -106,7 +103,6 @@ impl ThinStateDiff {
         result += self.declared_classes.len();
         result += self.deprecated_declared_classes.len();
         result += self.nonces.len();
-        result += self.replaced_classes.len();
 
         for (_contract_address, storage_diffs) in &self.storage_diffs {
             result += storage_diffs.len();
@@ -119,7 +115,6 @@ impl ThinStateDiff {
             && self.declared_classes.is_empty()
             && self.deprecated_declared_classes.is_empty()
             && self.nonces.is_empty()
-            && self.replaced_classes.is_empty()
             && self
                 .storage_diffs
                 .iter()

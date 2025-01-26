@@ -53,7 +53,6 @@ async fn state_diff_basic_flow() {
                 declared_classes: indexmap!(class_hash0 => casm_hash0),
                 deprecated_declared_classes: vec![class_hash1],
                 nonces: indexmap!(address0 => nonce0),
-                replaced_classes: Default::default(),
             },
             vec![
                 StateDiffChunk::DeclaredClass(DeclaredClass {

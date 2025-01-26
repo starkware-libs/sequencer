@@ -682,7 +682,6 @@ fn induced_state_diff() {
         },
         declared_classes: indexmap! {},
         deprecated_declared_classes: vec![],
-        replaced_classes: indexmap! {},
     };
     assert_eq!(simulation_results[0].induced_state_diff, expected_invoke_deprecated);
 
@@ -699,7 +698,6 @@ fn induced_state_diff() {
         },
         deployed_contracts: indexmap! {},
         deprecated_declared_classes: vec![],
-        replaced_classes: indexmap! {},
     };
     assert_eq!(simulation_results[1].induced_state_diff, expected_declare_class);
     next_declared_class_hash += 1;
@@ -717,7 +715,6 @@ fn induced_state_diff() {
         },
         declared_classes: indexmap! {},
         deployed_contracts: indexmap! {},
-        replaced_classes: indexmap! {},
     };
     assert_eq!(simulation_results[2].induced_state_diff, expected_declare_deprecated_class);
 
@@ -738,7 +735,6 @@ fn induced_state_diff() {
         },
         declared_classes: indexmap! {},
         deployed_contracts: indexmap! {*NEW_ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH},
-        replaced_classes: indexmap! {},
     };
     assert_eq!(simulation_results[3].induced_state_diff, expected_deploy_account);
 }
