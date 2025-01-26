@@ -135,6 +135,7 @@ use crate::hints::patricia::{
     split_descend,
     write_case_not_left_to_ap,
 };
+use crate::hints::secp::read_ec_point_from_address;
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -1171,6 +1172,11 @@ else:
 	common_args['common_args'] = common_args"#
         }
     ),
+    (
+        ReadEcPointFromAddress,
+        read_ec_point_from_address,
+        r#"memory[ap] = to_felt_or_relocatable(ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add())"#
+    )
 );
 
 define_hint_extension_enum!(

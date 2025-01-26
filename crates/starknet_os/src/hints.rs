@@ -14,5 +14,6 @@ pub mod math;
 pub mod os;
 pub mod output;
 pub mod patricia;
+pub mod secp;
 pub mod stateless_compression;
 pub mod types;
