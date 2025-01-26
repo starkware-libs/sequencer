@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 
 use futures::future::join_all;
@@ -182,16 +182,26 @@ impl IntegrationTestManager {
 
         Self { idle_nodes: idle_nodes_map, running_nodes: running_nodes_map }
     }
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self, skip_list: Vec<usize>) {
         info!("Running nodes.");
 
-        // Transition nodes from idle to running.
-        self.running_nodes.extend(self.idle_nodes.drain().map(|(index, node_setup)| {
-            let running_node = node_setup.run();
-            (index, running_node)
-        }));
+        let skip_set: HashSet<usize> = skip_list.into_iter().collect();
 
-        // Wait for the nodes to start.
+        self.idle_nodes = std::mem::take(&mut self.idle_nodes)
+            .into_iter()
+            .filter_map(|(index, node_setup)| {
+                if skip_set.contains(&index) {
+                    info!("Skipping node {}.", index);
+                    Some((index, node_setup))
+                } else {
+                    info!("Running node {}.", index);
+                    let running_node = node_setup.run();
+                    self.running_nodes.insert(index, running_node);
+                    None
+                }
+            })
+            .collect();
+
         self.await_alive(5000, 50).await;
     }
 

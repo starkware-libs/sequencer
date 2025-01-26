@@ -23,7 +23,7 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     let mut integration_test_manager = IntegrationTestManager::new(sequencers_setup, Vec::new());
 
     // Run the nodes.
-    integration_test_manager.run().await;
+    integration_test_manager.run(vec![]).await;
 
     // Run the integration test simulator.
     integration_test_manager
