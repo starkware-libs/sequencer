@@ -152,6 +152,60 @@ use crate::hints::stateless_compression::{
     get_prev_offset,
     set_decompressed_dst,
 };
+use crate::hints::syscalls::{
+    call_contract,
+    delegate_call,
+    delegate_l1_handler,
+    deploy,
+    emit_event,
+    exit_call_contract_syscall,
+    exit_delegate_call_syscall,
+    exit_delegate_l1_handler_syscall,
+    exit_deploy_syscall,
+    exit_emit_event_syscall,
+    exit_get_block_hash_syscall,
+    exit_get_block_number_syscall,
+    exit_get_block_timestamp_syscall,
+    exit_get_caller_address_syscall,
+    exit_get_contract_address_syscall,
+    exit_get_execution_info_syscall,
+    exit_get_sequencer_address_syscall,
+    exit_get_tx_info_syscall,
+    exit_get_tx_signature_syscall,
+    exit_keccak_syscall,
+    exit_library_call_l1_handler_syscall,
+    exit_library_call_syscall,
+    exit_replace_class_syscall,
+    exit_secp256k1_add_syscall,
+    exit_secp256k1_get_point_from_x_syscall,
+    exit_secp256k1_get_xy_syscall,
+    exit_secp256k1_mul_syscall,
+    exit_secp256k1_new_syscall,
+    exit_secp256r1_add_syscall,
+    exit_secp256r1_get_point_from_x_syscall,
+    exit_secp256r1_get_xy_syscall,
+    exit_secp256r1_mul_syscall,
+    exit_secp256r1_new_syscall,
+    exit_send_message_to_l1_syscall,
+    exit_sha256_process_block_syscall,
+    exit_storage_read_syscall,
+    exit_storage_write_syscall,
+    get_block_number,
+    get_block_timestamp,
+    get_caller_address,
+    get_contract_address,
+    get_sequencer_address,
+    get_tx_info,
+    get_tx_signature,
+    library_call,
+    library_call_l1_handler,
+    os_logger_enter_syscall_prepare_exit_syscall,
+    replace_class,
+    send_message_to_l1,
+    set_syscall_ptr,
+    storage_read,
+    storage_write,
+};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
@@ -1290,6 +1344,275 @@ memory[ap] = 1 if case != 'both' else 0"#
 
     segments.write_arg(ids.res.address_, split(ids.value))"#
         }
+    ),
+    (
+        CallContract,
+        call_contract,
+        "syscall_handler.call_contract(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        DelegateCall,
+        delegate_call,
+        "syscall_handler.delegate_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        DelegateL1Handler,
+        delegate_l1_handler,
+        "syscall_handler.delegate_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (Deploy, deploy, "syscall_handler.deploy(segments=segments, syscall_ptr=ids.syscall_ptr)"),
+    (
+        EmitEvent,
+        emit_event,
+        "syscall_handler.emit_event(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetBlockNumber,
+        get_block_number,
+        "syscall_handler.get_block_number(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetBlockTimestamp,
+        get_block_timestamp,
+        "syscall_handler.get_block_timestamp(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetCallerAddress,
+        get_caller_address,
+        "syscall_handler.get_caller_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetContractAddress,
+        get_contract_address,
+        "syscall_handler.get_contract_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetSequencerAddress,
+        get_sequencer_address,
+        "syscall_handler.get_sequencer_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetTxInfo,
+        get_tx_info,
+        "syscall_handler.get_tx_info(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetTxSignature,
+        get_tx_signature,
+        "syscall_handler.get_tx_signature(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        LibraryCall,
+        library_call,
+        "syscall_handler.library_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        LibraryCallL1Handler,
+        library_call_l1_handler,
+        "syscall_handler.library_call_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        ReplaceClass,
+        replace_class,
+        "syscall_handler.replace_class(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        SendMessageToL1,
+        send_message_to_l1,
+        "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        StorageRead,
+        storage_read,
+        "syscall_handler.storage_read(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        StorageWrite,
+        storage_write,
+        "syscall_handler.storage_write(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        SetSyscallPtr,
+        set_syscall_ptr,
+        indoc! {r#"
+	ids.os_context = segments.add()
+	ids.syscall_ptr = segments.add()
+
+	syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr)"#
+        }
+    ),
+    (
+        OsLoggerEnterSyscallPrepareExitSyscall,
+        os_logger_enter_syscall_prepare_exit_syscall,
+        indoc! {r#"
+    execution_helper.os_logger.enter_syscall(
+        n_steps=current_step,
+        builtin_ptrs=ids.builtin_ptrs,
+        deprecated=True,
+        selector=ids.selector,
+        range_check_ptr=ids.range_check_ptr,
+    )
+
+    # Prepare a short callable to save code duplication.
+    exit_syscall = lambda selector: execution_helper.os_logger.exit_syscall(
+        n_steps=current_step,
+        builtin_ptrs=ids.builtin_ptrs,
+        range_check_ptr=ids.range_check_ptr,
+        selector=selector,
+    )"#
+        }
+    ),
+    (
+        ExitCallContractSyscall,
+        exit_call_contract_syscall,
+        "exit_syscall(selector=ids.CALL_CONTRACT_SELECTOR)"
+    ),
+    (
+        ExitDelegateCallSyscall,
+        exit_delegate_call_syscall,
+        "exit_syscall(selector=ids.DELEGATE_CALL_SELECTOR)"
+    ),
+    (
+        ExitDelegateL1HandlerSyscall,
+        exit_delegate_l1_handler_syscall,
+        "exit_syscall(selector=ids.DELEGATE_L1_HANDLER_SELECTOR)"
+    ),
+    (ExitDeploySyscall, exit_deploy_syscall, "exit_syscall(selector=ids.DEPLOY_SELECTOR)"),
+    (
+        ExitEmitEventSyscall,
+        exit_emit_event_syscall,
+        "exit_syscall(selector=ids.EMIT_EVENT_SELECTOR)"
+    ),
+    (
+        ExitGetBlockHashSyscall,
+        exit_get_block_hash_syscall,
+        "exit_syscall(selector=ids.GET_BLOCK_HASH_SELECTOR)"
+    ),
+    (
+        ExitGetBlockNumberSyscall,
+        exit_get_block_number_syscall,
+        "exit_syscall(selector=ids.GET_BLOCK_NUMBER_SELECTOR)"
+    ),
+    (
+        ExitGetBlockTimestampSyscall,
+        exit_get_block_timestamp_syscall,
+        "exit_syscall(selector=ids.GET_BLOCK_TIMESTAMP_SELECTOR)"
+    ),
+    (
+        ExitGetCallerAddressSyscall,
+        exit_get_caller_address_syscall,
+        "exit_syscall(selector=ids.GET_CALLER_ADDRESS_SELECTOR)"
+    ),
+    (
+        ExitGetContractAddressSyscall,
+        exit_get_contract_address_syscall,
+        "exit_syscall(selector=ids.GET_CONTRACT_ADDRESS_SELECTOR)"
+    ),
+    (
+        ExitGetExecutionInfoSyscall,
+        exit_get_execution_info_syscall,
+        "exit_syscall(selector=ids.GET_EXECUTION_INFO_SELECTOR)"
+    ),
+    (
+        ExitGetSequencerAddressSyscall,
+        exit_get_sequencer_address_syscall,
+        "exit_syscall(selector=ids.GET_SEQUENCER_ADDRESS_SELECTOR)"
+    ),
+    (
+        ExitGetTxInfoSyscall,
+        exit_get_tx_info_syscall,
+        "exit_syscall(selector=ids.GET_TX_INFO_SELECTOR)"
+    ),
+    (
+        ExitGetTxSignatureSyscall,
+        exit_get_tx_signature_syscall,
+        "exit_syscall(selector=ids.GET_TX_SIGNATURE_SELECTOR)"
+    ),
+    (ExitKeccakSyscall, exit_keccak_syscall, "exit_syscall(selector=ids.KECCAK_SELECTOR)"),
+    (
+        ExitLibraryCallL1HandlerSyscall,
+        exit_library_call_l1_handler_syscall,
+        "exit_syscall(selector=ids.LIBRARY_CALL_L1_HANDLER_SELECTOR)"
+    ),
+    (
+        ExitLibraryCallSyscall,
+        exit_library_call_syscall,
+        "exit_syscall(selector=ids.LIBRARY_CALL_SELECTOR)"
+    ),
+    (
+        ExitReplaceClassSyscall,
+        exit_replace_class_syscall,
+        "exit_syscall(selector=ids.REPLACE_CLASS_SELECTOR)"
+    ),
+    (
+        ExitSha256ProcessBlockSyscall,
+        exit_sha256_process_block_syscall,
+        "exit_syscall(selector=ids.SHA256_PROCESS_BLOCK_SELECTOR)"
+    ),
+    (
+        ExitSecp256k1AddSyscall,
+        exit_secp256k1_add_syscall,
+        "exit_syscall(selector=ids.SECP256K1_ADD_SELECTOR)"
+    ),
+    (
+        ExitSecp256k1GetPointFromXSyscall,
+        exit_secp256k1_get_point_from_x_syscall,
+        "exit_syscall(selector=ids.SECP256K1_GET_POINT_FROM_X_SELECTOR)"
+    ),
+    (
+        ExitSecp256k1GetXYSyscall,
+        exit_secp256k1_get_xy_syscall,
+        "exit_syscall(selector=ids.SECP256K1_GET_XY_SELECTOR)"
+    ),
+    (
+        ExitSecp256k1MulSyscall,
+        exit_secp256k1_mul_syscall,
+        "exit_syscall(selector=ids.SECP256K1_MUL_SELECTOR)"
+    ),
+    (
+        ExitSecp256k1NewSyscall,
+        exit_secp256k1_new_syscall,
+        "exit_syscall(selector=ids.SECP256K1_NEW_SELECTOR)"
+    ),
+    (
+        ExitSecp256r1AddSyscall,
+        exit_secp256r1_add_syscall,
+        "exit_syscall(selector=ids.SECP256R1_ADD_SELECTOR)"
+    ),
+    (
+        ExitSecp256r1GetPointFromXSyscall,
+        exit_secp256r1_get_point_from_x_syscall,
+        "exit_syscall(selector=ids.SECP256R1_GET_POINT_FROM_X_SELECTOR)"
+    ),
+    (
+        ExitSecp256r1GetXYSyscall,
+        exit_secp256r1_get_xy_syscall,
+        "exit_syscall(selector=ids.SECP256R1_GET_XY_SELECTOR)"
+    ),
+    (
+        ExitSecp256r1MulSyscall,
+        exit_secp256r1_mul_syscall,
+        "exit_syscall(selector=ids.SECP256R1_MUL_SELECTOR)"
+    ),
+    (
+        ExitSecp256r1NewSyscall,
+        exit_secp256r1_new_syscall,
+        "exit_syscall(selector=ids.SECP256R1_NEW_SELECTOR)"
+    ),
+    (
+        ExitSendMessageToL1Syscall,
+        exit_send_message_to_l1_syscall,
+        "exit_syscall(selector=ids.SEND_MESSAGE_TO_L1_SELECTOR)"
+    ),
+    (
+        ExitStorageReadSyscall,
+        exit_storage_read_syscall,
+        "exit_syscall(selector=ids.STORAGE_READ_SELECTOR)"
+    ),
+    (
+        ExitStorageWriteSyscall,
+        exit_storage_write_syscall,
+        "exit_syscall(selector=ids.STORAGE_WRITE_SELECTOR)"
     ),
 );
 
