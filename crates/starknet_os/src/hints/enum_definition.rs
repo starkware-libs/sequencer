@@ -123,6 +123,18 @@ use crate::hints::output::{
     set_state_updates_start,
     set_tree_structure,
 };
+use crate::hints::patricia::{
+    assert_case_is_right,
+    build_descent_map,
+    height_is_zero_or_len_node_preimage_is_two,
+    is_case_right,
+    prepare_preimage_validation_non_deterministic_hashes,
+    set_ap_to_descend,
+    set_bit,
+    set_siblings,
+    split_descend,
+    write_case_not_left_to_ap,
+};
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -1080,7 +1092,85 @@ else:
         SetNUpdatesSmall,
         set_n_updates_small,
         indoc! {r#"ids.is_n_updates_small = ids.n_actual_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
-    )
+    ),
+    (SetSiblings, set_siblings, "memory[ids.siblings], ids.word = descend"),
+    (IsCaseRight, is_case_right, "memory[ap] = int(case == 'right') ^ ids.bit"),
+    (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
+    (
+        SetApToDescend,
+        set_ap_to_descend,
+        indoc! {r#"
+	descend = descent_map.get((ids.height, ids.path))
+	memory[ap] = 0 if descend is None else 1"#
+        }
+    ),
+    (AssertCaseIsRight, assert_case_is_right, "assert case == 'right'"),
+    (
+        WriteCaseNotLeftToAp,
+        write_case_not_left_to_ap,
+        indoc! {r#"
+            memory[ap] = int(case != 'left')"#
+        }
+    ),
+    (SplitDescend, split_descend, "ids.length, ids.word = descend"),
+    (
+        HeightIsZeroOrLenNodePreimageIsTwo,
+        height_is_zero_or_len_node_preimage_is_two,
+        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
+    ),
+    (
+        PreparePreimageValidationNonDeterministicHashes,
+        prepare_preimage_validation_non_deterministic_hashes,
+        indoc! {r#"
+	from starkware.python.merkle_tree import decode_node
+	left_child, right_child, case = decode_node(node)
+	left_hash, right_hash = preimage[ids.node]
+
+	# Fill non deterministic hashes.
+	hash_ptr = ids.current_hash.address_
+	memory[hash_ptr + ids.HashBuiltin.x] = left_hash
+	memory[hash_ptr + ids.HashBuiltin.y] = right_hash
+
+	if __patricia_skip_validation_runner:
+	    # Skip validation of the preimage dict to speed up the VM. When this flag is set,
+	    # mistakes in the preimage dict will be discovered only in the prover.
+	    __patricia_skip_validation_runner.verified_addresses.add(
+	        hash_ptr + ids.HashBuiltin.result)
+
+	memory[ap] = int(case != 'both')"#
+        }
+    ),
+    (
+        BuildDescentMap,
+        build_descent_map,
+        indoc! {r#"
+	from starkware.cairo.common.patricia_utils import canonic, patricia_guess_descents
+	from starkware.python.merkle_tree import build_update_tree
+
+	# Build modifications list.
+	modifications = []
+	DictAccess_key = ids.DictAccess.key
+	DictAccess_new_value = ids.DictAccess.new_value
+	DictAccess_SIZE = ids.DictAccess.SIZE
+	for i in range(ids.n_updates):
+	    curr_update_ptr = ids.update_ptr.address_ + i * DictAccess_SIZE
+	    modifications.append((
+	        memory[curr_update_ptr + DictAccess_key],
+	        memory[curr_update_ptr + DictAccess_new_value]))
+
+	node = build_update_tree(ids.height, modifications)
+	descent_map = patricia_guess_descents(
+	    ids.height, node, preimage, ids.prev_root, ids.new_root)
+	del modifications
+	__patricia_skip_validation_runner = globals().get(
+	    '__patricia_skip_validation_runner')
+
+	common_args = dict(
+	    preimage=preimage, descent_map=descent_map,
+	    __patricia_skip_validation_runner=__patricia_skip_validation_runner)
+	common_args['common_args'] = common_args"#
+        }
+    ),
 );
 
 define_hint_extension_enum!(
