@@ -7,7 +7,12 @@ use alloy_json_rpc::RpcError;
 use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_types_eth::{BlockId, BlockTransactionsKind, Filter as EthEventFilter};
+use alloy_rpc_types_eth::{
+    BlockId,
+    BlockNumberOrTag,
+    BlockTransactionsKind,
+    Filter as EthEventFilter,
+};
 use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
@@ -21,7 +26,7 @@ use starknet_api::StarknetApiError;
 use url::Url;
 use validator::Validate;
 
-use crate::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
+use crate::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event, PriceSample};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
@@ -130,6 +135,77 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             number: block.header.number,
             hash: block.header.hash.0,
         }))
+    }
+
+    async fn get_block_timestamp(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<u64>> {
+        let block = self
+            .contract
+            .provider()
+            .get_block(
+                BlockId::Number(BlockNumberOrTag::Number(block_number)),
+                BlockTransactionsKind::Hashes,
+            )
+            .await?;
+        Ok(block.map(|block| block.header.timestamp))
+    }
+
+    async fn get_block_gas_price(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<u128>> {
+        let block = self
+            .contract
+            .provider()
+            .get_block(
+                BlockId::Number(BlockNumberOrTag::Number(block_number)),
+                BlockTransactionsKind::Hashes,
+            )
+            .await?;
+        Ok(block.and_then(|block| block.header.base_fee_per_gas))
+    }
+
+    async fn get_block_data_gas_price(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<u128>> {
+        let block = self
+            .contract
+            .provider()
+            .get_block(
+                BlockId::Number(BlockNumberOrTag::Number(block_number)),
+                BlockTransactionsKind::Hashes,
+            )
+            .await?;
+        Ok(block.and_then(|block| block.header.blob_fee()))
+    }
+
+    // Combine the above three functions into one call, which is more efficient.
+    async fn get_price_sample(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<PriceSample>> {
+        let block = self
+            .contract
+            .provider()
+            .get_block(
+                BlockId::Number(BlockNumberOrTag::Number(block_number)),
+                BlockTransactionsKind::Hashes,
+            )
+            .await?;
+        let Some(block) = block else {
+            return Ok(None);
+        };
+        match (block.header.timestamp, block.header.base_fee_per_gas) {
+            (timestamp, Some(base_fee_per_gas)) => Ok(Some(PriceSample {
+                timestamp,
+                base_fee_per_gas,
+                blob_fee: block.header.blob_fee().unwrap_or(0),
+            })),
+            _ => Ok(None),
+        }
     }
 }
 
