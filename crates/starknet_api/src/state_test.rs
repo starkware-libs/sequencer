@@ -56,12 +56,8 @@ fn thin_state_diff_len() {
             0u64.into() => Nonce(1u64.into()),
             1u64.into() => Nonce(1u64.into()),
         },
-        replaced_classes: indexmap! {
-            2u64.into() => ClassHash(4u64.into()),
-            3u64.into() => ClassHash(5u64.into()),
-        },
     };
-    assert_eq!(state_diff.len(), 13);
+    assert_eq!(state_diff.len(), 11);
 }
 
 #[test]
@@ -106,13 +102,6 @@ fn thin_state_diff_is_empty() {
     assert!(
         !ThinStateDiff {
             nonces: indexmap! { Default::default() => Default::default() },
-            ..Default::default()
-        }
-        .is_empty()
-    );
-    assert!(
-        !ThinStateDiff {
-            replaced_classes: indexmap! { Default::default() => Default::default() },
             ..Default::default()
         }
         .is_empty()

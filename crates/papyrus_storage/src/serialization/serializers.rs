@@ -1103,7 +1103,6 @@ impl StorageSerde for ThinStateDiff {
         self.declared_classes.serialize_into(&mut to_compress)?;
         self.deprecated_declared_classes.serialize_into(&mut to_compress)?;
         self.nonces.serialize_into(&mut to_compress)?;
-        self.replaced_classes.serialize_into(&mut to_compress)?;
         if to_compress.len() > crate::compression_utils::MAX_DECOMPRESSED_SIZE {
             warn!(
                 "ThinStateDiff serialization size is too large and will lead to deserialization \
@@ -1127,7 +1126,6 @@ impl StorageSerde for ThinStateDiff {
             declared_classes: IndexMap::deserialize_from(data)?,
             deprecated_declared_classes: Vec::deserialize_from(data)?,
             nonces: IndexMap::deserialize_from(data)?,
-            replaced_classes: IndexMap::deserialize_from(data)?,
         })
     }
 }

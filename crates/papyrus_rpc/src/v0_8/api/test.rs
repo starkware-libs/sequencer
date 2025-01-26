@@ -3429,8 +3429,6 @@ async fn serialize_returns_valid_json() {
     )]);
     // For checking the schema also for deprecated contract classes.
     state_diff.deployed_contracts.insert(contract_address!("0x2"), class_hash!("0x2"));
-    // TODO(yair): handle replaced classes.
-    state_diff.replaced_classes.clear();
 
     let (thin_state_diff, classes, deprecated_classes) =
         starknet_api::state::ThinStateDiff::from_state_diff(state_diff.clone());
@@ -3677,7 +3675,7 @@ async fn get_deprecated_class_state_mutability() {
     assert_eq!(entry.get("stateMutability").unwrap().as_str().unwrap(), "view");
 }
 
-// TODO (Yael 16/06/2024): Add a test case for block_number which is not the latest.
+// TODO(Yael): Add a test case for block_number which is not the latest.
 #[tokio::test]
 async fn get_compiled_class() {
     let cairo1_class_hash = ClassHash(Felt::ONE);
