@@ -21,7 +21,7 @@ use indexmap::IndexMap;
 use mockall::automock;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_state_reader::papyrus_state::PapyrusReader;
+use papyrus_state_reader::papyrus_state_wrapper::PapyrusReaderWrapper;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
@@ -32,6 +32,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::ProposalCommitment;
+use starknet_class_manager_types::SharedClassManagerClient;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
 
@@ -340,13 +341,14 @@ pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
     pub contract_class_manager: ContractClassManager,
+    pub class_manager_client: SharedClassManagerClient,
 }
 
 impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
-    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
+    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReaderWrapper>> {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -359,10 +361,11 @@ impl BlockBuilderFactory {
             block_builder_config.bouncer_config,
         );
 
-        let state_reader = PapyrusReader::new(
+        let state_reader = PapyrusReaderWrapper::new(
             self.storage_reader.clone(),
             height,
             self.contract_class_manager.clone(),
+            self.class_manager_client.clone(),
         );
 
         let executor = TransactionExecutor::pre_process_and_create(
