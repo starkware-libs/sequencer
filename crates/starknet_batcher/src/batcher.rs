@@ -466,6 +466,7 @@ impl Batcher {
             central_objects: CentralObjects {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
+                compressed_state_diff: block_execution_artifacts.compressed_state_diff,
             },
         })
     }

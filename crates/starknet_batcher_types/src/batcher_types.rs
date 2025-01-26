@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use blockifier::bouncer::BouncerWeights;
+use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -96,6 +97,7 @@ pub struct SendProposalContentResponse {
 pub struct CentralObjects {
     pub execution_infos: Vec<TransactionExecutionInfo>,
     pub bouncer_weights: BouncerWeights,
+    pub compressed_state_diff: Option<CommitmentStateDiff>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
