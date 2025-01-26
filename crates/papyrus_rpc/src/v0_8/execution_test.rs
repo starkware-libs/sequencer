@@ -1721,7 +1721,6 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
                     *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
                     *ACCOUNT_ADDRESS => Nonce::default(),
                 ),
-                replaced_classes: indexmap!(),
             },
         )
         .unwrap()

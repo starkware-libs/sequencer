@@ -399,7 +399,6 @@ impl<'a> ThinStateDiffBuilder<'a> {
             declared_classes: self.declared_classes,
             deprecated_declared_classes: self.deprecated_declared_classes,
             nonces: self.nonces,
-            ..Default::default()
         }
     }
 }

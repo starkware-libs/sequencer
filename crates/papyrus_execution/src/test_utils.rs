@@ -158,7 +158,6 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
                     *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
                     *ACCOUNT_ADDRESS => Nonce::default(),
                 ),
-                replaced_classes: indexmap!(),
             },
         )
         .unwrap()

@@ -406,7 +406,11 @@ async fn stream_state_updates() {
     );
 
     assert_eq!(
-        IndexMap::from([(contract_address1, class_hash2), (contract_address2, class_hash3)]),
+        IndexMap::from([
+            (contract_address1, class_hash2),
+            (contract_address2, class_hash3),
+            (contract_address3, class_hash4)
+        ]),
         state_diff.deployed_contracts
     );
     assert_eq!(
@@ -440,7 +444,6 @@ async fn stream_state_updates() {
         state_diff.declared_classes,
     );
     assert_eq!(IndexMap::from([(contract_address1, nonce1)]), state_diff.nonces);
-    assert_eq!(IndexMap::from([(contract_address3, class_hash4)]), state_diff.replaced_classes);
 
     let Some(Ok(state_diff_tuple)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");
@@ -471,7 +474,6 @@ async fn stream_compiled_classes() {
                 },
                 deprecated_declared_classes: vec![],
                 nonces: indexmap! {},
-                replaced_classes: indexmap! {},
             },
         )
         .unwrap()
@@ -486,7 +488,6 @@ async fn stream_compiled_classes() {
                 },
                 deprecated_declared_classes: vec![],
                 nonces: indexmap! {},
-                replaced_classes: indexmap! {},
             },
         )
         .unwrap()

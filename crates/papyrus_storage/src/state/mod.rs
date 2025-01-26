@@ -446,7 +446,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             block_number,
             &deployed_contracts_table,
             &nonces_table,
-            &thin_state_diff.nonces,
         )?;
         write_storage_diffs(
             &thin_state_diff.storage_diffs,
@@ -454,13 +453,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             block_number,
             &storage_table,
         )?;
+        // Must be called after write_deployed_contracts since the nonces are updated there.
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
-        write_replaced_classes(
-            &thin_state_diff.replaced_classes,
-            &self.txn,
-            block_number,
-            &deployed_contracts_table,
-        )?;
 
         // We don't store the deprecated declared classes' block number.
         for (class_hash, _) in &thin_state_diff.declared_classes {
@@ -559,12 +553,6 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         delete_storage_diffs(&self.txn, block_number, &thin_state_diff, &storage_table)?;
         delete_nonces(&self.txn, block_number, &thin_state_diff, &nonces_table)?;
         state_diffs_table.delete(&self.txn, &block_number)?;
-        delete_replaced_classes(
-            &self.txn,
-            block_number,
-            &thin_state_diff,
-            &deployed_contracts_table,
-        )?;
 
         Ok((
             self,
@@ -638,16 +626,13 @@ fn write_deployed_contracts<'env>(
     block_number: BlockNumber,
     deployed_contracts_table: &'env DeployedContractsTable<'env>,
     nonces_table: &'env NoncesTable<'env>,
-    nonces_diffs: &IndexMap<ContractAddress, Nonce>,
 ) -> StorageResult<()> {
     for (address, class_hash) in deployed_contracts {
         deployed_contracts_table.insert(txn, &(*address, block_number), class_hash)?;
 
         // In old blocks, there is no nonce diff, so we must add the default value if the diff is
         // not specified.
-        // TODO(DvirYo): check what happens in case of a contract that was deployed and its nonce is
-        // still zero (does it in the nonce diff?).
-        if !nonces_diffs.contains_key(address) {
+        if nonces_table.get(txn, &(*address, block_number))?.is_none() {
             nonces_table.append_greater_sub_key(
                 txn,
                 &(*address, block_number),
@@ -667,19 +652,6 @@ fn write_nonces<'env>(
 ) -> StorageResult<()> {
     for (contract_address, nonce) in nonces {
         contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
-    }
-    Ok(())
-}
-
-#[latency_histogram("storage_write_replaced_classes_latency_seconds", true)]
-fn write_replaced_classes<'env>(
-    replaced_classes: &IndexMap<ContractAddress, ClassHash>,
-    txn: &DbTransaction<'env, RW>,
-    block_number: BlockNumber,
-    deployed_contracts_table: &'env DeployedContractsTable<'env>,
-) -> StorageResult<()> {
-    for (contract_address, class_hash) in replaced_classes {
-        deployed_contracts_table.insert(txn, &(*contract_address, block_number), class_hash)?;
     }
     Ok(())
 }
@@ -794,7 +766,18 @@ fn delete_deployed_contracts<'env>(
 ) -> StorageResult<()> {
     for contract_address in thin_state_diff.deployed_contracts.keys() {
         deployed_contracts_table.delete(txn, &(*contract_address, block_number))?;
-        nonces_table.delete(txn, &(*contract_address, block_number))?;
+        // Delete the nonce if the contract was deployed in this block.
+        if let Some(prev_block_number) = block_number.prev() {
+            if nonces_table
+                .get(txn, &(*contract_address, prev_block_number))
+                .unwrap_or_default()
+                .is_none()
+            {
+                nonces_table.delete(txn, &(*contract_address, block_number))?;
+            }
+        } else {
+            nonces_table.delete(txn, &(*contract_address, block_number))?;
+        }
     }
     Ok(())
 }
@@ -823,18 +806,6 @@ fn delete_nonces<'env>(
 ) -> StorageResult<()> {
     for contract_address in thin_state_diff.nonces.keys() {
         contracts_table.delete(txn, &(*contract_address, block_number))?;
-    }
-    Ok(())
-}
-
-fn delete_replaced_classes<'env>(
-    txn: &'env DbTransaction<'env, RW>,
-    block_number: BlockNumber,
-    thin_state_diff: &ThinStateDiff,
-    deployed_contracts_table: &'env DeployedContractsTable<'env>,
-) -> StorageResult<()> {
-    for contract_address in thin_state_diff.replaced_classes.keys() {
-        deployed_contracts_table.delete(txn, &(*contract_address, block_number))?;
     }
     Ok(())
 }

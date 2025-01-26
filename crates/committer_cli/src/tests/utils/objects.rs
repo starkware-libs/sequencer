@@ -83,7 +83,6 @@ pub(crate) fn get_thin_state_diff() -> ThinStateDiff {
         nonces: indexmap! {
             ContractAddress::from(3_u128) => Nonce(Felt::from_bytes_be_slice(&[4_u8])),
         },
-        replaced_classes: indexmap! {},
     }
 }
 

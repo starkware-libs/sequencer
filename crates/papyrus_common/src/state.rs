@@ -57,6 +57,5 @@ pub fn create_random_state_diff(rng: &mut impl RngCore) -> ThinStateDiff {
         nonces: indexmap! {
             contract0 => Nonce(Felt::ONE), contract2 => Nonce(Felt::TWO)
         },
-        replaced_classes: Default::default(),
     }
 }
