@@ -49,6 +49,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -87,8 +88,12 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
+    DeployAccountTransactionV3WithAddress,
     EntryPointByType as RpcEntryPointByType,
     EntryPointByType,
+    InternalRpcDeclareTransactionV3,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
@@ -498,6 +503,10 @@ auto_impl_get_test_instance! {
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
     pub struct ContractAddressSalt(pub StarkHash);
+    pub enum ConsensusTransaction {
+        RpcTransaction(RpcTransaction) = 1,
+        L1Handler(L1HandlerTransaction) = 2,
+    }
     pub struct SierraContractClass {
         pub sierra_program: Vec<Felt>,
         pub contract_class_version: String,
@@ -749,6 +758,32 @@ auto_impl_get_test_instance! {
     pub struct ResourceBounds {
         pub max_amount: GasAmount,
         pub max_price_per_unit: GasPrice,
+    }
+    pub struct InternalRpcTransaction {
+        pub tx: InternalRpcTransactionWithoutTxHash,
+        pub tx_hash: TransactionHash,
+    }
+    pub enum InternalRpcTransactionWithoutTxHash {
+        Declare(InternalRpcDeclareTransactionV3) = 0,
+        Invoke(RpcInvokeTransaction) = 1,
+        DeployAccount(DeployAccountTransactionV3WithAddress) = 2,
+    }
+    pub struct InternalRpcDeclareTransactionV3 {
+        pub sender_address: ContractAddress,
+        pub compiled_class_hash: CompiledClassHash,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+    }
+    pub struct DeployAccountTransactionV3WithAddress {
+        pub tx: RpcDeployAccountTransaction,
+        pub contract_address: ContractAddress,
     }
     pub enum RpcTransaction {
         Declare(RpcDeclareTransaction) = 0,

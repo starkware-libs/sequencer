@@ -3,8 +3,8 @@ use std::fmt::Display;
 use bytes::{Buf, BufMut};
 use prost::DecodeError;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
@@ -75,7 +75,7 @@ impl Default for ProposalInit {
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionBatch {
     /// The transactions in the batch.
-    pub transactions: Vec<Transaction>,
+    pub transactions: Vec<ConsensusTransaction>,
 }
 
 /// The proposal is done when receiving this fin message, which contains the block hash.

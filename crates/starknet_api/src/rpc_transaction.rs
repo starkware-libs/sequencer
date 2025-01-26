@@ -124,6 +124,44 @@ impl From<RpcTransaction> for Transaction {
     }
 }
 
+macro_rules! implement_internal_getters_for_internal_rpc {
+    ($(($field_name:ident, $field_ty:ty)),* $(,)?) => {
+        $(
+            pub fn $field_name(&self) -> $field_ty {
+                match &self.tx {
+                    InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.$field_name.clone(),
+                    InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => tx.$field_name.clone(),
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => {
+                        let RpcDeployAccountTransaction::V3(tx) = &tx.tx;
+                        tx.$field_name.clone()
+                    },
+                }
+            }
+        )*
+    };
+}
+
+impl InternalRpcTransaction {
+    implement_internal_getters_for_internal_rpc!(
+        (nonce, Nonce),
+        (resource_bounds, AllResourceBounds),
+        (tip, Tip),
+    );
+
+    pub fn contract_address(&self) -> ContractAddress {
+        match &self.tx {
+            InternalRpcTransactionWithoutTxHash::Declare(tx) => tx.sender_address,
+            InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(tx)) => {
+                tx.sender_address
+            }
+            InternalRpcTransactionWithoutTxHash::DeployAccount(tx) => tx.contract_address,
+        }
+    }
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        self.tx_hash
+    }
+}
 /// A RPC declare transaction.
 ///
 /// This transaction is equivalent to the component DECLARE_TXN in the

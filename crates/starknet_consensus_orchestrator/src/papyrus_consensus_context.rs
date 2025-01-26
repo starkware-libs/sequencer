@@ -29,6 +29,7 @@ use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::BlockNumber;
+use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::transaction::Transaction;
 use starknet_consensus::types::{
     ConsensusContext,
@@ -42,7 +43,8 @@ use tracing::{debug, debug_span, info, warn, Instrument};
 
 // TODO(Asmaa): add debug messages and span to the tasks.
 
-type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
+type HeightToIdToContent =
+    BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<InternalConsensusTransaction>>>;
 
 const CHANNEL_SIZE: usize = 100;
 
@@ -110,6 +112,11 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .unwrap_or_else(|| {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     });
+
+                let consensus_transactions = transactions.iter().map(|tx| match tx {
+                    Transaction::L1Handler(tx) => ConsensusTransaction::L1Handler(tx.clone()),
+                    Transaction::Declare(tx) => ConsensusTransaction::RpcTransaction(tx.clone()),
+                });
 
                 let block_hash = txn
                     .get_block_header(height)
@@ -182,7 +189,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     });
 
                 // First gather all the non-fin transactions.
-                let mut content_transactions: Vec<Transaction> = Vec::new();
+                let mut content_transactions: Vec<ConsensusTransaction> = Vec::new();
                 let received_block_hash = loop {
                     match content.next().await {
                         Some(ProposalPart::Transactions(batch)) => {

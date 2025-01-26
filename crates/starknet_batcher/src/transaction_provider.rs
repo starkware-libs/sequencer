@@ -5,8 +5,12 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockNumber;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterError,
+};
 use starknet_l1_provider_types::errors::L1ProviderClientError;
 use starknet_l1_provider_types::{SharedL1ProviderClient, ValidationStatus as L1ValidationStatus};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
@@ -22,11 +26,13 @@ pub enum TransactionProviderError {
     L1HandlerTransactionValidationFailed(TransactionHash),
     #[error(transparent)]
     L1ProviderError(#[from] L1ProviderClientError),
+    #[error(transparent)]
+    TransactionConverterError(#[from] TransactionConverterError),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum NextTxs {
-    Txs(Vec<Transaction>),
+    Txs(Vec<InternalConsensusTransaction>),
     End,
 }
 
@@ -40,6 +46,7 @@ pub trait TransactionProvider: Send {
 pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
     pub l1_provider_client: SharedL1ProviderClient,
+    pub transaction_converter: TransactionConverter,
     pub max_l1_handler_txs_per_block: usize,
     pub height: BlockNumber,
     phase: TxProviderPhase,
@@ -57,12 +64,14 @@ impl ProposeTransactionProvider {
     pub fn new(
         mempool_client: SharedMempoolClient,
         l1_provider_client: SharedL1ProviderClient,
+        transaction_converter: TransactionConverter,
         max_l1_handler_txs_per_block: usize,
         height: BlockNumber,
     ) -> Self {
         Self {
             mempool_client,
             l1_provider_client,
+            transaction_converter,
             max_l1_handler_txs_per_block,
             height,
             phase: TxProviderPhase::L1,
@@ -73,26 +82,26 @@ impl ProposeTransactionProvider {
     async fn get_l1_handler_txs(
         &mut self,
         n_txs: usize,
-    ) -> TransactionProviderResult<Vec<Transaction>> {
+    ) -> TransactionProviderResult<Vec<InternalConsensusTransaction>> {
         Ok(self
             .l1_provider_client
             .get_txs(n_txs, self.height)
             .await?
             .into_iter()
-            .map(Transaction::L1Handler)
+            .map(InternalConsensusTransaction::L1Handler)
             .collect())
     }
 
     async fn get_mempool_txs(
         &mut self,
         n_txs: usize,
-    ) -> TransactionProviderResult<Vec<Transaction>> {
+    ) -> TransactionProviderResult<Vec<InternalConsensusTransaction>> {
         Ok(self
             .mempool_client
             .get_txs(n_txs)
             .await?
             .into_iter()
-            .map(Transaction::Account)
+            .map(InternalConsensusTransaction::RpcTransaction)
             .collect())
     }
 }
@@ -129,7 +138,7 @@ impl TransactionProvider for ProposeTransactionProvider {
 }
 
 pub struct ValidateTransactionProvider {
-    pub tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    pub tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
     pub l1_provider_client: SharedL1ProviderClient,
     pub height: BlockNumber,
 }
@@ -146,7 +155,7 @@ impl TransactionProvider for ValidateTransactionProvider {
             return Ok(NextTxs::End);
         }
         for tx in &buffer {
-            if let Transaction::L1Handler(tx) = tx {
+            if let InternalConsensusTransaction::L1Handler(tx) = tx {
                 let l1_validation_status =
                     self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
                 if l1_validation_status != L1ValidationStatus::Validated {

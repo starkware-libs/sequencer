@@ -7,12 +7,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
-use starknet_api::executable_transaction::AccountTransaction;
-use starknet_api::rpc_transaction::{
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
-};
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
@@ -88,7 +83,7 @@ impl MempoolContentBuilder {
 
     fn with_pool<P>(mut self, pool_txs: P) -> Self
     where
-        P: IntoIterator<Item = AccountTransaction>,
+        P: IntoIterator<Item = InternalRpcTransaction>,
     {
         self.tx_pool = Some(pool_txs.into_iter().collect());
         self
@@ -140,8 +135,8 @@ impl MempoolContentBuilder {
     }
 }
 
-impl FromIterator<AccountTransaction> for TransactionPool {
-    fn from_iter<T: IntoIterator<Item = AccountTransaction>>(txs: T) -> Self {
+impl FromIterator<InternalRpcTransaction> for TransactionPool {
+    fn from_iter<T: IntoIterator<Item = InternalRpcTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
         for tx in txs {
             pool.insert(tx).unwrap();
@@ -154,7 +149,7 @@ impl FromIterator<AccountTransaction> for TransactionPool {
 fn builder_with_queue(
     in_priority_queue: bool,
     in_pending_queue: bool,
-    tx: &AccountTransaction,
+    tx: &InternalRpcTransaction,
 ) -> MempoolContentBuilder {
     assert!(
         !(in_priority_queue && in_pending_queue),
@@ -209,7 +204,7 @@ fn add_tx_and_verify_replacement_in_pool(
 #[track_caller]
 fn add_txs_and_verify_no_replacement(
     mut mempool: Mempool,
-    existing_tx: AccountTransaction,
+    existing_tx: InternalRpcTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
     in_priority_queue: bool,
     in_pending_queue: bool,
@@ -235,7 +230,7 @@ fn add_txs_and_verify_no_replacement(
 #[track_caller]
 fn add_txs_and_verify_no_replacement_in_pool(
     mempool: Mempool,
-    existing_tx: AccountTransaction,
+    existing_tx: InternalRpcTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
 ) {
     let in_priority_queue = false;
@@ -811,26 +806,11 @@ async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
     let tx_args = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
     let propagateor_args =
         AddTransactionArgsWrapper { args: tx_args.clone(), p2p_message_metadata: None };
-    // TODO(AlonH): use regular conversion once we have a compiler component
-    let rpc_tx = match tx_args.tx {
-        AccountTransaction::Declare(_declare_tx) => {
-            panic!("No implementation for converting DeclareTransaction to an RpcTransaction")
-        }
-        AccountTransaction::DeployAccount(deploy_account_transaction) => {
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
-                deploy_account_transaction.clone().into(),
-            ))
-        }
-        AccountTransaction::Invoke(invoke_transaction) => {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_transaction.clone().into()))
-        }
-    };
-
     let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
     mock_mempool_p2p_propagator_client
         .expect_add_transaction()
         .times(1)
-        .with(predicate::eq(rpc_tx))
+        .with(predicate::eq(tx_args.tx))
         .returning(|_| Ok(()));
     let mut mempool_wrapper =
         MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));

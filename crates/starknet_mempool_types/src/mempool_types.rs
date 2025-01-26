@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::errors::MempoolError;
@@ -23,7 +23,7 @@ impl std::fmt::Display for AccountState {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AddTransactionArgs {
-    pub tx: AccountTransaction,
+    pub tx: InternalRpcTransaction,
     pub account_state: AccountState,
 }
 

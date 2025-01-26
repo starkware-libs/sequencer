@@ -6,22 +6,24 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{debug, error, instrument, Span};
 
-use crate::compilation::GatewayCompiler;
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
-use crate::utils::compile_contract_and_build_executable_tx;
 
 #[cfg(test)]
 #[path = "gateway_test.rs"]
@@ -32,8 +34,8 @@ pub struct Gateway {
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
-    pub gateway_compiler: Arc<GatewayCompiler>,
     pub mempool_client: SharedMempoolClient,
+    pub transaction_converter: TransactionConverter,
     pub chain_info: ChainInfo,
 }
 
@@ -41,8 +43,8 @@ impl Gateway {
     pub fn new(
         config: GatewayConfig,
         state_reader_factory: Arc<dyn StateReaderFactory>,
-        gateway_compiler: GatewayCompiler,
         mempool_client: SharedMempoolClient,
+        transaction_converter: TransactionConverter,
     ) -> Self {
         Self {
             config: config.clone(),
@@ -53,9 +55,9 @@ impl Gateway {
                 config: config.stateful_tx_validator_config.clone(),
             }),
             state_reader_factory,
-            gateway_compiler: Arc::new(gateway_compiler),
             mempool_client,
             chain_info: config.chain_info.clone(),
+            transaction_converter,
         }
     }
 
@@ -75,7 +77,8 @@ impl Gateway {
                 .map_err(|join_err| {
                     error!("Failed to process tx: {}", join_err);
                     GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-                })??;
+                })?
+                .await?;
 
         let tx_hash = add_tx_args.tx.tx_hash();
 
@@ -92,10 +95,10 @@ struct ProcessTxBlockingTask {
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
-    gateway_compiler: Arc<GatewayCompiler>,
     mempool_client: SharedMempoolClient,
     chain_info: ChainInfo,
     tx: RpcTransaction,
+    transaction_converter: TransactionConverter,
 }
 
 impl ProcessTxBlockingTask {
@@ -104,24 +107,35 @@ impl ProcessTxBlockingTask {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
             state_reader_factory: gateway.state_reader_factory.clone(),
-            gateway_compiler: gateway.gateway_compiler.clone(),
             mempool_client: gateway.mempool_client.clone(),
             chain_info: gateway.chain_info.clone(),
             tx,
+            transaction_converter: gateway.transaction_converter.clone(),
         }
     }
 
-    fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
+    async fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
         // TODO(Arni, 1/5/2024): Perform congestion control.
 
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
-        let executable_tx = compile_contract_and_build_executable_tx(
-            self.tx,
-            self.gateway_compiler.as_ref(),
-            &self.chain_info.chain_id,
-        )?;
+        let internal_tx =
+            self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx).await.map_err(
+                |err| {
+                    error!(
+                        "Failed to convert internal RPC transaction to executable transaction: {}",
+                        err
+                    );
+                    GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+                },
+            )?;
+
+        let executable_tx = self
+            .transaction_converter
+            .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone())
+            .await
+            .unwrap();
 
         // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
@@ -147,20 +161,22 @@ impl ProcessTxBlockingTask {
         )?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
+        Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
     }
 }
 
 pub fn create_gateway(
     config: GatewayConfig,
     shared_state_sync_client: SharedStateSyncClient,
-    compiler_config: SierraCompilationConfig,
     mempool_client: SharedMempoolClient,
+    class_manager_client: SharedClassManagerClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory { shared_state_sync_client });
-    let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
 
-    Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
+    let transaction_converter =
+        TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
+
+    Gateway::new(config, state_reader_factory, mempool_client, transaction_converter)
 }
 
 impl ComponentStarter for Gateway {}

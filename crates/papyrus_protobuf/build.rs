@@ -54,7 +54,7 @@ fn main() -> io::Result<()> {
     prost_build::compile_protos(
         &[
             "src/proto/p2p/proto/class.proto",
-            "src/proto/p2p/proto/consensus.proto",
+            "src/proto/p2p/proto/consensus/consensus.proto",
             "src/proto/p2p/proto/mempool/transaction.proto",
             "src/proto/p2p/proto/sync/class.proto",
             "src/proto/p2p/proto/sync/event.proto",
