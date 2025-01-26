@@ -19,6 +19,7 @@ pub enum DataAvailabilityMode {
 ///
 /// The `self` argument is mutable for flexibility during reads (for example, caching reads),
 /// and to allow for the `State` trait below to also be considered a `StateReader`.
+#[cfg_attr(any(test, feature = "testing"), mockall::automock)]
 pub trait StateReader {
     /// Returns the storage value under the given key in the given contract instance (represented by
     /// its address).

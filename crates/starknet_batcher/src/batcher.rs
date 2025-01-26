@@ -646,6 +646,7 @@ pub fn create_batcher(
         contract_class_manager: ContractClassManager::start(
             config.contract_class_manager_config.clone(),
         ),
+        class_manager_client: class_manager_client.clone(),
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
