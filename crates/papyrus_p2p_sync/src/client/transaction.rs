@@ -98,6 +98,7 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
         block_number: BlockNumber,
         sync_block: SyncBlock,
     ) -> (BlockBody, BlockNumber) {
+        println!("Yael  Converting SyncBlock to BlockBody");
         let num_transactions = sync_block.transaction_hashes.len();
         let mut rng = get_rng();
         let block_body = BlockBody {

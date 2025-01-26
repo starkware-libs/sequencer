@@ -199,7 +199,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
     ] {
-        tx_generator.register_undeployed_account(account, NEW_ACCOUNT_SALT);
+        tx_generator.register_undeployed_account(account, NEW_ACCOUNT_SALT); // TODO: take the salt from the account
     }
     // TODO(yair): This is a hack to fund the new account during the setup. Move the registration to
     // the test body once funding is supported.
@@ -230,7 +230,7 @@ pub fn create_many_invoke_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     const N_TXS: usize = 15;
-    create_account_txs(tx_generator, ACCOUNT_ID_1, N_TXS)
+    create_invoke_txs(tx_generator, ACCOUNT_ID_1, N_TXS)
 }
 
 pub fn create_funding_txs(
@@ -251,19 +251,24 @@ fn fund_new_account(
     vec![funding_tx]
 }
 
-fn create_account_txs(
+fn create_deploy_account_tx_and_first_invoke_tx(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    account_id: AccountId,
+) -> Vec<RpcTransaction> {
+    vec![
+        tx_generator.account_with_id_mut(account_id).generate_deploy_account_with_tip(1),
+        tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1),
+    ]
+}
+
+fn create_invoke_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
-    std::iter::once(
-        tx_generator.account_with_id_mut(account_id).generate_deploy_account_with_tip(1),
-    )
-    .chain(
-        (1..n_txs)
-            .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1)),
-    )
-    .collect()
+    (1..n_txs)
+        .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
+        .collect()
 }
 
 async fn send_rpc_txs<'a, Fut>(
@@ -330,8 +335,17 @@ pub async fn send_account_txs<'a, Fut>(
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_account_txs(tx_generator, account_id, n_txs);
-    send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
+    let mut tx_hashes: Vec<TransactionHash> = Vec::new();
+    let rpc_txs = create_deploy_account_tx_and_first_invoke_tx(tx_generator, account_id);
+    tx_hashes.append(&mut send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
+
+    // Wait for the block with deploy_account tx to be ready and synced.
+    // tokio::time::sleep(Duration::from_secs(20)).await;
+
+    // let rpc_txs = create_invoke_txs(tx_generator, account_id, n_txs - 2);
+    // tx_hashes.append(&mut send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
+
+    tx_hashes
 }
 
 pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
