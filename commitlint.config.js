@@ -81,6 +81,7 @@ const Configuration = {
             'starknet_state_sync',
             'starknet_state_sync_types',
             'starknet_task_executor',
+            'workspace_tests',
         ]],
         'header-max-length': [2, 'always', 100],
     },
