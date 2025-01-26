@@ -78,3 +78,28 @@ async fn get_proved_block_at_unknown_block_number() {
             .contains("BlockOutOfRangeError")
     );
 }
+
+#[tokio::test]
+async fn get_gas_price_and_timestamps() {
+    if !in_ci() {
+        return;
+    }
+
+    let (node_handle, starknet_contract_address) = get_test_ethereum_node();
+    let node_url = node_handle.0.endpoint().parse().unwrap();
+    let contract = ethereum_base_layer_contract(node_url, starknet_contract_address);
+
+    let block_number = 30;
+    let price_sample = contract.get_price_sample(block_number).await.unwrap().unwrap();
+
+    // TODO(guyn): Figure out how these numbers are calculated, instead of just printing and testing
+    // against what we got. Use this println! to get the numbers to put into the asserts.
+    println!(
+        "Gas price: {}, data gas price: {:?}, timestamp: {}",
+        price_sample.blob_fee, price_sample.base_fee_per_gas, price_sample.timestamp
+    );
+
+    assert_eq!(price_sample.timestamp, 1676992456);
+    assert_eq!(price_sample.base_fee_per_gas, 20168195);
+    assert_eq!(price_sample.blob_fee, 0);
+}
