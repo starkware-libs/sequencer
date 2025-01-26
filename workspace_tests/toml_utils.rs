@@ -83,6 +83,8 @@ pub(crate) static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
             .unwrap();
     root_toml
 });
+pub(crate) static MEMBER_TOMLS: LazyLock<HashMap<String, CrateCargoToml>> =
+    LazyLock::new(|| ROOT_TOML.member_cargo_tomls());
 
 impl CargoToml {
     pub(crate) fn members(&self) -> &Vec<String> {
@@ -119,7 +121,7 @@ impl CargoToml {
                     .unwrap_or_else(|_| panic!("Failed to read {:?}", cargo_toml_path));
 
                 let cargo_toml: CrateCargoToml = toml::from_str(&cargo_toml_content).unwrap();
-                (member.clone(), cargo_toml)
+                (cargo_toml.package_name().clone(), cargo_toml)
             })
             .collect()
     }

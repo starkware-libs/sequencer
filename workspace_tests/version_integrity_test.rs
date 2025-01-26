@@ -1,4 +1,4 @@
-use crate::toml_utils::{DependencyValue, LocalCrate, PackageEntryValue, ROOT_TOML};
+use crate::toml_utils::{DependencyValue, LocalCrate, PackageEntryValue, MEMBER_TOMLS, ROOT_TOML};
 
 const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");
 const MAIN_PARENT_BRANCH: &str = "main";
@@ -33,25 +33,24 @@ fn test_version_alignment() {
 
 #[test]
 fn validate_crate_version_is_workspace() {
-    let crates_without_workspace_version: Vec<String> = ROOT_TOML
-        .member_cargo_tomls()
-        .into_iter()
+    let crates_without_workspace_version: Vec<String> = MEMBER_TOMLS
+        .iter()
         .flat_map(|(member, toml)| match toml.package.get("version") {
             // No `version` field.
-            None => Some(member),
+            None => Some(member.clone()),
             Some(version) => match version {
                 // version = "x.y.z".
-                PackageEntryValue::String(_) => Some(member),
+                PackageEntryValue::String(_) => Some(member.clone()),
                 // version.workspace = (true | false).
                 PackageEntryValue::Object { workspace } => {
                     if *workspace {
                         None
                     } else {
-                        Some(member)
+                        Some(member.clone())
                     }
                 }
                 // Unknown version object.
-                PackageEntryValue::Other(_) => Some(member),
+                PackageEntryValue::Other(_) => Some(member.clone()),
             },
         })
         .collect();
@@ -66,7 +65,7 @@ fn validate_crate_version_is_workspace() {
 #[test]
 fn validate_no_path_dependencies() {
     let all_path_deps_in_crate_tomls: Vec<String> =
-        ROOT_TOML.member_cargo_tomls().values().flat_map(|toml| toml.path_dependencies()).collect();
+        MEMBER_TOMLS.values().flat_map(|toml| toml.path_dependencies()).collect();
 
     assert!(
         all_path_deps_in_crate_tomls.is_empty(),
