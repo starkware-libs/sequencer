@@ -15,7 +15,7 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     get_node_executable_path();
 
     // Get the sequencer configurations.
-    let sequencers_setup = get_sequencer_setup_configs(tx_generator).await;
+    let (sequencers_setup, node_indices) = get_sequencer_setup_configs(tx_generator).await;
 
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
@@ -23,7 +23,7 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     let mut integration_test_manager = IntegrationTestManager::new(sequencers_setup, Vec::new());
 
     // Run the nodes.
-    integration_test_manager.run().await;
+    integration_test_manager.run(node_indices).await;
 
     // Run the integration test simulator.
     integration_test_manager

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 
 use futures::future::join_all;
@@ -182,16 +182,26 @@ impl IntegrationTestManager {
 
         Self { idle_nodes: idle_nodes_map, running_nodes: running_nodes_map }
     }
-    pub async fn run(&mut self) {
-        info!("Running nodes.");
+    pub async fn run(&mut self, run_set: HashSet<usize>) {
+        info!("Running specified nodes.");
 
-        // Transition nodes from idle to running.
-        self.running_nodes.extend(self.idle_nodes.drain().map(|(index, node_setup)| {
-            let running_node = node_setup.run();
-            (index, running_node)
-        }));
+        run_set.into_iter().for_each(|index| {
+            assert!(self.idle_nodes.contains_key(&index), "Node {} is not in the idle map.", index);
+            assert!(
+                !self.running_nodes.contains_key(&index),
+                "Node {} is already in the running map.",
+                index
+            );
 
-        // Wait for the nodes to start.
+            // Move the node from idle to running
+            if let Some(node_setup) = self.idle_nodes.remove(&index) {
+                info!("Running node {}.", index);
+                let running_node = node_setup.run();
+                self.running_nodes.insert(index, running_node);
+            }
+        });
+
+        // Wait for the nodes to start
         self.await_alive(5000, 50).await;
     }
 
@@ -303,7 +313,7 @@ async fn await_block(
 
 pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
-) -> Vec<NodeSetup> {
+) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
@@ -335,6 +345,8 @@ pub(crate) async fn get_sequencer_setup_configs(
         create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
         node_component_configs.len(),
     );
+
+    let node_indices: HashSet<usize> = (0..node_component_configs.len()).collect();
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
     // the ExecutableSetup
@@ -385,7 +397,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         nodes.push(NodeSetup::new(executables, batcher_index, http_server_index));
     }
 
-    nodes
+    (nodes, node_indices)
 }
 
 /// Generates configurations for a specified number of distributed sequencer nodes,
