@@ -8,5 +8,6 @@ pub mod enum_generation;
 pub mod error;
 pub mod execute_transactions;
 pub mod execution;
+pub mod find_element;
 pub mod stateless_compression;
 pub mod types;
