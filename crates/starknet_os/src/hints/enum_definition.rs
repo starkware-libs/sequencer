@@ -25,6 +25,7 @@ use crate::hints::block_context::{
     write_use_kzg_da_to_memory,
 };
 use crate::hints::bls_field::compute_ids_low;
+use crate::hints::builtins::{select_builtin, selected_builtins, update_builtin_ptrs};
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
@@ -146,6 +147,44 @@ define_hint_enum!(
             ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
         }
     ),
+    (
+        SelectedBuiltins,
+        selected_builtins,
+        "vm_enter_scope({'n_selected_builtins': ids.n_selected_builtins})"
+    ),
+    (
+        SelectBuiltin,
+        select_builtin,
+        indoc! {r##"
+    # A builtin should be selected iff its encoding appears in the selected encodings list
+    # and the list wasn't exhausted.
+    # Note that testing inclusion by a single comparison is possible since the lists are sorted.
+    ids.select_builtin = int(
+      n_selected_builtins > 0 and memory[ids.selected_encodings] == memory[ids.all_encodings])
+    if ids.select_builtin:
+      n_selected_builtins = n_selected_builtins - 1"##
+        }
+    ),
+    (
+        UpdateBuiltinPtrs,
+        update_builtin_ptrs,
+        indoc! {r#"
+    from starkware.starknet.core.os.os_utils import update_builtin_pointers
+
+    # Fill the values of all builtin pointers after the current transaction.
+    ids.return_builtin_ptrs = segments.gen_arg(
+        update_builtin_pointers(
+            memory=memory,
+            n_builtins=ids.n_builtins,
+            builtins_encoding_addr=ids.builtin_params.builtin_encodings.address_,
+            n_selected_builtins=ids.n_selected_builtins,
+            selected_builtins_encoding_addr=ids.selected_encodings,
+            orig_builtin_ptrs_addr=ids.builtin_ptrs.selectable.address_,
+            selected_builtin_ptrs_addr=ids.selected_ptrs,
+            ),
+        )"#
+        }
+    )
 );
 
 define_hint_extension_enum!(
