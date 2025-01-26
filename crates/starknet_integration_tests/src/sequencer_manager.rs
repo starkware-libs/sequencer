@@ -205,6 +205,19 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
+    pub async fn test_and_verify(
+        &mut self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        n_txs: usize,
+        sender_account: AccountId,
+        expected_block_number: BlockNumber,
+    ) {
+        self.run_integration_test_simulator(tx_generator, n_txs, sender_account).await;
+        self.await_execution(expected_block_number).await;
+        self.verify_results(tx_generator.account_with_id(sender_account).sender_address(), n_txs)
+            .await;
+    }
+
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
         let await_alive_tasks =
             self.running_nodes.values().map(|node| node.await_alive(interval, max_attempts));
