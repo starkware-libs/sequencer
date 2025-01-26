@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
+
+pub(crate) const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+pub(crate) const DEFAULT_PORT: u16 = 8082;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct MonitoringEndpointConfig {
@@ -16,7 +19,7 @@ pub struct MonitoringEndpointConfig {
 
 impl Default for MonitoringEndpointConfig {
     fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8082, collect_metrics: false }
+        Self { ip: DEFAULT_IP, port: DEFAULT_PORT, collect_metrics: true }
     }
 }
 
