@@ -37,7 +37,7 @@ pub enum TransactionConverterError {
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
 
 #[async_trait]
-pub trait TransactionConverterTrait {
+pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_internal_consensus_tx_to_consensus_tx(
         &self,
         tx: InternalConsensusTransaction,
