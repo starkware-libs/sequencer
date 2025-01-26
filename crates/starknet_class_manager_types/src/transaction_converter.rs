@@ -58,12 +58,12 @@ pub trait TransactionConverterTrait: Send + Sync {
         tx: RpcTransaction,
     ) -> TransactionConverterResult<InternalRpcTransaction>;
 
-    async fn convert_internal_tx_to_executable_tx(
+    async fn convert_internal_consensus_tx_to_executable_tx(
         &self,
         tx: InternalConsensusTransaction,
     ) -> TransactionConverterResult<ExecutableTransaction>;
 
-    async fn convert_executable_tx_to_internal_tx(
+    async fn convert_executable_tx_to_internal_consensus_tx(
         &self,
         tx: ExecutableTransaction,
     ) -> TransactionConverterResult<InternalConsensusTransaction>;
@@ -182,7 +182,7 @@ impl TransactionConverterTrait for TransactionConverter {
         Ok(InternalRpcTransaction { tx: tx_without_hash, tx_hash })
     }
 
-    async fn convert_internal_tx_to_executable_tx(
+    async fn convert_internal_consensus_tx_to_executable_tx(
         &self,
         internal_tx: InternalConsensusTransaction,
     ) -> TransactionConverterResult<ExecutableTransaction> {
@@ -234,7 +234,7 @@ impl TransactionConverterTrait for TransactionConverter {
         }
     }
 
-    async fn convert_executable_tx_to_internal_tx(
+    async fn convert_executable_tx_to_internal_consensus_tx(
         &self,
         tx: ExecutableTransaction,
     ) -> TransactionConverterResult<InternalConsensusTransaction> {

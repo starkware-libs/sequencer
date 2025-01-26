@@ -4,8 +4,8 @@ use std::time::Duration;
 use std::vec;
 
 use futures::channel::{mpsc, oneshot};
-use futures::future::pending;
-use futures::{FutureExt, SinkExt};
+use futures::future::{self, pending};
+use futures::{FutureExt, SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -23,10 +23,12 @@ use papyrus_protobuf::consensus::{
     Vote,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
@@ -42,6 +44,12 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
+use starknet_class_manager_types::transaction_converter::{
+    self,
+    TransactionConverter,
+    TransactionConverterTrait,
+};
+use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::stream_handler::StreamHandler;
 use starknet_consensus::types::ConsensusContext;
 use starknet_state_sync_types::communication::MockStateSyncClient;
@@ -199,8 +207,19 @@ async fn validate_proposal_success() {
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    // TODO(alonl): instead of converting here, TX_BATCH should be Vec<InternalConsensusTransaction>
+    let transaction_converter =
+        TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID);
+    let rpc_transactions =
+        TX_BATCH.to_vec().into_iter().map(|tx| tx.into()).collect::<Vec<RpcTransaction>>();
+    let internal_transactions = futures::stream::iter(TX_BATCH.to_vec())
+        .then(|tx: ExecutableTransaction| {
+            transaction_converter.convert_executable_tx_to_internal_consensus_tx(tx)
+        })
+        .map(|conversion_result| conversion_result.expect("Failed to convert transaction"))
+        .collect::<Vec<InternalConsensusTransaction>>();
     content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: internal_transactions }))
         .await
         .unwrap();
     content_sender

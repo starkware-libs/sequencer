@@ -10,7 +10,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use blockifier::test_utils::l1_handler;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
@@ -23,7 +22,6 @@ use papyrus_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use papyrus_protobuf::protobuf::transaction;
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -39,7 +37,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, SequencerContractAddress};
-use starknet_api::executable_transaction::{self, Transaction as ExecutableTransaction};
+use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -55,8 +53,11 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
-use starknet_class_manager_types::transaction_converter::{self, TransactionConverterTrait};
-use starknet_class_manager_types::ClassManagerClient;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
+use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -160,8 +161,11 @@ impl SequencerConsensusContext {
         num_validators: u64,
         chain_id: ChainId,
         cende_ambassador: Arc<dyn CendeContext>,
-        transaction_converter: Arc<dyn TransactionConverterTrait>,
     ) -> Self {
+        let transaction_converter = Arc::new(TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            chain_id.clone(),
+        ));
         Self {
             state_sync_client,
             batcher,
@@ -392,8 +396,11 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(alonl): Figure out which tx type should be sent to cende
         let mut exe_txs = vec![];
         for tx in transactions {
-            let executable_tx =
-                self.transaction_converter.convert_internal_tx_to_executable_tx(tx).await;
+            let executable_tx = self
+                .transaction_converter
+                .convert_internal_consensus_tx_to_executable_tx(tx)
+                .await
+                .map_err(|e| ConsensusError::InternalNetworkError(e.to_string()))?;
             // match tx {
             //     InternalConsensusTransaction::RpcTransaction(internal_rpc_tx) => {
             //         executable_transaction::Transaction::Account(
@@ -640,14 +647,23 @@ async fn get_proposal_content(
 
         match response.content {
             GetProposalContent::Txs(txs) => {
-                content.extend_from_slice(&txs[..]);
                 // TODO(matan): Make sure this isn't too large for a single proto message.
                 debug!(
                     hashes = ?txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>(),
                     "Sending transaction batch with {} txs.",
                     txs.len()
                 );
-                let transactions = futures::stream::iter(txs)
+                // TODO(alonl): remove convertion to from executable transaction once the batcher
+                // passes internal_consensus_transactions instead
+                let mut internal_transactions = futures::stream::iter(txs)
+                    .then(|tx| {
+                        transaction_converter.convert_executable_tx_to_internal_consensus_tx(tx)
+                    })
+                    .map(|conversion_result| conversion_result.expect("Failed to convert tx"))
+                    .collect::<Vec<InternalConsensusTransaction>>()
+                    .await;
+                content.append(&mut internal_transactions);
+                let transactions = futures::stream::iter(internal_transactions.clone())
                     .then(|tx| {
                         transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx)
                     })
@@ -816,22 +832,31 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<InternalConsensusTransaction>,
-    chain_id: ChainId,
+    _chain_id: ChainId, // should we verify this?
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
+            // txs is snapi::tx while exe_tx is executable_tx
+            // TODO(alonl): remove conversion to executable transaction before sending to batcher.
             let internal_txs: Vec<InternalConsensusTransaction> = futures::stream::iter(txs)
                 .then(|tx| transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx))
                 .map(|conversion_result| conversion_result.expect("Failed to convert tx"))
                 .collect::<Vec<InternalConsensusTransaction>>()
                 .await;
+
+            let executable_transactions = futures::stream::iter(internal_txs.clone())
+                .then(|tx| transaction_converter.convert_internal_consensus_tx_to_executable_tx(tx))
+                .map(|conversion_result| conversion_result.expect("Failed to convert tx"))
+                .collect::<Vec<ExecutableTransaction>>()
+                .await;
+
             content.extend_from_slice(&internal_txs[..]);
             let input = SendProposalContentInput {
                 proposal_id,
-                content: SendProposalContent::Txs(internal_txs),
+                content: SendProposalContent::Txs(executable_transactions),
             };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
