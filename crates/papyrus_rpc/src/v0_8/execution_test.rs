@@ -113,7 +113,7 @@ use super::state::{
     ClassHashes,
     ContractNonce,
     DeployedContract,
-    ReplacedClasses,
+    ReplacedClass,
     StorageDiff,
     StorageEntry,
     ThinStateDiff,
@@ -1405,7 +1405,7 @@ auto_impl_get_test_instance! {
         pub declared_classes: Vec<ClassHashes>,
         pub deprecated_declared_classes: Vec<ClassHash>,
         pub nonces: Vec<ContractNonce>,
-        pub replaced_classes: Vec<ReplacedClasses>,
+        pub replaced_classes: Vec<ReplacedClass>,
     }
 
     pub struct DeployedContract {
@@ -1433,7 +1433,7 @@ auto_impl_get_test_instance! {
         pub value: Felt,
     }
 
-    pub struct ReplacedClasses {
+    pub struct ReplacedClass {
         pub contract_address: ContractAddress,
         pub class_hash: ClassHash,
     }
