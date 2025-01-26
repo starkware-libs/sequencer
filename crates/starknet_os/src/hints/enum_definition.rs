@@ -24,6 +24,7 @@ use crate::hints::block_context::{
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
+use crate::hints::bls_field::compute_ids_low;
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
@@ -137,7 +138,14 @@ define_hint_enum!(
     memory[fp + 18] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
         not os_input.full_output
     ))"#}
-    )
+    ),
+    (
+        ComputeIdsLow,
+        compute_ids_low,
+        indoc! {r#"
+            ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
+        }
+    ),
 );
 
 define_hint_extension_enum!(
