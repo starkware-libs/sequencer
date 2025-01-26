@@ -6,14 +6,18 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
 use crate::filled_tree_output::filled_forest::SerializedForest;
-use crate::parse_input::read::{parse_input, write_to_file};
+use crate::parse_input::cast::InputImpl;
+use crate::parse_input::raw_input::RawInput;
+use crate::parse_input::read::{load_input, write_to_file};
 
 pub async fn parse_and_commit(
-    input_string: &str,
+    input_path: String,
     output_path: String,
     log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
-    let input = parse_input(input_string).expect("Failed to parse the given input.");
+    let input: InputImpl = load_input::<RawInput>(input_path)
+        .try_into()
+        .expect("Failed to convert RawInput to InputImpl.");
     info!(
         "Parsed committer input successfully. Original Contracts Trie Root Hash: {:?},
     Original Classes Trie Root Hash: {:?}",
