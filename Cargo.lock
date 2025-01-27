@@ -11272,6 +11272,9 @@ dependencies = [
  "metrics 0.24.1",
  "num-traits",
  "regex",
+ "serde",
+ "serde_json",
+ "starknet_infra_utils",
 ]
 
 [[package]]
