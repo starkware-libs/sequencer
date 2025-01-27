@@ -188,5 +188,9 @@ impl L1Provider {
 impl ComponentStarter for L1Provider {}
 
 pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {
-    L1Provider { state: ProviderState::Propose, ..Default::default() }
+    L1Provider {
+        state: ProviderState::Pending,
+        current_height: BlockNumber(1),
+        ..Default::default()
+    }
 }
