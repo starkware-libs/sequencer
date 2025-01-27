@@ -15,6 +15,7 @@ use starknet_l1_provider_types::{
     Event,
     L1ProviderClient,
     L1ProviderClientResult,
+    SessionState,
     ValidationStatus,
 };
 
@@ -182,6 +183,14 @@ impl FakeL1ProviderClient {
 
 #[async_trait]
 impl L1ProviderClient for FakeL1ProviderClient {
+    async fn start_block(
+        &self,
+        _state: SessionState,
+        _height: BlockNumber,
+    ) -> L1ProviderClientResult<()> {
+        todo!()
+    }
+
     async fn get_txs(
         &self,
         _n_txs: usize,

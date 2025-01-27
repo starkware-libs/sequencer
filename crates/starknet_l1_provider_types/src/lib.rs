@@ -34,6 +34,7 @@ pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock { l1_handler_tx_hashes: Vec<TransactionHash>, height: BlockNumber },
     GetTransactions { n_txs: usize, height: BlockNumber },
+    StartBlock { state: SessionState, height: BlockNumber },
     Validate { tx_hash: TransactionHash, height: BlockNumber },
 }
 
@@ -42,6 +43,7 @@ pub enum L1ProviderResponse {
     AddEvents(L1ProviderResult<()>),
     CommitBlock(L1ProviderResult<()>),
     GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
+    StartBlock(L1ProviderResult<()>),
     Validate(L1ProviderResult<ValidationStatus>),
 }
 
@@ -50,6 +52,12 @@ pub enum L1ProviderResponse {
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
+    async fn start_block(
+        &self,
+        state: SessionState,
+        height: BlockNumber,
+    ) -> L1ProviderClientResult<()>;
+
     async fn get_txs(
         &self,
         n_txs: usize,
@@ -76,6 +84,22 @@ impl<ComponentClientType> L1ProviderClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<L1ProviderRequest, L1ProviderResponse>,
 {
+    #[instrument(skip(self))]
+    async fn start_block(
+        &self,
+        state: SessionState,
+        height: BlockNumber,
+    ) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::StartBlock { state, height };
+        handle_all_response_variants!(
+            L1ProviderResponse,
+            StartBlock,
+            L1ProviderClientError,
+            L1ProviderError,
+            Direct
+        )
+    }
+
     #[instrument(skip(self))]
     async fn get_txs(
         &self,

@@ -30,14 +30,17 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
     #[instrument(skip(self))]
     async fn handle_request(&mut self, request: L1ProviderRequest) -> L1ProviderResponse {
         match request {
-            L1ProviderRequest::GetTransactions { n_txs, height } => {
-                L1ProviderResponse::GetTransactions(self.get_txs(n_txs, height))
-            }
             L1ProviderRequest::AddEvents(events) => {
                 L1ProviderResponse::AddEvents(self.process_l1_events(events))
             }
             L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, height } => {
                 L1ProviderResponse::CommitBlock(self.commit_block(&l1_handler_tx_hashes, height))
+            }
+            L1ProviderRequest::GetTransactions { n_txs, height } => {
+                L1ProviderResponse::GetTransactions(self.get_txs(n_txs, height))
+            }
+            L1ProviderRequest::StartBlock { state, height } => {
+                L1ProviderResponse::StartBlock(self.start_block(height, state))
             }
             L1ProviderRequest::Validate { tx_hash, height } => {
                 L1ProviderResponse::Validate(self.validate(tx_hash, height))
