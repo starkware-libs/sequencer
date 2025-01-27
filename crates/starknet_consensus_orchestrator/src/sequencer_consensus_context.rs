@@ -41,7 +41,7 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
-    GetProposalContent,
+    GetProposalContentDeprecated,
     GetProposalContentInput,
     ProposalId,
     ProposalStatus,
@@ -593,12 +593,12 @@ async fn get_proposal_content(
         // changes, we can simply return None and consider this as a failed proposal which consensus
         // should support.
         let response = batcher
-            .get_proposal_content(GetProposalContentInput { proposal_id })
+            .get_proposal_content_deprecated(GetProposalContentInput { proposal_id })
             .await
             .expect("Failed to get proposal content");
 
         match response.content {
-            GetProposalContent::Txs(txs) => {
+            GetProposalContentDeprecated::Txs(txs) => {
                 content.extend_from_slice(&txs[..]);
                 // TODO(matan): Make sure this isn't too large for a single proto message.
                 debug!(
@@ -614,7 +614,7 @@ async fn get_proposal_content(
                     .await
                     .expect("Failed to broadcast proposal content");
             }
-            GetProposalContent::Finished(id) => {
+            GetProposalContentDeprecated::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
                 info!(?proposal_content_id, num_txs = content.len(), "Finished building proposal",);
 

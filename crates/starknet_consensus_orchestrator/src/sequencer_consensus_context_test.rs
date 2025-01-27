@@ -30,8 +30,8 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
-    GetProposalContent,
-    GetProposalContentResponse,
+    GetProposalContentDeprecated,
+    GetProposalContentResponseDeprecated,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -127,17 +127,17 @@ async fn build_proposal_setup(
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
+    batcher.expect_get_proposal_content_deprecated().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(EXECUTABLE_TX_BATCH.clone()),
+        Ok(GetProposalContentResponseDeprecated {
+            content: GetProposalContentDeprecated::Txs(EXECUTABLE_TX_BATCH.clone()),
         })
     });
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
+    batcher.expect_get_proposal_content_deprecated().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
+        Ok(GetProposalContentResponseDeprecated {
+            content: GetProposalContentDeprecated::Finished(ProposalCommitment {
                 state_diff_commitment: STATE_DIFF_COMMITMENT,
             }),
         })

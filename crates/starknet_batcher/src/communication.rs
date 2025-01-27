@@ -21,6 +21,12 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::GetProposalContent(input) => {
                 BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
             }
+            // TODO(alonl): erase after changing tx types in consensus
+            BatcherRequest::GetProposalContentDeprecated(input) => {
+                BatcherResponse::GetProposalContentDeprecated(
+                    self.get_proposal_content_deprecated(input).await,
+                )
+            }
             BatcherRequest::StartHeight(input) => {
                 BatcherResponse::StartHeight(self.start_height(input).await)
             }
