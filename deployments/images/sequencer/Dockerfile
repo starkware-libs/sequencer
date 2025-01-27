@@ -2,40 +2,29 @@
 
 INCLUDE deployments/images/base/Dockerfile
 
-
 # Compile the sequencer_node crate in release mode, ensuring dependencies are locked.
 FROM base AS builder
 WORKDIR /app
-
-# Workaround for better cache handling (dont bust the cache on config change).
 COPY . .
-
 RUN cargo build --bin starknet_sequencer_node
 
-FROM base AS sequencer
+FROM ubuntu:24.04
 
-ENV ID=1000
 WORKDIR /app
 COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
+COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
 COPY config/sequencer/ /app/config/sequencer/
 
-# Create a new user "sequencer".
-RUN set -ex; \
-    addgroup --gid ${ID} sequencer; \
-    adduser --ingroup $(getent group ${ID} | cut -d: -f1) --uid ${ID} --gecos "" --disabled-password --home /app sequencer; \
-    chown -R sequencer:sequencer /app
+# Default storage /data and set permissions.
+RUN mkdir /data && chown -R ubuntu:ubuntu /app /data
 
 # Expose RPC and monitoring ports.
 EXPOSE 8080 8081 8082
 
-# Default storage dir.
-RUN mkdir /data
-RUN chown -R sequencer:sequencer /data
-
-# Switch to the new user.
-USER ${ID}
+# Switch to ubuntu user.
+USER ubuntu
 
 # Set the entrypoint to use tini to manage the process.
 ENTRYPOINT ["tini", "--", "/app/target/debug/starknet_sequencer_node"]
