@@ -453,7 +453,7 @@ impl Batcher {
         let block_execution_artifacts = proposal_result
             .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
             .map_err(|_| BatcherError::InternalError)?;
-        let state_diff = block_execution_artifacts.state_diff();
+        let state_diff = block_execution_artifacts.thin_state_diff();
         let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
             .expect("Number of transactions should fit in u64");
         let n_rejected_txs = u64::try_from(block_execution_artifacts.rejected_tx_hashes.len())
