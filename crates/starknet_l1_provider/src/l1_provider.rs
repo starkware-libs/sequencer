@@ -9,8 +9,8 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
-// TODO: optimistic proposer support, will add later to keep things simple, but the design here
-// is compatible with it.
+// TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
+// here is compatible with it.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct L1Provider {
     pub current_height: BlockNumber,
