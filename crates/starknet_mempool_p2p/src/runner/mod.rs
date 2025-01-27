@@ -3,6 +3,7 @@ mod test;
 
 use async_trait::async_trait;
 use futures::future::BoxFuture;
+use futures::never::Never;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use papyrus_network::network_manager::{
@@ -21,7 +22,7 @@ use starknet_sequencer_infra::errors::ComponentError;
 use tracing::warn;
 
 pub struct MempoolP2pRunner {
-    network_future: BoxFuture<'static, Result<(), NetworkError>>,
+    network_future: BoxFuture<'static, Result<Never, NetworkError>>,
     broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
     gateway_client: SharedGatewayClient,
@@ -29,7 +30,7 @@ pub struct MempoolP2pRunner {
 
 impl MempoolP2pRunner {
     pub fn new(
-        network_future: BoxFuture<'static, Result<(), NetworkError>>,
+        network_future: BoxFuture<'static, Result<Never, NetworkError>>,
         broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
         gateway_client: SharedGatewayClient,
@@ -45,7 +46,7 @@ impl ComponentStarter for MempoolP2pRunner {
         loop {
             tokio::select! {
                 result = &mut self.network_future => {
-                    return result.map_err(|_| ComponentError::InternalComponentError);
+                    return result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ());
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {

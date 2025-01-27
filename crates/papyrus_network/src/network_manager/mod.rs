@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, BoxFuture, Ready};
+use futures::never::Never;
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
@@ -71,7 +72,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
-    pub async fn run(mut self) -> Result<(), NetworkError> {
+    pub async fn run(mut self) -> Result<Never, NetworkError> {
         loop {
             tokio::select! {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,

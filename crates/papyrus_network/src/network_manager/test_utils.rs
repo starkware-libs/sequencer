@@ -197,7 +197,6 @@ where
     tokio::task::spawn(async move {
         let result = network_manager.run().await;
         match result {
-            Ok(()) => panic!("Network manager terminated."),
             // The user of this function can drop the broadcast channels if they want to. In that
             // case we should just terminate NetworkManager's run quietly.
             Err(NetworkError::BroadcastChannelsDropped { topic_hash })

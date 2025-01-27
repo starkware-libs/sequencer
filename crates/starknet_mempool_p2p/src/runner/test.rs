@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::future::{pending, ready, BoxFuture};
+use futures::never::Never;
 use futures::stream::StreamExt;
 use futures::{FutureExt, SinkExt};
 use papyrus_network::network_manager::test_utils::{
@@ -23,7 +24,7 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use super::MempoolP2pRunner;
 
 fn setup(
-    network_future: BoxFuture<'static, Result<(), NetworkError>>,
+    network_future: BoxFuture<'static, Result<Never, NetworkError>>,
     gateway_client: Arc<dyn GatewayClient>,
 ) -> (MempoolP2pRunner, BroadcastNetworkMock<RpcTransactionWrapper>) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -37,14 +38,6 @@ fn setup(
         gateway_client,
     );
     (mempool_p2p_runner, mock_network)
-}
-
-#[test]
-fn run_returns_when_network_future_returns() {
-    let network_future = ready(Ok(())).boxed();
-    let gateway_client = Arc::new(MockGatewayClient::new());
-    let (mut mempool_p2p_runner, _) = setup(network_future, gateway_client);
-    mempool_p2p_runner.start().now_or_never().unwrap().unwrap();
 }
 
 #[test]
