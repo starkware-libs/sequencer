@@ -1,39 +1,16 @@
-use std::collections::HashMap;
-
-use cairo_vm::hint_processor::hint_processor_definition::{HintProcessor, HintReference};
-use cairo_vm::serde::deserialize_program::ApTracking;
-use cairo_vm::types::exec_scope::ExecutionScopes;
-use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_types_core::felt::Felt;
-
 use crate::hints::error::{HintExtensionResult, HintResult};
+use crate::hints::types::{HintArgs, HintExtensionArgs};
 
-pub fn load_deprecated_class_facts(
-    _vm: &mut VirtualMachine,
-    _exec_scopes: &mut ExecutionScopes,
-    _ids_data: &HashMap<String, HintReference>,
-    _ap_tracking: &ApTracking,
-    _constants: &HashMap<String, Felt>,
-) -> HintResult {
+pub fn load_deprecated_class_facts(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
 
-pub fn load_deprecated_class_inner(
-    _vm: &mut VirtualMachine,
-    _exec_scopes: &mut ExecutionScopes,
-    _ids_data: &HashMap<String, HintReference>,
-    _ap_tracking: &ApTracking,
-    _constants: &HashMap<String, Felt>,
-) -> HintResult {
+pub fn load_deprecated_class_inner(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
 
 pub fn load_deprecated_class(
-    _hint_processor: &dyn HintProcessor,
-    _vm: &mut VirtualMachine,
-    _exec_scopes: &mut ExecutionScopes,
-    _ids_data: &HashMap<String, HintReference>,
-    _ap_tracking: &ApTracking,
+    HintExtensionArgs { .. }: HintExtensionArgs<'_, '_, '_, '_, '_>,
 ) -> HintExtensionResult {
     todo!()
 }
