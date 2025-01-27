@@ -20,7 +20,10 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
     // invocation. Consider using the builder pattern.
-    let integration_test_manager = IntegrationTestManager::run(sequencers_setup).await;
+    let mut integration_test_manager = IntegrationTestManager::new(sequencers_setup, Vec::new());
+
+    // Run the nodes.
+    integration_test_manager.run().await;
 
     // Run the integration test simulator.
     integration_test_manager
