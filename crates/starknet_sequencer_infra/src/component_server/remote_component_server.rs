@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -88,10 +88,10 @@ use crate::serde_utils::SerdeWrapper;
 ///     // Set the ip address and port of the server's socket.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let socket = std::net::SocketAddr::new(ip_address, port);
 ///
 ///     // Instantiate the server.
-///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, socket);
+///     let mut server =
+///         RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, ip_address, port);
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -113,8 +113,12 @@ where
     Request: Serialize + DeserializeOwned + Debug + Send + 'static,
     Response: Serialize + DeserializeOwned + Debug + Send + 'static,
 {
-    pub fn new(local_client: LocalComponentClient<Request, Response>, socket: SocketAddr) -> Self {
-        Self { local_client, socket }
+    pub fn new(
+        local_client: LocalComponentClient<Request, Response>,
+        ip: IpAddr,
+        port: u16,
+    ) -> Self {
+        Self { local_client, socket: SocketAddr::new(ip, port) }
     }
 
     async fn remote_component_server_handler(
