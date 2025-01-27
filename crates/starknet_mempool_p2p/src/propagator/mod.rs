@@ -15,7 +15,7 @@ use starknet_mempool_p2p_types::communication::{
 use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
-use tracing::warn;
+use tracing::{debug, info, warn};
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
@@ -41,6 +41,8 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
     ) -> MempoolP2pPropagatorResponse {
         match request {
             MempoolP2pPropagatorRequest::AddTransaction(transaction) => {
+                info!("Broadcast new transaction to other mempool peers");
+                debug!("broadcasted tx_hash: {:?}", transaction.tx_hash);
                 let transaction = match self
                     .transaction_converter
                     .convert_internal_rpc_tx_to_rpc_tx(transaction)
@@ -71,6 +73,8 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 MempoolP2pPropagatorResponse::AddTransaction(result)
             }
             MempoolP2pPropagatorRequest::ContinuePropagation(propagation_manager) => {
+                info!("Continuing propagation of received transaction");
+                debug!("Propagated transaction metadata: {:?}", propagation_manager);
                 let result = self
                     .broadcast_topic_client
                     .continue_propagation(&propagation_manager)
