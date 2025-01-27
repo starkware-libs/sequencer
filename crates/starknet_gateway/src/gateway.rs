@@ -114,6 +114,8 @@ impl ProcessTxBlockingTask {
         }
     }
 
+    // TODO(Arni): Make into async function and remove all block_on calls once we manage removing
+    // the spawn_blocking call.
     fn process_tx(self) -> GatewayResult<AddTransactionArgs> {
         // TODO(Arni, 1/5/2024): Perform congestion control.
 
