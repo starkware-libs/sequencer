@@ -6,7 +6,10 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHashDiscriminants,
+};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
@@ -443,6 +446,7 @@ pub struct TransactionReference {
     pub tx_hash: TransactionHash,
     pub tip: Tip,
     pub max_l2_gas_price: GasPrice,
+    pub tx_type: InternalRpcTransactionWithoutTxHashDiscriminants,
 }
 
 impl TransactionReference {
@@ -453,17 +457,18 @@ impl TransactionReference {
             tx_hash: tx.tx_hash(),
             tip: tx.tip(),
             max_l2_gas_price: tx.resource_bounds().l2_gas.max_price_per_unit,
+            tx_type: InternalRpcTransactionWithoutTxHashDiscriminants::from(&tx.tx),
         }
     }
 }
 
 impl std::fmt::Display for TransactionReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let TransactionReference { address, nonce, tx_hash, tip, max_l2_gas_price } = self;
+        let TransactionReference { address, nonce, tx_hash, tip, max_l2_gas_price, tx_type } = self;
         write!(
             f,
             "TransactionReference {{ address: {address}, nonce: {nonce}, tx_hash: {tx_hash},
-            tip: {tip}, max_l2_gas_price: {max_l2_gas_price} }}"
+            tip: {tip}, max_l2_gas_price: {max_l2_gas_price}, tx_type: {tx_type:?} }}"
         )
     }
 }
