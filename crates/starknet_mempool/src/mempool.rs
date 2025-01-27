@@ -32,12 +32,12 @@ pub mod mempool_test;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate)]
 pub struct MempoolConfig {
-    enable_fee_escalation: bool,
+    pub enable_fee_escalation: bool,
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
-    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+    pub fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    delay_duration: std::time::Duration,
+    pub delay_duration: std::time::Duration,
 }
 
 impl Default for MempoolConfig {
@@ -197,6 +197,7 @@ impl Mempool {
     }
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
+    #[cfg(test)]
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
         self.tx_queue.iter_over_ready_txs()
     }
@@ -264,7 +265,7 @@ impl Mempool {
         let stored_account_nonce = self.state.get_or_insert(address, incoming_account_nonce);
         if tx_reference.nonce == stored_account_nonce {
             self.tx_queue.remove(address);
-            self.tx_queue.insert(tx_reference);
+            self.tx_queue.insert(tx_reference, false);
         }
 
         Ok(())
@@ -302,7 +303,7 @@ impl Mempool {
                 if let Some(tx_reference) =
                     self.tx_pool.get_by_address_and_nonce(address, next_nonce)
                 {
-                    self.tx_queue.insert(tx_reference);
+                    self.tx_queue.insert(tx_reference, true);
                 }
             }
         }
@@ -317,7 +318,7 @@ impl Mempool {
                 .next()
                 .expect("Address {address} should appear in transaction pool.");
             self.tx_queue.remove(address);
-            self.tx_queue.insert(*tx_reference);
+            self.tx_queue.insert(*tx_reference, true);
         }
 
         debug!("Aligned mempool to committed nonces.");
@@ -360,7 +361,7 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(next_tx_reference);
+                self.tx_queue.insert(next_tx_reference, true);
             }
         }
 
