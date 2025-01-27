@@ -19,8 +19,5 @@ starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
-[dev-dependencies]
-mockall.workspace = true
-
 [lints]
 workspace = true
