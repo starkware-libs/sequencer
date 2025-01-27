@@ -17,6 +17,7 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::Fee;
@@ -306,5 +307,38 @@ impl TransactionConverter {
             // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
             paid_fee_on_l1: Fee(1),
         })
+    }
+}
+
+// TODO(alonl): probably rename
+pub fn convert_consensus_tx_to_snapi_tx(
+    tx: ConsensusTransaction,
+) -> TransactionConverterResult<starknet_api::transaction::Transaction> {
+    match tx {
+        ConsensusTransaction::RpcTransaction(tx) => {
+            Ok(starknet_api::transaction::Transaction::from(tx))
+        }
+        ConsensusTransaction::L1Handler(tx) => {
+            Ok(starknet_api::transaction::Transaction::L1Handler(tx))
+        }
+    }
+}
+
+// TODO(alonl): figure out how to properly convert
+pub fn convert_snapi_tx_to_consensus_tx(
+    tx: starknet_api::transaction::Transaction,
+) -> ConsensusTransaction {
+    match tx {
+        starknet_api::transaction::Transaction::Invoke(
+            starknet_api::transaction::InvokeTransaction::V3(invoke_transaction),
+        ) => ConsensusTransaction::RpcTransaction(RpcTransaction::Invoke(
+            RpcInvokeTransaction::V3(invoke_transaction.into()),
+        )),
+        starknet_api::transaction::Transaction::DeployAccount(
+            starknet_api::transaction::DeployAccountTransaction::V3(deploy_account_transaction),
+        ) => ConsensusTransaction::RpcTransaction(RpcTransaction::DeployAccount(
+            RpcDeployAccountTransaction::V3(deploy_account_transaction.into()),
+        )),
+        _ => panic!("Invalid transaction type"),
     }
 }

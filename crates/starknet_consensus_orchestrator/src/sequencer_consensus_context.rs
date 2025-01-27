@@ -839,7 +839,6 @@ async fn handle_proposal_part(
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
-            // txs is snapi::tx while exe_tx is executable_tx
             // TODO(alonl): remove conversion to executable transaction before sending to batcher.
             let internal_txs: Vec<InternalConsensusTransaction> = futures::stream::iter(txs)
                 .then(|tx| transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx))
