@@ -41,13 +41,10 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
-    GetProposalContent,
     GetProposalContentInput,
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
     StartHeightInput,
     ValidateBlockInput,
 };
