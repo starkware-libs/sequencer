@@ -199,8 +199,8 @@ where
             client: self.client.clone(),
             config: self.config.clone(),
             socket: self.socket,
-            _req: PhantomData,
-            _res: PhantomData,
+            _req: self._req,
+            _res: self._res,
         }
     }
 }
