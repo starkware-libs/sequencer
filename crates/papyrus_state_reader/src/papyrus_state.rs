@@ -226,11 +226,9 @@ impl StateReader for PapyrusReader {
             match cached_casm {
                 CachedCasm::WithSierra(runnable_casm, sierra) => {
                     if let RunnableCompiledClass::V1(casm_v1) = runnable_casm.clone() {
-                        self.contract_class_manager.send_compilation_request((
-                            class_hash,
-                            sierra.clone(),
-                            casm_v1.clone(),
-                        ));
+                        self.contract_class_manager
+                            .send_compilation_request((class_hash, sierra.clone(), casm_v1.clone()))
+                            .unwrap_or(());
                         if self.contract_class_manager.wait_on_native_compilation() {
                             // With this config, sending a compilation request blocks the sender
                             // until compilation completes. Retry fetching Native from cache.
