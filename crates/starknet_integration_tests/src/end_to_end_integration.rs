@@ -9,13 +9,12 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
     const N_TXS: usize = 50;
     const SENDER_ACCOUNT: AccountId = 0;
-    let sender_address = tx_generator.account_with_id(SENDER_ACCOUNT).sender_address();
 
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();
 
     // Get the sequencer configurations.
-    let sequencers_setup = get_sequencer_setup_configs(tx_generator).await;
+    let (sequencers_setup, node_indices) = get_sequencer_setup_configs(tx_generator).await;
 
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
@@ -23,18 +22,13 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     let mut integration_test_manager = IntegrationTestManager::new(sequencers_setup, Vec::new());
 
     // Run the nodes.
-    integration_test_manager.run().await;
+    integration_test_manager.run(node_indices).await;
 
-    // Run the integration test simulator.
+    // Run the test.
     integration_test_manager
-        .run_integration_test_simulator(tx_generator, N_TXS, SENDER_ACCOUNT)
+        .test_and_verify(tx_generator, N_TXS, SENDER_ACCOUNT, EXPECTED_BLOCK_NUMBER)
         .await;
-
-    integration_test_manager.await_execution(EXPECTED_BLOCK_NUMBER).await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes();
-
-    // Verify the results.
-    integration_test_manager.verify_results(sender_address, N_TXS).await;
 }
