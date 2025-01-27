@@ -10761,6 +10761,7 @@ name = "starknet_class_manager"
 version = "0.0.0"
 dependencies = [
  "hex",
+ "papyrus_storage",
  "serde_json",
  "starknet_api",
  "starknet_class_manager_types",
