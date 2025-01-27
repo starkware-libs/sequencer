@@ -26,8 +26,8 @@ use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -49,7 +49,9 @@ pub enum BlockBuilderError {
     #[error(transparent)]
     GetTransactionError(#[from] TransactionProviderError),
     #[error(transparent)]
-    StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
+    StreamTransactionsError(
+        #[from] tokio::sync::mpsc::error::SendError<InternalConsensusTransaction>,
+    ),
     #[error(transparent)]
     FailOnError(FailOnErrorCause),
     #[error("The block builder was aborted.")]
@@ -134,7 +136,7 @@ pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
     executor: Box<dyn TransactionExecutorTrait>,
     tx_provider: Box<dyn TransactionProvider>,
-    output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+    output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
 
     // Parameters to configure the block builder behavior.
@@ -146,7 +148,9 @@ impl BlockBuilder {
     pub fn new(
         executor: Box<dyn TransactionExecutorTrait>,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        output_content_sender: Option<
+            tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+        >,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         tx_chunk_size: usize,
         execution_params: BlockBuilderExecutionParams,
@@ -200,7 +204,8 @@ impl BlockBuilderTrait for BlockBuilder {
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
                 // TODO(yair): Avoid this clone.
-                let executable_tx = BlockifierTransaction::new_for_sequencing(tx.clone());
+                let executable_tx = todo!();
+                let executable_tx = BlockifierTransaction::new_for_sequencing(executable_tx);
                 executor_input_chunk.push(executable_tx);
             }
             let results = self.executor.add_txs_to_block(&executor_input_chunk);
@@ -231,12 +236,14 @@ impl BlockBuilderTrait for BlockBuilder {
 
 /// Returns true if the block is full and should be closed, false otherwise.
 async fn collect_execution_results_and_stream_txs(
-    tx_chunk: Vec<Transaction>,
+    tx_chunk: Vec<InternalConsensusTransaction>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     l2_gas_used: &mut GasAmount,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
     rejected_tx_hashes: &mut HashSet<TransactionHash>,
-    output_content_sender: &Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+    output_content_sender: &Option<
+        tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+    >,
     fail_on_err: bool,
 ) -> BlockBuilderResult<bool> {
     assert!(
@@ -293,12 +300,16 @@ pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
+    // TODO(noamsp): Investigate and remove this clippy warning.
+    #[allow(clippy::result_large_err)]
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        output_content_sender: Option<
+            tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+        >,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
 
@@ -351,6 +362,8 @@ pub struct BlockBuilderFactory {
 }
 
 impl BlockBuilderFactory {
+    // TODO(noamsp): Investigate and remove this clippy warning.
+    #[allow(clippy::result_large_err)]
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
@@ -392,7 +405,9 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        output_content_sender: Option<
+            tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
+        >,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(block_metadata)?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
