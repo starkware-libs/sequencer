@@ -10,6 +10,8 @@ use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
     L1HandlerTransaction,
 };
+use starknet_api::hash::StarkHash;
+use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::{
     Event,
@@ -23,6 +25,17 @@ use crate::l1_provider::L1Provider;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::transaction_manager::TransactionManager;
 use crate::ProviderState;
+
+// Default funded account, there are more fixed funded accounts,
+// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
+pub const DEFAULT_ANVIL_ACCOUNT_ADDRESS: StarkHash =
+    StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+pub const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+
+pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
+    let tx_hash = TransactionHash(StarkHash::from(tx_hash));
+    executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() })
+}
 
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
