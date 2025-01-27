@@ -41,6 +41,7 @@ members = [
   "crates/starknet_http_server",
   "crates/starknet_infra_utils",
   "crates/starknet_integration_tests",
+  "crates/starknet_l1_gas_price", 
   "crates/starknet_l1_provider",
   "crates/starknet_l1_provider_types",
   "crates/starknet_mempool",
