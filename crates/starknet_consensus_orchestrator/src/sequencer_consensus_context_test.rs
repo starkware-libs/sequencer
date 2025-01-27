@@ -30,14 +30,14 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
-    GetProposalContent,
-    GetProposalContentResponse,
+    GetProposalContentDeprecated,
+    GetProposalContentResponseDeprecated,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
+    SendProposalContentDeprecated,
+    SendProposalContentInputDeprecated,
     SendProposalContentResponse,
     ValidateBlockInput,
 };
@@ -127,17 +127,17 @@ async fn build_proposal_setup(
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
+    batcher.expect_get_proposal_content_deprecated().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(EXECUTABLE_TX_BATCH.clone()),
+        Ok(GetProposalContentResponseDeprecated {
+            content: GetProposalContentDeprecated::Txs(EXECUTABLE_TX_BATCH.clone()),
         })
     });
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
+    batcher.expect_get_proposal_content_deprecated().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
+        Ok(GetProposalContentResponseDeprecated {
+            content: GetProposalContentDeprecated::Finished(ProposalCommitment {
                 state_diff_commitment: STATE_DIFF_COMMITMENT,
             }),
         })
@@ -170,10 +170,10 @@ async fn validate_proposal_success() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
+    batcher.expect_send_proposal_content_deprecated().times(1).returning(
+        move |input: SendProposalContentInputDeprecated| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            let SendProposalContent::Txs(txs) = input.content else {
+            let SendProposalContentDeprecated::Txs(txs) = input.content else {
                 panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
             };
             assert_eq!(txs, *EXECUTABLE_TX_BATCH);
@@ -181,10 +181,10 @@ async fn validate_proposal_success() {
         },
     );
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
+    batcher.expect_send_proposal_content_deprecated().times(1).returning(
+        move |input: SendProposalContentInputDeprecated| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            assert!(matches!(input.content, SendProposalContent::Finish));
+            assert!(matches!(input.content, SendProposalContentDeprecated::Finish));
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(ProposalCommitment {
                     state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -223,15 +223,15 @@ async fn repropose() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert!(matches!(input.content, SendProposalContent::Txs(_)));
+    batcher.expect_send_proposal_content_deprecated().times(1).returning(
+        move |input: SendProposalContentInputDeprecated| {
+            assert!(matches!(input.content, SendProposalContentDeprecated::Txs(_)));
             Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
         },
     );
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert!(matches!(input.content, SendProposalContent::Finish));
+    batcher.expect_send_proposal_content_deprecated().times(1).returning(
+        move |input: SendProposalContentInputDeprecated| {
+            assert!(matches!(input.content, SendProposalContentDeprecated::Finish));
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(ProposalCommitment {
                     state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -281,10 +281,10 @@ async fn proposals_from_different_rounds() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
+    batcher.expect_send_proposal_content_deprecated().times(1).returning(
+        move |input: SendProposalContentInputDeprecated| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            let SendProposalContent::Txs(txs) = input.content else {
+            let SendProposalContentDeprecated::Txs(txs) = input.content else {
                 panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
             };
             assert_eq!(txs, *EXECUTABLE_TX_BATCH);
@@ -292,10 +292,10 @@ async fn proposals_from_different_rounds() {
         },
     );
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
+    batcher.expect_send_proposal_content_deprecated().times(1).returning(
+        move |input: SendProposalContentInputDeprecated| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            assert!(matches!(input.content, SendProposalContent::Finish));
+            assert!(matches!(input.content, SendProposalContentDeprecated::Finish));
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(ProposalCommitment {
                     state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -361,9 +361,10 @@ async fn interrupt_active_proposal() {
         .withf(|input| input.proposal_id == ProposalId(0))
         .returning(|_| Ok(()));
     batcher
-        .expect_send_proposal_content()
+        .expect_send_proposal_content_deprecated()
         .withf(|input| {
-            input.proposal_id == ProposalId(0) && input.content == SendProposalContent::Abort
+            input.proposal_id == ProposalId(0)
+                && input.content == SendProposalContentDeprecated::Abort
         })
         .times(1)
         .returning(move |_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
@@ -373,20 +374,20 @@ async fn interrupt_active_proposal() {
         .withf(|input| input.proposal_id == ProposalId(1))
         .returning(|_| Ok(()));
     batcher
-        .expect_send_proposal_content()
+        .expect_send_proposal_content_deprecated()
         .withf(|input| {
             input.proposal_id == ProposalId(1)
-                && input.content == SendProposalContent::Txs(EXECUTABLE_TX_BATCH.clone())
+                && input.content == SendProposalContentDeprecated::Txs(EXECUTABLE_TX_BATCH.clone())
         })
         .times(1)
         .returning(move |_| {
             Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
         });
     batcher
-        .expect_send_proposal_content()
+        .expect_send_proposal_content_deprecated()
         .withf(|input| {
             input.proposal_id == ProposalId(1)
-                && matches!(input.content, SendProposalContent::Finish)
+                && matches!(input.content, SendProposalContentDeprecated::Finish)
         })
         .times(1)
         .returning(move |_| {

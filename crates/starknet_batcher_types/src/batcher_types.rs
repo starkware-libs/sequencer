@@ -6,6 +6,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
@@ -13,7 +14,7 @@ use starknet_api::state::ThinStateDiff;
 
 use crate::errors::BatcherError;
 
-// TODO (Matan) decide on the id structure
+// TODO(Matan): decide on the id structure
 #[derive(
     Copy,
     Clone,
@@ -61,6 +62,18 @@ pub struct GetProposalContentResponse {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
+    Txs(Vec<InternalConsensusTransaction>),
+    Finished(ProposalCommitment),
+}
+
+// TODO(alonl): erase after changing tx types in consensus
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetProposalContentResponseDeprecated {
+    pub content: GetProposalContentDeprecated,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum GetProposalContentDeprecated {
     Txs(Vec<Transaction>),
     Finished(ProposalCommitment),
 }
@@ -83,6 +96,20 @@ pub struct SendProposalContentInput {
 /// The content of the stream that the consensus sends to the batcher.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
+    Txs(Vec<InternalConsensusTransaction>),
+    Finish,
+    Abort,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SendProposalContentInputDeprecated {
+    pub proposal_id: ProposalId,
+    pub content: SendProposalContentDeprecated,
+}
+
+/// The content of the stream that the consensus sends to the batcher.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum SendProposalContentDeprecated {
     Txs(Vec<Transaction>),
     Finish,
     Abort,

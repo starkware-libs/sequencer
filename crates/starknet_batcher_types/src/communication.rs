@@ -24,9 +24,11 @@ use crate::batcher_types::{
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
+    GetProposalContentResponseDeprecated,
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContentInput,
+    SendProposalContentInputDeprecated,
     SendProposalContentResponse,
     StartHeightInput,
     ValidateBlockInput,
@@ -51,10 +53,16 @@ pub trait BatcherClient: Send + Sync {
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
     /// proposal).
+    // TODO(alonL): use this and remove deprecated version once consensus tx type change is ready
     async fn get_proposal_content(
         &self,
         input: GetProposalContentInput,
     ) -> BatcherClientResult<GetProposalContentResponse>;
+    // TODO(alonl): erase after changing tx types in consensus
+    async fn get_proposal_content_deprecated(
+        &self,
+        input: GetProposalContentInput,
+    ) -> BatcherClientResult<GetProposalContentResponseDeprecated>;
     /// Starts the process of validating a proposal.
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()>;
     /// Sends the content of a proposal. Only relevant when validating a proposal.
@@ -66,6 +74,11 @@ pub trait BatcherClient: Send + Sync {
     async fn send_proposal_content(
         &self,
         input: SendProposalContentInput,
+    ) -> BatcherClientResult<SendProposalContentResponse>;
+    // TODO(alonl): erase after changing tx types in consensus
+    async fn send_proposal_content_deprecated(
+        &self,
+        input: SendProposalContentInputDeprecated,
     ) -> BatcherClientResult<SendProposalContentResponse>;
     /// Starts the process of a new height.
     /// From this point onwards, the batcher will accept requests only for proposals associated
@@ -88,8 +101,12 @@ pub trait BatcherClient: Send + Sync {
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetProposalContent(GetProposalContentInput),
+    // TODO(alonl): erase after changing tx types in consensus
+    GetProposalContentDeprecated(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     SendProposalContent(SendProposalContentInput),
+    // TODO(alonl): erase after changing tx types in consensus
+    SendProposalContentDeprecated(SendProposalContentInputDeprecated),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
@@ -102,6 +119,8 @@ pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
+    // TODO(alonl): erase after changing tx types in consensus
+    GetProposalContentDeprecated(BatcherResult<GetProposalContentResponseDeprecated>),
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
@@ -148,6 +167,21 @@ where
         )
     }
 
+    // TODO(alonl): erase after changing tx types in consensus
+    async fn get_proposal_content_deprecated(
+        &self,
+        input: GetProposalContentInput,
+    ) -> BatcherClientResult<GetProposalContentResponseDeprecated> {
+        let request = BatcherRequest::GetProposalContentDeprecated(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            GetProposalContentDeprecated,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::ValidateBlock(input);
         handle_all_response_variants!(
@@ -164,6 +198,21 @@ where
         input: SendProposalContentInput,
     ) -> BatcherClientResult<SendProposalContentResponse> {
         let request = BatcherRequest::SendProposalContent(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            SendProposalContent,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    // TODO(alonl): erase after changing tx types in consensus
+    async fn send_proposal_content_deprecated(
+        &self,
+        input: SendProposalContentInputDeprecated,
+    ) -> BatcherClientResult<SendProposalContentResponse> {
+        let request = BatcherRequest::SendProposalContentDeprecated(input);
         handle_all_response_variants!(
             BatcherResponse,
             SendProposalContent,
