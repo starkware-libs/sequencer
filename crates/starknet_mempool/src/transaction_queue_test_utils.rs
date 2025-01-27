@@ -61,6 +61,7 @@ impl TransactionQueueContent {
             address_to_tx,
             gas_price_threshold,
             delay_duration,
+            delayed_queue: vec![],
         }
     }
 }

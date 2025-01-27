@@ -25,6 +25,9 @@ pub struct TransactionQueue {
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).
     pending_queue: BTreeSet<PendingTransaction>,
+    // Transaction that are currently being delayed from being proposed.
+    // Invariant: the transactions are sorted by the time they were added.
+    delayed_queue: Vec<DelayedTransaction>,
     // Set of account addresses for efficient existence checks.
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
@@ -37,20 +40,45 @@ impl TransactionQueue {
             declare_delay,
             priority_queue: BTreeSet::new(),
             pending_queue: BTreeSet::new(),
+            delayed_queue: Vec::new(),
             address_to_tx: HashMap::new(),
         }
     }
 
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
-    pub fn insert(&mut self, tx_reference: TransactionReference) {
+    pub fn insert(&mut self, tx_reference: TransactionReference, skip_delay: bool) {
         assert_eq!(
             self.address_to_tx.insert(tx_reference.address, tx_reference),
             None,
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
         );
-        self.insert_tx_reference(tx_reference);
+        if !skip_delay
+            && tx_reference.tx_type == InternalRpcTransactionWithoutTxHashDiscriminants::Declare
+        {
+            self.delay_tx(tx_reference);
+        } else {
+            self.insert_tx_reference(tx_reference);
+        }
+    }
+
+    fn delay_tx(&mut self, tx_reference: TransactionReference) {
+        let delayed_tx = DelayedTransaction(std::time::Instant::now(), tx_reference);
+        self.delayed_queue.push(delayed_tx);
+    }
+
+    fn insert_delayed_transactions(&mut self) {
+        let now = std::time::Instant::now();
+        let first_tx_still_delayed =
+            self.delayed_queue.iter().position(|DelayedTransaction(added_at, _)| {
+                now.duration_since(*added_at) < self.delay_duration
+            });
+        let range_to_remove = 0..first_tx_still_delayed.unwrap_or(self.delayed_queue.len());
+        let txs_finished_delay: Vec<_> = self.delayed_queue.drain(range_to_remove).collect();
+        for DelayedTransaction(_, tx_ref) in txs_finished_delay {
+            self.insert_tx_reference(tx_ref);
+        }
     }
 
     fn insert_tx_reference(&mut self, tx_reference: TransactionReference) {
@@ -79,7 +107,9 @@ impl TransactionQueue {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    pub fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
+    // Note: delayed transactions that are now ready are not included in the iterator.
+    #[cfg(test)]
+    pub(crate) fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
         self.priority_queue.iter().rev().map(|tx| &tx.0)
     }
 
@@ -96,9 +126,17 @@ impl TransactionQueue {
 
         self.priority_queue.remove(&tx_reference.into())
             || self.pending_queue.remove(&tx_reference.into())
+            || self.remove_from_delayed_txs(address)
     }
 
-    pub fn has_ready_txs(&self) -> bool {
+    fn remove_from_delayed_txs(&mut self, address: ContractAddress) -> bool {
+        let n_delayed = self.delayed_queue.len();
+        self.delayed_queue.retain(|DelayedTransaction(_, tx)| tx.address != address);
+        n_delayed != self.delayed_queue.len()
+    }
+
+    pub fn has_ready_txs(&mut self) -> bool {
+        self.insert_delayed_transactions();
         !self.priority_queue.is_empty()
     }
 
@@ -204,3 +242,7 @@ impl PartialOrd for PriorityTransaction {
         Some(self.cmp(other))
     }
 }
+
+type AddedAt = std::time::Instant;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct DelayedTransaction(AddedAt, TransactionReference);
