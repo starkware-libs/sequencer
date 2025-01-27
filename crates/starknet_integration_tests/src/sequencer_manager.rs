@@ -182,23 +182,21 @@ impl IntegrationTestManager {
 
         Self { idle_nodes: idle_nodes_map, running_nodes: running_nodes_map }
     }
-    pub async fn run(&mut self, run_set: HashSet<usize>) {
+    pub async fn run(&mut self, nodes_to_run: HashSet<usize>) {
         info!("Running specified nodes.");
 
-        run_set.into_iter().for_each(|index| {
-            assert!(self.idle_nodes.contains_key(&index), "Node {} is not in the idle map.", index);
+        nodes_to_run.into_iter().for_each(|index| {
+            let node_setup = self
+                .idle_nodes
+                .remove(&index)
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", index));
+            info!("Running node {}.", index);
+            let running_node = node_setup.run();
             assert!(
-                !self.running_nodes.contains_key(&index),
+                self.running_nodes.insert(index, running_node).is_none(),
                 "Node {} is already in the running map.",
                 index
             );
-
-            // Move the node from idle to running
-            if let Some(node_setup) = self.idle_nodes.remove(&index) {
-                info!("Running node {}.", index);
-                let running_node = node_setup.run();
-                self.running_nodes.insert(index, running_node);
-            }
         });
 
         // Wait for the nodes to start
