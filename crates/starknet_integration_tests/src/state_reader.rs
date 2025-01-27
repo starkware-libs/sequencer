@@ -260,18 +260,18 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
             block_number,
             sequencer: SequencerContractAddress(contract_address!(TEST_SEQUENCER_ADDRESS)),
             l1_gas_price: GasPricePerToken {
-                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
-                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
+                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE,
+                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE,
             },
             l1_data_gas_price: GasPricePerToken {
-                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
-                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
+                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE,
+                price_in_fri: DEFAULT_STRK_L1_GAS_PRICE,
             },
             l2_gas_price: GasPricePerToken {
                 price_in_wei: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE),
                 price_in_fri: VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE),
             },
             timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             ..Default::default()

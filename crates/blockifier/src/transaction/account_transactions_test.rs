@@ -222,7 +222,7 @@ fn test_fee_enforcement(
         resource_bounds: match gas_bounds_mode {
             GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
                 (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                DEFAULT_STRK_L1_GAS_PRICE.into()
+                DEFAULT_STRK_L1_GAS_PRICE
             ),
             GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(
                 GasVector{
@@ -579,19 +579,19 @@ fn test_max_fee_limit_validate(
                         estimated_min_gas_usage_vector.to_l1_gas_for_fee(
                             gas_prices, &tx_context.block_context.versioned_constants
                         ),
-                        gas_prices.l1_gas_price.into(),
+                        gas_prices.l1_gas_price,
                     )
                 }
                 GasVectorComputationMode::All => create_all_resource_bounds(
                     estimated_min_gas_usage_vector.l1_gas,
                     block_info.gas_prices
-                        .l1_gas_price(&account_tx.fee_type()).into(),
+                        .l1_gas_price(&account_tx.fee_type()),
                     estimated_min_gas_usage_vector.l2_gas,
                     block_info.gas_prices
-                        .l2_gas_price(&account_tx.fee_type()).into(),
+                        .l2_gas_price(&account_tx.fee_type()),
                     estimated_min_gas_usage_vector.l1_data_gas,
                     block_info.gas_prices
-                        .l1_data_gas_price(&account_tx.fee_type()).into(),
+                        .l1_data_gas_price(&account_tx.fee_type()),
                 ),
             },
             ..tx_args
@@ -1078,7 +1078,7 @@ fn test_n_reverted_computation_units(
                 (i128::try_from(actual_fee_1 - actual_fee_0).unwrap()
                     - i128::try_from(actual_fee_2 - actual_fee_1).unwrap())
                 .unsigned_abs()
-                    <= block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).get().0
+                    <= block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).get()
             );
         }
         _ => {
@@ -1134,8 +1134,7 @@ fn test_n_reverted_computation_units(
                 (i128::try_from(100 * single_call_fee_delta).unwrap()
                     - i128::try_from(actual_fee_100 - actual_fee_0).unwrap())
                 .unsigned_abs()
-                    < 100
-                        * block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).get().0
+                    < 100 * block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).get()
             );
         }
         _ => {
@@ -1195,7 +1194,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
             l2_gas: ResourceBounds {
                 max_amount: l2_gas_bound.into(),
-                max_price_per_unit: DEFAULT_STRK_L2_GAS_PRICE.into(),
+                max_price_per_unit: DEFAULT_STRK_L2_GAS_PRICE,
             },
             ..Default::default()
         }),
@@ -1237,7 +1236,7 @@ fn test_max_fee_to_max_steps_conversion(
         sender_address: account_address,
         calldata: execute_calldata.clone(),
         version,
-        resource_bounds: l1_resource_bounds(actual_gas_used, actual_strk_gas_price.into()),
+        resource_bounds: l1_resource_bounds(actual_gas_used, actual_strk_gas_price),
         nonce: nonce_manager.next(account_address),
     });
     let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1));
@@ -1262,7 +1261,7 @@ fn test_max_fee_to_max_steps_conversion(
         calldata: execute_calldata,
         version,
         resource_bounds:
-            l1_resource_bounds((2 * actual_gas_used.0).into(), actual_strk_gas_price.into()),
+            l1_resource_bounds((2 * actual_gas_used.0).into(), actual_strk_gas_price),
         nonce: nonce_manager.next(account_address),
     });
     let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
@@ -1329,7 +1328,7 @@ fn test_insufficient_max_fee_reverts(
     let resource_used_depth1 = match gas_mode {
         GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
             tx_execution_info1.receipt.gas.l1_gas,
-            block_context.block_info.gas_prices.strk_gas_prices.l1_gas_price.into(),
+            block_context.block_info.gas_prices.strk_gas_prices.l1_gas_price,
         ),
         GasVectorComputationMode::All => ValidResourceBounds::all_bounds_from_vectors(
             &tx_execution_info1.receipt.gas,
@@ -1413,9 +1412,7 @@ fn test_insufficient_max_fee_reverts(
                 tx_execution_info3.receipt.fee,
                 l1_bound
                     .max_amount
-                    .checked_mul(
-                        block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).into()
-                    )
+                    .checked_mul(block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk))
                     .unwrap()
             );
         }

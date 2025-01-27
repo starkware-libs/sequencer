@@ -227,7 +227,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
 
     // Prepare transactions
     let max_amount = 0_u8.into();
-    let max_price_per_unit = DEFAULT_STRK_L1_GAS_PRICE.into();
+    let max_price_per_unit = DEFAULT_STRK_L1_GAS_PRICE;
     let tx = executable_deploy_account_tx(deploy_account_tx_args! {
         class_hash: account_without_validation.get_class_hash(),
         resource_bounds: l1_resource_bounds(max_amount, max_price_per_unit),

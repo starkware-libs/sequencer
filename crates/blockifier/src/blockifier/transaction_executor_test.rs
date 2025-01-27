@@ -129,7 +129,7 @@ fn test_declare(
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
             version: tx_version,
-            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     );
@@ -149,7 +149,7 @@ fn test_deploy_account(
 
     let deploy_account_tx = executable_deploy_account_tx(deploy_account_tx_args! {
         class_hash: account_contract.get_class_hash(),
-        resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
+        resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE),
         version,
     });
     let tx = AccountTransaction::new_for_sequencing(deploy_account_tx).into();

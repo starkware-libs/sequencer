@@ -53,7 +53,7 @@ pub enum StarknetApiError {
     InvalidResourceMappingInitializer(String),
     #[error("Invalid Starknet version: {0:?}")]
     InvalidStarknetVersion(Vec<u8>),
-    #[error("NonzeroGasPrice cannot be zero.")]
+    #[error("GasPrice cannot be zero.")]
     ZeroGasPrice,
     #[error(
         "Sierra program length must be > 0 for Cairo1, and == 0 for Cairo0. Got: \

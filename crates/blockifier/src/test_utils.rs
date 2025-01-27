@@ -166,12 +166,10 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 
 // Commitment fee bounds.
 const DEFAULT_L1_BOUNDS_COMMITTED_FEE: Fee =
-    DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_GAS_PRICE);
+    DEFAULT_L1_GAS_AMOUNT.saturating_mul(DEFAULT_STRK_L1_GAS_PRICE);
 const DEFAULT_ALL_BOUNDS_COMMITTED_FEE: Fee = DEFAULT_L1_BOUNDS_COMMITTED_FEE
-    .saturating_add(DEFAULT_L2_GAS_MAX_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L2_GAS_PRICE))
-    .saturating_add(
-        DEFAULT_L1_DATA_GAS_MAX_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_DATA_GAS_PRICE),
-    );
+    .saturating_add(DEFAULT_L2_GAS_MAX_AMOUNT.saturating_mul(DEFAULT_STRK_L2_GAS_PRICE))
+    .saturating_add(DEFAULT_L1_DATA_GAS_MAX_AMOUNT.saturating_mul(DEFAULT_STRK_L1_DATA_GAS_PRICE));
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
 pub const BALANCE: Fee = Fee(10

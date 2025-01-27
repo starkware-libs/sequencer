@@ -52,7 +52,6 @@ use starknet_api::block::{
     GasPrice,
     GasPriceVector,
     GasPrices,
-    NonzeroGasPrice,
     StarknetVersion,
 };
 use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType, SierraVersion};
@@ -166,14 +165,14 @@ fn block_info() -> BlockInfo {
         sequencer_address: contract_address!(7_u8),
         gas_prices: GasPrices {
             eth_gas_prices: GasPriceVector {
-                l1_gas_price: NonzeroGasPrice::new(GasPrice(8)).unwrap(),
-                l1_data_gas_price: NonzeroGasPrice::new(GasPrice(10)).unwrap(),
-                l2_gas_price: NonzeroGasPrice::new(GasPrice(12)).unwrap(),
+                l1_gas_price: GasPrice::new_unchecked(8),
+                l1_data_gas_price: GasPrice::new_unchecked(10),
+                l2_gas_price: GasPrice::new_unchecked(12),
             },
             strk_gas_prices: GasPriceVector {
-                l1_gas_price: NonzeroGasPrice::new(GasPrice(9)).unwrap(),
-                l1_data_gas_price: NonzeroGasPrice::new(GasPrice(11)).unwrap(),
-                l2_gas_price: NonzeroGasPrice::new(GasPrice(13)).unwrap(),
+                l1_gas_price: GasPrice::new_unchecked(9),
+                l1_data_gas_price: GasPrice::new_unchecked(11),
+                l2_gas_price: GasPrice::new_unchecked(13),
             },
         },
         use_kzg_da: true,

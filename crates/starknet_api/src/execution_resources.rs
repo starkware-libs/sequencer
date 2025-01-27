@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
+use crate::block::{GasPrice, GasPriceVector};
 use crate::transaction::fields::{Fee, Resource};
 
 #[cfg_attr(
@@ -64,10 +64,6 @@ impl GasAmount {
 
     pub fn checked_sub(self, rhs: Self) -> Option<Self> {
         self.0.checked_sub(rhs.0).map(Self)
-    }
-
-    pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
-        rhs.saturating_mul(self)
     }
 
     pub const fn saturating_mul(self, rhs: GasPrice) -> Fee {
@@ -145,7 +141,7 @@ impl GasVector {
             (self.l1_data_gas, gas_prices.l1_data_gas_price, Resource::L1DataGas),
             (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
         ] {
-            let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
+            let cost = gas.checked_mul(price).unwrap_or_else(|| {
                 panic!(
                     "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \
                      resulted in overflow.",
@@ -178,7 +174,7 @@ impl GasVector {
 /// Does not take L2 gas into account - more context is required to convert L2 gas units to L1 gas
 /// units (context defined outside of the current crate).
 pub fn to_discounted_l1_gas(
-    l1_gas_price: NonzeroGasPrice,
+    l1_gas_price: GasPrice,
     l1_data_gas_price: GasPrice,
     l1_gas: GasAmount,
     l1_data_gas: GasAmount,

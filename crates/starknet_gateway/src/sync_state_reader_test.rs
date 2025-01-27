@@ -14,7 +14,6 @@ use starknet_api::block::{
     GasPricePerToken,
     GasPriceVector,
     GasPrices,
-    NonzeroGasPrice,
 };
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::SequencerContractAddress;
@@ -81,18 +80,14 @@ async fn test_get_block_info() {
             sequencer_address,
             gas_prices: GasPrices {
                 eth_gas_prices: GasPriceVector {
-                    l1_gas_price: NonzeroGasPrice::new_unchecked(l1_gas_price.price_in_wei),
-                    l1_data_gas_price: NonzeroGasPrice::new_unchecked(
-                        l1_data_gas_price.price_in_wei
-                    ),
-                    l2_gas_price: NonzeroGasPrice::new_unchecked(l2_gas_price.price_in_wei),
+                    l1_gas_price: l1_gas_price.price_in_wei,
+                    l1_data_gas_price: l1_data_gas_price.price_in_wei,
+                    l2_gas_price: l2_gas_price.price_in_wei,
                 },
                 strk_gas_prices: GasPriceVector {
-                    l1_gas_price: NonzeroGasPrice::new_unchecked(l1_gas_price.price_in_fri),
-                    l1_data_gas_price: NonzeroGasPrice::new_unchecked(
-                        l1_data_gas_price.price_in_fri
-                    ),
-                    l2_gas_price: NonzeroGasPrice::new_unchecked(l2_gas_price.price_in_fri),
+                    l1_gas_price: l1_gas_price.price_in_fri,
+                    l1_data_gas_price: l1_data_gas_price.price_in_fri,
+                    l2_gas_price: l2_gas_price.price_in_fri,
                 },
             },
             use_kzg_da: match l1_da_mode {

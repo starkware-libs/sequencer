@@ -89,7 +89,7 @@ pub fn default_all_resource_bounds() -> ValidResourceBounds {
 pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => {
-            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE.into())
+            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE)
         }
         GasVectorComputationMode::All => create_gas_amount_bounds_with_default_price(GasVector {
             l1_gas: DEFAULT_L1_GAS_AMOUNT,
@@ -104,11 +104,11 @@ pub fn create_gas_amount_bounds_with_default_price(
 ) -> ValidResourceBounds {
     create_all_resource_bounds(
         l1_gas,
-        DEFAULT_STRK_L1_GAS_PRICE.into(),
+        DEFAULT_STRK_L1_GAS_PRICE,
         l2_gas,
-        DEFAULT_STRK_L2_GAS_PRICE.into(),
+        DEFAULT_STRK_L2_GAS_PRICE,
         l1_data_gas,
-        DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        DEFAULT_STRK_L1_DATA_GAS_PRICE,
     )
 }
 
@@ -345,11 +345,11 @@ pub fn l1_resource_bounds(
 #[fixture]
 pub fn all_resource_bounds(
     #[default(DEFAULT_L1_GAS_AMOUNT)] l1_max_amount: GasAmount,
-    #[default(GasPrice::from(DEFAULT_STRK_L1_GAS_PRICE))] l1_max_price: GasPrice,
+    #[default(DEFAULT_STRK_L1_GAS_PRICE)] l1_max_price: GasPrice,
     #[default(DEFAULT_L2_GAS_MAX_AMOUNT)] l2_max_amount: GasAmount,
-    #[default(GasPrice::from(DEFAULT_STRK_L2_GAS_PRICE))] l2_max_price: GasPrice,
+    #[default(DEFAULT_STRK_L2_GAS_PRICE)] l2_max_price: GasPrice,
     #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: GasAmount,
-    #[default(GasPrice::from(DEFAULT_STRK_L1_DATA_GAS_PRICE))] l1_data_max_price: GasPrice,
+    #[default(DEFAULT_STRK_L1_DATA_GAS_PRICE)] l1_data_max_price: GasPrice,
 ) -> ValidResourceBounds {
     create_all_resource_bounds(
         l1_max_amount,

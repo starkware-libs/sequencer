@@ -33,7 +33,6 @@ use starknet_api::block::{
     GasPricePerToken,
     GasPriceVector,
     GasPrices,
-    NonzeroGasPrice,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
@@ -79,14 +78,14 @@ use crate::versioned_constants::VersionedConstants;
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
     eth_gas_prices: GasPriceVector {
-        l1_gas_price: NonzeroGasPrice::MIN,
-        l1_data_gas_price: NonzeroGasPrice::MIN,
-        l2_gas_price: NonzeroGasPrice::MIN,
+        l1_gas_price: GasPrice::MIN,
+        l1_data_gas_price: GasPrice::MIN,
+        l2_gas_price: GasPrice::MIN,
     },
     strk_gas_prices: GasPriceVector {
-        l1_gas_price: NonzeroGasPrice::MIN,
-        l1_data_gas_price: NonzeroGasPrice::MIN,
-        l2_gas_price: NonzeroGasPrice::MIN,
+        l1_gas_price: GasPrice::MIN,
+        l1_data_gas_price: GasPrice::MIN,
+        l2_gas_price: GasPrice::MIN,
     },
 };
 
@@ -187,10 +186,9 @@ impl SequencerConsensusContext {
     }
 
     fn gas_prices(&self) -> GasPrices {
-        // TODO(Ayelet): Remove unwrap when deleting NonzeroGasPrice.
         GasPrices {
             strk_gas_prices: GasPriceVector {
-                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price.try_into().unwrap())
+                l2_gas_price: GasPrice::new(self.l2_gas_price.into())
                     .expect("Failed to convert l2_gas_price to NonzeroGasPrice, should not be 0."),
                 ..TEMPORARY_GAS_PRICES.strk_gas_prices
             },

@@ -1,14 +1,7 @@
 use blockifier::blockifier::block::validated_gas_prices;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use starknet_api::block::{
-    BlockHash,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    NonzeroGasPrice,
-};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
@@ -94,21 +87,16 @@ impl TryInto<BlockInfo> for BlockHeader {
             sequencer_address: self.sequencer_address,
             block_timestamp: self.timestamp,
             gas_prices: validated_gas_prices(
-                parse_gas_price(self.l1_gas_price.price_in_wei)?,
-                parse_gas_price(self.l1_gas_price.price_in_fri)?,
-                parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
-                parse_gas_price(self.l1_data_gas_price.price_in_fri)?,
-                parse_gas_price(self.l2_gas_price.price_in_wei)?,
-                parse_gas_price(self.l2_gas_price.price_in_fri)?,
+                self.l1_gas_price.price_in_wei,
+                self.l1_gas_price.price_in_fri,
+                self.l1_data_gas_price.price_in_wei,
+                self.l1_data_gas_price.price_in_fri,
+                self.l2_gas_price.price_in_wei,
+                self.l2_gas_price.price_in_fri,
             ),
             use_kzg_da: matches!(self.l1_da_mode, L1DataAvailabilityMode::Blob),
         })
     }
-}
-
-fn parse_gas_price(gas_price: GasPrice) -> Result<NonzeroGasPrice, RPCStateReaderError> {
-    NonzeroGasPrice::new(gas_price)
-        .map_err(|_| RPCStateReaderError::GasPriceParsingFailure(gas_price))
 }
 
 #[derive(Serialize, Deserialize, Debug)]

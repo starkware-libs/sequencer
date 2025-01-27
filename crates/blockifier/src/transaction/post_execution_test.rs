@@ -312,7 +312,7 @@ fn test_revert_on_resource_overuse(
     let tight_resource_bounds = match gas_mode {
         GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
             actual_gas_usage.to_l1_gas_for_fee(gas_prices, &block_context.versioned_constants),
-            DEFAULT_STRK_L1_GAS_PRICE.into(),
+            DEFAULT_STRK_L1_GAS_PRICE,
         ),
         GasVectorComputationMode::All => {
             ValidResourceBounds::all_bounds_from_vectors(&actual_gas_usage, gas_prices)
@@ -357,7 +357,7 @@ fn test_revert_on_resource_overuse(
     } else {
         match tight_resource_bounds {
             ValidResourceBounds::L1Gas(ResourceBounds { max_amount, .. }) => {
-                l1_resource_bounds(GasAmount(max_amount.0 - 1), DEFAULT_STRK_L1_GAS_PRICE.into())
+                l1_resource_bounds(GasAmount(max_amount.0 - 1), DEFAULT_STRK_L1_GAS_PRICE)
             }
             ValidResourceBounds::AllResources(AllResourceBounds {
                 l1_gas: ResourceBounds { max_amount: mut l1_gas, .. },

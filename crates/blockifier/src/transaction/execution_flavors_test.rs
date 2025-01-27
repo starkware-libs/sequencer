@@ -191,8 +191,7 @@ fn get_pre_validate_test_args(
     let max_fee = MAX_FEE;
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
-    let resource_bounds =
-        l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE.into());
+    let resource_bounds = l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE);
     let FlavorTestInitialState {
         state, account_address, test_contract_address, nonce_manager, ..
     } = create_flavors_test_state(&block_context.chain_info, cairo_version);
@@ -308,7 +307,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
         max_fee: Fee(BALANCE.0 + 1),
         resource_bounds: l1_resource_bounds(
             (balance_over_gas_price.0 + 10).into(),
-            gas_price.into()
+            gas_price
         ),
         nonce: nonce_manager.next(account_address),
 
@@ -345,7 +344,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         let tx = executable_invoke_tx(invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).try_into().unwrap()),
+            resource_bounds: l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get() - 1).try_into().unwrap()),
             nonce: nonce_manager.next(account_address),
 
             ..pre_validation_base_args
@@ -447,14 +446,14 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     let balance_over_gas_price = BALANCE.checked_div(gas_price).unwrap();
     execute_and_check_gas_and_fee!(
         Fee(BALANCE.0 + 1),
-        l1_resource_bounds((balance_over_gas_price.0 + 10).into(), gas_price.into())
+        l1_resource_bounds((balance_over_gas_price.0 + 10).into(), gas_price)
     );
 
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         execute_and_check_gas_and_fee!(
             pre_validation_base_args.max_fee,
-            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).try_into().unwrap())
+            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get() - 1).try_into().unwrap())
         );
     }
 }
@@ -662,7 +661,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     );
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: fee_bound,
-        resource_bounds: l1_resource_bounds(gas_bound, gas_price.into()),
+        resource_bounds: l1_resource_bounds(gas_bound, gas_price),
         calldata: recurse_calldata(test_contract_address, false, 1000),
         nonce: nonce_manager.next(account_address),
         ..execution_base_args.clone()
@@ -719,7 +718,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
 
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: huge_fee,
-        resource_bounds: l1_resource_bounds(huge_gas_limit, gas_price.into()),
+        resource_bounds: l1_resource_bounds(huge_gas_limit, gas_price),
         calldata: recurse_calldata(test_contract_address, false, 10000),
         nonce: nonce_manager.next(account_address),
         ..execution_base_args
@@ -807,7 +806,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     );
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: just_not_enough_fee_bound,
-        resource_bounds: l1_resource_bounds(just_not_enough_gas_bound, gas_price.into()),
+        resource_bounds: l1_resource_bounds(just_not_enough_gas_bound, gas_price),
         calldata: recurse_calldata(test_contract_address, false, 1000),
         nonce: nonce_manager.next(account_address),
         sender_address: account_address,
@@ -869,7 +868,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     );
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: actual_fee,
-        resource_bounds: l1_resource_bounds(success_actual_gas, gas_price.into()),
+        resource_bounds: l1_resource_bounds(success_actual_gas, gas_price),
         calldata: transfer_calldata,
         nonce: nonce_manager.next(account_address),
         sender_address: account_address,

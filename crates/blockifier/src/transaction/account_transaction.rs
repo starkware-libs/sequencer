@@ -328,11 +328,11 @@ impl AccountTransaction {
                                     max_gas_amount: resource_bounds.max_amount,
                                     minimal_gas_amount: *minimal_gas_amount,
                                 })
-                            } else if resource_bounds.max_price_per_unit < actual_gas_price.get() {
+                            } else if resource_bounds.max_price_per_unit < *actual_gas_price {
                                 Some(ResourceBoundsError::MaxGasPriceTooLow {
                                     resource: *resource,
                                     max_gas_price: resource_bounds.max_price_per_unit,
-                                    actual_gas_price: (*actual_gas_price).into(),
+                                    actual_gas_price: *actual_gas_price,
                                 })
                             } else {
                                 None

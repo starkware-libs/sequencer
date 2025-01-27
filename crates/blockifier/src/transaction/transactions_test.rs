@@ -1092,7 +1092,7 @@ fn test_max_fee_exceeds_balance(
             let balance_over_l1_gas_price = BALANCE.checked_div(DEFAULT_STRK_L1_GAS_PRICE).unwrap();
             let invalid_resource_bounds = l1_resource_bounds(
                 (balance_over_l1_gas_price.0 + 1).into(),
-                DEFAULT_STRK_L1_GAS_PRICE.into(),
+                DEFAULT_STRK_L1_GAS_PRICE,
             );
             assert_resource_overdraft!(invalid_resource_bounds);
         }
@@ -1164,15 +1164,15 @@ fn test_insufficient_new_resource_bounds_pre_validation(
     let default_resource_bounds = AllResourceBounds {
         l1_gas: ResourceBounds {
             max_amount: minimal_gas_vector.l1_gas,
-            max_price_per_unit: actual_strk_l1_gas_price.get(),
+            max_price_per_unit: actual_strk_l1_gas_price,
         },
         l2_gas: ResourceBounds {
             max_amount: minimal_gas_vector.l2_gas,
-            max_price_per_unit: actual_strk_l2_gas_price.get(),
+            max_price_per_unit: actual_strk_l2_gas_price,
         },
         l1_data_gas: ResourceBounds {
             max_amount: minimal_gas_vector.l1_data_gas,
-            max_price_per_unit: actual_strk_l1_data_gas_price.get(),
+            max_price_per_unit: actual_strk_l1_data_gas_price,
         },
     };
 
@@ -1294,8 +1294,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
 
     let gas_prices = &block_context.block_info.gas_prices;
     // TODO(Aner): change to linear combination.
-    let minimal_fee =
-        minimal_l1_gas.checked_mul(gas_prices.eth_gas_prices.l1_gas_price.get()).unwrap();
+    let minimal_fee = minimal_l1_gas.checked_mul(gas_prices.eth_gas_prices.l1_gas_price).unwrap();
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
     let invalid_v1_tx = invoke_tx_with_default_flags(
@@ -1319,7 +1318,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     let insufficient_max_l1_gas_amount = (minimal_l1_gas.0 - 1).into();
     let invalid_v3_tx = invoke_tx_with_default_flags(invoke_tx_args! {
-        resource_bounds: l1_resource_bounds(insufficient_max_l1_gas_amount, actual_strk_l1_gas_price.into()),
+        resource_bounds: l1_resource_bounds(insufficient_max_l1_gas_amount, actual_strk_l1_gas_price),
         ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(&mut state, &block_context).unwrap_err();
@@ -1342,7 +1341,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     );
 
     // Max L1 gas price too low, old resource bounds.
-    let insufficient_max_l1_gas_price = (actual_strk_l1_gas_price.get().0 - 1).try_into().unwrap();
+    let insufficient_max_l1_gas_price = (actual_strk_l1_gas_price.get() - 1).try_into().unwrap();
     let invalid_v3_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(minimal_l1_gas, insufficient_max_l1_gas_price),
         ..valid_invoke_tx_args.clone()
@@ -1359,7 +1358,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
                 errors[0],
                 ResourceBoundsError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }
                 if max_l1_gas_price == insufficient_max_l1_gas_price &&
-                actual_l1_gas_price == actual_strk_l1_gas_price.into()
+                actual_l1_gas_price == actual_strk_l1_gas_price
             )
         }
     );
@@ -1414,7 +1413,7 @@ fn test_actual_fee_gt_resource_bounds(
             );
             (
                 GasVector::from_l1_gas(l1_gas_bound).cost(gas_prices),
-                l1_resource_bounds(l1_gas_bound, gas_prices.l1_gas_price.into()),
+                l1_resource_bounds(l1_gas_bound, gas_prices.l1_gas_price),
             )
         }
         GasVectorComputationMode::All => {
@@ -2382,16 +2381,16 @@ fn test_only_query_flag(
     ];
 
     let expected_resource_bounds = vec![
-        Felt::THREE,                                   // Length of ResourceBounds array.
-        felt!(L1Gas.to_hex()),                         // Resource.
-        felt!(DEFAULT_L1_GAS_AMOUNT.0),                // Max amount.
-        felt!(DEFAULT_STRK_L1_GAS_PRICE.get().0),      // Max price per unit.
-        felt!(L2Gas.to_hex()),                         // Resource.
-        felt!(DEFAULT_L2_GAS_MAX_AMOUNT.0),            // Max amount.
-        felt!(DEFAULT_STRK_L2_GAS_PRICE.get().0),      // Max price per unit.
-        felt!(L1DataGas.to_hex()),                     // Resource.
-        felt!(DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0),       // Max amount.
-        felt!(DEFAULT_STRK_L1_DATA_GAS_PRICE.get().0), // Max price per unit.
+        Felt::THREE,                                 // Length of ResourceBounds array.
+        felt!(L1Gas.to_hex()),                       // Resource.
+        felt!(DEFAULT_L1_GAS_AMOUNT.0),              // Max amount.
+        felt!(DEFAULT_STRK_L1_GAS_PRICE.get()),      // Max price per unit.
+        felt!(L2Gas.to_hex()),                       // Resource.
+        felt!(DEFAULT_L2_GAS_MAX_AMOUNT.0),          // Max amount.
+        felt!(DEFAULT_STRK_L2_GAS_PRICE.get()),      // Max price per unit.
+        felt!(L1DataGas.to_hex()),                   // Resource.
+        felt!(DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0),     // Max amount.
+        felt!(DEFAULT_STRK_L1_DATA_GAS_PRICE.get()), // Max price per unit.
     ];
 
     let expected_unsupported_fields = vec![
