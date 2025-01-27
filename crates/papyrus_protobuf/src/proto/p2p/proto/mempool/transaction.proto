@@ -5,7 +5,7 @@ import "p2p/proto/common.proto";
 import "p2p/proto/transaction.proto";
 import "p2p/proto/sync/transaction.proto";
 // TODO(alonl): remove this import (used only for the old Transaction struct as an intermediate step)
-import "p2p/proto/consensus.proto";
+import "p2p/proto/consensus/consensus.proto";
 
 
 option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/mempool/transaction";
@@ -13,6 +13,7 @@ option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/mempool/
 // Doesn't contain L1Handler, as those don't need to be propagated and can be downloaded from L1.
 message MempoolTransaction {
     message DeclareV3 {
+        // TODO(alonl): change declare_v3 type to TransactionInBlock.DeclareV3WithoutClass (defined in sync/transaction.proto)
         Transaction.DeclareV3 declare_v3 = 1;
         Cairo1Class contract_class = 2;
     }
