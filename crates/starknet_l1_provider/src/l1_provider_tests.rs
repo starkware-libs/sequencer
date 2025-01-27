@@ -1,3 +1,6 @@
+use std::sync::Arc;
+use std::time::Duration;
+
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -14,9 +17,10 @@ use starknet_l1_provider_types::SessionState::{
     Validate as ValidateSession,
 };
 use starknet_l1_provider_types::{Event, ValidationStatus};
+use starknet_state_sync_types::communication::MockStateSyncClient;
 
-use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog};
-use crate::test_utils::L1ProviderContentBuilder;
+use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
+use crate::test_utils::{FakeL1ProviderClient, L1ProviderContentBuilder};
 use crate::ProviderState;
 
 fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
@@ -34,6 +38,10 @@ macro_rules! bootstrapper {
                 }),*
             ].into_iter().collect(),
             catch_up_height: BlockNumber($catch),
+            l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
+            sync_client: Arc::new(MockStateSyncClient::default()),
+            sync_task_handle: SyncTaskHandle::default(),
+            sync_retry_interval: Duration::from_millis(10)
         }
     }};
 }
