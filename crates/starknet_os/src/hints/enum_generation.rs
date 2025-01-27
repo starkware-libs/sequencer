@@ -30,18 +30,9 @@ macro_rules! define_hint_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl HintImplementation for $enum_name {
-            fn execute_hint(
-                &self,
-                vm: &mut VirtualMachine,
-                exec_scopes: &mut ExecutionScopes,
-                ids_data: &HashMap<String, HintReference>,
-                ap_tracking: &ApTracking,
-                constants: &HashMap<String, Felt>,
-            ) -> HintResult {
+            fn execute_hint(&self, hint_args: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
                 match self {
-                    $(Self::$hint_name => $implementation(
-                        vm, exec_scopes, ids_data, ap_tracking, constants
-                    ),)+
+                    $(Self::$hint_name => $implementation(hint_args),)+
                 }
             }
         }
@@ -57,16 +48,10 @@ macro_rules! define_hint_extension_enum {
         impl HintExtensionImplementation for $enum_name {
             fn execute_hint_extensive(
                 &self,
-                hint_processor: &dyn HintProcessor,
-                vm: &mut VirtualMachine,
-                exec_scopes: &mut ExecutionScopes,
-                ids_data: &HashMap<String, HintReference>,
-                ap_tracking: &ApTracking,
+                hint_extension_args: HintExtensionArgs<'_, '_, '_, '_, '_>,
             ) -> HintExtensionResult {
                 match self {
-                    $(Self::$hint_name => $implementation(
-                        hint_processor, vm, exec_scopes, ids_data, ap_tracking
-                    ),)+
+                    $(Self::$hint_name => $implementation(hint_extension_args),)+
                 }
             }
         }
