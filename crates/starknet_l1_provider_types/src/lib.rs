@@ -34,6 +34,7 @@ pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock { l1_handler_tx_hashes: Vec<TransactionHash>, height: BlockNumber },
     GetTransactions { n_txs: usize, height: BlockNumber },
+    Initialize(Vec<Event>),
     StartBlock { state: SessionState, height: BlockNumber },
     Validate { tx_hash: TransactionHash, height: BlockNumber },
 }
@@ -43,6 +44,7 @@ pub enum L1ProviderResponse {
     AddEvents(L1ProviderResult<()>),
     CommitBlock(L1ProviderResult<()>),
     GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
+    Initialize(L1ProviderResult<()>),
     StartBlock(L1ProviderResult<()>),
     Validate(L1ProviderResult<ValidationStatus>),
 }
@@ -77,6 +79,7 @@ pub trait L1ProviderClient: Send + Sync {
     ) -> L1ProviderClientResult<()>;
 
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
+    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
 }
 
 #[async_trait]
@@ -116,6 +119,21 @@ where
         )
     }
 
+    async fn validate(
+        &self,
+        tx_hash: TransactionHash,
+        height: BlockNumber,
+    ) -> L1ProviderClientResult<ValidationStatus> {
+        let request = L1ProviderRequest::Validate { tx_hash, height };
+        handle_all_response_variants!(
+            L1ProviderResponse,
+            Validate,
+            L1ProviderClientError,
+            L1ProviderError,
+            Direct
+        )
+    }
+
     async fn commit_block(
         &self,
         l1_handler_tx_hashes: Vec<TransactionHash>,
@@ -143,15 +161,11 @@ where
         )
     }
 
-    async fn validate(
-        &self,
-        tx_hash: TransactionHash,
-        height: BlockNumber,
-    ) -> L1ProviderClientResult<ValidationStatus> {
-        let request = L1ProviderRequest::Validate { tx_hash, height };
+    async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
+        let request = L1ProviderRequest::Initialize(events);
         handle_all_response_variants!(
             L1ProviderResponse,
-            Validate,
+            Initialize,
             L1ProviderClientError,
             L1ProviderError,
             Direct

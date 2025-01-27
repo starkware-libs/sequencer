@@ -52,7 +52,9 @@ async fn scraper(
         fake_client.clone(),
         base_layer,
         event_identifiers_to_track(),
-    );
+    )
+    .await
+    .unwrap();
 
     (scraper, fake_client)
 }
@@ -124,11 +126,11 @@ async fn txs_happy_flow() {
     });
 
     // Assert.
-    scraper.fetch_events().await.unwrap();
+    scraper.send_events_to_l1_provider().await.unwrap();
     fake_client.assert_add_events_received_with(&[first_expected_log, second_expected_log]);
 
     // Previous events had been scraped, should no longer appear.
-    scraper.fetch_events().await.unwrap();
+    scraper.send_events_to_l1_provider().await.unwrap();
     fake_client.assert_add_events_received_with(&[]);
 }
 
