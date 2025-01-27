@@ -266,14 +266,22 @@ impl IntegrationTestManager {
             .expect("Node 0 should be either idle or running.")
     }
 
-    pub fn shutdown_nodes(&mut self) {
-        self.running_nodes.drain().for_each(|(_, running_node)| {
+    pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
+        nodes_to_shutdown.into_iter().for_each(|index| {
+            let running_node = self
+                .running_nodes
+                .remove(&index)
+                .unwrap_or_else(|| panic!("Node {} is not in the running map.", index));
             running_node.executable_handles.iter().for_each(|handle| {
-                assert!(!handle.is_finished(), "Node should still be running.");
+                assert!(!handle.is_finished(), "Node {} should still be running.", index);
                 handle.abort();
             });
-            self.idle_nodes
-                .insert(running_node.node_setup.get_node_index().unwrap(), running_node.node_setup);
+            assert!(
+                self.idle_nodes.insert(index, running_node.node_setup).is_none(),
+                "Node {} is already in the idle map.",
+                index
+            );
+            info!("Node {} has been shut down.", index);
         });
     }
 
