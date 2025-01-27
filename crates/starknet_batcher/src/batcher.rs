@@ -33,7 +33,8 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_l1_provider_types::SharedL1ProviderClient;
+use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
+use starknet_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
@@ -172,6 +173,11 @@ impl Batcher {
 
         self.set_active_proposal(propose_block_input.proposal_id).await?;
 
+        self.l1_provider_client
+            .start_block(SessionState::Propose, propose_block_input.block_info.block_number)
+            .await
+            .expect("FIXME: handle errors");
+
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
@@ -225,6 +231,11 @@ impl Batcher {
         )?;
 
         self.set_active_proposal(validate_block_input.proposal_id).await?;
+
+        self.l1_provider_client
+            .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
+            .await
+            .expect("FIXME: handle errors");
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
@@ -496,6 +507,23 @@ impl Batcher {
             error!("Failed to commit block to mempool: {}", mempool_err);
             // TODO(AlonH): Should we rollback the state diff and return an error?
         };
+
+        let l1_provider_result = self.l1_provider_client.commit_block(vec![], height).await;
+        l1_provider_result.unwrap_or_else(|err| match err {
+            L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
+                expected,
+                got,
+            }) => {
+                error!(
+                    "Unexpected height while committing block in L1 provider: expected={:?}, \
+                     got={:?}",
+                    expected, got
+                );
+            }
+            other_err => {
+                panic!("Unexpected error while committing block in L1 provider: {:?}", other_err)
+            }
+        });
 
         Ok(())
     }
