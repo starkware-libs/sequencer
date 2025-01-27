@@ -588,3 +588,32 @@ async fn test_l2_gas_used() {
     // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
     assert_eq!(result_block_artifacts.l2_gas_used, GasAmount(n_txs.try_into().unwrap()));
 }
+
+// Test that the BlocBuilder returns the execution_infos ordered in the same order as
+// the transactions are included in the block. This is crucial for the correct execution of
+// starknet.
+#[tokio::test]
+async fn test_execution_info_order() {
+    let input_txs = test_txs(0..6);
+    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len());
+    let mock_tx_provider = mock_tx_provider_stream_done(input_txs.clone());
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        false,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
+
+    // Verify that the execution_infos are ordered in the same order as the input_txs.
+    result_block_artifacts.execution_infos.iter().zip(&input_txs).for_each(
+        |((tx_hash, _execution_info), tx)| {
+            assert_eq!(tx_hash, &tx.tx_hash());
+        },
+    );
+}
