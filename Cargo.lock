@@ -11118,11 +11118,13 @@ dependencies = [
  "itertools 0.12.1",
  "mempool_test_utils",
  "mockall",
+ "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
  "papyrus_test_utils",
  "pretty_assertions",
  "rstest",
+ "serde",
  "starknet-types-core",
  "starknet_api",
  "starknet_mempool_p2p_types",
@@ -11130,6 +11132,7 @@ dependencies = [
  "starknet_sequencer_infra",
  "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]

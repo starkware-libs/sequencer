@@ -1,5 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
@@ -13,6 +17,7 @@ use starknet_mempool_types::mempool_types::{
     MempoolResult,
 };
 use tracing::{debug, info, instrument};
+use validator::Validate;
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -22,17 +27,50 @@ use crate::utils::try_increment_nonce;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Validate)]
 pub struct MempoolConfig {
     enable_fee_escalation: bool,
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
     fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    delay_duration: std::time::Duration,
 }
 
 impl Default for MempoolConfig {
     fn default() -> Self {
-        MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage: 10 }
+        MempoolConfig {
+            enable_fee_escalation: true,
+            fee_escalation_percentage: 10,
+            delay_duration: std::time::Duration::from_secs(1),
+        }
+    }
+}
+
+impl SerializeConfig for MempoolConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "enable_fee_escalation",
+                &self.enable_fee_escalation,
+                "Whether to enable fee escalation for transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "fee_escalation_percentage",
+                &self.fee_escalation_percentage,
+                "The percentage increase for tip and max gas price to enable transaction \
+                 replacement.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "delay_duration",
+                &self.delay_duration.as_millis(),
+                "The duration in milliseconds that declare transactions should be delayed before \
+                 being proposed.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
@@ -133,7 +171,7 @@ impl MempoolState {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Mempool {
     config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
@@ -145,6 +183,15 @@ pub struct Mempool {
 }
 
 impl Mempool {
+    pub fn new(config: MempoolConfig) -> Self {
+        let delay_duration = config.delay_duration;
+        Mempool {
+            config,
+            tx_pool: TransactionPool::default(),
+            tx_queue: TransactionQueue::new(delay_duration),
+            state: MempoolState::default(),
+        }
+    }
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {

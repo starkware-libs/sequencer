@@ -954,6 +954,21 @@
     "privacy": "Public",
     "value": 0
   },
+  "mempool_config.delay_duration": {
+    "description": "The duration in milliseconds that declare transactions should be delayed before being proposed.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "mempool_config.enable_fee_escalation": {
+    "description": "Whether to enable fee escalation for transactions.",
+    "privacy": "Public",
+    "value": true
+  },
+  "mempool_config.fee_escalation_percentage": {
+    "description": "The percentage increase for tip and max gas price to enable transaction replacement.",
+    "privacy": "Public",
+    "value": 10
+  },
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",
     "privacy": "Public",

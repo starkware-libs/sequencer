@@ -15,9 +15,11 @@ pub mod transaction_queue_test_utils;
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct TransactionQueue {
     gas_price_threshold: GasPrice,
+    // The duration that declare transactions should be delayed before being proposed.
+    delay_duration: std::time::Duration,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).
@@ -27,6 +29,17 @@ pub struct TransactionQueue {
 }
 
 impl TransactionQueue {
+    pub fn new(delay_duration: std::time::Duration) -> Self {
+        Self {
+            // TODO(yair): Find if it should be set from config.
+            gas_price_threshold: GasPrice::default(),
+            delay_duration,
+            priority_queue: BTreeSet::new(),
+            pending_queue: BTreeSet::new(),
+            address_to_tx: HashMap::new(),
+        }
+    }
+
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx_reference: TransactionReference) {

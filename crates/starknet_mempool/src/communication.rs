@@ -13,16 +13,17 @@ use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
-use crate::mempool::Mempool;
+use crate::mempool::{Mempool, MempoolConfig};
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool(
+    config: MempoolConfig,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> MempoolCommunicationWrapper {
-    MempoolCommunicationWrapper::new(Mempool::default(), mempool_p2p_propagator_client)
+    MempoolCommunicationWrapper::new(Mempool::new(config), mempool_p2p_propagator_client)
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.

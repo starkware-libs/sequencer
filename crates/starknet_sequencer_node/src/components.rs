@@ -139,7 +139,8 @@ pub async fn create_node_components(
             let mempool_p2p_propagator_client = clients
                 .get_mempool_p2p_propagator_shared_client()
                 .expect("Propagator Client should be available");
-            let mempool = create_mempool(mempool_p2p_propagator_client);
+            let mempool =
+                create_mempool(config.mempool_config.clone(), mempool_p2p_propagator_client);
             Some(mempool)
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
