@@ -15,7 +15,7 @@ use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
@@ -44,10 +44,12 @@ struct TestExpectations {
     mock_transaction_executor: MockTransactionExecutorTrait,
     mock_tx_provider: MockTransactionProvider,
     expected_block_artifacts: BlockExecutionArtifacts,
-    expected_txs_output: Vec<Transaction>,
+    expected_txs_output: Vec<InternalConsensusTransaction>,
 }
 
-fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transaction>) {
+fn output_channel()
+-> (UnboundedSender<InternalConsensusTransaction>, UnboundedReceiver<InternalConsensusTransaction>)
+{
     tokio::sync::mpsc::unbounded_channel()
 }
 
@@ -99,7 +101,7 @@ fn one_chunk_test_expectations() -> TestExpectations {
 }
 
 fn one_chunk_mock_executor(
-    input_txs: &[Transaction],
+    input_txs: &[InternalConsensusTransaction],
     block_size: usize,
 ) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
     let input_txs_cloned = input_txs.to_vec();
@@ -123,7 +125,8 @@ fn two_chunks_test_expectations() -> TestExpectations {
     let block_size = input_txs.len();
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let mut mock_add_txs_to_block = |tx_chunk: Vec<Transaction>, seq: &mut Sequence| {
+    let mut mock_add_txs_to_block = |tx_chunk: Vec<InternalConsensusTransaction>,
+                                     seq: &mut Sequence| {
         mock_transaction_executor
             .expect_add_txs_to_block()
             .times(1)
@@ -165,7 +168,9 @@ fn empty_block_test_expectations() -> TestExpectations {
     }
 }
 
-fn mock_transaction_executor_block_full(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
+fn mock_transaction_executor_block_full(
+    input_txs: &[InternalConsensusTransaction],
+) -> MockTransactionExecutorTrait {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     let execution_results = vec![Ok(execution_info())];
@@ -195,7 +200,9 @@ fn block_full_test_expectations() -> TestExpectations {
     }
 }
 
-fn mock_transaction_executor_with_delay(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
+fn mock_transaction_executor_with_delay(
+    input_txs: &[InternalConsensusTransaction],
+) -> MockTransactionExecutorTrait {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor
@@ -319,7 +326,7 @@ fn set_close_block_expectations(
 /// This function assumes constant chunk size of TX_CHUNK_SIZE.
 fn mock_tx_provider_limited_calls(
     n_calls: usize,
-    mut input_chunks: Vec<Vec<Transaction>>,
+    mut input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
     let mut mock_tx_provider = MockTransactionProvider::new();
     mock_tx_provider
@@ -330,7 +337,9 @@ fn mock_tx_provider_limited_calls(
     mock_tx_provider
 }
 
-fn mock_tx_provider_stream_done(input_chunk: Vec<Transaction>) -> MockTransactionProvider {
+fn mock_tx_provider_stream_done(
+    input_chunk: Vec<InternalConsensusTransaction>,
+) -> MockTransactionProvider {
     let mut mock_tx_provider = MockTransactionProvider::new();
     let mut seq = Sequence::new();
     mock_tx_provider
@@ -351,7 +360,7 @@ fn mock_tx_provider_stream_done(input_chunk: Vec<Transaction>) -> MockTransactio
 /// This function assumes constant chunk size of TX_CHUNK_SIZE.
 fn mock_tx_provider_limitless_calls(
     n_calls: usize,
-    input_chunks: Vec<Vec<Transaction>>,
+    input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
     let mut mock_tx_provider = mock_tx_provider_limited_calls(n_calls, input_chunks);
 
@@ -367,7 +376,10 @@ fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
         .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
 }
 
-fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransaction]) -> bool {
+fn compare_tx_hashes(
+    input: &[InternalConsensusTransaction],
+    blockifier_input: &[BlockifierTransaction],
+) -> bool {
     let expected_tx_hashes: Vec<TransactionHash> = input.iter().map(|tx| tx.tx_hash()).collect();
     let input_tx_hashes: Vec<TransactionHash> =
         blockifier_input.iter().map(BlockifierTransaction::tx_hash).collect();
@@ -375,10 +387,10 @@ fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransa
 }
 
 async fn verify_build_block_output(
-    expected_output_txs: Vec<Transaction>,
+    expected_output_txs: Vec<InternalConsensusTransaction>,
     expected_block_artifacts: BlockExecutionArtifacts,
     result_block_artifacts: BlockExecutionArtifacts,
-    mut output_stream_receiver: UnboundedReceiver<Transaction>,
+    mut output_stream_receiver: UnboundedReceiver<InternalConsensusTransaction>,
 ) {
     // Verify the transactions in the output channel.
     let mut output_txs = vec![];
@@ -396,7 +408,7 @@ async fn verify_build_block_output(
 async fn run_build_block(
     mock_transaction_executor: MockTransactionExecutorTrait,
     tx_provider: MockTransactionProvider,
-    output_sender: Option<UnboundedSender<Transaction>>,
+    output_sender: Option<UnboundedSender<InternalConsensusTransaction>>,
     fail_on_err: bool,
     abort_receiver: tokio::sync::oneshot::Receiver<()>,
     deadline_secs: u64,
@@ -474,7 +486,7 @@ async fn test_validate_block() {
 #[case::deadline_reached(test_txs(0..3), mock_transaction_executor_with_delay(&input_txs), FailOnErrorCause::DeadlineReached)]
 #[tokio::test]
 async fn test_validate_block_with_error(
-    #[case] input_txs: Vec<Transaction>,
+    #[case] input_txs: Vec<InternalConsensusTransaction>,
     #[case] mut mock_transaction_executor: MockTransactionExecutorTrait,
     #[case] expected_error: FailOnErrorCause,
 ) {

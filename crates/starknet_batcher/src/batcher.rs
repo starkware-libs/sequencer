@@ -74,8 +74,8 @@ use crate::utils::{
     ProposalTask,
 };
 
-type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
-type InputStreamSender = tokio::sync::mpsc::Sender<Transaction>;
+type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
+type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -183,7 +183,6 @@ impl Batcher {
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
-            self.transaction_converter.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
         );
@@ -285,28 +284,7 @@ impl Batcher {
         }
 
         match send_proposal_content_input.content {
-            SendProposalContent::Txs(internal_txs) => {
-                let mut txs = Vec::new();
-                for tx in internal_txs.into_iter() {
-                    match tx {
-                        InternalConsensusTransaction::L1Handler(tx) => {
-                            txs.push(Transaction::L1Handler(tx))
-                        }
-                        InternalConsensusTransaction::RpcTransaction(internal_rpc_transaction) => {
-                            txs.push(Transaction::Account(
-                                self.transaction_converter
-                                    .convert_internal_rpc_tx_to_executable_tx(
-                                        internal_rpc_transaction,
-                                    )
-                                    .await
-                                    .unwrap(),
-                            ))
-                        }
-                    }
-                }
-
-                self.handle_send_txs_request(proposal_id, txs).await
-            }
+            SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
             SendProposalContent::Finish => self.handle_finish_proposal_request(proposal_id).await,
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
@@ -346,7 +324,7 @@ impl Batcher {
     async fn handle_send_txs_request(
         &mut self,
         proposal_id: ProposalId,
-        txs: Vec<Transaction>,
+        txs: Vec<InternalConsensusTransaction>,
     ) -> BatcherResult<SendProposalContentResponse> {
         if self.is_active(proposal_id).await {
             //   The proposal is active. Send the transactions through the tx provider.
@@ -436,11 +414,6 @@ impl Batcher {
         let mut txs = Vec::new();
         let n_executed_txs =
             tx_stream.recv_many(&mut txs, self.config.outstream_content_buffer_size).await;
-
-        let txs = txs
-            .into_iter()
-            .map(TransactionConverter::convert_executable_tx_to_internal_consensus_tx_deprecated)
-            .collect();
 
         if n_executed_txs != 0 {
             debug!("Streaming {} txs", n_executed_txs);
