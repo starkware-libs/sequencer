@@ -68,6 +68,7 @@ tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread"] }
 toml.workspace = true
+tikv-jemalloc-sys.workspace = true
 tracing = { workspace = true, optional = true }
 tracing-test = { workspace = true, optional = true }
 
