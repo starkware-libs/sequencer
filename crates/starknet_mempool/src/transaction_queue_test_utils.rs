@@ -16,6 +16,7 @@ pub struct TransactionQueueContent {
     priority_queue: OptionalPriorityTransactions,
     pending_queue: OptionalPendingTransactions,
     gas_price_threshold: Option<GasPrice>,
+    delay_duration: Option<std::time::Duration>,
 }
 
 impl TransactionQueueContent {
@@ -39,6 +40,7 @@ impl TransactionQueueContent {
         let pending_queue = self.pending_queue.unwrap_or_default();
         let priority_queue = self.priority_queue.unwrap_or_default();
         let gas_price_threshold = self.gas_price_threshold.unwrap_or_default();
+        let delay_duration = self.delay_duration.unwrap_or_default();
 
         // Build address to nonce mapping, check queues are mutually exclusive in addresses.
         let tx_references = pending_queue
@@ -58,6 +60,7 @@ impl TransactionQueueContent {
             pending_queue: pending_queue.into_iter().collect(),
             address_to_tx,
             gas_price_threshold,
+            delay_duration,
         }
     }
 }
@@ -67,6 +70,7 @@ pub struct TransactionQueueContentBuilder {
     priority_queue: OptionalPriorityTransactions,
     pending_queue: OptionalPendingTransactions,
     gas_price_threshold: Option<GasPrice>,
+    delay_duration: Option<std::time::Duration>,
 }
 
 impl TransactionQueueContentBuilder {
@@ -101,6 +105,7 @@ impl TransactionQueueContentBuilder {
             priority_queue: self.priority_queue,
             pending_queue: self.pending_queue,
             gas_price_threshold: self.gas_price_threshold,
+            delay_duration: self.delay_duration,
         })
     }
 
