@@ -439,6 +439,56 @@
     "privacy": "Public",
     "value": "Enabled"
   },
+  "components.l1_gas_price.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.l1_gas_price.ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.l1_gas_price.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.l1_gas_price.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.l1_gas_price.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.l1_gas_price.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.l1_gas_price.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.l1_gas_price.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.l1_gas_price.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
+  },
+  "components.l1_gas_price_scraper.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Enabled"
+  },
   "components.l1_provider.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",

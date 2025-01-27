@@ -68,6 +68,7 @@ pub trait BaseLayerContract {
 }
 
 /// A struct that holds together the data on the base layer's gas prices, for a given timestamp.
+#[derive(Clone, Debug)]
 pub struct PriceSample {
     pub timestamp: u64,
     pub base_fee_per_gas: u128,
