@@ -115,8 +115,6 @@ pub enum InvalidNativeBlockifierInputError {
     InvalidL1DataGasPriceFri(u128),
     #[error("Invalid Wei l2 gas price: {0}.")]
     InvalidL2GasPriceWei(u128),
-    #[error("Invalid Fri l2 gas price: {0}.")]
-    InvalidL2GasPriceFri(u128),
 }
 
 create_exception!(native_blockifier, UndeclaredClassHashError, PyException);

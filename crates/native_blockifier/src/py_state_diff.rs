@@ -7,16 +7,11 @@ use blockifier::versioned_constants::VersionedConstants;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use pyo3::FromPyObject;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
 
-use crate::errors::{
-    InvalidNativeBlockifierInputError,
-    NativeBlockifierError,
-    NativeBlockifierInputError,
-    NativeBlockifierResult,
-};
+use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_utils::PyFelt;
 
 // TODO(Arni): consider moving to starknet api.
@@ -183,52 +178,12 @@ impl TryFrom<PyBlockInfo> for BlockInfo {
             block_timestamp: BlockTimestamp(block_info.block_timestamp),
             sequencer_address: ContractAddress::try_from(block_info.sequencer_address.0)?,
             gas_prices: validated_gas_prices(
-                NonzeroGasPrice::try_from(block_info.l1_gas_price.price_in_wei).map_err(|_| {
-                    NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                        InvalidNativeBlockifierInputError::InvalidL1GasPriceWei(
-                            block_info.l1_gas_price.price_in_wei,
-                        ),
-                    )
-                })?,
-                NonzeroGasPrice::try_from(block_info.l1_gas_price.price_in_fri).map_err(|_| {
-                    NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                        InvalidNativeBlockifierInputError::InvalidL1GasPriceFri(
-                            block_info.l1_gas_price.price_in_fri,
-                        ),
-                    )
-                })?,
-                NonzeroGasPrice::try_from(block_info.l1_data_gas_price.price_in_wei).map_err(
-                    |_| {
-                        NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                            InvalidNativeBlockifierInputError::InvalidL1DataGasPriceWei(
-                                block_info.l1_data_gas_price.price_in_wei,
-                            ),
-                        )
-                    },
-                )?,
-                NonzeroGasPrice::try_from(block_info.l1_data_gas_price.price_in_fri).map_err(
-                    |_| {
-                        NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                            InvalidNativeBlockifierInputError::InvalidL1DataGasPriceFri(
-                                block_info.l1_data_gas_price.price_in_fri,
-                            ),
-                        )
-                    },
-                )?,
-                NonzeroGasPrice::try_from(block_info.l2_gas_price.price_in_wei).map_err(|_| {
-                    NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                        InvalidNativeBlockifierInputError::InvalidL2GasPriceWei(
-                            block_info.l2_gas_price.price_in_wei,
-                        ),
-                    )
-                })?,
-                NonzeroGasPrice::try_from(block_info.l2_gas_price.price_in_fri).map_err(|_| {
-                    NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                        InvalidNativeBlockifierInputError::InvalidL2GasPriceFri(
-                            block_info.l2_gas_price.price_in_fri,
-                        ),
-                    )
-                })?,
+                block_info.l1_gas_price.price_in_wei.try_into()?,
+                block_info.l1_gas_price.price_in_fri.try_into()?,
+                block_info.l1_data_gas_price.price_in_wei.try_into()?,
+                block_info.l1_data_gas_price.price_in_fri.try_into()?,
+                block_info.l2_gas_price.price_in_wei.try_into()?,
+                block_info.l2_gas_price.price_in_fri.try_into()?,
             ),
             use_kzg_da: block_info.use_kzg_da,
         })

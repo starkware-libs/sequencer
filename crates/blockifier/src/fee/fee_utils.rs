@@ -44,7 +44,7 @@ impl GasVectorToL1GasForFee for GasVector {
         // Discounted gas converts data gas to L1 gas. Add L2 gas using conversion ratio.
         let discounted_l1_gas = to_discounted_l1_gas(
             gas_prices.l1_gas_price,
-            gas_prices.l1_data_gas_price.into(),
+            gas_prices.l1_data_gas_price,
             self.l1_gas,
             self.l1_data_gas,
         );

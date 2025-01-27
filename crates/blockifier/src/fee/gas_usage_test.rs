@@ -293,12 +293,12 @@ fn test_discounted_gas_from_gas_vector_computation() {
         .sierra_gas_to_l1_gas_amount_round_up(gas_usage.l2_gas);
 
     let result_div_ceil = gas_usage.l1_gas
-        + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE.into()).unwrap())
+        + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
             .checked_div_ceil(DEFAULT_ETH_L1_GAS_PRICE)
             .unwrap()
         + converted_l2_gas;
     let result_div_floor = gas_usage.l1_gas
-        + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE.into()).unwrap())
+        + (gas_usage.l1_data_gas.checked_mul(DEFAULT_ETH_L1_DATA_GAS_PRICE).unwrap())
             .checked_div(DEFAULT_ETH_L1_GAS_PRICE)
             .unwrap()
         + converted_l2_gas;
@@ -307,7 +307,7 @@ fn test_discounted_gas_from_gas_vector_computation() {
     assert_eq!(actual_result, result_div_floor + 1_u8.into());
     assert!(
         get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
-            <= actual_result.checked_mul(DEFAULT_ETH_L1_GAS_PRICE.into()).unwrap()
+            <= actual_result.checked_mul(DEFAULT_ETH_L1_GAS_PRICE).unwrap()
     );
 
     // Make sure L2 gas has an effect.

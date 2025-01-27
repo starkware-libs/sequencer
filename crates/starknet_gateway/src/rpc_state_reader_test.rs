@@ -64,12 +64,12 @@ async fn test_get_block_info() {
     let l2_gas_price =
         ResourcePrice { price_in_wei: GasPrice::default(), price_in_fri: GasPrice::default() };
     let gas_prices = validated_gas_prices(
-        l1_gas_price.price_in_wei.try_into().unwrap(),
-        l1_gas_price.price_in_fri.try_into().unwrap(),
-        l1_data_gas_price.price_in_wei.try_into().unwrap(),
-        l1_data_gas_price.price_in_fri.try_into().unwrap(),
-        l2_gas_price.price_in_wei.try_into().unwrap(),
-        l2_gas_price.price_in_fri.try_into().unwrap(),
+        l1_gas_price.price_in_wei,
+        l1_gas_price.price_in_fri,
+        l1_data_gas_price.price_in_wei,
+        l1_data_gas_price.price_in_fri,
+        l2_gas_price.price_in_wei,
+        l2_gas_price.price_in_fri,
     );
 
     let block_number = BlockNumber(100);

@@ -47,14 +47,14 @@ impl MempoolStateReader for SyncStateReader {
             sequencer_address: block_header.sequencer.0,
             gas_prices: GasPrices {
                 eth_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_wei.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_wei.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_wei.try_into()?,
+                    l1_gas_price: block_header.l1_gas_price.price_in_wei,
+                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_wei,
+                    l2_gas_price: block_header.l2_gas_price.price_in_wei,
                 },
                 strk_gas_prices: GasPriceVector {
-                    l1_gas_price: block_header.l1_gas_price.price_in_fri.try_into()?,
-                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_fri.try_into()?,
-                    l2_gas_price: block_header.l2_gas_price.price_in_fri.try_into()?,
+                    l1_gas_price: block_header.l1_gas_price.price_in_fri,
+                    l1_data_gas_price: block_header.l1_data_gas_price.price_in_fri,
+                    l2_gas_price: block_header.l2_gas_price.price_in_fri,
                 },
             },
             use_kzg_da: match block_header.l1_da_mode {

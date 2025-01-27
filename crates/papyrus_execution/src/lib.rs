@@ -52,13 +52,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    NonzeroGasPrice,
-    StarknetVersion,
-};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -379,12 +373,12 @@ fn create_block_context(
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
         gas_prices: validated_gas_prices(
-            NonzeroGasPrice::new(l1_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l1_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l1_data_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l1_data_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l2_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
-            NonzeroGasPrice::new(l2_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
+            l1_gas_price.price_in_wei,
+            l1_gas_price.price_in_fri,
+            l1_data_gas_price.price_in_wei,
+            l1_data_gas_price.price_in_fri,
+            l2_gas_price.price_in_wei,
+            l2_gas_price.price_in_fri,
         ),
     };
     let chain_info = ChainInfo {

@@ -398,77 +398,12 @@ impl Default for GasPrice {
     }
 }
 
-/// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
-/// taking a fee amount and dividing by the gas price.
-#[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize, derive_more::Display)]
-pub struct NonzeroGasPrice(GasPrice);
-
-impl NonzeroGasPrice {
-    pub const MIN: Self = Self(GasPrice(1));
-
-    pub fn new(price: GasPrice) -> Result<Self, StarknetApiError> {
-        if price.0 == 0 {
-            return Err(StarknetApiError::ZeroGasPrice);
-        }
-        Ok(Self(price))
-    }
-
-    pub const fn get(&self) -> GasPrice {
-        self.0
-    }
-
-    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
-        self.get().saturating_mul(rhs)
-    }
-
-    #[cfg(any(test, feature = "testing"))]
-    pub const fn new_unchecked(price: GasPrice) -> Self {
-        Self(price)
-    }
-}
-
-impl Default for NonzeroGasPrice {
-    fn default() -> Self {
-        Self::MIN
-    }
-}
-
-impl From<NonzeroGasPrice> for GasPrice {
-    fn from(val: NonzeroGasPrice) -> Self {
-        val.0
-    }
-}
-
-impl TryFrom<GasPrice> for NonzeroGasPrice {
-    type Error = StarknetApiError;
-
-    fn try_from(price: GasPrice) -> Result<Self, Self::Error> {
-        NonzeroGasPrice::new(price)
-    }
-}
-
-macro_rules! impl_try_from_uint_for_nonzero_gas_price {
-    ($($uint:ty),*) => {
-        $(
-            impl TryFrom<$uint> for NonzeroGasPrice {
-                type Error = StarknetApiError;
-
-                fn try_from(val: $uint) -> Result<Self, Self::Error> {
-                    NonzeroGasPrice::new(GasPrice::try_from(val)?)
-                }
-            }
-        )*
-    };
-}
-
-impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
-
 // TODO(Arni): Remove derive of Default. Gas prices should always be set.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GasPriceVector {
-    pub l1_gas_price: NonzeroGasPrice,
-    pub l1_data_gas_price: NonzeroGasPrice,
-    pub l2_gas_price: NonzeroGasPrice,
+    pub l1_gas_price: GasPrice,
+    pub l1_data_gas_price: GasPrice,
+    pub l2_gas_price: GasPrice,
 }
 
 #[derive(Clone, Copy, Hash, EnumIter, Eq, PartialEq)]
@@ -485,15 +420,15 @@ pub struct GasPrices {
 }
 
 impl GasPrices {
-    pub fn l1_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+    pub fn l1_gas_price(&self, fee_type: &FeeType) -> GasPrice {
         self.gas_price_vector(fee_type).l1_gas_price
     }
 
-    pub fn l1_data_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+    pub fn l1_data_gas_price(&self, fee_type: &FeeType) -> GasPrice {
         self.gas_price_vector(fee_type).l1_data_gas_price
     }
 
-    pub fn l2_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+    pub fn l2_gas_price(&self, fee_type: &FeeType) -> GasPrice {
         self.gas_price_vector(fee_type).l2_gas_price
     }
 

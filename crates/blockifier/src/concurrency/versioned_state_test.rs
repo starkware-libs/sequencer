@@ -231,7 +231,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         class_hash: account_without_validation.get_class_hash(),
         resource_bounds: l1_resource_bounds(
             u8::from(!zero_bounds).into(),
-            DEFAULT_STRK_L1_GAS_PRICE.into()
+            DEFAULT_STRK_L1_GAS_PRICE
         ),
     });
     let deploy_account_tx_1 = AccountTransaction::new_for_sequencing(tx);

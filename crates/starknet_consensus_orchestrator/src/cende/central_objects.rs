@@ -11,13 +11,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::NestedIntList;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
-use starknet_api::block::{
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    NonzeroGasPrice,
-    StarknetVersion,
-};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ClassHash,
@@ -63,8 +57,8 @@ pub type CentralCompressedStateDiff = CentralStateDiff;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {
-    pub price_in_wei: NonzeroGasPrice,
-    pub price_in_fri: NonzeroGasPrice,
+    pub price_in_wei: GasPrice,
+    pub price_in_fri: GasPrice,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]

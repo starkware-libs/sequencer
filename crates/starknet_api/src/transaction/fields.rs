@@ -5,7 +5,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{GasPrice, NonzeroGasPrice};
+use crate::block::GasPrice;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
@@ -39,10 +39,10 @@ impl Fee {
         Self(self.0.saturating_add(rhs.0))
     }
 
-    pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+    pub fn checked_div_ceil(self, rhs: GasPrice) -> Option<GasAmount> {
         self.checked_div(rhs).map(|value| {
             if value
-                .checked_mul(rhs.into())
+                .checked_mul(rhs)
                 .expect("Multiplying by denominator of floor division cannot overflow.")
                 < self
             {
@@ -53,14 +53,14 @@ impl Fee {
         })
     }
 
-    pub fn checked_div(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
-        match u64::try_from(self.0 / rhs.get().0) {
+    pub fn checked_div(self, rhs: GasPrice) -> Option<GasAmount> {
+        match u64::try_from(self.0 / rhs.get()) {
             Ok(value) => Some(value.into()),
             Err(_) => None,
         }
     }
 
-    pub fn saturating_div(self, rhs: NonzeroGasPrice) -> GasAmount {
+    pub fn saturating_div(self, rhs: GasPrice) -> GasAmount {
         self.checked_div(rhs).unwrap_or(GasAmount::MAX)
     }
 }
@@ -327,17 +327,13 @@ impl ValidResourceBounds {
         gas: &crate::execution_resources::GasVector,
         prices: &crate::block::GasPriceVector,
     ) -> Self {
-        let l1_gas = ResourceBounds {
-            max_amount: gas.l1_gas,
-            max_price_per_unit: prices.l1_gas_price.into(),
-        };
-        let l2_gas = ResourceBounds {
-            max_amount: gas.l2_gas,
-            max_price_per_unit: prices.l2_gas_price.into(),
-        };
+        let l1_gas =
+            ResourceBounds { max_amount: gas.l1_gas, max_price_per_unit: prices.l1_gas_price };
+        let l2_gas =
+            ResourceBounds { max_amount: gas.l2_gas, max_price_per_unit: prices.l2_gas_price };
         let l1_data_gas = ResourceBounds {
             max_amount: gas.l1_data_gas,
-            max_price_per_unit: prices.l1_data_gas_price.into(),
+            max_price_per_unit: prices.l1_data_gas_price,
         };
         Self::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas })
     }
