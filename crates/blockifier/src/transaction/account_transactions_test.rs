@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use num_traits::Inv;
@@ -95,6 +96,7 @@ use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
+use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     all_resource_bounds,
@@ -226,9 +228,18 @@ fn test_fee_enforcement(
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
     let result = deploy_account_tx.execute(state, &block_context);
-    // Execution should fail if the fee is enforced because the account doesn't have sufficient
+    // When fee is enforced, execution should fail because the account doesn't have sufficient
     // balance.
-    assert_eq!(result.is_err(), enforce_fee);
+    if enforce_fee {
+        assert_matches!(
+            result,
+            Err(TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(_)
+            ))
+        );
+    } else {
+        assert!(result.is_ok());
+    }
 }
 
 #[rstest]
