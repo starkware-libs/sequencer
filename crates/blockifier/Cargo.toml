@@ -14,7 +14,15 @@ cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
-testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
+testing = [
+    "rand",
+    "rstest",
+    "rstest_reuse",
+    "starknet_api/testing",
+    "tokio",
+    "tracing",
+    "tracing-test",
+]
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -60,7 +68,10 @@ strum_macros.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tikv-jemallocator = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread"] }
 toml.workspace = true
+tracing = { workspace = true, optional = true }
+tracing-test = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches.workspace = true
