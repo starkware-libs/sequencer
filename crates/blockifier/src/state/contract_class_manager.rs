@@ -13,6 +13,8 @@ use starknet_api::state::SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
 #[cfg(feature = "cairo_native")]
+use starknet_sierra_multicompile::errors::CompilationUtilError;
+#[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
 #[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::SierraToNativeCompiler;
@@ -115,30 +117,37 @@ impl ContractClassManager {
     /// 2. Otherwise, processes the request synchronously, blocking the sender until the request is
     ///    processed.
     #[cfg(feature = "cairo_native")]
-    pub fn send_compilation_request(&self, request: CompilationRequest) {
+    pub fn send_compilation_request(
+        &self,
+        request: CompilationRequest,
+    ) -> Result<(), CompilationUtilError> {
         assert!(self.run_cairo_native(), "Native compilation is disabled.");
         if self.wait_on_native_compilation() {
             // Compilation requests are processed synchronously. No need to go through the channel.
             let compiler = self.compiler.as_ref().expect("Compiler not available.");
-            process_compilation_request(self.contract_caches.clone(), compiler.clone(), request);
-            return;
+            return process_compilation_request(
+                self.contract_caches.clone(),
+                compiler.clone(),
+                request,
+            );
         }
 
         let sender = self.sender.as_ref().expect("Compilation channel not available.");
         // TODO(Avi, 15/12/2024): Check for duplicated requests.
-        sender.try_send(request).unwrap_or_else(|err| match err {
-            TrySendError::Full((class_hash, _, _)) => {
-                log::error!(
+        match sender.try_send(request) {
+            Ok(_) => Ok(()),
+            Err(TrySendError::Full((class_hash, _, _))) => {
+                let str_error = format!(
                     "Compilation request channel is full (size: {}). Compilation request for \
                      class hash {} was not sent.",
-                    self.cairo_native_run_config.channel_size,
-                    class_hash
-                )
+                    self.cairo_native_run_config.channel_size, class_hash
+                );
+                Err(CompilationUtilError::CompilationError(str_error))
             }
-            TrySendError::Disconnected(_) => {
+            Err(TrySendError::Disconnected(_)) => {
                 panic!("Compilation request channel is closed.")
             }
-        });
+        }
     }
 
     /// Returns the native compiled class for the given class hash, if it exists in cache.
@@ -194,7 +203,10 @@ fn run_compilation_worker(
 ) {
     log::info!("Compilation worker started.");
     for compilation_request in receiver.iter() {
-        process_compilation_request(contract_caches.clone(), compiler.clone(), compilation_request);
+        process_compilation_request(contract_caches.clone(), compiler.clone(), compilation_request)
+            .unwrap_or_else(|err| {
+                log::error!("Error processing compilation request: {}", err);
+            });
     }
     log::info!("Compilation worker terminated.");
 }
@@ -205,11 +217,11 @@ fn process_compilation_request(
     contract_caches: ContractCaches,
     compiler: Arc<dyn SierraToNativeCompiler>,
     compilation_request: CompilationRequest,
-) {
+) -> Result<(), CompilationUtilError> {
     let (class_hash, sierra, casm) = compilation_request;
     if contract_caches.get_native(&class_hash).is_some() {
         // The contract class is already compiled to native - skip the compilation.
-        return;
+        return Ok(());
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
     let compilation_result = compiler.compile_to_native(sierra_for_compilation);
@@ -218,10 +230,12 @@ fn process_compilation_request(
             let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
             contract_caches
                 .set_native(class_hash, CachedCairoNative::Compiled(native_compiled_class));
+            Ok(())
         }
         Err(err) => {
-            log::error!("Error compiling contract class: {}", err);
+            let str_error = format!("Error compiling contract class: {}", err);
             contract_caches.set_native(class_hash, CachedCairoNative::CompilationFailed);
+            Err(CompilationUtilError::CompilationError(str_error))
         }
     }
 }
