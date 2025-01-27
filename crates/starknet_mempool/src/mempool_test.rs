@@ -22,6 +22,7 @@ use crate::transaction_queue::transaction_queue_test_utils::{
     TransactionQueueContent,
     TransactionQueueContentBuilder,
 };
+use crate::transaction_queue::TransactionQueue;
 use crate::{add_tx_input, tx};
 
 // Utils.
@@ -52,12 +53,13 @@ impl MempoolContent {
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
         let MempoolContent { config, tx_pool, tx_queue_content, state } = mempool_content;
+        let delay_duration = config.delay_duration;
         Mempool {
             config,
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
                 .map(|content| content.complete_to_tx_queue())
-                .unwrap_or_default(),
+                .unwrap_or(TransactionQueue::new(delay_duration)),
             state: state.unwrap_or_default(),
         }
     }
@@ -117,7 +119,8 @@ impl MempoolContentBuilder {
     }
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
-        self.config = MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage };
+        self.config.enable_fee_escalation = true;
+        self.config.fee_escalation_percentage = fee_escalation_percentage;
         self
     }
 
