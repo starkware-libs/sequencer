@@ -96,6 +96,20 @@ pub struct SendProposalContentInput {
 /// The content of the stream that the consensus sends to the batcher.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
+    Txs(Vec<InternalConsensusTransaction>),
+    Finish,
+    Abort,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SendProposalContentInputDeprecated {
+    pub proposal_id: ProposalId,
+    pub content: SendProposalContentDeprecated,
+}
+
+/// The content of the stream that the consensus sends to the batcher.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum SendProposalContentDeprecated {
     Txs(Vec<Transaction>),
     Finish,
     Abort,

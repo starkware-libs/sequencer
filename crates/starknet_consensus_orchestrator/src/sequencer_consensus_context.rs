@@ -46,8 +46,8 @@ use starknet_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
+    SendProposalContentDeprecated,
+    SendProposalContentInputDeprecated,
     StartHeightInput,
     ValidateBlockInput,
 };
@@ -777,13 +777,14 @@ async fn handle_proposal_part(
                 })
                 .collect();
             content.extend_from_slice(&exe_txs[..]);
-            let input = SendProposalContentInput {
+            let input = SendProposalContentInputDeprecated {
                 proposal_id,
-                content: SendProposalContent::Txs(exe_txs),
+                content: SendProposalContentDeprecated::Txs(exe_txs),
             };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
-            });
+            let response =
+                batcher.send_proposal_content_deprecated(input).await.unwrap_or_else(|e| {
+                    panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
+                });
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
                 ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
@@ -792,11 +793,14 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::Fin(ProposalFin { proposal_content_id: id })) => {
             // Output this along with the ID from batcher, to compare them.
-            let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
-            });
+            let input = SendProposalContentInputDeprecated {
+                proposal_id,
+                content: SendProposalContentDeprecated::Finish,
+            };
+            let response =
+                batcher.send_proposal_content_deprecated(input).await.unwrap_or_else(|e| {
+                    panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
+                });
             let response_id = match response.response {
                 ProposalStatus::Finished(id) => id,
                 ProposalStatus::InvalidProposal => {
@@ -819,9 +823,12 @@ async fn handle_proposal_part(
 }
 
 async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: ProposalId) {
-    let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
+    let input = SendProposalContentInputDeprecated {
+        proposal_id,
+        content: SendProposalContentDeprecated::Abort,
+    };
     batcher
-        .send_proposal_content(input)
+        .send_proposal_content_deprecated(input)
         .await
         .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
 }

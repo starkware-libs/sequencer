@@ -28,7 +28,9 @@ use starknet_batcher_types::batcher_types::{
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContent,
+    SendProposalContentDeprecated,
     SendProposalContentInput,
+    SendProposalContentInputDeprecated,
     SendProposalContentResponse,
     StartHeightInput,
     ValidateBlockInput,
@@ -283,10 +285,53 @@ impl Batcher {
         }
 
         match send_proposal_content_input.content {
-            SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
+            SendProposalContent::Txs(internal_txs) => {
+                let mut txs = Vec::new();
+                for tx in internal_txs.into_iter() {
+                    match tx {
+                        InternalConsensusTransaction::L1Handler(tx) => {
+                            txs.push(Transaction::L1Handler(tx))
+                        }
+                        InternalConsensusTransaction::RpcTransaction(internal_rpc_transaction) => {
+                            txs.push(Transaction::Account(
+                                self.transaction_converter
+                                    .convert_internal_rpc_tx_to_executable_tx(
+                                        internal_rpc_transaction,
+                                    )
+                                    .await
+                                    .unwrap(),
+                            ))
+                        }
+                    }
+                }
+
+                self.handle_send_txs_request(proposal_id, txs).await
+            }
             SendProposalContent::Finish => self.handle_finish_proposal_request(proposal_id).await,
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
+    }
+
+    // TODO(alonl): erase after changing tx types in consensus
+    #[instrument(skip(self), err)]
+    pub async fn send_proposal_content_deprecated(
+        &mut self,
+        send_proposal_content_input: SendProposalContentInputDeprecated,
+    ) -> BatcherResult<SendProposalContentResponse> {
+        let proposal_content = match send_proposal_content_input.content {
+            SendProposalContentDeprecated::Txs(vec) => SendProposalContent::Txs(
+                vec.into_iter()
+                    .map(TransactionConverter::convert_executable_tx_to_internal_consensus_tx_deprecated)
+                    .collect(),
+            ),
+            SendProposalContentDeprecated::Finish => SendProposalContent::Finish,
+            SendProposalContentDeprecated::Abort => SendProposalContent::Abort,
+        };
+        self.send_proposal_content(SendProposalContentInput {
+            proposal_id: send_proposal_content_input.proposal_id,
+            content: proposal_content,
+        })
+        .await
     }
 
     /// Clear all the proposals from the previous height.
@@ -394,7 +439,7 @@ impl Batcher {
 
         let txs = txs
             .into_iter()
-            .map(TransactionConverter::convert_executable_tx_to_internal_consensus_tx)
+            .map(TransactionConverter::convert_executable_tx_to_internal_consensus_tx_deprecated)
             .collect();
 
         if n_executed_txs != 0 {

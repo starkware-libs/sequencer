@@ -28,6 +28,7 @@ use crate::batcher_types::{
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContentInput,
+    SendProposalContentInputDeprecated,
     SendProposalContentResponse,
     StartHeightInput,
     ValidateBlockInput,
@@ -74,6 +75,11 @@ pub trait BatcherClient: Send + Sync {
         &self,
         input: SendProposalContentInput,
     ) -> BatcherClientResult<SendProposalContentResponse>;
+    // TODO(alonl): erase after changing tx types in consensus
+    async fn send_proposal_content_deprecated(
+        &self,
+        input: SendProposalContentInputDeprecated,
+    ) -> BatcherClientResult<SendProposalContentResponse>;
     /// Starts the process of a new height.
     /// From this point onwards, the batcher will accept requests only for proposals associated
     /// with this height.
@@ -99,6 +105,8 @@ pub enum BatcherRequest {
     GetProposalContentDeprecated(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
     SendProposalContent(SendProposalContentInput),
+    // TODO(alonl): erase after changing tx types in consensus
+    SendProposalContentDeprecated(SendProposalContentInputDeprecated),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
@@ -190,6 +198,21 @@ where
         input: SendProposalContentInput,
     ) -> BatcherClientResult<SendProposalContentResponse> {
         let request = BatcherRequest::SendProposalContent(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            SendProposalContent,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    // TODO(alonl): erase after changing tx types in consensus
+    async fn send_proposal_content_deprecated(
+        &self,
+        input: SendProposalContentInputDeprecated,
+    ) -> BatcherClientResult<SendProposalContentResponse> {
+        let request = BatcherRequest::SendProposalContentDeprecated(input);
         handle_all_response_variants!(
             BatcherResponse,
             SendProposalContent,

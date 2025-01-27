@@ -39,6 +39,12 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::SendProposalContent(input) => {
                 BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)
             }
+            // TODO(alonl): erase after changing tx types in consensus
+            BatcherRequest::SendProposalContentDeprecated(input) => {
+                BatcherResponse::SendProposalContent(
+                    self.send_proposal_content_deprecated(input).await,
+                )
+            }
             BatcherRequest::AddSyncBlock(sync_block) => {
                 BatcherResponse::AddSyncBlock(self.add_sync_block(sync_block).await)
             }
