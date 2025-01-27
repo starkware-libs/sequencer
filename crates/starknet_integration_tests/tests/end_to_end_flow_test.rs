@@ -127,7 +127,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             deploy_account_and_invoke,
             test_two_txs,
             Felt::from_hex_unchecked(
-                "0x1f8c6649763379bc0a862f88a6699a0d1094d4d656a3d0f8ddc5e6a83fc3cf5",
+                "0xb28fc13e038eaff29d46d8ead91e9a37e004949c3ea6b78020c5df315ef745",
             ),
         ),
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
@@ -164,7 +164,7 @@ async fn listen_to_broadcasted_messages(
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let broadcasted_messages_receiver =
         &mut consensus_proposals_channels.broadcasted_messages_receiver;
-    // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
+    // TODO(Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
         height: expected_height,
         proposer: expected_proposer_id,
