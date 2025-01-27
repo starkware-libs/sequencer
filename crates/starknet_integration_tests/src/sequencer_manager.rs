@@ -205,17 +205,41 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
+    /// This function tests and verifies the integration of the transaction flow.
+    ///
+    /// # Parameters
+    /// - `expected_initial_value`: The initial value of the nonce in the batcher's storage. This
+    ///   represents the starting state before any transactions are sent.
+    /// - `n_txs`: The number of transactions that will be sent during the test. After the test
+    ///   completes, the nonce in the batcher's storage is expected to be `expected_initial_value +
+    ///   n_txs`.
+    /// - `tx_generator`: A transaction generator used to create transactions for testing.
+    /// - `sender_account`: The ID of the account sending the transactions.
+    /// - `expected_block_number`: The block number up to which execution should be awaited.
+    ///
+    /// The function verifies the initial state, runs the test with the given number of
+    /// transactions, waits for execution to complete, and then verifies the final state.
     pub async fn test_and_verify(
         &mut self,
         tx_generator: &mut MultiAccountTransactionGenerator,
+        expected_initial_value: usize,
         n_txs: usize,
         sender_account: AccountId,
         expected_block_number: BlockNumber,
     ) {
+        // Verify the initial state
+        self.verify_results(
+            tx_generator.account_with_id(sender_account).sender_address(),
+            expected_initial_value + 1,
+        )
+        .await;
         self.run_integration_test_simulator(tx_generator, n_txs, sender_account).await;
         self.await_execution(expected_block_number).await;
-        self.verify_results(tx_generator.account_with_id(sender_account).sender_address(), n_txs)
-            .await;
+        self.verify_results(
+            tx_generator.account_with_id(sender_account).sender_address(),
+            expected_initial_value + n_txs + 1,
+        )
+        .await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -274,9 +298,12 @@ impl IntegrationTestManager {
             .expect("Block number should have been reached.");
     }
 
-    pub async fn verify_results(&self, sender_address: ContractAddress, n_txs: usize) {
+    pub async fn verify_results(
+        &self,
+        sender_address: ContractAddress,
+        expected_nonce_value: usize,
+    ) {
         info!("Verifying tx sender account nonce.");
-        let expected_nonce_value = n_txs + 1;
         let expected_nonce =
             Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
         let nonce = get_account_nonce(&self.batcher_storage_reader(), sender_address);
