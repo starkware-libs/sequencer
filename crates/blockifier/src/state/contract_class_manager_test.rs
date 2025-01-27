@@ -89,5 +89,5 @@ fn test_send_compilation_request_channel_disconnected() {
 
     // Sending request with a disconnected channel should panic.
     let request = create_test_request();
-    manager.send_compilation_request(request);
+    manager.send_compilation_request(request).unwrap();
 }
