@@ -3,6 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHashDiscriminants;
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 
@@ -118,6 +119,7 @@ impl TransactionQueue {
             nonce: Nonce::default(),
             tx_hash: TransactionHash::default(),
             tip: Tip::default(),
+            tx_type: InternalRpcTransactionWithoutTxHashDiscriminants::Invoke,
         });
 
         // Split off the pending queue at the given transaction higher than the threshold.
