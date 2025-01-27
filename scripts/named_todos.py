@@ -8,9 +8,10 @@ from tests_utils import (
     get_local_changes,
 )
 
+
 def validate_todo_format(file_path: str) -> bool:
     """
-    Validates that all TODO comments in the file are formatted as TODO(X), where X is a non-empty 
+    Validates that all TODO comments in the file are formatted as TODO(X), where X is a non-empty
     string of characters.
 
     Args:
@@ -52,7 +53,9 @@ def enforce_named_todos(commit_id: Optional[str]):
 
     local_changes = get_local_changes(".", commit_id=commit_id)
     print(f"Enforcing TODO format on modified files: {local_changes}.")
-    successful_validation = all(validate_todo_format(file_path) for file_path in local_changes)
+    successful_validation = all(
+        validate_todo_format(file_path) for file_path in local_changes if os.path.isfile(file_path)
+    )
     assert successful_validation, "Found invalid TODOs"
 
 
