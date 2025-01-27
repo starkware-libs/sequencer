@@ -118,8 +118,19 @@ pub fn deploy_account_tx(
 
 // TODO(Arni): Consider using [ExecutableDeployAccountTransaction::create] in the body of this
 // function. We don't use it now to avoid tx_hash calculation.
+pub fn executable_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> AccountTransaction {
+    let tx_hash = deploy_tx_args.tx_hash;
+    let tx = deploy_account_tx(deploy_tx_args, Nonce(Felt::ZERO));
+    let contract_address = tx.calculate_contract_address().unwrap();
+    let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
+
+    AccountTransaction::DeployAccount(deploy_account_tx)
+}
+
+// TODO(Arni): Consider using [ExecutableDeployAccountTransaction::create] in the body of this
+// function. We don't use it now to avoid tx_hash calculation.
 // TODO(Arni): Streamline this function by using nonce = 0 always.
-pub fn executable_deploy_account_tx(
+pub fn create_executable_deploy_account_tx_and_update_nonce(
     deploy_tx_args: DeployAccountTxArgs,
     nonce_manager: &mut NonceManager,
 ) -> AccountTransaction {
