@@ -25,7 +25,7 @@ const Configuration = {
             'cairo_native',
             'ci',
             'committer',
-            'committer_cli',
+            'starknet_committer_and_os_cli',
             'consensus',
             'deployment',
             'helm',

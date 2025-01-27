@@ -8,14 +8,14 @@ on:
     tags:
       - v[0-9].**
     paths:
-      - '.github/workflows/committer_cli_push.yml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/committer_cli/**'
-      - 'crates/starknet_api/**'
-      - 'crates/starknet_committer/**'
-      - 'crates/starknet_patricia/**'
-      - 'scripts/dependencies.sh'
+      - ".github/workflows/committer_cli_push.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/starknet_committer_and_os_cli/**"
+      - "crates/starknet_api/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_patricia/**"
+      - "scripts/dependencies.sh"
 
   pull_request:
     types:
@@ -25,14 +25,14 @@ on:
       - auto_merge_enabled
       - edited
     paths:
-      - '.github/workflows/committer_cli_push.yml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/committer_cli/**'
-      - 'crates/starknet_api/**'
-      - 'crates/starknet_committer/**'
-      - 'crates/starknet_patricia/**'
-      - 'scripts/dependencies.sh'
+      - ".github/workflows/committer_cli_push.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/starknet_committer_and_os_cli/**"
+      - "crates/starknet_api/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_patricia/**"
+      - "scripts/dependencies.sh"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -68,7 +68,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"
@@ -79,5 +79,5 @@ jobs:
         id: upload_file
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
-          path: "CLI_TARGET/release/committer_cli"
+          path: "CLI_TARGET/release/starknet_committer_and_os_cli"
           destination: "committer-products-external/${{ env.SHORT_HASH }}/release/"
