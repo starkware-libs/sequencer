@@ -18,19 +18,17 @@ use starknet_l1_provider_types::Event;
 
 use crate::event_identifiers_to_track;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
-use crate::test_utils::FakeL1ProviderClient;
+use crate::test_utils::{
+    FakeL1ProviderClient,
+    DEFAULT_ANVIL_ACCOUNT_ADDRESS,
+    DEFAULT_ANVIL_DEPLOY_ADDRESS,
+};
 
 // TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
 // confusing `#[ignore]` api to mark slow tests.
 fn in_ci() -> bool {
     std::env::var("CI").is_ok()
 }
-
-// Default funded account, there are more fixed funded accounts,
-// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
-const DEFAULT_ANVIL_ACCOUNT_ADDRESS: StarkHash =
-    StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
-const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
