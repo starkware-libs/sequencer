@@ -18,9 +18,9 @@ use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
     GetHeightResponse,
-    GetProposalContent,
+    GetProposalContentDeprecated,
     GetProposalContentInput,
-    GetProposalContentResponse,
+    GetProposalContentResponseDeprecated,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -551,23 +551,25 @@ async fn propose_block_full_flow() {
     let mut aggregated_streamed_txs = Vec::new();
     for _ in 0..expected_n_chunks {
         let content = batcher
-            .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+            .get_proposal_content_deprecated(GetProposalContentInput { proposal_id: PROPOSAL_ID })
             .await
             .unwrap()
             .content;
-        let mut txs = assert_matches!(content, GetProposalContent::Txs(txs) => txs);
+        let mut txs = assert_matches!(content, GetProposalContentDeprecated::Txs(txs) => txs);
         assert!(txs.len() <= STREAMING_CHUNK_SIZE, "{} < {}", txs.len(), STREAMING_CHUNK_SIZE);
         aggregated_streamed_txs.append(&mut txs);
     }
     assert_eq!(aggregated_streamed_txs, expected_streamed_txs);
 
     let commitment = batcher
-        .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+        .get_proposal_content_deprecated(GetProposalContentInput { proposal_id: PROPOSAL_ID })
         .await
         .unwrap();
     assert_eq!(
         commitment,
-        GetProposalContentResponse { content: GetProposalContent::Finished(proposal_commitment()) }
+        GetProposalContentResponseDeprecated {
+            content: GetProposalContentDeprecated::Finished(proposal_commitment())
+        }
     );
 
     let exhausted =

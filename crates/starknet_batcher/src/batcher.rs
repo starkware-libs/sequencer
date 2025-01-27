@@ -6,6 +6,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -17,8 +18,10 @@ use starknet_batcher_types::batcher_types::{
     DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContent,
+    GetProposalContentDeprecated,
     GetProposalContentInput,
     GetProposalContentResponse,
+    GetProposalContentResponseDeprecated,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -31,7 +34,10 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
-use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use starknet_l1_provider_types::{SessionState, SharedL1ProviderClient};
@@ -397,6 +403,11 @@ impl Batcher {
         let n_executed_txs =
             tx_stream.recv_many(&mut txs, self.config.outstream_content_buffer_size).await;
 
+        let txs = txs
+            .into_iter()
+            .map(TransactionConverter::convert_executable_tx_to_internal_consensus_tx)
+            .collect();
+
         if n_executed_txs != 0 {
             debug!("Streaming {} txs", n_executed_txs);
             return Ok(GetProposalContentResponse { content: GetProposalContent::Txs(txs) });
@@ -413,6 +424,44 @@ impl Batcher {
             .map_err(|_| BatcherError::InternalError)?;
 
         Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
+    }
+
+    // TODO(alonl): erase after changing tx types in consensus
+    #[instrument(skip(self), err)]
+    pub async fn get_proposal_content_deprecated(
+        &mut self,
+        get_proposal_content_input: GetProposalContentInput,
+    ) -> BatcherResult<GetProposalContentResponseDeprecated> {
+        let response = self.get_proposal_content(get_proposal_content_input).await?;
+        Ok(GetProposalContentResponseDeprecated {
+            content: match response.content {
+                GetProposalContent::Txs(internal_txs) => {
+                    let mut executable_txs = Vec::new();
+                    for internal_tx in internal_txs.into_iter() {
+                        match internal_tx {
+                            InternalConsensusTransaction::L1Handler(tx) => {
+                                executable_txs.push(Transaction::L1Handler(tx))
+                            }
+                            InternalConsensusTransaction::RpcTransaction(
+                                internal_rpc_transaction,
+                            ) => executable_txs.push(Transaction::Account(
+                                self.transaction_converter
+                                    .convert_internal_rpc_tx_to_executable_tx(
+                                        internal_rpc_transaction,
+                                    )
+                                    .await
+                                    .unwrap(),
+                            )),
+                        }
+                    }
+
+                    GetProposalContentDeprecated::Txs(executable_txs)
+                }
+                GetProposalContent::Finished(proposal_commitment) => {
+                    GetProposalContentDeprecated::Finished(proposal_commitment)
+                }
+            },
+        })
     }
 
     #[instrument(skip(self), err)]
