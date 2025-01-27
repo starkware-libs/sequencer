@@ -101,6 +101,13 @@ impl ExecutableSetup {
 
         state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
+        // Explicitly collect metrics in the monitoring endpoint.
+        let monitoring_endpoint_config = MonitoringEndpointConfig {
+            port: available_ports.get_next_port(),
+            collect_metrics: true,
+            ..Default::default()
+        };
+
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
@@ -110,9 +117,9 @@ impl ExecutableSetup {
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
+            monitoring_endpoint_config,
             component_config,
-        )
-        .await;
+        );
 
         let node_config_dir_handle = tempdir().unwrap();
         let node_config_path = dump_config_file_changes(

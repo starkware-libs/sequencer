@@ -12,6 +12,7 @@ use tokio::task::yield_now;
 use tower::ServiceExt;
 
 use super::MonitoringEndpointConfig;
+use crate::config::{DEFAULT_IP, DEFAULT_PORT};
 use crate::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
@@ -24,8 +25,13 @@ use crate::test_utils::build_request;
 
 const TEST_VERSION: &str = "1.2.3-dev";
 
+// Note: the metrics recorder is installed globally, causing tests to conflict when run in parallel.
+// Most tests do not require it, and as such, use the following disabling config.
+const CONFIG_WITHOUT_METRICS: MonitoringEndpointConfig =
+    MonitoringEndpointConfig { ip: DEFAULT_IP, port: DEFAULT_PORT, collect_metrics: false };
+
 fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
-    let config = config.unwrap_or_default();
+    let config = config.unwrap_or(CONFIG_WITHOUT_METRICS);
     create_monitoring_endpoint(config, TEST_VERSION)
 }
 
