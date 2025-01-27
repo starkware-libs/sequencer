@@ -6,7 +6,7 @@
 # Code changes in our crates won't affect these cached layers, making the build process more efficient.
 # More info on Cargo Chef: https://github.com/LukeMathWalker/cargo-chef
 
-FROM ubuntu:22.04 AS base
+FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .
