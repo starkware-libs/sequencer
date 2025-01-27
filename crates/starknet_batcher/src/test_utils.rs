@@ -6,9 +6,9 @@ use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::IndexMap;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
@@ -47,8 +47,8 @@ impl BlockBuilderTrait for FakeValidateBlockBuilder {
 // A fake block builder for propose flow, that sends the given transactions to the output content
 // sender.
 pub(crate) struct FakeProposeBlockBuilder {
-    pub output_content_sender: UnboundedSender<Transaction>,
-    pub output_txs: Vec<Transaction>,
+    pub output_content_sender: UnboundedSender<InternalConsensusTransaction>,
+    pub output_txs: Vec<InternalConsensusTransaction>,
     pub build_block_result: Option<BlockBuilderResult<BlockExecutionArtifacts>>,
 }
 
@@ -64,10 +64,10 @@ impl BlockBuilderTrait for FakeProposeBlockBuilder {
     }
 }
 
-pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
+pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction> {
     tx_hash_range
         .map(|i| {
-            Transaction::Account(executable_invoke_tx(InvokeTxArgs {
+            InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs {
                 tx_hash: tx_hash!(i),
                 ..Default::default()
             }))

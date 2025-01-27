@@ -6,8 +6,8 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
@@ -67,8 +67,8 @@ use crate::utils::{
     ProposalTask,
 };
 
-type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
-type InputStreamSender = tokio::sync::mpsc::Sender<Transaction>;
+type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
+type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -181,7 +181,6 @@ impl Batcher {
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
-            self.transaction_converter.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
         );
@@ -306,7 +305,7 @@ impl Batcher {
     async fn handle_send_txs_request(
         &mut self,
         proposal_id: ProposalId,
-        txs: Vec<Transaction>,
+        txs: Vec<InternalConsensusTransaction>,
     ) -> BatcherResult<SendProposalContentResponse> {
         if self.is_active(proposal_id).await {
             //   The proposal is active. Send the transactions through the tx provider.
