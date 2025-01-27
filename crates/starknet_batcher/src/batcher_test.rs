@@ -26,8 +26,8 @@ use starknet_batcher_types::batcher_types::{
     ProposalStatus,
     ProposeBlockInput,
     RevertBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
+    SendProposalContentDeprecated,
+    SendProposalContentInputDeprecated,
     SendProposalContentResponse,
     StartHeightInput,
     ValidateBlockInput,
@@ -417,19 +417,21 @@ async fn validate_block_full_flow() {
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
-    let send_proposal_input_txs = SendProposalContentInput {
+    let send_proposal_input_txs = SendProposalContentInputDeprecated {
         proposal_id: PROPOSAL_ID,
-        content: SendProposalContent::Txs(test_txs(0..1)),
+        content: SendProposalContentDeprecated::Txs(test_txs(0..1)),
     };
     assert_eq!(
-        batcher.send_proposal_content(send_proposal_input_txs).await.unwrap(),
+        batcher.send_proposal_content_deprecated(send_proposal_input_txs).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Processing }
     );
 
-    let finish_proposal =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let finish_proposal = SendProposalContentInputDeprecated {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContentDeprecated::Finish,
+    };
     assert_eq!(
-        batcher.send_proposal_content(finish_proposal).await.unwrap(),
+        batcher.send_proposal_content_deprecated(finish_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
     );
     let metrics = recorder.handle().render();
@@ -437,61 +439,76 @@ async fn validate_block_full_flow() {
 }
 
 #[rstest]
-#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish(SendProposalContent::Finish)]
-#[case::send_abort(SendProposalContent::Abort)]
+#[case::send_txs(SendProposalContentDeprecated::Txs(test_txs(0..1)))]
+#[case::send_finish(SendProposalContentDeprecated::Finish)]
+#[case::send_abort(SendProposalContentDeprecated::Abort)]
 #[tokio::test]
-async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
+async fn send_content_to_unknown_proposal(#[case] content: SendProposalContentDeprecated) {
     let mut batcher = create_batcher(MockDependencies::default());
 
     let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await;
+        SendProposalContentInputDeprecated { proposal_id: PROPOSAL_ID, content };
+    let result = batcher.send_proposal_content_deprecated(send_proposal_content_input).await;
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
 #[rstest]
-#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
-#[case::send_finish(SendProposalContent::Finish, ProposalStatus::InvalidProposal)]
-#[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
+#[case::send_txs(SendProposalContentDeprecated::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
+#[case::send_finish(SendProposalContentDeprecated::Finish, ProposalStatus::InvalidProposal)]
+#[case::send_abort(SendProposalContentDeprecated::Abort, ProposalStatus::Aborted)]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
-    #[case] content: SendProposalContent,
+    #[case] content: SendProposalContentDeprecated,
     #[case] response: ProposalStatus,
 ) {
     let mut batcher = batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
     batcher.await_active_proposal().await;
 
     let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await.unwrap();
+        SendProposalContentInputDeprecated { proposal_id: PROPOSAL_ID, content };
+    let result =
+        batcher.send_proposal_content_deprecated(send_proposal_content_input).await.unwrap();
     assert_eq!(result, SendProposalContentResponse { response });
 }
 
 #[rstest]
-#[case::send_txs_after_finish(SendProposalContent::Finish, SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish_after_finish(SendProposalContent::Finish, SendProposalContent::Finish)]
-#[case::send_abort_after_finish(SendProposalContent::Finish, SendProposalContent::Abort)]
-#[case::send_txs_after_abort(SendProposalContent::Abort, SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish_after_abort(SendProposalContent::Abort, SendProposalContent::Finish)]
-#[case::send_abort_after_abort(SendProposalContent::Abort, SendProposalContent::Abort)]
+#[case::send_txs_after_finish(SendProposalContentDeprecated::Finish, SendProposalContentDeprecated::Txs(test_txs(0..1)))]
+#[case::send_finish_after_finish(
+    SendProposalContentDeprecated::Finish,
+    SendProposalContentDeprecated::Finish
+)]
+#[case::send_abort_after_finish(
+    SendProposalContentDeprecated::Finish,
+    SendProposalContentDeprecated::Abort
+)]
+#[case::send_txs_after_abort(SendProposalContentDeprecated::Abort, SendProposalContentDeprecated::Txs(test_txs(0..1)))]
+#[case::send_finish_after_abort(
+    SendProposalContentDeprecated::Abort,
+    SendProposalContentDeprecated::Finish
+)]
+#[case::send_abort_after_abort(
+    SendProposalContentDeprecated::Abort,
+    SendProposalContentDeprecated::Abort
+)]
 #[tokio::test]
 async fn send_proposal_content_after_finish_or_abort(
-    #[case] end_proposal_content: SendProposalContent,
-    #[case] content: SendProposalContent,
+    #[case] end_proposal_content: SendProposalContentDeprecated,
+    #[case] content: SendProposalContentDeprecated,
 ) {
     let mut batcher =
         batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
 
     // End the proposal.
-    let end_proposal =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: end_proposal_content };
-    batcher.send_proposal_content(end_proposal).await.unwrap();
+    let end_proposal = SendProposalContentInputDeprecated {
+        proposal_id: PROPOSAL_ID,
+        content: end_proposal_content,
+    };
+    batcher.send_proposal_content_deprecated(end_proposal).await.unwrap();
 
     // Send another request.
     let send_proposal_content_input =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
-    let result = batcher.send_proposal_content(send_proposal_content_input).await;
+        SendProposalContentInputDeprecated { proposal_id: PROPOSAL_ID, content };
+    let result = batcher.send_proposal_content_deprecated(send_proposal_content_input).await;
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
@@ -504,10 +521,12 @@ async fn send_proposal_content_abort() {
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
-    let send_abort_proposal =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Abort };
+    let send_abort_proposal = SendProposalContentInputDeprecated {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContentDeprecated::Abort,
+    };
     assert_eq!(
-        batcher.send_proposal_content(send_abort_proposal).await.unwrap(),
+        batcher.send_proposal_content_deprecated(send_abort_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Aborted }
     );
 
@@ -654,11 +673,11 @@ async fn consecutive_proposal_generation_success() {
         batcher.await_active_proposal().await;
 
         batcher.validate_block(validate_block_input(ProposalId(2 * i + 1))).await.unwrap();
-        let finish_proposal = SendProposalContentInput {
+        let finish_proposal = SendProposalContentInputDeprecated {
             proposal_id: ProposalId(2 * i + 1),
-            content: SendProposalContent::Finish,
+            content: SendProposalContentDeprecated::Finish,
         };
-        batcher.send_proposal_content(finish_proposal).await.unwrap();
+        batcher.send_proposal_content_deprecated(finish_proposal).await.unwrap();
         batcher.await_active_proposal().await;
     }
 
@@ -681,9 +700,9 @@ async fn concurrent_proposals_generation_fail() {
 
     // Finish the first proposal.
     batcher
-        .send_proposal_content(SendProposalContentInput {
+        .send_proposal_content_deprecated(SendProposalContentInputDeprecated {
             proposal_id: ProposalId(0),
-            content: SendProposalContent::Finish,
+            content: SendProposalContentDeprecated::Finish,
         })
         .await
         .unwrap();
