@@ -929,10 +929,20 @@
     "privacy": "Public",
     "value": 8080
   },
-  "l1_provider_config._poll_interval": {
-    "description": "Interval in milliseconds between each scraping attempt of L1.",
+  "l1_provider_config.bootstrap_catch_up_height": {
+    "description": "Height at which the provider should catch up to the bootstrapper.",
     "privacy": "Public",
-    "value": 100
+    "value": 0
+  },
+  "l1_provider_config.provider_startup_height": {
+    "description": "Height at which the provider should start.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "l1_provider_config.startup_sync_sleep_retry_interval": {
+    "description": "Interval in seconds between each retry of syncing with L2 during startup.",
+    "privacy": "Public",
+    "value": 0.0
   },
   "l1_scraper_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
