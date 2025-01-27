@@ -1,11 +1,4 @@
-use std::collections::HashMap;
-
-use cairo_vm::hint_processor::hint_processor_definition::{HintProcessor, HintReference};
-use cairo_vm::serde::deserialize_program::ApTracking;
-use cairo_vm::types::exec_scope::ExecutionScopes;
-use cairo_vm::vm::vm_core::VirtualMachine;
 use indoc::indoc;
-use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::hint_implementation::block_context::{
@@ -214,7 +207,13 @@ use crate::hints::hint_implementation::transaction_hash::{
     additional_data_new_segment,
     data_to_hash_new_segment,
 };
-use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::hints::types::{
+    HintArgs,
+    HintEnum,
+    HintExtensionArgs,
+    HintExtensionImplementation,
+    HintImplementation,
+};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
 #[cfg(test)]
