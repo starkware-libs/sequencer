@@ -11218,10 +11218,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_os_cli"
-version = "0.0.0"
-
-[[package]]
 name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [

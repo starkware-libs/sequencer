@@ -49,7 +49,6 @@ members = [
   "crates/starknet_mempool_types",
   "crates/starknet_monitoring_endpoint",
   "crates/starknet_os",
-  "crates/starknet_os_cli",
   "crates/starknet_patricia",
   "crates/starknet_sequencer_infra",
   "crates/starknet_sequencer_metrics",

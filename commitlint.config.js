@@ -71,7 +71,6 @@ const Configuration = {
             'starknet_mempool_types',
             'starknet_monitoring_endpoint',
             'starknet_os',
-            'starknet_os_cli',
             'starknet_patricia',
             'starknet_sequencer_infra',
             'starknet_sequencer_metrics',
