@@ -57,7 +57,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - run: npm install -g ganache@7.4.3
 
-
       - run: |
           cargo test -p papyrus_node
         env:
