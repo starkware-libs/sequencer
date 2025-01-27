@@ -297,6 +297,12 @@ impl From<InternalRpcDeclareTransactionV3> for DeclareTransactionV3 {
     }
 }
 
+impl From<InternalRpcDeclareTransactionV3> for DeclareTransaction {
+    fn from(tx: InternalRpcDeclareTransactionV3) -> Self {
+        Self::V3(tx.into())
+    }
+}
+
 /// A deploy account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcDeployAccountTransactionV3 {
