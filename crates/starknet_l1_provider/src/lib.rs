@@ -28,10 +28,6 @@ use validator::Validate;
 
 use crate::bootstrapper::Bootstrapper;
 
-#[cfg(test)]
-#[path = "l1_provider_tests.rs"]
-pub mod l1_provider_tests;
-
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProviderState {

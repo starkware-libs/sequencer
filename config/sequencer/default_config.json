@@ -942,17 +942,17 @@
   "l1_scraper_config.finality": {
     "description": "Number of blocks to wait for finality",
     "privacy": "Public",
-    "value": 3
-  },
-  "l1_scraper_config.l1_block_to_start_scraping_from": {
-    "description": "Last L1 block number processed by the scraper",
-    "privacy": "Public",
     "value": 0
   },
   "l1_scraper_config.polling_interval": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
     "value": 1
+  },
+  "l1_scraper_config.startup_rewind_time": {
+    "description": "Duration to rewind from latest L1 block when starting scraping.",
+    "privacy": "Public",
+    "value": 0
   },
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",
