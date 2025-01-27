@@ -134,70 +134,11 @@ impl From<FullTransaction> for protobuf::TransactionWithReceipt {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
-impl TryFrom<protobuf::Transaction> for (Transaction, TransactionHash) {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::Transaction) -> Result<Self, Self::Error> {
-        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
-            field_description: "Transaction::txn",
-        })?;
-        let tx_hash = value
-            .transaction_hash
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "Transaction::transaction_hash",
-            })?
-            .try_into()
-            .map(TransactionHash)?;
-
-        let txn = match txn {
-            protobuf::transaction::Txn::DeclareV0(declare_v0) => Transaction::Declare(
-                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
-            ),
-            protobuf::transaction::Txn::DeclareV1(declare_v1) => Transaction::Declare(
-                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
-            ),
-            protobuf::transaction::Txn::DeclareV2(declare_v2) => Transaction::Declare(
-                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
-            ),
-            protobuf::transaction::Txn::DeclareV3(declare_v3) => Transaction::Declare(
-                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
-            ),
-            protobuf::transaction::Txn::Deploy(deploy) => {
-                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
-            }
-            protobuf::transaction::Txn::DeployAccountV1(deploy_account_v1) => {
-                Transaction::DeployAccount(DeployAccountTransaction::V1(
-                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
-                ))
-            }
-            protobuf::transaction::Txn::DeployAccountV3(deploy_account_v3) => {
-                Transaction::DeployAccount(DeployAccountTransaction::V3(
-                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
-                ))
-            }
-            protobuf::transaction::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
-                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
-            ),
-            protobuf::transaction::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
-                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
-            ),
-            protobuf::transaction::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
-                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
-            ),
-            protobuf::transaction::Txn::L1Handler(l1_handler) => {
-                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
-            }
-        };
-        Ok((txn, tx_hash))
-    }
-}
-
+// Used when converting a protobuf::TransactionWithReceipt to a FullTransaction.
 impl TryFrom<protobuf::TransactionInBlock> for (Transaction, TransactionHash) {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionInBlock) -> Result<Self, Self::Error> {
-        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
-            field_description: "Transaction::txn",
-        })?;
+        let transaction: Transaction = value.clone().try_into()?;
         let tx_hash = value
             .transaction_hash
             .ok_or(ProtobufConversionError::MissingField {
@@ -206,46 +147,7 @@ impl TryFrom<protobuf::TransactionInBlock> for (Transaction, TransactionHash) {
             .try_into()
             .map(TransactionHash)?;
 
-        let txn = match txn {
-            protobuf::transaction_in_block::Txn::DeclareV0(declare_v0) => Transaction::Declare(
-                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
-            ),
-            protobuf::transaction_in_block::Txn::DeclareV1(declare_v1) => Transaction::Declare(
-                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
-            ),
-            protobuf::transaction_in_block::Txn::DeclareV2(declare_v2) => Transaction::Declare(
-                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
-            ),
-            protobuf::transaction_in_block::Txn::DeclareV3(declare_v3) => Transaction::Declare(
-                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
-            ),
-            protobuf::transaction_in_block::Txn::Deploy(deploy) => {
-                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
-            }
-            protobuf::transaction_in_block::Txn::DeployAccountV1(deploy_account_v1) => {
-                Transaction::DeployAccount(DeployAccountTransaction::V1(
-                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
-                ))
-            }
-            protobuf::transaction_in_block::Txn::DeployAccountV3(deploy_account_v3) => {
-                Transaction::DeployAccount(DeployAccountTransaction::V3(
-                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
-                ))
-            }
-            protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
-                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
-            ),
-            protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
-                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
-            ),
-            protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
-                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
-            ),
-            protobuf::transaction_in_block::Txn::L1Handler(l1_handler) => {
-                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
-            }
-        };
-        Ok((txn, tx_hash))
+        Ok((transaction, tx_hash))
     }
 }
 
@@ -347,134 +249,12 @@ impl TryFrom<protobuf::TransactionInBlock> for Transaction {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
-impl From<(Transaction, TransactionHash)> for protobuf::Transaction {
-    fn from(value: (Transaction, TransactionHash)) -> Self {
-        let txn = value.0;
-        let txn_hash = value.1;
-        match txn {
-            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => protobuf::Transaction {
-                txn: Some(protobuf::transaction::Txn::DeclareV0(declare_v0.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => protobuf::Transaction {
-                txn: Some(protobuf::transaction::Txn::DeclareV1(declare_v1.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => protobuf::Transaction {
-                txn: Some(protobuf::transaction::Txn::DeclareV2(declare_v2.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => protobuf::Transaction {
-                txn: Some(protobuf::transaction::Txn::DeclareV3(declare_v3.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-            Transaction::Deploy(deploy) => protobuf::Transaction {
-                txn: Some(protobuf::transaction::Txn::Deploy(deploy.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-            Transaction::DeployAccount(deploy_account) => match deploy_account {
-                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::Transaction {
-                    txn: Some(protobuf::transaction::Txn::DeployAccountV1(
-                        deploy_account_v1.into(),
-                    )),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::Transaction {
-                    txn: Some(protobuf::transaction::Txn::DeployAccountV3(
-                        deploy_account_v3.into(),
-                    )),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-            },
-            Transaction::Invoke(invoke) => match invoke {
-                InvokeTransaction::V0(invoke_v0) => protobuf::Transaction {
-                    txn: Some(protobuf::transaction::Txn::InvokeV0(invoke_v0.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-                InvokeTransaction::V1(invoke_v1) => protobuf::Transaction {
-                    txn: Some(protobuf::transaction::Txn::InvokeV1(invoke_v1.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-                InvokeTransaction::V3(invoke_v3) => protobuf::Transaction {
-                    txn: Some(protobuf::transaction::Txn::InvokeV3(invoke_v3.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-            },
-            Transaction::L1Handler(l1_handler) => protobuf::Transaction {
-                txn: Some(protobuf::transaction::Txn::L1Handler(l1_handler.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-        }
-    }
-}
-
+// Used when converting a FullTransaction to a protobuf::TransactionWithReceipt.
 impl From<(Transaction, TransactionHash)> for protobuf::TransactionInBlock {
     fn from(value: (Transaction, TransactionHash)) -> Self {
-        let txn = value.0;
-        let txn_hash = value.1;
-        match txn {
-            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV0(declare_v0.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                }
-            }
-            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV1(declare_v1.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                }
-            }
-            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV2(declare_v2.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                }
-            }
-            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV3(declare_v3.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                }
-            }
-            Transaction::Deploy(deploy) => protobuf::TransactionInBlock {
-                txn: Some(protobuf::transaction_in_block::Txn::Deploy(deploy.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-            Transaction::DeployAccount(deploy_account) => match deploy_account {
-                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV1(
-                        deploy_account_v1.into(),
-                    )),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV3(
-                        deploy_account_v3.into(),
-                    )),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-            },
-            Transaction::Invoke(invoke) => match invoke {
-                InvokeTransaction::V0(invoke_v0) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-                InvokeTransaction::V1(invoke_v1) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-                InvokeTransaction::V3(invoke_v3) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3.into())),
-                    transaction_hash: Some(txn_hash.0.into()),
-                },
-            },
-            Transaction::L1Handler(l1_handler) => protobuf::TransactionInBlock {
-                txn: Some(protobuf::transaction_in_block::Txn::L1Handler(l1_handler.into())),
-                transaction_hash: Some(txn_hash.0.into()),
-            },
-        }
+        let mut converted_txn: protobuf::TransactionInBlock = value.0.into();
+        converted_txn.transaction_hash = Some(value.1.0.into());
+        converted_txn
     }
 }
 
