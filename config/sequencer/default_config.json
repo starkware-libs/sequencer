@@ -654,6 +654,16 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "consensus_manager_config.cende_config.certificates_file_path": {
+    "description": "The path to the certificates file. The certificates are used when sending a request to the cende_recorder.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "consensus_manager_config.cende_config.certificates_file_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "consensus_manager_config.cende_config.recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
     "pointer_target": "recorder_url",
