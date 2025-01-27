@@ -64,17 +64,23 @@ impl Bootstrapper {
 }
 
 impl PartialEq for Bootstrapper {
-    fn eq(&self, _other: &Self) -> bool {
-        // TODO(Gilad): implement soon.
-        true
+    fn eq(&self, other: &Self) -> bool {
+        self.catch_up_height == other.catch_up_height
+            && self.commit_block_backlog == other.commit_block_backlog
     }
 }
 
 impl Eq for Bootstrapper {}
 
 impl std::fmt::Debug for Bootstrapper {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Bootstrapper")
+            .field("catch_up_height", &self.catch_up_height)
+            .field("commit_block_backlog", &self.commit_block_backlog)
+            .field("l1_provider_client", &"<non-debuggable>")
+            .field("sync_client", &"<non-debuggable>")
+            .field("sync_task_handle", &self.sync_task_handle)
+            .finish()
     }
 }
 
