@@ -11089,8 +11089,13 @@ dependencies = [
 name = "starknet_l1_gas_price"
 version = "0.0.0"
 dependencies = [
+ "papyrus_base_layer",
+ "papyrus_config",
+ "serde",
  "starknet_api",
  "thiserror 1.0.69",
+ "tokio",
+ "validator",
 ]
 
 [[package]]
