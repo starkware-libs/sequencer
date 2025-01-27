@@ -12,6 +12,8 @@ use blockifier::test_utils::contracts::{
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use tracing::info;
+use tracing_test::traced_test;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
@@ -73,7 +75,7 @@ pub struct Cairo1FeatureContractMetadata {
 // `COMPILED_CONTRACTS_SUBDIR`.
 // 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
-fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
+async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
     // TODO(Dori, 1/10/2024): Parallelize this test.
     match cairo_version {
         CairoVersion::Cairo0 => {
@@ -88,13 +90,20 @@ fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion
                 FeatureContract::cairo1_feature_contracts_by_tag()
             {
                 prepare_group_tag_compiler_deps(&tag_and_tool_chain);
-                // TODO(Meshi 01/01/2025) Make this loop concurrent
+
+                let mut task_set = tokio::task::JoinSet::new();
+
                 for contract in feature_contracts
                     .into_iter()
                     .filter(|contract| contract.cairo_version() == cairo_version)
                 {
-                    verify_feature_contracts_compatibility_logic(&contract, fix);
+                    info!("Spawning task for {contract:?}.");
+                    task_set
+                        .spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
                 }
+                info!("Done spawning tasks for {tag_and_tool_chain:?}. Awaiting them...");
+                task_set.join_all().await;
+                info!("Done awaiting tasks for {tag_and_tool_chain:?}.");
             }
         }
         #[cfg(feature = "cairo_native")]
@@ -102,6 +111,10 @@ fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion
             panic!("This test does not support native CairoVersion.")
         }
     }
+}
+
+async fn verify_feature_contracts_compatibility_logic_async(contract: FeatureContract, fix: bool) {
+    verify_feature_contracts_compatibility_logic(&contract, fix);
 }
 
 fn check_compilation(
@@ -160,7 +173,9 @@ fn compare_compilation_data(contract: &FeatureContract) {
 
 fn verify_feature_contracts_compatibility_logic(contract: &FeatureContract, fix: bool) {
     // Compare output of cairo-file on file with existing compiled file.
+    info!("Compiling {contract:?}...");
     let expected_compiled_raw_output = contract.compile();
+    info!("Done compiling {contract:?}.");
     let existing_compiled_path = contract.get_compiled_path();
     if fix {
         match expected_compiled_raw_output {
@@ -299,14 +314,23 @@ fn verify_feature_contracts_match_enum(
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
-// Native and Casm have the same contracts and compiled files, as we only save the sierra for
-// Native, so we exclude Native CairoVersion from this test.
-#[rstest]
-#[ignore]
-fn verify_feature_contracts(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
-    cairo_version: CairoVersion,
-) {
+async fn verify_feature_contracts_test_body(cairo_version: CairoVersion) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
-    verify_feature_contracts_compatibility(fix_features, cairo_version)
+    verify_feature_contracts_compatibility(fix_features, cairo_version).await;
+}
+
+// Native and Casm have the same contracts and compiled files, as we only save the sierra for
+// Native, so we exclude Native CairoVersion from these tests.
+#[ignore]
+#[traced_test]
+#[tokio::test(flavor = "multi_thread")]
+async fn verify_feature_contracts_cairo0() {
+    verify_feature_contracts_test_body(CairoVersion::Cairo0).await;
+}
+
+#[ignore]
+#[traced_test]
+#[tokio::test(flavor = "multi_thread")]
+async fn verify_feature_contracts_cairo1() {
+    verify_feature_contracts_test_body(CairoVersion::Cairo1(RunnableCairo1::Casm)).await;
 }
