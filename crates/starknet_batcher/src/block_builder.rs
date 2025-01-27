@@ -33,6 +33,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::ProposalCommitment;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
 use starknet_class_manager_types::SharedClassManagerClient;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
@@ -57,6 +62,8 @@ pub enum BlockBuilderError {
     FailOnError(FailOnErrorCause),
     #[error("The block builder was aborted.")]
     Aborted,
+    #[error(transparent)]
+    TransactionConverterError(#[from] TransactionConverterError),
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
@@ -138,6 +145,7 @@ pub struct BlockBuilder {
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
+    transaction_converter: TransactionConverter,
 
     // Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
@@ -152,6 +160,7 @@ impl BlockBuilder {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
+        transaction_converter: TransactionConverter,
         tx_chunk_size: usize,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
@@ -160,6 +169,7 @@ impl BlockBuilder {
             tx_provider,
             output_content_sender,
             abort_signal_receiver,
+            transaction_converter,
             tx_chunk_size,
             execution_params,
         }
@@ -204,7 +214,16 @@ impl BlockBuilderTrait for BlockBuilder {
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
                 // TODO(yair): Avoid this clone.
-                let executable_tx = foo(tx.clone());
+                let executable_tx = match tx {
+                    InternalConsensusTransaction::RpcTransaction(tx) => Transaction::Account(
+                        self.transaction_converter
+                            .convert_internal_rpc_tx_to_executable_tx(tx.clone())
+                            .await?,
+                    ),
+                    InternalConsensusTransaction::L1Handler(tx) => {
+                        Transaction::L1Handler(tx.clone())
+                    }
+                };
                 let executable_tx = BlockifierTransaction::new_for_sequencing(executable_tx);
                 executor_input_chunk.push(executable_tx);
             }
@@ -409,18 +428,19 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(block_metadata)?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+        let transaction_converter = TransactionConverter::new(
+            self.class_manager_client.clone(),
+            self.block_builder_config.chain_info.chain_id.clone(),
+        );
         let block_builder = Box::new(BlockBuilder::new(
             Box::new(executor),
             tx_provider,
             output_content_sender,
             abort_signal_receiver,
+            transaction_converter,
             self.block_builder_config.tx_chunk_size,
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))
     }
-}
-
-fn foo(_tx: InternalConsensusTransaction) -> Transaction {
-    panic!()
 }

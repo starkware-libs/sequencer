@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
@@ -16,10 +17,13 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::ChainId;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
+use starknet_class_manager_types::transaction_converter::TransactionConverter;
+use starknet_class_manager_types::MockClassManagerClient;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
@@ -414,11 +418,16 @@ async fn run_build_block(
     deadline_secs: u64,
 ) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(deadline_secs);
+    let transaction_converter = TransactionConverter::new(
+        Arc::new(MockClassManagerClient::new()),
+        ChainId::create_for_testing(),
+    );
     let mut block_builder = BlockBuilder::new(
         Box::new(mock_transaction_executor),
         Box::new(tx_provider),
         output_sender,
         abort_receiver,
+        transaction_converter,
         TX_CHUNK_SIZE,
         BlockBuilderExecutionParams { deadline, fail_on_err },
     );
