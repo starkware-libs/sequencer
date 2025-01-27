@@ -23,14 +23,8 @@ use crate::transaction::fields::{
 };
 use crate::transaction::{
     CalculateContractAddress,
-    DeclareTransaction,
     DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
     DeployTransactionTrait,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Transaction,
     TransactionHash,
     TransactionHasher,
     TransactionVersion,
@@ -170,18 +164,6 @@ impl RpcTransaction {
     }
 }
 
-// TODO(Arni): Replace this with RPCTransaction -> InternalRpcTransaction conversion (don't use From
-// because it contains hash calculations).
-impl From<RpcTransaction> for Transaction {
-    fn from(rpc_transaction: RpcTransaction) -> Self {
-        match rpc_transaction {
-            RpcTransaction::Declare(tx) => Transaction::Declare(tx.into()),
-            RpcTransaction::DeployAccount(tx) => Transaction::DeployAccount(tx.into()),
-            RpcTransaction::Invoke(tx) => Transaction::Invoke(tx.into()),
-        }
-    }
-}
-
 macro_rules! implement_internal_getters_for_internal_rpc {
     ($(($field_name:ident, $field_ty:ty)),* $(,)?) => {
         $(
@@ -234,14 +216,6 @@ pub enum RpcDeclareTransaction {
     V3(RpcDeclareTransactionV3),
 }
 
-impl From<RpcDeclareTransaction> for DeclareTransaction {
-    fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
-        match rpc_declare_transaction {
-            RpcDeclareTransaction::V3(tx) => DeclareTransaction::V3(tx.into()),
-        }
-    }
-}
-
 /// A RPC deploy account transaction.
 ///
 /// This transaction is equivalent to the component DEPLOY_ACCOUNT_TXN in the
@@ -259,14 +233,6 @@ impl RpcDeployAccountTransaction {
     fn version(&self) -> TransactionVersion {
         match self {
             RpcDeployAccountTransaction::V3(_) => TransactionVersion::THREE,
-        }
-    }
-}
-
-impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
-    fn from(rpc_deploy_account_transaction: RpcDeployAccountTransaction) -> Self {
-        match rpc_deploy_account_transaction {
-            RpcDeployAccountTransaction::V3(tx) => DeployAccountTransaction::V3(tx.into()),
         }
     }
 }
@@ -306,14 +272,6 @@ impl TransactionHasher for RpcInvokeTransaction {
     }
 }
 
-impl From<RpcInvokeTransaction> for InvokeTransaction {
-    fn from(rpc_invoke_tx: RpcInvokeTransaction) -> Self {
-        match rpc_invoke_tx {
-            RpcInvokeTransaction::V3(tx) => InvokeTransaction::V3(tx.into()),
-        }
-    }
-}
-
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -331,24 +289,6 @@ pub struct RpcDeclareTransactionV3 {
     pub account_deployment_data: AccountDeploymentData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
-}
-
-impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
-    fn from(tx: RpcDeclareTransactionV3) -> Self {
-        Self {
-            class_hash: tx.contract_class.calculate_class_hash(),
-            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
-            tip: tx.tip,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            compiled_class_hash: tx.compiled_class_hash,
-            sender_address: tx.sender_address,
-            nonce_data_availability_mode: tx.nonce_data_availability_mode,
-            fee_data_availability_mode: tx.fee_data_availability_mode,
-            paymaster_data: tx.paymaster_data,
-            account_deployment_data: tx.account_deployment_data,
-        }
-    }
 }
 
 /// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
@@ -451,23 +391,6 @@ pub struct RpcDeployAccountTransactionV3 {
 
 impl_deploy_transaction_trait!(RpcDeployAccountTransactionV3);
 
-impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
-    fn from(tx: RpcDeployAccountTransactionV3) -> Self {
-        Self {
-            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
-            tip: tx.tip,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            class_hash: tx.class_hash,
-            contract_address_salt: tx.contract_address_salt,
-            constructor_calldata: tx.constructor_calldata,
-            nonce_data_availability_mode: tx.nonce_data_availability_mode,
-            fee_data_availability_mode: tx.fee_data_availability_mode,
-            paymaster_data: tx.paymaster_data,
-        }
-    }
-}
-
 impl DeployAccountTransactionV3Trait for RpcDeployAccountTransactionV3 {
     fn resource_bounds(&self) -> ValidResourceBounds {
         ValidResourceBounds::AllResources(self.resource_bounds)
@@ -560,23 +483,6 @@ impl TransactionHasher for RpcInvokeTransactionV3 {
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
         get_invoke_transaction_v3_hash(self, chain_id, transaction_version)
-    }
-}
-
-impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
-    fn from(tx: RpcInvokeTransactionV3) -> Self {
-        Self {
-            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
-            tip: tx.tip,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            sender_address: tx.sender_address,
-            calldata: tx.calldata,
-            nonce_data_availability_mode: tx.nonce_data_availability_mode,
-            fee_data_availability_mode: tx.fee_data_availability_mode,
-            paymaster_data: tx.paymaster_data,
-            account_deployment_data: tx.account_deployment_data,
-        }
     }
 }
 
