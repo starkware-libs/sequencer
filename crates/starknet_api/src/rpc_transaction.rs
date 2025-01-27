@@ -331,6 +331,28 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     }
 }
 
+impl From<DeployAccountTransactionV3> for RpcDeployAccountTransactionV3 {
+    fn from(tx: DeployAccountTransactionV3) -> Self {
+        Self {
+            resource_bounds: match tx.resource_bounds {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            class_hash: tx.class_hash,
+            contract_address_salt: tx.contract_address_salt,
+            constructor_calldata: tx.constructor_calldata,
+        }
+    }
+}
+
 /// An invoke account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RpcInvokeTransactionV3 {
@@ -350,6 +372,28 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
     fn from(tx: RpcInvokeTransactionV3) -> Self {
         Self {
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode,
+            fee_data_availability_mode: tx.fee_data_availability_mode,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+        }
+    }
+}
+
+impl From<InvokeTransactionV3> for RpcInvokeTransactionV3 {
+    fn from(tx: InvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: match tx.resource_bounds {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
             tip: tx.tip,
             signature: tx.signature,
             nonce: tx.nonce,
