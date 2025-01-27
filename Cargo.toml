@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "crates/bin/sequencer-monitoring-gen",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
