@@ -3,7 +3,9 @@ use std::io::{BufReader, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
 
+use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use starknet_api::class_cache::GlobalContractCache;
+use starknet_api::core::ChainId;
 use starknet_class_manager_types::{ClassId, ClassStorageError, ExecutableClassHash};
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 use thiserror::Error;
@@ -171,31 +173,69 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 }
 
-// TODO(Elin): remove class hash storage code once mdbx implementation is merged.
+#[derive(Debug)]
+pub struct ClassHashStorageConfig {
+    pub path_prefix: PathBuf,
+    pub enforce_file_exists: bool,
+    pub max_size: usize,
+}
 
 #[derive(Debug, Error)]
 pub enum ClassHashStorageError {
     #[error("Class of hash: {class_id} not found")]
     ClassNotFound { class_id: ClassId },
+    #[error(transparent)]
+    Storage(#[from] papyrus_storage::StorageError),
 }
 
 type ClassHashStorageResult<T> = Result<T, ClassHashStorageError>;
 
 pub struct ClassHashStorage {
-    class_hash_to_executable_class_hash: GlobalContractCache<ExecutableClassHash>,
+    reader: papyrus_storage::StorageReader,
+    writer: papyrus_storage::StorageWriter,
 }
 
 impl ClassHashStorage {
-    pub fn new() -> Self {
-        Self { class_hash_to_executable_class_hash: GlobalContractCache::new(100) }
+    pub fn new(config: ClassHashStorageConfig) -> ClassHashStorageResult<Self> {
+        let storage_config = papyrus_storage::StorageConfig {
+            db_config: papyrus_storage::db::DbConfig {
+                path_prefix: config.path_prefix,
+                chain_id: ChainId::Other("UnusedChainID".to_string()),
+                enforce_file_exists: config.enforce_file_exists,
+                max_size: config.max_size,
+                growth_step: 1 << 20, // 1MB.
+                ..Default::default()
+            },
+            scope: papyrus_storage::StorageScope::StateOnly,
+            mmap_file_config: papyrus_storage::mmap_file::MmapFileConfig {
+                max_size: 1 << 30,        // 1GB.
+                growth_step: 1 << 20,     // 1MB.
+                max_object_size: 1 << 10, // 1KB; a class hash is 32B.
+            },
+        };
+        let (reader, writer) = papyrus_storage::open_storage(storage_config)?;
+
+        Ok(Self { reader, writer })
+    }
+
+    #[cfg(test)]
+    pub fn new_for_testing() -> Self {
+        let config = ClassHashStorageConfig {
+            path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
+            enforce_file_exists: false,
+            max_size: 1 << 20, // 1MB.
+        };
+
+        Self::new(config).unwrap()
     }
 
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
     ) -> ClassHashStorageResult<ExecutableClassHash> {
-        self.class_hash_to_executable_class_hash
-            .get(&class_id)
+        self.reader
+            .begin_ro_txn()?
+            .get_executable_class_hash(&class_id)?
             .ok_or(ClassHashStorageError::ClassNotFound { class_id })
     }
 
@@ -204,14 +244,12 @@ impl ClassHashStorage {
         class_id: ClassId,
         executable_class_hash: ExecutableClassHash,
     ) -> ClassHashStorageResult<()> {
-        self.class_hash_to_executable_class_hash.set(class_id, executable_class_hash);
+        let txn = self
+            .writer
+            .begin_rw_txn()?
+            .set_executable_class_hash(&class_id, executable_class_hash)?;
+        txn.commit()?;
         Ok(())
-    }
-}
-
-impl Default for ClassHashStorage {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -237,6 +275,14 @@ pub enum FsClassStorageError {
 impl FsClassStorage {
     pub fn new(persistent_root: PathBuf, class_hash_storage: ClassHashStorage) -> Self {
         Self { persistent_root, class_hash_storage }
+    }
+
+    #[cfg(test)]
+    pub fn new_for_testing() -> Self {
+        let test_persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
+        let class_hash_storage = ClassHashStorage::new_for_testing();
+
+        Self::new(test_persistent_root, class_hash_storage)
     }
 
     fn contains_class(&self, class_id: ClassId) -> bool {

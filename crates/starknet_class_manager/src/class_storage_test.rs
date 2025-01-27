@@ -4,7 +4,6 @@ use starknet_api::state::SierraContractClass;
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 
 use crate::class_storage::{
-    ClassHashStorage,
     ClassHashStorageError,
     ClassStorage,
     FsClassStorage,
@@ -13,9 +12,7 @@ use crate::class_storage::{
 
 #[test]
 fn fs_storage() {
-    let test_persistent_root = tempfile::tempdir().unwrap();
-    let test_persistent_root = test_persistent_root.path().to_path_buf();
-    let mut storage = FsClassStorage::new(test_persistent_root, ClassHashStorage::new());
+    let mut storage = FsClassStorage::new_for_testing();
 
     // Non-existent class.
     let class_id = ClassHash(felt!("0x1234"));
@@ -27,7 +24,7 @@ fn fs_storage() {
         FsClassStorageError::ClassHashStorage(ClassHashStorageError::ClassNotFound { class_id });
     assert_eq!(storage.get_executable_class_hash(class_id).unwrap_err(), class_not_found_error);
 
-    // Add class.
+    // Add new class.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
     // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
     let executable_class = RawExecutableClass(vec![4, 5, 6].into());
@@ -40,4 +37,9 @@ fn fs_storage() {
     assert_eq!(storage.get_sierra(class_id).unwrap(), class);
     assert_eq!(storage.get_executable(class_id).unwrap(), executable_class);
     assert_eq!(storage.get_executable_class_hash(class_id).unwrap(), executable_class_hash);
+
+    // Add existing class.
+    storage
+        .set_class(class_id, class.clone(), executable_class_hash, executable_class.clone())
+        .unwrap();
 }
