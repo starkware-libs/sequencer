@@ -8,7 +8,7 @@ benchmark_results=${2}
 # TODO(Aner): split the output file instead.
 cat ${benchmarks_list} |
     while read line; do
-        cargo bench -p committer_cli $line > ${line}.txt;
+        cargo bench -p starknet_committer_and_os_cli $line > ${line}.txt;
         sed -i '/'"${line}"'/,$!d' ${line}.txt;
     done
 
