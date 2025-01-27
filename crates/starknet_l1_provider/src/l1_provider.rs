@@ -52,8 +52,7 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
-        // Reenable once `commit_block` is implemented so that height can be updated.
-        let _disabled = self.validate_height(height);
+        self.validate_height(height)?;
 
         match self.state {
             ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
