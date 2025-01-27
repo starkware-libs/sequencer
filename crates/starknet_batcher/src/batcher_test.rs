@@ -35,7 +35,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use starknet_l1_provider_types::MockL1ProviderClient;
+use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_metrics::metric_definitions::{
@@ -189,8 +189,14 @@ async fn batcher_with_active_validate_block(
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     mock_create_builder_for_validate_block(&mut block_builder_factory, build_block_result);
 
-    let mut batcher =
-        create_batcher(MockDependencies { block_builder_factory, ..Default::default() });
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    });
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
@@ -346,9 +352,12 @@ async fn consecutive_heights_success() {
         );
     }
 
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().times(2).returning(|_, _| Ok(()));
     let mut batcher = create_batcher(MockDependencies {
         block_builder_factory,
         storage_reader,
+        l1_provider_client,
         ..Default::default()
     });
 
@@ -498,8 +507,14 @@ async fn propose_block_full_flow() {
         Ok(BlockExecutionArtifacts::create_for_testing()),
     );
 
-    let mut batcher =
-        create_batcher(MockDependencies { block_builder_factory, ..Default::default() });
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().times(1).returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    });
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
@@ -593,8 +608,13 @@ async fn consecutive_proposal_generation_success() {
             Ok(BlockExecutionArtifacts::create_for_testing()),
         );
     }
-    let mut batcher =
-        create_batcher(MockDependencies { block_builder_factory, ..Default::default() });
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().times(4).returning(|_, _| Ok(()));
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    });
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
@@ -666,6 +686,13 @@ async fn add_sync_block() {
             rejected_tx_hashes: [].into(),
         }))
         .returning(|_| Ok(()));
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_commit_block()
+        .times(1)
+        .with(eq(vec![]), eq(INITIAL_HEIGHT))
+        .returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies);
 
@@ -784,6 +811,20 @@ async fn decision_reached() {
         .returning(|_| Ok(()));
 
     mock_dependencies
+        .l1_provider_client
+        .expect_start_block()
+        .times(1)
+        .with(eq(SessionState::Propose), eq(INITIAL_HEIGHT))
+        .returning(|_, _| Ok(()));
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_commit_block()
+        .times(1)
+        .with(eq(vec![]), eq(INITIAL_HEIGHT))
+        .returning(|_, _| Ok(()));
+
+    mock_dependencies
         .storage_writer
         .expect_commit_proposal()
         .times(1)
@@ -836,7 +877,9 @@ async fn decision_reached_no_executed_proposal() {
 #[tokio::test]
 async fn test_execution_info_order_is_kept() {
     let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
+    mock_dependencies.l1_provider_client.expect_commit_block().returning(|_, _| Ok(()));
     mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing();
