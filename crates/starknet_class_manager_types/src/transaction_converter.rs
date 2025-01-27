@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ChainId;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
@@ -13,9 +13,12 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
     RpcTransaction,
 };
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{AllResourceBounds, Fee, ValidResourceBounds};
 use starknet_api::transaction::{CalculateContractAddress, TransactionHasher, TransactionVersion};
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
@@ -225,5 +228,68 @@ impl TransactionConverter {
             // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
             paid_fee_on_l1: Fee(1),
         })
+    }
+
+    // TODO(alonL): erase once consensus uses the correct tx types
+    pub fn convert_executable_tx_to_internal_consensus_tx(
+        tx: Transaction,
+    ) -> InternalConsensusTransaction {
+        match tx {
+            Transaction::L1Handler(tx) => InternalConsensusTransaction::L1Handler(tx),
+            Transaction::Account(tx) => InternalConsensusTransaction::RpcTransaction(match tx {
+                AccountTransaction::Declare(_) => panic!(),
+                AccountTransaction::DeployAccount(tx) => InternalRpcTransaction {
+                    tx: InternalRpcTransactionWithoutTxHash::DeployAccount(
+                        InternalRpcDeployAccountTransaction {
+                            tx: RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
+                                class_hash: tx.class_hash(),
+                                constructor_calldata: tx.constructor_calldata(),
+                                contract_address_salt: tx.contract_address_salt(),
+                                nonce: tx.nonce(),
+                                signature: tx.signature(),
+                                resource_bounds: match tx.resource_bounds() {
+                                    ValidResourceBounds::AllResources(all_resource_bounds) => {
+                                        all_resource_bounds
+                                    }
+                                    ValidResourceBounds::L1Gas(l1_gas) => {
+                                        AllResourceBounds { l1_gas, ..Default::default() }
+                                    }
+                                },
+                                tip: tx.tip(),
+                                nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+                                fee_data_availability_mode: tx.fee_data_availability_mode(),
+                                paymaster_data: tx.paymaster_data(),
+                            }),
+                            contract_address: tx.contract_address,
+                        },
+                    ),
+                    tx_hash: tx.tx_hash,
+                },
+                AccountTransaction::Invoke(tx) => InternalRpcTransaction {
+                    tx: InternalRpcTransactionWithoutTxHash::Invoke(RpcInvokeTransaction::V3(
+                        RpcInvokeTransactionV3 {
+                            sender_address: tx.sender_address(),
+                            tip: tx.tip(),
+                            nonce: tx.nonce(),
+                            resource_bounds: match tx.resource_bounds() {
+                                ValidResourceBounds::AllResources(all_resource_bounds) => {
+                                    all_resource_bounds
+                                }
+                                ValidResourceBounds::L1Gas(l1_gas) => {
+                                    AllResourceBounds { l1_gas, ..Default::default() }
+                                }
+                            },
+                            signature: tx.signature(),
+                            calldata: tx.calldata(),
+                            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+                            fee_data_availability_mode: tx.fee_data_availability_mode(),
+                            paymaster_data: tx.paymaster_data(),
+                            account_deployment_data: tx.account_deployment_data(),
+                        },
+                    )),
+                    tx_hash: tx.tx_hash,
+                },
+            }),
+        }
     }
 }
