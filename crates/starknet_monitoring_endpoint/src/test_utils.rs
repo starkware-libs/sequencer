@@ -86,6 +86,8 @@ impl MonitoringClient {
         let body_bytes = to_bytes(response.into_body()).await.unwrap();
         let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
 
+        println!("Body: {}", body_string);
+
         // Extract and return the metric value, or a suitable error.
         parse_numeric_metric::<T>(&body_string, metric_name)
             .ok_or(MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() })
