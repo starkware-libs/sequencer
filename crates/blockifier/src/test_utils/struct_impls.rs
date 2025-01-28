@@ -20,7 +20,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
-use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
+use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
@@ -227,12 +227,6 @@ pub trait LoadContractFromFile: serde::de::DeserializeOwned {
 
 impl LoadContractFromFile for CasmContractClass {}
 impl LoadContractFromFile for DeprecatedContractClass {}
-
-impl BouncerWeights {
-    pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
-        Self { builtin_count, ..Self::empty() }
-    }
-}
 
 #[cfg(feature = "cairo_native")]
 static COMPILED_NATIVE_CONTRACT_CACHE: LazyLock<RwLock<HashMap<String, NativeCompiledClassV1>>> =
