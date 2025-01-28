@@ -13,5 +13,6 @@ pub mod kzg;
 pub mod math;
 pub mod os;
 pub mod output;
+pub mod patricia;
 pub mod stateless_compression;
 pub mod types;
