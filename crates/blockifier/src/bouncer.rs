@@ -19,7 +19,8 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::usize_from_u64;
+use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -94,25 +95,15 @@ impl SerializeConfig for BouncerConfig {
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 /// Represents the execution resources counted throughout block creation.
 pub struct BouncerWeights {
-    pub builtin_count: BuiltinCount,
     pub l1_gas: usize,
     pub message_segment_length: usize,
     pub n_events: usize,
-    pub n_steps: usize,
     pub state_diff_size: usize,
     pub sierra_gas: GasAmount,
 }
 
 impl BouncerWeights {
-    impl_checked_ops!(
-        builtin_count,
-        l1_gas,
-        message_segment_length,
-        n_events,
-        n_steps,
-        state_diff_size,
-        sierra_gas
-    );
+    impl_checked_ops!(l1_gas, message_segment_length, n_events, state_diff_size, sierra_gas);
 
     pub fn has_room(&self, other: Self) -> bool {
         self.checked_sub(other).is_some()
@@ -121,11 +112,9 @@ impl BouncerWeights {
     pub fn max() -> Self {
         Self {
             l1_gas: usize::MAX,
-            n_steps: usize::MAX,
             message_segment_length: usize::MAX,
             state_diff_size: usize::MAX,
             n_events: usize::MAX,
-            builtin_count: BuiltinCount::max(),
             sierra_gas: GasAmount::MAX,
         }
     }
@@ -133,10 +122,8 @@ impl BouncerWeights {
     pub fn empty() -> Self {
         Self {
             n_events: 0,
-            builtin_count: BuiltinCount::empty(),
             l1_gas: 0,
             message_segment_length: 0,
-            n_steps: 0,
             state_diff_size: 0,
             sierra_gas: GasAmount::ZERO,
         }
@@ -148,25 +135,22 @@ impl Default for BouncerWeights {
     fn default() -> Self {
         Self {
             l1_gas: 2500000,
-            n_steps: 2500000,
             message_segment_length: 3700,
             n_events: 5000,
             state_diff_size: 4000,
-            builtin_count: BuiltinCount::default(),
-            sierra_gas: GasAmount(250000000),
+            sierra_gas: GasAmount(250000000), // Q (AvivG): Should default change?
         }
     }
 }
 
 impl SerializeConfig for BouncerWeights {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = append_sub_config_name(self.builtin_count.dump(), "builtin_count");
-        dump.append(&mut BTreeMap::from([ser_param(
+        let mut dump = BTreeMap::from([ser_param(
             "l1_gas",
             &self.l1_gas,
             "An upper bound on the total l1_gas used in a block.",
             ParamPrivacyInput::Public,
-        )]));
+        )]);
         dump.append(&mut BTreeMap::from([ser_param(
             "message_segment_length",
             &self.message_segment_length,
@@ -177,12 +161,6 @@ impl SerializeConfig for BouncerWeights {
             "n_events",
             &self.n_events,
             "An upper bound on the total number of events generated in a block.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "n_steps",
-            &self.n_steps,
-            "An upper bound on the total number of steps in a block.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
@@ -205,14 +183,12 @@ impl std::fmt::Display for BouncerWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "BouncerWeights {{ l1_gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
-             state_diff_size: {}, builtin_count: {}, sierra_gas: {} }}",
+            "BouncerWeights {{ l1_gas: {}, message_segment_length: {}, n_events: {}, \
+             state_diff_size: {}, sierra_gas: {} }}",
             self.l1_gas,
-            self.n_steps,
             self.message_segment_length,
             self.n_events,
             self.state_diff_size,
-            self.builtin_count,
             self.sierra_gas
         )
     }
@@ -299,6 +275,25 @@ impl BuiltinCount {
             range_check: 0,
             range_check96: 0,
         }
+    }
+}
+
+impl From<BuiltinCount> for GasAmount {
+    fn from(builtins: BuiltinCount) -> Self {
+        let versioned_constants = VersionedConstants::latest_constants();
+        let builtins_constants = &versioned_constants.os_constants.gas_costs.builtins;
+        let gas_amount = u64_from_usize(builtins.add_mod).checked_mul(builtins_constants.add_mod)
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.bitwise).checked_mul(builtins_constants.bitwise)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.ecdsa).checked_mul(builtins_constants.ecdsa)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.ec_op).checked_mul(builtins_constants.ecop)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.keccak).checked_mul(builtins_constants.keccak)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.mul_mod).checked_mul(builtins_constants.mul_mod)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.pedersen).checked_mul(builtins_constants.pedersen)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.poseidon).checked_mul(builtins_constants.poseidon)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.range_check).checked_mul(builtins_constants.range_check)?))
+            .and_then(|v| v.checked_add(u64_from_usize(builtins.range_check96).checked_mul(builtins_constants.range_check)?)) // TODO: change to range_check96 after Yontan's PR.
+            .unwrap_or_else(|| panic!("Overflow occurred while converting builtins resources to gas. Builtins: {:?}", builtins));
+        GasAmount(gas_amount)
     }
 }
 
@@ -542,6 +537,32 @@ impl Bouncer {
     }
 }
 
+fn n_steps_to_sierra_gas(n_steps: usize) -> GasAmount {
+    let versioned_constants = VersionedConstants::latest_constants();
+    let n_steps_u64 = u64_from_usize(n_steps);
+    let gas_per_step = versioned_constants.os_constants.gas_costs.base.step_gas_cost;
+    let n_steps_gas_cost = n_steps_u64.checked_mul(gas_per_step).unwrap_or_else(|| {
+        panic!(
+            "Multiplication overflow while converting steps to gas. steps: {}, gas per step: {}.",
+            n_steps, gas_per_step
+        )
+    });
+    GasAmount(n_steps_gas_cost)
+}
+
+fn vm_resources_to_sierra_gas(resources: ExecutionResources) -> GasAmount {
+    let builtins_count = BuiltinCount::from(resources.prover_builtins());
+    let builtins_gas_cost = GasAmount::from(builtins_count);
+    let n_steps_gas_cost = n_steps_to_sierra_gas(resources.n_steps);
+    n_steps_gas_cost.checked_add(builtins_gas_cost).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while converting vm resources to gas. steps gas: {}, builtins gas: \
+             {}.",
+            n_steps_gas_cost, builtins_gas_cost
+        )
+    })
+}
+
 pub fn get_tx_weights<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -557,15 +578,22 @@ pub fn get_tx_weights<S: StateReader>(
     additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
 
     let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
+    let sierra_gas = tx_resources.computation.sierra_gas;
+    let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources);
+    let sierra_gas_with_vm = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while converting vm resources to gas. current gas: {}, vm as gas: \
+             {}.",
+            sierra_gas, vm_resources_gas
+        )
+    });
 
     Ok(BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
-        n_steps: vm_resources.total_n_steps(),
-        builtin_count: BuiltinCount::from(vm_resources.prover_builtins()),
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
-        sierra_gas: tx_resources.computation.sierra_gas,
+        sierra_gas: sierra_gas_with_vm,
     })
 }
 
