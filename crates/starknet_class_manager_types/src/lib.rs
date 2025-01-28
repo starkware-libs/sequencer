@@ -1,5 +1,6 @@
 pub mod transaction_converter;
 
+use std::fmt::Display;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -20,6 +21,7 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_sierra_multicompile_types::{SierraCompilerClientError, SierraCompilerError};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
@@ -65,17 +67,40 @@ pub trait ClassManagerClient: Send + Sync {
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ClassStorageError {
+pub enum CachedClassStorageError<E: Display> {
     #[error("Class of hash: {class_id} not found")]
     ClassNotFound { class_id: ClassId },
-    #[error("Storage error occurred: {0}")]
-    StorageError(String),
+    #[error(transparent)]
+    Storage(#[from] E),
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ClassManagerError {
+    #[error("Internal client error: {0}")]
+    Client(String),
+    #[error("Class storage error: {0}")]
+    ClassStorage(String),
     #[error(transparent)]
-    ClassStorageError(#[from] ClassStorageError),
+    SierraCompiler(#[from] SierraCompilerError),
+}
+
+impl<E: Display> From<CachedClassStorageError<E>> for ClassManagerError {
+    fn from(error: CachedClassStorageError<E>) -> Self {
+        ClassManagerError::ClassStorage(error.to_string())
+    }
+}
+
+impl From<SierraCompilerClientError> for ClassManagerError {
+    fn from(error: SierraCompilerClientError) -> Self {
+        match error {
+            SierraCompilerClientError::SierraCompilerError(error) => {
+                ClassManagerError::SierraCompiler(error)
+            }
+            SierraCompilerClientError::ClientError(error) => {
+                ClassManagerError::Client(error.to_string())
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Error)]
