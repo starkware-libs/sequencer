@@ -4,9 +4,17 @@ use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::{Event, L1ProviderResult, SessionState, ValidationStatus};
+use starknet_l1_provider_types::{
+    Event,
+    L1ProviderResult,
+    SessionState,
+    SharedL1ProviderClient,
+    ValidationStatus,
+};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
 
+use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
 
@@ -16,20 +24,16 @@ pub mod l1_provider_tests;
 
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1Provider {
     pub current_height: BlockNumber,
-    pub(crate) tx_manager: TransactionManager,
+    pub tx_manager: TransactionManager,
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
     // and we see how well it handles consuming the L1Provider when moving between states.
-    pub(crate) state: ProviderState,
+    pub state: ProviderState,
 }
 
 impl L1Provider {
-    pub fn new(_config: L1ProviderConfig) -> L1ProviderResult<Self> {
-        todo!("Init crawler in uninitialized_state from config, to initialize call `reset`.");
-    }
-
     pub fn start_block(
         &mut self,
         height: BlockNumber,
@@ -41,8 +45,13 @@ impl L1Provider {
         Ok(())
     }
 
-    // TODO(Gilad): will be added soon.
-    pub async fn initialize(&mut self, _events: Vec<Event>) -> L1ProviderResult<()> {
+    pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        self.process_l1_events(events)?;
+        let ProviderState::Bootstrap(bootstrapper) = &mut self.state else {
+            panic!("Unexpected state {} while attempting to bootstrap", self.state)
+        };
+        bootstrapper.start_l2_sync(self.current_height).await;
+
         Ok(())
     }
 
@@ -196,10 +205,23 @@ impl L1Provider {
 
 impl ComponentStarter for L1Provider {}
 
-pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {
+pub fn create_l1_provider(
+    config: L1ProviderConfig,
+    l1_provider_client: SharedL1ProviderClient,
+    sync_client: SharedStateSyncClient,
+) -> L1Provider {
+    let bootstrapper = Bootstrapper {
+        catch_up_height: config.bootstrap_catch_up_height,
+        commit_block_backlog: Default::default(),
+        l1_provider_client,
+        sync_client,
+        sync_task_handle: SyncTaskHandle::NotStartedYet,
+        sync_retry_interval: config.startup_sync_sleep_retry_interval,
+    };
+
     L1Provider {
-        state: ProviderState::Pending,
-        current_height: BlockNumber(1),
-        ..Default::default()
+        current_height: config.provider_startup_height,
+        tx_manager: TransactionManager::default(),
+        state: ProviderState::Bootstrap(bootstrapper),
     }
 }
