@@ -1326,10 +1326,10 @@ fn broadcasted_to_executable_deploy_account() {
 #[test]
 fn broadcasted_to_executable_invoke() {
     let mut rng = get_rng();
-    let broadcasted_deploy_account =
+    let broadcasted_invoke =
         BroadcastedTransaction::Invoke(InvokeTransaction::get_test_instance(&mut rng));
     assert_matches!(
-        broadcasted_deploy_account.try_into(),
+        broadcasted_invoke.try_into(),
         Ok(ExecutableTransactionInput::Invoke(_tx, _only_query))
     );
 }
