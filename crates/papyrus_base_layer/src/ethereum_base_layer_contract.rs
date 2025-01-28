@@ -7,7 +7,7 @@ use alloy_json_rpc::RpcError;
 use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_types_eth::Filter as EthEventFilter;
+use alloy_rpc_types_eth::{BlockId, BlockTransactionsKind, Filter as EthEventFilter};
 use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
@@ -21,7 +21,7 @@ use starknet_api::StarknetApiError;
 use url::Url;
 use validator::Validate;
 
-use crate::{BaseLayerContract, L1BLockNumber, L1Event};
+use crate::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
@@ -54,7 +54,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
     async fn get_proved_block_at(
         &self,
-        l1_block: L1BLockNumber,
+        l1_block: L1BlockNumber,
     ) -> EthereumBaseLayerResult<BlockHashAndNumber> {
         let block_id = l1_block.into();
         let call_state_block_number = self.contract.stateBlockNumber().block(block_id);
@@ -100,8 +100,25 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     async fn latest_l1_block_number(
         &self,
         finality: u64,
-    ) -> EthereumBaseLayerResult<Option<L1BLockNumber>> {
+    ) -> EthereumBaseLayerResult<Option<L1BlockNumber>> {
         Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
+    }
+
+    async fn l1_block_at(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
+        let dont_fetch_l1_txs: BlockTransactionsKind = BlockTransactionsKind::default();
+        let block = self
+            .contract
+            .provider()
+            .get_block(BlockId::Number(block_number.into()), dont_fetch_l1_txs)
+            .await?;
+
+        Ok(block.map(|block| L1BlockReference {
+            number: block.header.number,
+            hash: block.header.hash.0,
+        }))
     }
 }
 
