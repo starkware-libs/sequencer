@@ -5,10 +5,6 @@ use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
-use starknet_api::executable_transaction::L1HandlerTransaction;
-use starknet_api::hash::StarkHash;
-use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
-use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::SessionState::{
@@ -20,13 +16,8 @@ use starknet_l1_provider_types::{Event, ValidationStatus};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
-use crate::test_utils::{FakeL1ProviderClient, L1ProviderContentBuilder};
+use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
 use crate::ProviderState;
-
-fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
-    let tx_hash = TransactionHash(StarkHash::from(tx_hash));
-    executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() })
-}
 
 macro_rules! bootstrapper {
     (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*], catch_up: $catch:expr) => {{
