@@ -1,4 +1,4 @@
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use starknet_types_core::felt::Felt;
 
 use crate::block::GasPrice;
@@ -9,6 +9,7 @@ use crate::state::SierraContractClass;
 use crate::test_utils::declare::{rpc_declare_tx, DeclareTxArgs};
 use crate::test_utils::deploy_account::{rpc_deploy_account_tx, DeployAccountTxArgs};
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use crate::test_utils::{read_json_file, TransactionTestData};
 use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -19,6 +20,7 @@ use crate::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
+use crate::transaction::Transaction;
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 
 // TODO(Nimrod): Delete this when starknet_api_test_util is moved to StarkNet API.
@@ -85,4 +87,32 @@ fn test_rpc_transactions(#[case] tx: RpcTransaction) {
     let serialized = serde_json::to_string(&tx).unwrap();
     let deserialized: RpcTransaction = serde_json::from_str(&serialized).unwrap();
     assert_eq!(tx, deserialized);
+}
+
+#[fixture]
+fn transactions_data() -> Vec<TransactionTestData> {
+    // The details were taken from Starknet Mainnet. You can find the transactions by hash in:
+    // https://alpha-mainnet.starknet.io/feeder_gateway/get_transaction?transactionHash=<transaction_hash>
+    serde_json::from_value(read_json_file("transaction_hash.json")).unwrap()
+}
+
+#[rstest]
+fn test_invoke_to_rpc_transaction_conversion(mut transactions_data: Vec<TransactionTestData>) {
+    // Extract Invoke transaction data.
+    let transaction_data = transactions_data.remove(0);
+    let Transaction::Invoke(invoke_tx) = transaction_data.transaction.clone() else {
+        panic!("Transaction_hash.json is expected to have Invoke as the first transaction.")
+    };
+
+    let expected_rpc_tx = rpc_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+        calldata: invoke_tx.calldata,
+        sender_address: invoke_tx.sender_address,
+        nonce: invoke_tx.nonce,
+        paymaster_data: invoke_tx.paymaster_data,
+        account_deployment_data: invoke_tx.account_deployment_data,
+        ..Default::default()
+    });
+
+    verify_transaction_conversion(&transaction_data.transaction, expected_rpc_tx);
 }
