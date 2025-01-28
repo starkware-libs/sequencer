@@ -21,10 +21,9 @@ use starknet_api::StarknetApiError;
 use url::Url;
 use validator::Validate;
 
-use crate::{BaseLayerContract, L1Event};
+use crate::{BaseLayerContract, L1BlockNumber, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
-type L1BLockNumber = u64;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
@@ -55,7 +54,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
     async fn get_proved_block_at(
         &self,
-        l1_block: L1BLockNumber,
+        l1_block: L1BlockNumber,
     ) -> EthereumBaseLayerResult<BlockHashAndNumber> {
         let block_id = l1_block.into();
         let call_state_block_number = self.contract.stateBlockNumber().block(block_id);
@@ -101,7 +100,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     async fn latest_l1_block_number(
         &self,
         finality: u64,
-    ) -> EthereumBaseLayerResult<Option<L1BLockNumber>> {
+    ) -> EthereumBaseLayerResult<Option<L1BlockNumber>> {
         Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
     }
 }
