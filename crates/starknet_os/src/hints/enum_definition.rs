@@ -32,6 +32,11 @@ use crate::hints::compiled_class::{
     iter_current_segment_info,
     set_ap_to_segment_hash,
 };
+use crate::hints::deprecated_compiled_class::{
+    load_deprecated_class,
+    load_deprecated_class_facts,
+    load_deprecated_class_inner,
+};
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::stateless_compression::{
     compression_hint,
@@ -263,6 +268,34 @@ define_hint_enum!(
         indoc! {r#"memory[ids.decompressed_dst] = ids.packed_felt % ids.elm_bound"#
         }
     ),
+    (
+        LoadDeprecatedClassFacts,
+        load_deprecated_class_facts,
+        indoc! {r##"
+    # Creates a set of deprecated class hashes to distinguish calls to deprecated entry points.
+    __deprecated_class_hashes=set(os_input.deprecated_compiled_classes.keys())
+    ids.compiled_class_facts = segments.add()
+    ids.n_compiled_class_facts = len(os_input.deprecated_compiled_classes)
+    vm_enter_scope({
+        'compiled_class_facts': iter(os_input.deprecated_compiled_classes.items()),
+    })"##
+        }
+    ),
+    (
+        LoadDeprecatedClassInner,
+        load_deprecated_class_inner,
+        indoc! {r#"
+    from starkware.starknet.core.os.contract_class.deprecated_class_hash import (
+        get_deprecated_contract_class_struct,
+    )
+
+    compiled_class_hash, compiled_class = next(compiled_class_facts)
+
+    cairo_contract = get_deprecated_contract_class_struct(
+        identifiers=ids._context.identifiers, contract_class=compiled_class)
+    ids.compiled_class = segments.gen_arg(cairo_contract)"#
+        }
+    ),
 );
 
 define_hint_extension_enum!(
@@ -283,4 +316,19 @@ define_hint_extension_enum!(
     )"#
         }
     ),
+    (
+        LoadDeprecatedClass,
+        load_deprecated_class,
+        indoc! {r#"
+    from starkware.python.utils import from_bytes
+
+    computed_hash = ids.compiled_class_fact.hash
+    expected_hash = compiled_class_hash
+    assert computed_hash == expected_hash, (
+        "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
+        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")
+
+    vm_load_program(compiled_class.program, ids.compiled_class.bytecode_ptr)"#
+        }
+    )
 );
