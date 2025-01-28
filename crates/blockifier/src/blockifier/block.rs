@@ -25,7 +25,7 @@ fn validate_l2_gas_price(gas_prices: &GasPrices) {
     let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
         .convert_l1_to_l2_gas_price_round_up(gas_prices.eth_gas_prices.l1_gas_price.into());
     if GasPrice::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
-        // TODO!(Aner): change to panic! Requires fixing several tests.
+        // TODO(Aner): change to panic! Requires fixing several tests.
         warn!(
             "eth_l2_gas_price {} does not match expected eth_l2_gas_price {}.",
             eth_l2_gas_price, expected_eth_l2_gas_price
@@ -35,7 +35,7 @@ fn validate_l2_gas_price(gas_prices: &GasPrices) {
     let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
         .convert_l1_to_l2_gas_price_round_up(gas_prices.strk_gas_prices.l1_gas_price.into());
     if GasPrice::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
-        // TODO!(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
+        // TODO(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
         warn!(
             "strk_l2_gas_price {} does not match expected strk_l2_gas_price {}.",
             strk_l2_gas_price, expected_strk_l2_gas_price
