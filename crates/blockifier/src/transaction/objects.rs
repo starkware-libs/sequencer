@@ -237,6 +237,7 @@ pub trait ExecutionResourcesTraits {
 impl ExecutionResourcesTraits for ExecutionResources {
     fn total_n_steps(&self) -> usize {
         self.n_steps
+            // TODO(AvivG): Compute memory_holes gas more accurately.
             // Memory holes are slightly cheaper than actual steps, but we count them as such
             // for simplicity.
             + self.n_memory_holes
