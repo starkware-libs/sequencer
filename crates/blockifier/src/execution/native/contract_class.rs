@@ -5,7 +5,7 @@ use cairo_native::executor::AotContractExecutor;
 use starknet_api::core::EntryPointSelector;
 
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1};
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::CallEntryPointVariant;
 use crate::execution::errors::PreExecutionError;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
@@ -32,9 +32,9 @@ impl NativeCompiledClassV1 {
         Self(Arc::new(contract))
     }
 
-    pub fn get_entry_point(
+    pub fn get_entry_point<TClassHash>(
         &self,
-        call: &CallEntryPoint,
+        call: &CallEntryPointVariant<TClassHash>,
     ) -> Result<EntryPointV1, PreExecutionError> {
         self.casm.get_entry_point(call)
     }

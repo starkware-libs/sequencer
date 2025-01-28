@@ -220,16 +220,6 @@ impl CallEntryPoint {
         execution_result
     }
 
-    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
-        if self.entry_point_type == EntryPointType::Constructor
-            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            Err(PreExecutionError::InvalidConstructorEntryPointName)
-        } else {
-            Ok(())
-        }
-    }
-
     fn into_executable(self, class_hash: ClassHash) -> ExecutableCallEntryPoint {
         ExecutableCallEntryPoint {
             class_hash,
@@ -243,6 +233,19 @@ impl CallEntryPoint {
             initial_gas: self.initial_gas,
         }
     }
+}
+
+impl<TClassHash> CallEntryPointVariant<TClassHash> {
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
+    }
+
 }
 
 pub struct ConstructorContext {

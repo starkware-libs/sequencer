@@ -31,7 +31,10 @@ use starknet_api::deprecated_contract_class::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPointVariant,
+    EntryPointExecutionContext,
+};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 #[cfg(feature = "cairo_native")]
@@ -251,9 +254,9 @@ impl CompiledClassV1 {
         &self.bytecode_segment_lengths
     }
 
-    pub fn get_entry_point(
+    pub fn get_entry_point<TClassHash>(
         &self,
-        call: &CallEntryPoint,
+        call: &CallEntryPointVariant<TClassHash>,
     ) -> Result<EntryPointV1, PreExecutionError> {
         self.entry_points_by_type.get_entry_point(call)
     }
@@ -522,7 +525,10 @@ pub struct EntryPointsByType<EP: HasSelector> {
 }
 
 impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
-    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<EP, PreExecutionError> {
+    pub fn get_entry_point<TClassHash>(
+        &self,
+        call: &CallEntryPointVariant<TClassHash>,
+    ) -> Result<EP, PreExecutionError> {
         call.verify_constructor()?;
 
         let entry_points_of_same_type = &self[call.entry_point_type];
