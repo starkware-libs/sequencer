@@ -229,6 +229,34 @@ pub fn test_state_diff() -> ThinStateDiff {
     }
 }
 
+fn verify_decision_reached_response(
+    response: &DecisionReachedResponse,
+    expected_artifacts: &BlockExecutionArtifacts,
+) {
+    assert_eq!(
+        response.state_diff.nonces,
+        expected_artifacts.commitment_state_diff.address_to_nonce
+    );
+    assert_eq!(
+        response.state_diff.storage_diffs,
+        expected_artifacts.commitment_state_diff.storage_updates
+    );
+    assert_eq!(
+        response.state_diff.declared_classes,
+        expected_artifacts.commitment_state_diff.class_hash_to_compiled_class_hash
+    );
+    assert_eq!(
+        response.state_diff.deployed_contracts,
+        expected_artifacts.commitment_state_diff.address_to_class_hash
+    );
+    assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
+    assert_eq!(response.central_objects.bouncer_weights, expected_artifacts.bouncer_weights);
+    assert_eq!(
+        response.central_objects.execution_infos,
+        expected_artifacts.execution_infos.values().cloned().collect::<Vec<_>>()
+    );
+}
+
 fn assert_proposal_metrics(
     metrics: &str,
     expected_started: u64,
@@ -828,7 +856,7 @@ async fn decision_reached() {
         .storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.state_diff()))
+        .with(eq(INITIAL_HEIGHT), eq(expected_artifacts.thin_state_diff()))
         .returning(|_, _| Ok(()));
 
     mock_create_builder_for_propose_block(
@@ -839,8 +867,7 @@ async fn decision_reached() {
 
     let decision_reached_response = batcher_propose_and_commit_block(mock_dependencies).await;
 
-    assert_eq!(decision_reached_response.state_diff, expected_artifacts.state_diff());
-    assert_eq!(decision_reached_response.l2_gas_used, expected_artifacts.l2_gas_used);
+    verify_decision_reached_response(&decision_reached_response, &expected_artifacts);
 
     let metrics = recorder.handle().render();
     assert_eq!(
