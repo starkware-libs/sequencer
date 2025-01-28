@@ -16,6 +16,7 @@ use crate::execution::entry_point::{
     CallEntryPoint,
     ConstructorContext,
     EntryPointExecutionContext,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::syscalls::hint_processor::{
@@ -35,7 +36,7 @@ pub struct SyscallHandlerBase<'state> {
     // Input for execution.
     pub state: &'state mut dyn State,
     pub context: &'state mut EntryPointExecutionContext,
-    pub call: CallEntryPoint,
+    pub call: ExecutableCallEntryPoint,
 
     // Execution results.
     pub events: Vec<OrderedEvent>,
@@ -58,7 +59,7 @@ pub struct SyscallHandlerBase<'state> {
 
 impl<'state> SyscallHandlerBase<'state> {
     pub fn new(
-        call: CallEntryPoint,
+        call: ExecutableCallEntryPoint,
         state: &'state mut dyn State,
         context: &'state mut EntryPointExecutionContext,
     ) -> SyscallHandlerBase<'state> {

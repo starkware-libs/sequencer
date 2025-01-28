@@ -14,9 +14,9 @@ use super::call_info::StorageAccessTracker;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
-    CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
@@ -54,7 +54,7 @@ pub struct CallResult {
 
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: CompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
@@ -97,7 +97,7 @@ pub fn execute_entry_point_call(
 }
 
 pub fn initialize_execution_context<'a>(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
@@ -179,7 +179,7 @@ fn prepare_program_extra_data(
 }
 
 pub fn prepare_call_arguments(
-    call: &CallEntryPoint,
+    call: &ExecutableCallEntryPoint,
     runner: &mut CairoRunner,
     initial_syscall_ptr: Relocatable,
     read_only_segments: &mut ReadOnlySegments,
@@ -377,7 +377,7 @@ pub fn finalize_execution(
         + &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
     let syscall_handler_base = syscall_handler.base;
     Ok(CallInfo {
-        call: syscall_handler_base.call,
+        call: syscall_handler_base.call.into(),
         execution: CallExecution {
             retdata: call_result.retdata,
             events: syscall_handler_base.events,
