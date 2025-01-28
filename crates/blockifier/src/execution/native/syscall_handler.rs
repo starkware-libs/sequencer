@@ -27,7 +27,12 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{MessageToL1, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    CallType,
+    EntryPointExecutionContext,
+    ExecutableCallEntryPoint,
+};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
@@ -48,7 +53,7 @@ pub struct NativeSyscallHandler<'state> {
 
 impl<'state> NativeSyscallHandler<'state> {
     pub fn new(
-        call: CallEntryPoint,
+        call: ExecutableCallEntryPoint,
         state: &'state mut dyn State,
         context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
