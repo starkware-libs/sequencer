@@ -157,7 +157,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
         let router = Router::new().route(
-            RECORDER_WRITE_BLOB_PATH,
+            &format!("/cende_recorder/{RECORDER_WRITE_BLOB_PATH}"),
             post(move || {
                 async {
                     debug!("Received a request to write a blob.");

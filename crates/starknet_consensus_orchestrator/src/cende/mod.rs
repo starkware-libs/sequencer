@@ -71,7 +71,7 @@ pub struct CendeAmbassador {
 }
 
 /// The path to write blob in the Recorder.
-pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
+pub const RECORDER_WRITE_BLOB_PATH: &str = "/write_blob";
 
 impl CendeAmbassador {
     pub fn new(cende_config: CendeConfig) -> Self {
