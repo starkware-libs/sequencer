@@ -19,5 +19,7 @@ tempfile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-starknet_api = { path = "../starknet_api", features = ["testing"] }
+mockall.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_sierra_multicompile_types = { workspace = true, features = ["testing"] }
 tokio.workspace = true
