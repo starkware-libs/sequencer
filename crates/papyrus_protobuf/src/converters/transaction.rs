@@ -138,20 +138,61 @@ impl From<FullTransaction> for protobuf::TransactionWithReceipt {
 impl TryFrom<protobuf::TransactionInBlock> for (Transaction, TransactionHash) {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionInBlock) -> Result<Self, Self::Error> {
-        let transaction: Transaction = value.clone().try_into()?;
         let tx_hash = value
             .transaction_hash
+            .clone()
             .ok_or(ProtobufConversionError::MissingField {
                 field_description: "Transaction::transaction_hash",
             })?
             .try_into()
             .map(TransactionHash)?;
-
+        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
+            field_description: "Transaction::txn",
+        })?;
+        let transaction: Transaction = match txn {
+            protobuf::transaction_in_block::Txn::DeclareV0(declare_v0) => Transaction::Declare(
+                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV1(declare_v1) => Transaction::Declare(
+                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV2(declare_v2) => Transaction::Declare(
+                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV3(declare_v3) => Transaction::Declare(
+                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
+            ),
+            protobuf::transaction_in_block::Txn::Deploy(deploy) => {
+                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
+            }
+            protobuf::transaction_in_block::Txn::DeployAccountV1(deploy_account_v1) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V1(
+                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
+                ))
+            }
+            protobuf::transaction_in_block::Txn::DeployAccountV3(deploy_account_v3) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V3(
+                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
+                ))
+            }
+            protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
+                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
+            ),
+            protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
+                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
+            ),
+            protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
+                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
+            ),
+            protobuf::transaction_in_block::Txn::L1Handler(l1_handler) => {
+                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
+            }
+        };
         Ok((transaction, tx_hash))
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 // TODO(eitan): remove when consensus uses BroadcastedTransaction
 impl TryFrom<protobuf::Transaction> for Transaction {
     type Error = ProtobufConversionError;
@@ -201,64 +242,75 @@ impl TryFrom<protobuf::Transaction> for Transaction {
     }
 }
 
-impl TryFrom<protobuf::TransactionInBlock> for Transaction {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::TransactionInBlock) -> Result<Self, Self::Error> {
-        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
-            field_description: "Transaction::txn",
-        })?;
-        Ok(match txn {
-            protobuf::transaction_in_block::Txn::DeclareV0(declare_v0) => Transaction::Declare(
-                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
-            ),
-            protobuf::transaction_in_block::Txn::DeclareV1(declare_v1) => Transaction::Declare(
-                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
-            ),
-            protobuf::transaction_in_block::Txn::DeclareV2(declare_v2) => Transaction::Declare(
-                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
-            ),
-            protobuf::transaction_in_block::Txn::DeclareV3(declare_v3) => Transaction::Declare(
-                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
-            ),
-            protobuf::transaction_in_block::Txn::Deploy(deploy) => {
-                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
-            }
-            protobuf::transaction_in_block::Txn::DeployAccountV1(deploy_account_v1) => {
-                Transaction::DeployAccount(DeployAccountTransaction::V1(
-                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
-                ))
-            }
-            protobuf::transaction_in_block::Txn::DeployAccountV3(deploy_account_v3) => {
-                Transaction::DeployAccount(DeployAccountTransaction::V3(
-                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
-                ))
-            }
-            protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
-                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
-            ),
-            protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
-                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
-            ),
-            protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
-                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
-            ),
-            protobuf::transaction_in_block::Txn::L1Handler(l1_handler) => {
-                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
-            }
-        })
-    }
-}
-
-// Used when converting a FullTransaction to a protobuf::TransactionWithReceipt.
 impl From<(Transaction, TransactionHash)> for protobuf::TransactionInBlock {
     fn from(value: (Transaction, TransactionHash)) -> Self {
-        let mut converted_txn: protobuf::TransactionInBlock = value.0.into();
-        converted_txn.transaction_hash = Some(value.1.0.into());
-        converted_txn
+        let tx_hash = Some(value.1.0.into());
+        match value.0 {
+            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV0(declare_v0.into())),
+                    transaction_hash: tx_hash,
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV1(declare_v1.into())),
+                    transaction_hash: tx_hash,
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV2(declare_v2.into())),
+                    transaction_hash: tx_hash,
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV3(declare_v3.into())),
+                    transaction_hash: tx_hash,
+                }
+            }
+            Transaction::Deploy(deploy) => protobuf::TransactionInBlock {
+                txn: Some(protobuf::transaction_in_block::Txn::Deploy(deploy.into())),
+                transaction_hash: tx_hash,
+            },
+            Transaction::DeployAccount(deploy_account) => match deploy_account {
+                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV1(
+                        deploy_account_v1.into(),
+                    )),
+                    transaction_hash: tx_hash,
+                },
+                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV3(
+                        deploy_account_v3.into(),
+                    )),
+                    transaction_hash: tx_hash,
+                },
+            },
+            Transaction::Invoke(invoke) => match invoke {
+                InvokeTransaction::V0(invoke_v0) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0.into())),
+                    transaction_hash: tx_hash,
+                },
+                InvokeTransaction::V1(invoke_v1) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1.into())),
+                    transaction_hash: tx_hash,
+                },
+                InvokeTransaction::V3(invoke_v3) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3.into())),
+                    transaction_hash: tx_hash,
+                },
+            },
+            Transaction::L1Handler(l1_handler) => protobuf::TransactionInBlock {
+                txn: Some(protobuf::transaction_in_block::Txn::L1Handler(l1_handler.into())),
+                transaction_hash: tx_hash,
+            },
+        }
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 // TODO(eitan): remove when consensus uses BroadcastedTransaction
 impl From<Transaction> for protobuf::Transaction {
     fn from(value: Transaction) -> Self {
@@ -319,74 +371,7 @@ impl From<Transaction> for protobuf::Transaction {
     }
 }
 
-impl From<Transaction> for protobuf::TransactionInBlock {
-    fn from(value: Transaction) -> Self {
-        match value {
-            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV0(declare_v0.into())),
-                    transaction_hash: None,
-                }
-            }
-            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV1(declare_v1.into())),
-                    transaction_hash: None,
-                }
-            }
-            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV2(declare_v2.into())),
-                    transaction_hash: None,
-                }
-            }
-            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => {
-                protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV3(declare_v3.into())),
-                    transaction_hash: None,
-                }
-            }
-            Transaction::Deploy(deploy) => protobuf::TransactionInBlock {
-                txn: Some(protobuf::transaction_in_block::Txn::Deploy(deploy.into())),
-                transaction_hash: None,
-            },
-            Transaction::DeployAccount(deploy_account) => match deploy_account {
-                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV1(
-                        deploy_account_v1.into(),
-                    )),
-                    transaction_hash: None,
-                },
-                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV3(
-                        deploy_account_v3.into(),
-                    )),
-                    transaction_hash: None,
-                },
-            },
-            Transaction::Invoke(invoke) => match invoke {
-                InvokeTransaction::V0(invoke_v0) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0.into())),
-                    transaction_hash: None,
-                },
-                InvokeTransaction::V1(invoke_v1) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1.into())),
-                    transaction_hash: None,
-                },
-                InvokeTransaction::V3(invoke_v3) => protobuf::TransactionInBlock {
-                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3.into())),
-                    transaction_hash: None,
-                },
-            },
-            Transaction::L1Handler(l1_handler) => protobuf::TransactionInBlock {
-                txn: Some(protobuf::transaction_in_block::Txn::L1Handler(l1_handler.into())),
-                transaction_hash: None,
-            },
-        }
-    }
-}
-
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::DeployAccountV1> for DeployAccountTransactionV1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV1) -> Result<Self, Self::Error> {
@@ -527,7 +512,7 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeployAccountTransactionV1> for protobuf::transaction::DeployAccountV1 {
     fn from(value: DeployAccountTransactionV1) -> Self {
         Self {
@@ -568,7 +553,7 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction_in_block::Deploy
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
@@ -729,7 +714,7 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3 {
     fn from(value: DeployAccountTransactionV3) -> Self {
         Self {
@@ -875,7 +860,7 @@ impl From<ValidResourceBounds> for protobuf::ResourceBounds {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::InvokeV0> for InvokeTransactionV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV0) -> Result<Self, Self::Error> {
@@ -974,7 +959,7 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<InvokeTransactionV0> for protobuf::transaction::InvokeV0 {
     fn from(value: InvokeTransactionV0) -> Self {
         Self {
@@ -1003,7 +988,7 @@ impl From<InvokeTransactionV0> for protobuf::transaction_in_block::InvokeV0 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::InvokeV1> for InvokeTransactionV1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV1) -> Result<Self, Self::Error> {
@@ -1102,7 +1087,7 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<InvokeTransactionV1> for protobuf::transaction::InvokeV1 {
     fn from(value: InvokeTransactionV1) -> Self {
         Self {
@@ -1131,7 +1116,7 @@ impl From<InvokeTransactionV1> for protobuf::transaction_in_block::InvokeV1 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
@@ -1282,7 +1267,7 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<InvokeTransactionV3> for protobuf::transaction::InvokeV3 {
     fn from(value: InvokeTransactionV3) -> Self {
         Self {
@@ -1349,7 +1334,7 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::DeclareV0> for DeclareTransactionV0V1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV0) -> Result<Self, Self::Error> {
@@ -1450,7 +1435,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeclareTransactionV0V1> for protobuf::transaction::DeclareV0 {
     fn from(value: DeclareTransactionV0V1) -> Self {
         Self {
@@ -1477,7 +1462,7 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV0W
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::DeclareV1> for DeclareTransactionV0V1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV1) -> Result<Self, Self::Error> {
@@ -1590,7 +1575,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeclareTransactionV0V1> for protobuf::transaction::DeclareV1 {
     fn from(value: DeclareTransactionV0V1) -> Self {
         Self {
@@ -1619,7 +1604,7 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV1W
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::DeclareV2> for DeclareTransactionV2 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV2) -> Result<Self, Self::Error> {
@@ -1750,7 +1735,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeclareTransactionV2> for protobuf::transaction::DeclareV2 {
     fn from(value: DeclareTransactionV2) -> Self {
         Self {
@@ -1781,7 +1766,7 @@ impl From<DeclareTransactionV2> for protobuf::transaction_in_block::DeclareV2Wit
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV3) -> Result<Self, Self::Error> {
@@ -2071,7 +2056,7 @@ impl From<DeclareTransactionV3> for protobuf::transaction_in_block::DeclareV3Wit
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeclareTransactionV3> for protobuf::transaction::DeclareV3 {
     fn from(value: DeclareTransactionV3) -> Self {
         Self {
@@ -2138,7 +2123,7 @@ impl TryFrom<protobuf::transaction_in_block::Deploy> for DeployTransaction {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::Deploy> for DeployTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::Deploy) -> Result<Self, Self::Error> {
@@ -2187,7 +2172,7 @@ impl From<DeployTransaction> for protobuf::transaction_in_block::Deploy {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<DeployTransaction> for protobuf::transaction::Deploy {
     fn from(value: DeployTransaction) -> Self {
         Self {
@@ -2204,7 +2189,7 @@ impl From<DeployTransaction> for protobuf::transaction::Deploy {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::L1HandlerV0) -> Result<Self, Self::Error> {
@@ -2279,7 +2264,7 @@ impl TryFrom<protobuf::L1HandlerV0> for L1HandlerTransaction {
     }
 }
 
-// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
+// TODO(alonl): remove once TransactionBatch uses ConsensusTransaction instead of Transaction
 impl From<L1HandlerTransaction> for protobuf::transaction::L1HandlerV0 {
     fn from(value: L1HandlerTransaction) -> Self {
         Self {
