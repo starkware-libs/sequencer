@@ -1,3 +1,4 @@
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::{ClassInfo, ContractClass};
@@ -148,6 +149,14 @@ impl DeclareTransaction {
 
     pub fn contract_class(&self) -> ContractClass {
         self.class_info.contract_class.clone()
+    }
+
+    /// Casm contract class exists only for contract class V1, for version V0 the getter panics.
+    pub fn casm_contract_class(&self) -> &CasmContractClass {
+        let ContractClass::V1(versioned_casm) = &self.class_info.contract_class else {
+            panic!("Contract class version must be V1.")
+        };
+        &versioned_casm.0
     }
 }
 
