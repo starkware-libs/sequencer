@@ -195,7 +195,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 };
 
                 Ok(AccountTransaction::Declare(executable_transaction::DeclareTransaction {
-                    tx: starknet_api::transaction::DeclareTransaction::V3(tx.into()),
+                    tx: tx.into(),
                     tx_hash,
                     class_info,
                 }))
