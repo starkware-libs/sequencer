@@ -18,7 +18,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::{EntryPointTypeAndSelector, ExecutableCallEntryPoint};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
@@ -397,10 +397,9 @@ impl FeatureContract {
             RunnableCompiledClass::V1(class) => {
                 class
                     .entry_points_by_type
-                    .get_entry_point(&CallEntryPoint {
+                    .get_entry_point(&EntryPointTypeAndSelector {
                         entry_point_type,
                         entry_point_selector,
-                        ..Default::default()
                     })
                     .unwrap()
                     .offset
