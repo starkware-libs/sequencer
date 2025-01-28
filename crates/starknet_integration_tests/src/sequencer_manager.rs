@@ -4,13 +4,10 @@ use std::net::SocketAddr;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
-use papyrus_storage::{StorageConfig, StorageReader};
+use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::state::StateNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::test_utils::{
@@ -28,7 +25,6 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
-use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -111,14 +107,6 @@ impl NodeSetup {
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
-    }
-
-    fn batcher_storage_reader(&self) -> StorageReader {
-        let (batcher_storage_reader, _) = papyrus_storage::open_storage(
-            self.executables[self.batcher_index].batcher_storage_config.clone(),
-        )
-        .expect("Failed to open batcher's storage");
-        batcher_storage_reader
     }
 
     fn batcher_monitoring_client(&self) -> &MonitoringClient {
@@ -214,8 +202,8 @@ impl IntegrationTestManager {
     /// This function tests and verifies the integration of the transaction flow.
     ///
     /// # Parameters
-    /// - `expected_initial_value`: The initial value of the nonce in the batcher's storage. This
-    ///   represents the starting state before any transactions are sent.
+    /// - `expected_initial_value`: The initial amount of batched transactions. This represents the
+    ///   starting state before any transactions are sent.
     /// - `n_txs`: The number of transactions that will be sent during the test. After the test
     ///   completes, the nonce in the batcher's storage is expected to be `expected_initial_value +
     ///   n_txs`.
@@ -234,18 +222,10 @@ impl IntegrationTestManager {
         expected_block_number: BlockNumber,
     ) {
         // Verify the initial state
-        self.verify_results(
-            tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value + 1,
-        )
-        .await;
+        self.verify_results(expected_initial_value).await;
         self.run_integration_test_simulator(tx_generator, n_txs, sender_account).await;
         self.await_execution(expected_block_number).await;
-        self.verify_results(
-            tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value + n_txs + 1,
-        )
-        .await;
+        self.verify_results(expected_initial_value + n_txs).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -258,18 +238,6 @@ impl IntegrationTestManager {
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
         let node_0 = self.running_nodes.get(&0).expect("Node 0 should running.");
         node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
-    }
-
-    fn batcher_storage_reader(&self) -> StorageReader {
-        self.idle_nodes
-            .get(&0)
-            .map(|node| node.batcher_storage_reader())
-            .or_else(|| {
-                self.running_nodes
-                    .get(&0)
-                    .map(|running_node| running_node.node_setup.batcher_storage_reader())
-            })
-            .expect("Node 0 should be either idle or running.")
     }
 
     fn batcher_monitoring_client(&self) -> &MonitoringClient {
@@ -316,21 +284,14 @@ impl IntegrationTestManager {
             .expect("Block number should have been reached.");
     }
 
-    pub async fn verify_results(
-        &self,
-        sender_address: ContractAddress,
-        expected_nonce_value: usize,
-    ) {
-        info!("Verifying tx sender account nonce.");
-        let expected_nonce =
-            Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
-        let nonce = get_account_nonce(
-            self.batcher_monitoring_client(),
-            &self.batcher_storage_reader(),
-            sender_address,
-        )
-        .await;
-        assert_eq!(nonce, expected_nonce);
+    pub async fn verify_results(&self, expected_n_batched_tx: usize) {
+        info!("Verifying {} batched txs.", expected_n_batched_tx);
+        let n_batched_txs = self
+            .batcher_monitoring_client()
+            .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
+            .await
+            .unwrap();
+        assert_eq!(n_batched_txs, expected_n_batched_tx);
     }
 }
 
@@ -346,20 +307,6 @@ async fn get_batcher_latest_block_number(
     )
     .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
     .unwrap()
-}
-
-/// Reads an account nonce after a block number from storage.
-async fn get_account_nonce(
-    batcher_monitoring_client: &MonitoringClient,
-    storage_reader: &StorageReader,
-    contract_address: ContractAddress,
-) -> Nonce {
-    let block_number = get_batcher_latest_block_number(batcher_monitoring_client).await;
-    let txn = storage_reader.begin_ro_txn().unwrap();
-    let state_number = StateNumber::unchecked_right_after_block(block_number);
-    get_nonce_at(&txn, state_number, None, contract_address)
-        .expect("Should always be Ok(Some(Nonce))")
-        .expect("Should always be Some(Nonce)")
 }
 
 /// Sample the metrics until sufficiently many blocks have been reported by the batcher. Returns an
