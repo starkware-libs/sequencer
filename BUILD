@@ -3,8 +3,8 @@ exports_files([
     "target/release/libnative_blockifier.so",
     "target/release/shared_executables/starknet-native-compile",
     "crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a",
-    "target/debug/committer_cli",
-    "target/release/committer_cli",
-    "target/x86_64-unknown-linux-musl/debug/committer_cli",
-    "target/x86_64-unknown-linux-musl/release/committer_cli",
+    "target/debug/starknet_committer_and_os_cli",
+    "target/release/starknet_committer_and_os_cli",
+    "target/x86_64-unknown-linux-musl/debug/starknet_committer_and_os_cli",
+    "target/x86_64-unknown-linux-musl/release/starknet_committer_and_os_cli",
 ])
