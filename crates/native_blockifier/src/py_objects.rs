@@ -12,6 +12,7 @@ use blockifier::blockifier::config::{
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+use blockifier::utils::u64_from_usize;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -139,14 +140,24 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
+    let builtins_count = hash_map_into_builtin_count(data)?;
+    let sierra_gas_w_vm = sierra_gas
+        .checked_add(builtins_count.into())
+        .and_then(|v| v.checked_add(GasAmount(u64_from_usize(n_steps))))
+        .unwrap_or_else(|| {
+            panic!(
+                "Failed to add builtin counts and steps to sierra_gas. builtins:{}, n_steps:{}, \
+                 current gas:{}",
+                builtins_count, n_steps, sierra_gas
+            )
+        });
+
     Ok(BouncerWeights {
         l1_gas,
-        n_steps,
         message_segment_length,
         state_diff_size,
         n_events,
-        builtin_count: hash_map_into_builtin_count(data)?,
-        sierra_gas,
+        sierra_gas: sierra_gas_w_vm,
     })
 }
 

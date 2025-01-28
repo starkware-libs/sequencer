@@ -1,54 +1,4 @@
 {
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.add_mod": {
-    "description": "Max number of add mod builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.bitwise": {
-    "description": "Max number of bitwise builtin usage in a block.",
-    "privacy": "Public",
-    "value": 39062
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ec_op": {
-    "description": "Max number of EC operation builtin usage in a block.",
-    "privacy": "Public",
-    "value": 2441
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ecdsa": {
-    "description": "Max number of ECDSA builtin usage in a block.",
-    "privacy": "Public",
-    "value": 1220
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.keccak": {
-    "description": "Max number of keccak builtin usage in a block.",
-    "privacy": "Public",
-    "value": 1220
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.mul_mod": {
-    "description": "Max number of mul mod builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.pedersen": {
-    "description": "Max number of pedersen builtin usage in a block.",
-    "privacy": "Public",
-    "value": 78125
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.poseidon": {
-    "description": "Max number of poseidon builtin usage in a block.",
-    "privacy": "Public",
-    "value": 78125
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check": {
-    "description": "Max number of range check builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check96": {
-    "description": "Max number of range check 96 builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
@@ -63,11 +13,6 @@
     "description": "An upper bound on the total number of events generated in a block.",
     "privacy": "Public",
     "value": 5000
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_steps": {
-    "description": "An upper bound on the total number of steps in a block.",
-    "privacy": "Public",
-    "value": 2500000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
