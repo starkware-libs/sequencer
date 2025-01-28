@@ -10,6 +10,7 @@ use blockifier::execution::call_info::{
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
+    StorageAccessTracker,
 };
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::execution::entry_point::{CallEntryPoint, CallType};
@@ -471,10 +472,12 @@ fn call_info() -> CallInfo {
         inner_calls: Vec::new(),
         resources: execution_resources(),
         tracked_resource: TrackedResource::SierraGas,
-        storage_read_values: felt_vector(),
-        accessed_storage_keys: HashSet::from([StorageKey::from(1_u128)]),
-        read_class_hash_values: vec![ClassHash(felt!("0x80020000"))],
-        accessed_contract_addresses: HashSet::from([contract_address!("0x1")]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: felt_vector(),
+            accessed_storage_keys: HashSet::from([StorageKey::from(1_u128)]),
+            read_class_hash_values: vec![ClassHash(felt!("0x80020000"))],
+            accessed_contract_addresses: HashSet::from([contract_address!("0x1")]),
+        },
     }
 }
 
