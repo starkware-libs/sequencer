@@ -164,16 +164,6 @@
     "privacy": "Public",
     "value": 400
   },
-  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path": {
-    "description": "The path to the Cairo native runtime library file.",
-    "privacy": "Public",
-    "value": ""
-  },
-  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",

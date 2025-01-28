@@ -24,8 +24,6 @@ pub struct SierraCompilationConfig {
     pub max_memory_usage: u64,
     /// Sierra-to-Native compiler binary path.
     pub sierra_to_native_compiler_path: Option<PathBuf>,
-    /// Path to Cairo native runtime library file.
-    pub libcairo_native_runtime_path: Option<PathBuf>,
 }
 
 impl Default for SierraCompilationConfig {
@@ -33,7 +31,6 @@ impl Default for SierraCompilationConfig {
         Self {
             max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
             sierra_to_native_compiler_path: None,
-            libcairo_native_runtime_path: None,
             max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
@@ -74,13 +71,6 @@ impl SerializeConfig for SierraCompilationConfig {
             "".into(),
             "sierra_to_native_compiler_path",
             "The path to the Sierra-to-Native compiler binary.",
-            ParamPrivacyInput::Public,
-        ));
-        dump.extend(ser_optional_param(
-            &self.libcairo_native_runtime_path,
-            "".into(),
-            "libcairo_native_runtime_path",
-            "The path to the Cairo native runtime library file.",
             ParamPrivacyInput::Public,
         ));
         dump
