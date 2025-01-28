@@ -226,6 +226,28 @@ impl From<RpcInvokeTransaction> for InvokeTransaction {
     }
 }
 
+impl From<InvokeTransaction> for RpcInvokeTransactionV3 {
+    fn from(tx: InvokeTransaction) -> Self {
+        Self {
+            sender_address: tx.sender_address(),
+            tip: tx.tip(),
+            nonce: tx.nonce(),
+            resource_bounds: match tx.resource_bounds() {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
+            signature: tx.signature(),
+            calldata: tx.calldata(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+            fee_data_availability_mode: tx.fee_data_availability_mode(),
+            paymaster_data: tx.paymaster_data(),
+            account_deployment_data: tx.account_deployment_data(),
+        }
+    }
+}
+
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
@@ -327,6 +349,28 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
             nonce_data_availability_mode: tx.nonce_data_availability_mode,
             fee_data_availability_mode: tx.fee_data_availability_mode,
             paymaster_data: tx.paymaster_data,
+        }
+    }
+}
+
+impl From<DeployAccountTransaction> for RpcDeployAccountTransactionV3 {
+    fn from(tx: DeployAccountTransaction) -> Self {
+        Self {
+            class_hash: tx.class_hash(),
+            constructor_calldata: tx.constructor_calldata(),
+            contract_address_salt: tx.contract_address_salt(),
+            nonce: tx.nonce(),
+            signature: tx.signature(),
+            resource_bounds: match tx.resource_bounds() {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
+            tip: tx.tip(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+            fee_data_availability_mode: tx.fee_data_availability_mode(),
+            paymaster_data: tx.paymaster_data(),
         }
     }
 }
