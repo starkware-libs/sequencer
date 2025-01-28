@@ -11,6 +11,8 @@ mod state_diff;
 mod test_instances;
 mod transaction;
 
+mod deprecated_transaction;
+
 use papyrus_common::compression_utils::CompressionError;
 use prost::DecodeError;
 
