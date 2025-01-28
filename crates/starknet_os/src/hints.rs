@@ -6,5 +6,6 @@ pub mod deprecated_compiled_class;
 pub mod enum_definition;
 pub mod enum_generation;
 pub mod error;
+pub mod execute_transactions;
 pub mod stateless_compression;
 pub mod types;
