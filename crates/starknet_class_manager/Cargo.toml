@@ -20,3 +20,4 @@ thiserror.workspace = true
 
 [dev-dependencies]
 starknet_api = { path = "../starknet_api", features = ["testing"] }
+tokio.workspace = true
