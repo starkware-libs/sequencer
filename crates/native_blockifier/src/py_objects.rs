@@ -9,10 +9,11 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
 };
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
+use blockifier::bouncer::{builtins_to_sierra_gas, BouncerConfig, BouncerWeights, BuiltinCounterMap};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
-use blockifier::versioned_constants::VersionedConstantsOverrides;
+use blockifier::utils::u64_from_usize;
+use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
@@ -105,21 +106,23 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
 
 fn hash_map_into_builtin_count(
     builtins: HashMap<String, usize>,
-) -> Result<BuiltinCount, NativeBlockifierInputError> {
-    let mut wrapper = HashMapWrapper::new();
+) -> Result<BuiltinCounterMap, NativeBlockifierInputError> {
+    let mut builtin_count_wrapper = BuiltinCounterMap::new();
     for (builtin_name, count) in builtins.iter() {
+        if *count == 0 {
+            // Question to self(AvivG): change InvalidBuiltinCounts's input? ret after loop finish?
+            return Err(NativeBlockifierInputError::InvalidNativeBlockifierInputError(
+                InvalidNativeBlockifierInputError::InvalidBuiltinCounts(
+                    builtin_count_wrapper.clone(),
+                ),
+            ));
+        }
         let builtin = BuiltinName::from_str_with_suffix(builtin_name)
             .ok_or(NativeBlockifierInputError::UnknownBuiltin(builtin_name.clone()))?;
-        wrapper.insert(builtin, *count);
+        builtin_count_wrapper.insert(builtin, *count);
     }
-    let builtin_count: BuiltinCount = wrapper.into();
-    if builtin_count.all_non_zero() {
-        Ok(builtin_count)
-    } else {
-        Err(NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-            InvalidNativeBlockifierInputError::InvalidBuiltinCounts(builtin_count),
-        ))
-    }
+
+    Ok(builtin_count_wrapper)
 }
 
 fn hash_map_into_bouncer_weights(
@@ -139,14 +142,30 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
+    // TODO(AvivG): Implement logic to retrieve only the Sierra gas limit from Python without VM
+    // resources.
+    let builtins_count = hash_map_into_builtin_count(data)?;
+    let versioned_constants = VersionedConstants::latest_constants();
+    let builtins_gas = builtins_to_sierra_gas(&builtins_count, versioned_constants);
+    let steps_gas = GasAmount(u64_from_usize(n_steps));
+
+    let sierra_gas_w_vm = sierra_gas
+        .checked_add(builtins_gas)
+        .and_then(|gas_with_builtins| gas_with_builtins.checked_add(steps_gas))
+        .unwrap_or_else(|| {
+            panic!(
+                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins: \
+                 {:?}\nSteps: {}\nInitial Sierra gas: {}",
+                builtins_count, n_steps, sierra_gas
+            )
+        });
+
     Ok(BouncerWeights {
         l1_gas,
-        n_steps,
         message_segment_length,
         state_diff_size,
         n_events,
-        builtin_count: hash_map_into_builtin_count(data)?,
-        sierra_gas,
+        sierra_gas: sierra_gas_w_vm,
     })
 }
 
