@@ -4,11 +4,36 @@ use starknet_api::state::SierraContractClass;
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 
 use crate::class_storage::{
+    ClassHashStorage,
+    ClassHashStorageConfig,
     ClassHashStorageError,
     ClassStorage,
     FsClassStorage,
     FsClassStorageError,
 };
+
+#[cfg(test)]
+impl ClassHashStorage {
+    pub fn new_for_testing() -> Self {
+        let config = ClassHashStorageConfig {
+            path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
+            enforce_file_exists: false,
+            max_size: 1 << 20, // 1MB.
+        };
+
+        Self::new(config).unwrap()
+    }
+}
+
+#[cfg(test)]
+impl FsClassStorage {
+    pub fn new_for_testing() -> Self {
+        let test_persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
+        let class_hash_storage = ClassHashStorage::new_for_testing();
+
+        Self::new(test_persistent_root, class_hash_storage)
+    }
+}
 
 #[test]
 fn fs_storage() {

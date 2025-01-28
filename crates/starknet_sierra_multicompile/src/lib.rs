@@ -4,6 +4,8 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use config::SierraCompilationConfig;
+#[cfg(test)]
+use mockall::automock;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
@@ -36,6 +38,7 @@ pub mod compile_test;
 // be consolidated.
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 
+#[cfg_attr(test, automock)]
 pub trait SierraToCasmCompiler: Send + Sync {
     fn compile(
         &self,
