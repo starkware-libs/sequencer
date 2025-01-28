@@ -18,6 +18,7 @@ papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_sierra_multicompile_types.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

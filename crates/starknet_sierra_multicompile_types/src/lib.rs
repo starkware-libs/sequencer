@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
@@ -74,6 +76,7 @@ impl TryFrom<RawExecutableClass> for ContractClass {
 /// Serves as the Sierra compilation unit's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
+#[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait SierraCompilerClient: Send + Sync {
     async fn compile(

@@ -10764,6 +10764,7 @@ name = "starknet_class_manager"
 version = "0.0.0"
 dependencies = [
  "hex",
+ "mockall",
  "papyrus_storage",
  "serde_json",
  "starknet_api",
@@ -10784,6 +10785,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",
+ "starknet_sierra_multicompile_types",
  "thiserror 1.0.69",
 ]
 
@@ -11351,6 +11353,7 @@ name = "starknet_sierra_multicompile_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "mockall",
  "papyrus_proc_macros",
  "serde",
  "serde_json",
