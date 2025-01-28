@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use papyrus_base_layer::constants::EventIdentifier;
-use papyrus_base_layer::{BaseLayerContract, L1Event};
+use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1Event};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
@@ -27,7 +27,6 @@ use validator::Validate;
 #[path = "l1_scraper_tests.rs"]
 pub mod l1_scraper_tests;
 
-pub type L1BlockNumber = u64;
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
 const ONE_HOUR_IN_SECS: u16 = 3600;
