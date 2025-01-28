@@ -12,7 +12,8 @@ use blockifier::blockifier::config::{
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
-use blockifier::versioned_constants::VersionedConstantsOverrides;
+use blockifier::utils::u64_from_usize;
+use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
@@ -139,14 +140,28 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
+    let builtins_count = hash_map_into_builtin_count(data)?;
+    let versioned_constants = VersionedConstants::latest_constants();
+    let builtins_gas = builtins_count.to_sierra_gas(versioned_constants);
+    let steps_gas = GasAmount(u64_from_usize(n_steps));
+
+    let sierra_gas_w_vm = sierra_gas
+        .checked_add(builtins_gas)
+        .and_then(|gas_with_builtins| gas_with_builtins.checked_add(steps_gas))
+        .unwrap_or_else(|| {
+            panic!(
+                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins: \
+                 {}\nSteps: {}\nInitial Sierra gas: {}",
+                builtins_count, n_steps, sierra_gas
+            )
+        });
+
     Ok(BouncerWeights {
         l1_gas,
-        n_steps,
         message_segment_length,
         state_diff_size,
         n_events,
-        builtin_count: hash_map_into_builtin_count(data)?,
-        sierra_gas,
+        sierra_gas: sierra_gas_w_vm,
     })
 }
 
