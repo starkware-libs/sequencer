@@ -1,9 +1,10 @@
 syntax = "proto3";
 import "p2p/proto/common.proto";
-import "p2p/proto/consensus.proto";
 import "p2p/proto/sync/common.proto";
 import "p2p/proto/sync/receipt.proto";
 import "p2p/proto/transaction.proto";
+//TODO(alonl): remove this once we change transaction type to TransactionInBlock in TransactionWithReceipt
+import "p2p/proto/consensus/consensus.proto";
 
 option go_package = "github.com/starknet-io/starknet-p2pspecs/p2p/proto/sync/transaction";
 
