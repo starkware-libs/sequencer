@@ -58,10 +58,12 @@ use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType, Sie
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
+    AccountTransaction,
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
     L1HandlerTransaction,
+    Transaction,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::rpc_transaction::EntryPointByType;
@@ -110,7 +112,8 @@ use super::{
     CentralTransactionExecutionInfo,
     CentralTransactionWritten,
 };
-use crate::cende::central_objects::casm_contract_class_central_format;
+use crate::cende::central_objects::{casm_contract_class_central_format, CentralCasmContractClass};
+use crate::cende::get_compiled_contract_classes;
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -135,6 +138,10 @@ fn resource_bounds() -> ValidResourceBounds {
 
 fn felt_vector() -> Vec<Felt> {
     vec![felt!(0_u8), felt!(1_u8), felt!(2_u8)]
+}
+
+fn declare_compiled_class_hash() -> CompiledClassHash {
+    CompiledClassHash(felt!(1_u8))
 }
 
 fn thin_state_diff() -> ThinStateDiff {
@@ -204,8 +211,8 @@ fn central_compressed_state_diff_json() -> Value {
     serde_json::to_value(central_state_diff).unwrap()
 }
 
-fn central_invoke_tx_json() -> Value {
-    let invoke_tx = InvokeTransaction {
+fn invoke_transaction() -> InvokeTransaction {
+    InvokeTransaction {
         tx: starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
             resource_bounds: resource_bounds(),
             tip: Tip(1),
@@ -223,7 +230,11 @@ fn central_invoke_tx_json() -> Value {
         tx_hash: TransactionHash(felt!(
             "0x6efd067c859e6469d0f6d158e9ae408a9552eb8cc11f618ab3aef3e52450666"
         )),
-    };
+    }
+}
+
+fn central_invoke_tx_json() -> Value {
+    let invoke_tx = invoke_transaction();
 
     let central_transaction_written = CentralTransactionWritten {
         tx: CentralTransaction::Invoke(CentralInvokeTransaction::V3(invoke_tx.into())),
@@ -267,8 +278,8 @@ fn central_deploy_account_tx_json() -> Value {
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
-fn central_declare_tx_json() -> Value {
-    let declare_tx = DeclareTransaction {
+fn declare_transaction() -> DeclareTransaction {
+    DeclareTransaction {
         tx: starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
             resource_bounds: resource_bounds(),
             tip: Tip(1),
@@ -277,7 +288,7 @@ fn central_declare_tx_json() -> Value {
             class_hash: ClassHash(felt!(
                 "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"
             )),
-            compiled_class_hash: CompiledClassHash(felt!("0x1")),
+            compiled_class_hash: declare_compiled_class_hash(),
             sender_address: contract_address!("0x12fd537"),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
@@ -285,8 +296,7 @@ fn central_declare_tx_json() -> Value {
             account_deployment_data: AccountDeploymentData(vec![]),
         }),
         class_info: ClassInfo {
-            // The contract class is not used by the central object.
-            contract_class: ContractClass::V0(Default::default()),
+            contract_class: ContractClass::V1((casm_contract_class(), SierraVersion::LATEST)),
             sierra_program_length: 8844,
             abi_length: 11237,
             sierra_version: SierraVersion::new(1, 6, 0),
@@ -294,7 +304,11 @@ fn central_declare_tx_json() -> Value {
         tx_hash: TransactionHash(felt!(
             "0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"
         )),
-    };
+    }
+}
+
+fn central_declare_tx_json() -> Value {
+    let declare_tx = declare_transaction();
     let central_transaction_written = CentralTransactionWritten {
         tx: CentralTransaction::Declare(CentralDeclareTransaction::V3(declare_tx.into())),
         time_created: 1734601649,
@@ -571,4 +585,20 @@ fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path:
     let python_json = read_json_file(python_json_path);
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
+}
+
+#[test]
+fn test_get_compiled_contract_classes() {
+    let transactions = vec![
+        Transaction::Account(AccountTransaction::Declare(declare_transaction())),
+        Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
+        Transaction::Account(AccountTransaction::Declare(declare_transaction())),
+        Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
+    ];
+
+    let compiled_contract_classes = get_compiled_contract_classes(&transactions);
+
+    let expected_compiled_contract_classes: Vec<(CompiledClassHash, CentralCasmContractClass)> =
+        (0..2).map(|_| (declare_compiled_class_hash(), casm_contract_class())).collect();
+    assert_eq!(compiled_contract_classes, expected_compiled_contract_classes);
 }
