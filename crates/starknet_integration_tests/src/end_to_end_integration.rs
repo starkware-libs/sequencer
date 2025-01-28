@@ -52,4 +52,6 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
+
+    info!("Integration test completed successfully!");
 }
