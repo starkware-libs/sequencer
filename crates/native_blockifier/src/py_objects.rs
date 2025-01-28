@@ -141,12 +141,10 @@ fn hash_map_into_bouncer_weights(
     );
     Ok(BouncerWeights {
         l1_gas,
-        n_steps,
         message_segment_length,
         state_diff_size,
         n_events,
-        builtin_count: hash_map_into_builtin_count(data)?,
-        sierra_gas,
+        sierra_gas: sierra_gas + hash_map_into_builtin_count(data)?.into(),
     })
 }
 

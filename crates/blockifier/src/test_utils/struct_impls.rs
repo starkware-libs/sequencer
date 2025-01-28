@@ -208,7 +208,7 @@ impl LoadContractFromFile for DeprecatedContractClass {}
 
 impl BouncerWeights {
     pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
-        Self { builtin_count, ..Self::empty() }
+        Self { sierra_gas: builtin_count.into(), ..Self::empty() }
     }
 }
 
