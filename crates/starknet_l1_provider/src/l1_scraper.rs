@@ -95,7 +95,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let initialize_result = self.l1_provider_client.initialize(events).await;
         handle_client_error(initialize_result)?;
 
-        self.last_block_number_processed = latest_l1_block_number + 1;
+        self.last_block_number_processed = latest_l1_block_number;
 
         Ok(())
     }
@@ -109,7 +109,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let add_events_result = self.l1_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
-        self.last_block_number_processed = latest_l1_block_number + 1;
+        self.last_block_number_processed = latest_l1_block_number;
 
         Ok(())
     }
@@ -126,12 +126,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             return Ok(None);
         };
 
+        let scraping_start_number = self.last_block_number_processed + 1;
         let scraping_result = self
             .base_layer
-            .events(
-                self.last_block_number_processed..=latest_l1_block_number,
-                &self.tracked_event_identifiers,
-            )
+            .events(scraping_start_number..=latest_l1_block_number, &self.tracked_event_identifiers)
             .await;
 
         let events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
