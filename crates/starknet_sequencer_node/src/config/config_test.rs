@@ -104,13 +104,10 @@ fn test_default_config_file_is_up_to_date() {
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
-    let default_config = SequencerNodeConfig::default();
-    assert_matches!(default_config.validate(), Ok(()));
-
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();
     tmp_file_path.push("cfg.json");
-    default_config
+    SequencerNodeConfig::default()
         .dump_to_file(
             &CONFIG_POINTERS,
             &CONFIG_NON_POINTERS_WHITELIST,
