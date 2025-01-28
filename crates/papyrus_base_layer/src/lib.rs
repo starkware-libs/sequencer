@@ -20,6 +20,8 @@ pub mod test_utils;
 #[cfg(test)]
 mod base_layer_test;
 
+pub type L1BlockNumber = u64;
+
 /// Interface for getting data from the Starknet base contract.
 #[async_trait]
 pub trait BaseLayerContract {
@@ -27,7 +29,10 @@ pub trait BaseLayerContract {
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
-    async fn get_proved_block_at(&self, l1_block: u64) -> Result<BlockHashAndNumber, Self::Error>;
+    async fn get_proved_block_at(
+        &self,
+        l1_block: L1BlockNumber,
+    ) -> Result<BlockHashAndNumber, Self::Error>;
 
     /// Get the latest Starknet block that is proved on the base layer with minimum number of
     /// confirmations (for no confirmations, pass `0`).
@@ -36,14 +41,17 @@ pub trait BaseLayerContract {
         finality: u64,
     ) -> Result<Option<BlockHashAndNumber>, Self::Error>;
 
+    async fn latest_l1_block_number(
+        &self,
+        finality: u64,
+    ) -> Result<Option<L1BlockNumber>, Self::Error>;
+
     /// Get specific events from the Starknet base contract between two L1 block numbers.
     async fn events(
         &self,
-        block_range: RangeInclusive<u64>,
+        block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &[&str],
     ) -> Result<Vec<L1Event>, Self::Error>;
-
-    async fn latest_l1_block_number(&self, finality: u64) -> Result<Option<u64>, Self::Error>;
 }
 
 /// Wraps Starknet L1 events with Starknet API types.
