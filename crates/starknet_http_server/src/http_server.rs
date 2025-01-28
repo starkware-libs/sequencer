@@ -12,7 +12,7 @@ use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, trace};
 
 use crate::config::HttpServerConfig;
 use crate::errors::{HttpServerError, HttpServerRunError};
@@ -82,7 +82,7 @@ async fn add_tx(
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, region: &str) {
     if let Ok(tx_hash) = add_tx_result {
-        info!("Recorded transaction with hash: {} from region: {}", tx_hash, region);
+        trace!("Recorded transaction with hash: {} from region: {}", tx_hash, region);
     }
     record_added_transaction_status(add_tx_result.is_ok());
 }
