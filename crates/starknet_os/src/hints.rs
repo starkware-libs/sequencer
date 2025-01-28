@@ -9,5 +9,6 @@ pub mod error;
 pub mod execute_transactions;
 pub mod execution;
 pub mod find_element;
+pub mod kzg;
 pub mod stateless_compression;
 pub mod types;
