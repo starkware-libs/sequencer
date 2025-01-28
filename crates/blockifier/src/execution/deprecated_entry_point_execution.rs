@@ -11,6 +11,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
 use starknet_api::hash::StarkHash;
 
+use super::call_info::StorageAccessTracker;
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
@@ -269,9 +270,11 @@ pub fn finalize_execution(
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
         resources: vm_resources,
-        storage_read_values: syscall_handler.read_values,
-        accessed_storage_keys: syscall_handler.accessed_keys,
-        ..Default::default()
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: syscall_handler.read_values,
+            accessed_storage_keys: syscall_handler.accessed_keys,
+            ..Default::default()
+        },
     })
 }
 

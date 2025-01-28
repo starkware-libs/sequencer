@@ -86,6 +86,7 @@ use crate::execution::call_info::{
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
+    StorageAccessTracker,
 };
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -366,13 +367,16 @@ fn expected_fee_transfer_call_info(
         },
         resources: Prices::FeeTransfer(account_address, *fee_type).into(),
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
-        storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
-        accessed_storage_keys: HashSet::from_iter(vec![
-            sender_balance_key_low,
-            sender_balance_key_high,
-            sequencer_balance_key_low,
-            sequencer_balance_key_high,
-        ]),
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
+            accessed_storage_keys: HashSet::from_iter(vec![
+                sender_balance_key_low,
+                sender_balance_key_high,
+                sequencer_balance_key_low,
+                sequencer_balance_key_high,
+            ]),
+            ..Default::default()
+        },
         ..Default::default()
     })
 }
@@ -2463,7 +2467,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             gas_consumed: gas_consumed.0,
             ..Default::default()
         },
-        accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
+        storage_access_tracker: StorageAccessTracker {
+            accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
+            ..Default::default()
+        },
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),

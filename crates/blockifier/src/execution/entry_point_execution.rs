@@ -10,6 +10,7 @@ use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
+use super::call_info::StorageAccessTracker;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
@@ -387,10 +388,12 @@ pub fn finalize_execution(
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
         resources: vm_resources,
-        storage_read_values: syscall_handler_base.read_values,
-        accessed_storage_keys: syscall_handler_base.accessed_keys,
-        read_class_hash_values: syscall_handler_base.read_class_hash_values,
-        accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
+        storage_access_tracker: StorageAccessTracker {
+            storage_read_values: syscall_handler_base.read_values,
+            accessed_storage_keys: syscall_handler_base.accessed_keys,
+            read_class_hash_values: syscall_handler_base.read_class_hash_values,
+            accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
+        },
     })
 }
 

@@ -15,6 +15,7 @@ use crate::execution::call_info::{
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
+    StorageAccessTracker,
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -70,7 +71,10 @@ impl TestExecutionSummary {
                 gas_consumed: self.gas_consumed.0,
                 ..Default::default()
             },
-            accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
+            storage_access_tracker: StorageAccessTracker {
+                accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
+                ..Default::default()
+            },
             ..Default::default()
         }
     }
