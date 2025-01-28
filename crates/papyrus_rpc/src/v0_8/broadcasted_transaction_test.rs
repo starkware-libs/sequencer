@@ -108,6 +108,7 @@ auto_impl_get_test_instance! {
 
     pub struct ResourceBoundsMapping {
         pub l1_gas: ResourceBounds,
+        pub l1_data_gas: ResourceBounds,
         pub l2_gas: ResourceBounds,
     }
 }
