@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::mem;
@@ -6,7 +7,7 @@ use std::path::{Path, PathBuf};
 use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ChainId;
-use starknet_class_manager_types::{ClassId, ClassStorageError, ExecutableClassHash};
+use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 use thiserror::Error;
 
@@ -16,10 +17,8 @@ mod class_storage_test;
 
 // TODO(Elin): restrict visibility once this code is used.
 
-pub type ClassStorageResult<T> = Result<T, ClassStorageError>;
-
 pub trait ClassStorage: Send + Sync {
-    type Error;
+    type Error: Display;
 
     fn set_class(
         &mut self,
@@ -59,14 +58,6 @@ pub struct CachedClassStorage<S: ClassStorage> {
     executable_classes: GlobalContractCache<RawExecutableClass>,
     executable_class_hashes: GlobalContractCache<ExecutableClassHash>,
     deprecated_classes: GlobalContractCache<RawExecutableClass>,
-}
-
-#[derive(Debug, Error)]
-pub enum CachedClassStorageError<E> {
-    #[error("Class of hash: {class_id} not found")]
-    ClassNotFound { class_id: ClassId },
-    #[error(transparent)]
-    StorageError(#[from] E),
 }
 
 impl<S: ClassStorage> CachedClassStorage<S> {
