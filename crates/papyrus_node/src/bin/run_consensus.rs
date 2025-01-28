@@ -18,7 +18,7 @@ use starknet_api::block::BlockNumber;
 use starknet_consensus::config::ConsensusConfig;
 use starknet_consensus::simulation_network_receiver::NetworkReceiver;
 use starknet_consensus::stream_handler::StreamHandler;
-use starknet_consensus::types::BroadcastVoteChannel;
+use starknet_consensus::types::{BroadcastVoteChannel, ContextConfig};
 use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::task::JoinHandle;
 
@@ -54,6 +54,7 @@ impl Default for TestConfig {
 
 fn build_consensus(
     consensus_config: ConsensusConfig,
+    context_config: ContextConfig,
     test_config: TestConfig,
     storage_reader: StorageReader,
     network_manager: &mut NetworkManager,
@@ -75,10 +76,10 @@ fn build_consensus(
     let sync_channels = network_manager
         .register_broadcast_topic(Topic::new(test_config.sync_topic.clone()), BUFFER_SIZE)?;
     let context = PapyrusConsensusContext::new(
+        context_config,
         storage_reader.clone(),
         network_channels.broadcast_topic_client.clone(),
         outbound_internal_sender,
-        consensus_config.num_validators,
         Some(sync_channels.broadcast_topic_client),
     );
     // TODO(Asmaa): papyrus context should be created with the sync channel.
@@ -136,6 +137,7 @@ async fn main() -> anyhow::Result<()> {
 
     let consensus_handle = build_consensus(
         node_config.consensus.clone().unwrap(),
+        node_config.context.clone().unwrap(),
         test_config,
         resources.storage_reader.clone(),
         resources.maybe_network_manager.as_mut().unwrap(),
