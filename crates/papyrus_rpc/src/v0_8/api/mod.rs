@@ -332,9 +332,7 @@ impl TryFrom<BroadcastedTransaction> for ExecutableTransactionInput {
         // TODO(yair): pass the right value for only_query field.
         match value {
             BroadcastedTransaction::Declare(tx) => Ok(tx.try_into()?),
-            BroadcastedTransaction::DeployAccount(tx) => {
-                Ok(Self::DeployAccount(tx.try_into()?, false))
-            }
+            BroadcastedTransaction::DeployAccount(tx) => Ok(Self::DeployAccount(tx.into(), false)),
             BroadcastedTransaction::Invoke(tx) => Ok(Self::Invoke(tx.try_into()?, false)),
         }
     }
@@ -532,11 +530,9 @@ fn user_deprecated_contract_class_to_sn_api(
     })
 }
 
-// TODO(Ayelet): Change to From function.
-impl TryFrom<DeployAccountTransaction> for starknet_api::transaction::DeployAccountTransaction {
-    type Error = ErrorObjectOwned;
-    fn try_from(tx: DeployAccountTransaction) -> Result<Self, Self::Error> {
-        Ok(match tx {
+impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccountTransaction {
+    fn from(tx: DeployAccountTransaction) -> Self {
+        match tx {
             DeployAccountTransaction::Version1(DeployAccountTransactionV1 {
                 max_fee,
                 signature,
@@ -577,7 +573,7 @@ impl TryFrom<DeployAccountTransaction> for starknet_api::transaction::DeployAcco
                 fee_data_availability_mode,
                 paymaster_data,
             }),
-        })
+        }
     }
 }
 
