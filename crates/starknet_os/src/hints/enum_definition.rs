@@ -26,6 +26,12 @@ use crate::hints::block_context::{
 };
 use crate::hints::bls_field::compute_ids_low;
 use crate::hints::builtins::{select_builtin, selected_builtins, update_builtin_ptrs};
+use crate::hints::compiled_class::{
+    assert_end_of_bytecode_segments,
+    assign_bytecode_segments,
+    iter_current_segment_info,
+    set_ap_to_segment_hash,
+};
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
@@ -183,6 +189,45 @@ define_hint_enum!(
             selected_builtin_ptrs_addr=ids.selected_ptrs,
             ),
         )"#
+        }
+    ),
+    (
+        AssignBytecodeSegments,
+        assign_bytecode_segments,
+        indoc! {r#"
+            bytecode_segments = iter(bytecode_segment_structure.segments)"#
+        }
+    ),
+    (
+        AssertEndOfBytecodeSegments,
+        assert_end_of_bytecode_segments,
+        indoc! {r#"
+            assert next(bytecode_segments, None) is None"#
+        }
+    ),
+    (
+        IterCurrentSegmentInfo,
+        iter_current_segment_info,
+        indoc! {r#"
+    current_segment_info = next(bytecode_segments)
+
+    is_used = current_segment_info.is_used
+    ids.is_segment_used = 1 if is_used else 0
+
+    is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
+    ids.is_used_leaf = 1 if is_used_leaf else 0
+
+    ids.segment_length = current_segment_info.segment_length
+    vm_enter_scope(new_scope_locals={
+        "bytecode_segment_structure": current_segment_info.inner_structure,
+    })"#
+        }
+    ),
+    (
+        SetApToSegmentHash,
+        set_ap_to_segment_hash,
+        indoc! {r#"
+            memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash())"#
         }
     )
 );
