@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use papyrus_base_layer::constants::EventIdentifier;
-use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1Event};
+use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
@@ -36,7 +36,7 @@ const L1_BLOCK_TIME: u64 = 10;
 pub struct L1Scraper<B: BaseLayerContract> {
     pub config: L1ScraperConfig,
     pub base_layer: B,
-    pub last_block_number_processed: L1BlockNumber,
+    pub last_l1_block_processed: L1BlockReference,
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
 }
@@ -48,17 +48,27 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         base_layer: B,
         events_identifiers_to_track: &[EventIdentifier],
     ) -> L1ScraperResult<Self, B> {
-        let latest_l1_block = get_latest_l1_block(config.finality, &base_layer).await?;
+        let latest_l1_block = get_latest_l1_block_number(config.finality, &base_layer).await?;
         // Estimate the number of blocks in the interval, to rewind from the latest block.
         let blocks_in_interval = config.startup_rewind_time.as_secs() / L1_BLOCK_TIME;
         // Add 50% safety margin.
         let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
 
-        let l1_block_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
+        let l1_block_number_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
+
+        let block_reference_rewind = base_layer
+            .l1_block_at(l1_block_number_rewind)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?
+            .expect(
+                "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
+                 exist",
+            );
+
         Ok(Self {
             l1_provider_client,
             base_layer,
-            last_block_number_processed: l1_block_rewind,
+            last_l1_block_processed: block_reference_rewind,
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
         })
@@ -70,7 +80,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     /// FIXME: make the integration/flow tests use `new` instead of this constructor, once `Anvil`
     /// support is added there.
     pub async fn new_at_l1_block(
-        l1_block_to_start_scraping_from: u64,
+        l1_block_to_start_scraping_from: L1BlockReference,
         config: L1ScraperConfig,
         l1_provider_client: SharedL1ProviderClient,
         base_layer: B,
@@ -79,7 +89,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(Self {
             l1_provider_client,
             base_layer,
-            last_block_number_processed: l1_block_to_start_scraping_from,
+            last_l1_block_processed: l1_block_to_start_scraping_from,
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
         })
@@ -87,7 +97,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
     #[instrument(skip(self), err)]
     pub async fn initialize(&mut self) -> L1ScraperResult<(), B> {
-        let Some((latest_l1_block_number, events)) = self.fetch_events().await? else {
+        let Some((latest_l1_block, events)) = self.fetch_events().await? else {
             return Ok(());
         };
 
@@ -95,13 +105,15 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let initialize_result = self.l1_provider_client.initialize(events).await;
         handle_client_error(initialize_result)?;
 
-        self.last_block_number_processed = latest_l1_block_number;
+        self.last_l1_block_processed = latest_l1_block;
 
         Ok(())
     }
 
     pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
-        let Some((latest_l1_block_number, events)) = self.fetch_events().await? else {
+        self.assert_no_l1_reorgs().await?;
+
+        let Some((latest_l1_block, events)) = self.fetch_events().await? else {
             return Ok(());
         };
 
@@ -109,27 +121,27 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let add_events_result = self.l1_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
-        self.last_block_number_processed = latest_l1_block_number;
+        self.last_l1_block_processed = latest_l1_block;
 
         Ok(())
     }
 
-    async fn fetch_events(&self) -> L1ScraperResult<Option<(L1BlockNumber, Vec<Event>)>, B> {
-        let latest_l1_block_number = self
+    async fn fetch_events(&self) -> L1ScraperResult<Option<(L1BlockReference, Vec<Event>)>, B> {
+        let latest_l1_block = self
             .base_layer
-            .latest_l1_block_number(self.config.finality)
+            .latest_l1_block(self.config.finality)
             .await
             .map_err(L1ScraperError::BaseLayerError)?;
 
-        let Some(latest_l1_block_number) = latest_l1_block_number else {
+        let Some(latest_l1_block) = latest_l1_block else {
             error!("Failed to get latest L1 block number, finality too high.");
             return Ok(None);
         };
 
-        let scraping_start_number = self.last_block_number_processed + 1;
+        let scraping_start_number = self.last_l1_block_processed.number + 1;
         let scraping_result = self
             .base_layer
-            .events(scraping_start_number..=latest_l1_block_number, &self.tracked_event_identifiers)
+            .events(scraping_start_number..=latest_l1_block.number, &self.tracked_event_identifiers)
             .await;
 
         let events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
@@ -138,7 +150,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .map(|event| self.event_from_raw_l1_event(event))
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
 
-        Ok(Some((latest_l1_block_number, events)))
+        Ok(Some((latest_l1_block, events)))
     }
 
     // FIXME: doesn't work in integration tests, remove the error suopression once Anvil is
@@ -148,6 +160,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let _ = self.initialize().await;
         loop {
             sleep(self.config.polling_interval).await;
+
             let _error_in_flow_tests = self.send_events_to_l1_provider().await;
         }
     }
@@ -166,37 +179,37 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             L1Event::ConsumedMessageToL2(_messsage_data) => todo!(),
         }
     }
-}
 
-fn handle_client_error<B: BaseLayerContract + Send + Sync>(
-    client_result: Result<(), L1ProviderClientError>,
-) -> Result<(), L1ScraperError<B>> {
-    if let Err(L1ProviderClientError::ClientError(client_error)) = client_result {
-        return Err(L1ScraperError::NetworkError(client_error));
-    }
-    Ok(())
-}
+    async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
+        let last_processed_l1_block_number = self.last_l1_block_processed.number;
+        let last_block_processed_fresh = self
+            .base_layer
+            .l1_block_at(last_processed_l1_block_number)
+            .await
+            .map_err(L1ScraperError::BaseLayerError)?;
 
-async fn get_latest_l1_block<B: BaseLayerContract + Send + Sync>(
-    finality: u64,
-    base_layer: &B,
-) -> Result<u64, L1ScraperError<B>> {
-    let latest_l1_block = base_layer
-        .latest_l1_block_number(finality)
-        .await
-        .map_err(L1ScraperError::BaseLayerError)?;
+        let Some(last_block_processed_fresh) = last_block_processed_fresh else {
+            return Err(L1ScraperError::L1ReorgDetected {
+                reason: format!(
+                    "Last processed L1 block with number {last_processed_l1_block_number} no \
+                     longer exists."
+                ),
+            });
+        };
 
-    match latest_l1_block {
-        Some(latest_l1_block) => Ok(latest_l1_block),
-        None => {
-            let latest_l1_block_no_finality = base_layer
-                .latest_l1_block_number(0)
-                .await
-                .map_err(L1ScraperError::BaseLayerError)?
-                .expect("Latest *L1* block without finality is assumed to always exist.");
-
-            Err(L1ScraperError::FinalityTooHigh { finality, latest_l1_block_no_finality })
+        if last_block_processed_fresh.hash != self.last_l1_block_processed.hash {
+            return Err(L1ScraperError::L1ReorgDetected {
+                reason: format!(
+                    "Last processed L1 block hash, {}, for block number {}, is different from the \
+                     hash stored, {}",
+                    std::str::from_utf8(&last_block_processed_fresh.hash).unwrap(),
+                    last_processed_l1_block_number,
+                    std::str::from_utf8(&self.last_l1_block_processed.hash).unwrap(),
+                ),
+            });
         }
+
+        Ok(())
     }
 }
 
@@ -283,4 +296,38 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
+    #[error("L1 reorg detected: {reason}. Restart both the L1 provider and the scraper.")]
+    L1ReorgDetected { reason: String },
+}
+
+fn handle_client_error<B: BaseLayerContract + Send + Sync>(
+    client_result: Result<(), L1ProviderClientError>,
+) -> Result<(), L1ScraperError<B>> {
+    if let Err(L1ProviderClientError::ClientError(client_error)) = client_result {
+        return Err(L1ScraperError::NetworkError(client_error));
+    }
+    Ok(())
+}
+
+async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
+    finality: u64,
+    base_layer: &B,
+) -> Result<L1BlockNumber, L1ScraperError<B>> {
+    let latest_l1_block_number = base_layer
+        .latest_l1_block_number(finality)
+        .await
+        .map_err(L1ScraperError::BaseLayerError)?;
+
+    match latest_l1_block_number {
+        Some(latest_l1_block_number) => Ok(latest_l1_block_number),
+        None => {
+            let latest_l1_block_no_finality = base_layer
+                .latest_l1_block_number(0)
+                .await
+                .map_err(L1ScraperError::BaseLayerError)?
+                .expect("Latest *L1* block without finality is assumed to always exist.");
+
+            Err(L1ScraperError::FinalityTooHigh { finality, latest_l1_block_no_finality })
+        }
+    }
 }
