@@ -111,6 +111,12 @@ use crate::hints::execution::{
 use crate::hints::find_element::search_sorted_optimistic;
 use crate::hints::kzg::store_da_segment;
 use crate::hints::math::log2_ceil;
+use crate::hints::os::{
+    configure_kzg_manager,
+    set_ap_to_new_block_hash,
+    set_ap_to_prev_block_hash,
+    write_full_output_to_memory,
+};
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -987,7 +993,28 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"from starkware.python.math_utils import log2_ceil
             ids.res = log2_ceil(ids.value)"#
         }
-    )
+    ),
+    (
+        WriteFullOutputToMemory,
+        write_full_output_to_memory,
+        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_input.full_output)"#}
+    ),
+    (
+        ConfigureKzgManager,
+        configure_kzg_manager,
+        indoc! {r#"__serialize_data_availability_create_pages__ = True
+        kzg_manager = execution_helper.kzg_manager"#}
+    ),
+    (
+        SetApToPrevBlockHash,
+        set_ap_to_prev_block_hash,
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(os_input.prev_block_hash)"#}
+    ),
+    (
+        SetApToNewBlockHash,
+        set_ap_to_new_block_hash,
+        "memory[ap] = to_felt_or_relocatable(os_input.new_block_hash)"
+    ),
 );
 
 define_hint_extension_enum!(
