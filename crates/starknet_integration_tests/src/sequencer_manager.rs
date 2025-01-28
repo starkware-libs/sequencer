@@ -6,7 +6,6 @@ use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
-use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -20,6 +19,9 @@ use starknet_infra_utils::test_utils::{
     MAX_NUMBER_OF_INSTANCES_PER_TEST,
 };
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_metrics::metric_definitions;
+use starknet_sequencer_metrics::metrics::MetricPresenter;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -117,6 +119,10 @@ impl NodeSetup {
         )
         .expect("Failed to open batcher's storage");
         batcher_storage_reader
+    }
+
+    fn batcher_monitoring_client(&self) -> &MonitoringClient {
+        &self.executables[self.batcher_index].monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -266,6 +272,16 @@ impl IntegrationTestManager {
             .expect("Node 0 should be either idle or running.")
     }
 
+    fn running_batcher_monitoring_client(&self) -> &MonitoringClient {
+        self.running_nodes
+            .iter()
+            .next()
+            .expect("At least one node should be running.")
+            .1
+            .node_setup
+            .batcher_monitoring_client()
+    }
+
     pub fn shutdown_nodes(&mut self) {
         self.running_nodes.drain().for_each(|(_, running_node)| {
             running_node.executable_handles.iter().for_each(|handle| {
@@ -293,9 +309,14 @@ impl IntegrationTestManager {
 
     pub async fn await_execution(&self, expected_block_number: BlockNumber) {
         info!("Awaiting until {expected_block_number} blocks have been created.");
-        await_block(5000, expected_block_number, 50, &self.batcher_storage_reader())
-            .await
-            .expect("Block number should have been reached.");
+        await_batcher_block(
+            5000,
+            expected_block_number,
+            50,
+            self.running_batcher_monitoring_client(),
+        )
+        .await
+        .expect("Block number should have been reached.");
     }
 
     pub async fn verify_results(
@@ -306,23 +327,37 @@ impl IntegrationTestManager {
         info!("Verifying tx sender account nonce.");
         let expected_nonce =
             Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
-        let nonce = get_account_nonce(&self.batcher_storage_reader(), sender_address);
+        let nonce = get_account_nonce(
+            self.running_batcher_monitoring_client(),
+            &self.batcher_storage_reader(),
+            sender_address,
+        )
+        .await;
         assert_eq!(nonce, expected_nonce);
     }
 }
 
-/// Reads the latest block number from the storage.
-fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
-    let txn = storage_reader.begin_ro_txn().unwrap();
-    txn.get_state_marker()
-        .expect("There should always be a state marker")
-        .prev()
-        .expect("There should be a previous block in the storage, set by the test setup")
+/// Gets the latest block number from the batcher's metrics.
+async fn get_batcher_latest_block_number(
+    batcher_monitoring_client: &MonitoringClient,
+) -> BlockNumber {
+    BlockNumber(
+        batcher_monitoring_client
+            .get_metric::<u64>(metric_definitions::STORAGE_HEIGHT.get_name())
+            .await
+            .expect("Failed to get storage height metric."),
+    )
+    .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
+    .expect("Storage height should be at least 1.")
 }
 
 /// Reads an account nonce after a block number from storage.
-fn get_account_nonce(storage_reader: &StorageReader, contract_address: ContractAddress) -> Nonce {
-    let block_number = get_latest_block_number(storage_reader);
+async fn get_account_nonce(
+    batcher_monitoring_client: &MonitoringClient,
+    storage_reader: &StorageReader,
+    contract_address: ContractAddress,
+) -> Nonce {
+    let block_number = get_batcher_latest_block_number(batcher_monitoring_client).await;
     let txn = storage_reader.begin_ro_txn().unwrap();
     let state_number = StateNumber::unchecked_right_after_block(block_number);
     get_nonce_at(&txn, state_number, None, contract_address)
@@ -330,16 +365,17 @@ fn get_account_nonce(storage_reader: &StorageReader, contract_address: ContractA
         .expect("Should always be Some(Nonce)")
 }
 
-/// Sample a storage until sufficiently many blocks have been stored. Returns an error if after
-/// the given number of attempts the target block number has not been reached.
-async fn await_block(
+/// Sample the metrics until sufficiently many blocks have been reported by the batcher. Returns an
+/// error if after the given number of attempts the target block number has not been reached.
+async fn await_batcher_block(
     interval: u64,
     target_block_number: BlockNumber,
     max_attempts: usize,
-    storage_reader: &StorageReader,
+    batcher_monitoring_client: &MonitoringClient,
 ) -> Result<BlockNumber, ()> {
     let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
-    let get_latest_block_number_closure = || async move { get_latest_block_number(storage_reader) };
+    let get_latest_block_number_closure =
+        || get_batcher_latest_block_number(batcher_monitoring_client);
 
     let logger = CustomLogger::new(
         TraceLevel::Info,
