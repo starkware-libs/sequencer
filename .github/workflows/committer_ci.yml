@@ -12,7 +12,7 @@ on:
       - '.github/workflows/committer_ci.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
-      - 'crates/committer_cli/**'
+      - 'crates/starknet_committer_and_os_cli/**'
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
@@ -43,13 +43,15 @@ jobs:
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
-      - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
-      - run: cargo test -p committer_cli --release -- --include-ignored test_regression
+      - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
+      - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
   benchmarking:
     runs-on: starkware-ubuntu-latest-medium
-    if: ${{ github.event_name == 'pull_request' }}
+    # if: ${{ github.event_name == 'pull_request' }}
+    # TODO(Amos): Turn on benchmarking once finished renaming.
+    if: false
     steps:
       # Checkout the base branch to get the old code.
       - uses: actions/checkout@v4
@@ -63,39 +65,39 @@ jobs:
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
-      - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
+      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
 
       # List the existing benchmarks.
       - run: |
-          cargo bench -p committer_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
+          cargo bench -p starknet_committer_and_os_cli -- --list | grep ': benchmark$' | sed -e "s/: benchmark$//" > benchmarks_list.txt
 
       # Benchmark the old code.
-      - run: cargo bench -p committer_cli
+      - run: cargo bench -p starknet_committer_and_os_cli
 
       # Backup the downloaded files to avoid re-downloading them if they didn't change (overwritten by checkout).
-      - run: mv ./crates/committer_cli/test_inputs/tree_flow_inputs.json ./crates/committer_cli/test_inputs/tree_flow_inputs.json_bu
-      - run: mv ./crates/committer_cli/test_inputs/committer_flow_inputs.json ./crates/committer_cli/test_inputs/committer_flow_inputs.json_bu
+      - run: mv ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json_bu
+      - run: mv ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json_bu
 
       # Checkout the new code.
       - uses: actions/checkout@v4
         with:
           clean: false
-      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/committer_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
 
       # Input files didn't change.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
         run: |
-          mv ./crates/committer_cli/test_inputs/tree_flow_inputs.json_bu ./crates/committer_cli/test_inputs/tree_flow_inputs.json
-          mv ./crates/committer_cli/test_inputs/committer_flow_inputs.json_bu ./crates/committer_cli/test_inputs/committer_flow_inputs.json
+          mv ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json_bu ./crates/starknet_committer_and_os_cli/test_inputs/tree_flow_inputs.json
+          mv ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json_bu ./crates/starknet_committer_and_os_cli/test_inputs/committer_flow_inputs.json
 
       # Input files did change, download new inputs.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX != env.NEW_BENCH_INPUT_FILES_PREFIX
         run: |
-          gcloud storage cp -r gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
+          gcloud storage cp -r gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
 
       # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
-      - run: bash ./crates/committer_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
+      - run: bash ./crates/starknet_committer_and_os_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
 
       - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
 

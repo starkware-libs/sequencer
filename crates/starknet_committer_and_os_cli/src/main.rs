@@ -1,13 +1,13 @@
 use clap::{Args, Parser, Subcommand};
-use committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
-use committer_cli::commands::parse_and_commit;
-use committer_cli::parse_input::read::{load_input, read_input, write_to_file};
-use committer_cli::tests::python_tests::PythonTest;
-use committer_cli::tracing_utils::configure_tracing;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
 };
+use starknet_committer_and_os_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
+use starknet_committer_and_os_cli::commands::parse_and_commit;
+use starknet_committer_and_os_cli::parse_input::read::{load_input, read_input, write_to_file};
+use starknet_committer_and_os_cli::tests::python_tests::PythonTest;
+use starknet_committer_and_os_cli::tracing_utils::configure_tracing;
 use tracing::info;
 
 /// Committer CLI.
