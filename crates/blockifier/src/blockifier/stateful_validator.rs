@@ -58,6 +58,11 @@ impl<S: StateReader> StatefulValidator<S> {
         tx: AccountTransaction,
         skip_validate: bool,
     ) -> StatefulValidatorResult<()> {
+        #[cfg(feature = "will_fail")]
+        if true {
+            panic!("Failed as is said it will!");
+        }
+
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
