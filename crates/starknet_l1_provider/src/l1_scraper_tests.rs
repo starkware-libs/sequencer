@@ -60,13 +60,11 @@ async fn scraper(
 #[tokio::test]
 // TODO(Gilad): extract setup stuff into test helpers once more tests are added and patterns emerge.
 async fn txs_happy_flow() {
-    if !in_ci() {
-        return;
-    }
 
     let anvil = anvil();
     // Setup.
     let (mut scraper, fake_client) = scraper(&anvil).await;
+    panic!();
 
     // Test.
     // Scrape multiple events.
@@ -83,6 +81,8 @@ async fn txs_happy_flow() {
         l2_entry_point.parse().unwrap(),
         vec![U256::from(3_u8), U256::from(4_u8)],
     );
+
+    let update_state_msg = scraper.base_layer.contract.updateState(vec![], u256::defualtO(), onchainDataSize)
 
     // Send the transactions.
     for msg in &[message_to_l2_0, message_to_l2_1] {

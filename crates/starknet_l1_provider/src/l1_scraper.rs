@@ -147,10 +147,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     // integrated.
     #[instrument(skip(self), err)]
     async fn run(&mut self) -> L1ScraperResult<(), B> {
-        let _ = self.initialize().await;
+        self.initialize().await?;
         loop {
             sleep(self.config.polling_interval).await;
-            let _error_in_flow_tests = self.send_events_to_l1_provider().await;
+            self.send_events_to_l1_provider().await?;
         }
     }
 
