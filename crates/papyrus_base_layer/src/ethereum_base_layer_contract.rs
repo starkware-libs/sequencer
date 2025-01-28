@@ -21,10 +21,9 @@ use starknet_api::StarknetApiError;
 use url::Url;
 use validator::Validate;
 
-use crate::{BaseLayerContract, L1Event};
+use crate::{BaseLayerContract, L1BLockNumber, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
-type L1BLockNumber = u64;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
