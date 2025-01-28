@@ -183,8 +183,8 @@ fn test_discounted_gas_overdraft(
             .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into())
             .try_into()
             .unwrap(),
+        // TODO(Aner): fix test parameters to allow using `gas_price` here.
         VersionedConstants::latest_constants()
-            //TODO!(Aner): fix test parameters to allow using `gas_price` here!
             .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into())
             .try_into()
             .unwrap(),
