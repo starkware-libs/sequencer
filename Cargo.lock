@@ -10713,6 +10713,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "chrono",
+ "criterion",
  "futures",
  "indexmap 2.7.0",
  "mempool_test_utils",

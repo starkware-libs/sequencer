@@ -1,6 +1,7 @@
 pub mod batcher;
 #[cfg(test)]
 mod batcher_test;
+pub mod bench_utils;
 pub mod block_builder;
 #[cfg(test)]
 mod block_builder_test;

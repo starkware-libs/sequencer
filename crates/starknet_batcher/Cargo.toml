@@ -36,6 +36,7 @@ validator.workspace = true
 assert_matches.workspace = true
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
+criterion = { workspace = true, features = ["html_reports"] }
 futures.workspace = true
 mempool_test_utils.path = "../mempool_test_utils"
 metrics.workspace = true
@@ -50,3 +51,9 @@ starknet_infra_utils.path = "../starknet_infra_utils"
 starknet_l1_provider_types = { path = "../starknet_l1_provider_types", features = ["testing"] }
 starknet_mempool_types = { path = "../starknet_mempool_types", features = ["testing"] }
 starknet_sequencer_metrics.path = "../starknet_sequencer_metrics"
+
+[[bench]]
+harness = false
+name = "starknet_batcher_bench"
+path = "bench/starknet_batcher_bench.rs"
+required-features = []
