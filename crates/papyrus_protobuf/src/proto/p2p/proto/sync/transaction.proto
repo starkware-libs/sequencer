@@ -24,8 +24,7 @@ message TransactionsResponse {
 }
 
 message TransactionWithReceipt {
-    //TODO(alonl): change transaction type to TransactionInBlock
-    Transaction transaction = 1;
+    TransactionInBlock transaction = 1;
     Receipt receipt = 2;
 }
 
