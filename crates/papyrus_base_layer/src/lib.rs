@@ -46,12 +46,24 @@ pub trait BaseLayerContract {
         finality: u64,
     ) -> Result<Option<L1BlockNumber>, Self::Error>;
 
+    async fn l1_block_at(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockReference>, Self::Error>;
+
     /// Get specific events from the Starknet base contract between two L1 block numbers.
     async fn events(
         &self,
         block_range: RangeInclusive<L1BlockNumber>,
         event_identifiers: &[&str],
     ) -> Result<Vec<L1Event>, Self::Error>;
+}
+
+/// Reference to an L1 block, extend as needed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct L1BlockReference {
+    pub number: L1BlockNumber,
+    pub hash: [u8; 32],
 }
 
 /// Wraps Starknet L1 events with Starknet API types.
