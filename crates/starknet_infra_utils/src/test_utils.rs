@@ -1,5 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+use tracing::info;
+
 const PORTS_PER_INSTANCE: u16 = 60;
 pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 10;
 const MAX_NUMBER_OF_TESTS: u16 = 10;
@@ -33,6 +35,7 @@ impl From<TestIdentifier> for u16 {
 
 #[derive(Debug)]
 pub struct AvailablePorts {
+    start_port: u16,
     current_port: u16,
     max_port: u16,
 }
@@ -58,14 +61,14 @@ impl AvailablePorts {
         let current_port = BASE_PORT + test_offset + instance_in_test_offset;
         let max_port: u16 = current_port + PORTS_PER_INSTANCE;
 
-        AvailablePorts { current_port, max_port }
+        AvailablePorts { start_port: current_port, current_port, max_port }
     }
 
     pub fn get_next_port(&mut self) -> u16 {
         let port = self.current_port;
         self.current_port += 1;
         assert!(self.current_port < self.max_port, "Exceeded available ports.");
-
+        info!("Allocated port: {} in range [{},{}]", port, self.start_port, self.max_port);
         port
     }
 
