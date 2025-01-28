@@ -15,6 +15,10 @@ use starknet_mempool_types::errors::MempoolError;
 
 #[fixture]
 fn mempool() -> Mempool {
+    let a = match Some(1) {
+        Some(_) => true,
+        _ => false,
+    };
     Mempool::default()
 }
 
