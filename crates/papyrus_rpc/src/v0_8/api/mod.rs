@@ -333,7 +333,7 @@ impl TryFrom<BroadcastedTransaction> for ExecutableTransactionInput {
         match value {
             BroadcastedTransaction::Declare(tx) => Ok(tx.try_into()?),
             BroadcastedTransaction::DeployAccount(tx) => Ok(Self::DeployAccount(tx.into(), false)),
-            BroadcastedTransaction::Invoke(tx) => Ok(Self::Invoke(tx.try_into()?, false)),
+            BroadcastedTransaction::Invoke(tx) => Ok(Self::Invoke(tx.into(), false)),
         }
     }
 }
@@ -577,11 +577,9 @@ impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccount
     }
 }
 
-// TODO(Ayelet): Change to From function.
-impl TryFrom<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
-    type Error = ErrorObjectOwned;
-    fn try_from(value: InvokeTransaction) -> Result<Self, Self::Error> {
-        Ok(match value {
+impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
+    fn from(value: InvokeTransaction) -> Self {
+        match value {
             InvokeTransaction::Version0(InvokeTransactionV0 {
                 max_fee,
                 version: _,
@@ -634,7 +632,7 @@ impl TryFrom<InvokeTransaction> for starknet_api::transaction::InvokeTransaction
                 paymaster_data,
                 account_deployment_data,
             }),
-        })
+        }
     }
 }
 
