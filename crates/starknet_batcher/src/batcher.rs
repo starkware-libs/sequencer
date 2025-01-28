@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
 use mockall::automock;
@@ -37,7 +38,11 @@ use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError}
 use starknet_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::component_definitions::{
+    default_component_start_fn,
+    ComponentStarter,
+};
+use starknet_sequencer_infra::errors::ComponentError;
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
     REJECTED_TRANSACTIONS,
@@ -115,10 +120,6 @@ impl Batcher {
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
     ) -> Self {
-        let storage_height = storage_reader
-            .height()
-            .expect("Failed to get height from storage during batcher creation.");
-        register_metrics(storage_height);
         Self {
             config: config.clone(),
             storage_reader,
@@ -732,4 +733,15 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     }
 }
 
-impl ComponentStarter for Batcher {}
+#[async_trait]
+impl ComponentStarter for Batcher {
+    async fn start(&mut self) -> Result<(), ComponentError> {
+        default_component_start_fn::<Self>().await?;
+        let storage_height = self
+            .storage_reader
+            .height()
+            .expect("Failed to get height from storage during batcher creation.");
+        register_metrics(storage_height);
+        Ok(())
+    }
+}
