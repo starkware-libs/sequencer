@@ -8,7 +8,7 @@ use crate::execution::contract_class::RunnableCompiledClass;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 
-pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 400;
+pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 600;
 
 #[derive(Debug, Clone)]
 pub enum CachedCasm {
