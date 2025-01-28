@@ -4,8 +4,16 @@ mod transaction_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -126,6 +134,7 @@ impl From<FullTransaction> for protobuf::TransactionWithReceipt {
     }
 }
 
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::Transaction> for (Transaction, TransactionHash) {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Transaction) -> Result<Self, Self::Error> {
@@ -183,6 +192,64 @@ impl TryFrom<protobuf::Transaction> for (Transaction, TransactionHash) {
     }
 }
 
+impl TryFrom<protobuf::TransactionInBlock> for (Transaction, TransactionHash) {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::TransactionInBlock) -> Result<Self, Self::Error> {
+        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
+            field_description: "Transaction::txn",
+        })?;
+        let tx_hash = value
+            .transaction_hash
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "Transaction::transaction_hash",
+            })?
+            .try_into()
+            .map(TransactionHash)?;
+
+        let txn = match txn {
+            protobuf::transaction_in_block::Txn::DeclareV0(declare_v0) => Transaction::Declare(
+                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV1(declare_v1) => Transaction::Declare(
+                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV2(declare_v2) => Transaction::Declare(
+                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV3(declare_v3) => Transaction::Declare(
+                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
+            ),
+            protobuf::transaction_in_block::Txn::Deploy(deploy) => {
+                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
+            }
+            protobuf::transaction_in_block::Txn::DeployAccountV1(deploy_account_v1) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V1(
+                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
+                ))
+            }
+            protobuf::transaction_in_block::Txn::DeployAccountV3(deploy_account_v3) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V3(
+                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
+                ))
+            }
+            protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
+                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
+            ),
+            protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
+                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
+            ),
+            protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
+                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
+            ),
+            protobuf::transaction_in_block::Txn::L1Handler(l1_handler) => {
+                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
+            }
+        };
+        Ok((txn, tx_hash))
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 // TODO(eitan): remove when consensus uses BroadcastedTransaction
 impl TryFrom<protobuf::Transaction> for Transaction {
     type Error = ProtobufConversionError;
@@ -231,6 +298,56 @@ impl TryFrom<protobuf::Transaction> for Transaction {
         })
     }
 }
+
+impl TryFrom<protobuf::TransactionInBlock> for Transaction {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::TransactionInBlock) -> Result<Self, Self::Error> {
+        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
+            field_description: "Transaction::txn",
+        })?;
+        Ok(match txn {
+            protobuf::transaction_in_block::Txn::DeclareV0(declare_v0) => Transaction::Declare(
+                DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV1(declare_v1) => Transaction::Declare(
+                DeclareTransaction::V1(DeclareTransactionV0V1::try_from(declare_v1)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV2(declare_v2) => Transaction::Declare(
+                DeclareTransaction::V2(DeclareTransactionV2::try_from(declare_v2)?),
+            ),
+            protobuf::transaction_in_block::Txn::DeclareV3(declare_v3) => Transaction::Declare(
+                DeclareTransaction::V3(DeclareTransactionV3::try_from(declare_v3)?),
+            ),
+            protobuf::transaction_in_block::Txn::Deploy(deploy) => {
+                Transaction::Deploy(DeployTransaction::try_from(deploy)?)
+            }
+            protobuf::transaction_in_block::Txn::DeployAccountV1(deploy_account_v1) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V1(
+                    DeployAccountTransactionV1::try_from(deploy_account_v1)?,
+                ))
+            }
+            protobuf::transaction_in_block::Txn::DeployAccountV3(deploy_account_v3) => {
+                Transaction::DeployAccount(DeployAccountTransaction::V3(
+                    DeployAccountTransactionV3::try_from(deploy_account_v3)?,
+                ))
+            }
+            protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0) => Transaction::Invoke(
+                InvokeTransaction::V0(InvokeTransactionV0::try_from(invoke_v0)?),
+            ),
+            protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1) => Transaction::Invoke(
+                InvokeTransaction::V1(InvokeTransactionV1::try_from(invoke_v1)?),
+            ),
+            protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3) => Transaction::Invoke(
+                InvokeTransaction::V3(InvokeTransactionV3::try_from(invoke_v3)?),
+            ),
+            protobuf::transaction_in_block::Txn::L1Handler(l1_handler) => {
+                Transaction::L1Handler(L1HandlerTransaction::try_from(l1_handler)?)
+            }
+        })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<(Transaction, TransactionHash)> for protobuf::Transaction {
     fn from(value: (Transaction, TransactionHash)) -> Self {
         let txn = value.0;
@@ -292,6 +409,76 @@ impl From<(Transaction, TransactionHash)> for protobuf::Transaction {
     }
 }
 
+impl From<(Transaction, TransactionHash)> for protobuf::TransactionInBlock {
+    fn from(value: (Transaction, TransactionHash)) -> Self {
+        let txn = value.0;
+        let txn_hash = value.1;
+        match txn {
+            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV0(declare_v0.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV1(declare_v1.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV2(declare_v2.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV3(declare_v3.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                }
+            }
+            Transaction::Deploy(deploy) => protobuf::TransactionInBlock {
+                txn: Some(protobuf::transaction_in_block::Txn::Deploy(deploy.into())),
+                transaction_hash: Some(txn_hash.0.into()),
+            },
+            Transaction::DeployAccount(deploy_account) => match deploy_account {
+                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV1(
+                        deploy_account_v1.into(),
+                    )),
+                    transaction_hash: Some(txn_hash.0.into()),
+                },
+                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV3(
+                        deploy_account_v3.into(),
+                    )),
+                    transaction_hash: Some(txn_hash.0.into()),
+                },
+            },
+            Transaction::Invoke(invoke) => match invoke {
+                InvokeTransaction::V0(invoke_v0) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                },
+                InvokeTransaction::V1(invoke_v1) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                },
+                InvokeTransaction::V3(invoke_v3) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3.into())),
+                    transaction_hash: Some(txn_hash.0.into()),
+                },
+            },
+            Transaction::L1Handler(l1_handler) => protobuf::TransactionInBlock {
+                txn: Some(protobuf::transaction_in_block::Txn::L1Handler(l1_handler.into())),
+                transaction_hash: Some(txn_hash.0.into()),
+            },
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 // TODO(eitan): remove when consensus uses BroadcastedTransaction
 impl From<Transaction> for protobuf::Transaction {
     fn from(value: Transaction) -> Self {
@@ -352,6 +539,74 @@ impl From<Transaction> for protobuf::Transaction {
     }
 }
 
+impl From<Transaction> for protobuf::TransactionInBlock {
+    fn from(value: Transaction) -> Self {
+        match value {
+            Transaction::Declare(DeclareTransaction::V0(declare_v0)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV0(declare_v0.into())),
+                    transaction_hash: None,
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V1(declare_v1)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV1(declare_v1.into())),
+                    transaction_hash: None,
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V2(declare_v2)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV2(declare_v2.into())),
+                    transaction_hash: None,
+                }
+            }
+            Transaction::Declare(DeclareTransaction::V3(declare_v3)) => {
+                protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeclareV3(declare_v3.into())),
+                    transaction_hash: None,
+                }
+            }
+            Transaction::Deploy(deploy) => protobuf::TransactionInBlock {
+                txn: Some(protobuf::transaction_in_block::Txn::Deploy(deploy.into())),
+                transaction_hash: None,
+            },
+            Transaction::DeployAccount(deploy_account) => match deploy_account {
+                DeployAccountTransaction::V1(deploy_account_v1) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV1(
+                        deploy_account_v1.into(),
+                    )),
+                    transaction_hash: None,
+                },
+                DeployAccountTransaction::V3(deploy_account_v3) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::DeployAccountV3(
+                        deploy_account_v3.into(),
+                    )),
+                    transaction_hash: None,
+                },
+            },
+            Transaction::Invoke(invoke) => match invoke {
+                InvokeTransaction::V0(invoke_v0) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV0(invoke_v0.into())),
+                    transaction_hash: None,
+                },
+                InvokeTransaction::V1(invoke_v1) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV1(invoke_v1.into())),
+                    transaction_hash: None,
+                },
+                InvokeTransaction::V3(invoke_v3) => protobuf::TransactionInBlock {
+                    txn: Some(protobuf::transaction_in_block::Txn::InvokeV3(invoke_v3.into())),
+                    transaction_hash: None,
+                },
+            },
+            Transaction::L1Handler(l1_handler) => protobuf::TransactionInBlock {
+                txn: Some(protobuf::transaction_in_block::Txn::L1Handler(l1_handler.into())),
+                transaction_hash: None,
+            },
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::DeployAccountV1> for DeployAccountTransactionV1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV1) -> Result<Self, Self::Error> {
@@ -421,6 +676,78 @@ impl TryFrom<protobuf::transaction::DeployAccountV1> for DeployAccountTransactio
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountTransactionV1 {
+    type Error = ProtobufConversionError;
+    fn try_from(
+        value: protobuf::transaction_in_block::DeployAccountV1,
+    ) -> Result<Self, Self::Error> {
+        let max_fee_felt =
+            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeployAccountV1::max_fee",
+            })?)?;
+        let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
+            ProtobufConversionError::OutOfRangeValue {
+                type_description: "u128",
+                value_as_str: format!("{max_fee_felt:?}"),
+            }
+        })?);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV1::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV1::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV1::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let contract_address_salt = ContractAddressSalt(
+            value
+                .address_salt
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV1::address_salt",
+                })?
+                .try_into()?,
+        );
+
+        let constructor_calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let constructor_calldata = Calldata(constructor_calldata.into());
+
+        Ok(Self {
+            max_fee,
+            signature,
+            nonce,
+            class_hash,
+            contract_address_salt,
+            constructor_calldata,
+        })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeployAccountTransactionV1> for protobuf::transaction::DeployAccountV1 {
     fn from(value: DeployAccountTransactionV1) -> Self {
         Self {
@@ -441,6 +768,27 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction::DeployAccountV1
     }
 }
 
+impl From<DeployAccountTransactionV1> for protobuf::transaction_in_block::DeployAccountV1 {
+    fn from(value: DeployAccountTransactionV1) -> Self {
+        Self {
+            max_fee: Some(Felt::from(value.max_fee.0).into()),
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            class_hash: Some(value.class_hash.0.into()),
+            address_salt: Some(value.contract_address_salt.0.into()),
+            calldata: value
+                .constructor_calldata
+                .0
+                .iter()
+                .map(|calldata| (*calldata).into())
+                .collect(),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
@@ -521,7 +869,121 @@ impl TryFrom<protobuf::transaction::DeployAccountV3> for DeployAccountTransactio
     }
 }
 
+impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::DeployAccountV3) -> Result<Self, Self::Error> {
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "DeployAccountV3::resource_bounds",
+            },
+        )?)?;
+
+        let tip = Tip(value.tip);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV3::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV3::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV3::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let contract_address_salt = ContractAddressSalt(
+            value
+                .address_salt
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeployAccountV3::address_salt",
+                })?
+                .try_into()?,
+        );
+
+        let constructor_calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let constructor_calldata = Calldata(constructor_calldata.into());
+
+        let nonce_data_availability_mode =
+            enum_int_to_volition_domain(value.nonce_data_availability_mode)?;
+
+        let fee_data_availability_mode =
+            enum_int_to_volition_domain(value.fee_data_availability_mode)?;
+
+        let paymaster_data = PaymasterData(
+            value.paymaster_data.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
+        );
+
+        Ok(Self {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            class_hash,
+            contract_address_salt,
+            constructor_calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+        })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3 {
+    fn from(value: DeployAccountTransactionV3) -> Self {
+        Self {
+            resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
+            tip: value.tip.0,
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            class_hash: Some(value.class_hash.0.into()),
+            address_salt: Some(value.contract_address_salt.0.into()),
+            calldata: value
+                .constructor_calldata
+                .0
+                .iter()
+                .map(|calldata| (*calldata).into())
+                .collect(),
+            nonce_data_availability_mode: volition_domain_to_enum_int(
+                value.nonce_data_availability_mode,
+            ),
+            fee_data_availability_mode: volition_domain_to_enum_int(
+                value.fee_data_availability_mode,
+            ),
+            paymaster_data: value
+                .paymaster_data
+                .0
+                .iter()
+                .map(|paymaster_data| (*paymaster_data).into())
+                .collect(),
+        }
+    }
+}
+
+impl From<DeployAccountTransactionV3> for protobuf::DeployAccountV3 {
     fn from(value: DeployAccountTransactionV3) -> Self {
         Self {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
@@ -633,6 +1095,7 @@ impl From<ValidResourceBounds> for protobuf::ResourceBounds {
     }
 }
 
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::InvokeV0> for InvokeTransactionV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV0) -> Result<Self, Self::Error> {
@@ -682,6 +1145,56 @@ impl TryFrom<protobuf::transaction::InvokeV0> for InvokeTransactionV0 {
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::transaction_in_block::InvokeV0) -> Result<Self, Self::Error> {
+        let max_fee_felt =
+            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
+                field_description: "InvokeV0::max_fee",
+            })?)?;
+        let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
+            ProtobufConversionError::OutOfRangeValue {
+                type_description: "u128",
+                value_as_str: format!("{max_fee_felt:?}"),
+            }
+        })?);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "InvokeV0::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let contract_address = value
+            .address
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "InvokeV0::address",
+            })?
+            .try_into()?;
+
+        let entry_point_selector_felt = Felt::try_from(value.entry_point_selector.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "InvokeV0::entry_point_selector",
+            },
+        )?)?;
+        let entry_point_selector = EntryPointSelector(entry_point_selector_felt);
+
+        let calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let calldata = Calldata(calldata.into());
+
+        Ok(Self { max_fee, signature, contract_address, entry_point_selector, calldata })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<InvokeTransactionV0> for protobuf::transaction::InvokeV0 {
     fn from(value: InvokeTransactionV0) -> Self {
         Self {
@@ -696,6 +1209,21 @@ impl From<InvokeTransactionV0> for protobuf::transaction::InvokeV0 {
     }
 }
 
+impl From<InvokeTransactionV0> for protobuf::transaction_in_block::InvokeV0 {
+    fn from(value: InvokeTransactionV0) -> Self {
+        Self {
+            max_fee: Some(Felt::from(value.max_fee.0).into()),
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+            }),
+            address: Some(value.contract_address.into()),
+            entry_point_selector: Some(value.entry_point_selector.0.into()),
+            calldata: value.calldata.0.iter().map(|calldata| (*calldata).into()).collect(),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::InvokeV1> for InvokeTransactionV1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV1) -> Result<Self, Self::Error> {
@@ -745,6 +1273,56 @@ impl TryFrom<protobuf::transaction::InvokeV1> for InvokeTransactionV1 {
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::transaction_in_block::InvokeV1) -> Result<Self, Self::Error> {
+        let max_fee_felt =
+            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
+                field_description: "InvokeV1::max_fee",
+            })?)?;
+        let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
+            ProtobufConversionError::OutOfRangeValue {
+                type_description: "u128",
+                value_as_str: format!("{max_fee_felt:?}"),
+            }
+        })?);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "InvokeV1::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let sender_address = value
+            .sender
+            .ok_or(ProtobufConversionError::MissingField { field_description: "InvokeV1::sender" })?
+            .try_into()?;
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "InvokeV1::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let calldata = Calldata(calldata.into());
+
+        Ok(Self { max_fee, signature, nonce, sender_address, calldata })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<InvokeTransactionV1> for protobuf::transaction::InvokeV1 {
     fn from(value: InvokeTransactionV1) -> Self {
         Self {
@@ -759,6 +1337,21 @@ impl From<InvokeTransactionV1> for protobuf::transaction::InvokeV1 {
     }
 }
 
+impl From<InvokeTransactionV1> for protobuf::transaction_in_block::InvokeV1 {
+    fn from(value: InvokeTransactionV1) -> Self {
+        Self {
+            max_fee: Some(Felt::from(value.max_fee.0).into()),
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+            }),
+            sender: Some(value.sender_address.into()),
+            nonce: Some(value.nonce.0.into()),
+            calldata: value.calldata.0.iter().map(|calldata| (*calldata).into()).collect(),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
@@ -834,6 +1427,82 @@ impl TryFrom<protobuf::transaction::InvokeV3> for InvokeTransactionV3 {
     }
 }
 
+impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "InvokeV3::resource_bounds",
+            },
+        )?)?;
+
+        let tip = Tip(value.tip);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "InvokeV3::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "InvokeV3::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let sender_address = value
+            .sender
+            .ok_or(ProtobufConversionError::MissingField { field_description: "InvokeV3::sender" })?
+            .try_into()?;
+
+        let calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let calldata = Calldata(calldata.into());
+
+        let nonce_data_availability_mode =
+            enum_int_to_volition_domain(value.nonce_data_availability_mode)?;
+
+        let fee_data_availability_mode =
+            enum_int_to_volition_domain(value.fee_data_availability_mode)?;
+
+        let paymaster_data = PaymasterData(
+            value.paymaster_data.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let account_deployment_data = AccountDeploymentData(
+            value
+                .account_deployment_data
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        Ok(Self {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            sender_address,
+            calldata,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+            account_deployment_data,
+        })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<InvokeTransactionV3> for protobuf::transaction::InvokeV3 {
     fn from(value: InvokeTransactionV3) -> Self {
         Self {
@@ -867,6 +1536,40 @@ impl From<InvokeTransactionV3> for protobuf::transaction::InvokeV3 {
     }
 }
 
+impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
+    fn from(value: InvokeTransactionV3) -> Self {
+        Self {
+            resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
+            tip: value.tip.0,
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            sender: Some(value.sender_address.into()),
+            calldata: value.calldata.0.iter().map(|calldata| (*calldata).into()).collect(),
+            nonce_data_availability_mode: volition_domain_to_enum_int(
+                value.nonce_data_availability_mode,
+            ),
+            fee_data_availability_mode: volition_domain_to_enum_int(
+                value.fee_data_availability_mode,
+            ),
+            paymaster_data: value
+                .paymaster_data
+                .0
+                .iter()
+                .map(|paymaster_data| (*paymaster_data).into())
+                .collect(),
+            account_deployment_data: value
+                .account_deployment_data
+                .0
+                .iter()
+                .map(|account_deployment_data| (*account_deployment_data).into())
+                .collect(),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::DeclareV0> for DeclareTransactionV0V1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV0) -> Result<Self, Self::Error> {
@@ -916,6 +1619,58 @@ impl TryFrom<protobuf::transaction::DeclareV0> for DeclareTransactionV0V1 {
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareTransactionV0V1 {
+    type Error = ProtobufConversionError;
+    fn try_from(
+        value: protobuf::transaction_in_block::DeclareV0WithoutClass,
+    ) -> Result<Self, Self::Error> {
+        let max_fee_felt =
+            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV0::max_fee",
+            })?)?;
+        let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
+            ProtobufConversionError::OutOfRangeValue {
+                type_description: "u128",
+                value_as_str: format!("{max_fee_felt:?}"),
+            }
+        })?);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV0::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        // V0 transactions don't have a nonce, but the StarkNet API adds one to them
+        let nonce = Nonce::default();
+
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV0::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let sender_address = value
+            .sender
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV0::sender",
+            })?
+            .try_into()?;
+
+        Ok(Self { max_fee, signature, nonce, class_hash, sender_address })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeclareTransactionV0V1> for protobuf::transaction::DeclareV0 {
     fn from(value: DeclareTransactionV0V1) -> Self {
         Self {
@@ -929,6 +1684,20 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction::DeclareV0 {
     }
 }
 
+impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV0WithoutClass {
+    fn from(value: DeclareTransactionV0V1) -> Self {
+        Self {
+            max_fee: Some(Felt::from(value.max_fee.0).into()),
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+            }),
+            sender: Some(value.sender_address.into()),
+            class_hash: Some(value.class_hash.0.into()),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::DeclareV1> for DeclareTransactionV0V1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV1) -> Result<Self, Self::Error> {
@@ -984,6 +1753,64 @@ impl TryFrom<protobuf::transaction::DeclareV1> for DeclareTransactionV0V1 {
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareTransactionV0V1 {
+    type Error = ProtobufConversionError;
+    fn try_from(
+        value: protobuf::transaction_in_block::DeclareV1WithoutClass,
+    ) -> Result<Self, Self::Error> {
+        let max_fee_felt =
+            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV1::max_fee",
+            })?)?;
+        let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
+            ProtobufConversionError::OutOfRangeValue {
+                type_description: "u128",
+                value_as_str: format!("{max_fee_felt:?}"),
+            }
+        })?);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV1::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV1::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV1::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let sender_address = value
+            .sender
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV1::sender",
+            })?
+            .try_into()?;
+
+        Ok(Self { max_fee, signature, nonce, class_hash, sender_address })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeclareTransactionV0V1> for protobuf::transaction::DeclareV1 {
     fn from(value: DeclareTransactionV0V1) -> Self {
         Self {
@@ -998,6 +1825,21 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction::DeclareV1 {
     }
 }
 
+impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV1WithoutClass {
+    fn from(value: DeclareTransactionV0V1) -> Self {
+        Self {
+            max_fee: Some(Felt::from(value.max_fee.0).into()),
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            class_hash: Some(value.class_hash.0.into()),
+            sender: Some(value.sender_address.into()),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::DeclareV2> for DeclareTransactionV2 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV2) -> Result<Self, Self::Error> {
@@ -1062,6 +1904,73 @@ impl TryFrom<protobuf::transaction::DeclareV2> for DeclareTransactionV2 {
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareTransactionV2 {
+    type Error = ProtobufConversionError;
+    fn try_from(
+        value: protobuf::transaction_in_block::DeclareV2WithoutClass,
+    ) -> Result<Self, Self::Error> {
+        let max_fee_felt =
+            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV2::max_fee",
+            })?)?;
+        let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
+            ProtobufConversionError::OutOfRangeValue {
+                type_description: "u128",
+                value_as_str: format!("{max_fee_felt:?}"),
+            }
+        })?);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV2::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV2::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV2::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let compiled_class_hash = CompiledClassHash(
+            value
+                .compiled_class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV2::compiled_class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let sender_address = value
+            .sender
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV2::sender",
+            })?
+            .try_into()?;
+
+        Ok(Self { max_fee, signature, nonce, class_hash, compiled_class_hash, sender_address })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeclareTransactionV2> for protobuf::transaction::DeclareV2 {
     fn from(value: DeclareTransactionV2) -> Self {
         Self {
@@ -1077,6 +1986,22 @@ impl From<DeclareTransactionV2> for protobuf::transaction::DeclareV2 {
     }
 }
 
+impl From<DeclareTransactionV2> for protobuf::transaction_in_block::DeclareV2WithoutClass {
+    fn from(value: DeclareTransactionV2) -> Self {
+        Self {
+            max_fee: Some(Felt::from(value.max_fee.0).into()),
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            class_hash: Some(value.class_hash.0.into()),
+            compiled_class_hash: Some(value.compiled_class_hash.0.into()),
+            sender: Some(value.sender_address.into()),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::DeclareV3) -> Result<Self, Self::Error> {
@@ -1168,6 +2093,205 @@ impl TryFrom<protobuf::transaction::DeclareV3> for DeclareTransactionV3 {
     }
 }
 
+/// Defined to match the protobuf schema.
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+struct DeclareTransactionV3Common {
+    pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub compiled_class_hash: CompiledClassHash,
+    pub sender_address: ContractAddress,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
+}
+
+impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::DeclareV3Common) -> Result<Self, Self::Error> {
+        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "DeclareV3Common::resource_bounds",
+            },
+        )?)?;
+
+        let tip = Tip(value.tip);
+
+        let signature = TransactionSignature(
+            value
+                .signature
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV3Common::signature",
+                })?
+                .parts
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV3Common::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let compiled_class_hash = CompiledClassHash(
+            value
+                .compiled_class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV3Common::compiled_class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let sender_address = value
+            .sender
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "DeclareV3Common::sender",
+            })?
+            .try_into()?;
+
+        let nonce_data_availability_mode =
+            enum_int_to_volition_domain(value.nonce_data_availability_mode)?;
+
+        let fee_data_availability_mode =
+            enum_int_to_volition_domain(value.fee_data_availability_mode)?;
+
+        let paymaster_data = PaymasterData(
+            value.paymaster_data.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?,
+        );
+
+        let account_deployment_data = AccountDeploymentData(
+            value
+                .account_deployment_data
+                .into_iter()
+                .map(Felt::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+
+        Ok(Self {
+            resource_bounds,
+            tip,
+            signature,
+            nonce,
+            compiled_class_hash,
+            sender_address,
+            nonce_data_availability_mode,
+            fee_data_availability_mode,
+            paymaster_data,
+            account_deployment_data,
+        })
+    }
+}
+
+impl From<DeclareTransactionV3Common> for protobuf::DeclareV3Common {
+    fn from(value: DeclareTransactionV3Common) -> Self {
+        Self {
+            resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
+            tip: value.tip.0,
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            compiled_class_hash: Some(value.compiled_class_hash.0.into()),
+            sender: Some(value.sender_address.into()),
+            nonce_data_availability_mode: volition_domain_to_enum_int(
+                value.nonce_data_availability_mode,
+            ),
+            fee_data_availability_mode: volition_domain_to_enum_int(
+                value.fee_data_availability_mode,
+            ),
+            paymaster_data: value
+                .paymaster_data
+                .0
+                .iter()
+                .map(|paymaster_data| (*paymaster_data).into())
+                .collect(),
+            account_deployment_data: value
+                .account_deployment_data
+                .0
+                .iter()
+                .map(|account_deployment_data| (*account_deployment_data).into())
+                .collect(),
+        }
+    }
+}
+
+impl TryFrom<protobuf::transaction_in_block::DeclareV3WithoutClass> for DeclareTransactionV3 {
+    type Error = ProtobufConversionError;
+    fn try_from(
+        value: protobuf::transaction_in_block::DeclareV3WithoutClass,
+    ) -> Result<Self, Self::Error> {
+        let common = DeclareTransactionV3Common::try_from(value.common.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "DeclareV3WithoutClass::common",
+            },
+        )?)?;
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "DeclareV3WithoutClass::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        Ok(Self {
+            resource_bounds: common.resource_bounds,
+            tip: common.tip,
+            signature: common.signature,
+            nonce: common.nonce,
+            class_hash,
+            compiled_class_hash: common.compiled_class_hash,
+            sender_address: common.sender_address,
+            nonce_data_availability_mode: common.nonce_data_availability_mode,
+            fee_data_availability_mode: common.fee_data_availability_mode,
+            paymaster_data: common.paymaster_data,
+            account_deployment_data: common.account_deployment_data,
+        })
+    }
+}
+
+impl From<DeclareTransactionV3> for protobuf::transaction_in_block::DeclareV3WithoutClass {
+    fn from(value: DeclareTransactionV3) -> Self {
+        let common = protobuf::DeclareV3Common {
+            resource_bounds: Some(value.resource_bounds.into()),
+            tip: value.tip.0,
+            signature: Some(protobuf::AccountSignature {
+                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+            }),
+            nonce: Some(value.nonce.0.into()),
+            compiled_class_hash: Some(value.compiled_class_hash.0.into()),
+            sender: Some(value.sender_address.into()),
+            nonce_data_availability_mode: volition_domain_to_enum_int(
+                value.nonce_data_availability_mode,
+            ),
+            fee_data_availability_mode: volition_domain_to_enum_int(
+                value.fee_data_availability_mode,
+            ),
+            paymaster_data: value
+                .paymaster_data
+                .0
+                .iter()
+                .map(|paymaster_data| (*paymaster_data).into())
+                .collect(),
+            account_deployment_data: value
+                .account_deployment_data
+                .0
+                .iter()
+                .map(|account_deployment_data| (*account_deployment_data).into())
+                .collect(),
+        };
+        Self { common: Some(common), class_hash: Some(value.class_hash.0.into()) }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeclareTransactionV3> for protobuf::transaction::DeclareV3 {
     fn from(value: DeclareTransactionV3) -> Self {
         Self {
@@ -1202,6 +2326,39 @@ impl From<DeclareTransactionV3> for protobuf::transaction::DeclareV3 {
     }
 }
 
+impl TryFrom<protobuf::transaction_in_block::Deploy> for DeployTransaction {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::transaction_in_block::Deploy) -> Result<Self, Self::Error> {
+        let version = TransactionVersion(Felt::from(value.version));
+
+        let class_hash = ClassHash(
+            value
+                .class_hash
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "Deploy::class_hash",
+                })?
+                .try_into()?,
+        );
+
+        let contract_address_salt = ContractAddressSalt(
+            value
+                .address_salt
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "Deploy::address_salt",
+                })?
+                .try_into()?,
+        );
+
+        let constructor_calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let constructor_calldata = Calldata(constructor_calldata.into());
+
+        Ok(Self { version, class_hash, contract_address_salt, constructor_calldata })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::Deploy> for DeployTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::Deploy) -> Result<Self, Self::Error> {
@@ -1234,6 +2391,23 @@ impl TryFrom<protobuf::transaction::Deploy> for DeployTransaction {
     }
 }
 
+impl From<DeployTransaction> for protobuf::transaction_in_block::Deploy {
+    fn from(value: DeployTransaction) -> Self {
+        Self {
+            version: try_from_starkfelt_to_u32(value.version.0).unwrap_or_default(),
+            class_hash: Some(value.class_hash.0.into()),
+            address_salt: Some(value.contract_address_salt.0.into()),
+            calldata: value
+                .constructor_calldata
+                .0
+                .iter()
+                .map(|calldata| (*calldata).into())
+                .collect(),
+        }
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<DeployTransaction> for protobuf::transaction::Deploy {
     fn from(value: DeployTransaction) -> Self {
         Self {
@@ -1250,6 +2424,7 @@ impl From<DeployTransaction> for protobuf::transaction::Deploy {
     }
 }
 
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::L1HandlerV0) -> Result<Self, Self::Error> {
@@ -1287,7 +2462,56 @@ impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
     }
 }
 
+impl TryFrom<protobuf::L1HandlerV0> for L1HandlerTransaction {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::L1HandlerV0) -> Result<Self, Self::Error> {
+        let version = L1HandlerTransaction::VERSION;
+
+        let nonce = Nonce(
+            value
+                .nonce
+                .ok_or(ProtobufConversionError::MissingField {
+                    field_description: "L1HandlerV0::nonce",
+                })?
+                .try_into()?,
+        );
+
+        let contract_address = value
+            .address
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "L1HandlerV0::address",
+            })?
+            .try_into()?;
+
+        let entry_point_selector_felt = Felt::try_from(value.entry_point_selector.ok_or(
+            ProtobufConversionError::MissingField {
+                field_description: "L1HandlerV0::entry_point_selector",
+            },
+        )?)?;
+        let entry_point_selector = EntryPointSelector(entry_point_selector_felt);
+
+        let calldata =
+            value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let calldata = Calldata(calldata.into());
+
+        Ok(Self { version, nonce, contract_address, entry_point_selector, calldata })
+    }
+}
+
+// TODO(alonl): remove once Transaction is replaced with TransacitonInBlock
 impl From<L1HandlerTransaction> for protobuf::transaction::L1HandlerV0 {
+    fn from(value: L1HandlerTransaction) -> Self {
+        Self {
+            nonce: Some(value.nonce.0.into()),
+            address: Some(value.contract_address.into()),
+            entry_point_selector: Some(value.entry_point_selector.0.into()),
+            calldata: value.calldata.0.iter().map(|calldata| (*calldata).into()).collect(),
+        }
+    }
+}
+
+impl From<L1HandlerTransaction> for protobuf::L1HandlerV0 {
     fn from(value: L1HandlerTransaction) -> Self {
         Self {
             nonce: Some(value.nonce.0.into()),
@@ -1335,18 +2559,18 @@ auto_impl_into_and_try_from_vec_u8!(TransactionQuery, protobuf::TransactionsRequ
 
 pub fn set_price_unit_based_on_transaction(
     receipt: &mut protobuf::Receipt,
-    transaction: &protobuf::Transaction,
+    transaction: &protobuf::TransactionInBlock,
 ) {
     let price_unit = match &transaction.txn {
-        Some(protobuf::transaction::Txn::DeclareV1(_)) => protobuf::PriceUnit::Wei,
-        Some(protobuf::transaction::Txn::DeclareV2(_)) => protobuf::PriceUnit::Wei,
-        Some(protobuf::transaction::Txn::DeclareV3(_)) => protobuf::PriceUnit::Fri,
-        Some(protobuf::transaction::Txn::Deploy(_)) => protobuf::PriceUnit::Wei,
-        Some(protobuf::transaction::Txn::DeployAccountV1(_)) => protobuf::PriceUnit::Wei,
-        Some(protobuf::transaction::Txn::DeployAccountV3(_)) => protobuf::PriceUnit::Fri,
-        Some(protobuf::transaction::Txn::InvokeV1(_)) => protobuf::PriceUnit::Wei,
-        Some(protobuf::transaction::Txn::InvokeV3(_)) => protobuf::PriceUnit::Fri,
-        Some(protobuf::transaction::Txn::L1Handler(_)) => protobuf::PriceUnit::Wei,
+        Some(protobuf::transaction_in_block::Txn::DeclareV1(_)) => protobuf::PriceUnit::Wei,
+        Some(protobuf::transaction_in_block::Txn::DeclareV2(_)) => protobuf::PriceUnit::Wei,
+        Some(protobuf::transaction_in_block::Txn::DeclareV3(_)) => protobuf::PriceUnit::Fri,
+        Some(protobuf::transaction_in_block::Txn::Deploy(_)) => protobuf::PriceUnit::Wei,
+        Some(protobuf::transaction_in_block::Txn::DeployAccountV1(_)) => protobuf::PriceUnit::Wei,
+        Some(protobuf::transaction_in_block::Txn::DeployAccountV3(_)) => protobuf::PriceUnit::Fri,
+        Some(protobuf::transaction_in_block::Txn::InvokeV1(_)) => protobuf::PriceUnit::Wei,
+        Some(protobuf::transaction_in_block::Txn::InvokeV3(_)) => protobuf::PriceUnit::Fri,
+        Some(protobuf::transaction_in_block::Txn::L1Handler(_)) => protobuf::PriceUnit::Wei,
         _ => return,
     };
     let Some(ref mut receipt_type) = receipt.r#type else {
