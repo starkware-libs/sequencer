@@ -532,6 +532,7 @@ fn user_deprecated_contract_class_to_sn_api(
     })
 }
 
+// TODO(Ayelet): Change to From function.
 impl TryFrom<DeployAccountTransaction> for starknet_api::transaction::DeployAccountTransaction {
     type Error = ErrorObjectOwned;
     fn try_from(tx: DeployAccountTransaction) -> Result<Self, Self::Error> {
@@ -565,7 +566,7 @@ impl TryFrom<DeployAccountTransaction> for starknet_api::transaction::DeployAcco
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
             }) => Self::V3(starknet_api::transaction::DeployAccountTransactionV3 {
-                resource_bounds: resource_bounds.try_into()?,
+                resource_bounds: resource_bounds.into(),
                 tip,
                 signature,
                 nonce,
@@ -580,6 +581,7 @@ impl TryFrom<DeployAccountTransaction> for starknet_api::transaction::DeployAcco
     }
 }
 
+// TODO(Ayelet): Change to From function.
 impl TryFrom<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
     type Error = ErrorObjectOwned;
     fn try_from(value: InvokeTransaction) -> Result<Self, Self::Error> {
@@ -625,7 +627,7 @@ impl TryFrom<InvokeTransaction> for starknet_api::transaction::InvokeTransaction
                 nonce_data_availability_mode,
                 fee_data_availability_mode,
             }) => Self::V3(starknet_api::transaction::InvokeTransactionV3 {
-                resource_bounds: resource_bounds.try_into()?,
+                resource_bounds: resource_bounds.into(),
                 tip,
                 signature,
                 nonce,

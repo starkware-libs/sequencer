@@ -38,6 +38,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use starknet_api::transaction::{
     DeployTransaction,
@@ -154,6 +155,7 @@ impl From<starknet_api::transaction::DeclareTransactionV2> for DeclareTransactio
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct ResourceBoundsMapping {
     pub l1_gas: ResourceBounds,
+    pub l1_data_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
 }
 
@@ -161,7 +163,14 @@ impl From<ResourceBoundsMapping>
     for starknet_api::transaction::fields::DeprecatedResourceBoundsMapping
 {
     fn from(value: ResourceBoundsMapping) -> Self {
-        Self([(Resource::L1Gas, value.l1_gas), (Resource::L2Gas, value.l2_gas)].into())
+        Self(
+            [
+                (Resource::L1Gas, value.l1_gas),
+                (Resource::L1DataGas, value.l1_data_gas),
+                (Resource::L2Gas, value.l2_gas),
+            ]
+            .into(),
+        )
     }
 }
 
@@ -171,31 +180,35 @@ impl From<starknet_api::transaction::fields::DeprecatedResourceBoundsMapping>
     fn from(value: starknet_api::transaction::fields::DeprecatedResourceBoundsMapping) -> Self {
         Self {
             l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
+            l1_data_gas: value.0.get(&Resource::L1DataGas).cloned().unwrap_or_default(),
             l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
         }
     }
 }
 
-impl TryFrom<ResourceBoundsMapping> for starknet_api::transaction::fields::ValidResourceBounds {
-    type Error = ErrorObjectOwned;
-    fn try_from(value: ResourceBoundsMapping) -> Result<Self, Self::Error> {
-        if !value.l2_gas.is_zero() {
-            Err(internal_server_error("Got a transaction with non zero l2 gas."))
-        } else {
-            Ok(Self::L1Gas(value.l1_gas))
-        }
+impl From<ResourceBoundsMapping> for ValidResourceBounds {
+    fn from(value: ResourceBoundsMapping) -> Self {
+        Self::AllResources(AllResourceBounds {
+            l1_gas: value.l1_gas,
+            l1_data_gas: value.l1_data_gas,
+            l2_gas: value.l2_gas,
+        })
     }
 }
 
-impl From<starknet_api::transaction::fields::ValidResourceBounds> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::fields::ValidResourceBounds) -> Self {
+impl From<ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: ValidResourceBounds) -> Self {
         match value {
-            starknet_api::transaction::fields::ValidResourceBounds::L1Gas(l1_gas) => {
-                Self { l1_gas, l2_gas: ResourceBounds::default() }
-            }
-            starknet_api::transaction::fields::ValidResourceBounds::AllResources(
-                AllResourceBounds { l1_gas, l2_gas, .. },
-            ) => Self { l1_gas, l2_gas },
+            ValidResourceBounds::L1Gas(l1_gas) => Self {
+                l1_gas,
+                l1_data_gas: ResourceBounds::default(),
+                l2_gas: ResourceBounds::default(),
+            },
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l1_data_gas,
+                l2_gas,
+            }) => Self { l1_gas, l1_data_gas, l2_gas },
         }
     }
 }
@@ -845,7 +858,8 @@ pub struct L1HandlerTransactionOutput {
 }
 
 // Note: This is not the same as the Builtins in starknet_api, the serialization of SegmentArena is
-// different. TODO(yair): remove this once a newer version of the API is published.
+// different.
+// TODO(yair): remove this once a newer version of the API is published.
 #[derive(Debug, Clone, Eq, Hash, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
 pub enum Builtin {
     #[serde(rename = "range_check_builtin_applications")]
