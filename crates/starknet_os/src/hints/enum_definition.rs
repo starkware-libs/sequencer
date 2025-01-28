@@ -46,6 +46,68 @@ use crate::hints::execute_transactions::{
     sha2_finalize,
     start_tx_validate_declare_execution_context,
 };
+use crate::hints::execution::{
+    add_relocation_rule,
+    assert_transaction_hash,
+    cache_contract_storage_request_key,
+    cache_contract_storage_syscall_request_address,
+    check_execution,
+    check_is_deprecated,
+    check_new_deploy_response,
+    check_new_syscall_response,
+    check_syscall_response,
+    contract_address,
+    end_tx,
+    enter_call,
+    enter_scope_deprecated_syscall_handler,
+    enter_scope_descend_edge,
+    enter_scope_left_child,
+    enter_scope_new_node,
+    enter_scope_next_node_bit_0,
+    enter_scope_next_node_bit_1,
+    enter_scope_node,
+    enter_scope_right_child,
+    enter_scope_syscall_handler,
+    enter_syscall_scopes,
+    exit_call,
+    exit_tx,
+    fetch_result,
+    gen_class_hash_arg,
+    gen_signature_arg,
+    get_block_hash_contract_address_state_entry_and_set_new_state_entry,
+    get_contract_address_state_entry,
+    get_contract_address_state_entry_and_set_new_state_entry,
+    get_old_block_number_and_hash,
+    initial_ge_required_gas,
+    is_deprecated,
+    is_reverted,
+    load_next_tx,
+    log_enter_syscall,
+    os_context_segments,
+    prepare_constructor_execution,
+    resource_bounds,
+    set_ap_to_tx_nonce,
+    set_fp_plus_4_to_tx_nonce,
+    set_state_entry_to_account_contract_address,
+    start_tx,
+    transaction_version,
+    tx_account_deployment_data,
+    tx_account_deployment_data_len,
+    tx_calldata,
+    tx_calldata_len,
+    tx_entry_point_selector,
+    tx_fee_data_availability_mode,
+    tx_max_fee,
+    tx_nonce,
+    tx_nonce_data_availability_mode,
+    tx_paymaster_data,
+    tx_paymaster_data_len,
+    tx_resource_bounds_len,
+    tx_tip,
+    write_old_block_to_storage,
+    write_syscall_result,
+    write_syscall_result_deprecated,
+};
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -365,7 +427,511 @@ w = compute_message_schedule(message)
 output = sha2_compress_function(IV, w)
 padding = (message + IV + output) * number_of_missing_blocks
 segments.write_arg(ids.sha256_ptr_end, padding)"#}
+    ),
+    (
+        LoadNextTx,
+        load_next_tx,
+        indoc! {r#"
+        tx = next(transactions)
+        assert tx.tx_type.name in ('INVOKE_FUNCTION', 'L1_HANDLER', 'DEPLOY_ACCOUNT', 'DECLARE'), (
+            f"Unexpected transaction type: {tx.type.name}."
+        )
+
+        tx_type_bytes = tx.tx_type.name.encode("ascii")
+        ids.tx_type = int.from_bytes(tx_type_bytes, "big")
+        execution_helper.os_logger.enter_tx(
+            tx=tx,
+            n_steps=current_step,
+            builtin_ptrs=ids.builtin_ptrs,
+            range_check_ptr=ids.range_check_ptr,
+        )
+
+        # Prepare a short callable to save code duplication.
+        exit_tx = lambda: execution_helper.os_logger.exit_tx(
+            n_steps=current_step,
+            builtin_ptrs=ids.builtin_ptrs,
+            range_check_ptr=ids.range_check_ptr,
+        )"#
+        }
+    ),
+    (ExitTx, exit_tx, "exit_tx()"),
+    (
+        PrepareConstructorExecution,
+        prepare_constructor_execution,
+        indoc! {r#"
+    ids.contract_address_salt = tx.contract_address_salt
+    ids.class_hash = tx.class_hash
+    ids.constructor_calldata_size = len(tx.constructor_calldata)
+    ids.constructor_calldata = segments.gen_arg(arg=tx.constructor_calldata)"#
+        }
+    ),
+    (TransactionVersion, transaction_version, "memory[ap] = to_felt_or_relocatable(tx.version)"),
+    (
+        AssertTransactionHash,
+        assert_transaction_hash,
+        indoc! {r#"
+    assert ids.transaction_hash == tx.hash_value, (
+        "Computed transaction_hash is inconsistent with the hash in the transaction. "
+        f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")"#
+        }
+    ),
+    (
+        EnterScopeDeprecatedSyscallHandler,
+        enter_scope_deprecated_syscall_handler,
+        "vm_enter_scope({'syscall_handler': deprecated_syscall_handler})"
+    ),
+    (
+        EnterScopeSyscallHandler,
+        enter_scope_syscall_handler,
+        "vm_enter_scope({'syscall_handler': syscall_handler})"
+    ),
+    (
+        GetContractAddressStateEntry,
+        get_contract_address_state_entry,
+        indoc! {r#"
+    # Fetch a state_entry in this hint and validate it in the update at the end
+    # of this function.
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
+        }
+    ),
+    (
+        SetStateEntryToAccountContractAddress,
+        set_state_entry_to_account_contract_address,
+        indoc! {r#"
+    # Fetch a state_entry in this hint and validate it in the update that comes next.
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
+        ids.tx_info.account_contract_address
+    ]"#
+        }
+    ),
+    (
+        GetBlockHashContractAddressStateEntryAndSetNewStateEntry,
+        get_block_hash_contract_address_state_entry_and_set_new_state_entry,
+        indoc! {r#"
+	# Fetch a state_entry in this hint. Validate it in the update that comes next.
+	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
+	    ids.BLOCK_HASH_CONTRACT_ADDRESS]
+	ids.new_state_entry = segments.add()"#
+        }
+    ),
+    (
+        GetContractAddressStateEntryAndSetNewStateEntry,
+        get_contract_address_state_entry_and_set_new_state_entry,
+        indoc! {r#"
+    # Fetch a state_entry in this hint and validate it in the update that comes next.
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
+    ids.new_state_entry = segments.add()"#
+        }
+    ),
+    (
+        GetContractAddressStateEntryAndSetNewStateEntry2,
+        get_contract_address_state_entry_and_set_new_state_entry,
+        indoc! {r#"
+	# Fetch a state_entry in this hint and validate it in the update that comes next.
+	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
+	    ids.contract_address
+	]
+
+	ids.new_state_entry = segments.add()"#
+        }
+    ),
+    (
+        CheckIsDeprecated,
+        check_is_deprecated,
+        "is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0"
+    ),
+    (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
+    (
+        OsContextSegments,
+        os_context_segments,
+        indoc! {r#"
+    ids.os_context = segments.add()
+    ids.syscall_ptr = segments.add()"#
+        }
+    ),
+    (
+        EnterSyscallScopes,
+        enter_syscall_scopes,
+        indoc! {r#"vm_enter_scope({
+        '__deprecated_class_hashes': __deprecated_class_hashes,
+        'transactions': iter(os_input.transactions),
+        'component_hashes': os_input.declared_class_hash_to_component_hashes,
+        'execution_helper': execution_helper,
+        'deprecated_syscall_handler': deprecated_syscall_handler,
+        'syscall_handler': syscall_handler,
+         '__dict_manager': __dict_manager,
+    })"#
+        }
+    ),
+    (EndTx, end_tx, "execution_helper.end_tx()"),
+    (
+        EnterCall,
+        enter_call,
+        indoc! {r#"
+    execution_helper.enter_call(
+        cairo_execution_info=ids.execution_context.execution_info)"#}
+    ),
+    (ExitCall, exit_call, "execution_helper.exit_call()"),
+    (
+        ContractAddress,
+        contract_address,
+        indoc! {r#"
+    from starkware.starknet.business_logic.transaction.deprecated_objects import (
+        InternalL1Handler,
     )
+    ids.contract_address = (
+        tx.contract_address if isinstance(tx, InternalL1Handler) else tx.sender_address
+    )"#
+        }
+    ),
+    (TxCalldataLen, tx_calldata_len, "memory[ap] = to_felt_or_relocatable(len(tx.calldata))"),
+    (TxCalldata, tx_calldata, "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.calldata))"),
+    (
+        TxEntryPointSelector,
+        tx_entry_point_selector,
+        "memory[ap] = to_felt_or_relocatable(tx.entry_point_selector)"
+    ),
+    (
+        ResourceBounds,
+        resource_bounds,
+        indoc! {r#"
+    from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
+        create_resource_bounds_list,
+    )
+
+    ids.resource_bounds = (
+        0
+        if tx.version < 3
+        else segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))
+    )"#
+        }
+    ),
+    (
+        TxMaxFee,
+        tx_max_fee,
+        "memory[ap] = to_felt_or_relocatable(tx.max_fee if tx.version < 3 else 0)"
+    ),
+    (TxNonce, tx_nonce, "memory[ap] = to_felt_or_relocatable(0 if tx.nonce is None else tx.nonce)"),
+    (TxTip, tx_tip, "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else tx.tip)"),
+    (
+        TxResourceBoundsLen,
+        tx_resource_bounds_len,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else len(tx.resource_bounds))"
+    ),
+    (
+        TxPaymasterDataLen,
+        tx_paymaster_data_len,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else len(tx.paymaster_data))"
+    ),
+    (
+        TxPaymasterData,
+        tx_paymaster_data,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
+         segments.gen_arg(tx.paymaster_data))"
+    ),
+    (
+        TxNonceDataAvailabilityMode,
+        tx_nonce_data_availability_mode,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
+         tx.nonce_data_availability_mode)"
+    ),
+    (
+        TxFeeDataAvailabilityMode,
+        tx_fee_data_availability_mode,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
+         tx.fee_data_availability_mode)"
+    ),
+    (
+        TxAccountDeploymentDataLen,
+        tx_account_deployment_data_len,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
+         len(tx.account_deployment_data))"
+    ),
+    (
+        TxAccountDeploymentData,
+        tx_account_deployment_data,
+        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
+         segments.gen_arg(tx.account_deployment_data))"
+    ),
+    (
+        GenSignatureArg,
+        gen_signature_arg,
+        indoc! {r#"
+	ids.signature_start = segments.gen_arg(arg=tx.signature)
+	ids.signature_len = len(tx.signature)"#
+        }
+    ),
+    (
+        StartTx,
+        start_tx,
+        indoc! {r#"
+    tx_info_ptr = ids.tx_execution_context.deprecated_tx_info.address_
+    execution_helper.start_tx(tx_info_ptr=tx_info_ptr)"#
+        }
+    ),
+    (
+        IsReverted,
+        is_reverted,
+        "memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.is_reverted)"
+    ),
+    (
+        CheckExecution,
+        check_execution,
+        indoc! {r#"
+    return_values = ids.entry_point_return_values
+    if return_values.failure_flag != 0:
+        # Fetch the error, up to 100 elements.
+        retdata_size = return_values.retdata_end - return_values.retdata_start
+        error = memory.get_range(return_values.retdata_start, max(0, min(100, retdata_size)))
+
+        print("Invalid return value in execute_entry_point:")
+        print(f"  Class hash: {hex(ids.execution_context.class_hash)}")
+        print(f"  Selector: {hex(ids.execution_context.execution_info.selector)}")
+        print(f"  Size: {retdata_size}")
+        print(f"  Error (at most 100 elements): {error}")
+
+    if execution_helper.debug_mode:
+        # Validate the predicted gas cost.
+        actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
+        predicted = execution_helper.call_info.gas_consumed
+        assert actual == predicted, (
+            "Predicted gas costs are inconsistent with the actual execution; "
+            f"{predicted=}, {actual=}."
+        )
+
+    # Exit call.
+    syscall_handler.validate_and_discard_syscall_ptr(
+        syscall_ptr_end=ids.entry_point_return_values.syscall_ptr
+    )
+    execution_helper.exit_call()"#
+        }
+    ),
+    (
+        CheckSyscallResponse,
+        check_syscall_response,
+        indoc! {r#"
+	# Check that the actual return value matches the expected one.
+	expected = memory.get_range(
+	    addr=ids.call_response.retdata, size=ids.call_response.retdata_size
+	)
+	actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
+
+	assert expected == actual, f'Return value mismatch expected={expected}, actual={actual}.'"#
+        }
+    ),
+    (
+        CheckNewSyscallResponse,
+        check_new_syscall_response,
+        indoc! {r#"
+	# Check that the actual return value matches the expected one.
+	expected = memory.get_range(
+	    addr=ids.response.retdata_start,
+	    size=ids.response.retdata_end - ids.response.retdata_start,
+	)
+	actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
+
+	assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'"#
+        }
+    ),
+    (
+        CheckNewDeployResponse,
+        check_new_deploy_response,
+        indoc! {r#"
+	# Check that the actual return value matches the expected one.
+	expected = memory.get_range(
+	    addr=ids.response.constructor_retdata_start,
+	    size=ids.response.constructor_retdata_end - ids.response.constructor_retdata_start,
+	)
+	actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
+	assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'"#
+        }
+    ),
+    (
+        LogEnterSyscall,
+        log_enter_syscall,
+        indoc! {r#"
+    execution_helper.os_logger.enter_syscall(
+        n_steps=current_step,
+        builtin_ptrs=ids.builtin_ptrs,
+        range_check_ptr=ids.range_check_ptr,
+        deprecated=False,
+        selector=ids.selector,
+    )
+
+    # Prepare a short callable to save code duplication.
+    exit_syscall = lambda selector: execution_helper.os_logger.exit_syscall(
+        n_steps=current_step,
+        builtin_ptrs=ids.builtin_ptrs,
+        range_check_ptr=ids.range_check_ptr,
+        selector=selector,
+    )"#
+        }
+    ),
+    (
+        InitialGeRequiredGas,
+        initial_ge_required_gas,
+        "memory[ap] = to_felt_or_relocatable(ids.initial_gas >= ids.required_gas)"
+    ),
+    (
+        AddRelocationRule,
+        add_relocation_rule,
+        "memory.add_relocation_rule(src_ptr=ids.src_ptr, dest_ptr=ids.dest_ptr)"
+    ),
+    (SetApToTxNonce, set_ap_to_tx_nonce, "memory[ap] = to_felt_or_relocatable(tx.nonce)"),
+    (
+        SetFpPlus4ToTxNonce,
+        set_fp_plus_4_to_tx_nonce,
+        "memory[fp + 4] = to_felt_or_relocatable(tx.nonce)"
+    ),
+    (EnterScopeNode, enter_scope_node, "vm_enter_scope(dict(node=node, **common_args))"),
+    (
+        EnterScopeNewNode,
+        enter_scope_new_node,
+        indoc! {r#"
+	ids.child_bit = 0 if case == 'left' else 1
+	new_node = left_child if case == 'left' else right_child
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        EnterScopeNextNodeBit0,
+        enter_scope_next_node_bit_0,
+        indoc! {r#"
+	new_node = left_child if ids.bit == 0 else right_child
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        EnterScopeNextNodeBit1,
+        enter_scope_next_node_bit_1,
+        indoc! {r#"
+	new_node = left_child if ids.bit == 1 else right_child
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        EnterScopeLeftChild,
+        enter_scope_left_child,
+        "vm_enter_scope(dict(node=left_child, **common_args))"
+    ),
+    (
+        EnterScopeRightChild,
+        enter_scope_right_child,
+        "vm_enter_scope(dict(node=right_child, **common_args))"
+    ),
+    (
+        EnterScopeDescendEdge,
+        enter_scope_descend_edge,
+        indoc! {r#"
+	new_node = node
+	for i in range(ids.length - 1, -1, -1):
+	    new_node = new_node[(ids.word >> i) & 1]
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        WriteSyscallResultDeprecated,
+        write_syscall_result_deprecated,
+        indoc! {r#"
+	storage = execution_helper.storage_by_address[ids.contract_address]
+	ids.prev_value = storage.read(key=ids.syscall_ptr.address)
+	storage.write(key=ids.syscall_ptr.address, value=ids.syscall_ptr.value)
+
+	# Fetch a state_entry in this hint and validate it in the update that comes next.
+	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
+
+	ids.new_state_entry = segments.add()"#
+        }
+    ),
+    (
+        WriteSyscallResult,
+        write_syscall_result,
+        indoc! {r#"
+    storage = execution_helper.storage_by_address[ids.contract_address]
+    ids.prev_value = storage.read(key=ids.request.key)
+    storage.write(key=ids.request.key, value=ids.request.value)
+
+    # Fetch a state_entry in this hint and validate it in the update that comes next.
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
+    ids.new_state_entry = segments.add()"#
+        }
+    ),
+    (
+        GenClassHashArg,
+        gen_class_hash_arg,
+        indoc! {r#"
+    ids.tx_version = tx.version
+    ids.sender_address = tx.sender_address
+    ids.class_hash_ptr = segments.gen_arg([tx.class_hash])
+    if tx.version <= 1:
+        assert tx.compiled_class_hash is None, (
+            "Deprecated declare must not have compiled_class_hash."
+        )
+        ids.compiled_class_hash = 0
+    else:
+        assert tx.compiled_class_hash is not None, (
+            "Declare must have a concrete compiled_class_hash."
+        )
+        ids.compiled_class_hash = tx.compiled_class_hash"#
+        }
+    ),
+    (
+        WriteOldBlockToStorage,
+        write_old_block_to_storage,
+        indoc! {r#"
+	storage = execution_helper.storage_by_address[ids.BLOCK_HASH_CONTRACT_ADDRESS]
+	storage.write(key=ids.old_block_number, value=ids.old_block_hash)"#
+        }
+    ),
+    (
+        CacheContractStorageRequestKey,
+        cache_contract_storage_request_key,
+        indoc! {r#"
+	# Make sure the value is cached (by reading it), to be used later on for the
+	# commitment computation.
+	value = execution_helper.storage_by_address[ids.contract_address].read(key=ids.request.key)
+	assert ids.value == value, "Inconsistent storage value.""#
+        }
+    ),
+    (
+        CacheContractStorageSyscallRequestAddress,
+        cache_contract_storage_syscall_request_address,
+        indoc! {r#"
+	# Make sure the value is cached (by reading it), to be used later on for the
+	# commitment computation.
+	value = execution_helper.storage_by_address[ids.contract_address].read(
+	    key=ids.syscall_ptr.request.address
+	)
+	assert ids.value == value, "Inconsistent storage value.""#
+        }
+    ),
+    (
+        GetOldBlockNumberAndHash,
+        get_old_block_number_and_hash,
+        indoc! {r#"
+	(
+	    old_block_number, old_block_hash
+	) = execution_helper.get_old_block_number_and_hash()
+	assert old_block_number == ids.old_block_number,(
+	    "Inconsistent block number. "
+	    "The constant STORED_BLOCK_HASH_BUFFER is probably out of sync."
+	)
+	ids.old_block_hash = old_block_hash"#
+        }
+    ),
+    (
+        FetchResult,
+        fetch_result,
+        indoc! {r#"
+    # Fetch the result, up to 100 elements.
+    result = memory.get_range(ids.retdata, min(100, ids.retdata_size))
+
+    if result != [ids.VALIDATED]:
+        print("Invalid return value from __validate__:")
+        print(f"  Size: {ids.retdata_size}")
+        print(f"  Result (at most 100 elements): {result}")"#
+        }
+    ),
 );
 
 define_hint_extension_enum!(
