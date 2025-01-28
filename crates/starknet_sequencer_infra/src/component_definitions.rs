@@ -35,11 +35,16 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
+pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() -> Result<(), ComponentError>
+{
+    info!("Starting component {} with the default starter.", short_type_name::<T>());
+    Ok(())
+}
+
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {} with the default starter.", short_type_name::<Self>());
-        Ok(())
+        default_component_start_fn::<Self>().await
     }
 }
 
