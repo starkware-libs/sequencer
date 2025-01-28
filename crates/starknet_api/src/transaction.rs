@@ -164,7 +164,7 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
                 executable_transaction::L1HandlerTransaction {
                     tx,
                     tx_hash,
-                    // TODO (yael 1/12/2024): The paid fee should be an input from the l1_handler.
+                    // TODO(yael 1/12/2024): The paid fee should be an input from the l1_handler.
                     paid_fee_on_l1: Fee(1),
                 },
             )),
@@ -335,6 +335,20 @@ impl TransactionHasher for DeclareTransactionV3 {
     ) -> Result<TransactionHash, StarknetApiError> {
         get_declare_transaction_v3_hash(self, chain_id, transaction_version)
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct DeclareTransactionV3Common {
+    pub resource_bounds: ValidResourceBounds,
+    pub tip: Tip,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub compiled_class_hash: CompiledClassHash,
+    pub sender_address: ContractAddress,
+    pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
+    pub paymaster_data: PaymasterData,
+    pub account_deployment_data: AccountDeploymentData,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]

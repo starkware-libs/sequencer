@@ -4,16 +4,8 @@ mod transaction_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
-use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    Nonce,
-};
-use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -32,6 +24,7 @@ use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
+    DeclareTransactionV3Common,
     DeployAccountTransaction,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
@@ -991,21 +984,6 @@ impl From<DeclareTransactionV2> for protobuf::transaction_in_block::DeclareV2Wit
             sender: Some(value.sender_address.into()),
         }
     }
-}
-
-/// Defined to match the protobuf schema.
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-struct DeclareTransactionV3Common {
-    pub resource_bounds: ValidResourceBounds,
-    pub tip: Tip,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub compiled_class_hash: CompiledClassHash,
-    pub sender_address: ContractAddress,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
 }
 
 impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
