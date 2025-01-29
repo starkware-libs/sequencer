@@ -9,7 +9,7 @@ WORKDIR /app
 COPY . .
 RUN cargo build --bin starknet_sequencer_node
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 as final_stage
 
 ENV ID=1001
 WORKDIR /app

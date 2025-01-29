@@ -8,7 +8,7 @@ FROM base AS builder
 COPY . .
 RUN cargo build --release --package papyrus_node
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 as final_stage
 
 ENV ID=1001
 WORKDIR /app
