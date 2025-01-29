@@ -11,17 +11,17 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_fl
 use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
-use crate::commands::commit;
-use crate::parse_input::read::parse_input;
-use crate::tests::utils::parse_from_python::TreeFlowInput;
+use crate::committer_cli::commands::commit;
+use crate::committer_cli::parse_input::read::parse_input;
+use crate::committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 
 // TODO(Aner, 20/06/2024): these tests needs to be fixed to be run correctly in the CI:
 // 1. Fix the test to measure cpu_time and not wall_time.
 // 2. Fix the max time threshold to be the expected time for the benchmark test.
 const MAX_TIME_FOR_SINGLE_TREE_BECHMARK_TEST: f64 = 5.0;
 const MAX_TIME_FOR_COMMITTER_FLOW_BECHMARK_TEST: f64 = 5.0;
-const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../../test_inputs/tree_flow_inputs.json");
-const FLOW_TEST_INPUT: &str = include_str!("../../test_inputs/committer_flow_inputs.json");
+const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../../../test_inputs/tree_flow_inputs.json");
+const FLOW_TEST_INPUT: &str = include_str!("../../../test_inputs/committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
 const EXPECTED_NUMBER_OF_FILES: usize = 100;
 
