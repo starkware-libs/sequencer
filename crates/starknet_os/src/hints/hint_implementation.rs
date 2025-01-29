@@ -3,6 +3,7 @@ pub mod bls_field;
 pub mod builtins;
 pub mod compiled_class;
 pub mod deprecated_compiled_class;
+pub mod deprecated_syscalls;
 pub mod execute_transactions;
 pub mod execution;
 pub mod find_element;

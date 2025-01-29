@@ -35,6 +35,7 @@ use crate::hints::hint_implementation::deprecated_compiled_class::{
     load_deprecated_class_facts,
     load_deprecated_class_inner,
 };
+use crate::hints::hint_implementation::deprecated_syscalls::{delegate_call, delegate_l1_handler};
 use crate::hints::hint_implementation::execute_transactions::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
@@ -189,8 +190,6 @@ use crate::hints::hint_implementation::stateless_compression::{
 };
 use crate::hints::hint_implementation::syscalls::{
     call_contract,
-    delegate_call,
-    delegate_l1_handler,
     deploy,
     emit_event,
     get_block_number,

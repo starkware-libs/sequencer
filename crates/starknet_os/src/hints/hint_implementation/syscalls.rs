@@ -5,14 +5,6 @@ pub fn call_contract(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResul
     todo!()
 }
 
-pub fn delegate_call(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub fn delegate_l1_handler(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
 pub fn deploy(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
