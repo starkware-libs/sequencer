@@ -9,6 +9,7 @@ pub mod find_element;
 pub mod kzg;
 pub mod math;
 pub mod os;
+pub mod os_logger;
 pub mod output;
 pub mod patricia;
 pub mod secp;
