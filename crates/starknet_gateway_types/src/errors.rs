@@ -1,3 +1,5 @@
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use enum_assoc::Assoc;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_rpc::error::{
@@ -55,6 +57,25 @@ pub enum GatewaySpecError {
     UnsupportedTxVersion,
     #[assoc(into_rpc = validation_failure(_data))]
     ValidationFailure { data: String },
+}
+
+impl IntoResponse for GatewaySpecError {
+    fn into_response(self) -> Response {
+        let as_rpc = self.into_rpc();
+        // TODO(Arni): Fix the status code. The status code should be a HTTP status code - not a
+        // Json RPC error code. status code.
+        let status =
+            StatusCode::from_u16(u16::try_from(as_rpc.code).expect("Expecting a valid u16"))
+                .expect("Expecting a valid error code");
+
+        let resp = Response::builder()
+            .status(status)
+            .body((as_rpc.message, as_rpc.data))
+            .expect("Expecting valid response");
+        let status = resp.status();
+        let body = serde_json::to_string(resp.body()).expect("Expecting valid body");
+        (status, body).into_response()
+    }
 }
 
 impl std::fmt::Display for GatewaySpecError {

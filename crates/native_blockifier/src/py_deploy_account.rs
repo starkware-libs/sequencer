@@ -83,7 +83,7 @@ impl TryFrom<PyDeployAccountTransactionV3> for DeployAccountTransactionV3 {
 
 pub fn py_deploy_account(py_tx: &PyAny) -> NativeBlockifierResult<DeployAccountTransaction> {
     let version = py_attr::<PyFelt>(py_tx, "version")?.0;
-    // TODO(Dori): Make TransactionVersion an enum and use match here.
+    // TODO: Make TransactionVersion an enum and use match here.
     let tx = if version == Felt::ONE {
         let py_deploy_account_tx: PyDeployAccountTransactionV1 = py_tx.extract()?;
         let deploy_account_tx = DeployAccountTransactionV1::from(py_deploy_account_tx);

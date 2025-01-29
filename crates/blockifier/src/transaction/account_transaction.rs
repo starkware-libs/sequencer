@@ -555,7 +555,7 @@ impl AccountTransaction {
             let mut execution_context = EntryPointExecutionContext::new_validate(
                 tx_context.clone(),
                 self.execution_flags.charge_fee,
-                // TODO(Dori): Reduce code dup (the gas usage limit is computed in run_execute).
+                // TODO: Reduce code dup (the gas usage limit is computed in run_execute).
                 // We initialize the revert gas tracker here for completeness - the value will not
                 // be used, as this tx is non-revertible.
                 SierraGasRevertTracker::new(GasAmount(
@@ -576,7 +576,7 @@ impl AccountTransaction {
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
                 self.execution_flags.charge_fee,
-                // TODO(Dori): Reduce code dup (the gas usage limit is computed in run_execute).
+                // TODO: Reduce code dup (the gas usage limit is computed in run_execute).
                 // We initialize the revert gas tracker here for completeness - the value will not
                 // be used, as this tx is non-revertible.
                 SierraGasRevertTracker::new(GasAmount(
@@ -632,7 +632,7 @@ impl AccountTransaction {
         let mut execution_context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
             self.execution_flags.charge_fee,
-            // TODO(Dori): Reduce code dup (the gas usage limit is computed in run_execute).
+            // TODO: Reduce code dup (the gas usage limit is computed in run_execute).
             SierraGasRevertTracker::new(GasAmount(
                 remaining_gas.limit_usage(
                     tx_context

@@ -11,7 +11,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    HeightAndRound,
+    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -113,8 +113,12 @@ async fn decision() {
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
 }
 
-fn test_setup()
--> (Block, PapyrusConsensusContext, BroadcastNetworkMock<Vote>, BroadcastNetworkMock<Vote>) {
+fn test_setup() -> (
+    Block,
+    PapyrusConsensusContext,
+    BroadcastNetworkMock<ConsensusMessage>,
+    BroadcastNetworkMock<Vote>,
+) {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(5, None, None, None);
     let block_number = block.header.block_header_without_hash.block_number;
@@ -129,9 +133,8 @@ fn test_setup()
         .unwrap();
 
     let network_channels = mock_register_broadcast_topic().unwrap();
-    let network_proposal_channels: TestSubscriberChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
-    > = mock_register_broadcast_topic().unwrap();
+    let network_proposal_channels: TestSubscriberChannels<StreamMessage<ProposalPart>> =
+        mock_register_broadcast_topic().unwrap();
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,

@@ -6,7 +6,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
-    calculate_contract_address,
     ChainId,
     ClassHash,
     CompiledClassHash,
@@ -14,7 +13,6 @@ use crate::core::{
     EntryPointSelector,
     EthAddress,
     Nonce,
-    PatriciaKey,
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::execution_resources::ExecutionResources;
@@ -42,7 +40,7 @@ use crate::transaction_hash::{
     get_invoke_transaction_v3_hash,
     get_l1_handler_transaction_hash,
 };
-use crate::{executable_transaction, StarknetApiError, StarknetApiResult};
+use crate::{executable_transaction, StarknetApiError};
 
 #[cfg(test)]
 #[path = "transaction_test.rs"]
@@ -143,18 +141,6 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
     fn try_from((tx, chain_id): (Transaction, &ChainId)) -> Result<Self, Self::Error> {
         let tx_hash = tx.calculate_transaction_hash(chain_id)?;
         match tx {
-            Transaction::DeployAccount(tx) => {
-                let contract_address = tx.calculate_contract_address()?;
-                Ok(executable_transaction::Transaction::Account(
-                    executable_transaction::AccountTransaction::DeployAccount(
-                        executable_transaction::DeployAccountTransaction {
-                            tx,
-                            tx_hash,
-                            contract_address,
-                        },
-                    ),
-                ))
-            }
             Transaction::Invoke(tx) => Ok(executable_transaction::Transaction::Account(
                 executable_transaction::AccountTransaction::Invoke(
                     executable_transaction::InvokeTransaction { tx, tx_hash },
@@ -170,8 +156,8 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
             )),
             _ => {
                 unimplemented!(
-                    "Unsupported transaction type. Only DeployAccount, Invoke and L1Handler are \
-                     currently supported. tx: {:?}",
+                    "Unsupported transaction type. Only Invoke and L1Handler are currently \
+                     supported. tx: {:?}",
                     tx
                 )
             }
@@ -418,54 +404,6 @@ impl TransactionHasher for DeclareTransaction {
     }
 }
 
-pub trait CalculateContractAddress {
-    fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress>;
-}
-
-/// A trait intended for deploy account transactions. Structs implementing this trait derive the
-/// implementation of [`CalculateContractAddress`].
-pub trait DeployTransactionTrait {
-    fn contract_address_salt(&self) -> ContractAddressSalt;
-    fn class_hash(&self) -> ClassHash;
-    fn constructor_calldata(&self) -> &Calldata;
-}
-
-#[macro_export]
-macro_rules! impl_deploy_transaction_trait {
-    ($type:ty) => {
-        impl DeployTransactionTrait for $type {
-            fn contract_address_salt(&self) -> ContractAddressSalt {
-                self.contract_address_salt
-            }
-
-            fn class_hash(&self) -> ClassHash {
-                self.class_hash
-            }
-
-            fn constructor_calldata(&self) -> &Calldata {
-                &self.constructor_calldata
-            }
-        }
-    };
-}
-
-impl<T: DeployTransactionTrait> CalculateContractAddress for T {
-    /// Calculates the contract address for the contract deployed by a deploy account transaction.
-    /// For more details see:
-    /// <https://docs.starknet.io/architecture-and-concepts/smart-contracts/contract-address/>
-    fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress> {
-        // When the contract is deployed via a deploy-account transaction, the deployer address is
-        // zero.
-        const DEPLOYER_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::ZERO);
-        calculate_contract_address(
-            self.contract_address_salt(),
-            self.class_hash(),
-            self.constructor_calldata(),
-            DEPLOYER_ADDRESS,
-        )
-    }
-}
-
 /// A deploy account V1 transaction.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
@@ -476,8 +414,6 @@ pub struct DeployAccountTransactionV1 {
     pub contract_address_salt: ContractAddressSalt,
     pub constructor_calldata: Calldata,
 }
-
-impl_deploy_transaction_trait!(DeployAccountTransactionV1);
 
 impl TransactionHasher for DeployAccountTransactionV1 {
     fn calculate_transaction_hash(
@@ -514,23 +450,12 @@ impl TransactionHasher for DeployAccountTransactionV3 {
     }
 }
 
-impl_deploy_transaction_trait!(DeployAccountTransactionV3);
-
 #[derive(
     Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
 )]
 pub enum DeployAccountTransaction {
     V1(DeployAccountTransactionV1),
     V3(DeployAccountTransactionV3),
-}
-
-impl CalculateContractAddress for DeployAccountTransaction {
-    fn calculate_contract_address(&self) -> StarknetApiResult<ContractAddress> {
-        match self {
-            DeployAccountTransaction::V1(tx) => tx.calculate_contract_address(),
-            DeployAccountTransaction::V3(tx) => tx.calculate_contract_address(),
-        }
-    }
 }
 
 macro_rules! implement_deploy_account_tx_getters {
@@ -547,7 +472,6 @@ macro_rules! implement_deploy_account_tx_getters {
 }
 
 impl DeployAccountTransaction {
-    // TODO(Arni): Consider using a direct reference to the getters from [DeployTrait].
     implement_deploy_account_tx_getters!(
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
@@ -607,11 +531,6 @@ impl TransactionHasher for DeployTransaction {
         get_deploy_transaction_hash(self, chain_id, transaction_version)
     }
 }
-
-// The trait [`DeployTransactionTrait`] is intended for [`DeployAccountTransaction`].
-// The calculation of the contract address of the contract deployed by the deprecated
-// [`DeployTransaction`] is consistent with that calculation.
-impl_deploy_transaction_trait!(DeployTransaction);
 
 /// An invoke V0 transaction.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]

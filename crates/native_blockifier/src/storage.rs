@@ -31,7 +31,7 @@ pub type RawDeprecatedDeclaredClassMapping = HashMap<PyFelt, String>;
 
 // Invariant: Only one instance of this struct should exist.
 // Reader and writer fields must be cleared before the struct goes out of scope in Python;
-// to prevent possible memory leaks (TODO(Dori): see if this is indeed necessary).
+// to prevent possible memory leaks (TODO: see if this is indeed necessary).
 pub struct PapyrusStorage {
     reader: Option<papyrus_storage::StorageReader>,
     writer: Option<papyrus_storage::StorageWriter>,

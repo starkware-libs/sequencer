@@ -2,11 +2,10 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::state::contract_class_manager::ContractClassManager;
-use metrics::{counter, gauge};
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
-use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
@@ -23,7 +22,6 @@ use starknet_batcher_types::batcher_types::{
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
-    RevertBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -45,16 +43,15 @@ use crate::block_builder::{
     BlockBuilderFactory,
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
-    BlockExecutionArtifacts,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
-use crate::metrics::{register_metrics, ProposalMetricsHandle};
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
     proposal_status_from,
     verify_block_input,
+    ProposalOutput,
     ProposalResult,
     ProposalTask,
 };
@@ -84,7 +81,7 @@ pub struct Batcher {
     active_proposal_task: Option<ProposalTask>,
 
     // Holds all the proposals that completed execution in the current height.
-    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<BlockExecutionArtifacts>>>>,
+    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 
     // The propose blocks transaction streams, used to stream out the proposal transactions.
     // Each stream is kept until all the transactions are streamed out, or a new height is started.
@@ -105,10 +102,6 @@ impl Batcher {
         mempool_client: SharedMempoolClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
     ) -> Self {
-        let storage_height = storage_reader
-            .height()
-            .expect("Failed to get height from storage during batcher creation.");
-        register_metrics(storage_height);
         Self {
             config: config.clone(),
             storage_reader,
@@ -132,9 +125,15 @@ impl Batcher {
         }
 
         let storage_height = self.get_height_from_storage()?;
-        if storage_height != input.height {
-            return Err(BatcherError::StorageHeightMarkerMismatch {
-                marker_height: storage_height,
+        if storage_height < input.height {
+            return Err(BatcherError::StorageNotSynced {
+                storage_height,
+                requested_height: input.height,
+            });
+        }
+        if storage_height > input.height {
+            return Err(BatcherError::HeightAlreadyPassed {
+                storage_height,
                 requested_height: input.height,
             });
         }
@@ -152,7 +151,6 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
-        let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
             active_height,
@@ -166,7 +164,6 @@ impl Batcher {
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
-            propose_block_input.block_info.block_number,
         );
 
         // A channel to receive the transactions included in the proposed block.
@@ -188,13 +185,8 @@ impl Batcher {
             )
             .map_err(|_| BatcherError::InternalError)?;
 
-        self.spawn_proposal(
-            propose_block_input.proposal_id,
-            block_builder,
-            abort_signal_sender,
-            proposal_metrics_handle,
-        )
-        .await?;
+        self.spawn_proposal(propose_block_input.proposal_id, block_builder, abort_signal_sender)
+            .await?;
 
         self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
         Ok(())
@@ -205,7 +197,6 @@ impl Batcher {
         &mut self,
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
-        let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
             active_height,
@@ -222,7 +213,6 @@ impl Batcher {
         let tx_provider = ValidateTransactionProvider {
             tx_receiver: input_tx_receiver,
             l1_provider_client: self.l1_provider_client.clone(),
-            height: validate_block_input.block_info.block_number,
         };
 
         let (block_builder, abort_signal_sender) = self
@@ -241,13 +231,8 @@ impl Batcher {
             )
             .map_err(|_| BatcherError::InternalError)?;
 
-        self.spawn_proposal(
-            validate_block_input.proposal_id,
-            block_builder,
-            abort_signal_sender,
-            proposal_metrics_handle,
-        )
-        .await?;
+        self.spawn_proposal(validate_block_input.proposal_id, block_builder, abort_signal_sender)
+            .await?;
 
         self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
         Ok(())
@@ -278,7 +263,6 @@ impl Batcher {
         self.executed_proposals.lock().await.clear();
         self.propose_tx_streams.clear();
         self.validate_tx_streams.clear();
-        self.active_height = None;
     }
 
     async fn handle_send_txs_request(
@@ -345,7 +329,7 @@ impl Batcher {
         Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
     }
 
-    fn get_height_from_storage(&self) -> BatcherResult<BlockNumber> {
+    fn get_height_from_storage(&mut self) -> BatcherResult<BlockNumber> {
         self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
@@ -353,7 +337,7 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_height(&self) -> BatcherResult<GetHeightResponse> {
+    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
         let height = self.get_height_from_storage()?;
         Ok(GetHeightResponse { height })
     }
@@ -395,28 +379,24 @@ impl Batcher {
 
     #[instrument(skip(self), err)]
     pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
-        // TODO(AlonH): Use additional data from the sync block.
-        let SyncBlock {
-            state_diff,
-            transaction_hashes: _,
-            block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
-        } = sync_block;
-
-        let height = self.get_height_from_storage()?;
-        if height != block_number {
-            return Err(BatcherError::StorageHeightMarkerMismatch {
-                marker_height: height,
-                requested_height: block_number,
-            });
-        }
-
         if let Some(height) = self.active_height {
             info!("Aborting all work on height {} due to state sync.", height);
             self.abort_active_height().await;
+            self.active_height = None;
         }
 
+        let SyncBlock { state_diff, transaction_hashes, block_number } = sync_block;
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        self.commit_proposal_and_block(height, state_diff, address_to_nonce, [].into()).await
+        let tx_hashes = transaction_hashes.into_iter().collect();
+        let height = self.get_height_from_storage()?;
+        if height != block_number {
+            panic!(
+                "Synced block height {} does not match the current height {}.",
+                block_number, height
+            );
+        }
+
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
     }
 
     #[instrument(skip(self), err)]
@@ -428,27 +408,14 @@ impl Batcher {
 
         let proposal_id = input.proposal_id;
         let proposal_result = self.executed_proposals.lock().await.remove(&proposal_id);
-        let block_execution_artifacts = proposal_result
-            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
-            .map_err(|_| BatcherError::InternalError)?;
-        let state_diff = block_execution_artifacts.state_diff();
-        let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
-            .expect("Number of transactions should fit in u64");
-        let n_rejected_txs = u64::try_from(block_execution_artifacts.rejected_tx_hashes.len())
-            .expect("Number of rejected transactions should fit in u64");
-        self.commit_proposal_and_block(
-            height,
-            state_diff.clone(),
-            block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.rejected_tx_hashes,
-        )
-        .await?;
-        counter!(crate::metrics::BATCHED_TRANSACTIONS.name).increment(n_txs);
-        counter!(crate::metrics::REJECTED_TRANSACTIONS.name).increment(n_rejected_txs);
-        Ok(DecisionReachedResponse {
-            state_diff,
-            l2_gas_used: block_execution_artifacts.l2_gas_used,
-        })
+        let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
+            proposal_result
+                .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
+                .map_err(|_| BatcherError::InternalError)?;
+
+        self.commit_proposal_and_block(height, state_diff.clone(), address_to_nonce, tx_hashes)
+            .await?;
+        Ok(DecisionReachedResponse { state_diff })
     }
 
     async fn commit_proposal_and_block(
@@ -456,21 +423,18 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
-        rejected_tx_hashes: HashSet<TransactionHash>,
+        tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
         info!("Committing block at height {} and notifying mempool of the block.", height);
-        trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
+        trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
 
         // Commit the proposal to the storage and notify the mempool.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
-        gauge!(crate::metrics::STORAGE_HEIGHT.name).increment(1);
-        let mempool_result = self
-            .mempool_client
-            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
-            .await;
+        let mempool_result =
+            self.mempool_client.commit_block(CommitBlockArgs { address_to_nonce, tx_hashes }).await;
 
         if let Err(mempool_err) = mempool_result {
             error!("Failed to commit block to mempool: {}", mempool_err);
@@ -494,7 +458,7 @@ impl Batcher {
 
         let mut active_proposal = self.active_proposal.lock().await;
         if let Some(active_proposal_id) = *active_proposal {
-            return Err(BatcherError::AnotherProposalInProgress {
+            return Err(BatcherError::ServerBusy {
                 active_proposal_id,
                 new_proposal_id: proposal_id,
             });
@@ -512,7 +476,6 @@ impl Batcher {
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
-        mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
@@ -521,18 +484,8 @@ impl Batcher {
 
         let join_handle = tokio::spawn(
             async move {
-                let result = match block_builder.build_block().await {
-                    Ok(artifacts) => {
-                        proposal_metrics_handle.set_succeeded();
-                        Ok(artifacts)
-                    }
-                    Err(BlockBuilderError::Aborted) => {
-                        proposal_metrics_handle.set_aborted();
-                        Err(BlockBuilderError::Aborted)
-                    }
-                    Err(e) => Err(e),
-                }
-                .map_err(Arc::new);
+                let result =
+                    block_builder.build_block().await.map(ProposalOutput::from).map_err(Arc::new);
 
                 // The proposal is done, clear the active proposal.
                 // Keep the proposal result only if it is the same as the active proposal.
@@ -558,8 +511,9 @@ impl Batcher {
     ) -> Option<ProposalResult<ProposalCommitment>> {
         let guard = self.executed_proposals.lock().await;
         let proposal_result = guard.get(&proposal_id);
+
         match proposal_result {
-            Some(Ok(artifacts)) => Some(Ok(artifacts.commitment())),
+            Some(Ok(output)) => Some(Ok(output.commitment)),
             Some(Err(e)) => Some(Err(e.clone())),
             None => None,
         }
@@ -578,36 +532,6 @@ impl Batcher {
         if let Some(proposal_task) = self.active_proposal_task.take() {
             proposal_task.join_handle.await.ok();
         }
-    }
-
-    #[instrument(skip(self), err)]
-    pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
-        info!("Reverting block at height {}.", input.height);
-        let height = self.get_height_from_storage()?.prev().ok_or(
-            BatcherError::StorageHeightMarkerMismatch {
-                marker_height: BlockNumber(0),
-                requested_height: input.height,
-            },
-        )?;
-
-        if height != input.height {
-            return Err(BatcherError::StorageHeightMarkerMismatch {
-                marker_height: height.unchecked_next(),
-                requested_height: input.height,
-            });
-        }
-
-        if let Some(height) = self.active_height {
-            info!("Aborting all work on height {} due to a revert request.", height);
-            self.abort_active_height().await;
-        }
-
-        self.storage_writer.revert_block(height).map_err(|err| {
-            error!("Failed to revert block at height {}: {}", height, err);
-            BatcherError::InternalError
-        })?;
-        gauge!(crate::metrics::STORAGE_HEIGHT.name).decrement(1);
-        Ok(())
     }
 }
 
@@ -657,8 +581,6 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> papyrus_storage::StorageResult<()>;
-
-    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()>;
 }
 
 impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
@@ -669,12 +591,6 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     ) -> papyrus_storage::StorageResult<()> {
         // TODO: write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
-    }
-
-    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
-        let (txn, reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
-        trace!("Reverted state diff: {:#?}", reverted_state_diff);
-        txn.commit()
     }
 }
 

@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_client::ClientError;
 use thiserror::Error;
 
@@ -13,8 +12,6 @@ pub enum L1ProviderError {
     GetTransactionsInPendingState,
     #[error("`get_txs` while in validate state")]
     GetTransactionConsensusBug,
-    #[error("Unexpected height: expected {expected}, got {got}")]
-    UnexpectedHeight { expected: BlockNumber, got: BlockNumber },
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: String, to: String },
     #[error(

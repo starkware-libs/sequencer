@@ -1,10 +1,8 @@
-use std::future::ready;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::vec;
 
 use futures::channel::{mpsc, oneshot};
-use futures::future::pending;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
@@ -16,13 +14,12 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    HeightAndRound,
+    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
     StreamMessage,
     TransactionBatch,
-    Vote,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
@@ -44,7 +41,6 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
-use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;
@@ -71,8 +67,8 @@ fn generate_invoke_tx(nonce: u8) -> Transaction {
 
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
-    _vote_network: BroadcastNetworkMock<Vote>,
-    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart, HeightAndRound>>,
+    _vote_network: BroadcastNetworkMock<ConsensusMessage>,
+    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart>>,
 }
 
 fn setup(
@@ -92,10 +88,8 @@ fn setup(
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
-    let state_sync_client = MockStateSyncClient::new();
 
     let context = SequencerConsensusContext::new(
-        Arc::new(state_sync_client),
         Arc::new(batcher),
         outbound_proposal_stream_sender,
         votes_topic_client,
@@ -153,7 +147,12 @@ async fn build_proposal_setup(
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
 fn success_cende_ammbassador() -> MockCendeContext {
     let mut mock_cende = MockCendeContext::new();
-    mock_cende.expect_write_prev_height_blob().return_once(|_height| tokio::spawn(ready(true)));
+    mock_cende.expect_write_prev_height_blob().returning(|_height| {
+        let (sender, receiver) = oneshot::channel();
+        sender.send(true).unwrap();
+        receiver
+    });
+
     mock_cende
 }
 
@@ -362,13 +361,6 @@ async fn interrupt_active_proposal() {
         .withf(|input| input.proposal_id == ProposalId(0))
         .returning(|_| Ok(()));
     batcher
-        .expect_send_proposal_content()
-        .withf(|input| {
-            input.proposal_id == ProposalId(0) && input.content == SendProposalContent::Abort
-        })
-        .times(1)
-        .returning(move |_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
-    batcher
         .expect_validate_block()
         .times(1)
         .withf(|input| input.proposal_id == ProposalId(1))
@@ -443,9 +435,11 @@ async fn build_proposal() {
 #[tokio::test]
 async fn build_proposal_cende_failure() {
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context
-        .expect_write_prev_height_blob()
-        .return_once(|_height| tokio::spawn(ready(false)));
+    mock_cende_context.expect_write_prev_height_blob().times(1).returning(|_height| {
+        let (sender, receiver) = oneshot::channel();
+        sender.send(false).unwrap();
+        receiver
+    });
 
     let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
 
@@ -455,11 +449,11 @@ async fn build_proposal_cende_failure() {
 #[tokio::test]
 async fn build_proposal_cende_incomplete() {
     let mut mock_cende_context = MockCendeContext::new();
-    mock_cende_context
-        .expect_write_prev_height_blob()
-        .return_once(|_height| tokio::spawn(pending()));
+    let (sender, receiver) = oneshot::channel();
+    mock_cende_context.expect_write_prev_height_blob().times(1).return_once(|_height| receiver);
 
     let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
 
     assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+    drop(sender);
 }

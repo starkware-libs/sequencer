@@ -114,7 +114,7 @@ class ServiceApp(Construct):
     def _get_config_attr(self, attribute) -> str | int:
         config_attr = self.node_config.get(attribute).get('value')
         assert config_attr is not None, f'Config attribute "{attribute}" is missing.'
-
+        
         return config_attr
 
     def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
@@ -217,3 +217,5 @@ class ServiceApp(Construct):
                 secret_name=f"{self.node.id}-tls"
             )
         ]
+
+

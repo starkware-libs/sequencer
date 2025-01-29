@@ -1,14 +1,10 @@
-use std::path::PathBuf;
-
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
-use starknet_api::block::StarknetVersion;
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
 
 use super::*;
 
-// TODO(Gilad): Test Starknet OS validation.
-// TODO(OriF): Add an unallowed field scenario for GasCost parsing.
+// TODO: Test Starknet OS validation.
+// TODO: Add an unallowed field scenario for GasCost parsing.
 
 /// Returns all JSON files in the resources directory (should be all versioned constants files).
 fn all_jsons_in_dir() -> Paths {

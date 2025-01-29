@@ -18,7 +18,7 @@ use super::behaviour_impl::ToOtherBehaviourEvent;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
-use crate::peer_manager::peer::Peer;
+use crate::peer_manager::peer::{Peer, PeerTrait};
 use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier, MALICIOUS};
 use crate::sqmr::OutboundSessionId;
 

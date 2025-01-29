@@ -4,7 +4,6 @@
 //! uses the `run_consensus` binary which is able to simulate network issues for consensus messages.
 use std::collections::HashSet;
 use std::fs::{self, File};
-use std::net::TcpListener;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::str::FromStr;
@@ -14,6 +13,7 @@ use clap::Parser;
 use fs2::FileExt;
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
+use papyrus_common::tcp::find_free_port;
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use tokio::process::Command as TokioCommand;
 
@@ -183,17 +183,6 @@ impl Drop for LockDir {
     fn drop(&mut self) {
         let _ = self.lockfile.unlock();
     }
-}
-
-// WARNING(Tsabary): This is not a reliable way to obtain a free port; most notably it fails when
-// multiple concurrent instances try to obtain ports using this function. Do NOT use this in
-// production code, nor in tests, as they run concurrently.
-fn find_free_port() -> u16 {
-    // The socket is automatically closed when the function exits.
-    // The port may still be available when accessed, but this is not guaranteed.
-    // TODO(Asmaa): find a reliable way to ensure the port stays free.
-    let listener = TcpListener::bind("0.0.0.0:0").expect("Failed to bind");
-    listener.local_addr().expect("Failed to get local address").port()
 }
 
 fn parse_duration(s: &str) -> Result<Duration, std::num::ParseIntError> {

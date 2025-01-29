@@ -3,7 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote, VoteType};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
@@ -82,7 +82,7 @@ mock! {
 
         fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
-        async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
+        async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
 
         async fn decision_reached(
             &mut self,
@@ -90,20 +90,34 @@ mock! {
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
 
-        async fn try_sync(&mut self, height: BlockNumber) -> bool;
-
         async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
     }
 }
 
-pub fn prevote(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> Vote {
+pub fn prevote(
+    block_felt: Option<Felt>,
+    height: u64,
+    round: u32,
+    voter: ValidatorId,
+) -> ConsensusMessage {
     let block_hash = block_felt.map(BlockHash);
-    Vote { vote_type: VoteType::Prevote, height, round, block_hash, voter }
+    ConsensusMessage::Vote(Vote { vote_type: VoteType::Prevote, height, round, block_hash, voter })
 }
 
-pub fn precommit(block_felt: Option<Felt>, height: u64, round: u32, voter: ValidatorId) -> Vote {
+pub fn precommit(
+    block_felt: Option<Felt>,
+    height: u64,
+    round: u32,
+    voter: ValidatorId,
+) -> ConsensusMessage {
     let block_hash = block_felt.map(BlockHash);
-    Vote { vote_type: VoteType::Precommit, height, round, block_hash, voter }
+    ConsensusMessage::Vote(Vote {
+        vote_type: VoteType::Precommit,
+        height,
+        round,
+        block_hash,
+        voter,
+    })
 }
 pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height: BlockNumber(height), round, proposer, ..Default::default() }

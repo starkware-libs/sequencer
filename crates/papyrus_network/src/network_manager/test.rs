@@ -25,7 +25,7 @@ use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
 use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
-use crate::sqmr::behaviour::SessionIdNotFoundError;
+use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
@@ -133,15 +133,20 @@ impl SwarmTrait for MockSwarm {
         Ok(())
     }
 
-    fn send_query(&mut self, query: Vec<u8>, _protocol: StreamProtocol) -> OutboundSessionId {
+    fn send_query(
+        &mut self,
+        query: Vec<u8>,
+        peer_id: PeerId,
+        _protocol: StreamProtocol,
+    ) -> Result<OutboundSessionId, PeerNotConnected> {
         let outbound_session_id = OutboundSessionId { value: self.next_outbound_session_id };
         self.create_response_events_for_query_each_num_becomes_response(
             query,
             outbound_session_id,
-            PeerId::random(),
+            peer_id,
         );
         self.next_outbound_session_id += 1;
-        outbound_session_id
+        Ok(outbound_session_id)
     }
 
     fn dial(&mut self, _peer: Multiaddr) -> Result<(), libp2p::swarm::DialError> {

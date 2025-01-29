@@ -40,7 +40,7 @@ where
     V: Clone + Debug,
 {
     pub fn read(&self, tx_index: TxIndex, key: K) -> Option<V> {
-        // TODO(Noa): Ignore `ESTIMATE` values (when added).
+        // TODO: Ignore `ESTIMATE` values (when added).
         let value = self.writes.get(&key).and_then(|cell| cell.range(..=tx_index).next_back());
         value.map(|(_, value)| value).or_else(|| self.cached_initial_values.get(&key)).cloned()
     }

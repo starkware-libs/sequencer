@@ -7,7 +7,7 @@ use papyrus_consensus_orchestrator::cende::CendeAmbassador;
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
-use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, StreamMessage};
 use starknet_api::block::BlockNumber;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_infra_utils::type_name::short_type_name;
@@ -44,14 +44,14 @@ impl ConsensusManager {
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
 
         let proposals_broadcast_channels = network_manager
-            .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(
+            .register_broadcast_topic::<StreamMessage<ProposalPart>>(
                 Topic::new(CONSENSUS_PROPOSALS_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )
             .expect("Failed to register broadcast topic");
 
         let votes_broadcast_channels = network_manager
-            .register_broadcast_topic::<Vote>(
+            .register_broadcast_topic::<ConsensusMessage>(
                 Topic::new(CONSENSUS_VOTES_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )
@@ -81,13 +81,12 @@ impl ConsensusManager {
         };
 
         let context = SequencerConsensusContext::new(
-            Arc::clone(&self.state_sync_client),
             Arc::clone(&self.batcher_client),
             outbound_internal_sender,
             votes_broadcast_channels.broadcast_topic_client.clone(),
             self.config.consensus_config.num_validators,
             self.config.consensus_config.chain_id.clone(),
-            Arc::new(CendeAmbassador::new(self.config.cende_config.clone())),
+            Arc::new(CendeAmbassador::new()),
         );
 
         let mut network_handle = tokio::task::spawn(network_manager.run());
@@ -98,9 +97,9 @@ impl ConsensusManager {
             self.config.consensus_config.validator_id,
             self.config.consensus_config.consensus_delay,
             self.config.consensus_config.timeouts.clone(),
-            self.config.consensus_config.sync_retry_interval,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
+            futures::stream::pending(),
         );
 
         tokio::select! {

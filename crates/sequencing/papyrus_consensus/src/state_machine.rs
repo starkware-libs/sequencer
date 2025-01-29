@@ -9,7 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use tracing::{info, trace};
+use tracing::trace;
 
 use crate::types::{ProposalContentId, Round, ValidatorId};
 
@@ -133,6 +133,7 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        trace!("Handling event: {:?}", event);
         // Mimic LOC 18 in the paper; the state machine doesn't
         // handle any events until `getValue` completes.
         if self.awaiting_get_proposal {
@@ -201,7 +202,6 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        trace!("Processing event: {:?}", event);
         if self.awaiting_get_proposal {
             assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
         }
@@ -337,7 +337,6 @@ impl StateMachine {
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
-            info!("Starting round {round} as Proposer");
             // Leader.
             match self.valid_value_round {
                 Some((proposal_id, valid_round)) => VecDeque::from([StateMachineEvent::Proposal(
@@ -352,7 +351,6 @@ impl StateMachine {
                 }
             }
         } else {
-            info!("Starting round {round} as Validator");
             VecDeque::from([StateMachineEvent::TimeoutPropose(self.round)])
         };
         output.append(&mut self.current_round_upons());

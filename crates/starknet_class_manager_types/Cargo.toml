@@ -5,14 +5,12 @@ license.workspace = true
 repository.workspace = true
 version.workspace = true
 
-[features]
-testing = []
-
 [lints]
 workspace = true
 
 [dependencies]
 async-trait.workspace = true
+cairo-lang-starknet-classes.workspace = true
 papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true

@@ -117,7 +117,7 @@ async fn signed_headers_basic_flow() {
     tokio::select! {
         sync_result = p2p_sync.run() => {
             sync_result.unwrap();
-            panic!("P2p sync aborted with no failure.");
+            panic!("P2P sync aborted with no failure.");
         }
         _ = parse_queries_future => {}
     }
@@ -192,7 +192,7 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
     tokio::select! {
         sync_result = p2p_sync.run() => {
             sync_result.unwrap();
-            panic!("P2p sync aborted with no failure.");
+            panic!("P2P sync aborted with no failure.");
         }
         _ = parse_queries_future => {}
     }
@@ -203,7 +203,6 @@ async fn wrong_block_number() {
     run_test(
         HashMap::from([(DataType::Header, 1)]),
         vec![
-            Action::RunP2pSync,
             // We already validate the query content in other tests.
             Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
             Action::SendHeader(DataOrFin(Some(random_header(
@@ -213,7 +212,7 @@ async fn wrong_block_number() {
                 None,
             )))),
             Action::ValidateReportSent(DataType::Header),
-            Action::CheckStorage(Box::new(|(reader, _)| {
+            Action::CheckStorage(Box::new(|reader| {
                 async move {
                     assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
                 }

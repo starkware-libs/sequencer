@@ -285,7 +285,7 @@ async fn main() {
                             ..Default::default()
                         })
                         .await
-                        // TODO(Aner): check that the error is not found error.
+                        // TODO: check that the error is not found error.
                         .is_err(),
                     "Block {block_number} reexecution data file already exists in bucket."
                 )

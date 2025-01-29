@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -53,12 +51,10 @@ fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transact
 
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
-    rejected_tx_hashes: HashSet<TransactionHash>,
 ) -> BlockExecutionArtifacts {
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_infos,
-        rejected_tx_hashes,
         commitment_state_diff: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
@@ -167,14 +163,11 @@ fn empty_block_test_expectations() -> TestExpectations {
 fn mock_transaction_executor_block_full(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let execution_results = vec![Ok(execution_info())];
-    // When the block is full, the executor will return less results than the number of input txs.
-    assert!(input_txs.len() > execution_results.len());
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_| execution_results);
+        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
     mock_transaction_executor
 }
 
@@ -268,8 +261,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         tx_hash!(0)=> execution_info(),
         tx_hash!(2)=> execution_info(),
     ];
-    let expected_block_artifacts =
-        block_execution_artifacts(execution_infos_mapping, vec![tx_hash!(1)].into_iter().collect());
+    let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok(BlockExecutionSummary {
@@ -295,7 +287,7 @@ fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArt
     let execution_info_len_u8 = u8::try_from(execution_info_len).unwrap();
     let execution_infos_mapping =
         (0..execution_info_len_u8).map(|i| (tx_hash!(i), execution_info())).collect();
-    block_execution_artifacts(execution_infos_mapping, Default::default())
+    block_execution_artifacts(execution_infos_mapping)
 }
 
 fn set_close_block_expectations(

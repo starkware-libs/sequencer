@@ -36,9 +36,6 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::AddSyncBlock(sync_block) => {
                 BatcherResponse::AddSyncBlock(self.add_sync_block(sync_block).await)
             }
-            BatcherRequest::RevertBlock(input) => {
-                BatcherResponse::RevertBlock(self.revert_block(input).await)
-            }
         }
     }
 }

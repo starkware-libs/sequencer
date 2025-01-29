@@ -25,6 +25,7 @@ use crate::transaction::transactions::ExecutableTransaction;
 pub mod transaction_executor_test;
 
 pub const BLOCK_STATE_ACCESS_ERR: &str = "Error: The block state should be `Some`.";
+pub const DEFAULT_STACK_SIZE: usize = 60 * 1024 * 1024;
 
 #[derive(Debug, Error)]
 pub enum TransactionExecutorError {
@@ -131,7 +132,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         }
     }
 
-    pub fn execute_txs_sequentially(
+    pub fn execute_txs_sequentially_inner(
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
@@ -227,6 +228,39 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
+    pub fn execute_txs_sequentially(
+        &mut self,
+        txs: &[Transaction],
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+        #[cfg(not(feature = "cairo_native"))]
+        return self.execute_txs_sequentially_inner(txs);
+        #[cfg(feature = "cairo_native")]
+        {
+            // TODO meshi: find a way to access the contract class manager config from transaction
+            // executor.
+            let txs = txs.to_vec();
+            std::thread::scope(|s| {
+                std::thread::Builder::new()
+                    // when running Cairo natively, the real stack is used and could get overflowed
+                    // (unlike the VM where the stack is simulated in the heap as a memory segment).
+                    //
+                    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
+                    // needs to be big enough ahead.
+                    // However, making it very big is wasteful (especially with multi-threading).
+                    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
+                    // recursions to reach out-of-gas before hitting the bottom of the recursion.
+                    //
+                    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
+                    // adjusting the stack size.
+                    .stack_size(self.config.stack_size)
+                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs))
+                    .expect("Failed to spawn thread")
+                    .join()
+                    .expect("Failed to join thread.")
+            })
+        }
+    }
+
     pub fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
@@ -250,26 +284,40 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         std::thread::scope(|s| {
             for _ in 0..self.config.concurrency_config.n_workers {
                 let worker_executor = Arc::clone(&worker_executor);
-                s.spawn(move || {
-                    // Making sure that the program will abort if a panic accured while halting the
-                    // scheduler.
-                    let abort_guard = AbortIfPanic;
-                    // If a panic is not handled or the handling logic itself panics, then we abort
-                    // the program.
-                    if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
-                        worker_executor.run();
-                    })) {
-                        // If the program panics here, the abort guard will exit the program.
-                        // In this case, no panic message will be logged. Add the cargo flag
-                        // --nocapture to log the panic message.
+                let _handle = std::thread::Builder::new()
+                    // when running Cairo natively, the real stack is used and could get overflowed
+                    // (unlike the VM where the stack is simulated in the heap as a memory segment).
+                    //
+                    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
+                    // needs to be big enough ahead.
+                    // However, making it very big is wasteful (especially with multi-threading).
+                    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
+                    // recursions to reach out-of-gas before hitting the bottom of the recursion.
+                    //
+                    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
+                    // adjusting the stack size.
+                    .stack_size(self.config.stack_size)
+                    .spawn_scoped(s, move || {
+                        // Making sure that the program will abort if a panic accured while halting
+                        // the scheduler.
+                        let abort_guard = AbortIfPanic;
+                        // If a panic is not handled or the handling logic itself panics, then we
+                        // abort the program.
+                        if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
+                            worker_executor.run();
+                        })) {
+                            // If the program panics here, the abort guard will exit the program.
+                            // In this case, no panic message will be logged. Add the cargo flag
+                            // --nocapture to log the panic message.
 
-                        worker_executor.scheduler.halt();
+                            worker_executor.scheduler.halt();
+                            abort_guard.release();
+                            panic::resume_unwind(err);
+                        }
+
                         abort_guard.release();
-                        panic::resume_unwind(err);
-                    }
-
-                    abort_guard.release();
-                });
+                    })
+                    .expect("Failed to spawn thread.");
             }
         });
 

@@ -12,6 +12,10 @@ pub enum BatcherError {
          being executed)."
     )]
     ExecutedProposalNotFound { proposal_id: ProposalId },
+    #[error(
+        "Height {storage_height} already passed, can't start working on height {requested_height}."
+    )]
+    HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
     #[error("Height is in progress.")]
     HeightInProgress,
     #[error("Internal server error.")]
@@ -27,7 +31,7 @@ pub enum BatcherError {
         active_proposal_id,
         new_proposal_id
     )]
-    AnotherProposalInProgress { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
+    ServerBusy { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
     #[error(
@@ -42,10 +46,10 @@ pub enum BatcherError {
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
     #[error(
-        "Storage height marker mismatch. Storage marker (first unwritten height): \
-         {marker_height}, requested height: {requested_height}."
+        "Storage is not synced. Storage height: {storage_height}, requested height: \
+         {requested_height}."
     )]
-    StorageHeightMarkerMismatch { marker_height: BlockNumber, requested_height: BlockNumber },
+    StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
     #[error("Time to deadline is out of range. Got {deadline}.")]
     TimeToDeadlineError { deadline: chrono::DateTime<Utc> },
 }

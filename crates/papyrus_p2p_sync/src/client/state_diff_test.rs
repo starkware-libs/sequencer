@@ -99,7 +99,6 @@ async fn state_diff_basic_flow() {
     ];
 
     let mut actions = vec![
-        Action::RunP2pSync,
         // We already validate the header query content in other tests.
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];
@@ -136,7 +135,7 @@ async fn state_diff_basic_flow() {
     {
         for state_diff_chunk in state_diff_chunks {
             // Check that before the last chunk was sent, the state diff isn't written.
-            actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
+            actions.push(Action::CheckStorage(Box::new(move |reader| {
                 async move {
                     assert_eq!(
                         u64::try_from(i).unwrap(),
@@ -149,7 +148,7 @@ async fn state_diff_basic_flow() {
             actions.push(Action::SendStateDiff(DataOrFin(Some(state_diff_chunk))));
         }
         // Check that a block's state diff is written before the entire query finished.
-        actions.push(Action::CheckStorage(Box::new(move |(reader, _)| {
+        actions.push(Action::CheckStorage(Box::new(move |reader| {
             async move {
                 let block_number = BlockNumber(i.try_into().unwrap());
                 wait_for_marker(
@@ -307,7 +306,6 @@ async fn validate_state_diff_fails(
     let mut rng = get_rng();
 
     let mut actions = vec![
-        Action::RunP2pSync,
         // We already validate the header query content in other tests.
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];

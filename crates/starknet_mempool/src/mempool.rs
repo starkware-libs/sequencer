@@ -224,12 +224,8 @@ impl Mempool {
     /// updates account balances).
     #[instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
-        let CommitBlockArgs { address_to_nonce, rejected_tx_hashes } = args;
-        debug!(
-            "Committing block with {} addresses and {} rejected tx to the mempool.",
-            address_to_nonce.len(),
-            rejected_tx_hashes.len()
-        );
+        let CommitBlockArgs { address_to_nonce, tx_hashes } = args;
+        debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
 
         // Align mempool data to committed nonces.
         for (&address, &next_nonce) in &address_to_nonce {
@@ -272,8 +268,8 @@ impl Mempool {
 
         debug!("Aligned mempool to committed nonces.");
 
-        // Remove rejected transactions from the mempool.
-        for tx_hash in rejected_tx_hashes {
+        // Hard-delete: finally, remove committed transactions from the mempool.
+        for tx_hash in tx_hashes {
             let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
                 continue; // Transaction hash unknown to mempool, from a different node.
             };
@@ -281,13 +277,9 @@ impl Mempool {
             // TODO(clean_accounts): remove address with no transactions left after a block cycle /
             // TTL.
         }
-        debug!("Removed rejected transactions known to mempool.");
+        debug!("Removed committed transactions known to mempool.");
 
         Ok(())
-    }
-
-    pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
-        self.state.get(account_address).is_some()
     }
 
     fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {

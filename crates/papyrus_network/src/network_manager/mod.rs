@@ -7,7 +7,6 @@ pub mod test_utils;
 
 use std::collections::HashMap;
 use std::pin::Pin;
-use std::str::FromStr;
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
@@ -18,16 +17,16 @@ use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
-use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
+use crate::bin_utils::build_swarm;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
@@ -39,8 +38,6 @@ use crate::{gossipsub_impl, NetworkConfig};
 pub enum NetworkError {
     #[error(transparent)]
     DialError(#[from] libp2p::swarm::DialError),
-    #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
-    BroadcastChannelsDropped { topic_hash: TopicHash },
 }
 
 // TODO: Understand whats the correct thing to do here.
@@ -74,18 +71,18 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub async fn run(mut self) -> Result<(), NetworkError> {
         loop {
             tokio::select! {
-                Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,
+                Some(event) = self.swarm.next() => self.handle_swarm_event(event),
                 Some(res) = self.sqmr_inbound_response_receivers.next() => self.handle_response_for_inbound_query(res),
                 Some((protocol, client_payload)) = self.sqmr_outbound_payload_receivers.next() => {
                     self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    self.broadcast_message(
-                        message.ok_or(NetworkError::BroadcastChannelsDropped {
-                            topic_hash: topic_hash.clone()
-                        })?,
-                        topic_hash,
-                    );
+                    match message {
+                        Some(message) => self.broadcast_message(message, topic_hash),
+                        None => {
+                            warn!("Messages to broadcast sender was dropped for topic with hash {topic_hash:?}");
+                        }
+                    }
                 }
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
@@ -99,7 +96,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
     pub(crate) fn generic_new(mut swarm: SwarmT, advertised_multiaddr: Option<Multiaddr>) -> Self {
-        gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS).set(0f64);
+        gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS, 0f64);
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
         if let Some(address) = advertised_multiaddr.clone() {
@@ -260,16 +257,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         })
     }
 
-    fn handle_swarm_event(
-        &mut self,
-        event: SwarmEvent<mixed_behaviour::Event>,
-    ) -> Result<(), NetworkError> {
+    fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
         #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
-                gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS)
-                    .set(self.swarm.num_connected_peers() as f64);
+                gauge!(
+                    papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS,
+                    self.swarm.num_connected_peers() as f64
+                );
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 match cause {
@@ -278,11 +274,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     }
                     None => debug!("Connection to {peer_id:?} closed."),
                 }
-                gauge!(papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS)
-                    .set(self.swarm.num_connected_peers() as f64);
+                gauge!(
+                    papyrus_metrics::PAPYRUS_NUM_CONNECTED_PEERS,
+                    self.swarm.num_connected_peers() as f64
+                );
             }
             SwarmEvent::Behaviour(event) => {
-                self.handle_behaviour_event(event)?;
+                self.handle_behaviour_event(event);
             }
             SwarmEvent::OutgoingConnectionError { connection_id, peer_id, error } => {
                 warn!(
@@ -317,37 +315,28 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 error!("Unexpected event {event:?}");
             }
         }
-        Ok(())
     }
 
-    fn handle_behaviour_event(
-        &mut self,
-        event: mixed_behaviour::Event,
-    ) -> Result<(), NetworkError> {
+    fn handle_behaviour_event(&mut self, event: mixed_behaviour::Event) {
         match event {
             mixed_behaviour::Event::ExternalEvent(external_event) => {
-                self.handle_behaviour_external_event(external_event)?;
+                self.handle_behaviour_external_event(external_event);
             }
             mixed_behaviour::Event::ToOtherBehaviourEvent(internal_event) => {
                 self.handle_to_other_behaviour_event(internal_event);
             }
         }
-        Ok(())
     }
 
-    fn handle_behaviour_external_event(
-        &mut self,
-        event: mixed_behaviour::ExternalEvent,
-    ) -> Result<(), NetworkError> {
+    fn handle_behaviour_external_event(&mut self, event: mixed_behaviour::ExternalEvent) {
         match event {
             mixed_behaviour::ExternalEvent::Sqmr(event) => {
                 self.handle_sqmr_event(event);
             }
             mixed_behaviour::ExternalEvent::GossipSub(event) => {
-                self.handle_gossipsub_behaviour_event(event)?;
+                self.handle_gossipsub_behaviour_event(event);
             }
         }
-        Ok(())
     }
 
     // TODO(shahak): Move this logic to mixed_behaviour.
@@ -400,22 +389,17 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         inbound_session_id: InboundSessionId,
         query: Vec<u8>,
     ) {
-        debug!(
-            "Network received new inbound query from peer {peer_id:?}. Sending query to server. \
-             {inbound_session_id:?}"
+        self.num_active_inbound_sessions += 1;
+        gauge!(
+            papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS,
+            self.num_active_inbound_sessions as f64
         );
         let (report_sender, report_receiver) = oneshot::channel::<()>();
         self.handle_new_report_receiver(peer_id, report_receiver);
+        // TODO: consider returning error instead of panic.
         let Some(query_sender) = self.sqmr_inbound_payload_senders.get_mut(&protocol_name) else {
-            error!(
-                "Received an inbound query for an unregistered protocol. Dropping query for \
-                 session {inbound_session_id:?}"
-            );
             return;
         };
-        self.num_active_inbound_sessions += 1;
-        gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
-            .set(self.num_active_inbound_sessions as f64);
         let (responses_sender, responses_receiver) = futures::channel::mpsc::channel(
             *self
                 .inbound_protocol_to_buffer_size
@@ -438,7 +422,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 "Received an inbound query while the buffer is full. Dropping query for session \
                  {inbound_session_id:?}"
             ),
-            true,
         );
     }
 
@@ -449,7 +432,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         response: Vec<u8>,
     ) {
         trace!(
-            "Received response from peer {peer_id:?} for {outbound_session_id:?}. Sending to sync \
+            "Received response from peer for session id: {outbound_session_id:?}. sending to sync \
              subscriber."
         );
         if let Some(report_receiver) =
@@ -461,15 +444,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             self.sqmr_outbound_response_senders.get_mut(&outbound_session_id)
         {
             // TODO(shahak): Close the channel if the buffer is full.
-            // TODO(Eitan): Close the channel if query was dropped by user.
             send_now(
                 response_sender,
                 response,
                 format!(
                     "Received response for an outbound query while the buffer is full. Dropping \
-                     it. {outbound_session_id:?}"
+                     it. Session: {outbound_session_id:?}"
                 ),
-                false,
             );
         }
     }
@@ -492,7 +473,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn handle_sqmr_event_session_finished_successfully(&mut self, session_id: SessionId) {
-        debug!("Session completed successfully. {session_id:?}");
+        debug!("Session completed successfully. session_id: {session_id:?}");
         self.report_session_removed_to_metrics(session_id);
         if let SessionId::OutboundSessionId(outbound_session_id) = session_id {
             self.sqmr_outbound_response_senders.remove(&outbound_session_id);
@@ -507,24 +488,24 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    fn handle_gossipsub_behaviour_event(
-        &mut self,
-        event: gossipsub_impl::ExternalEvent,
-    ) -> Result<(), NetworkError> {
+    fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
         };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
-            panic!(
+            error!(
                 "Received a message from a topic we're not subscribed to with hash {topic_hash:?}"
             );
+            return;
         };
         let send_result = sender.try_send((message, broadcasted_message_metadata));
         if let Err(e) = send_result {
             if e.is_disconnected() {
-                return Err(NetworkError::BroadcastChannelsDropped { topic_hash });
+                warn!(
+                    "Broadcasted messages receiver was dropped for topic with hash {topic_hash:?}."
+                )
             } else if e.is_full() {
                 warn!(
                     "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
@@ -532,33 +513,25 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 );
             }
         }
-        Ok(())
     }
 
     fn handle_response_for_inbound_query(&mut self, res: (InboundSessionId, Option<Bytes>)) {
         let (inbound_session_id, maybe_response) = res;
         match maybe_response {
             Some(response) => {
-                trace!(
-                    "Received response from server. Sending response to peer. \
-                     {inbound_session_id:?}"
-                );
                 self.swarm.send_response(response, inbound_session_id).unwrap_or_else(|e| {
                     error!(
-                        "Failed to send response to peer. {inbound_session_id:?} not found error: \
-                         {e:?}"
+                        "Failed to send response to peer. Session id: {inbound_session_id:?} not \
+                         found error: {e:?}"
                     );
                 });
             }
             // The None is inserted by the network manager after the receiver end terminated so
             // that we'll know here when it terminated.
             None => {
-                trace!(
-                    "Server finished sending responses. Closing session. {inbound_session_id:?}"
-                );
                 self.swarm.close_inbound_session(inbound_session_id).unwrap_or_else(|e| {
                     error!(
-                        "Failed to close session after sending all response. \
+                        "Failed to close session after sending all response. Session id: \
                          {inbound_session_id:?} not found error: {e:?}"
                     )
                 });
@@ -572,14 +545,29 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         client_payload: SqmrClientPayload,
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
-        let outbound_session_id = self.swarm.send_query(query, protocol.clone());
-        self.num_active_outbound_sessions += 1;
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-        gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
-            .set(self.num_active_outbound_sessions as f64);
-        self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
-        self.sqmr_outbound_report_receivers_awaiting_assignment
-            .insert(outbound_session_id, report_receiver);
+        match self.swarm.send_query(query, PeerId::random(), protocol.clone()) {
+            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+            Ok(outbound_session_id) => {
+                debug!(
+                    "Network received new query. waiting for peer assignment. \
+                     outbound_session_id: {outbound_session_id:?}"
+                );
+                self.num_active_outbound_sessions += 1;
+                gauge!(
+                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
+                    self.num_active_outbound_sessions as f64
+                );
+                self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
+                self.sqmr_outbound_report_receivers_awaiting_assignment
+                    .insert(outbound_session_id, report_receiver);
+            }
+            Err(e) => {
+                info!(
+                    "Failed to send query to peer. Peer not connected error: {e:?} Returning \
+                     empty response to sync subscriber."
+                );
+            }
+        }
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
@@ -591,13 +579,17 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         match session_id {
             SessionId::InboundSessionId(_) => {
                 self.num_active_inbound_sessions -= 1;
-                gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
-                    .set(self.num_active_inbound_sessions as f64);
+                gauge!(
+                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS,
+                    self.num_active_inbound_sessions as f64
+                );
             }
             SessionId::OutboundSessionId(_) => {
                 self.num_active_outbound_sessions += 1;
-                gauge!(papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
-                    .set(self.num_active_outbound_sessions as f64);
+                gauge!(
+                    papyrus_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
+                    self.num_active_outbound_sessions as f64
+                );
             }
         }
     }
@@ -613,19 +605,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 }
 
-fn send_now<Item>(
-    sender: &mut GenericSender<Item>,
-    item: Item,
-    buffer_full_message: String,
-    should_panic_upon_disconnect: bool,
-) {
+fn send_now<Item>(sender: &mut GenericSender<Item>, item: Item, buffer_full_message: String) {
     pin_mut!(sender);
     match sender.as_mut().send(item).now_or_never() {
         Some(Ok(())) => {}
         Some(Err(error)) => {
-            if should_panic_upon_disconnect || !error.is_disconnected() {
-                panic!("Received error while sending message: {:?}", error);
-            }
+            error!("Received error while sending message: {:?}", error);
         }
         None => {
             warn!(buffer_full_message);
@@ -639,6 +624,7 @@ impl NetworkManager {
     pub fn new(config: NetworkConfig, node_version: Option<String>) -> Self {
         let NetworkConfig {
             tcp_port,
+            quic_port: _,
             session_timeout,
             idle_connection_timeout,
             bootstrap_peer_multiaddr,
@@ -649,43 +635,23 @@ impl NetworkManager {
             peer_manager_config,
         } = config;
 
-        // TODO(shahak): Add quic transport.
-        let listen_address_str = format!("/ip4/0.0.0.0/tcp/{tcp_port}");
-        let listen_address = Multiaddr::from_str(&listen_address_str)
-            .unwrap_or_else(|_| panic!("Unable to parse address {}", listen_address_str));
-        debug!("Creating swarm with listen address: {:?}", listen_address);
+        let listen_addresses = vec![
+            // TODO: uncomment once quic transpot works.
+            // format!("/ip4/0.0.0.0/udp/{quic_port}/quic-v1"),
+            format!("/ip4/0.0.0.0/tcp/{tcp_port}"),
+        ];
 
-        let key_pair = match secret_key {
-            Some(secret_key) => {
-                Keypair::ed25519_from_bytes(secret_key).expect("Error while parsing secret key")
-            }
-            None => Keypair::generate_ed25519(),
-        };
-        let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
-        .with_tokio()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-        .expect("Error building TCP transport")
-        .with_dns()
-        .expect("Error building DNS transport")
-        // TODO: quic transpot does not work (failure appears in the command line when running in debug mode)
-        // .with_quic()
-        .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
-                key.clone(),
+        let swarm = build_swarm(listen_addresses, idle_connection_timeout, secret_key, |key| {
+            mixed_behaviour::MixedBehaviour::new(
+                key,
                 bootstrap_peer_multiaddr.clone(),
                 sqmr::Config { session_timeout },
                 chain_id,
                 node_version,
                 discovery_config,
                 peer_manager_config,
-            ))
-        .expect("Error while building the swarm")
-        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
-        .build();
-
-        swarm
-            .listen_on(listen_address.clone())
-            .unwrap_or_else(|_| panic!("Error while binding to {}", listen_address));
-
+            )
+        });
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
             address
                 .with_p2p(*swarm.local_peer_id())
@@ -852,6 +818,7 @@ where
     }
 
     pub async fn send_response(&mut self, response: Response) -> Result<(), SendError> {
+        debug!("Sending response from server to network");
         match self.responses_sender.feed(response).await {
             Ok(()) => Ok(()),
             Err(e) => {

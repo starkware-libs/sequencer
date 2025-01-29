@@ -239,7 +239,7 @@ You can also use DNS instead of ip4 by typing
         --network.bootstrap_peer_multiaddr /dns/<other_peer_dns_address>/tcp/<tcp_port>/p2p/<peer_id>
 ----
 
-==== P2p Sync (with bootstrap connection)
+==== P2P Sync (with bootstrap connection)
 [source, bash]
 ----
 cargo run --release --package papyrus_node --bin papyrus_node -- \
@@ -352,7 +352,7 @@ Gets statistics for each table in the libmdbx database. For more information, se
 `metrics`::
 Gets metrics of the node’s activity. For more information, see xref:#collecting-metrics[].
 `peer_id`::
-Gets the p2p peer ID of the node (if the network component is inactive returns an empty string).
+Gets the P2P peer ID of the node (if the network component is inactive returns an empty string).
 
 == Collecting metrics
 

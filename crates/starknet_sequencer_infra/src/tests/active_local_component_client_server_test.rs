@@ -69,7 +69,7 @@ pub enum ComponentCResponse {
 }
 
 #[async_trait]
-trait ComponentCClientTrait: Send {
+trait ComponentCClientTrait: Send + Sync {
     async fn c_inc_counter(&self) -> ClientResult<()>;
     async fn c_get_counter(&self) -> ClientResult<usize>;
 }

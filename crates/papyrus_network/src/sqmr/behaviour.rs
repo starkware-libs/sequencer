@@ -21,7 +21,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
-use tracing::{debug, error};
+use tracing::{error, info};
 
 use super::handler::{
     Handler,
@@ -143,10 +143,7 @@ impl Behaviour {
 
         self.outbound_sessions_pending_peer_assignment
             .insert(outbound_session_id, (query, protocol_name));
-        debug!(
-            "Network received new outbound query. Requesting peer assignment for {:?}.",
-            outbound_session_id
-        );
+        info!("Requesting peer assignment for outbound session: {:?}.", outbound_session_id);
         self.add_event_to_queue(ToSwarm::GenerateEvent(Event::ToOtherBehaviourEvent(
             ToOtherBehaviourEvent::RequestPeerAssignment { outbound_session_id },
         )));
@@ -347,10 +344,7 @@ impl BridgedBehaviour for Behaviour {
         else {
             return;
         };
-        debug!(
-            "Assigned peer {:?} to session {:?} with connection id: {:?}",
-            peer_id, outbound_session_id, connection_id
-        );
+        info!("Assigned {outbound_session_id:?} to {peer_id:?}");
         self.session_id_to_peer_id_and_connection_id
             .insert((*outbound_session_id).into(), (*peer_id, *connection_id));
 

@@ -28,7 +28,7 @@ use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam}
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientConfig};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::RpcConfig;
 use papyrus_storage::db::DbConfig;
@@ -60,9 +60,9 @@ pub struct NodeConfig {
     /// None if the syncing should be disabled.
     pub sync: Option<SyncConfig>,
     /// One of p2p_sync or sync must be None.
-    /// If p2p sync is active, then network must be active too.
-    // TODO(yair): Change NodeConfig to have an option of enum of SyncConfig or P2pSyncConfig.
-    pub p2p_sync: Option<P2pSyncClientConfig>,
+    /// If P2P sync is active, then network must be active too.
+    // TODO(yair): Change NodeConfig to have an option of enum of SyncConfig or P2PSyncConfig.
+    pub p2p_sync: Option<P2PSyncClientConfig>,
     pub consensus: Option<ConsensusConfig>,
     // TODO(shahak): Make network non-optional once it's developed enough.
     pub network: Option<NetworkConfig>,

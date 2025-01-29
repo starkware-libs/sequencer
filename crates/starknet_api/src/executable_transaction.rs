@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -20,12 +20,7 @@ use crate::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use crate::transaction::{
-    CalculateContractAddress,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
-};
+use crate::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
@@ -157,16 +152,7 @@ impl DeclareTransaction {
         (nonce, Nonce),
         (sender_address, ContractAddress),
         (signature, TransactionSignature),
-        (version, TransactionVersion),
-        // compiled_class_hash is only supported in V2 and V3, otherwise the getter panics.
-        (compiled_class_hash, CompiledClassHash),
-        // The following fields are only supported in V3, otherwise the getter panics.
-        (tip, Tip),
-        (nonce_data_availability_mode, DataAvailabilityMode),
-        (fee_data_availability_mode, DataAvailabilityMode),
-        (paymaster_data, PaymasterData),
-        (account_deployment_data, AccountDeploymentData),
-        (resource_bounds, ValidResourceBounds)
+        (version, TransactionVersion)
     );
 
     pub fn create(
@@ -253,7 +239,12 @@ impl DeployAccountTransaction {
         deploy_account_tx: crate::transaction::DeployAccountTransaction,
         chain_id: &ChainId,
     ) -> Result<Self, StarknetApiError> {
-        let contract_address = deploy_account_tx.calculate_contract_address()?;
+        let contract_address = calculate_contract_address(
+            deploy_account_tx.contract_address_salt(),
+            deploy_account_tx.class_hash(),
+            &deploy_account_tx.constructor_calldata(),
+            ContractAddress::default(),
+        )?;
         let tx_hash =
             deploy_account_tx.calculate_transaction_hash(chain_id, &deploy_account_tx.version())?;
         Ok(Self { tx: deploy_account_tx, tx_hash, contract_address })
@@ -311,7 +302,7 @@ impl InvokeTransaction {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct L1HandlerTransaction {
     pub tx: crate::transaction::L1HandlerTransaction,
     pub tx_hash: TransactionHash,
@@ -319,15 +310,6 @@ pub struct L1HandlerTransaction {
 }
 
 impl L1HandlerTransaction {
-    pub fn create(
-        raw_tx: crate::transaction::L1HandlerTransaction,
-        chain_id: &ChainId,
-        paid_fee_on_l1: Fee,
-    ) -> Result<L1HandlerTransaction, StarknetApiError> {
-        let tx_hash = raw_tx.calculate_transaction_hash(chain_id, &raw_tx.version)?;
-        Ok(Self { tx: raw_tx, tx_hash, paid_fee_on_l1 })
-    }
-
     pub fn payload_size(&self) -> usize {
         // The calldata includes the "from" field, which is not a part of the payload.
         self.tx.calldata.0.len() - 1

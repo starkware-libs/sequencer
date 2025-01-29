@@ -19,7 +19,7 @@ pub fn create_p2p_propagator_and_runner(
 ) -> (MempoolP2pPropagator, MempoolP2pRunner) {
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,
-        // TODO(Shahak): Consider filling this once the sequencer node has a name.
+        // TODO: Consider filling this once the sequencer node has a name.
         None,
     );
     let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =

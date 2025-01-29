@@ -4,7 +4,6 @@ use std::vec;
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderClientError;
@@ -41,7 +40,6 @@ pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub max_l1_handler_txs_per_block: usize,
-    pub height: BlockNumber,
     phase: TxProviderPhase,
     n_l1handler_txs_so_far: usize,
 }
@@ -58,13 +56,11 @@ impl ProposeTransactionProvider {
         mempool_client: SharedMempoolClient,
         l1_provider_client: SharedL1ProviderClient,
         max_l1_handler_txs_per_block: usize,
-        height: BlockNumber,
     ) -> Self {
         Self {
             mempool_client,
             l1_provider_client,
             max_l1_handler_txs_per_block,
-            height,
             phase: TxProviderPhase::L1,
             n_l1handler_txs_so_far: 0,
         }
@@ -76,7 +72,7 @@ impl ProposeTransactionProvider {
     ) -> TransactionProviderResult<Vec<Transaction>> {
         Ok(self
             .l1_provider_client
-            .get_txs(n_txs, self.height)
+            .get_txs(n_txs)
             .await?
             .into_iter()
             .map(Transaction::L1Handler)
@@ -131,7 +127,6 @@ impl TransactionProvider for ProposeTransactionProvider {
 pub struct ValidateTransactionProvider {
     pub tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
     pub l1_provider_client: SharedL1ProviderClient,
-    pub height: BlockNumber,
 }
 
 #[async_trait]
@@ -147,8 +142,7 @@ impl TransactionProvider for ValidateTransactionProvider {
         }
         for tx in &buffer {
             if let Transaction::L1Handler(tx) = tx {
-                let l1_validation_status =
-                    self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
+                let l1_validation_status = self.l1_provider_client.validate(tx.tx_hash).await?;
                 if l1_validation_status != L1ValidationStatus::Validated {
                     // TODO: add the validation status into the error.
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed(

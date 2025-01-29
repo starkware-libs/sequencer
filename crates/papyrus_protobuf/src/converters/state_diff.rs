@@ -146,7 +146,7 @@ impl TryFrom<protobuf::ContractDiff> for ThinStateDiff {
             deprecated_declared_classes: Default::default(),
             // The p2p specs doesn't separate replaced classes from deployed contracts. In RPC v0.8
             // the node will stop separating them as well. Until then nodes syncing from
-            // p2p won't be able to separate replaced classes from deployed contracts correctly
+            // P2P won't be able to separate replaced classes from deployed contracts correctly
             replaced_classes: Default::default(),
         })
     }
@@ -164,7 +164,7 @@ impl TryFrom<protobuf::DeclaredClass> for ThinStateDiff {
                 .try_into()?,
         );
 
-        // According to the p2p specs, if compiled_class_hash is missing, the declared class is a
+        // According to the P2P specs, if compiled_class_hash is missing, the declared class is a
         // cairo-0 class.
         match value.compiled_class_hash {
             Some(compiled_class_hash) => Ok(ThinStateDiff {

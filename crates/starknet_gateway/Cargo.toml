@@ -39,21 +39,13 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
-criterion = { workspace = true, features = ["async_tokio"] }
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
+papyrus_network_types = { path = "../papyrus_network_types", features = ["testing"] }
+papyrus_test_utils.path = "../papyrus_test_utils"
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_mempool.workspace = true
-starknet_mempool_types = { workspace = true, features = ["testing"] }
-starknet_state_sync_types = { workspace = true, features = ["testing"] }
+starknet_mempool.path = "../starknet_mempool"
+starknet_mempool_types = { path = "../starknet_mempool_types", features = ["testing"] }
 tracing-test.workspace = true
-
-[[bench]]
-harness = false
-name = "gateway_bench"
-path = "bench/main.rs"
-required-features = ["testing"]

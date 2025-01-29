@@ -123,7 +123,7 @@ pub struct PyBlockExecutor {
 #[pymethods]
 impl PyBlockExecutor {
     #[new]
-    #[pyo3(signature = (bouncer_config, concurrency_config, contract_class_manager_config, os_config, target_storage_config, py_versioned_constants_overrides))]
+    #[pyo3(signature = (bouncer_config, concurrency_config, contract_class_manager_config, os_config, target_storage_config, py_versioned_constants_overrides, stack_size))]
     pub fn create(
         bouncer_config: PyBouncerConfig,
         concurrency_config: PyConcurrencyConfig,
@@ -131,6 +131,7 @@ impl PyBlockExecutor {
         os_config: PyOsConfig,
         target_storage_config: StorageConfig,
         py_versioned_constants_overrides: PyVersionedConstantsOverrides,
+        stack_size: usize,
     ) -> Self {
         log::debug!("Initializing Block Executor...");
         let storage =
@@ -143,6 +144,7 @@ impl PyBlockExecutor {
             bouncer_config: bouncer_config.try_into().expect("Failed to parse bouncer config."),
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
+                stack_size,
             },
             chain_info: os_config.into_chain_info(),
             versioned_constants,
@@ -352,7 +354,7 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
-    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size))]
+    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size))]
     #[staticmethod]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
@@ -360,6 +362,7 @@ impl PyBlockExecutor {
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
+        stack_size: usize,
     ) -> Self {
         use blockifier::bouncer::BouncerWeights;
         // TODO(Meshi, 01/01/2025): Remove this once we fix all python tests that re-declare cairo0
@@ -375,6 +378,7 @@ impl PyBlockExecutor {
             },
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
+                stack_size,
             },
             storage: Box::new(PapyrusStorage::new_for_testing(path, &os_config.chain_id)),
             chain_info: os_config.into_chain_info(),
@@ -423,6 +427,7 @@ impl PyBlockExecutor {
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
+        stack_size: usize,
     ) -> Self {
         Self::create_for_testing(
             concurrency_config,
@@ -430,6 +435,7 @@ impl PyBlockExecutor {
             os_config,
             path,
             max_state_diff_size,
+            stack_size,
         )
     }
 }

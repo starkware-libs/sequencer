@@ -24,7 +24,7 @@ use papyrus_consensus::types::{
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
-    HeightAndRound,
+    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -47,8 +47,8 @@ const CHANNEL_SIZE: usize = 100;
 
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
-    network_broadcast_client: BroadcastTopicClient<Vote>,
-    network_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+    network_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
     validators: Vec<ValidatorId>,
     sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
@@ -60,8 +60,8 @@ pub struct PapyrusConsensusContext {
 impl PapyrusConsensusContext {
     pub fn new(
         storage_reader: StorageReader,
-        network_broadcast_client: BroadcastTopicClient<Vote>,
-        network_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+        network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+        network_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         num_validators: u64,
         sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     ) -> Self {
@@ -118,7 +118,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .block_hash;
 
                 let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
-                let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
+                let stream_id = height.0;
                 network_proposal_sender
                     .send((stream_id, proposal_receiver))
                     .await
@@ -249,7 +249,7 @@ impl ConsensusContext for PapyrusConsensusContext {
             .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"))
             .clone();
 
-        let stream_id = HeightAndRound(height.0, init.round);
+        let stream_id = height.0;
         let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
         self.network_proposal_sender
             .send((stream_id, proposal_receiver))
@@ -277,7 +277,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         *self.validators.first().expect("there should be at least one validator")
     }
 
-    async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
+    async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
         self.network_broadcast_client.broadcast_message(message).await?;
         Ok(())
@@ -300,11 +300,6 @@ impl ConsensusContext for PapyrusConsensusContext {
             .expect("Lock on active proposals was poisoned due to a previous panic");
         proposals.retain(|&h, _| h > BlockNumber(height));
         Ok(())
-    }
-
-    async fn try_sync(&mut self, _height: BlockNumber) -> bool {
-        // TODO(Asmaa): Implement this.
-        todo!()
     }
 
     async fn set_height_and_round(&mut self, _height: BlockNumber, _round: Round) {

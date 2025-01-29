@@ -1,17 +1,18 @@
-use std::fmt::Display;
-
-use bytes::{Buf, BufMut};
-use prost::DecodeError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
-pub trait IntoFromProto: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
-impl<T> IntoFromProto for T where
-    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>
-{
+// TODO(guyn): remove this once we integrate ProposalPart everywhere.
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
+pub struct Proposal {
+    pub height: u64,
+    pub round: u32,
+    pub proposer: ContractAddress,
+    pub transactions: Vec<Transaction>,
+    pub block_hash: BlockHash,
+    pub valid_round: Option<u32>,
 }
 
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
@@ -30,16 +31,32 @@ pub struct Vote {
     pub voter: ContractAddress,
 }
 
+// TODO: remove this once we are sure everything works using just Vote.
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum ConsensusMessage {
+    Proposal(Proposal), // To be deprecated
+    Vote(Vote),
+}
+
+impl ConsensusMessage {
+    pub fn height(&self) -> u64 {
+        match self {
+            ConsensusMessage::Proposal(proposal) => proposal.height,
+            ConsensusMessage::Vote(vote) => vote.height,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum StreamMessageBody<T> {
     Content(T),
     Fin,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct StreamMessage<T: IntoFromProto, StreamId: IntoFromProto + Clone> {
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: StreamMessageBody<T>,
-    pub stream_id: StreamId,
+    pub stream_id: u64,
     pub message_id: u64,
 }
 
@@ -118,12 +135,12 @@ impl From<ProposalInit> for ProposalPart {
     }
 }
 
-impl<T, StreamId> std::fmt::Display for StreamMessage<T, StreamId>
+impl<T> std::fmt::Display for StreamMessage<T>
 where
-    T: Clone + IntoFromProto,
-    StreamId: IntoFromProto + Clone + Display,
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO(guyn): add option to display when message is Fin and doesn't have content (PR #1048)
         if let StreamMessageBody::Content(message) = &self.message {
             let message: Vec<u8> = message.clone().into();
             write!(
@@ -140,38 +157,5 @@ where
                 self.stream_id, self.message_id,
             )
         }
-    }
-}
-
-/// HeighAndRound is a tuple struct used as the StreamId for consensus and context.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct HeightAndRound(pub u64, pub u32);
-
-impl TryFrom<Vec<u8>> for HeightAndRound {
-    type Error = ProtobufConversionError;
-
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        if value.len() != 12 {
-            return Err(ProtobufConversionError::DecodeError(DecodeError::new("Invalid length")));
-        }
-        let mut bytes = value.as_slice();
-        let height = bytes.get_u64();
-        let round = bytes.get_u32();
-        Ok(HeightAndRound(height, round))
-    }
-}
-
-impl From<HeightAndRound> for Vec<u8> {
-    fn from(value: HeightAndRound) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(12);
-        bytes.put_u64(value.0);
-        bytes.put_u32(value.1);
-        bytes
-    }
-}
-
-impl std::fmt::Display for HeightAndRound {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(height: {}, round: {})", self.0, self.1)
     }
 }

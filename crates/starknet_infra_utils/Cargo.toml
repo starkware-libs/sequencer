@@ -6,21 +6,15 @@ repository.workspace = true
 license-file.workspace = true
 description = "Infrastructure utility."
 
-[features]
-testing = []
-
 [lints]
 workspace = true
 
 [dependencies]
-num-traits.workspace = true
-regex.workspace = true
-tokio = { workspace = true, features = ["process", "rt", "time"] }
+tokio = { workspace = true, features = ["process", "time"] }
 tracing.workspace = true
 
 [dev-dependencies]
-nix.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-tokio = { workspace = true, features = ["macros", "rt", "signal", "sync"] }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }

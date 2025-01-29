@@ -1,6 +1,5 @@
 syntax = "proto3";
 import "p2p/proto/common.proto";
-import "p2p/proto/sync/common.proto";
 
 
 // optimized for flat storage, not through a trie (not sharing key prefixes)

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use blockifier::blockifier::transaction_executor::BLOCK_STATE_ACCESS_ERR;
+use blockifier::blockifier::transaction_executor::{BLOCK_STATE_ACCESS_ERR, DEFAULT_STACK_SIZE};
 use blockifier::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -48,6 +48,7 @@ fn global_contract_cache_update() {
         PyOsConfig::default(),
         temp_storage_path,
         4000,
+        DEFAULT_STACK_SIZE,
     );
     block_executor
         .append_block(
@@ -129,6 +130,7 @@ fn global_contract_cache_update_large_contract() {
         Default::default(),
         temp_storage_path,
         4000,
+        DEFAULT_STACK_SIZE,
     );
     block_executor
         .append_block(

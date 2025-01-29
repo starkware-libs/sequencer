@@ -13,9 +13,9 @@ runs:
     - name: Submodules update.
       run: git submodule update --init --recursive
       shell: bash
-    - name: Install cairo native.
-      uses: ./.github/actions/setup_native_deps
     - name: Install rust.
       uses: ./.github/actions/install_rust
       with:
         extra_rust_toolchains: ${{ inputs.extra_rust_toolchains }}
+    - name: Install cairo native.
+      uses: ./.github/actions/setup_native_deps

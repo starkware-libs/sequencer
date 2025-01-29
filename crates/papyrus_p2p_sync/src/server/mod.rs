@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-use async_trait::async_trait;
-use futures::never::Never;
 use futures::StreamExt;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
@@ -22,17 +20,15 @@ use papyrus_protobuf::sync::{
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;
-use papyrus_storage::class_manager::ClassManagerStorageReader;
+use papyrus_storage::class::ClassStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{db, StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
-use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 #[cfg(test)]
 mod test;
@@ -40,12 +36,12 @@ mod test;
 mod utils;
 
 #[derive(thiserror::Error, Debug)]
-pub enum P2pSyncServerError {
+pub enum P2PSyncServerError {
     #[error(transparent)]
     DBInternalError(#[from] papyrus_storage::StorageError),
     #[error("Block number is out of range. Query: {query:?}, counter: {counter}")]
     BlockNumberOutOfRange { query: Query, counter: u64 },
-    // TODO(Shahak): add data type to the error message.
+    // TODO: add data type to the error message.
     #[error("Block not found. Block: {block_hash_or_number:?}")]
     BlockNotFound { block_hash_or_number: BlockHashOrNumber },
     #[error("Class not found. Class hash: {class_hash}")]
@@ -53,20 +49,18 @@ pub enum P2pSyncServerError {
     // This error should be non recoverable.
     #[error(transparent)]
     JoinError(#[from] tokio::task::JoinError),
-    // TODO(Shahak): remove this error, use BlockNotFound instead.
+    // TODO: remove this error, use BlockNotFound instead.
     // This error should be non recoverable.
     #[error("Block {block_number:?} is in the storage but its signature isn't.")]
     SignatureNotFound { block_number: BlockNumber },
     #[error(transparent)]
     SendError(#[from] futures::channel::mpsc::SendError),
-    #[error(transparent)]
-    ClassManagerClientError(#[from] ClassManagerClientError),
 }
 
-impl P2pSyncServerError {
+impl P2PSyncServerError {
     pub fn should_log_in_error_level(&self) -> bool {
         match self {
-            Self::JoinError(_) | Self::SignatureNotFound { .. } | Self::SendError { .. } | Self::ClassManagerClientError { .. }
+            Self::JoinError(_) | Self::SignatureNotFound { .. } | Self::SendError { .. }
             // TODO(shahak): Consider returning false for some of the StorageError variants.
             | Self::DBInternalError { .. } => true,
             Self::BlockNumberOutOfRange { .. } | Self::BlockNotFound { .. } | Self::ClassNotFound { .. } => false,
@@ -80,7 +74,7 @@ type TransactionReceiver = SqmrServerReceiver<TransactionQuery, DataOrFin<FullTr
 type ClassReceiver = SqmrServerReceiver<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 type EventReceiver = SqmrServerReceiver<EventQuery, DataOrFin<(Event, TransactionHash)>>;
 
-pub struct P2pSyncServerChannels {
+pub struct P2PSyncServerChannels {
     header_receiver: HeaderReceiver,
     state_diff_receiver: StateDiffReceiver,
     transaction_receiver: TransactionReceiver,
@@ -88,7 +82,7 @@ pub struct P2pSyncServerChannels {
     event_receiver: EventReceiver,
 }
 
-impl P2pSyncServerChannels {
+impl P2PSyncServerChannels {
     pub fn new(
         header_receiver: HeaderReceiver,
         state_diff_receiver: StateDiffReceiver,
@@ -106,16 +100,15 @@ impl P2pSyncServerChannels {
     }
 }
 
-/// A P2pSyncServer receives inbound queries and returns their corresponding data.
-pub struct P2pSyncServer {
+/// A P2PSyncServer receives inbound queries and returns their corresponding data.
+pub struct P2PSyncServer {
     storage_reader: StorageReader,
-    p2p_sync_channels: P2pSyncServerChannels,
-    class_manager_client: SharedClassManagerClient,
+    p2p_sync_channels: P2PSyncServerChannels,
 }
 
-impl P2pSyncServer {
-    pub async fn run(self) -> Never {
-        let P2pSyncServerChannels {
+impl P2PSyncServer {
+    pub async fn run(self) {
+        let P2PSyncServerChannels {
             mut header_receiver,
             mut state_diff_receiver,
             mut transaction_receiver,
@@ -128,67 +121,54 @@ impl P2pSyncServer {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Header queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "header");
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
                 maybe_server_query_manager = state_diff_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "State diff queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "state diff");
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
                 maybe_server_query_manager = transaction_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Transaction queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "transaction");
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                maybe_server_query_manager = class_receiver.next() => {
-                    let server_query_manager = maybe_server_query_manager.expect(
+                mayber_server_query_manager = class_receiver.next() => {
+                    let server_query_manager = mayber_server_query_manager.expect(
                         "Class queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "class");
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
-                maybe_server_query_manager = event_receiver.next() => {
-                    let server_query_manager = maybe_server_query_manager.expect(
+                mayber_server_query_manager = event_receiver.next() => {
+                    let server_query_manager = mayber_server_query_manager.expect(
                         "Event queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "event");
+                    register_query(self.storage_reader.clone(), server_query_manager);
                 }
             };
         }
     }
 
-    pub fn new(
-        storage_reader: StorageReader,
-        p2p_sync_channels: P2pSyncServerChannels,
-        class_manager_client: SharedClassManagerClient,
-    ) -> Self {
-        Self { storage_reader, p2p_sync_channels, class_manager_client }
+    pub fn new(storage_reader: StorageReader, p2p_sync_channels: P2PSyncServerChannels) -> Self {
+        Self { storage_reader, p2p_sync_channels }
     }
 }
 fn register_query<Data, TQuery>(
     storage_reader: StorageReader,
     server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
-    class_manager_client: SharedClassManagerClient,
-    protocol_decription: &str,
 ) where
-    Data: FetchBlockData + Send + 'static,
+    Data: FetchBlockDataFromDb + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send + Clone + Debug + 'static,
     Query: From<TQuery>,
 {
-    let protocol_decription = protocol_decription.to_owned();
     let query = server_query_manager.query().clone();
     match query {
         Ok(query) => {
-            debug!("Sync server received a new inbound query {query:?}");
+            info!("Sync server received a new inbound query {query:?}");
             tokio::task::spawn(async move {
-                let result = send_data_for_query(
-                    storage_reader,
-                    server_query_manager,
-                    class_manager_client,
-                    protocol_decription.as_str(),
-                )
-                .await;
+                let result = send_data_for_query(storage_reader, server_query_manager).await;
                 if let Err(error) = result {
                     if error.should_log_in_error_level() {
                         error!("Running inbound query {query:?} failed on {error:?}");
@@ -206,31 +186,27 @@ fn register_query<Data, TQuery>(
     }
 }
 
-#[async_trait]
-pub trait FetchBlockData: Sized {
-    async fn fetch_block_data(
+pub trait FetchBlockDataFromDb: Sized {
+    fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
-        class_manager_client: &mut SharedClassManagerClient,
-    ) -> Result<Vec<Self>, P2pSyncServerError>;
+    ) -> Result<Vec<Self>, P2PSyncServerError>;
 }
 
-#[async_trait]
-impl FetchBlockData for SignedBlockHeader {
-    async fn fetch_block_data(
+impl FetchBlockDataFromDb for SignedBlockHeader {
+    fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
-        _class_manager_client: &mut SharedClassManagerClient,
-    ) -> Result<Vec<Self>, P2pSyncServerError> {
+    ) -> Result<Vec<Self>, P2PSyncServerError> {
         let mut header =
-            txn.get_block_header(block_number)?.ok_or(P2pSyncServerError::BlockNotFound {
+            txn.get_block_header(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             })?;
         // TODO(shahak) Remove this once central sync fills the state_diff_length field.
         if header.state_diff_length.is_none() {
             header.state_diff_length = Some(
                 txn.get_state_diff(block_number)?
-                    .ok_or(P2pSyncServerError::BlockNotFound {
+                    .ok_or(P2PSyncServerError::BlockNotFound {
                         block_hash_or_number: BlockHashOrNumber::Number(block_number),
                     })?
                     .len(),
@@ -238,44 +214,40 @@ impl FetchBlockData for SignedBlockHeader {
         }
         let signature = txn
             .get_block_signature(block_number)?
-            .ok_or(P2pSyncServerError::SignatureNotFound { block_number })?;
+            .ok_or(P2PSyncServerError::SignatureNotFound { block_number })?;
         Ok(vec![SignedBlockHeader { block_header: header, signatures: vec![signature] }])
     }
 }
 
-#[async_trait]
-impl FetchBlockData for StateDiffChunk {
-    async fn fetch_block_data(
+impl FetchBlockDataFromDb for StateDiffChunk {
+    fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
-        _class_manager_client: &mut SharedClassManagerClient,
-    ) -> Result<Vec<Self>, P2pSyncServerError> {
+    ) -> Result<Vec<Self>, P2PSyncServerError> {
         let thin_state_diff =
-            txn.get_state_diff(block_number)?.ok_or(P2pSyncServerError::BlockNotFound {
+            txn.get_state_diff(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             })?;
         Ok(split_thin_state_diff(thin_state_diff))
     }
 }
 
-#[async_trait]
-impl FetchBlockData for FullTransaction {
-    async fn fetch_block_data(
+impl FetchBlockDataFromDb for FullTransaction {
+    fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
-        _class_manager_client: &mut SharedClassManagerClient,
-    ) -> Result<Vec<Self>, P2pSyncServerError> {
+    ) -> Result<Vec<Self>, P2PSyncServerError> {
         let transactions =
-            txn.get_block_transactions(block_number)?.ok_or(P2pSyncServerError::BlockNotFound {
+            txn.get_block_transactions(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             })?;
         let transaction_outputs = txn.get_block_transaction_outputs(block_number)?.ok_or(
-            P2pSyncServerError::BlockNotFound {
+            P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             },
         )?;
         let transaction_hashes = txn.get_block_transaction_hashes(block_number)?.ok_or(
-            P2pSyncServerError::BlockNotFound {
+            P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             },
         )?;
@@ -292,63 +264,52 @@ impl FetchBlockData for FullTransaction {
     }
 }
 
-#[async_trait]
-impl FetchBlockData for (ApiContractClass, ClassHash) {
-    async fn fetch_block_data(
+impl FetchBlockDataFromDb for (ApiContractClass, ClassHash) {
+    fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
-        class_manager_client: &mut SharedClassManagerClient,
-    ) -> Result<Vec<Self>, P2pSyncServerError> {
+    ) -> Result<Vec<Self>, P2PSyncServerError> {
         let thin_state_diff =
-            txn.get_state_diff(block_number)?.ok_or(P2pSyncServerError::BlockNotFound {
+            txn.get_state_diff(block_number)?.ok_or(P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             })?;
-
-        if block_number >= txn.get_class_manager_block_marker()? {
-            return Err(P2pSyncServerError::BlockNotFound {
-                block_hash_or_number: BlockHashOrNumber::Number(block_number),
-            });
-        }
-
         let declared_classes = thin_state_diff.declared_classes;
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
-        for class_hash in deprecated_declared_classes {
-            let ContractClass::V0(deprecated_contract_class) =
-                class_manager_client.get_executable(class_hash).await?
-            else {
-                panic!("Received a cairo1 contract, expected cairo0");
-            };
+        for class_hash in &deprecated_declared_classes {
             result.push((
-                ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
-                class_hash,
+                ApiContractClass::DeprecatedContractClass(
+                    txn.get_deprecated_class(class_hash)?
+                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+                ),
+                *class_hash,
             ));
         }
-
-        for (class_hash, _) in declared_classes {
+        for (class_hash, _) in &declared_classes {
             result.push((
-                ApiContractClass::ContractClass(class_manager_client.get_sierra(class_hash).await?),
-                class_hash,
+                ApiContractClass::ContractClass(
+                    txn.get_class(class_hash)?
+                        .ok_or(P2PSyncServerError::ClassNotFound { class_hash: *class_hash })?,
+                ),
+                *class_hash,
             ));
         }
         Ok(result)
     }
 }
 
-#[async_trait]
-impl FetchBlockData for (Event, TransactionHash) {
-    async fn fetch_block_data(
+impl FetchBlockDataFromDb for (Event, TransactionHash) {
+    fn fetch_block_data_from_db(
         block_number: BlockNumber,
         txn: &StorageTxn<'_, db::RO>,
-        _class_manager_client: &mut SharedClassManagerClient,
-    ) -> Result<Vec<Self>, P2pSyncServerError> {
+    ) -> Result<Vec<Self>, P2PSyncServerError> {
         let transaction_outputs = txn.get_block_transaction_outputs(block_number)?.ok_or(
-            P2pSyncServerError::BlockNotFound {
+            P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             },
         )?;
         let transaction_hashes = txn.get_block_transaction_hashes(block_number)?.ok_or(
-            P2pSyncServerError::BlockNotFound {
+            P2PSyncServerError::BlockNotFound {
                 block_hash_or_number: BlockHashOrNumber::Number(block_number),
             },
         )?;
@@ -412,23 +373,15 @@ pub fn split_thin_state_diff(thin_state_diff: ThinStateDiff) -> Vec<StateDiffChu
 async fn send_data_for_query<Data, TQuery>(
     storage_reader: StorageReader,
     mut server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
-    mut class_manager_client: SharedClassManagerClient,
-    protocol_decription: &str,
-) -> Result<(), P2pSyncServerError>
+) -> Result<(), P2PSyncServerError>
 where
-    Data: FetchBlockData + Send + 'static,
+    Data: FetchBlockDataFromDb + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
     Query: From<TQuery>,
 {
     // If this function fails, we still want to send fin before failing.
-    let result = send_data_without_fin_for_query(
-        &storage_reader,
-        &mut server_query_manager,
-        &mut class_manager_client,
-        protocol_decription,
-    )
-    .await;
-    debug!("Sending fin message for inbound sync query");
+    let result = send_data_without_fin_for_query(&storage_reader, &mut server_query_manager).await;
+    info!("Sending fin message for inbound sync query");
     server_query_manager.send_response(DataOrFin(None)).await?;
     result
 }
@@ -436,11 +389,9 @@ where
 async fn send_data_without_fin_for_query<Data, TQuery>(
     storage_reader: &StorageReader,
     server_query_manager: &mut ServerQueryManager<TQuery, DataOrFin<Data>>,
-    class_manager_client: &mut SharedClassManagerClient,
-    protocol_decription: &str,
-) -> Result<(), P2pSyncServerError>
+) -> Result<(), P2PSyncServerError>
 where
-    Data: FetchBlockData + Send + 'static,
+    Data: FetchBlockDataFromDb + Send + 'static,
     TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Clone,
     Query: From<TQuery>,
 {
@@ -453,7 +404,7 @@ where
         BlockHashOrNumber::Number(BlockNumber(num)) => num,
         BlockHashOrNumber::Hash(block_hash) => {
             txn.get_block_number_by_hash(&block_hash)?
-                .ok_or(P2pSyncServerError::BlockNotFound {
+                .ok_or(P2PSyncServerError::BlockNotFound {
                     block_hash_or_number: BlockHashOrNumber::Hash(block_hash),
                 })?
                 .0
@@ -462,13 +413,10 @@ where
     for block_counter in 0..query.limit {
         let block_number =
             BlockNumber(utils::calculate_block_number(&query, start_block_number, block_counter)?);
-        let data_vec = Data::fetch_block_data(block_number, &txn, class_manager_client).await?;
+        let data_vec = Data::fetch_block_data_from_db(block_number, &txn)?;
         for data in data_vec {
-            // TODO(Shahak): consider implement retry mechanism.
-            info!(
-                "Sending response for inbound {protocol_decription} query for block \
-                 {block_number:?}"
-            );
+            // TODO: consider implement retry mechanism.
+            info!("Sending response for inbound sync query");
             server_query_manager.send_response(DataOrFin(Some(data))).await?;
         }
     }

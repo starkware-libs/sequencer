@@ -17,7 +17,7 @@ use std::time::Duration;
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote, VoteType};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -98,7 +98,6 @@ impl PartialEq for ShcTask {
 
 impl ShcTask {
     pub async fn run(self) -> ShcEvent {
-        trace!("Running task: {:?}", self);
         match self {
             ShcTask::TimeoutPropose(duration, event) => {
                 tokio::time::sleep(duration).await;
@@ -199,11 +198,12 @@ impl SingleHeightConsensus {
         }
     }
 
-    #[instrument(skip_all)]
+    #[instrument(skip_all, fields(height=self.height.0), level = "debug")]
     pub(crate) async fn start<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
     ) -> Result<ShcReturn, ConsensusError> {
+        info!("Starting consensus with validators {:?}", self.validators);
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
@@ -214,41 +214,75 @@ impl SingleHeightConsensus {
 
     /// Process the proposal init and initiate block validation. See [`ShcTask::ValidateProposal`]
     /// for more details on the full proposal flow.
-    #[instrument(skip_all)]
+    #[instrument(
+        skip_all,
+        fields(height = %self.height),
+        level = "debug",
+    )]
     pub(crate) async fn handle_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
         init: ProposalInit,
         p2p_messages_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received {init:?}");
+        debug!(
+            "Received proposal: height={}, round={}, proposer={:?}",
+            init.height.0, init.round, init.proposer
+        );
         let proposer_id = context.proposer(self.height, init.round);
         if init.height != self.height {
-            warn!("Invalid proposal height: expected {:?}, got {:?}", self.height, init.height);
-            return Ok(ShcReturn::Tasks(Vec::new()));
+            let msg = format!("invalid height: expected {:?}, got {:?}", self.height, init.height);
+            return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
         }
         if init.proposer != proposer_id {
-            warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
-            return Ok(ShcReturn::Tasks(Vec::new()));
+            let msg =
+                format!("invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
+            return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
         }
         let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
             warn!("Round {} already has a proposal, ignoring", init.round);
             return Ok(ShcReturn::Tasks(Vec::new()));
         };
-        let timeout = self.timeouts.proposal_timeout;
-        info!(
-            "Accepting {init:?}. node_round: {}, timeout: {timeout:?}",
-            self.state_machine.round()
-        );
         // Since validating the proposal is non-blocking, we want to avoid validating the same round
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
-        let block_receiver = context.validate_proposal(init, timeout, p2p_messages_receiver).await;
+        let block_receiver = context
+            .validate_proposal(init, self.timeouts.proposal_timeout, p2p_messages_receiver)
+            .await;
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
 
+    async fn process_inbound_proposal<ContextT: ConsensusContext>(
+        &mut self,
+        context: &mut ContextT,
+        sm_proposal: StateMachineEvent,
+    ) -> Result<ShcReturn, ConsensusError> {
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+        let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
+        self.handle_state_machine_events(context, sm_events).await
+    }
+
+    /// Handle messages from peer nodes.
     #[instrument(skip_all)]
+    pub(crate) async fn handle_message<ContextT: ConsensusContext>(
+        &mut self,
+        context: &mut ContextT,
+        message: ConsensusMessage,
+    ) -> Result<ShcReturn, ConsensusError> {
+        debug!("Received message: {:?}", message);
+        match message {
+            ConsensusMessage::Proposal(_) => {
+                unimplemented!("Proposals should use `handle_proposal` due to fake streaming")
+            }
+            ConsensusMessage::Vote(vote) => {
+                let ret = self.handle_vote(context, vote).await;
+                context.set_height_and_round(self.height, self.state_machine.round()).await;
+                ret
+            }
+        }
+    }
+
     pub async fn handle_event<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -266,16 +300,12 @@ impl SingleHeightConsensus {
             }
             ShcEvent::Prevote(StateMachineEvent::Prevote(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_prevote else {
-                    return Err(ConsensusError::InternalInconsistency(
-                        "No prevote to send".to_string(),
-                    ));
+                    return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
                 };
                 if last_vote.round > round {
-                    // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                debug!("Rebroadcasting {last_vote:?}");
-                context.broadcast(last_vote.clone()).await?;
+                context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
                     StateMachineEvent::Prevote(proposal_id, round),
@@ -283,64 +313,54 @@ impl SingleHeightConsensus {
             }
             ShcEvent::Precommit(StateMachineEvent::Precommit(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_precommit else {
-                    return Err(ConsensusError::InternalInconsistency(
-                        "No precommit to send".to_string(),
-                    ));
+                    return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
                 };
                 if last_vote.round > round {
-                    // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                debug!("Rebroadcasting {last_vote:?}");
-                context.broadcast(last_vote.clone()).await?;
+                context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
                     StateMachineEvent::Precommit(proposal_id, round),
                 )]))
             }
             ShcEvent::ValidateProposal(
-                StateMachineEvent::Proposal(built_id, round, valid_round),
-                received_fin,
+                StateMachineEvent::Proposal(built_content_id, round, valid_round),
+                received_proposal_id,
             ) => {
-                let leader_fn =
-                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-                debug!(
-                    proposer = %leader_fn(round),
-                    %round,
-                    ?valid_round,
-                    ?built_id,
-                    ?received_fin,
-                    node_round = self.state_machine.round(),
-                    "Validated proposal.",
-                );
                 // TODO(matan): Switch to signature validation.
-                if built_id != received_fin.as_ref().map(|fin| fin.proposal_content_id) {
-                    warn!("proposal_id built from content received does not match fin.");
-                    return Ok(ShcReturn::Tasks(Vec::new()));
+
+                let mut id = None;
+                if let (Some(built_content_id), Some(ProposalFin { proposal_content_id })) =
+                    (built_content_id, received_proposal_id.clone())
+                {
+                    if built_content_id == proposal_content_id {
+                        id = Some(built_content_id);
+                    }
+                }
+                if id.is_none() {
+                    warn!(
+                        "proposal_id built from content receiver does not match fin: {:#064x?} != \
+                         {:#064x?}",
+                        built_content_id, received_proposal_id
+                    );
                 }
                 // Retaining the entry for this round prevents us from receiving another proposal on
-                // this round. While this prevents spam attacks it also prevents re-receiving after
-                // a network issue.
-                let old = self.proposals.insert(round, built_id);
-                let old = old.unwrap_or_else(|| {
-                    panic!("Proposal entry should exist from init. round: {round}")
-                });
-                assert!(old.is_none(), "Proposal already exists for this round: {round}. {old:?}");
-                let sm_events = self.state_machine.handle_event(
-                    StateMachineEvent::Proposal(built_id, round, valid_round),
-                    &leader_fn,
-                );
-                self.handle_state_machine_events(context, sm_events).await
+                // this round. If the validations failed, which can be caused by a network issue, we
+                // may want to re-open ourselves to this round. The downside is that this may open
+                // us to a spam attack.
+                // TODO(Asmaa): consider revisiting this decision. Spam attacks may not be a problem
+                // given that serial proposing anyways forces us to use interrupts.
+                self.proposals.insert(round, id);
+                self.process_inbound_proposal(
+                    context,
+                    StateMachineEvent::Proposal(id, round, valid_round),
+                )
+                .await
             }
             ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round)) => {
                 let old = self.proposals.insert(round, proposal_id);
-                assert!(old.is_none(), "There should be no entry for round {round} when proposing");
-                assert_eq!(
-                    round,
-                    self.state_machine.round(),
-                    "State machine should not progress while awaiting proposal"
-                );
-                debug!(%round, proposal_content_id = ?proposal_id, "Built proposal.");
+                assert!(old.is_none(), "There should be no entry for this round.");
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 let sm_events = self
@@ -354,16 +374,14 @@ impl SingleHeightConsensus {
         ret
     }
 
-    /// Handle vote messages from peer nodes.
     #[instrument(skip_all)]
-    pub(crate) async fn handle_vote<ContextT: ConsensusContext>(
+    async fn handle_vote<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received {:?}", vote);
         if !self.validators.contains(&vote.voter) {
-            debug!("Ignoring vote from non validator: vote={:?}", vote);
+            debug!("Ignoring vote from voter not in validators: vote={:?}", vote);
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
 
@@ -383,23 +401,24 @@ impl SingleHeightConsensus {
             Entry::Occupied(entry) => {
                 let old = entry.get();
                 if old.block_hash != vote.block_hash {
-                    warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
-                    return Ok(ShcReturn::Tasks(Vec::new()));
+                    return Err(ConsensusError::Equivocation(
+                        self.height,
+                        ConsensusMessage::Vote(old.clone()),
+                        ConsensusMessage::Vote(vote),
+                    ));
                 } else {
                     // Replay, ignore.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
             }
         }
-        info!("Accepting {:?}", vote);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_vote, &leader_fn);
-        let ret = self.handle_state_machine_events(context, sm_events).await;
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
-        ret
+        self.handle_state_machine_events(context, sm_events).await
     }
 
     // Handle events output by the state machine.
+    #[instrument(skip_all)]
     async fn handle_state_machine_events<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -407,7 +426,7 @@ impl SingleHeightConsensus {
     ) -> Result<ShcReturn, ConsensusError> {
         let mut ret_val = Vec::new();
         while let Some(event) = events.pop_front() {
-            trace!("Handling sm event: {:?}", event);
+            trace!("Handling event: {:?}", event);
             match event {
                 StateMachineEvent::GetProposal(proposal_id, round) => {
                     ret_val.extend(
@@ -459,6 +478,7 @@ impl SingleHeightConsensus {
 
     /// Initiate block building. See [`ShcTask::BuildProposal`] for more details on the full
     /// proposal flow.
+    #[instrument(skip(self, context), level = "debug")]
     async fn handle_state_machine_get_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -467,8 +487,10 @@ impl SingleHeightConsensus {
     ) -> Vec<ShcTask> {
         assert!(
             proposal_id.is_none(),
-            "StateMachine is requesting a new proposal, but provided a content id."
+            "ProposalContentId must be None since the state machine is requesting a \
+             ProposalContentId"
         );
+        debug!("Proposer");
 
         // TODO: Figure out how to handle failed proposal building. I believe this should be handled
         // by applying timeoutPropose when we are the leader.
@@ -478,6 +500,7 @@ impl SingleHeightConsensus {
         vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
 
+    #[instrument(skip(self, context), level = "debug")]
     async fn handle_state_machine_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -485,22 +508,20 @@ impl SingleHeightConsensus {
         round: Round,
         valid_round: Option<Round>,
     ) {
-        let Some(valid_round) = valid_round else {
-            // Newly built proposals are handled by the BuildProposal flow.
+        let Some(proposal_id) = proposal_id else {
+            warn!("Build proposal failed");
             return;
         };
-        let proposal_id = proposal_id.expect("Reproposal must have a valid ID");
-
+        let Some(valid_round) = valid_round else {
+            // newly built so just streamed
+            return;
+        };
         let id = self
             .proposals
             .get(&valid_round)
-            .unwrap_or_else(|| panic!("A proposal should exist for valid_round: {valid_round}"))
-            .unwrap_or_else(|| {
-                panic!("A valid proposal should exist for valid_round: {valid_round}")
-            });
-        assert_eq!(id, proposal_id, "reproposal should match the stored proposal");
-        let old = self.proposals.insert(round, Some(proposal_id));
-        assert!(old.is_none(), "There should be no proposal for round {round}.");
+            .expect("proposals should have proposal for valid_round")
+            .expect("proposal should not be None");
+        assert_eq!(id, proposal_id, "proposal should match the stored proposal");
         let init = ProposalInit {
             height: self.height,
             round,
@@ -508,8 +529,11 @@ impl SingleHeightConsensus {
             valid_round: Some(valid_round),
         };
         context.repropose(id, init).await;
+        let old = self.proposals.insert(round, Some(proposal_id));
+        assert!(old.is_none(), "There should be no entry for this round.");
     }
 
+    #[instrument(skip_all)]
     async fn handle_state_machine_vote<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
@@ -543,54 +567,29 @@ impl SingleHeightConsensus {
             voter: self.id,
         };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
-            return Err(ConsensusError::InternalInconsistency(format!(
-                "State machine should not send repeat votes: old={:?}, new={:?}",
-                old, vote
-            )));
+            // TODO(matan): Consider refactoring not to panic, rather log and return the error.
+            panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
         }
-        *last_vote = match last_vote {
-            None => Some(vote.clone()),
-            Some(last_vote) if round > last_vote.round => Some(vote.clone()),
-            Some(_) => {
-                // According to the Tendermint paper, the state machine should only vote for its
-                // current round. It should monotonicly increase its round. It should only vote once
-                // per step.
-                return Err(ConsensusError::InternalInconsistency(format!(
-                    "State machine must progress in time: last_vote: {:?} new_vote: {:?}",
-                    last_vote, vote,
-                )));
-            }
-        };
-
-        info!("Broadcasting {vote:?}");
-        context.broadcast(vote).await?;
+        context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+        if last_vote.as_ref().map_or(false, |last| round < last.round) {
+            return Ok(Vec::new());
+        }
+        *last_vote = Some(vote);
         Ok(vec![task])
     }
 
+    #[instrument(skip_all)]
     async fn handle_state_machine_decision(
         &mut self,
         proposal_id: ProposalContentId,
         round: Round,
     ) -> Result<ShcReturn, ConsensusError> {
-        let invalid_decision = |msg: String| {
-            ConsensusError::InternalInconsistency(format!(
-                "Invalid decision: sm_proposal_id: {proposal_id}, round: {round}. {msg}",
-            ))
-        };
         let block = self
             .proposals
             .remove(&round)
-            .ok_or_else(|| invalid_decision("No proposal entry for this round".to_string()))?
-            .ok_or_else(|| {
-                invalid_decision(
-                    "Proposal is invalid or validations haven't yet completed".to_string(),
-                )
-            })?;
-        if block != proposal_id {
-            return Err(invalid_decision(format!(
-                "StateMachine block hash should match the stored block. Shc.block_id: {block}"
-            )));
-        }
+            .expect("StateMachine arrived at an unknown decision")
+            .expect("StateMachine should not decide on a missing proposal");
+        assert_eq!(block, proposal_id, "StateMachine block hash should match the stored block");
         let supporting_precommits: Vec<Vote> = self
             .validators
             .iter()
@@ -599,17 +598,12 @@ impl SingleHeightConsensus {
                 if vote.block_hash == Some(proposal_id) { Some(vote.clone()) } else { None }
             })
             .collect();
-        let quorum_size =
-            usize::try_from(self.state_machine.quorum_size()).expect("u32 should fit in usize");
         // TODO(matan): Check actual weights.
-        if quorum_size > supporting_precommits.len() {
-            let msg = format!(
-                "Not enough supporting votes. quorum_size: {quorum_size}, num_supporting_votes: \
-                 {}. supporting_votes: {supporting_precommits:?}",
-                supporting_precommits.len(),
-            );
-            return Err(invalid_decision(msg));
-        }
+        assert!(
+            supporting_precommits.len()
+                >= usize::try_from(self.state_machine.quorum_size())
+                    .expect("u32 should fit in usize")
+        );
         Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
     }
 }

@@ -78,7 +78,6 @@
 pub mod base_layer;
 pub mod body;
 pub mod class;
-pub mod class_manager;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
@@ -666,7 +665,6 @@ pub(crate) enum MarkerKind {
     Class,
     CompiledClass,
     BaseLayerBlock,
-    ClassManagerBlock,
 }
 
 pub(crate) type MarkersTable<'env> =

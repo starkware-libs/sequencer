@@ -30,7 +30,7 @@ pub struct AddTransactionArgs {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub rejected_tx_hashes: HashSet<TransactionHash>,
+    pub tx_hashes: HashSet<TransactionHash>,
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;

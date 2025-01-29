@@ -20,10 +20,10 @@ use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_network::{network_manager, NetworkConfig};
-use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels};
-use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
+use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
+use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::storage_metrics::update_storage_metrics;
@@ -34,7 +34,6 @@ use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, SyncConfig};
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
-use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
@@ -70,7 +69,6 @@ pub struct PapyrusResources {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub class_manager_client: SharedClassManagerClient,
 }
 
 /// Struct which allows configuring how the node will run.
@@ -103,8 +101,6 @@ impl PapyrusResources {
             ..Default::default()
         }));
         let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
-        // TODO(noamsp): Remove this and use the real client instead once implemented.
-        let class_manager_client = Arc::new(EmptyClassManagerClient);
         Ok(Self {
             storage_reader,
             storage_writer,
@@ -113,7 +109,6 @@ impl PapyrusResources {
             shared_highest_block,
             pending_data,
             pending_classes,
-            class_manager_client,
         })
     }
 }
@@ -197,9 +192,8 @@ fn spawn_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
-    let proposal_network_channels: BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
-    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    let proposal_network_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>> =
+        network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
@@ -226,9 +220,9 @@ fn spawn_consensus(
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
-            config.sync_retry_interval,
             network_channels.into(),
             inbound_internal_receiver,
+            futures::stream::pending(),
         )
         .await?)
     }))
@@ -263,7 +257,6 @@ async fn run_sync(
     Ok(sync.run().await?)
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn spawn_sync_client(
     maybe_network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
@@ -272,7 +265,6 @@ async fn spawn_sync_client(
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
-    class_manager_client: SharedClassManagerClient,
 ) -> JoinHandle<anyhow::Result<()>> {
     match (config.sync, config.p2p_sync) {
         (Some(_), Some(_)) => {
@@ -301,21 +293,20 @@ async fn spawn_sync_client(
                 .register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
             let class_client_sender =
                 network_manager.register_sqmr_protocol_client(Protocol::Class.into(), BUFFER_SIZE);
-            let p2p_sync_client_channels = P2pSyncClientChannels::new(
+            let p2p_sync_client_channels = P2PSyncClientChannels::new(
                 header_client_sender,
                 state_diff_client_sender,
                 transaction_client_sender,
                 class_client_sender,
             );
-            let p2p_sync = P2pSyncClient::new(
+            let p2p_sync = P2PSyncClient::new(
                 p2p_sync_client_config,
                 storage_reader,
                 storage_writer,
                 p2p_sync_client_channels,
                 futures::stream::pending().boxed(),
-                class_manager_client,
             );
-            tokio::spawn(async move { Ok(p2p_sync.run().await.map(|_never| ())?) })
+            tokio::spawn(async move { Ok(p2p_sync.run().await?) })
         }
     }
 }
@@ -323,10 +314,9 @@ async fn spawn_sync_client(
 fn spawn_p2p_sync_server(
     network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
-    class_manager_client: SharedClassManagerClient,
 ) -> JoinHandle<anyhow::Result<()>> {
     let Some(network_manager) = network_manager else {
-        info!("P2p Sync is disabled.");
+        info!("P2P Sync is disabled.");
         return tokio::spawn(future::pending());
     };
 
@@ -341,7 +331,7 @@ fn spawn_p2p_sync_server(
     let event_server_receiver =
         network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
 
-    let p2p_sync_server_channels = P2pSyncServerChannels::new(
+    let p2p_sync_server_channels = P2PSyncServerChannels::new(
         header_server_receiver,
         state_diff_server_receiver,
         transaction_server_receiver,
@@ -349,8 +339,7 @@ fn spawn_p2p_sync_server(
         event_server_receiver,
     );
 
-    let p2p_sync_server =
-        P2pSyncServer::new(storage_reader.clone(), p2p_sync_server_channels, class_manager_client);
+    let p2p_sync_server = P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
     tokio::spawn(async move {
         p2p_sync_server.run().await;
         Ok(())
@@ -406,14 +395,13 @@ async fn run_threads(
         .await?
     };
 
-    // P2p Sync Server task.
+    // P2P Sync Server task.
     let p2p_sync_server_handle = if let Some(handle) = tasks.p2p_sync_server_handle {
         handle
     } else {
         spawn_p2p_sync_server(
             resources.maybe_network_manager.as_mut(),
             resources.storage_reader.clone(),
-            resources.class_manager_client.clone(),
         )
     };
 
@@ -429,7 +417,6 @@ async fn run_threads(
             resources.shared_highest_block,
             resources.pending_data,
             resources.pending_classes,
-            resources.class_manager_client.clone(),
         )
         .await
     };
@@ -461,7 +448,7 @@ async fn run_threads(
             res??
         }
         res = p2p_sync_server_handle => {
-            error!("P2p Sync server stopped");
+            error!("P2P Sync server stopped");
             res??
         }
         res = network_handle => {

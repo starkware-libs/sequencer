@@ -18,7 +18,6 @@ use papyrus_config::dumping::{
     append_sub_config_name,
     ser_optional_sub_config,
     ser_pointer_target_param,
-    ser_pointer_target_required_param,
     set_pointing_param_paths,
     ConfigPointers,
     Pointers,
@@ -27,10 +26,10 @@ use papyrus_config::dumping::{
 use papyrus_config::loading::load_and_process_config;
 #[cfg(not(feature = "rpc"))]
 use papyrus_config::ParamPrivacyInput;
-use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
+use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientConfig};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::RpcConfig;
 use papyrus_storage::db::DbConfig;
@@ -52,9 +51,9 @@ use crate::version::VERSION_FULL;
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![
         (
-            ser_pointer_target_required_param(
+            ser_pointer_target_param(
                 "chain_id",
-                SerializationType::String,
+                &ChainId::Mainnet,
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
             set_pointing_param_paths(&[

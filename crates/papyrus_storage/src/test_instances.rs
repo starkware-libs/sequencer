@@ -61,7 +61,6 @@ auto_impl_get_test_instance! {
         Class = 4,
         CompiledClass = 5,
         BaseLayerBlock = 6,
-        ClassManagerBlock = 7,
     }
     pub enum OffsetKind {
         ThinStateDiff = 0,

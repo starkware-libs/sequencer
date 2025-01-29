@@ -60,9 +60,9 @@
     "privacy": "Public"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "privacy": "TemporaryValue",
+    "value": "SN_MAIN"
   },
   "collect_metrics": {
     "description": "If true, collect metrics for the node.",
@@ -149,6 +149,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "consensus.network_config.quic_port": {
+    "description": "The port that the node listens on for incoming quic connections.",
+    "privacy": "Public",
+    "value": 10101
+  },
   "consensus.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
     "privacy": "Private",
@@ -178,11 +183,6 @@
     "description": "The height to start the consensus from.",
     "privacy": "Public",
     "value": 0
-  },
-  "consensus.sync_retry_interval": {
-    "description": "The duration (seconds) between sync attempts.",
-    "privacy": "Public",
-    "value": 1.0
   },
   "consensus.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
@@ -293,6 +293,11 @@
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
     "privacy": "Public",
     "value": 1000
+  },
+  "network.quic_port": {
+    "description": "The port that the node listens on for incoming quic connections.",
+    "privacy": "Public",
+    "value": 10001
   },
   "network.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",

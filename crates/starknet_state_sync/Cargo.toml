@@ -18,16 +18,10 @@ papyrus_storage.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-starknet_class_manager_types.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_state_sync_types.workspace = true
 tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-cairo-lang-starknet-classes.workspace = true
-indexmap = { workspace = true, features = ["serde"] }
-libp2p.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
-rand_chacha.workspace = true
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }

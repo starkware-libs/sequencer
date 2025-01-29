@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
 use papyrus_config::{ParamPath, SerializedParam};
 use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::client::P2pSyncClientConfig;
+use papyrus_p2p_sync::client::P2PSyncClientConfig;
 use papyrus_storage::db::DbConfig;
 use papyrus_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
@@ -16,8 +16,8 @@ const STATE_SYNC_TCP_PORT: u16 = 12345;
 pub struct StateSyncConfig {
     #[validate]
     pub storage_config: StorageConfig,
-    // TODO(shahak): add validate to P2pSyncClientConfig
-    pub p2p_sync_client_config: P2pSyncClientConfig,
+    // TODO(shahak): add validate to P2PSyncClientConfig
+    pub p2p_sync_client_config: P2PSyncClientConfig,
     #[validate]
     pub network_config: NetworkConfig,
 }

@@ -113,7 +113,7 @@ pub fn py_declare(
     py_class_info: PyClassInfo,
 ) -> NativeBlockifierResult<DeclareTransaction> {
     let version = py_attr::<PyFelt>(py_tx, "version")?.0;
-    // TODO(Dori): Make TransactionVersion an enum and use match here.
+    // TODO: Make TransactionVersion an enum and use match here.
     let tx = if version == Felt::ZERO {
         let py_declare_tx: PyDeclareTransactionV0V1 = py_tx.extract()?;
         let declare_tx = DeclareTransactionV0V1::try_from(py_declare_tx)?;

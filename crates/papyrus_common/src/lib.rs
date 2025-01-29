@@ -8,6 +8,7 @@ pub mod pending_classes;
 pub mod python_json;
 pub mod state;
 pub mod storage_query;
+pub mod tcp;
 
 pub(crate) fn usize_into_felt(u: usize) -> Felt {
     u128::try_from(u).expect("Expect at most 128 bits").into()

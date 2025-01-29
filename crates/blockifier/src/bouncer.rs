@@ -144,7 +144,7 @@ impl BouncerWeights {
 }
 
 impl Default for BouncerWeights {
-    // TODO(Yael): update the default values once the actual values are known.
+    // TODO: update the default values once the actual values are known.
     fn default() -> Self {
         Self {
             l1_gas: 2500000,
@@ -349,7 +349,7 @@ impl std::fmt::Display for BuiltinCount {
 }
 
 impl Default for BuiltinCount {
-    // TODO(Yael): update the default values once the actual production values are known.
+    // TODO: update the default values once the actual production values are known.
     fn default() -> Self {
         Self {
             add_mod: 156250,

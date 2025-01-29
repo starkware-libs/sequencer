@@ -1,15 +1,17 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+#[cfg(any(feature = "testing", test))]
+use std::net::SocketAddr;
 
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
+use starknet_sequencer_infra::component_definitions::{
+    LocalServerConfig,
+    RemoteClientConfig,
+    RemoteServerConfig,
+};
 use tracing::error;
 use validator::{Validate, ValidationError};
-
-const DEFAULT_INVALID_SOCKET: SocketAddr =
-    SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
@@ -33,31 +35,24 @@ pub enum ActiveComponentExecutionMode {
 #[validate(schema(function = "validate_reactive_component_execution_config"))]
 pub struct ReactiveComponentExecutionConfig {
     pub execution_mode: ReactiveComponentExecutionMode,
-    pub local_server_config: LocalServerConfig,
-    pub remote_client_config: RemoteClientConfig,
-    pub socket: SocketAddr,
+    pub local_server_config: Option<LocalServerConfig>,
+    pub remote_client_config: Option<RemoteClientConfig>,
+    pub remote_server_config: Option<RemoteServerConfig>,
 }
 
 impl SerializeConfig for ReactiveComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([
-            ser_param(
-                "execution_mode",
-                &self.execution_mode,
-                "The component execution mode.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "socket",
-                &self.socket.to_string(),
-                "The remote component socket.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
+        let members = BTreeMap::from_iter([ser_param(
+            "execution_mode",
+            &self.execution_mode,
+            "The component execution mode.",
+            ParamPrivacyInput::Public,
+        )]);
         vec![
             members,
-            append_sub_config_name(self.local_server_config.dump(), "local_server_config"),
-            append_sub_config_name(self.remote_client_config.dump(), "remote_client_config"),
+            ser_optional_sub_config(&self.local_server_config, "local_server_config"),
+            ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
+            ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),
         ]
         .into_iter()
         .flatten()
@@ -76,27 +71,30 @@ impl ReactiveComponentExecutionConfig {
     pub fn disabled() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
-            socket: DEFAULT_INVALID_SOCKET,
+            local_server_config: None,
+            remote_client_config: None,
+            remote_server_config: None,
         }
     }
 
     pub fn remote(socket: SocketAddr) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Remote,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
-            socket,
+            local_server_config: None,
+            remote_client_config: Some(RemoteClientConfig {
+                socket,
+                ..RemoteClientConfig::default()
+            }),
+            remote_server_config: None,
         }
     }
 
     pub fn local_with_remote_enabled(socket: SocketAddr) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
-            socket,
+            local_server_config: Some(LocalServerConfig::default()),
+            remote_client_config: None,
+            remote_server_config: Some(RemoteServerConfig { socket }),
         }
     }
 }
@@ -105,13 +103,10 @@ impl ReactiveComponentExecutionConfig {
     pub fn local_with_remote_disabled() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
-            local_server_config: LocalServerConfig::default(),
-            remote_client_config: RemoteClientConfig::default(),
-            socket: DEFAULT_INVALID_SOCKET,
+            local_server_config: Some(LocalServerConfig::default()),
+            remote_client_config: None,
+            remote_server_config: None,
         }
-    }
-    fn is_valid_socket(&self) -> bool {
-        self.socket.port() != 0
     }
 }
 
@@ -120,16 +115,21 @@ impl ReactiveComponentExecutionConfig {
 #[validate(schema(function = "validate_active_component_execution_config"))]
 pub struct ActiveComponentExecutionConfig {
     pub execution_mode: ActiveComponentExecutionMode,
+    pub remote_client_config: Option<RemoteClientConfig>,
 }
 
 impl SerializeConfig for ActiveComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
+        let members = BTreeMap::from_iter([ser_param(
             "execution_mode",
             &self.execution_mode,
             "The component execution mode.",
             ParamPrivacyInput::Public,
-        )])
+        )]);
+        vec![members, ser_optional_sub_config(&self.remote_client_config, "remote_client_config")]
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 
@@ -141,26 +141,36 @@ impl Default for ActiveComponentExecutionConfig {
 
 impl ActiveComponentExecutionConfig {
     pub fn disabled() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Disabled }
+        Self { execution_mode: ActiveComponentExecutionMode::Disabled, remote_client_config: None }
     }
 
     pub fn enabled() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Enabled }
+        Self { execution_mode: ActiveComponentExecutionMode::Enabled, remote_client_config: None }
     }
 }
 
 fn validate_reactive_component_execution_config(
     component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
-    match (component_config.execution_mode.clone(), component_config.is_valid_socket()) {
-        (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
-        (ReactiveComponentExecutionMode::Remote, true) => Ok(()),
-        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => Ok(()),
-        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, _) => Ok(()),
-        (mode, socket) => {
+    match (
+        component_config.execution_mode.clone(),
+        component_config.local_server_config.is_some(),
+        component_config.remote_client_config.is_some(),
+        component_config.remote_server_config.is_some(),
+    ) {
+        (ReactiveComponentExecutionMode::Disabled, false, false, false) => Ok(()),
+        (ReactiveComponentExecutionMode::Remote, false, true, false) => Ok(()),
+        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => {
+            Ok(())
+        }
+        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, false) => {
+            Ok(())
+        }
+        (mode, local_server_config, remote_client_config, remote_server_config) => {
             error!(
-                "Invalid reactive component execution configuration: mode: {:?}, socket: {:?}",
-                mode, socket
+                "Invalid reactive component execution configuration: mode: {:?}, \
+                 local_server_config: {:?}, remote_client_config: {:?}, remote_server_config: {:?}",
+                mode, local_server_config, remote_client_config, remote_server_config
             );
             let mut error =
                 ValidationError::new("Invalid reactive component execution configuration.");
@@ -171,9 +181,23 @@ fn validate_reactive_component_execution_config(
 }
 
 fn validate_active_component_execution_config(
-    _component_config: &ActiveComponentExecutionConfig,
+    component_config: &ActiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
-    Ok(())
+    match (component_config.execution_mode.clone(), component_config.remote_client_config.is_some())
+    {
+        (ActiveComponentExecutionMode::Disabled, true) => {
+            error!(
+                "Invalid active component execution configuration: Disabled mode with \
+                 remote_client_config: {:?}",
+                component_config.remote_client_config
+            );
+            let mut error =
+                ValidationError::new("Invalid active component execution configuration.");
+            error.message = Some("Ensure settings align with the chosen execution mode.".into());
+            Err(error)
+        }
+        _ => Ok(()),
+    }
 }
 
 // There are components that are described with a reactive mode setting, however, result in the

@@ -1,38 +1,30 @@
-use futures::future::{pending, ready};
-use futures::FutureExt;
-use papyrus_network::network_manager::NetworkError;
-use papyrus_p2p_sync::client::P2pSyncClientError;
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
+// TODO: Refactor these to suit the change to state sync now using p2p sync.
 
-use super::StateSyncRunner;
+// use futures::channel::mpsc;
+// use futures::future::ready;
+// use futures::FutureExt;
+// use papyrus_storage::test_utils::get_test_storage;
+// use papyrus_sync::StateSyncError as PapyrusStateSyncError;
+// use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
-#[test]
-fn run_returns_when_network_future_returns() {
-    let network_future = ready(Ok(())).boxed();
-    let p2p_sync_client_future = pending().boxed();
-    let p2p_sync_server_future = pending().boxed();
-    let mut state_sync_runner =
-        StateSyncRunner { network_future, p2p_sync_client_future, p2p_sync_server_future };
-    state_sync_runner.start().now_or_never().unwrap().unwrap();
-}
+// use super::StateSyncRunner;
 
-#[test]
-fn run_returns_error_when_network_future_returns_error() {
-    let network_future =
-        ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();
-    let p2p_sync_client_future = pending().boxed();
-    let p2p_sync_server_future = pending().boxed();
-    let mut state_sync_runner =
-        StateSyncRunner { network_future, p2p_sync_client_future, p2p_sync_server_future };
-    state_sync_runner.start().now_or_never().unwrap().unwrap_err();
-}
+// const BUFFER_SIZE: usize = 1000;
 
-#[test]
-fn run_returns_error_when_sync_client_future_returns_error() {
-    let network_future = pending().boxed();
-    let p2p_sync_client_future = ready(Err(P2pSyncClientError::TooManyResponses)).boxed();
-    let p2p_sync_server_future = pending().boxed();
-    let mut state_sync_runner =
-        StateSyncRunner { network_future, p2p_sync_client_future, p2p_sync_server_future };
-    state_sync_runner.start().now_or_never().unwrap().unwrap_err();
-}
+// #[test]
+// fn run_returns_when_sync_future_returns() {
+//     let (_request_sender, request_receiver) = mpsc::channel(BUFFER_SIZE);
+//     let (storage_reader, _storage_writer) = get_test_storage().0;
+//     let sync_future = ready(Ok(())).boxed();
+//     let mut state_sync_runner = StateSyncRunner { request_receiver, storage_reader, sync_future
+// };     state_sync_runner.start().now_or_never().unwrap().unwrap();
+// }
+
+// #[test]
+// fn run_returns_error_when_sync_future_returns_error() {
+//     let (_request_sender, request_receiver) = mpsc::channel(BUFFER_SIZE);
+//     let (storage_reader, _storage_writer) = get_test_storage().0;
+//     let sync_future = ready(Err(PapyrusStateSyncError::NoProgress)).boxed();
+//     let mut state_sync_runner = StateSyncRunner { request_receiver, storage_reader, sync_future
+// };     state_sync_runner.start().now_or_never().unwrap().unwrap_err();
+// }

@@ -474,7 +474,7 @@ fn test_apply_writes_reexecute_scenario(
     // the new value (its read value has already been cached).
     assert!(transactional_states[1].get_class_hash_at(contract_address).unwrap() == class_hash);
 
-    // TODO(Noa): Use re-execution native util once it's ready.
+    // TODO: Use re-execution native util once it's ready.
     // "Re-execute" the transaction.
     let mut versioned_state_proxy = safe_versioned_state.pin_version(1);
     transactional_states[1] = TransactionalState::create_transactional(&mut versioned_state_proxy);

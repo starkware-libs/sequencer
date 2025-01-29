@@ -6,7 +6,7 @@ use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 
-#[derive(Debug, Error, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Error, Serialize, Deserialize, Clone)]
 pub enum StateSyncError {
     #[error("Communication error between StateSync and StateSyncRunner")]
     RunnerCommunicationError,
@@ -26,8 +26,6 @@ pub enum StateSyncError {
     SendError(String),
     #[error("Unexpected starknet api error: {0}")]
     StarknetApiError(String),
-    #[error("State is empty, latest block returned None")]
-    EmptyState,
 }
 
 impl From<StorageError> for StateSyncError {

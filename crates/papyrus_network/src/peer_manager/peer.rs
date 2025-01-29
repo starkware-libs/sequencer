@@ -4,6 +4,33 @@ use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
 use tracing::info;
 
+pub trait PeerTrait {
+    fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self;
+
+    fn blacklist_peer(&mut self, timeout_duration: Duration);
+
+    fn peer_id(&self) -> PeerId;
+
+    fn multiaddr(&self) -> Multiaddr;
+
+    fn is_blocked(&self) -> bool;
+
+    /// Returns Instant::now if not blocked.
+    fn blocked_until(&self) -> Instant;
+
+    fn connection_ids(&self) -> &Vec<ConnectionId>;
+
+    fn add_connection_id(&mut self, connection_id: ConnectionId);
+
+    fn remove_connection_id(&mut self, connection_id: ConnectionId);
+
+    fn reset_misconduct_score(&mut self);
+
+    fn report(&mut self, misconduct_score: f64);
+
+    fn is_malicious(&self) -> bool;
+}
+
 #[derive(Clone)]
 pub struct Peer {
     peer_id: PeerId,
@@ -13,8 +40,8 @@ pub struct Peer {
     misconduct_score: f64,
 }
 
-impl Peer {
-    pub fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
+impl PeerTrait for Peer {
+    fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
         Self {
             peer_id,
             multiaddr,
@@ -24,7 +51,7 @@ impl Peer {
         }
     }
 
-    pub fn blacklist_peer(&mut self, timeout_duration: Duration) {
+    fn blacklist_peer(&mut self, timeout_duration: Duration) {
         self.timed_out_until = get_instant_now() + timeout_duration;
         info!(
             "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
@@ -33,19 +60,19 @@ impl Peer {
         );
     }
 
-    pub fn peer_id(&self) -> PeerId {
+    fn peer_id(&self) -> PeerId {
         self.peer_id
     }
 
-    pub fn multiaddr(&self) -> Multiaddr {
+    fn multiaddr(&self) -> Multiaddr {
         self.multiaddr.clone()
     }
 
-    pub fn is_blocked(&self) -> bool {
+    fn is_blocked(&self) -> bool {
         self.timed_out_until > get_instant_now()
     }
 
-    pub fn blocked_until(&self) -> Instant {
+    fn blocked_until(&self) -> Instant {
         if self.timed_out_until > get_instant_now() {
             self.timed_out_until
         } else {
@@ -53,27 +80,27 @@ impl Peer {
         }
     }
 
-    pub fn connection_ids(&self) -> &Vec<ConnectionId> {
+    fn connection_ids(&self) -> &Vec<ConnectionId> {
         &self.connection_ids
     }
 
-    pub fn connection_ids_mut(&mut self) -> &mut Vec<ConnectionId> {
-        &mut self.connection_ids
-    }
-
-    pub fn add_connection_id(&mut self, connection_id: ConnectionId) {
+    fn add_connection_id(&mut self, connection_id: ConnectionId) {
         self.connection_ids.push(connection_id);
     }
 
-    pub fn reset_misconduct_score(&mut self) {
+    fn remove_connection_id(&mut self, connection_id: ConnectionId) {
+        self.connection_ids.retain(|&id| id != connection_id);
+    }
+
+    fn reset_misconduct_score(&mut self) {
         self.misconduct_score = 0f64;
     }
 
-    pub fn report(&mut self, misconduct_score: f64) {
+    fn report(&mut self, misconduct_score: f64) {
         self.misconduct_score += misconduct_score;
     }
 
-    pub fn is_malicious(&self) -> bool {
+    fn is_malicious(&self) -> bool {
         1.0f64 <= self.misconduct_score
     }
 }

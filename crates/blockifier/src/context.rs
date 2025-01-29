@@ -187,7 +187,6 @@ impl ChainInfo {
 impl Default for ChainInfo {
     fn default() -> Self {
         ChainInfo {
-            // TODO(guyn): should we remove the default value for chain_id?
             chain_id: ChainId::Other("0x0".to_string()),
             fee_token_addresses: FeeTokenAddresses::default(),
         }

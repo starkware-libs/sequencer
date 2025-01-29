@@ -4,9 +4,8 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_proc_macros::handle_all_response_variants;
+use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_sequencer_infra::component_client::{
     ClientError,
@@ -46,10 +45,6 @@ pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>>;
-    async fn contains_tx_from(
-        &self,
-        contract_address: ContractAddress,
-    ) -> MempoolClientResult<bool>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -57,7 +52,6 @@ pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
-    ContainsTransactionFrom(ContractAddress),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,7 +59,6 @@ pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<AccountTransaction>>),
-    ContainsTransactionFrom(MempoolResult<bool>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -83,48 +76,24 @@ where
 {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
-        handle_all_response_variants!(
-            MempoolResponse,
-            AddTransaction,
-            MempoolClientError,
-            MempoolError,
-            Direct
-        )
+        let response = self.send(request).await;
+        handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
 
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::CommitBlock(args);
-        handle_all_response_variants!(
-            MempoolResponse,
-            CommitBlock,
-            MempoolClientError,
-            MempoolError,
-            Direct
-        )
+        let response = self.send(request).await;
+        handle_response_variants!(MempoolResponse, CommitBlock, MempoolClientError, MempoolError)
     }
 
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
-        handle_all_response_variants!(
+        let response = self.send(request).await;
+        handle_response_variants!(
             MempoolResponse,
             GetTransactions,
             MempoolClientError,
-            MempoolError,
-            Direct
-        )
-    }
-
-    async fn contains_tx_from(
-        &self,
-        account_address: ContractAddress,
-    ) -> MempoolClientResult<bool> {
-        let request = MempoolRequest::ContainsTransactionFrom(account_address);
-        handle_all_response_variants!(
-            MempoolResponse,
-            ContainsTransactionFrom,
-            MempoolClientError,
-            MempoolError,
-            Direct
+            MempoolError
         )
     }
 }

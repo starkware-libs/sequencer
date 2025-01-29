@@ -7,11 +7,9 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
-use once_cell::sync::Lazy;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
@@ -27,6 +25,7 @@ use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
     RemoteClientConfig,
+    RemoteServerConfig,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };
@@ -36,6 +35,7 @@ use crate::component_server::{
     RemoteComponentServer,
 };
 use crate::serde_utils::SerdeWrapper;
+use crate::test_utils::get_available_socket;
 use crate::tests::{
     test_a_b_functionality,
     ComponentA,
@@ -64,12 +64,6 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 // ClientError::ResponseDeserializationFailure error message.
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 const VALID_VALUE_A: ValueA = Felt::ONE;
-
-// Define the shared fixture
-static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
-    let available_ports = AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), 0);
-    Arc::new(Mutex::new(available_ports))
-});
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -123,9 +117,8 @@ async fn create_client_and_faulty_server<T>(body: T) -> ComponentAClient
 where
     T: Serialize + DeserializeOwned + Debug + Send + Sync + 'static + Clone,
 {
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = get_available_socket().await;
     task::spawn(async move {
-        // TODO (lev, itay): Exam/change the bounds of the T for the hadler function.
         async fn handler<T>(
             _http_request: Request<Body>,
             body: T,
@@ -150,16 +143,16 @@ where
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let config = RemoteClientConfig::default();
-    ComponentAClient::new(config, socket)
+    let config = RemoteClientConfig { socket, ..Default::default() };
+    ComponentAClient::new(config)
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
-    let a_config = RemoteClientConfig::default();
-    let b_config = RemoteClientConfig::default();
+    let a_config = RemoteClientConfig { socket: a_socket, ..Default::default() };
+    let b_config = RemoteClientConfig { socket: b_socket, ..Default::default() };
 
-    let a_remote_client = ComponentAClient::new(a_config, a_socket);
-    let b_remote_client = ComponentBClient::new(b_config, b_socket);
+    let a_remote_client = ComponentAClient::new(a_config);
+    let b_remote_client = ComponentBClient::new(b_config);
 
     let component_a = ComponentA::new(Box::new(b_remote_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_remote_client.clone()));
@@ -175,8 +168,10 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
     let mut component_a_local_server = LocalComponentServer::new(component_a, rx_a);
     let mut component_b_local_server = LocalComponentServer::new(component_b, rx_b);
 
-    let mut component_a_remote_server = RemoteComponentServer::new(a_local_client, a_socket);
-    let mut component_b_remote_server = RemoteComponentServer::new(b_local_client, b_socket);
+    let mut component_a_remote_server =
+        RemoteComponentServer::new(a_local_client, RemoteServerConfig { socket: a_socket });
+    let mut component_b_remote_server =
+        RemoteComponentServer::new(b_local_client, RemoteServerConfig { socket: b_socket });
 
     task::spawn(async move {
         let _ = component_a_local_server.start().await;
@@ -200,22 +195,22 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
 #[tokio::test]
 async fn test_proper_setup() {
     let setup_value: ValueB = Felt::from(90);
-    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let a_socket = get_available_socket().await;
+    let b_socket = get_available_socket().await;
 
     setup_for_tests(setup_value, a_socket, b_socket).await;
-    let a_client_config = RemoteClientConfig::default();
-    let b_client_config = RemoteClientConfig::default();
+    let a_client_config = RemoteClientConfig { socket: a_socket, ..Default::default() };
+    let b_client_config = RemoteClientConfig { socket: b_socket, ..Default::default() };
 
-    let a_remote_client = ComponentAClient::new(a_client_config, a_socket);
-    let b_remote_client = ComponentBClient::new(b_client_config, b_socket);
+    let a_remote_client = ComponentAClient::new(a_client_config);
+    let b_remote_client = ComponentBClient::new(b_client_config);
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
 
 #[tokio::test]
 async fn test_faulty_client_setup() {
-    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let a_socket = get_available_socket().await;
+    let b_socket = get_available_socket().await;
     // Todo(uriel): Find a better way to pass expected value to the setup
     // 123 is some arbitrary value, we don't check it anyway.
     setup_for_tests(Felt::from(123), a_socket, b_socket).await;
@@ -249,9 +244,9 @@ async fn test_faulty_client_setup() {
 
 #[tokio::test]
 async fn test_unconnected_server() {
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let client_config = RemoteClientConfig::default();
-    let client = ComponentAClient::new(client_config, socket);
+    let socket = get_available_socket().await;
+    let client_config = RemoteClientConfig { socket, ..Default::default() };
+    let client = ComponentAClient::new(client_config);
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
 }
@@ -278,7 +273,7 @@ async fn test_faulty_server(
 
 #[tokio::test]
 async fn test_retry_request() {
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = get_available_socket().await;
     // Spawn a server that responses with OK every other request.
     task::spawn(async move {
         let should_send_ok = Arc::new(Mutex::new(false));
@@ -321,20 +316,22 @@ async fn test_retry_request() {
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
     let retry_config = RemoteClientConfig {
+        socket,
         retries: 1,
         idle_connections: MAX_IDLE_CONNECTION,
         idle_timeout: IDLE_TIMEOUT,
     };
-    let a_client_retry = ComponentAClient::new(retry_config, socket);
+    let a_client_retry = ComponentAClient::new(retry_config);
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
     let no_retry_config = RemoteClientConfig {
+        socket,
         retries: 0,
         idle_connections: MAX_IDLE_CONNECTION,
         idle_timeout: IDLE_TIMEOUT,
     };
-    let a_client_no_retry = ComponentAClient::new(no_retry_config, socket);
+    let a_client_no_retry = ComponentAClient::new(no_retry_config);
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
 }

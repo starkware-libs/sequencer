@@ -10,14 +10,13 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_multicompile/cairo_native", "dep:sierra-emu"]
+cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native", "dep:sierra-emu"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
 testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
-profiling = []
-only_native = []
+only-native = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -54,7 +53,6 @@ semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
-stacker = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_infra_utils.workspace = true
@@ -76,7 +74,7 @@ rand.workspace = true
 regex.workspace = true
 rstest.workspace = true
 rstest_reuse.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api = { path = "../starknet_api", features = ["testing"] }
 test-case.workspace = true
 
 [build-dependencies]
@@ -92,7 +90,3 @@ required-features = ["testing"]
 name = "feature_contracts_compatibility_test"
 path = "tests/feature_contracts_compatibility_test.rs"
 required-features = ["testing"]
-
-[package.metadata.cargo-machete]
-# `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
-ignored = ["paste"]

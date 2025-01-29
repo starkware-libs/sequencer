@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
 use futures::StreamExt;
@@ -26,7 +25,7 @@ use papyrus_protobuf::sync::{
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageWriter;
-use papyrus_storage::class_manager::ClassManagerStorageWriter;
+use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
@@ -50,10 +49,8 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionOutput,
 };
-use starknet_class_manager_types::test_utils::MemoryClassManagerClient;
-use starknet_class_manager_types::SharedClassManagerClient;
 
-use super::{split_thin_state_diff, FetchBlockData, P2pSyncServer, P2pSyncServerChannels};
+use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};
 use crate::server::register_query;
 const BUFFER_SIZE: usize = 10;
 const NUM_OF_BLOCKS: usize = 10;
@@ -315,7 +312,7 @@ async fn run_test<T, F, TQuery>(
     start_block_number: usize,
     start_block_type: StartBlockType,
 ) where
-    T: FetchBlockData + std::fmt::Debug + PartialEq + Send + Sync + 'static,
+    T: FetchBlockDataFromDb + std::fmt::Debug + PartialEq + Send + Sync + 'static,
     F: FnOnce(Vec<T>),
     TQuery: From<Query>
         + TryFrom<Vec<u8>, Error = ProtobufConversionError>
@@ -339,13 +336,6 @@ async fn run_test<T, F, TQuery>(
 
     // put some data in the storage.
     insert_to_storage_test_blocks_up_to(&mut storage_writer);
-
-    // put classes into class manager and update marker in storage
-    insert_to_class_manager_test_blocks_up_to(
-        &mut storage_writer,
-        p2p_sync_server.class_manager_client.clone(),
-    )
-    .await;
 
     let block_number = BlockNumber(start_block_number.try_into().unwrap());
     let start_block = match start_block_type {
@@ -371,13 +361,7 @@ async fn run_test<T, F, TQuery>(
     let query = TQuery::from(query);
     let (server_query_manager, _report_sender, response_reciever) =
         create_test_server_query_manager(query);
-
-    register_query::<T, TQuery>(
-        storage_reader,
-        server_query_manager,
-        p2p_sync_server.class_manager_client.clone(),
-        "test",
-    );
+    register_query::<T, TQuery>(storage_reader, server_query_manager);
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
@@ -387,7 +371,7 @@ async fn run_test<T, F, TQuery>(
         mut res = response_reciever.collect::<Vec<_>>() => {
             assert_eq!(DataOrFin(None), res.pop().unwrap());
             let filtered_res: Vec<T> = res.into_iter()
-                    .map(|data| data.0.expect("P2pSyncServer returned Fin and then returned another response"))
+                    .map(|data| data.0.expect("P2PSyncServer returned Fin and then returned another response"))
                     .collect();
             assert_fn(filtered_res);
         }
@@ -396,7 +380,7 @@ async fn run_test<T, F, TQuery>(
 
 pub struct TestArgs {
     #[allow(clippy::type_complexity)]
-    pub p2p_sync_server: P2pSyncServer,
+    pub p2p_sync_server: P2PSyncServer,
     pub storage_reader: StorageReader,
     pub storage_writer: StorageWriter,
     pub header_sender: Sender<ServerQueryManager<HeaderQuery, DataOrFin<SignedBlockHeader>>>,
@@ -417,7 +401,7 @@ fn setup() -> TestArgs {
         mock_register_sqmr_protocol_server(BUFFER_SIZE);
     let (class_receiver, class_sender) = mock_register_sqmr_protocol_server(BUFFER_SIZE);
     let (event_receiver, event_sender) = mock_register_sqmr_protocol_server(BUFFER_SIZE);
-    let p2p_sync_server_channels = P2pSyncServerChannels {
+    let p2p_sync_server_channels = P2PSyncServerChannels {
         header_receiver,
         state_diff_receiver,
         transaction_receiver,
@@ -425,13 +409,8 @@ fn setup() -> TestArgs {
         event_receiver,
     };
 
-    let class_manager_client = Arc::new(MemoryClassManagerClient::new());
-
-    let p2p_sync_server = super::P2pSyncServer::new(
-        storage_reader.clone(),
-        p2p_sync_server_channels,
-        class_manager_client,
-    );
+    let p2p_sync_server =
+        super::P2PSyncServer::new(storage_reader.clone(), p2p_sync_server_channels);
     TestArgs {
         p2p_sync_server,
         storage_reader,
@@ -443,7 +422,6 @@ fn setup() -> TestArgs {
         event_sender,
     }
 }
-
 use starknet_api::core::ClassHash;
 fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
     for i in 0..NUM_OF_BLOCKS {
@@ -456,6 +434,14 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
             },
             ..Default::default()
         };
+        let classes_with_hashes = CLASSES_WITH_HASHES[i]
+            .iter()
+            .map(|(class_hash, contract_class)| (*class_hash, contract_class))
+            .collect::<Vec<_>>();
+        let deprecated_classes_with_hashes = DEPRECATED_CLASSES_WITH_HASHES[i]
+            .iter()
+            .map(|(class_hash, contract_class)| (*class_hash, contract_class))
+            .collect::<Vec<_>>();
         storage_writer
             .begin_rw_txn()
             .unwrap()
@@ -470,42 +456,7 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
             .append_body(block_number, BlockBody{transactions: TXS[i].clone(),
                 transaction_outputs: TX_OUTPUTS[i].clone(),
                 transaction_hashes: TX_HASHES[i].clone(),}).unwrap()
-            .commit()
-            .unwrap();
-    }
-}
-
-async fn insert_to_class_manager_test_blocks_up_to(
-    storage_writer: &mut StorageWriter,
-    class_manager_client: SharedClassManagerClient,
-) {
-    for i in 0..NUM_OF_BLOCKS {
-        let block_number = BlockNumber(i.try_into().unwrap());
-        let classes_with_hashes = CLASSES_WITH_HASHES[i]
-            .iter()
-            .map(|(class_hash, contract_class)| (*class_hash, contract_class))
-            .collect::<Vec<_>>();
-
-        for (class_hash, contract_class) in classes_with_hashes {
-            class_manager_client.add_class(class_hash, contract_class.clone()).await.unwrap();
-        }
-
-        let deprecated_classes_with_hashes = DEPRECATED_CLASSES_WITH_HASHES[i]
-            .iter()
-            .map(|(class_hash, contract_class)| (*class_hash, contract_class))
-            .collect::<Vec<_>>();
-
-        for (class_hash, contract_class) in deprecated_classes_with_hashes {
-            class_manager_client
-                .add_deprecated_class(class_hash, contract_class.clone())
-                .await
-                .unwrap();
-        }
-
-        storage_writer
-            .begin_rw_txn()
-            .unwrap()
-            .update_class_manager_block_marker(&block_number)
+            .append_classes(block_number, &classes_with_hashes, &deprecated_classes_with_hashes)
             .unwrap()
             .commit()
             .unwrap();

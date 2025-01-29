@@ -68,7 +68,7 @@ fn int_to_stark_felt(int: &PyAny) -> PyResult<Felt> {
     biguint_to_felt(biguint).map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
-// TODO(Dori): Convert to a `TryFrom` cast and put in starknet-api (In Felt).
+// TODO: Convert to a `TryFrom` cast and put in starknet-api (In Felt).
 pub fn biguint_to_felt(biguint: BigUint) -> NativeBlockifierResult<Felt> {
     let biguint_hex = format!("{biguint:#x}");
     Ok(Felt::from_hex(&biguint_hex).map_err(NativeBlockifierInputError::from)?)

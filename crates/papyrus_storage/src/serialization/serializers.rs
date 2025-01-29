@@ -325,7 +325,6 @@ auto_storage_serde! {
         Class = 4,
         CompiledClass = 5,
         BaseLayerBlock = 6,
-        ClassManagerBlock = 7,
     }
     pub struct MessageToL1 {
         pub to_address: EthAddress,

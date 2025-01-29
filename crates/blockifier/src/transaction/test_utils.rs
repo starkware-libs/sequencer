@@ -331,7 +331,7 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-// TODO(Dori): Check usages of this function and update to using all gas bounds.
+// TODO: Check usages of this function and update to using all gas bounds.
 pub fn l1_resource_bounds(
     max_amount: GasAmount,
     max_price_per_unit: GasPrice,

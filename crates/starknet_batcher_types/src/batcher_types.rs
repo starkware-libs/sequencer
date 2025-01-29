@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 
 use crate::errors::BatcherError;
@@ -93,7 +92,6 @@ pub struct SendProposalContentResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DecisionReachedResponse {
     pub state_diff: ThinStateDiff,
-    pub l2_gas_used: GasAmount,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -116,11 +114,6 @@ pub struct StartHeightInput {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct RevertBlockInput {
-    pub height: BlockNumber,
 }
 
 pub type BatcherResult<T> = Result<T, BatcherError>;

@@ -1,12 +1,9 @@
-use core::panic;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use futures::channel::mpsc;
 use futures::future::BoxFuture;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::StreamExt;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::test_utils::{
@@ -25,7 +22,7 @@ use papyrus_protobuf::sync::{
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;
-use papyrus_storage::class_manager::ClassManagerStorageReader;
+use papyrus_storage::class::ClassStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
@@ -44,13 +41,9 @@ use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::FullTransaction;
-use starknet_class_manager_types::test_utils::MemoryClassManagerClient;
-use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
-use tokio::sync::oneshot;
 
-use super::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientConfig};
+use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
 
 pub(crate) const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
 pub const BUFFER_SIZE: usize = 1000;
@@ -64,7 +57,7 @@ pub const TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE: Duration =
     WAIT_PERIOD_FOR_NEW_DATA.saturating_add(Duration::from_secs(1));
 
 lazy_static! {
-    static ref TEST_CONFIG: P2pSyncClientConfig = P2pSyncClientConfig {
+    static ref TEST_CONFIG: P2PSyncClientConfig = P2PSyncClientConfig {
         num_headers_per_query: HEADER_QUERY_LENGTH,
         num_block_state_diffs_per_query: STATE_DIFF_QUERY_LENGTH,
         num_block_transactions_per_query: TRANSACTION_QUERY_LENGTH,
@@ -85,7 +78,7 @@ pub(crate) type ClassTestPayload =
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
     #[allow(clippy::type_complexity)]
-    pub p2p_sync: P2pSyncClient,
+    pub p2p_sync: P2PSyncClient,
     pub storage_reader: StorageReader,
     pub mock_header_response_manager: GenericReceiver<HeaderTestPayload>,
     pub mock_state_diff_response_manager: GenericReceiver<StateDiffTestPayload>,
@@ -107,20 +100,18 @@ pub fn setup() -> TestArgs {
         mock_register_sqmr_protocol_client(buffer_size);
     let (class_sender, mock_class_response_manager) =
         mock_register_sqmr_protocol_client(buffer_size);
-    let p2p_sync_channels = P2pSyncClientChannels {
+    let p2p_sync_channels = P2PSyncClientChannels {
         header_sender,
         state_diff_sender,
         transaction_sender,
         class_sender,
     };
-    let class_manager_client = Arc::new(MemoryClassManagerClient::new());
-    let p2p_sync = P2pSyncClient::new(
+    let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
         futures::stream::pending().boxed(),
-        class_manager_client,
     );
     TestArgs {
         p2p_sync,
@@ -143,8 +134,6 @@ pub enum DataType {
 }
 
 pub enum Action {
-    /// Run the p2p sync client.
-    RunP2pSync,
     /// Get a header query from the sync and run custom validations on it.
     ReceiveQuery(Box<dyn FnOnce(Query)>, DataType),
     /// Send a header as a response to a query we got from ReceiveQuery. Will panic if didn't call
@@ -155,25 +144,21 @@ pub enum Action {
     SendStateDiff(DataOrFin<StateDiffChunk>),
     /// Send a transaction as a response to a query we got from ReceiveQuery. Will panic if didn't
     /// call ReceiveQuery with DataType::Transaction before.
+    #[allow(dead_code)]
     SendTransaction(DataOrFin<FullTransaction>),
     /// Send a class as a response to a query we got from ReceiveQuery. Will panic if didn't
     /// call ReceiveQuery with DataType::Class before.
     SendClass(DataOrFin<(ApiContractClass, ClassHash)>),
     /// Perform custom validations on the storage. Returns back the storage reader it received as
     /// input
-    CheckStorage(
-        Box<dyn FnOnce((StorageReader, SharedClassManagerClient)) -> BoxFuture<'static, ()>>,
-    ),
+    CheckStorage(Box<dyn FnOnce(StorageReader) -> BoxFuture<'static, ()>>),
     /// Check that a report was sent on the current header query.
     ValidateReportSent(DataType),
-    /// Sends an internal block to the sync.
-    #[allow(dead_code)]
-    SendInternalBlock(SyncBlock),
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
 pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Action>) {
-    let p2p_sync_config = P2pSyncClientConfig {
+    let p2p_sync_config = P2PSyncClientConfig {
         num_headers_per_query: max_query_lengths.get(&DataType::Header).cloned().unwrap_or(1),
         num_block_state_diffs_per_query: max_query_lengths
             .get(&DataType::StateDiff)
@@ -195,30 +180,24 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
     let (transaction_sender, mut mock_transaction_network) =
         mock_register_sqmr_protocol_client(buffer_size);
     let (class_sender, mut mock_class_network) = mock_register_sqmr_protocol_client(buffer_size);
-    let p2p_sync_channels = P2pSyncClientChannels {
+    let p2p_sync_channels = P2PSyncClientChannels {
         header_sender,
         state_diff_sender,
         transaction_sender,
         class_sender,
     };
-    let (mut internal_block_sender, internal_block_receiver) = mpsc::channel(buffer_size);
-    let class_manager_client = Arc::new(MemoryClassManagerClient::new());
-    let p2p_sync = P2pSyncClient::new(
+    let p2p_sync = P2PSyncClient::new(
         p2p_sync_config,
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
-        internal_block_receiver.boxed(),
-        class_manager_client.clone(),
+        futures::stream::pending().boxed(),
     );
 
     let mut headers_current_query_responses_manager = None;
     let mut state_diff_current_query_responses_manager = None;
     let mut transaction_current_query_responses_manager = None;
     let mut class_current_query_responses_manager = None;
-
-    let (sync_future_sender, sync_future_receiver) = oneshot::channel();
-    let mut sync_future_sender = Some(sync_future_sender);
 
     tokio::select! {
         _ = async {
@@ -275,7 +254,7 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                     }
                     Action::CheckStorage(check_storage_fn) => {
                         // We tried avoiding the clone here but it causes lifetime issues.
-                        check_storage_fn((storage_reader.clone(), class_manager_client.clone())).await;
+                        check_storage_fn(storage_reader.clone()).await;
                     }
                     Action::ValidateReportSent(DataType::Header) => {
                         let responses_manager = headers_current_query_responses_manager.take()
@@ -305,21 +284,12 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
                                 data type");
                         responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
                     }
-                    Action::SendInternalBlock(sync_block) => {
-                        internal_block_sender.send(sync_block).await.unwrap();
-                    }
-                    Action::RunP2pSync => {
-                        sync_future_sender.take().expect("Called RunP2pSync twice").send(()).expect("Failed to send message to run p2p sync");
-                    }
                 }
             }
         } => {},
-        res = sync_future_receiver.then(|res| async {
-            res.expect("Failed to run p2p sync");
-            p2p_sync.run().await
-        }) => {
-            res.unwrap();
-            panic!("P2p sync client finished running");
+        sync_result = p2p_sync.run() => {
+            sync_result.unwrap();
+            panic!("P2P sync aborted with no failure.");
         }
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");
@@ -369,7 +339,7 @@ pub fn create_block_hashes_and_signatures(n_blocks: u8) -> Vec<(BlockHash, Block
         .collect()
 }
 
-// TODO(Shahak): Consider moving this to storage and to use poll wakeup instead of sleep
+// TODO: Consider moving this to storage and to use poll wakeup instead of sleep
 pub(crate) async fn wait_for_marker(
     data_type: DataType,
     storage_reader: &StorageReader,
@@ -387,7 +357,7 @@ pub(crate) async fn wait_for_marker(
             DataType::Header => txn.get_header_marker().unwrap(),
             DataType::Transaction => txn.get_body_marker().unwrap(),
             DataType::StateDiff => txn.get_state_marker().unwrap(),
-            DataType::Class => txn.get_class_manager_block_marker().unwrap(),
+            DataType::Class => txn.get_class_marker().unwrap(),
         };
 
         if storage_marker >= expected_marker {

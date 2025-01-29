@@ -6,7 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 
 [features]
-testing = ["num-traits", "thiserror", "tokio", "tower"]
+testing = ["tokio", "tower"]
 
 [lints]
 workspace = true
@@ -15,12 +15,10 @@ workspace = true
 axum.workspace = true
 hyper = { workspace = true }
 metrics-exporter-prometheus.workspace = true
-num-traits = { workspace = true, optional = true }
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
-thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
 tracing.workspace = true

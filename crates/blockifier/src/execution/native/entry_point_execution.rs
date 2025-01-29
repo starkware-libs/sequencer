@@ -1,7 +1,5 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
-use num_rational::Ratio;
-use stacker;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
@@ -14,7 +12,6 @@ use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, Pre
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
-use crate::versioned_constants::CairoNativeStackConfig;
 
 // todo(rodrigo): add an `entry point not found` test for Native
 pub fn execute_entry_point_call(
@@ -51,48 +48,14 @@ pub fn execute_entry_point_call(
         .checked_sub(initial_budget)
         .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
 
-    // Grow the stack (if it's below the red zone) to handle deep Cairo recursions -
-    // when running Cairo natively, the real stack is used and could get overflowed
-    // (unlike the VM where the stack is simulated in the heap as a memory segment).
-    //
-    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
-    // needs to be big enough ahead.
-    // However, making it very big is wasteful (especially with multi-threading).
-    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
-    // recursions to reach out-of-gas before hitting the bottom of the recursion.
-    //
-    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
-    // adjusting the stack size.
-    // This also limits multi-threading, since each thread has its own stack.
-    // If the the free stack size is in the red zone, We will grow the stack to the
-    // target size, relative to reaming gas.
-    let stack_config = CairoNativeStackConfig {
-        // TODO(Aviv): Take it from VC.
-        gas_to_stack_ratio: Ratio::new(1, 20),
-        max_stack_size: 200 * 1024 * 1024,
-        min_stack_red_zone: 2 * 1024 * 1024,
-        buffer_size: 5 * 1024 * 1024,
-    };
-    let stack_size_red_zone = stack_config.get_stack_size_red_zone(call_initial_gas);
+    let execution_result = compiled_class.executor.run(
+        entry_point.selector.0,
+        &syscall_handler.base.call.calldata.0.clone(),
+        call_initial_gas,
+        Some(builtin_costs),
+        &mut syscall_handler,
+    );
 
-    let stack_size_red_zone = if !cfg!(feature = "profiling") { stack_size_red_zone } else { 0 };
-
-    let target_stack_size =
-        usize::try_from(stack_config.get_target_stack_size(stack_size_red_zone))
-            .unwrap_or_else(|e| panic!("Failed to convert target stack size to usize: {}", e));
-    let stack_size_red_zone = usize::try_from(stack_size_red_zone)
-        .unwrap_or_else(|e| panic!("Failed to convert stack size red zone to usize: {}", e));
-    // Use `maybe_grow` and not `grow` for performance, since in happy flows, only the main call
-    // should trigger the growth.
-    let execution_result = stacker::maybe_grow(stack_size_red_zone, target_stack_size, || {
-        compiled_class.executor.run(
-            entry_point.selector.0,
-            &syscall_handler.base.call.calldata.0.clone(),
-            call_initial_gas,
-            Some(builtin_costs),
-            &mut syscall_handler,
-        )
-    });
     syscall_handler.finalize();
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;

@@ -1,7 +1,3 @@
-use std::error::Error;
-use std::fmt::{Debug, Display};
-use std::ops::RangeInclusive;
-
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHashAndNumber;
@@ -9,10 +5,7 @@ use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce}
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
 
-pub mod constants;
 pub mod ethereum_base_layer_contract;
-
-pub(crate) mod eth_events;
 
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
@@ -23,7 +16,7 @@ mod base_layer_test;
 /// Interface for getting data from the Starknet base contract.
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + Display + Debug;
+    type Error;
 
     /// Get the latest Starknet block that is proved on the base layer.
     /// Optionally, require minimum confirmations.
@@ -35,7 +28,8 @@ pub trait BaseLayerContract {
     /// Get specific events from the Starknet base contract between two L1 block numbers.
     async fn events(
         &self,
-        block_range: RangeInclusive<u64>,
+        from_block: u64,
+        until_block: u64,
         event_identifiers: &[&str],
     ) -> Result<Vec<L1Event>, Self::Error>;
 

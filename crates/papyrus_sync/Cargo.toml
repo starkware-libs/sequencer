@@ -33,12 +33,12 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 mockall.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
+papyrus_test_utils.path = "../papyrus_test_utils"
 pretty_assertions.workspace = true
 simple_logger.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
-starknet_client = { workspace = true, features = ["testing"] }
+starknet_api = { path = "../starknet_api", features = ["testing"] }
+starknet_client = { path = "../starknet_client", features = ["testing"] }
 tokio-stream.workspace = true
 
 [lints]

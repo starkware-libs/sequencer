@@ -9,7 +9,7 @@ license-file.workspace = true
 testing = ["papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
-bytes.workspace = true
+# TODO(Guy): Remove after implementing broadcast streams.
 indexmap.workspace = true
 lazy_static.workspace = true
 primitive-types.workspace = true
@@ -27,7 +27,7 @@ papyrus_common.workspace = true
 [dev-dependencies]
 rand.workspace = true
 rand_chacha.workspace = true
-papyrus_test_utils.workspace = true
+papyrus_test_utils.path = "../papyrus_test_utils"
 
 [build-dependencies]
 prost-build.workspace = true

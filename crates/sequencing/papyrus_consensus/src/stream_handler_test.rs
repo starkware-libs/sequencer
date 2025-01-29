@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::time::Duration;
 
 use futures::channel::mpsc;
@@ -12,53 +11,12 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
-use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_test_utils::{get_rng, GetTestInstance};
-use prost::DecodeError;
 
-use super::{MessageId, StreamHandler};
+use super::{MessageId, StreamHandler, StreamId};
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct TestStreamId(u64);
-
-impl From<TestStreamId> for Vec<u8> {
-    fn from(value: TestStreamId) -> Self {
-        value.0.to_be_bytes().to_vec()
-    }
-}
-
-impl TryFrom<Vec<u8>> for TestStreamId {
-    type Error = ProtobufConversionError;
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        if bytes.len() != 8 {
-            return Err(ProtobufConversionError::DecodeError(DecodeError::new("Invalid length")));
-        }
-        let mut array = [0; 8];
-        array.copy_from_slice(&bytes);
-        Ok(TestStreamId(u64::from_be_bytes(array)))
-    }
-}
-
-impl PartialOrd for TestStreamId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for TestStreamId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-
-impl Display for TestStreamId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TestStreamId({})", self.0)
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -67,10 +25,10 @@ mod tests {
     use super::*;
 
     fn make_test_message(
-        stream_id: TestStreamId,
+        stream_id: StreamId,
         message_id: MessageId,
         fin: bool,
-    ) -> StreamMessage<ProposalPart, TestStreamId> {
+    ) -> StreamMessage<ProposalPart> {
         let content = match fin {
             true => StreamMessageBody::Fin,
             false => StreamMessageBody::Content(ProposalPart::Init(ProposalInit::default())),
@@ -91,24 +49,21 @@ mod tests {
     }
 
     async fn send(
-        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ProposalPart, TestStreamId>>,
+        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ProposalPart>>,
         metadata: &BroadcastedMessageMetadata,
-        msg: StreamMessage<ProposalPart, TestStreamId>,
+        msg: StreamMessage<ProposalPart>,
     ) {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
     #[allow(clippy::type_complexity)]
     fn setup_test() -> (
-        StreamHandler<ProposalPart, TestStreamId>,
-        MockBroadcastedMessagesSender<StreamMessage<ProposalPart, TestStreamId>>,
+        StreamHandler<ProposalPart>,
+        MockBroadcastedMessagesSender<StreamMessage<ProposalPart>>,
         mpsc::Receiver<mpsc::Receiver<ProposalPart>>,
         BroadcastedMessageMetadata,
-        mpsc::Sender<(TestStreamId, mpsc::Receiver<ProposalPart>)>,
-        futures::stream::Map<
-            mpsc::Receiver<Vec<u8>>,
-            fn(Vec<u8>) -> StreamMessage<ProposalPart, TestStreamId>,
-        >,
+        mpsc::Sender<(StreamId, mpsc::Receiver<ProposalPart>)>,
+        futures::stream::Map<mpsc::Receiver<Vec<u8>>, fn(Vec<u8>) -> StreamMessage<ProposalPart>>,
     ) {
         // The outbound_sender is the network connector for broadcasting messages.
         // The network_broadcast_receiver is used to catch those messages in the test.
@@ -125,7 +80,7 @@ mod tests {
         // The receiver goes into StreamHandler, sender is used by the test (as mock Consensus).
         // Note that each new channel comes in a tuple with (stream_id, receiver).
         let (outbound_channel_sender, outbound_channel_receiver) =
-            mpsc::channel::<(TestStreamId, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
+            mpsc::channel::<(StreamId, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
 
         // The network_sender_to_inbound is the sender of the mock network, that is used by the
         // test to send messages into the StreamHandler (from the mock network).
@@ -171,7 +126,7 @@ mod tests {
         let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
             setup_test();
 
-        let stream_id = TestStreamId(127);
+        let stream_id = 127;
         for i in 0..10 {
             let message = make_test_message(stream_id, i, i == 9);
             send(&mut network_sender, &metadata, message).await;
@@ -203,7 +158,7 @@ mod tests {
             _,
         ) = setup_test();
         let peer_id = inbound_metadata.originator_id.clone();
-        let stream_id = TestStreamId(127);
+        let stream_id = 127;
 
         for i in 0..5 {
             let message = make_test_message(stream_id, 5 - i, i == 0);
@@ -278,9 +233,9 @@ mod tests {
         ) = setup_test();
         let peer_id = inbound_metadata.originator_id.clone();
 
-        let stream_id1 = TestStreamId(127); // Send all messages in order (except the first one).
-        let stream_id2 = TestStreamId(10); // Send in reverse order (except the first one).
-        let stream_id3 = TestStreamId(1); // Send in two batches, without the first one, don't send fin.
+        let stream_id1 = 127; // Send all messages in order (except the first one).
+        let stream_id2 = 10; // Send in reverse order (except the first one).
+        let stream_id3 = 1; // Send in two batches, without the first one, don't send fin.
 
         for i in 1..10 {
             let message = make_test_message(stream_id1, i, i == 9);
@@ -309,14 +264,8 @@ mod tests {
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        let values = [
-            (peer_id.clone(), TestStreamId(1)),
-            (peer_id.clone(), TestStreamId(10)),
-            (peer_id.clone(), TestStreamId(127)),
-        ];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        let values = [(peer_id.clone(), 1), (peer_id.clone(), 10), (peer_id.clone(), 127)];
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match_unordered(
@@ -371,10 +320,8 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // stream_id1 should be gone
-        let values = [(peer_id.clone(), TestStreamId(1)), (peer_id.clone(), TestStreamId(10))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        let values = [(peer_id.clone(), 1), (peer_id.clone(), 10)];
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
@@ -397,10 +344,8 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Stream_id2 should also be gone.
-        let values = [(peer_id.clone(), TestStreamId(1))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        let values = [(peer_id.clone(), 1)];
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
@@ -421,10 +366,8 @@ mod tests {
         }
 
         // Stream_id3 should still be there, because we didn't send a fin.
-        let values = [(peer_id.clone(), TestStreamId(1))];
-        assert!(
-            stream_handler.inbound_stream_data.keys().to_owned().all(|item| values.contains(item))
-        );
+        let values = [(peer_id.clone(), 1)];
+        assert!(stream_handler.inbound_stream_data.keys().all(|item| values.contains(item)));
 
         // But the buffer should be empty, as we've successfully drained it all.
         assert!(
@@ -437,7 +380,7 @@ mod tests {
         let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
             setup_test();
 
-        let stream_id = TestStreamId(127);
+        let stream_id = 127;
         // Send two messages, no Fin.
         for i in 0..2 {
             let message = make_test_message(stream_id, i, false);
@@ -499,8 +442,8 @@ mod tests {
             mut broadcasted_messages_receiver,
         ) = setup_test();
 
-        let stream_id1 = TestStreamId(42);
-        let stream_id2 = TestStreamId(127);
+        let stream_id1: StreamId = 42;
+        let stream_id2: StreamId = 127;
 
         // Start a new stream by sending the (stream_id, receiver).
         let (mut sender1, receiver1) = mpsc::channel(CHANNEL_SIZE);
@@ -527,7 +470,7 @@ mod tests {
 
         // Check that internally, stream_handler holds this receiver.
         assert_eq!(
-            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&TestStreamId>>(),
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(),
             vec![&stream_id1]
         );
         // Check that the number of messages sent on this stream is 1.
@@ -577,8 +520,7 @@ mod tests {
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message3));
         assert_eq!(broadcasted_message.stream_id, stream_id2);
         assert_eq!(broadcasted_message.message_id, 0);
-        let mut vec1 =
-            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&TestStreamId>>();
+        let mut vec1 = stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>();
         vec1.sort();
         let mut vec2 = vec![&stream_id1, &stream_id2];
         vec2.sort();
@@ -602,7 +544,7 @@ mod tests {
 
         // Check that the information about this stream is gone.
         assert_eq!(
-            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&TestStreamId>>(),
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(),
             vec![&stream_id2]
         );
     }

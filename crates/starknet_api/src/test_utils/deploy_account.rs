@@ -1,7 +1,5 @@
-use starknet_crypto::Felt;
-
 use super::NonceManager;
-use crate::core::{ClassHash, Nonce};
+use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
     AccountTransaction,
@@ -22,7 +20,6 @@ use crate::transaction::fields::{
     ValidResourceBounds,
 };
 use crate::transaction::{
-    CalculateContractAddress,
     DeployAccountTransaction,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
@@ -34,6 +31,7 @@ use crate::transaction::{
 pub struct DeployAccountTxArgs {
     pub max_fee: Fee,
     pub signature: TransactionSignature,
+    pub deployer_address: ContractAddress,
     pub version: TransactionVersion,
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
@@ -52,6 +50,7 @@ impl Default for DeployAccountTxArgs {
         DeployAccountTxArgs {
             max_fee: Fee::default(),
             signature: TransactionSignature::default(),
+            deployer_address: ContractAddress::default(),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             tip: Tip::default(),
@@ -116,21 +115,20 @@ pub fn deploy_account_tx(
     }
 }
 
-// TODO(Arni): Consider using [ExecutableDeployAccountTransaction::create] in the body of this
-// function. We don't use it now to avoid tx_hash calculation.
-// TODO(Arni): Streamline this function by using nonce = 0 always.
 pub fn executable_deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
     nonce_manager: &mut NonceManager,
 ) -> AccountTransaction {
     let tx_hash = deploy_tx_args.tx_hash;
-    let mut tx = deploy_account_tx(deploy_tx_args, Nonce(Felt::ZERO));
-    let contract_address = tx.calculate_contract_address().unwrap();
+    let contract_address = calculate_contract_address(
+        deploy_tx_args.contract_address_salt,
+        deploy_tx_args.class_hash,
+        &deploy_tx_args.constructor_calldata,
+        deploy_tx_args.deployer_address,
+    )
+    .unwrap();
     let nonce = nonce_manager.next(contract_address);
-    match tx {
-        DeployAccountTransaction::V1(ref mut tx) => tx.nonce = nonce,
-        DeployAccountTransaction::V3(ref mut tx) => tx.nonce = nonce,
-    }
+    let tx = deploy_account_tx(deploy_tx_args, nonce);
     let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
 
     AccountTransaction::DeployAccount(deploy_account_tx)

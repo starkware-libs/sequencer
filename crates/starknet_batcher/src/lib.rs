@@ -6,7 +6,7 @@ pub mod block_builder;
 mod block_builder_test;
 pub mod communication;
 pub mod config;
-mod metrics;
+pub mod fee_market;
 #[cfg(test)]
 mod test_utils;
 mod transaction_executor;

@@ -88,7 +88,8 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
     );
 
     let nonces = [("0x0", 4)]; // Transaction with nonce 3 was included, 4 was not.
-    commit_block(&mut mempool, nonces, []);
+    let tx_hashes = [1];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     let tx_nonce_4_account_nonce_4 =
         add_tx_input!(tx_hash: 4, address: "0x0", tx_nonce: 4, account_nonce: 4);
@@ -177,7 +178,8 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
 
     // Address 0x0 stays as proposed, address 0x1 rewinds nonce 4, address 0x2 rewinds completely.
     let nonces = [("0x0", 2), ("0x1", 4)];
-    commit_block(&mut mempool, nonces, []);
+    let tx_hashes = [1, 4];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     get_txs_and_assert_expected(
         &mut mempool,
@@ -202,7 +204,8 @@ fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3_account_nonce_3.tx]);
 
     let nonces = [("0x0", 5)];
-    commit_block(&mut mempool, nonces, []);
+    let tx_hashes = [1, 3];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert: hole was indeed closed.
     let tx_nonce_4_account_nonce_4 =
@@ -246,10 +249,11 @@ fn test_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
     );
 
     // Test.
+    let nonces = [("0x0", 3)];
+    let tx_hashes = [1];
     // Address 0x0: nonce 2 was accepted, but 3 was not, so is rewound.
     // Address 0x1: nonce 2 was not accepted, both 2 and 3 were rewound.
-    let nonces = [("0x0", 3)];
-    commit_block(&mut mempool, nonces, []);
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Nonces 3 and 4 were re-enqueued correctly.
     get_txs_and_assert_expected(
@@ -273,11 +277,13 @@ fn test_commit_block_from_different_leader(mut mempool: Mempool) {
     }
 
     // Test.
-    // Address 0: known hash accepted for nonce 2.
-    // Address 0: unknown hash accepted for nonce 3.
-    // Unknown Address 1 (with unknown hash) for nonce 2.
     let nonces = [("0x0", 4), ("0x1", 2)];
-    commit_block(&mut mempool, nonces, []);
+    let tx_hashes = [
+        1,  // Address 0: known hash accepted for nonce 2.
+        99, // Address 0: unknown hash accepted for nonce 3.
+        4,  // Unknown Address 1 (with unknown hash) for nonce 2.
+    ];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert: two stale transactions were removed, one was added to a block by a different leader
     // and the other "lost" to a different transaction with the same nonce that was added by the
@@ -301,36 +307,9 @@ fn test_update_gas_price_threshold(mut mempool: Mempool) {
     get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_30.tx]);
 
     let nonces = [("0x1", 1)];
-    commit_block(&mut mempool, nonces, []);
+    let tx_hashes = [2];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     mempool.update_gas_price_threshold(GasPrice(10));
     get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_20.tx]);
-}
-
-/// Test that the API function [Mempool::contains_tx_from] behaves as expected under various
-/// conditions.
-#[rstest]
-fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
-    // Setup.
-    let address = "0x1";
-    let input_address_1 = add_tx_input!(address: address);
-    let account_address = contract_address!(address);
-
-    // Test.
-    add_tx(&mut mempool, &input_address_1);
-    // Assert: Mempool state includes the address of the added transaction.
-    assert!(mempool.contains_tx_from(account_address));
-
-    // Test.
-    mempool.get_txs(1).unwrap();
-    // Assert: The Mempool state still contains the address, even after it was sent to the batcher.
-    assert!(mempool.contains_tx_from(account_address));
-
-    // Test.
-    let nonces = [(address, 1)];
-    commit_block(&mut mempool, nonces, []);
-    // Assert: Mempool state still contains the address, even though the transaction was committed.
-    // Note that in the future, the Mempool's state may be periodically cleared from records of old
-    // committed transactions. Mirroring this behavior may require a modification of this test.
-    assert!(mempool.contains_tx_from(account_address));
 }

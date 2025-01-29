@@ -7,6 +7,7 @@ use std::ops::IndexMut;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use assert_json_diff::assert_json_eq;
 use colored::Colorize;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -17,7 +18,6 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
-use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_infra_utils::path::resolve_project_relative_path;
 use tempfile::NamedTempFile;
 use validator::Validate;
@@ -64,10 +64,10 @@ fn required_args() -> Vec<String> {
     args
 }
 
-fn get_args(additional_args: impl IntoIterator<Item = impl ToString>) -> Vec<String> {
+fn get_args(additional_args: Vec<&str>) -> Vec<String> {
     let mut args = vec!["Papyrus".to_owned()];
-    args.extend(required_args());
-    args.extend(additional_args.into_iter().map(|s| s.to_string()));
+    args.append(&mut required_args());
+    args.append(&mut additional_args.into_iter().map(|s| s.to_owned()).collect());
     args
 }
 
@@ -75,18 +75,12 @@ fn get_args(additional_args: impl IntoIterator<Item = impl ToString>) -> Vec<Str
 fn load_default_config() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    NodeConfig::load_and_process(get_args(["--chain_id", "SN_MAIN"]))
-        .expect("Failed to load the config.");
+    NodeConfig::load_and_process(get_args(vec![])).expect("Failed to load the config.");
 }
 
 #[test]
 fn load_http_headers() {
-    let args = get_args([
-        "--central.http_headers",
-        "NAME_1:VALUE_1 NAME_2:VALUE_2",
-        "--chain_id",
-        "SN_MAIN",
-    ]);
+    let args = get_args(vec!["--central.http_headers", "NAME_1:VALUE_1 NAME_2:VALUE_2"]);
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     let config = NodeConfig::load_and_process(args).unwrap();
@@ -119,17 +113,12 @@ fn test_dump_default_config() {
 fn test_default_config_process() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    assert_eq!(
-        NodeConfig::load_and_process(get_args(["--chain_id", "SN_MAIN"])).unwrap(),
-        NodeConfig::default()
-    );
+    assert_eq!(NodeConfig::load_and_process(get_args(vec![])).unwrap(), NodeConfig::default());
 }
 
 #[test]
 fn test_update_dumped_config_by_command() {
-    let args = get_args([
-        "--chain_id",
-        "SN_MAIN",
+    let args = get_args(vec![
         "--central.retry_config.retry_max_delay_millis",
         "1234",
         "--storage.db_config.path_prefix",
@@ -143,8 +132,6 @@ fn test_update_dumped_config_by_command() {
     assert_eq!(config.storage.db_config.path_prefix.to_str(), Some("/abc"));
 }
 
-// TODO(Arni): share code with
-// `starknet_sequencer_node::config::config_test::test_default_config_file_is_up_to_date`.
 #[cfg(feature = "rpc")]
 #[test]
 fn default_config_file_is_up_to_date() {
@@ -168,13 +155,13 @@ fn default_config_file_is_up_to_date() {
     let from_code: serde_json::Value =
         serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
 
-    let error_message = format!(
-        "{}\n{}",
+    println!(
+        "{}",
         "Default config file doesn't match the default NodeConfig implementation. Please update \
          it using the papyrus_dump_config binary."
             .purple()
-            .bold(),
-        "Diffs shown below (default config file <<>> dump of NodeConfig::default())."
+            .bold()
     );
-    assert_json_eq(&from_default_config_file, &from_code, error_message);
+    println!("Diffs shown below.");
+    assert_json_eq!(from_default_config_file, from_code)
 }

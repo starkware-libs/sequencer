@@ -26,7 +26,6 @@ use crate::transaction::{Transaction, TransactionHash};
 pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
-pub mod json_utils;
 pub mod l1_handler;
 
 // TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
@@ -78,10 +77,6 @@ pub struct NonceManager {
 }
 
 impl NonceManager {
-    pub fn get(&self, account_address: ContractAddress) -> Nonce {
-        Nonce(*self.next_nonce.get(&account_address).unwrap_or(&Felt::default()))
-    }
-
     pub fn next(&mut self, account_address: ContractAddress) -> Nonce {
         let next = self.next_nonce.remove(&account_address).unwrap_or_default();
         self.next_nonce.insert(account_address, next + 1);

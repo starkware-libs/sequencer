@@ -5,10 +5,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::transaction::fields::{Resource, ResourceBounds};
 use starknet_api::StarknetApiError;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_types::communication::{MempoolClientError, MempoolClientResult};
-use starknet_mempool_types::errors::MempoolError;
 use thiserror::Error;
-use tracing::{debug, error, warn};
 
 use crate::compiler_version::{VersionId, VersionIdError};
 use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
@@ -73,44 +70,6 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::StarknetApiError(..)
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
-            }
-        }
-    }
-}
-
-/// Converts a mempool client result to a gateway result. Some errors variants are unreachable in
-/// Gateway context, and some are not considered errors from the gateway's perspective.
-pub fn mempool_client_result_to_gw_spec_result(
-    value: MempoolClientResult<()>,
-) -> GatewayResult<()> {
-    let err = match value {
-        Ok(()) => return Ok(()),
-        Err(err) => err,
-    };
-    match err {
-        MempoolClientError::ClientError(client_error) => {
-            error!("Mempool client error: {}", client_error);
-            Err(GatewaySpecError::UnexpectedError { data: "Internal error".to_owned() })
-        }
-        MempoolClientError::MempoolError(mempool_error) => {
-            debug!("Mempool error: {}", mempool_error);
-            match mempool_error {
-                MempoolError::DuplicateNonce { .. }
-                | MempoolError::NonceTooLarge { .. }
-                | MempoolError::NonceTooOld { .. } => {
-                    Err(GatewaySpecError::InvalidTransactionNonce)
-                }
-                MempoolError::DuplicateTransaction { .. } => Err(GatewaySpecError::DuplicateTx),
-                MempoolError::P2pPropagatorClientError { .. } => {
-                    // Not an error from the gateway's perspective.
-                    warn!("P2p propagator client error: {}", mempool_error);
-                    Ok(())
-                }
-                MempoolError::TransactionNotFound { .. } => {
-                    // This error is not expected to happen within the gateway, only from other
-                    // mempool clients.
-                    unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);
-                }
             }
         }
     }

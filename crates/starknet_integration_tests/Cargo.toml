@@ -10,29 +10,29 @@ workspace = true
 
 [dependencies]
 assert_matches.workspace = true
-axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-itertools.workspace = true
 mempool_test_utils.workspace = true
+papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true
-papyrus_consensus_orchestrator.workspace = true
 papyrus_execution.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
+papyrus_rpc.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher.workspace = true
+starknet_client.workspace = true
 starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
 starknet_http_server = { workspace = true, features = ["testing"] }
-starknet_infra_utils = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
 starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
@@ -42,10 +42,10 @@ strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-url.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
+itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_sequencer_infra.workspace = true
+starknet_sequencer_infra.path = "../starknet_sequencer_infra"

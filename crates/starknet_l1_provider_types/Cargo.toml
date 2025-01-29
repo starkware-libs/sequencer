@@ -11,7 +11,6 @@ testing = ["mockall"]
 [dependencies]
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
-papyrus_base_layer.workspace = true
 papyrus_proc_macros.workspace = true
 serde.workspace = true
 starknet_api.workspace = true

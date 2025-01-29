@@ -180,7 +180,8 @@ pub enum ConfigError {
     CommandMatches(#[from] MatchesError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
-    #[error("Param does not exist: {param_path}.")]
+    // TODO(Eitan): Improve error message
+    #[error("Insert a new param is not allowed: {param_path}.")]
     ParamNotFound { param_path: String },
     #[error("{target_param} is not found.")]
     PointerTargetNotFound { target_param: String },

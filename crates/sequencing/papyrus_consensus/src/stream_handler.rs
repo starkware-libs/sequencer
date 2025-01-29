@@ -3,8 +3,6 @@
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
-use std::hash::Hash;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -24,65 +22,32 @@ use tracing::{instrument, warn};
 mod stream_handler_test;
 
 type PeerId = OpaquePeerId;
+type StreamId = u64;
 type MessageId = u64;
+type StreamKey = (PeerId, StreamId);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
-
-/// A combination of trait bounds needed for the content of the stream.
-pub trait StreamContentTrait:
-    Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send
-{
-}
-impl<StreamContent> StreamContentTrait for StreamContent where
-    StreamContent: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send
-{
-}
-/// A combination of trait bounds needed for the stream ID.
-pub trait StreamIdTrait:
-    Into<Vec<u8>>
-    + TryFrom<Vec<u8>, Error = ProtobufConversionError>
-    + Eq
-    + Hash
-    + Clone
-    + Unpin
-    + Display
-    + Debug
-    + Send
-{
-}
-impl<StreamId> StreamIdTrait for StreamId where
-    StreamId: Into<Vec<u8>>
-        + TryFrom<Vec<u8>, Error = ProtobufConversionError>
-        + Eq
-        + Hash
-        + Clone
-        + Unpin
-        + Display
-        + Debug
-        + Send
-{
-}
 
 // Use this struct for each inbound stream.
 // Drop the struct when:
 // (1) receiver on the other end is dropped,
 // (2) fin message is received and all messages are sent.
 #[derive(Debug)]
-struct StreamData<StreamContent: StreamContentTrait, StreamId: StreamIdTrait> {
+struct StreamData<
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + 'static,
+> {
     next_message_id: MessageId,
     // Last message ID. If None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
     max_message_id_received: MessageId,
     // Keep the receiver until it is time to send it to the application.
-    receiver: Option<mpsc::Receiver<StreamContent>>,
-    sender: mpsc::Sender<StreamContent>,
+    receiver: Option<mpsc::Receiver<T>>,
+    sender: mpsc::Sender<T>,
     // A buffer for messages that were received out of order.
-    message_buffer: HashMap<MessageId, StreamMessage<StreamContent, StreamId>>,
+    message_buffer: HashMap<MessageId, StreamMessage<T>>,
 }
 
-impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
-    StreamData<StreamContent, StreamId>
-{
+impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
     fn new() -> Self {
         let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
         StreamData {
@@ -99,37 +64,39 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
 /// A StreamHandler is responsible for:
 /// - Buffering inbound messages and reporting them to the application in order.
 /// - Sending outbound messages to the network, wrapped in StreamMessage.
-pub struct StreamHandler<StreamContent: StreamContentTrait, StreamId: StreamIdTrait> {
+pub struct StreamHandler<
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + 'static,
+> {
     // For each stream ID from the network, send the application a Receiver
     // that will receive the messages in order. This allows sending such Receivers.
-    inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
+    inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
     // This receives messages from the network.
-    inbound_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
+    inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
     // A map from (peer_id, stream_id) to a struct that contains all the information
     // about the stream. This includes both the message buffer and some metadata
     // (like the latest message ID).
-    inbound_stream_data: HashMap<(PeerId, StreamId), StreamData<StreamContent, StreamId>>,
+    inbound_stream_data: HashMap<StreamKey, StreamData<T>>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
-    outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
+    outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
     // A map where the abovementioned Receivers are stored.
-    outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<StreamContent>>,
+    outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<T>>,
     // A network sender that allows sending StreamMessages to peers.
-    outbound_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
+    outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
     // For each stream, keep track of the message_id of the last message sent.
     outbound_stream_number: HashMap<StreamId, MessageId>,
 }
 
-impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
-    StreamHandler<StreamContent, StreamId>
+impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
+    StreamHandler<T>
 {
     /// Create a new StreamHandler.
     pub fn new(
-        inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
-        inbound_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
-        outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
-        outbound_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
+        inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
+        inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
+        outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
+        outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
     ) -> Self {
         Self {
             inbound_channel_sender,
@@ -146,30 +113,30 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     /// Gets network input/output channels and returns application input/output channels.
     #[allow(clippy::type_complexity)]
     pub fn get_channels(
-        inbound_network_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
-        outbound_network_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
+        inbound_network_receiver: BroadcastTopicServer<StreamMessage<T>>,
+        outbound_network_sender: BroadcastTopicClient<StreamMessage<T>>,
     ) -> (
-        mpsc::Sender<(StreamId, mpsc::Receiver<StreamContent>)>,
-        mpsc::Receiver<mpsc::Receiver<StreamContent>>,
+        mpsc::Sender<(StreamId, mpsc::Receiver<T>)>,
+        mpsc::Receiver<mpsc::Receiver<T>>,
         tokio::task::JoinHandle<()>,
-    )
-    where
-        StreamContent: 'static,
-        StreamId: 'static,
-    {
+    ) {
         // The inbound messages come into StreamHandler via inbound_network_receiver.
         // The application gets the messages from inbound_internal_receiver
         // (the StreamHandler keeps the inbound_internal_sender to pass the messages).
-        let (inbound_internal_sender, inbound_internal_receiver) =
-            mpsc::channel(CHANNEL_BUFFER_LENGTH);
+        let (inbound_internal_sender, inbound_internal_receiver): (
+            mpsc::Sender<mpsc::Receiver<T>>,
+            mpsc::Receiver<mpsc::Receiver<T>>,
+        ) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
         // The outbound messages that an application would like to send are:
         //  1. Sent into outbound_internal_sender as tuples of (StreamId, Receiver)
         //  2. Ingested by StreamHandler by its outbound_internal_receiver.
         //  3. Broadcast by the StreamHandler using its outbound_network_sender.
-        let (outbound_internal_sender, outbound_internal_receiver) =
-            mpsc::channel(CHANNEL_BUFFER_LENGTH);
+        let (outbound_internal_sender, outbound_internal_receiver): (
+            mpsc::Sender<(StreamId, mpsc::Receiver<T>)>,
+            mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
+        ) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
 
-        let mut stream_handler = StreamHandler::<StreamContent, StreamId>::new(
+        let mut stream_handler = StreamHandler::<T>::new(
             inbound_internal_sender,    // Sender<Receiver<T>>,
             inbound_network_receiver,   // BroadcastTopicServer<StreamMessage<T>>,
             outbound_internal_receiver, // Receiver<(StreamId, Receiver<T>)>,
@@ -219,14 +186,18 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         }
     }
 
-    fn inbound_send(
-        &mut self,
-        data: &mut StreamData<StreamContent, StreamId>,
-        message: StreamMessage<StreamContent, StreamId>,
-    ) -> bool {
+    // Returns true if the receiver for this stream is dropped.
+    fn inbound_send(&mut self, data: &mut StreamData<T>, message: StreamMessage<T>) -> bool {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
+            if message.message_id == 0 {
+                // TODO(guyn): consider the expect in both cases.
+                // If this is the first message, send the receiver to the application.
+                let receiver = data.receiver.take().expect("Receiver should exist");
+                // Send the receiver to the application.
+                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
+            }
             match sender.try_send(content) {
                 Ok(_) => {}
                 Err(e) => {
@@ -249,14 +220,6 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
                     }
                 }
             };
-            // Send the receiver only once the first message has been sent.
-            if message.message_id == 0 {
-                // TODO(guyn): consider the expect in both cases.
-                // If this is the first message, send the receiver to the application.
-                let receiver = data.receiver.take().expect("Receiver should exist");
-                // Send the receiver to the application.
-                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
-            }
             data.next_message_id += 1;
             return false;
         }
@@ -265,28 +228,23 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     }
 
     // Send the message to the network.
-    async fn broadcast(&mut self, stream_id: StreamId, message: StreamContent) {
-        // TODO(guyn): add a random nonce to the outbound stream ID,
-        // such that even if the client sends the same stream ID,
-        // (e.g., after a crash) this will be treated as a new stream.
+    async fn broadcast(&mut self, stream_id: StreamId, message: T) {
         let message = StreamMessage {
             message: StreamMessageBody::Content(message),
-            stream_id: stream_id.clone(),
+            stream_id,
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
         // TODO(guyn): reconsider the "expect" here.
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
-        self.outbound_stream_number.insert(
-            stream_id.clone(),
-            self.outbound_stream_number.get(&stream_id).unwrap_or(&0) + 1,
-        );
+        self.outbound_stream_number
+            .insert(stream_id, self.outbound_stream_number.get(&stream_id).unwrap_or(&0) + 1);
     }
 
     // Send a fin message to the network.
     async fn broadcast_fin(&mut self, stream_id: StreamId) {
         let message = StreamMessage {
             message: StreamMessageBody::Fin,
-            stream_id: stream_id.clone(),
+            stream_id,
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
@@ -297,10 +255,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     #[instrument(skip_all, level = "warn")]
     fn handle_message(
         &mut self,
-        message: (
-            Result<StreamMessage<StreamContent, StreamId>, ProtobufConversionError>,
-            BroadcastedMessageMetadata,
-        ),
+        message: (Result<StreamMessage<T>, ProtobufConversionError>, BroadcastedMessageMetadata),
     ) {
         let (message, metadata) = message;
         let message = match message {
@@ -312,7 +267,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         };
 
         let peer_id = metadata.originator_id.clone();
-        let stream_id = message.stream_id.clone();
+        let stream_id = message.stream_id;
         let key = (peer_id, stream_id);
 
         let data = match self.inbound_stream_data.entry(key.clone()) {
@@ -333,12 +288,12 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     /// should be dropped.
     fn handle_message_inner(
         &mut self,
-        message: StreamMessage<StreamContent, StreamId>,
+        message: StreamMessage<T>,
         metadata: BroadcastedMessageMetadata,
-        mut data: StreamData<StreamContent, StreamId>,
-    ) -> Option<StreamData<StreamContent, StreamId>> {
+        mut data: StreamData<T>,
+    ) -> Option<StreamData<T>> {
         let peer_id = metadata.originator_id;
-        let stream_id = message.stream_id.clone();
+        let stream_id = message.stream_id;
         let key = (peer_id, stream_id);
         let message_id = message.message_id;
 
@@ -411,11 +366,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     }
 
     // Store an inbound message in the buffer.
-    fn store(
-        data: &mut StreamData<StreamContent, StreamId>,
-        key: (PeerId, StreamId),
-        message: StreamMessage<StreamContent, StreamId>,
-    ) {
+    fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
         match data.message_buffer.entry(message_id) {
@@ -435,7 +386,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
     // Returns true if the receiver for this stream is dropped.
-    fn process_buffer(&mut self, data: &mut StreamData<StreamContent, StreamId>) -> bool {
+    fn process_buffer(&mut self, data: &mut StreamData<T>) -> bool {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
             if self.inbound_send(data, message) {
                 return true;

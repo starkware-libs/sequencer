@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -12,7 +13,12 @@ use starknet_infra_utils::type_name::short_type_name;
 use tracing::warn;
 
 use crate::component_client::{ClientError, LocalComponentClient};
-use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    RemoteServerConfig,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;
 use crate::serde_utils::SerdeWrapper;
@@ -48,6 +54,7 @@ use crate::serde_utils::SerdeWrapper;
 /// use crate::starknet_sequencer_infra::component_definitions::{
 ///     ComponentRequestHandler,
 ///     ComponentStarter,
+///     RemoteServerConfig,
 /// };
 /// use crate::starknet_sequencer_infra::component_server::{
 ///     ComponentServerStarter,
@@ -88,10 +95,10 @@ use crate::serde_utils::SerdeWrapper;
 ///     // Set the ip address and port of the server's socket.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let socket = std::net::SocketAddr::new(ip_address, port);
+///     let config = RemoteServerConfig { socket: std::net::SocketAddr::new(ip_address, port) };
 ///
 ///     // Instantiate the server.
-///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, socket);
+///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, config);
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -101,8 +108,8 @@ use crate::serde_utils::SerdeWrapper;
 /// ```
 pub struct RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + 'static,
-    Response: Serialize + DeserializeOwned + Send + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
@@ -110,11 +117,14 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + Send + 'static,
-    Response: Serialize + DeserializeOwned + Debug + Send + 'static,
+    Request: Serialize + DeserializeOwned + Debug + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Debug + Send + Sync + 'static,
 {
-    pub fn new(local_client: LocalComponentClient<Request, Response>, socket: SocketAddr) -> Self {
-        Self { local_client, socket }
+    pub fn new(
+        local_client: LocalComponentClient<Request, Response>,
+        config: RemoteServerConfig,
+    ) -> Self {
+        Self { local_client, socket: config.socket }
     }
 
     async fn remote_component_server_handler(
@@ -124,7 +134,7 @@ where
         let body_bytes = to_bytes(http_request.into_body()).await?;
 
         let http_response = match SerdeWrapper::<Request>::wrapper_deserialize(&body_bytes)
-            .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
+            .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
         {
             Ok(request) => {
                 let response = local_client.send(request).await;
@@ -163,8 +173,8 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Debug + 'static,
-    Response: Serialize + DeserializeOwned + Send + Debug + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + Debug + 'static,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         let make_svc = make_service_fn(|_conn| {
@@ -186,8 +196,8 @@ where
 
 impl<Request, Response> Drop for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + 'static,
-    Response: Serialize + DeserializeOwned + Send + 'static,
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
 {
     fn drop(&mut self) {
         warn!("Dropping {}.", short_type_name::<Self>());

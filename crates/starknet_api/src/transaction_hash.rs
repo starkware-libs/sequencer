@@ -3,13 +3,12 @@ use std::sync::LazyLock;
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
-use crate::core::{ascii_as_felt, ChainId};
+use crate::core::{ascii_as_felt, calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::fields::{ResourceBounds, Tip, ValidResourceBounds};
 use crate::transaction::{
     signed_tx_version_from_tx,
-    CalculateContractAddress,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -257,7 +256,12 @@ fn get_common_deploy_transaction_hash(
     is_deprecated: bool,
     transaction_version: &TransactionVersion,
 ) -> Result<TransactionHash, StarknetApiError> {
-    let contract_address = transaction.calculate_contract_address()?;
+    let contract_address = calculate_contract_address(
+        transaction.contract_address_salt,
+        transaction.class_hash,
+        &transaction.constructor_calldata,
+        ContractAddress::from(0_u8),
+    )?;
 
     Ok(TransactionHash(
         HashChain::new()
@@ -567,7 +571,12 @@ pub(crate) fn get_deploy_account_transaction_v1_hash(
         .chain_iter(transaction.constructor_calldata.0.iter())
         .get_pedersen_hash();
 
-    let contract_address = transaction.calculate_contract_address()?;
+    let contract_address = calculate_contract_address(
+        transaction.contract_address_salt,
+        transaction.class_hash,
+        &transaction.constructor_calldata,
+        ContractAddress::from(0_u8),
+    )?;
 
     Ok(TransactionHash(
         HashChain::new()
@@ -588,7 +597,12 @@ pub(crate) fn get_deploy_account_transaction_v3_hash(
     chain_id: &ChainId,
     transaction_version: &TransactionVersion,
 ) -> Result<TransactionHash, StarknetApiError> {
-    let contract_address = transaction.calculate_contract_address()?;
+    let contract_address = calculate_contract_address(
+        transaction.contract_address_salt,
+        transaction.class_hash,
+        &transaction.constructor_calldata,
+        ContractAddress::from(0_u8),
+    )?;
     let tip_resource_bounds_hash =
         get_tip_resource_bounds_hash(&transaction.resource_bounds, &transaction.tip)?;
     let paymaster_data_hash =

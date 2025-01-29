@@ -53,14 +53,13 @@ fn main() -> io::Result<()> {
     }
     prost_build::compile_protos(
         &[
+            "src/proto/p2p/proto/rpc_transaction.proto",
             "src/proto/p2p/proto/class.proto",
-            "src/proto/p2p/proto/consensus.proto",
             "src/proto/p2p/proto/event.proto",
             "src/proto/p2p/proto/header.proto",
-            "src/proto/p2p/proto/mempool/transaction.proto",
             "src/proto/p2p/proto/state.proto",
-            "src/proto/p2p/proto/sync/class.proto",
             "src/proto/p2p/proto/transaction.proto",
+            "src/proto/p2p/proto/consensus.proto",
         ],
         &["src/proto/"],
     )?;

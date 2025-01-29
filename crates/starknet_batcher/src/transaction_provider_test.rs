@@ -3,7 +3,6 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
@@ -19,7 +18,6 @@ use crate::transaction_provider::{
 };
 
 const MAX_L1_HANDLER_TXS_PER_BLOCK: usize = 15;
-const HEIGHT: BlockNumber = BlockNumber(1);
 const MAX_TXS_PER_FETCH: usize = 10;
 const VALIDATE_BUFFER_SIZE: usize = 30;
 
@@ -34,8 +32,8 @@ impl MockDependencies {
     fn expect_get_l1_handler_txs(&mut self, n_to_request: usize, n_to_return: usize) {
         self.l1_provider_client
             .expect_get_txs()
-            .with(eq(n_to_request), eq(HEIGHT))
-            .returning(move |_, _| Ok(vec![L1HandlerTransaction::default(); n_to_return]));
+            .with(eq(n_to_request))
+            .returning(move |_| Ok(vec![L1HandlerTransaction::default(); n_to_return]));
     }
 
     fn expect_get_mempool_txs(&mut self, n_to_request: usize) {
@@ -47,8 +45,8 @@ impl MockDependencies {
     fn expect_validate_l1handler(&mut self, tx: L1HandlerTransaction, result: L1ValidationStatus) {
         self.l1_provider_client
             .expect_validate()
-            .withf(move |tx_arg, height| tx_arg == &tx.tx_hash && *height == HEIGHT)
-            .returning(move |_, _| Ok(result));
+            .withf(move |tx_arg| tx_arg == &tx.tx_hash)
+            .returning(move |_| Ok(result));
     }
 
     async fn simulate_input_txs(&mut self, txs: Vec<Transaction>) {
@@ -62,7 +60,6 @@ impl MockDependencies {
             Arc::new(self.mempool_client),
             Arc::new(self.l1_provider_client),
             MAX_L1_HANDLER_TXS_PER_BLOCK,
-            HEIGHT,
         )
     }
 
@@ -70,7 +67,6 @@ impl MockDependencies {
         ValidateTransactionProvider {
             tx_receiver: self.tx_receiver,
             l1_provider_client: Arc::new(self.l1_provider_client),
-            height: HEIGHT,
         }
     }
 }

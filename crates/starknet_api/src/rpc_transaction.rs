@@ -8,7 +8,13 @@ use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLan
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::EntryPointType;
-use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use crate::core::{
+    calculate_contract_address,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
@@ -22,18 +28,15 @@ use crate::transaction::fields::{
     ValidResourceBounds,
 };
 use crate::transaction::{
-    CalculateContractAddress,
     DeclareTransaction,
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
-    DeployTransactionTrait,
     InvokeTransaction,
     InvokeTransactionV3,
     Transaction,
-    TransactionHash,
 };
-use crate::{impl_deploy_transaction_trait, StarknetApiError};
+use crate::StarknetApiError;
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.
@@ -47,30 +50,6 @@ pub enum RpcTransaction {
     DeployAccount(RpcDeployAccountTransaction),
     #[serde(rename = "INVOKE")]
     Invoke(RpcInvokeTransaction),
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct DeployAccountTransactionV3WithAddress {
-    pub tx: RpcDeployAccountTransaction,
-    pub contract_address: ContractAddress,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-#[serde(tag = "type")]
-#[serde(deny_unknown_fields)]
-pub enum InternalRpcTransactionWithoutTxHash {
-    #[serde(rename = "DECLARE")]
-    Declare(InternalRpcDeclareTransactionV3),
-    #[serde(rename = "INVOKE")]
-    Invoke(RpcInvokeTransaction),
-    #[serde(rename = "DEPLOY_ACCOUNT")]
-    DeployAccount(DeployAccountTransactionV3WithAddress),
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct InternalRpcTransaction {
-    pub tx: InternalRpcTransactionWithoutTxHash,
-    pub tx_hash: TransactionHash,
 }
 
 macro_rules! implement_ref_getters {
@@ -105,7 +84,12 @@ impl RpcTransaction {
         match self {
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => Ok(tx.sender_address),
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                tx.calculate_contract_address()
+                calculate_contract_address(
+                    tx.contract_address_salt,
+                    tx.class_hash,
+                    &tx.constructor_calldata,
+                    ContractAddress::default(),
+                )
             }
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => Ok(tx.sender_address),
         }
@@ -205,22 +189,6 @@ pub struct RpcDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-/// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct InternalRpcDeclareTransactionV3 {
-    pub sender_address: ContractAddress,
-    pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub class_hash: ClassHash,
-    pub resource_bounds: AllResourceBounds,
-    pub tip: Tip,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-}
-
 impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     fn from(tx: RpcDeclareTransactionV3) -> Self {
         Self {
@@ -254,8 +222,6 @@ pub struct RpcDeployAccountTransactionV3 {
     pub nonce_data_availability_mode: DataAvailabilityMode,
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
-
-impl_deploy_transaction_trait!(RpcDeployAccountTransactionV3);
 
 impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     fn from(tx: RpcDeployAccountTransactionV3) -> Self {

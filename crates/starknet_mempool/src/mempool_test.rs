@@ -6,7 +6,6 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
-use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
@@ -20,7 +19,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
 use crate::communication::MempoolCommunicationWrapper;
-use crate::mempool::{Mempool, MempoolConfig, MempoolState, TransactionReference};
+use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
@@ -38,7 +37,6 @@ struct MempoolContent {
     config: MempoolConfig,
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
-    state: Option<MempoolState>,
 }
 
 impl MempoolContent {
@@ -56,14 +54,15 @@ impl MempoolContent {
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { config, tx_pool, tx_queue_content, state } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue_content, config } = mempool_content;
         Mempool {
             config,
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
                 .map(|content| content.complete_to_tx_queue())
                 .unwrap_or_default(),
-            state: state.unwrap_or_default(),
+            // TODO: Add implementation when needed.
+            state: Default::default(),
         }
     }
 }
@@ -73,7 +72,6 @@ struct MempoolContentBuilder {
     config: MempoolConfig,
     tx_pool: Option<TransactionPool>,
     tx_queue_content_builder: TransactionQueueContentBuilder,
-    state: Option<MempoolState>,
 }
 
 impl MempoolContentBuilder {
@@ -82,7 +80,6 @@ impl MempoolContentBuilder {
             config: MempoolConfig { enable_fee_escalation: false, ..Default::default() },
             tx_pool: None,
             tx_queue_content_builder: Default::default(),
-            state: None,
         }
     }
 
@@ -91,11 +88,6 @@ impl MempoolContentBuilder {
         P: IntoIterator<Item = AccountTransaction>,
     {
         self.tx_pool = Some(pool_txs.into_iter().collect());
-        self
-    }
-
-    fn with_state(mut self, state: MempoolState) -> Self {
-        self.state = Some(state);
         self
     }
 
@@ -131,7 +123,6 @@ impl MempoolContentBuilder {
             config: self.config,
             tx_pool: self.tx_pool,
             tx_queue_content: self.tx_queue_content_builder.build(),
-            state: self.state,
         }
     }
 
@@ -254,11 +245,6 @@ fn add_txs_and_verify_no_replacement_in_pool(
 #[fixture]
 fn mempool() -> Mempool {
     MempoolContentBuilder::new().build_into_mempool()
-}
-
-/// Used for the contains_tx_from tests.
-fn deployer_address() -> ContractAddress {
-    ContractAddress::from(100_u32)
 }
 
 // Tests.
@@ -589,7 +575,8 @@ fn test_commit_block_includes_all_proposed_txs() {
 
     // Test.
     let nonces = [("0x0", 4), ("0x1", 3)];
-    commit_block(&mut mempool, nonces, []);
+    let tx_hashes = [1, 4];
+    commit_block(&mut mempool, nonces, tx_hashes);
 
     // Assert.
     let pool_txs =
@@ -860,72 +847,4 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
         MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
 
     mempool_wrapper.add_tx(propagated_args).await.unwrap();
-}
-
-#[rstest]
-fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
-    // Setup.
-    let tx_address_1_nonce_2 =
-        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 2, account_nonce: 2);
-    let tx_address_1_nonce_3 =
-        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 3, account_nonce: 2);
-
-    let tx_address_2_nonce_1 =
-        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 1, account_nonce: 1);
-    let tx_address_2_nonce_2 =
-        add_tx_input!(tx_hash: 8, address: "0x2", tx_nonce: 2, account_nonce: 1);
-
-    let mut expected_pool_txs = vec![];
-    for input in
-        [&tx_address_1_nonce_2, &tx_address_1_nonce_3, &tx_address_2_nonce_1, &tx_address_2_nonce_2]
-    {
-        add_tx(&mut mempool, input);
-        expected_pool_txs.push(input.tx.clone());
-    }
-
-    // All the transactions are in the mempool.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(expected_pool_txs.clone()).build();
-    expected_mempool_content.assert_eq(&mempool);
-
-    // Transaction 4 and 8 are rejected.
-    let rejected_tx = [4, 8];
-    commit_block(&mut mempool, [], rejected_tx);
-
-    // Assert transactions 4 and 8 are removed from the mempool.
-    expected_pool_txs.retain(|x| *x != tx_address_1_nonce_2.tx && *x != tx_address_2_nonce_2.tx);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(expected_pool_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-// Negative flow. The method should return false if the transaction is not in the mempool.
-#[case::empty(MempoolState::default(), false)]
-// Positive flows. The method should return true if the transaction is in the mempool.
-#[case::tentative(
-    MempoolState{
-        tentative: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true
-)]
-#[case::staged(
-    MempoolState{
-        staged: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true
-)]
-#[case::committed(
-    MempoolState{
-        committed: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true,
-)]
-fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: bool) {
-    let mempool = MempoolContentBuilder::new().with_state(state).build_into_mempool();
-
-    assert_eq!(mempool.contains_tx_from(deployer_address()), expected_result);
 }

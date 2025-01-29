@@ -101,7 +101,7 @@ pub struct CallEntryPoint {
     pub class_hash: Option<ClassHash>,
     // Optional, since there is no address to the code implementation in a library call.
     // and for outermost calls (triggered by the transaction itself).
-    // TODO(AlonH): BACKWARD-COMPATIBILITY.
+    // TODO: BACKWARD-COMPATIBILITY.
     pub code_address: Option<ContractAddress>,
     pub entry_point_type: EntryPointType,
     pub entry_point_selector: EntryPointSelector,

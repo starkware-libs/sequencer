@@ -7,13 +7,6 @@ use starknet_batcher_types::communication::{
     RemoteBatcherClient,
     SharedBatcherClient,
 };
-use starknet_class_manager_types::{
-    ClassManagerRequest,
-    ClassManagerResponse,
-    LocalClassManagerClient,
-    RemoteClassManagerClient,
-    SharedClassManagerClient,
-};
 use starknet_gateway_types::communication::{
     GatewayRequest,
     GatewayResponse,
@@ -38,13 +31,6 @@ use starknet_mempool_types::communication::{
     SharedMempoolClient,
 };
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
-use starknet_sierra_compile_types::{
-    LocalSierraCompilerClient,
-    RemoteSierraCompilerClient,
-    SharedSierraCompilerClient,
-    SierraCompilerRequest,
-    SierraCompilerResponse,
-};
 use starknet_state_sync_types::communication::{
     LocalStateSyncClient,
     RemoteStateSyncClient,
@@ -59,14 +45,12 @@ use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
-    class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
-    gateway_client: Client<GatewayRequest, GatewayResponse>,
-    l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
     mempool_client: Client<MempoolRequest, MempoolResponse>,
+    gateway_client: Client<GatewayRequest, GatewayResponse>,
     mempool_p2p_propagator_client:
         Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
-    sierra_compiler_client: Client<SierraCompilerRequest, SierraCompilerResponse>,
     state_sync_client: Client<StateSyncRequest, StateSyncResponse>,
+    l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
 }
 
 /// A macro to retrieve a shared client wrapped in an `Arc`. The returned client is either the local
@@ -112,34 +96,34 @@ macro_rules! get_shared_client {
 
 // TODO(Nadin): Refactor getters to remove code duplication.
 impl SequencerNodeClients {
+    pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
+        get_shared_client!(self, batcher_client)
+    }
+
     pub fn get_batcher_local_client(
         &self,
     ) -> Option<LocalComponentClient<BatcherRequest, BatcherResponse>> {
         self.batcher_client.get_local_client()
     }
 
-    pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
-        get_shared_client!(self, batcher_client)
+    pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
+        get_shared_client!(self, mempool_client)
     }
 
-    pub fn get_class_manager_local_client(
+    pub fn get_mempool_local_client(
         &self,
-    ) -> Option<LocalComponentClient<ClassManagerRequest, ClassManagerResponse>> {
-        self.class_manager_client.get_local_client()
+    ) -> Option<LocalComponentClient<MempoolRequest, MempoolResponse>> {
+        self.mempool_client.get_local_client()
     }
 
-    pub fn get_class_manager_shared_client(&self) -> Option<SharedClassManagerClient> {
-        get_shared_client!(self, class_manager_client)
+    pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
+        get_shared_client!(self, gateway_client)
     }
 
     pub fn get_gateway_local_client(
         &self,
     ) -> Option<LocalComponentClient<GatewayRequest, GatewayResponse>> {
         self.gateway_client.get_local_client()
-    }
-
-    pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
-        get_shared_client!(self, gateway_client)
     }
 
     pub fn get_l1_provider_local_client(
@@ -152,14 +136,10 @@ impl SequencerNodeClients {
         get_shared_client!(self, l1_provider_client)
     }
 
-    pub fn get_mempool_local_client(
+    pub fn get_mempool_p2p_propagator_shared_client(
         &self,
-    ) -> Option<LocalComponentClient<MempoolRequest, MempoolResponse>> {
-        self.mempool_client.get_local_client()
-    }
-
-    pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
-        get_shared_client!(self, mempool_client)
+    ) -> Option<SharedMempoolP2pPropagatorClient> {
+        get_shared_client!(self, mempool_p2p_propagator_client)
     }
 
     pub fn get_mempool_p2p_propagator_local_client(
@@ -169,30 +149,14 @@ impl SequencerNodeClients {
         self.mempool_p2p_propagator_client.get_local_client()
     }
 
-    pub fn get_mempool_p2p_propagator_shared_client(
-        &self,
-    ) -> Option<SharedMempoolP2pPropagatorClient> {
-        get_shared_client!(self, mempool_p2p_propagator_client)
-    }
-
-    pub fn get_sierra_compiler_local_client(
-        &self,
-    ) -> Option<LocalComponentClient<SierraCompilerRequest, SierraCompilerResponse>> {
-        self.sierra_compiler_client.get_local_client()
-    }
-
-    pub fn get_sierra_compiler_shared_client(&self) -> Option<SharedSierraCompilerClient> {
-        get_shared_client!(self, sierra_compiler_client)
+    pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
+        get_shared_client!(self, state_sync_client)
     }
 
     pub fn get_state_sync_local_client(
         &self,
     ) -> Option<LocalComponentClient<StateSyncRequest, StateSyncResponse>> {
         self.state_sync_client.get_local_client()
-    }
-
-    pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
-        get_shared_client!(self, state_sync_client)
     }
 }
 
@@ -231,8 +195,7 @@ macro_rules! create_client {
         $local_client_type:ty,
         $remote_client_type:ty,
         $channel_expr:expr,
-        $remote_client_config:expr,
-        $socket:expr
+        $remote_client_config:expr
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -240,11 +203,13 @@ macro_rules! create_client {
                 let local_client = Some(<$local_client_type>::new($channel_expr));
                 Client::new(local_client, None)
             }
-            ReactiveComponentExecutionMode::Remote => {
-                let remote_client =
-                    Some(<$remote_client_type>::new($remote_client_config.clone(), $socket));
-                Client::new(None, remote_client)
-            }
+            ReactiveComponentExecutionMode::Remote => match $remote_client_config {
+                Some(config) => {
+                    let remote_client = Some(<$remote_client_type>::new(config.clone()));
+                    Client::new(None, remote_client)
+                }
+                None => panic!("Remote client configuration is missing."),
+            },
             ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
         }
     };
@@ -259,44 +224,21 @@ pub fn create_node_clients(
         LocalBatcherClient,
         RemoteBatcherClient,
         channels.take_batcher_tx(),
-        &config.components.batcher.remote_client_config,
-        config.components.batcher.socket
+        &config.components.batcher.remote_client_config
     );
-
-    let class_manager_client = create_client!(
-        &config.components.class_manager.execution_mode,
-        LocalClassManagerClient,
-        RemoteClassManagerClient,
-        channels.take_class_manager_tx(),
-        &config.components.class_manager.remote_client_config,
-        config.components.class_manager.socket
-    );
-
-    let gateway_client = create_client!(
-        &config.components.gateway.execution_mode,
-        LocalGatewayClient,
-        RemoteGatewayClient,
-        channels.take_gateway_tx(),
-        &config.components.gateway.remote_client_config,
-        config.components.gateway.socket
-    );
-
-    let l1_provider_client = create_client!(
-        &config.components.l1_provider.execution_mode,
-        LocalL1ProviderClient,
-        RemoteL1ProviderClient,
-        channels.take_l1_provider_tx(),
-        &config.components.l1_provider.remote_client_config,
-        config.components.l1_provider.socket
-    );
-
     let mempool_client = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
         RemoteMempoolClient,
         channels.take_mempool_tx(),
-        &config.components.mempool.remote_client_config,
-        config.components.mempool.socket
+        &config.components.mempool.remote_client_config
+    );
+    let gateway_client = create_client!(
+        &config.components.gateway.execution_mode,
+        LocalGatewayClient,
+        RemoteGatewayClient,
+        channels.take_gateway_tx(),
+        &config.components.gateway.remote_client_config
     );
 
     let mempool_p2p_propagator_client = create_client!(
@@ -304,17 +246,7 @@ pub fn create_node_clients(
         LocalMempoolP2pPropagatorClient,
         RemoteMempoolP2pPropagatorClient,
         channels.take_mempool_p2p_propagator_tx(),
-        &config.components.mempool_p2p.remote_client_config,
-        config.components.mempool_p2p.socket
-    );
-
-    let sierra_compiler_client = create_client!(
-        &config.components.sierra_compiler.execution_mode,
-        LocalSierraCompilerClient,
-        RemoteSierraCompilerClient,
-        channels.take_sierra_compiler_tx(),
-        &config.components.sierra_compiler.remote_client_config,
-        config.components.sierra_compiler.socket
+        &config.components.mempool_p2p.remote_client_config
     );
 
     let state_sync_client = create_client!(
@@ -322,18 +254,23 @@ pub fn create_node_clients(
         LocalStateSyncClient,
         RemoteStateSyncClient,
         channels.take_state_sync_tx(),
-        &config.components.state_sync.remote_client_config,
-        config.components.state_sync.socket
+        &config.components.state_sync.remote_client_config
+    );
+
+    let l1_provider_client = create_client!(
+        &config.components.l1_provider.execution_mode,
+        LocalL1ProviderClient,
+        RemoteL1ProviderClient,
+        channels.take_l1_provider_tx(),
+        &config.components.l1_provider.remote_client_config
     );
 
     SequencerNodeClients {
         batcher_client,
-        class_manager_client,
-        gateway_client,
-        l1_provider_client,
         mempool_client,
+        gateway_client,
         mempool_p2p_propagator_client,
-        sierra_compiler_client,
         state_sync_client,
+        l1_provider_client,
     }
 }

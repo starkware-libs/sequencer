@@ -8,35 +8,29 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
-use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
-use super::block_data_stream_builder::{
+use super::stream_builder::{
     BadPeerError,
     BlockData,
-    BlockDataStreamBuilder,
     BlockNumberLimit,
+    DataStreamBuilder,
     ParseDataError,
 };
-use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (BlockBody, BlockNumber) {
-    fn write_to_storage<'a>(
+    fn write_to_storage(
         self: Box<Self>,
-        storage_writer: &'a mut StorageWriter,
-        _class_manager_client: &'a mut SharedClassManagerClient,
-    ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
-        async move {
-            storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
-            Ok(())
-        }
-        .boxed()
+        storage_writer: &mut StorageWriter,
+    ) -> Result<(), StorageError> {
+        storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()
     }
 }
 
 pub(crate) struct TransactionStreamFactory;
 
-impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
+impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
     // TODO(Eitan): Add events protocol to BlockBody or split their write to storage
     type Output = (BlockBody, BlockNumber);
 
@@ -62,7 +56,7 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                     transactions_response_manager.next(),
                 )
                 .await?
-                .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
+                .ok_or(P2PSyncClientError::ReceiverChannelTerminated {
                     type_description: Self::TYPE_DESCRIPTION,
                 })?;
                 let Some(FullTransaction { transaction, transaction_output, transaction_hash }) =
@@ -97,7 +91,7 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
-    ) -> (BlockBody, BlockNumber) {
+    ) -> Option<(BlockBody, BlockNumber)> {
         let num_transactions = sync_block.transaction_hashes.len();
         let mut rng = get_rng();
         let block_body = BlockBody {
@@ -111,6 +105,6 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                 .take(num_transactions)
                 .collect::<Vec<_>>(),
         };
-        (block_body, block_number)
+        Some((block_body, block_number))
     }
 }

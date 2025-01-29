@@ -27,7 +27,7 @@ const DEFAULT_STRK_L1_DATA_GAS_PRICE: GasPrice = GasPrice(u128::pow(10, 9));
 
 #[pyclass]
 #[derive(Default, FromPyObject)]
-// TODO(Dori): Add support for returning the `declared_classes` to python.
+// TODO: Add support for returning the `declared_classes` to python.
 pub struct PyStateDiff {
     #[pyo3(get)]
     pub address_to_class_hash: HashMap<PyFelt, PyFelt>,

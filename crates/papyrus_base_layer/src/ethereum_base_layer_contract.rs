@@ -1,13 +1,11 @@
 use std::collections::BTreeMap;
 use std::future::IntoFuture;
-use std::ops::RangeInclusive;
 
 use alloy_dyn_abi::SolType;
 use alloy_json_rpc::RpcError;
-use alloy_primitives::Address as EthereumContractAddress;
+pub(crate) use alloy_primitives::Address as EthereumContractAddress;
 use alloy_provider::network::Ethereum;
 use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_types_eth::Filter as EthEventFilter;
 use alloy_sol_types::{sol, sol_data};
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
@@ -17,13 +15,12 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, Serialized
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::StarknetApiError;
+use starknet_types_core::felt;
 use url::Url;
-use validator::Validate;
 
 use crate::{BaseLayerContract, L1Event};
 
-pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
+type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
@@ -84,13 +81,11 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     async fn events(
         &self,
-        block_range: RangeInclusive<u64>,
-        events: &[&str],
+        _from_block: u64,
+        _until_block: u64,
+        _event_identifiers: &[&str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
-        let filter = EthEventFilter::new().select(block_range).events(events);
-
-        let matching_logs = self.contract.provider().get_logs(&filter).await?;
-        matching_logs.into_iter().map(TryInto::try_into).collect()
+        todo!("Implmeneted in a subsequent commit")
     }
 
     async fn latest_l1_block_number(&self, finality: u64) -> EthereumBaseLayerResult<Option<u64>> {
@@ -102,19 +97,17 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
     Contract(#[from] alloy_contract::Error),
-    #[error("{0}")]
-    FeeOutOfRange(alloy_primitives::ruint::FromUintError<u128>),
+    #[error(transparent)]
+    FeltParseError(#[from] felt::FromStrError),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
-    #[error("{0}")]
-    StarknetApiParsingError(StarknetApiError),
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
     #[error(transparent)]
     TypeError(#[from] alloy_sol_types::Error),
-    #[error("{0:?}")]
-    UnhandledL1Event(alloy_primitives::Log),
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use blockifier::blockifier::stateful_validator::{
     StatefulValidatorError as BlockifierStatefulValidatorError,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
@@ -20,13 +18,13 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::test_utils::declare::TEST_SENDER_ADDRESS;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::Resource;
 use starknet_api::{deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
@@ -79,19 +77,7 @@ fn test_stateful_tx_validator(
     mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
 
     let account_nonce = nonce!(0);
-    let mut mock_mempool_client = MockMempoolClient::new();
-    mock_mempool_client.expect_contains_tx_from().returning(|_| {
-        // The mempool does not have any transactions from the sender.
-        Ok(false)
-    });
-    let mempool_client = Arc::new(mock_mempool_client);
-
-    let result = stateful_validator.run_validate(
-        &executable_tx,
-        account_nonce,
-        mempool_client,
-        mock_validator,
-    );
+    let result = stateful_validator.run_validate(&executable_tx, account_nonce, mock_validator);
     assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
@@ -102,7 +88,7 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 
     let mut mock_state_reader_factory = MockStateReaderFactory::new();
 
-    // Make sure stateful_validator uses the latest block in the initial call.
+    // Make sure stateful_validator uses the latest block in the initiall call.
     let latest_state_reader = state_reader_factory.get_state_reader_from_latest_block();
     mock_state_reader_factory
         .expect_get_state_reader_from_latest_block()
@@ -126,44 +112,32 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 #[case::should_skip_validation(
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
     nonce!(0),
-    true,
     true
 )]
-#[case::should_not_skip_validation_nonce_zero(
+#[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0))),
     nonce!(0),
-    true,
-    false
-)]
-#[case::should_not_skip_validation_nonce_over_one(
-    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(2))),
-    nonce!(0),
-    true,
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
-    executable_deploy_account_tx(deploy_account_tx_args!(), &mut NonceManager::default()),
+        executable_deploy_account_tx(deploy_account_tx_args!(), &mut NonceManager::default())
+    ,
     nonce!(0),
-    true,
-    false
-
-)]
+    false)
+]
 #[case::should_not_skip_validation_account_nonce_1(
-    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
+    executable_invoke_tx(
+        invoke_tx_args!(
+            nonce: nonce!(1),
+            sender_address: TEST_SENDER_ADDRESS.into()
+        )
+    ),
     nonce!(1),
-    true,
-    false
-)]
-#[case::should_not_skip_validation_no_tx_in_mempool(
-    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
-    nonce!(0),
-    false,
     false
 )]
 fn test_skip_stateful_validation(
     #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
-    #[case] contains_tx: bool,
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
@@ -172,14 +146,5 @@ fn test_skip_stateful_validation(
         .expect_validate()
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
-    let mut mock_mempool_client = MockMempoolClient::new();
-    mock_mempool_client.expect_contains_tx_from().returning(move |_| Ok(contains_tx));
-    let mempool_client = Arc::new(mock_mempool_client);
-
-    let _ = stateful_validator.run_validate(
-        &executable_tx,
-        sender_nonce,
-        mempool_client,
-        mock_validator,
-    );
+    let _ = stateful_validator.run_validate(&executable_tx, sender_nonce, mock_validator);
 }

@@ -4,6 +4,7 @@ license.workspace = true
 name = "starknet_sierra_multicompile"
 repository.workspace = true
 version.workspace = true
+description = "A utility crate for compiling Sierra code into CASM and / or native."
 
 [features]
 cairo_native = ["dep:cairo-native"]
@@ -22,18 +23,15 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_sequencer_infra.workspace = true
-starknet_sierra_compile_types.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-mempool_test_utils.workspace = true
+mempool_test_utils.path = "../mempool_test_utils"
 rstest.workspace = true
-starknet_api.workspace = true
-starknet_infra_utils.workspace = true
+starknet_infra_utils.path = "../starknet_infra_utils"
 
 [build-dependencies]
 starknet_infra_utils.workspace = true
