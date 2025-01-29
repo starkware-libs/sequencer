@@ -289,16 +289,6 @@
     "privacy": "Public",
     "value": "/data"
   },
-  "compiler_config.libcairo_native_runtime_path": {
-    "description": "The path to the Cairo native runtime library file.",
-    "privacy": "Public",
-    "value": ""
-  },
-  "compiler_config.libcairo_native_runtime_path.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",
