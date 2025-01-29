@@ -14,7 +14,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::storage::errors::DeserializationError;
 use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
 
-use crate::parse_input::raw_input::RawInput;
+use crate::committer_cli::parse_input::raw_input::RawInput;
 
 pub type InputImpl = Input<ConfigImpl>;
 
