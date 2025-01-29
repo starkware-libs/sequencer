@@ -12,8 +12,10 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
+    casm_contract_class_central_format,
     CentralBlockInfo,
     CentralBouncerWeights,
+    CentralCasmContractClass,
     CentralCompressedStateDiff,
     CentralStateDiff,
     CentralTransactionExecutionInfo,
@@ -26,7 +28,8 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::core::CompiledClassHash;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -45,6 +48,7 @@ pub(crate) struct AerospikeBlob {
     bouncer_weights: CentralBouncerWeights,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
+    compiled_classes: Vec<(CompiledClassHash, CentralCasmContractClass)>,
 }
 
 #[cfg_attr(test, automock)]
@@ -249,6 +253,9 @@ impl From<BlobParameters> for AerospikeBlob {
                 CentralStateDiff::from((compressed_state_diff, block_info))
             });
 
+        let compiled_contract_classes =
+            get_compiled_contract_classes(&blob_parameters.transactions);
+
         let transactions = blob_parameters
             .transactions
             .into_iter()
@@ -268,6 +275,23 @@ impl From<BlobParameters> for AerospikeBlob {
             bouncer_weights: blob_parameters.bouncer_weights,
             transactions,
             execution_infos,
+            compiled_classes: compiled_contract_classes,
         }
     }
+}
+
+fn get_compiled_contract_classes(
+    transactions: &[Transaction],
+) -> Vec<(CompiledClassHash, CentralCasmContractClass)> {
+    transactions
+        .iter()
+        .filter_map(|tx| {
+            let Transaction::Account(AccountTransaction::Declare(declare_tx)) = tx else {
+                return None;
+            };
+            let compiled_contract_class =
+                casm_contract_class_central_format(declare_tx.casm_contract_class().clone());
+            Some((declare_tx.compiled_class_hash(), compiled_contract_class))
+        })
+        .collect()
 }
