@@ -5,16 +5,12 @@ use starknet_sierra_multicompile_types::{
     SharedSierraCompilerClient,
 };
 
-use crate::class_storage::{CachedClassStorage, CachedClassStorageConfig, ClassStorage};
+use crate::class_storage::{CachedClassStorage, ClassStorage};
+use crate::config::ClassManagerConfig;
 
 #[cfg(test)]
 #[path = "class_manager_test.rs"]
 pub mod class_manager_test;
-
-#[derive(Clone, Copy, Debug)]
-pub struct ClassManagerConfig {
-    pub cached_class_storage_config: CachedClassStorageConfig,
-}
 
 pub struct ClassManager<S: ClassStorage> {
     pub config: ClassManagerConfig,
@@ -28,10 +24,11 @@ impl<S: ClassStorage> ClassManager<S> {
         compiler: SharedSierraCompilerClient,
         storage: S,
     ) -> Self {
+        let cached_class_storage_config = config.cached_class_storage_config.clone();
         Self {
             config,
             compiler,
-            classes: CachedClassStorage::new(config.cached_class_storage_config, storage),
+            classes: CachedClassStorage::new(cached_class_storage_config, storage),
         }
     }
 }
