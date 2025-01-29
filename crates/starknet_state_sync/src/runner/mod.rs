@@ -40,7 +40,7 @@ use tokio::sync::RwLock;
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 
 pub struct StateSyncRunner {
-    network_future: BoxFuture<'static, Result<(), NetworkError>>,
+    network_future: BoxFuture<'static, Result<Never, NetworkError>>,
     // TODO(Matan): change client and server to requester and responder respectively
     p2p_sync_client_future: BoxFuture<'static, Result<Never, P2pSyncClientError>>,
     p2p_sync_server_future: BoxFuture<'static, Never>,
@@ -53,7 +53,7 @@ impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
         tokio::select! {
             result = &mut self.network_future => {
-                result.map_err(|_| ComponentError::InternalComponentError)
+                result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ())
             }
             result = &mut self.p2p_sync_client_future => {
                 result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ())

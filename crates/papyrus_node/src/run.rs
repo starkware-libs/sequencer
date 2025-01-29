@@ -7,6 +7,7 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::never::Never;
 use futures::StreamExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
@@ -86,7 +87,7 @@ pub struct PapyrusTaskHandles {
     pub monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub consensus_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    pub network_handle: Option<JoinHandle<anyhow::Result<()>>>,
+    pub network_handle: Option<JoinHandle<anyhow::Result<Never>>>,
 }
 
 impl PapyrusResources {
@@ -475,7 +476,7 @@ async fn run_threads(
         }
         res = network_handle => {
             error!("Network stopped.");
-            res??
+            res??;
         }
         res = consensus_handle => {
             error!("Consensus stopped.");
