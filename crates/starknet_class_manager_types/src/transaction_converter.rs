@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ChainId;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{
+    AccountTransaction,
+    Transaction as ExecutableTransaction,
+};
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
     InternalRpcDeployAccountTransaction,
@@ -61,6 +64,11 @@ pub trait TransactionConverterTrait {
         &self,
         tx: InternalRpcTransaction,
     ) -> TransactionConverterResult<AccountTransaction>;
+
+    async fn convert_internal_consensus_tx_to_executable_tx(
+        &self,
+        tx: InternalConsensusTransaction,
+    ) -> TransactionConverterResult<ExecutableTransaction>;
 }
 
 #[derive(Clone)]
@@ -212,6 +220,18 @@ impl TransactionConverterTrait for TransactionConverter {
                     tx_hash,
                 },
             )),
+        }
+    }
+
+    async fn convert_internal_consensus_tx_to_executable_tx(
+        &self,
+        tx: InternalConsensusTransaction,
+    ) -> TransactionConverterResult<ExecutableTransaction> {
+        match tx {
+            InternalConsensusTransaction::RpcTransaction(tx) => Ok(ExecutableTransaction::Account(
+                self.convert_internal_rpc_tx_to_executable_tx(tx).await?,
+            )),
+            InternalConsensusTransaction::L1Handler(tx) => Ok(ExecutableTransaction::L1Handler(tx)),
         }
     }
 }
