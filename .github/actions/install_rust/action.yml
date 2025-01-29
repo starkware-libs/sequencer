@@ -12,9 +12,14 @@ runs:
     - uses: moonrepo/setup-rust@v1
       with:
         cache-base: main(-v[0-9].*)?
+<<<<<<< HEAD
         inherit-toolchain: true
         bins: taplo-cli@0.9.0, cargo-machete
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
         channel: ${{ inputs.extra_rust_toolchains }}
       env:
         RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+||||||| 1e8d3f91b
+=======
+        inherit-toolchain: true
+>>>>>>> origin/main-v0.13.2
