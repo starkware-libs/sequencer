@@ -3,9 +3,6 @@
 //! Implements the consensus context - the interface for consensus to call out to the node.
 
 #[allow(missing_docs)]
-// TODO(Asmaa): this is test code, rename accordingly.
-pub mod papyrus_consensus_context;
-#[allow(missing_docs)]
 pub mod sequencer_consensus_context;
 
 /// Centralized and decentralized communication types and functionality.
