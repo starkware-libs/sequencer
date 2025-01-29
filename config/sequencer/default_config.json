@@ -162,7 +162,7 @@
   "batcher_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
-    "value": 600
+    "value": 400
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",

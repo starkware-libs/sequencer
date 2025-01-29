@@ -9,20 +9,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-<<<<<<< HEAD
-    # required to clone native as a gitsubmodule
-    - name: Submodules update.
-      run: git submodule update --init --recursive
-      shell: bash
-    - name: Install cairo native.
-      uses: ./.github/actions/setup_native_deps
-||||||| c4d606ec3
-    # required to clone native as a gitsubmodule
-    - name: Submodules update.
-      run: git submodule update --init --recursive
-      shell: bash
-=======
->>>>>>> origin/main-v0.13.4
     - name: Install rust.
       uses: ./.github/actions/install_rust
       with:
