@@ -269,12 +269,6 @@ impl From<StorageError> for ParseDataError {
     }
 }
 
-impl From<tokio::time::error::Elapsed> for ParseDataError {
-    fn from(err: tokio::time::error::Elapsed) -> Self {
-        ParseDataError::Fatal(P2pSyncClientError::NetworkTimeout(err))
-    }
-}
-
 impl From<ProtobufConversionError> for ParseDataError {
     fn from(err: ProtobufConversionError) -> Self {
         ParseDataError::BadPeer(BadPeerError::ProtobufConversionError(err))
