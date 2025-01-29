@@ -41,7 +41,7 @@ pub type Class = SierraContractClass;
 pub type ExecutableClass = ContractClass;
 pub type ExecutableClassHash = CompiledClassHash;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClassHashes {
     pub class_hash: ClassHash,
     pub executable_class_hash: ExecutableClassHash,
@@ -79,6 +79,8 @@ pub enum CachedClassStorageError<E: Error> {
 pub enum ClassManagerError {
     #[error("Internal client error: {0}")]
     Client(String),
+    #[error("Failed to deserialize Sierra class: {0}")]
+    ClassSerde(String),
     #[error("Class storage error: {0}")]
     ClassStorage(String),
     #[error(transparent)]
@@ -101,6 +103,12 @@ impl From<SierraCompilerClientError> for ClassManagerError {
                 ClassManagerError::Client(error.to_string())
             }
         }
+    }
+}
+
+impl From<serde_json::Error> for ClassManagerError {
+    fn from(error: serde_json::Error) -> Self {
+        ClassManagerError::ClassSerde(error.to_string())
     }
 }
 
