@@ -24,6 +24,7 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -209,16 +210,15 @@ impl IntegrationTestManager {
     pub async fn test_and_verify(
         &mut self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        expected_initial_value: usize,
         test_scenario: impl TestScenario,
         sender_account: AccountId,
         wait_for_block: BlockNumber,
     ) {
         // Verify the initial state
-        self.verify_results(expected_initial_value).await;
+        self.verify_txs_accepted(tx_generator, sender_account).await;
         self.run_integration_test_simulator(tx_generator, &test_scenario, sender_account).await;
         self.await_execution(wait_for_block).await;
-        self.verify_results(expected_initial_value + test_scenario.n_txs()).await;
+        self.verify_txs_accepted(tx_generator, sender_account).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -290,14 +290,24 @@ impl IntegrationTestManager {
         .expect("Block number should have been reached.");
     }
 
-    pub async fn verify_results(&self, expected_n_batched_tx: usize) {
-        info!("Verifying {} batched txs.", expected_n_batched_tx);
+    pub async fn verify_txs_accepted(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        sender_account: AccountId,
+    ) {
+        let account = tx_generator.account_with_id(sender_account);
+        let expected_n_batched_txs = account.get_nonce().0;
+        info!("Verifying {} batched txs.", expected_n_batched_txs);
         let n_batched_txs = self
             .running_batcher_monitoring_client()
             .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
             .await
             .expect("Failed to get batched txs metric.");
-        assert_eq!(n_batched_txs, expected_n_batched_tx, "Unexpected number of batched txs.");
+        assert_eq!(
+            Felt::from(n_batched_txs),
+            expected_n_batched_txs,
+            "Unexpected number of batched txs."
+        );
     }
 }
 
