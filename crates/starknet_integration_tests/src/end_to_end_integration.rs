@@ -6,11 +6,12 @@ use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
 use crate::sequencer_manager::{get_sequencer_setup_configs, IntegrationTestManager};
-use crate::utils::InvokeTxs;
+use crate::utils::{FirstBlock, InvokeTxs, N_TXS_IN_FIRST_BLOCK};
 
 pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
-    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(10);
-    const LATE_NODE_EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(25);
+    const WAIT_FOR_SECOND_BLOCK: BlockNumber = BlockNumber(2);
+    const FIRST_ROUND_WAIT_FOR_BLOCK: BlockNumber = BlockNumber(10);
+    const LATE_ROUND_WAIT_FOR_BLOCK: BlockNumber = BlockNumber(25);
     const N_TXS: usize = 50;
     const SENDER_ACCOUNT: AccountId = 0;
     /// The number of consolidated local sequencers that participate in the test.
@@ -41,9 +42,22 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     // Run the nodes.
     integration_test_manager.run(filtered_nodes).await;
 
+    // Run the first block scenario to bootstrap the accounts.
+    integration_test_manager
+        .test_and_verify(tx_generator, 0, FirstBlock, SENDER_ACCOUNT, WAIT_FOR_SECOND_BLOCK)
+        .await;
+
     // Run the test.
     integration_test_manager
-        .test_and_verify(tx_generator, 0, InvokeTxs(N_TXS), SENDER_ACCOUNT, EXPECTED_BLOCK_NUMBER)
+        .test_and_verify(
+            tx_generator,
+            // TODO(Yael): consider removing this parameter and take it from the tx_generator
+            // instead.
+            N_TXS_IN_FIRST_BLOCK,
+            InvokeTxs(N_TXS),
+            SENDER_ACCOUNT,
+            FIRST_ROUND_WAIT_FOR_BLOCK,
+        )
         .await;
 
     // Run the late node.
@@ -53,10 +67,10 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     integration_test_manager
         .test_and_verify(
             tx_generator,
-            N_TXS,
+            N_TXS + N_TXS_IN_FIRST_BLOCK,
             InvokeTxs(N_TXS),
             SENDER_ACCOUNT,
-            LATE_NODE_EXPECTED_BLOCK_NUMBER,
+            LATE_ROUND_WAIT_FOR_BLOCK,
         )
         .await;
 
