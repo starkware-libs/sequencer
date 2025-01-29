@@ -104,6 +104,17 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
     }
 
+    async fn latest_l1_block(
+        &self,
+        finality: u64,
+    ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
+        let Some(block_number) = self.latest_l1_block_number(finality).await? else {
+            return Ok(None);
+        };
+
+        self.l1_block_at(block_number).await
+    }
+
     async fn l1_block_at(
         &self,
         block_number: L1BlockNumber,
