@@ -212,12 +212,12 @@ impl IntegrationTestManager {
         expected_initial_value: usize,
         test_scenario: impl TestScenario,
         sender_account: AccountId,
-        expected_block_number: BlockNumber,
+        wait_for_block: BlockNumber,
     ) {
         // Verify the initial state
         self.verify_results(expected_initial_value).await;
         self.run_integration_test_simulator(tx_generator, &test_scenario, sender_account).await;
-        self.await_execution(expected_block_number).await;
+        self.await_execution(wait_for_block).await;
         self.verify_results(expected_initial_value + test_scenario.n_txs()).await;
     }
 
