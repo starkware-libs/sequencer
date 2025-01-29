@@ -251,7 +251,6 @@ fn create_random_sync_block(
         declared_classes: IndexMap::new(),
         deprecated_declared_classes: vec![],
         nonces: IndexMap::new(),
-        replaced_classes: IndexMap::new(),
     };
 
     let mut transaction_hashes = vec![];

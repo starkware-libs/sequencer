@@ -30,11 +30,7 @@ static STARKNET_STATE_DIFF0: LazyLock<Felt> = LazyLock::new(|| {
 pub fn calculate_state_diff_hash(state_diff: &ThinStateDiff) -> StateDiffCommitment {
     let mut hash_chain = HashChain::new();
     hash_chain = hash_chain.chain(&STARKNET_STATE_DIFF0);
-    hash_chain = chain_updated_contracts(
-        &state_diff.deployed_contracts,
-        &state_diff.replaced_classes,
-        hash_chain,
-    );
+    hash_chain = chain_deployed_contracts(&state_diff.deployed_contracts, hash_chain);
     hash_chain = chain_declared_classes(&state_diff.declared_classes, hash_chain);
     hash_chain =
         chain_deprecated_declared_classes(&state_diff.deprecated_declared_classes, hash_chain);
@@ -47,14 +43,12 @@ pub fn calculate_state_diff_hash(state_diff: &ThinStateDiff) -> StateDiffCommitm
 
 // Chains: [number_of_updated_contracts, address_0, class_hash_0, address_1, class_hash_1, ...].
 // The updated contracts includes deployed contracts and replaced classes.
-fn chain_updated_contracts(
+fn chain_deployed_contracts(
     deployed_contracts: &IndexMap<ContractAddress, ClassHash>,
-    replaced_classes: &IndexMap<ContractAddress, ClassHash>,
     mut hash_chain: HashChain,
 ) -> HashChain {
-    let updated_contracts = deployed_contracts.iter().chain(replaced_classes.iter());
-    hash_chain = hash_chain.chain(&(deployed_contracts.len() + replaced_classes.len()).into());
-    for (address, class_hash) in sorted_index_map(&updated_contracts.collect()) {
+    hash_chain = hash_chain.chain(&deployed_contracts.len().into());
+    for (address, class_hash) in sorted_index_map(&deployed_contracts.iter().collect()) {
         hash_chain = hash_chain.chain(&address.0).chain(class_hash);
     }
     hash_chain

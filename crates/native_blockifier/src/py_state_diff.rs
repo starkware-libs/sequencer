@@ -77,7 +77,6 @@ impl TryFrom<PyStateDiff> for StateDiff {
             declared_classes: IndexMap::new(),
             deprecated_declared_classes: IndexMap::new(),
             nonces,
-            replaced_classes: IndexMap::new(),
         })
     }
 }
