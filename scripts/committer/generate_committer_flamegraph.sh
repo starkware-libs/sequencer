@@ -20,7 +20,7 @@ if ! command -v perf; then
 fi
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-BENCH_INPUT_FILES_PREFIX=$(cat ${ROOT_DIR}/crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)
+BENCH_INPUT_FILES_PREFIX=$(cat ${ROOT_DIR}/crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)
 # Lower security level in perf_event_paranoid to 2 to allow cargo to use perf without running on root.
 sudo sysctl kernel.perf_event_paranoid=2
 
