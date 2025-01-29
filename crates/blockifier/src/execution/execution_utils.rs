@@ -130,7 +130,9 @@ pub fn execute_entry_point_call(
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
-            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
+            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps)
+                && !cfg!(feature = "only_native")
+            {
                 entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class.casm(),
