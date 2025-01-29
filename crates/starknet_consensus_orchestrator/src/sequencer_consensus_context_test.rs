@@ -23,10 +23,12 @@ use papyrus_protobuf::consensus::{
     Vote,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
@@ -57,9 +59,22 @@ const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonH
 const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 lazy_static! {
-    static ref TX_BATCH: Vec<Transaction> = (0..3).map(generate_invoke_tx).collect();
+    static ref SNAPI_TX_BATCH: Vec<Transaction> = (0..3).map(generate_invoke_tx).collect();
+    static ref TX_BATCH: Vec<ConsensusTransaction> = SNAPI_TX_BATCH
+        .clone()
+        .iter()
+        .map(|tx| {
+            if let Transaction::Invoke(tx) = tx {
+                ConsensusTransaction::RpcTransaction(RpcTransaction::Invoke(
+                    RpcInvokeTransaction::V3(tx.clone().into()),
+                ))
+            } else {
+                panic!("Expected InvokeTransaction::V3, got older version");
+            }
+        })
+        .collect();
     static ref EXECUTABLE_TX_BATCH: Vec<ExecutableTransaction> =
-        TX_BATCH.iter().map(|tx| (tx.clone(), &CHAIN_ID).try_into().unwrap()).collect();
+        SNAPI_TX_BATCH.iter().map(|tx| (tx.clone(), &CHAIN_ID).try_into().unwrap()).collect();
 }
 
 fn generate_invoke_tx(nonce: u8) -> Transaction {
@@ -246,10 +261,15 @@ async fn repropose() {
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let transaction = if let Transaction::Invoke(transaction) = generate_invoke_tx(2) {
+        ConsensusTransaction::RpcTransaction(RpcTransaction::Invoke(RpcInvokeTransaction::V3(
+            transaction.clone().into(),
+        )))
+    } else {
+        panic!("Expected InvokeTransaction::V3, got older version");
+    };
     content_sender
-        .send(ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![generate_invoke_tx(2)],
-        }))
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: vec![transaction] }))
         .await
         .unwrap();
     content_sender

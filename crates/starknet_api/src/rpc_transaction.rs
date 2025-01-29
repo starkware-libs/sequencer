@@ -226,6 +226,29 @@ impl From<RpcInvokeTransaction> for InvokeTransaction {
     }
 }
 
+// TODO(alonl): consider panicing if the resource bounds are not AllResources
+impl From<InvokeTransaction> for RpcInvokeTransactionV3 {
+    fn from(tx: InvokeTransaction) -> Self {
+        Self {
+            sender_address: tx.sender_address(),
+            tip: tx.tip(),
+            nonce: tx.nonce(),
+            resource_bounds: match tx.resource_bounds() {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
+            signature: tx.signature(),
+            calldata: tx.calldata(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+            fee_data_availability_mode: tx.fee_data_availability_mode(),
+            paymaster_data: tx.paymaster_data(),
+            account_deployment_data: tx.account_deployment_data(),
+        }
+    }
+}
+
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
