@@ -13,7 +13,7 @@ use starknet_api::state::ThinStateDiff;
 
 use crate::errors::BatcherError;
 
-// TODO (Matan) decide on the id structure
+// TODO(Matan): decide on the id structure
 #[derive(
     Copy,
     Clone,
@@ -131,7 +131,7 @@ pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RevertBlockInput {
     pub height: BlockNumber,
 }
