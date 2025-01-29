@@ -18,4 +18,5 @@ pub mod secp;
 pub mod state;
 pub mod stateless_compression;
 pub mod syscalls;
+pub mod transaction_hash;
 pub mod types;
