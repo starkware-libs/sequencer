@@ -16,6 +16,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
+starknet_sequencer_infra.workspace = true
 starknet_sierra_multicompile_types.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
@@ -25,6 +26,6 @@ validator.workspace = true
 mockall.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
 starknet_sierra_multicompile_types = { path = "../starknet_sierra_multicompile_types", features = [
-  "testing",
+    "testing",
 ] }
 tokio.workspace = true

@@ -1,11 +1,18 @@
 use starknet_class_manager_types::{ClassId, ClassManagerResult, ExecutableClassHash};
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,
 };
 
-use crate::class_storage::{CachedClassStorage, ClassStorage};
+use crate::class_storage::{
+    CachedClassStorage,
+    ClassHashStorage,
+    ClassHashStorageConfig,
+    ClassStorage,
+    FsClassStorage,
+};
 use crate::config::ClassManagerConfig;
 
 #[cfg(test)]
@@ -69,3 +76,21 @@ impl<S: ClassStorage> ClassManager<S> {
         Ok(())
     }
 }
+
+// TODO(Elin): rewrite this function
+pub fn create_class_manager(
+    config: ClassManagerConfig,
+    compiler: SharedSierraCompilerClient,
+) -> ClassManager<FsClassStorage> {
+    let test_persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
+    let storage_config = ClassHashStorageConfig {
+        path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
+        ..Default::default()
+    };
+    let class_hash_storage = ClassHashStorage::new(storage_config).unwrap();
+    let fs_class_storage = FsClassStorage::new(test_persistent_root, class_hash_storage);
+
+    ClassManager::new(config, compiler, fs_class_storage)
+}
+
+impl ComponentStarter for ClassManager<FsClassStorage> {}

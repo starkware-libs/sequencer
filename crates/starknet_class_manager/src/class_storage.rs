@@ -57,10 +57,7 @@ pub struct CachedClassStorageConfig {
 // TODO(Elin): provide default values for the fields.
 impl Default for CachedClassStorageConfig {
     fn default() -> Self {
-        Self {
-            class_cache_size: 10,
-            deprecated_class_cache_size: 10,
-        }
+        Self { class_cache_size: 10, deprecated_class_cache_size: 10 }
     }
 }
 
