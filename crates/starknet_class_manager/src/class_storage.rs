@@ -209,17 +209,6 @@ impl ClassHashStorage {
         Ok(Self { reader, writer })
     }
 
-    #[cfg(test)]
-    pub fn new_for_testing() -> Self {
-        let config = ClassHashStorageConfig {
-            path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
-            enforce_file_exists: false,
-            max_size: 1 << 20, // 1MB.
-        };
-
-        Self::new(config).unwrap()
-    }
-
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
@@ -266,14 +255,6 @@ pub enum FsClassStorageError {
 impl FsClassStorage {
     pub fn new(persistent_root: PathBuf, class_hash_storage: ClassHashStorage) -> Self {
         Self { persistent_root, class_hash_storage }
-    }
-
-    #[cfg(test)]
-    pub fn new_for_testing() -> Self {
-        let test_persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
-        let class_hash_storage = ClassHashStorage::new_for_testing();
-
-        Self::new(test_persistent_root, class_hash_storage)
     }
 
     fn contains_class(&self, class_id: ClassId) -> bool {
