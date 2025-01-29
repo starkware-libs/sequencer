@@ -13,8 +13,9 @@ use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -205,12 +206,18 @@ async fn listen_to_broadcasted_messages(
                 panic!("Unexpected init: {:?}", init)
             }
             StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
-                received_tx_hashes.extend(
-                    transactions
-                        .transactions
-                        .iter()
-                        .map(|tx| tx.calculate_transaction_hash(&chain_id).unwrap()),
-                );
+                // TODO(Arni): add calculate_transaction_hash to consensus transaction and use it
+                // here.
+                received_tx_hashes.extend(transactions.transactions.iter().map(|tx| match tx {
+                    ConsensusTransaction::RpcTransaction(tx) => {
+                        let starknet_api_tx =
+                            starknet_api::transaction::Transaction::from(tx.clone());
+                        starknet_api_tx.calculate_transaction_hash(&chain_id).unwrap()
+                    }
+                    ConsensusTransaction::L1Handler(tx) => {
+                        tx.calculate_transaction_hash(&chain_id, &TransactionVersion::ZERO).unwrap()
+                    }
+                }));
             }
             StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
                 assert_eq!(
