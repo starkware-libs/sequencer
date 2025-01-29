@@ -404,6 +404,12 @@ impl AccountTransactionGenerator {
         self.nonce_manager.borrow_mut().next(sender_address)
     }
 
+    /// Retrieves the nonce for the current account.
+    pub fn get_nonce(&self) -> Nonce {
+        let sender_address = self.sender_address();
+        self.nonce_manager.borrow().get(sender_address)
+    }
+
     /// Private constructor, since only the multi-account transaction generator should create this
     /// struct.
     // TODO(Gilad): add a version that doesn't rely on the default deploy account constructor, but
