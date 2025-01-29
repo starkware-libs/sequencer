@@ -231,14 +231,14 @@ impl IntegrationTestManager {
         // Verify the initial state
         self.verify_results(
             tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value + 1,
+            expected_initial_value,
         )
         .await;
         self.run_integration_test_simulator(tx_generator, &test_scenario, sender_account).await;
         self.await_execution(expected_block_number).await;
         self.verify_results(
             tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value + test_scenario.n_txs() + 1,
+            expected_initial_value + test_scenario.n_txs(),
         )
         .await;
     }
@@ -330,7 +330,8 @@ fn get_account_nonce(storage_reader: &StorageReader, contract_address: ContractA
     let state_number = StateNumber::unchecked_right_after_block(block_number);
     get_nonce_at(&txn, state_number, None, contract_address)
         .expect("Should always be Ok(Some(Nonce))")
-        .expect("Should always be Some(Nonce)")
+        // If the none is None, it means that the account was not deployed yet and it's nonce is 0.
+        .unwrap_or_default()
 }
 
 /// Sample a storage until sufficiently many blocks have been stored. Returns an error if after
