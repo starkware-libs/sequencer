@@ -383,13 +383,6 @@ impl<'a> ThinStateDiffBuilder<'a> {
         undeployed_accounts_defined_in_the_test: &'a [Contract],
     ) {
         self.set_contracts(undeployed_accounts_defined_in_the_test).declare().fund();
-
-        // Set nonces as 1 in the state so that subsequent invokes can pass validation.
-        self.nonces = self
-            .deployed_contracts
-            .iter()
-            .map(|(&address, _)| (address, Nonce(Felt::ONE)))
-            .collect();
     }
 
     fn build(self) -> ThinStateDiff {
