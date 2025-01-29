@@ -10,13 +10,16 @@ workspace = true
 
 [dependencies]
 hex.workspace = true
+papyrus_config.workspace = true
 papyrus_storage.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
 starknet_sierra_multicompile_types.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

@@ -1,15 +1,21 @@
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
 
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
+use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 use thiserror::Error;
+
+use crate::config::ClassHashStorageConfig;
 
 #[cfg(test)]
 #[path = "class_storage_test.rs"]
@@ -44,10 +50,37 @@ pub trait ClassStorage: Send + Sync {
     ) -> Result<(), Self::Error>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CachedClassStorageConfig {
     pub class_cache_size: usize,
     pub deprecated_class_cache_size: usize,
+}
+
+// TODO(Elin): provide default values for the fields.
+impl Default for CachedClassStorageConfig {
+    fn default() -> Self {
+        Self { class_cache_size: 10, deprecated_class_cache_size: 10 }
+    }
+}
+
+// TODO(Elin): provide description for the fields.
+impl SerializeConfig for CachedClassStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "class_cache_size",
+                &self.class_cache_size,
+                "Contract classes cache size.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "deprecated_class_cache_size",
+                &self.deprecated_class_cache_size,
+                "Deprecated contract classes cache size.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
 }
 
 pub struct CachedClassStorage<S: ClassStorage> {
@@ -162,13 +195,6 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
 
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub struct ClassHashStorageConfig {
-    pub path_prefix: PathBuf,
-    pub enforce_file_exists: bool,
-    pub max_size: usize,
 }
 
 #[derive(Debug, Error)]
