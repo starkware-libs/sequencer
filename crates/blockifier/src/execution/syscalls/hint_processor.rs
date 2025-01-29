@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ValidResourceBounds,
 };
+use starknet_api::transaction::{signed_tx_version, TransactionOptions, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -404,10 +405,28 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> SyscallResult<Relocatable> {
+        let tx_context = &self.base.context.tx_context;
+        // The transaction version, ignoring the only_query bit.
+        let version = tx_context.tx_info.version();
+        let versioned_constants = &tx_context.block_context.versioned_constants;
+        // The set of v1-bound-accounts.
+        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo1;
+
+        // If the transaction version is 3 and the account is in the v1-bound-accounts set,
+        // the syscall should return transaction version 1 instead.
+        // In such a case, `self.execution_info_ptr` is not used.
+        if version == TransactionVersion::THREE && v1_bound_accounts.contains(&self.class_hash()) {
+            let modified_version = signed_tx_version(
+                &TransactionVersion::ONE,
+                &TransactionOptions { only_query: tx_context.tx_info.only_query() },
+            );
+            return self.allocate_execution_info_segment(vm, Some(modified_version));
+        }
+
         match self.execution_info_ptr {
             Some(execution_info_ptr) => Ok(execution_info_ptr),
             None => {
-                let execution_info_ptr = self.allocate_execution_info_segment(vm)?;
+                let execution_info_ptr = self.allocate_execution_info_segment(vm, None)?;
                 self.execution_info_ptr = Some(execution_info_ptr);
                 Ok(execution_info_ptr)
             }
@@ -532,9 +551,10 @@ impl<'a> SyscallHintProcessor<'a> {
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
+        tx_version_override: Option<TransactionVersion>,
     ) -> SyscallResult<Relocatable> {
         let block_info_ptr = self.allocate_block_info_segment(vm)?;
-        let tx_info_ptr = self.allocate_tx_info_segment(vm)?;
+        let tx_info_ptr = self.allocate_tx_info_segment(vm, tx_version_override)?;
 
         let additional_info: Vec<MaybeRelocatable> = vec![
             block_info_ptr.into(),
@@ -580,13 +600,18 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok((data_segment_start_ptr, data_segment_end_ptr))
     }
 
-    fn allocate_tx_info_segment(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Relocatable> {
+    fn allocate_tx_info_segment(
+        &mut self,
+        vm: &mut VirtualMachine,
+        tx_version_override: Option<TransactionVersion>,
+    ) -> SyscallResult<Relocatable> {
         let tx_info = &self.base.context.tx_context.clone().tx_info;
         let (tx_signature_start_ptr, tx_signature_end_ptr) =
             &self.allocate_data_segment(vm, &tx_info.signature().0)?;
+        let tx_version = tx_version_override.unwrap_or(tx_info.signed_version());
 
         let mut tx_data: Vec<MaybeRelocatable> = vec![
-            tx_info.signed_version().0.into(),
+            tx_version.0.into(),
             tx_info.sender_address().0.key().into(),
             Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_start_ptr.into(),

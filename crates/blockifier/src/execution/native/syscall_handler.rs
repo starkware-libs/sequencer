@@ -22,7 +22,15 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddr
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
-use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
+use starknet_api::transaction::{
+    signed_tx_version,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
+    TransactionOptions,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{MessageToL1, Retdata};
@@ -168,10 +176,32 @@ impl<'state> NativeSyscallHandler<'state> {
         Ok(Retdata(raw_data))
     }
 
+    fn tx_version_for_get_tx_info(&self) -> TransactionVersion {
+        let tx_context = &self.base.context.tx_context;
+        // The transaction version, ignoring the only_query bit.
+        let version = tx_context.tx_info.version();
+        let versioned_constants = &tx_context.block_context.versioned_constants;
+        // The set of v1-bound-accounts.
+        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo1;
+        let class_hash = &self.base.call.class_hash;
+
+        // If the transaction version is 3 and the account is in the v1-bound-accounts set,
+        // the syscall should return transaction version 1 instead.
+        // In such a case, `self.execution_info_ptr` is not used.
+        if version == TransactionVersion::THREE && v1_bound_accounts.contains(class_hash) {
+            signed_tx_version(
+                &TransactionVersion::ONE,
+                &TransactionOptions { only_query: tx_context.tx_info.only_query() },
+            )
+        } else {
+            tx_context.tx_info.signed_version()
+        }
+    }
+
     fn get_tx_info_v1(&self) -> TxInfo {
         let tx_info = &self.base.context.tx_context.tx_info;
         TxInfo {
-            version: tx_info.signed_version().0,
+            version: self.tx_version_for_get_tx_info().0,
             account_contract_address: Felt::from(tx_info.sender_address()),
             max_fee: tx_info.max_fee_for_execution_info_syscall().0,
             signature: tx_info.signature().0,
@@ -201,7 +231,7 @@ impl<'state> NativeSyscallHandler<'state> {
     fn get_tx_info_v2(&self) -> SyscallResult<TxV2Info> {
         let tx_info = &self.base.context.tx_context.tx_info;
         let native_tx_info = TxV2Info {
-            version: tx_info.signed_version().0,
+            version: self.tx_version_for_get_tx_info().0,
             account_contract_address: Felt::from(tx_info.sender_address()),
             max_fee: tx_info.max_fee_for_execution_info_syscall().0,
             signature: tx_info.signature().0,
