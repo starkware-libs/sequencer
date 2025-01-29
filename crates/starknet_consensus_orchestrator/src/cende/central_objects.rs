@@ -60,6 +60,7 @@ mod central_objects_test;
 
 pub type CentralBouncerWeights = BouncerWeights;
 pub type CentralCompressedStateDiff = CentralStateDiff;
+pub type CentralCasmContractClass = CasmContractClass;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {
@@ -386,8 +387,8 @@ impl From<(Transaction, u64)> for CentralTransactionWritten {
 #[allow(dead_code)]
 pub fn casm_contract_class_central_format(
     compiled_class_hash: CasmContractClass,
-) -> CasmContractClass {
-    CasmContractClass {
+) -> CentralCasmContractClass {
+    CentralCasmContractClass {
         // The rust object allows these fields to be none, while in python they are mandatory.
         bytecode_segment_lengths: Some(
             compiled_class_hash.bytecode_segment_lengths.unwrap_or(NestedIntList::Node(vec![])),
