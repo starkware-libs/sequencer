@@ -120,7 +120,6 @@ const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
 
 pub struct SequencerConsensusContext {
-    config: ContextConfig,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
@@ -166,7 +165,6 @@ impl SequencerConsensusContext {
         let transaction_converter =
             TransactionConverter::new(Arc::new(EmptyClassManagerClient), config.chain_id.clone());
         Self {
-            config,
             state_sync_client,
             batcher,
             outbound_proposal_sender,
