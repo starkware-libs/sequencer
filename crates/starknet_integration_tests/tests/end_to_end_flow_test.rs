@@ -20,8 +20,8 @@ use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
+    create_flow_test_tx_generator,
     create_funding_txs,
-    create_integration_test_tx_generator,
     create_many_invoke_txs,
     create_multiple_account_txs,
     run_test_scenario,
@@ -38,7 +38,7 @@ const LAST_HEIGHT: BlockNumber = BlockNumber(4);
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
-    create_integration_test_tx_generator()
+    create_flow_test_tx_generator()
 }
 
 #[rstest]
