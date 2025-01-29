@@ -95,6 +95,8 @@ pub async fn create_node_components(
                 config.consensus_manager_config.clone(),
                 batcher_client,
                 state_sync_client,
+                // TODO(shahak): use the correct client.
+                Arc::new(EmptyClassManagerClient),
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,

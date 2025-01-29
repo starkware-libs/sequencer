@@ -35,9 +35,9 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
-use starknet_api::core::{ChainId, ContractAddress, SequencerContractAddress};
-use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::{ContractAddress, SequencerContractAddress};
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -52,6 +52,11 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -88,8 +93,10 @@ const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
 // {height: {proposal_id: (content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
 // store one of them.
-type HeightToIdToContent =
-    BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<ExecutableTransaction>, ProposalId)>>;
+type HeightToIdToContent = BTreeMap<
+    BlockNumber,
+    HashMap<ProposalContentId, (Vec<InternalConsensusTransaction>, ProposalId)>,
+>;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
 const CHANNEL_SIZE: usize = 100;
@@ -112,7 +119,8 @@ const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
 
 pub struct SequencerConsensusContext {
-    config: ContextConfig,
+    // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
+    transaction_converter: TransactionConverter,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
@@ -146,6 +154,7 @@ pub struct SequencerConsensusContext {
 impl SequencerConsensusContext {
     pub fn new(
         config: ContextConfig,
+        class_manager_client: SharedClassManagerClient,
         state_sync_client: SharedStateSyncClient,
         batcher: Arc<dyn BatcherClient>,
         outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
@@ -154,7 +163,10 @@ impl SequencerConsensusContext {
     ) -> Self {
         let num_validators = config.num_validators;
         Self {
-            config,
+            transaction_converter: TransactionConverter::new(
+                class_manager_client,
+                config.chain_id.clone(),
+            ),
             state_sync_client,
             batcher,
             outbound_proposal_sender,
@@ -215,6 +227,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to send proposal receiver");
         let gas_prices = self.gas_prices();
+        let transaction_converter = self.transaction_converter.clone();
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let handle = tokio::spawn(
@@ -229,6 +242,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_id,
                     cende_write_success,
                     gas_prices,
+                    transaction_converter,
                 )
                 .await;
             }
@@ -376,6 +390,13 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
+        let transactions = futures::future::join_all(transactions.into_iter().map(|tx| {
+                self.transaction_converter.convert_internal_consensus_tx_to_executable_tx(tx)
+            }))
+            .await
+            .into_iter().collect::<Result<Vec<_>, _>>()
+            // TODO(shahak): Do not panic here.
+            .expect("Failed converting transactions for cende");
         self.cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 // TODO(dvir): use the real `BlockInfo` when consensus will save it.
@@ -463,8 +484,8 @@ impl SequencerConsensusContext {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
+        let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
-        let chain_id = self.config.chain_id.clone();
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         let gas_prices = self.gas_prices();
@@ -474,7 +495,6 @@ impl SequencerConsensusContext {
         let handle = tokio::spawn(
             async move {
                 validate_proposal(
-                    chain_id,
                     proposal_id,
                     batcher.as_ref(),
                     height,
@@ -485,6 +505,7 @@ impl SequencerConsensusContext {
                     fin_sender,
                     cancel_token_clone,
                     gas_prices,
+                    transaction_converter,
                 )
                 .await
             }
@@ -515,6 +536,7 @@ async fn build_proposal(
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
     gas_prices: GasPrices,
+    transaction_converter: TransactionConverter,
 ) {
     initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
     proposal_sender
@@ -522,9 +544,14 @@ async fn build_proposal(
         .await
         .expect("Failed to send proposal init");
 
-    let Some((proposal_content_id, content)) =
-        get_proposal_content(proposal_id, batcher.as_ref(), proposal_sender, cende_write_success)
-            .await
+    let Some((proposal_content_id, content)) = get_proposal_content(
+        proposal_id,
+        batcher.as_ref(),
+        proposal_sender,
+        cende_write_success,
+        &transaction_converter,
+    )
+    .await
     else {
         return;
     };
@@ -586,7 +613,8 @@ async fn get_proposal_content(
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
-) -> Option<(ProposalContentId, Vec<ExecutableTransaction>)> {
+    transaction_converter: &TransactionConverter,
+) -> Option<(ProposalContentId, Vec<InternalConsensusTransaction>)> {
     let mut content = Vec::new();
     loop {
         // We currently want one part of the node failing to cause all components to fail. If this
@@ -606,8 +634,15 @@ async fn get_proposal_content(
                     "Sending transaction batch with {} txs.",
                     txs.len()
                 );
-                let transactions =
-                    txs.into_iter().map(|tx| tx.into()).collect::<Vec<Transaction>>();
+                let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
+                    transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx)
+                }))
+                .await
+                .into_iter()
+                .collect::<Result<Vec<_>, _>>()
+                // TODO(shahak): Don't panic here.
+                .expect("Failed converting consensus transaction to external representation");
+                debug!("Converted transactions to external representation.");
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 proposal_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
@@ -651,7 +686,6 @@ async fn get_proposal_content(
 // TODO(Arni): Remove the clippy when switch to ProposalInit.
 #[allow(clippy::too_many_arguments)]
 async fn validate_proposal(
-    chain_id: ChainId,
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     height: BlockNumber,
@@ -662,6 +696,7 @@ async fn validate_proposal(
     fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
     cancel_token: CancellationToken,
     gas_prices: GasPrices,
+    transaction_converter: TransactionConverter,
 ) {
     initiate_validation(batcher, proposal_id, height, proposer, timeout, gas_prices).await;
 
@@ -685,7 +720,7 @@ async fn validate_proposal(
                     batcher,
                     proposal_part,
                     &mut content,
-                    chain_id.clone()
+                    &transaction_converter,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
                         break (built_block, received_fin);
@@ -760,27 +795,26 @@ async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
-    content: &mut Vec<ExecutableTransaction>,
-    chain_id: ChainId,
+    content: &mut Vec<InternalConsensusTransaction>,
+    transaction_converter: &TransactionConverter,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
-            let exe_txs: Vec<ExecutableTransaction> = txs
-                .into_iter()
-                .map(|tx| {
-                    // An error means we have an invalid chain_id.
-                    (tx, &chain_id)
-                        .try_into()
-                        .expect("Failed to convert transaction to executable_transation.")
-                })
-                .collect();
-            content.extend_from_slice(&exe_txs[..]);
-            let input = SendProposalContentInput {
-                proposal_id,
-                content: SendProposalContent::Txs(exe_txs),
-            };
+            let txs = futures::future::join_all(txs.into_iter().map(|tx| {
+                transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
+            }))
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            // TODO(shahak): Don't panic here.
+            .expect("Failed converting consensus transaction to internal representation");
+            debug!("Converted transactions to internal representation.");
+
+            content.extend_from_slice(&txs[..]);
+            let input =
+                SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
             });

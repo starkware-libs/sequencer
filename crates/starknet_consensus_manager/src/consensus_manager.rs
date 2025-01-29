@@ -11,6 +11,7 @@ use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, V
 use starknet_api::block::BlockNumber;
 use starknet_batcher_types::batcher_types::RevertBlockInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_consensus::stream_handler::StreamHandler;
 use starknet_consensus::types::ConsensusError;
 use starknet_consensus_orchestrator::cende::CendeAmbassador;
@@ -33,6 +34,7 @@ pub struct ConsensusManager {
     pub config: ConsensusManagerConfig,
     pub batcher_client: SharedBatcherClient,
     pub state_sync_client: SharedStateSyncClient,
+    pub class_manager_client: SharedClassManagerClient,
 }
 
 impl ConsensusManager {
@@ -40,8 +42,9 @@ impl ConsensusManager {
         config: ConsensusManagerConfig,
         batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
+        class_manager_client: SharedClassManagerClient,
     ) -> Self {
-        Self { config, batcher_client, state_sync_client }
+        Self { config, batcher_client, state_sync_client, class_manager_client }
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
@@ -94,6 +97,7 @@ impl ConsensusManager {
 
         let context = SequencerConsensusContext::new(
             self.config.context_config.clone(),
+            Arc::clone(&self.class_manager_client),
             Arc::clone(&self.state_sync_client),
             Arc::clone(&self.batcher_client),
             outbound_internal_sender,
@@ -179,8 +183,9 @@ pub fn create_consensus_manager(
     config: ConsensusManagerConfig,
     batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
+    class_manager_client: SharedClassManagerClient,
 ) -> ConsensusManager {
-    ConsensusManager::new(config, batcher_client, state_sync_client)
+    ConsensusManager::new(config, batcher_client, state_sync_client, class_manager_client)
 }
 
 #[async_trait]
