@@ -5,3 +5,4 @@ pub mod consensus;
 pub mod mempool;
 pub mod protobuf;
 pub mod sync;
+pub mod transaction;
