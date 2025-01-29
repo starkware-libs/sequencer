@@ -5,8 +5,9 @@ use starknet_api::state::SierraContractClass;
 use starknet_class_manager_types::{CachedClassStorageError, ClassManagerError};
 use starknet_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 
-use crate::class_manager::{ClassManager, ClassManagerConfig};
+use crate::class_manager::ClassManager;
 use crate::class_storage::{CachedClassStorageConfig, FsClassStorage, FsClassStorageError};
+use crate::config::ClassManagerConfig;
 
 impl ClassManager<FsClassStorage> {
     fn new_for_testing(compiler: MockSierraCompilerClient) -> Self {
@@ -16,7 +17,7 @@ impl ClassManager<FsClassStorage> {
 
         let cached_class_storage_config =
             CachedClassStorageConfig { class_cache_size: 10, deprecated_class_cache_size: 10 };
-        let config = ClassManagerConfig { cached_class_storage_config };
+        let config = ClassManagerConfig { cached_class_storage_config, ..Default::default() };
         let storage = FsClassStorage::new_for_testing();
 
         ClassManager::new(config, Arc::new(compiler), storage)

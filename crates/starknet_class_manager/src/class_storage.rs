@@ -1,10 +1,14 @@
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
 
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
+use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
@@ -44,10 +48,40 @@ pub trait ClassStorage: Send + Sync {
     ) -> Result<(), Self::Error>;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CachedClassStorageConfig {
     pub class_cache_size: usize,
     pub deprecated_class_cache_size: usize,
+}
+
+// TODO(Elin): provide default values for the fields.
+impl Default for CachedClassStorageConfig {
+    fn default() -> Self {
+        Self {
+            class_cache_size: 10,
+            deprecated_class_cache_size: 10,
+        }
+    }
+}
+
+// TODO(Elin): provide description for the fields.
+impl SerializeConfig for CachedClassStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "class_cache_size",
+                &self.class_cache_size,
+                "Contract classes cache size.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "deprecated_class_cache_size",
+                &self.deprecated_class_cache_size,
+                "Deprecated contract classes cache size.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
 }
 
 pub struct CachedClassStorage<S: ClassStorage> {
@@ -164,11 +198,48 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 }
 
-#[derive(Debug)]
+// TODO(Elin): all this values are actually for papyrus_storage::StorageConfig.
+// Check what batcher did for the same config: starknet_batcher/src/config.rs.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ClassHashStorageConfig {
     pub path_prefix: PathBuf,
     pub enforce_file_exists: bool,
     pub max_size: usize,
+}
+
+impl Default for ClassHashStorageConfig {
+    fn default() -> Self {
+        Self {
+            path_prefix: "/data".into(),
+            enforce_file_exists: false,
+            max_size: 1 << 30, // 1GB.
+        }
+    }
+}
+
+impl SerializeConfig for ClassHashStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "path_prefix",
+                &self.path_prefix,
+                "Prefix of the path of the node's storage directory",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "enforce_file_exists",
+                &self.enforce_file_exists,
+                "Whether to enforce that the path exists.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_size",
+                &self.max_size,
+                "The maximum size of the node's storage in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
 }
 
 #[derive(Debug, Error)]
