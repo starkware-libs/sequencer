@@ -1,6 +1,14 @@
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
 
+pub fn initialize_class_hashes(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+    todo!()
+}
+
+pub fn initialize_state_changes(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+    todo!()
+}
+
 pub fn set_preimage_for_state_commitments(
     HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>,
 ) -> HintResult {

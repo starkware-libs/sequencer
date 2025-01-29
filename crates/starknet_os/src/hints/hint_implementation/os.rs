@@ -16,3 +16,7 @@ pub fn set_ap_to_prev_block_hash(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) 
 pub fn set_ap_to_new_block_hash(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
+
+pub fn starknet_os_input(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+    todo!()
+}
