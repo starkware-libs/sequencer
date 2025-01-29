@@ -19,6 +19,7 @@ use starknet_consensus::types::ValidatorId;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::utils::{
+    create_deploy_account_tx_and_invoke_tx,
     create_funding_txs,
     create_integration_test_tx_generator,
     create_many_invoke_txs,
@@ -246,11 +247,7 @@ async fn listen_to_broadcasted_messages(
 fn deploy_account_and_invoke(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
-    let undeployed_account_tx_generator = tx_generator.account_with_id_mut(UNDEPLOYED_ACCOUNT_ID);
-    assert!(!undeployed_account_tx_generator.is_deployed());
-    let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
-    let invoke = undeployed_account_tx_generator.generate_invoke_with_tip(1);
-    vec![deploy_tx, invoke]
+    create_deploy_account_tx_and_invoke_tx(tx_generator, UNDEPLOYED_ACCOUNT_ID)
 }
 
 fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
