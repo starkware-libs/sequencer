@@ -12,12 +12,21 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     const LATE_NODE_EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(25);
     const N_TXS: usize = 50;
     const SENDER_ACCOUNT: AccountId = 0;
+    /// The number of consolidated local sequencers that participate in the test.
+    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+    /// The number of distributed remote sequencers that participate in the test.
+    const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
     info!("Checking that the sequencer node executable is present.");
     get_node_executable_path();
 
     // Get the sequencer configurations.
-    let (sequencers_setup, node_indices) = get_sequencer_setup_configs(tx_generator).await;
+    let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
+        tx_generator,
+        N_CONSOLIDATED_SEQUENCERS,
+        N_DISTRIBUTED_SEQUENCERS,
+    )
+    .await;
 
     // Run the sequencers.
     // TODO(Nadin, Tsabary): Refactor to separate the construction of SequencerManager from its
