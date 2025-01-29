@@ -42,7 +42,7 @@ impl TransactionContext {
         self.block_context.block_info.gas_prices.gas_price_vector(&self.tx_info.fee_type())
     }
 
-    /// Returns the initial Sierra gas of the transaction.
+    /// Returns the initial Sierra gas of the  transaction.
     /// This value is used to limit the transaction's run.
     pub fn initial_sierra_gas(&self) -> GasAmount {
         match &self.tx_info {
