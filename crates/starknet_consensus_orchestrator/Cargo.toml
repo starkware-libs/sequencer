@@ -17,7 +17,6 @@ indexmap.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
-papyrus_storage.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
