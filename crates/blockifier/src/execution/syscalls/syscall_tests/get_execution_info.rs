@@ -50,33 +50,13 @@ use crate::transaction::objects::{
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false;
-        "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
-        ExecutionMode::Execute,
-        TransactionVersion::ONE,
-        false;
-        "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Validate,
-        TransactionVersion::ONE,
-        false;
         "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
     )
 )]
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
         false;
@@ -101,6 +81,38 @@ use crate::transaction::objects::{
         TransactionVersion::THREE,
         false;
         "Native: Execute execution mode: block info should be as usual. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+    FeatureContract::LegacyTestContract,
+    ExecutionMode::Execute,
+    TransactionVersion::ONE,
+    false;
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+    FeatureContract::LegacyTestContract,
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false;
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true;
+        "Native: Execute execution mode: block info should be as usual. Transaction V3. Query"
     )
 )]
 #[test_case(
