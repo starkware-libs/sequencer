@@ -59,6 +59,43 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // Transactions per second sent to the gateway. This rate makes each block contain ~10 transactions
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 2;
+const N_TXS_IN_FIRST_BLOCK: usize = 2;
+
+pub enum TestScenario {
+    FirstBlock,
+    InvokeTxs(usize),
+}
+
+impl TestScenario {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> Vec<RpcTransaction> {
+        match self {
+            TestScenario::FirstBlock => {
+                let txs = create_deploy_tx_and_invoke_tx(tx_generator, account_id);
+                assert_eq!(
+                    txs.len(),
+                    N_TXS_IN_FIRST_BLOCK,
+                    "First block should contain exactly {} transactions, but {} transactions were \
+                     created",
+                    N_TXS_IN_FIRST_BLOCK,
+                    txs.len(),
+                );
+                txs
+            }
+            TestScenario::InvokeTxs(n_txs) => create_invoke_txs(tx_generator, account_id, *n_txs),
+        }
+    }
+
+    pub fn n_txs(&self) -> usize {
+        match self {
+            TestScenario::FirstBlock => N_TXS_IN_FIRST_BLOCK,
+            TestScenario::InvokeTxs(n_txs) => *n_txs,
+        }
+    }
+}
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -250,7 +287,7 @@ fn fund_new_account(
     vec![funding_tx]
 }
 
-pub fn create_first_block_txs(
+pub fn create_deploy_tx_and_invoke_tx(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
 ) -> Vec<RpcTransaction> {
@@ -330,13 +367,13 @@ pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHas
 pub async fn send_account_txs<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
-    n_txs: usize,
+    test_scenario: &TestScenario,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_invoke_txs(tx_generator, account_id, n_txs);
+    let rpc_txs = test_scenario.create_txs(tx_generator, account_id);
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 

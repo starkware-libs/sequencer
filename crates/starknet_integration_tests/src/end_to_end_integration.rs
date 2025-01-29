@@ -6,6 +6,7 @@ use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
 use crate::sequencer_manager::{get_sequencer_setup_configs, IntegrationTestManager};
+use crate::utils::TestScenario;
 
 pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
@@ -32,7 +33,13 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
 
     // Run the test.
     integration_test_manager
-        .test_and_verify(tx_generator, 0, N_TXS, SENDER_ACCOUNT, EXPECTED_BLOCK_NUMBER)
+        .test_and_verify(
+            tx_generator,
+            0,
+            TestScenario::InvokeTxs(N_TXS),
+            SENDER_ACCOUNT,
+            EXPECTED_BLOCK_NUMBER,
+        )
         .await;
 
     // Run the late node.
@@ -43,7 +50,7 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
         .test_and_verify(
             tx_generator,
             N_TXS,
-            N_TXS,
+            TestScenario::InvokeTxs(N_TXS),
             SENDER_ACCOUNT,
             LATE_NODE_EXPECTED_BLOCK_NUMBER,
         )
