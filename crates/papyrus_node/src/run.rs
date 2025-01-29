@@ -14,13 +14,11 @@ use papyrus_common::pending_classes::PendingClasses;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_monitoring_gateway::MonitoringServer;
-use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use papyrus_network::network_manager::NetworkManager;
 use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels};
 use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::storage_metrics::update_storage_metrics;
@@ -34,14 +32,10 @@ use starknet_api::felt;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
-use starknet_consensus::config::ConsensusConfig;
-use starknet_consensus::stream_handler::StreamHandler;
-use starknet_consensus::types::ContextConfig;
-use starknet_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::metadata::LevelFilter;
-use tracing::{debug, debug_span, error, info, warn, Instrument};
+use tracing::{debug_span, error, info, warn, Instrument};
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -55,9 +49,6 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // different genesis hash.
 // TODO(Shahak): Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
-
-// TODO(guyn): move this to the config.
-pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 // TODO(dvir): add this to config.
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
@@ -85,7 +76,6 @@ pub struct PapyrusTaskHandles {
     pub sync_client_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub monitoring_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub p2p_sync_server_handle: Option<JoinHandle<anyhow::Result<()>>>,
-    pub consensus_handle: Option<JoinHandle<anyhow::Result<()>>>,
     pub network_handle: Option<JoinHandle<anyhow::Result<()>>>,
 }
 
@@ -182,64 +172,6 @@ fn spawn_monitoring_server(
         local_peer_id,
     )?;
     Ok(tokio::spawn(async move { Ok(monitoring_server.run_server().await?) }))
-}
-
-fn spawn_consensus(
-    consensus_config: Option<&ConsensusConfig>,
-    context_config: Option<&ContextConfig>,
-    storage_reader: StorageReader,
-    network_manager: Option<&mut NetworkManager>,
-) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
-    let (Some(consensus_config), Some(context_config), Some(network_manager)) =
-        (consensus_config, context_config, network_manager)
-    else {
-        info!("Consensus is disabled.");
-        return Ok(tokio::spawn(future::pending()));
-    };
-    let consensus_config = consensus_config.clone();
-    let context_config = context_config.clone();
-    debug!("Consensus configuration: {consensus_config:?}");
-    debug!("Context configuration: {context_config:?}");
-
-    let network_channels = network_manager.register_broadcast_topic(
-        Topic::new(consensus_config.network_topic.clone()),
-        BUFFER_SIZE,
-    )?;
-    let proposal_network_channels: BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
-    > = network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
-    let BroadcastTopicChannels {
-        broadcasted_messages_receiver: inbound_network_receiver,
-        broadcast_topic_client: outbound_network_sender,
-    } = proposal_network_channels;
-
-    // TODO(GuyN): receive the handle for the StreamHandler and pass it into run_consensus below.
-    let (outbound_internal_sender, inbound_internal_receiver, _) =
-        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
-
-    let context = PapyrusConsensusContext::new(
-        context_config,
-        storage_reader.clone(),
-        network_channels.broadcast_topic_client.clone(),
-        outbound_internal_sender,
-        None,
-    );
-
-    Ok(tokio::spawn(async move {
-        Ok(starknet_consensus::run_consensus(
-            context,
-            consensus_config.start_height,
-            // TODO(Asmaa): replace with the correct value.
-            consensus_config.start_height,
-            consensus_config.validator_id,
-            consensus_config.consensus_delay,
-            consensus_config.timeouts.clone(),
-            consensus_config.sync_retry_interval,
-            network_channels.into(),
-            inbound_internal_receiver,
-        )
-        .await?)
-    }))
 }
 
 async fn run_sync(
@@ -370,17 +302,6 @@ async fn run_threads(
     mut resources: PapyrusResources,
     tasks: PapyrusTaskHandles,
 ) -> anyhow::Result<()> {
-    let consensus_handle = if let Some(handle) = tasks.consensus_handle {
-        handle
-    } else {
-        spawn_consensus(
-            config.consensus.as_ref(),
-            config.context.as_ref(),
-            resources.storage_reader.clone(),
-            resources.maybe_network_manager.as_mut(),
-        )?
-    };
-
     let storage_metrics_handle = if let Some(handle) = tasks.storage_metrics_handle {
         handle
     } else {
@@ -475,10 +396,6 @@ async fn run_threads(
         }
         res = network_handle => {
             error!("Network stopped.");
-            res??
-        }
-        res = consensus_handle => {
-            error!("Consensus stopped.");
             res??
         }
     };
