@@ -2,9 +2,9 @@
 
 // This file is for benchmarking the committer flow.
 // The input files for the different benchmarks are downloaded from GCS, using the prefix stored in
-// starknet_committer_and_os_cli/src/tests/flow_test_files_prefix. In order to update them, generate
-// a new random prefix (the hash of the initial new commit can be used) and update it in the
-// mentioned file. Then upload the new files to GCS with this new prefix (run e.g.,
+// starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix. In order to
+// update them, generate a new random prefix (the hash of the initial new commit can be used) and
+// update it in the mentioned file. Then upload the new files to GCS with this new prefix (run e.g.,
 // gcloud storage cp LOCAL_FILE gs://committer-testing-artifacts/NEW_PREFIX/tree_flow_inputs.json).
 
 use std::collections::HashMap;
@@ -13,9 +13,9 @@ use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
-use starknet_committer_and_os_cli::commands::commit;
-use starknet_committer_and_os_cli::parse_input::read::parse_input;
-use starknet_committer_and_os_cli::tests::utils::parse_from_python::TreeFlowInput;
+use starknet_committer_and_os_cli::committer_cli::commands::commit;
+use starknet_committer_and_os_cli::committer_cli::parse_input::read::parse_input;
+use starknet_committer_and_os_cli::committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::tree_computation_flow;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;

@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use starknet_patricia::storage::errors::DeserializationError;
 use tracing::info;
 
-use crate::parse_input::cast::InputImpl;
-use crate::parse_input::raw_input::RawInput;
+use crate::committer_cli::parse_input::cast::InputImpl;
+use crate::committer_cli::parse_input::raw_input::RawInput;
 
 #[cfg(test)]
 #[path = "read_test.rs"]
