@@ -7,7 +7,8 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use indoc::indoc;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::block_context::{
+use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
+use crate::hints::hint_implementation::block_context::{
     block_number,
     block_timestamp,
     bytecode_segment_structure,
@@ -24,21 +25,24 @@ use crate::hints::block_context::{
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
-use crate::hints::bls_field::compute_ids_low;
-use crate::hints::builtins::{select_builtin, selected_builtins, update_builtin_ptrs};
-use crate::hints::compiled_class::{
+use crate::hints::hint_implementation::bls_field::compute_ids_low;
+use crate::hints::hint_implementation::builtins::{
+    select_builtin,
+    selected_builtins,
+    update_builtin_ptrs,
+};
+use crate::hints::hint_implementation::compiled_class::{
     assert_end_of_bytecode_segments,
     assign_bytecode_segments,
     iter_current_segment_info,
     set_ap_to_segment_hash,
 };
-use crate::hints::deprecated_compiled_class::{
+use crate::hints::hint_implementation::deprecated_compiled_class::{
     load_deprecated_class,
     load_deprecated_class_facts,
     load_deprecated_class_inner,
 };
-use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
-use crate::hints::execute_transactions::{
+use crate::hints::hint_implementation::execute_transactions::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
     set_component_hashes,
@@ -46,7 +50,7 @@ use crate::hints::execute_transactions::{
     sha2_finalize,
     start_tx_validate_declare_execution_context,
 };
-use crate::hints::execution::{
+use crate::hints::hint_implementation::execution::{
     add_relocation_rule,
     assert_transaction_hash,
     cache_contract_storage_request_key,
@@ -108,22 +112,22 @@ use crate::hints::execution::{
     write_syscall_result,
     write_syscall_result_deprecated,
 };
-use crate::hints::find_element::search_sorted_optimistic;
-use crate::hints::kzg::store_da_segment;
-use crate::hints::math::log2_ceil;
-use crate::hints::os::{
+use crate::hints::hint_implementation::find_element::search_sorted_optimistic;
+use crate::hints::hint_implementation::kzg::store_da_segment;
+use crate::hints::hint_implementation::math::log2_ceil;
+use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
     set_ap_to_new_block_hash,
     set_ap_to_prev_block_hash,
     write_full_output_to_memory,
 };
-use crate::hints::output::{
+use crate::hints::hint_implementation::output::{
     set_compressed_start,
     set_n_updates_small,
     set_state_updates_start,
     set_tree_structure,
 };
-use crate::hints::patricia::{
+use crate::hints::hint_implementation::patricia::{
     assert_case_is_right,
     build_descent_map,
     height_is_zero_or_len_node_preimage_is_two,
@@ -135,8 +139,8 @@ use crate::hints::patricia::{
     split_descend,
     write_case_not_left_to_ap,
 };
-use crate::hints::secp::read_ec_point_from_address;
-use crate::hints::state::{
+use crate::hints::hint_implementation::secp::read_ec_point_from_address;
+use crate::hints::hint_implementation::state::{
     decode_node,
     enter_scope_commitment_info_by_address,
     load_bottom,
@@ -146,13 +150,13 @@ use crate::hints::state::{
     set_preimage_for_state_commitments,
     write_split_result,
 };
-use crate::hints::stateless_compression::{
+use crate::hints::hint_implementation::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
     get_prev_offset,
     set_decompressed_dst,
 };
-use crate::hints::syscalls::{
+use crate::hints::hint_implementation::syscalls::{
     call_contract,
     delegate_call,
     delegate_l1_handler,
@@ -206,7 +210,10 @@ use crate::hints::syscalls::{
     storage_read,
     storage_write,
 };
-use crate::hints::transaction_hash::{additional_data_new_segment, data_to_hash_new_segment};
+use crate::hints::hint_implementation::transaction_hash::{
+    additional_data_new_segment,
+    data_to_hash_new_segment,
+};
 use crate::hints::types::{HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
