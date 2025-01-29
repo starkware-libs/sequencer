@@ -268,10 +268,14 @@ fn client_to_central_state_update(
             let deployed_contract_class_definitions =
                 deprecated_classes.split_off(n_deprecated_declared_classes);
 
+            let mut deployed_contracts = IndexMap::from_iter(
+                deployed_contracts.into_iter().map(|dc| (dc.address, dc.class_hash)),
+            );
+            replaced_classes.into_iter().for_each(|rc| {
+                deployed_contracts.insert(rc.address, rc.class_hash);
+            });
             let state_diff = StateDiff {
-                deployed_contracts: IndexMap::from_iter(
-                    deployed_contracts.iter().map(|dc| (dc.address, dc.class_hash)),
-                ),
+                deployed_contracts,
                 storage_diffs: IndexMap::from_iter(storage_diffs.into_iter().map(
                     |(address, entries)| {
                         (address, entries.into_iter().map(|se| (se.key, se.value)).collect())
@@ -298,10 +302,6 @@ fn client_to_central_state_update(
                     })
                     .collect(),
                 nonces,
-                replaced_classes: replaced_classes
-                    .into_iter()
-                    .map(|replaced_class| (replaced_class.address, replaced_class.class_hash))
-                    .collect(),
             };
             // Filter out deployed contracts of new classes because since 0.11 new classes can not
             // be implicitly declared by deployment.

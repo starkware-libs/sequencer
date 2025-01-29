@@ -144,10 +144,6 @@ impl TryFrom<protobuf::ContractDiff> for ThinStateDiff {
             // These two fields come from DeclaredClass messages.
             declared_classes: Default::default(),
             deprecated_declared_classes: Default::default(),
-            // The p2p specs doesn't separate replaced classes from deployed contracts. In RPC v0.8
-            // the node will stop separating them as well. Until then nodes syncing from
-            // p2p won't be able to separate replaced classes from deployed contracts correctly
-            replaced_classes: Default::default(),
         })
     }
 }
