@@ -85,6 +85,9 @@ rstest.workspace = true
 rstest_reuse.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
 test-case.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing.workspace = true
+tracing-test.workspace = true
 
 [build-dependencies]
 starknet_infra_utils.workspace = true
@@ -93,11 +96,6 @@ starknet_infra_utils.workspace = true
 harness = false
 name = "blockifier_bench"
 path = "bench/blockifier_bench.rs"
-required-features = ["testing"]
-
-[[test]]
-name = "feature_contracts_compatibility_test"
-path = "tests/feature_contracts_compatibility_test.rs"
 required-features = ["testing"]
 
 [package.metadata.cargo-machete]

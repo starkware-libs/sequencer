@@ -1,19 +1,17 @@
 use std::fs;
 
-use blockifier::test_utils::cairo_compile::{
-    prepare_group_tag_compiler_deps,
-    CompilationArtifacts,
-};
-use blockifier::test_utils::contracts::{
-    FeatureContract,
-    CAIRO1_FEATURE_CONTRACTS_DIR,
-    SIERRA_CONTRACTS_SUBDIR,
-};
-use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use tracing::info;
 use tracing_test::traced_test;
+
+use crate::test_utils::cairo_compile::{prepare_group_tag_compiler_deps, CompilationArtifacts};
+use crate::test_utils::contracts::{
+    FeatureContract,
+    CAIRO1_FEATURE_CONTRACTS_DIR,
+    SIERRA_CONTRACTS_SUBDIR,
+};
+use crate::test_utils::{CairoVersion, RunnableCairo1};
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
@@ -43,14 +41,14 @@ impl FeatureContractMetadata {
 }
 
 pub struct Cairo0FeatureContractMetadata {
-    pub source_path: String,
-    pub base_filename: String,
+    pub _source_path: String,
+    pub _base_filename: String,
     pub compiled_path: String,
 }
 
 pub struct Cairo1FeatureContractMetadata {
-    pub source_path: String,
-    pub base_filename: String,
+    pub _source_path: String,
+    pub _base_filename: String,
     pub compiled_path: String,
     pub sierra_path: String,
 }
@@ -241,8 +239,8 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
         match cairo_version {
             CairoVersion::Cairo0 => {
                 paths.push(FeatureContractMetadata::Cairo0(Cairo0FeatureContractMetadata {
-                    source_path: path_str.to_string(),
-                    base_filename: file_name.to_string(),
+                    _source_path: path_str.to_string(),
+                    _base_filename: file_name.to_string(),
                     compiled_path: existing_compiled_path,
                 }))
             }
@@ -251,8 +249,8 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
                 let existing_sierra_path =
                     format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
                 paths.push(FeatureContractMetadata::Cairo1(Cairo1FeatureContractMetadata {
-                    source_path: path_str.to_string(),
-                    base_filename: file_name.to_string(),
+                    _source_path: path_str.to_string(),
+                    _base_filename: file_name.to_string(),
                     compiled_path: existing_compiled_path,
                     sierra_path: existing_sierra_path,
                 }));

@@ -10,8 +10,8 @@ on:
       - 'Cargo.toml'
       - '.github/workflows/blockifier_compiled_cairo.yml'
       - 'crates/blockifier/feature_contracts/**'
+      - 'crates/blockifier/src/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
-      - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
       - 'scripts/dependencies.sh'
 
@@ -73,4 +73,4 @@ jobs:
         run:
           cd sequencer &&
           pip install -r crates/blockifier/tests/requirements.txt &&
-          cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored --nocapture
+          cargo test -p blockifier feature_contracts_compatibility_test --features testing -- --include-ignored --nocapture
