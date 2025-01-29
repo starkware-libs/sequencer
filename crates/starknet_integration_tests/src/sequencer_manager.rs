@@ -3,7 +3,11 @@ use std::net::SocketAddr;
 
 use futures::future::join_all;
 use futures::TryFutureExt;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountId,
+    AccountTransactionGenerator,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::state::StateStorageReader;
@@ -26,7 +30,6 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
-use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -223,24 +226,15 @@ impl IntegrationTestManager {
     pub async fn test_and_verify(
         &mut self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        expected_initial_value: usize,
         test_scenario: TestScenario,
         sender_account: AccountId,
         expected_block_number: BlockNumber,
     ) {
         // Verify the initial state
-        self.verify_results(
-            tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value,
-        )
-        .await;
+        self.verify_state_synced(tx_generator.account_with_id(sender_account)).await;
         self.run_integration_test_simulator(tx_generator, &test_scenario, sender_account).await;
         self.await_execution(expected_block_number).await;
-        self.verify_results(
-            tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value + test_scenario.n_txs(),
-        )
-        .await;
+        self.verify_state_synced(tx_generator.account_with_id(sender_account)).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -301,16 +295,13 @@ impl IntegrationTestManager {
             .expect("Block number should have been reached.");
     }
 
-    pub async fn verify_results(
-        &self,
-        sender_address: ContractAddress,
-        expected_nonce_value: usize,
-    ) {
-        info!("Verifying tx sender account nonce.");
-        let expected_nonce =
-            Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
+    pub async fn verify_state_synced(&self, account: &AccountTransactionGenerator) {
+        let sender_address = account.sender_address();
+        info!("Verifying tx sender account nonce, sender_address: {:?}.", sender_address);
+
         let nonce = get_account_nonce(&self.batcher_storage_reader(), sender_address);
-        assert_eq!(nonce, expected_nonce);
+        let expected_nonce_value = account.get_nonce();
+        assert_eq!(nonce, expected_nonce_value);
     }
 }
 
