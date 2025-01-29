@@ -15,5 +15,6 @@ pub mod os;
 pub mod output;
 pub mod patricia;
 pub mod secp;
+pub mod state;
 pub mod stateless_compression;
 pub mod types;
