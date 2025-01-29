@@ -25,11 +25,68 @@ impl CachedCasm {
 
 #[cfg(feature = "cairo_native")]
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum CachedCairoNative {
     Compiled(NativeCompiledClassV1),
     CompilationFailed,
 }
 
+<<<<<<< HEAD
+||||||| c4d606ec3
+pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 400;
+
+impl<T: Clone> GlobalContractCache<T> {
+    /// Locks the cache for atomic access. Although conceptually shared, writing to this cache is
+    /// only possible for one writer at a time.
+    pub fn lock(&self) -> LockedClassCache<'_, T> {
+        self.0.lock().expect("Global contract cache is poisoned.")
+    }
+
+    pub fn get(&self, class_hash: &ClassHash) -> Option<T> {
+        self.lock().cache_get(class_hash).cloned()
+    }
+
+    pub fn set(&self, class_hash: ClassHash, contract_class: T) {
+        self.lock().cache_set(class_hash, contract_class);
+    }
+
+    pub fn clear(&mut self) {
+        self.lock().cache_clear();
+    }
+
+    pub fn new(cache_size: usize) -> Self {
+        Self(Arc::new(Mutex::new(ContractLRUCache::<T>::with_size(cache_size))))
+    }
+}
+
+=======
+pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 600;
+
+impl<T: Clone> GlobalContractCache<T> {
+    /// Locks the cache for atomic access. Although conceptually shared, writing to this cache is
+    /// only possible for one writer at a time.
+    pub fn lock(&self) -> LockedClassCache<'_, T> {
+        self.0.lock().expect("Global contract cache is poisoned.")
+    }
+
+    pub fn get(&self, class_hash: &ClassHash) -> Option<T> {
+        self.lock().cache_get(class_hash).cloned()
+    }
+
+    pub fn set(&self, class_hash: ClassHash, contract_class: T) {
+        self.lock().cache_set(class_hash, contract_class);
+    }
+
+    pub fn clear(&mut self) {
+        self.lock().cache_clear();
+    }
+
+    pub fn new(cache_size: usize) -> Self {
+        Self(Arc::new(Mutex::new(ContractLRUCache::<T>::with_size(cache_size))))
+    }
+}
+
+>>>>>>> origin/main-v0.13.4
 #[derive(Clone)]
 pub struct ContractCaches {
     pub casm_cache: GlobalContractCache<CachedCasm>,

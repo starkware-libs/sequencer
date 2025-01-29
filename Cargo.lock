@@ -2509,8 +2509,7 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63428bf6a1c51044224ce186209d1913a0504728f5c4601c11422bbf78dce168"
+source = "git+https://github.com/lambdaclass/cairo_native?rev=981093a#981093aad3a69e010874d45136fb45ec5e8a0a19"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2563,8 +2562,7 @@ dependencies = [
 [[package]]
 name = "cairo-native-runtime"
 version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e582ea1c91df4315fb38ec655c5be0b30733d551218feddf2268260367ace3a7"
+source = "git+https://github.com/lambdaclass/cairo_native?rev=981093a#981093aad3a69e010874d45136fb45ec5e8a0a19"
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.14.0",
