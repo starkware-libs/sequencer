@@ -110,8 +110,11 @@ use crate::hints::hint_implementation::kzg::store_da_segment;
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
+    initialize_class_hashes,
+    initialize_state_changes,
     set_ap_to_new_block_hash,
     set_ap_to_prev_block_hash,
+    starknet_os_input,
     write_full_output_to_memory,
 };
 use crate::hints::hint_implementation::os_logger::{
@@ -167,7 +170,7 @@ use crate::hints::hint_implementation::patricia::{
     split_descend,
     write_case_not_left_to_ap,
 };
-use crate::hints::hint_implementation::secp::read_ec_point_from_address;
+use crate::hints::hint_implementation::secp::{is_on_curve, read_ec_point_from_address};
 use crate::hints::hint_implementation::state::{
     decode_node,
     enter_scope_commitment_info_by_address,
@@ -1640,6 +1643,37 @@ memory[ap] = 1 if case != 'both' else 0"#
         indoc! {r#"
         ids.data_to_hash = segments.add()"#
         }
+    ),
+    (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
+    (
+        StarknetOsInput,
+        starknet_os_input,
+        indoc! {r#"
+    from starkware.starknet.core.os.os_input import StarknetOsInput
+
+    os_input = StarknetOsInput.load(data=program_input)
+
+    ids.initial_carried_outputs.messages_to_l1 = segments.add_temp_segment()
+    ids.initial_carried_outputs.messages_to_l2 = segments.add_temp_segment()"#
+        }
+    ),
+    (
+        InitializeStateChanges,
+        initialize_state_changes,
+        indoc! {r#"
+    from starkware.python.utils import from_bytes
+
+    initial_dict = {
+        address: segments.gen_arg(
+            (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
+        for address, contract in os_input.contracts.items()
+    }"#
+        }
+    ),
+    (
+        InitializeClassHashes,
+        initialize_class_hashes,
+        "initial_dict = os_input.class_hash_to_compiled_class_hash"
     )
 );
 
