@@ -59,6 +59,57 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // Transactions per second sent to the gateway. This rate makes each block contain ~10 transactions
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 2;
+const N_TXS_IN_FIRST_BLOCK: usize = 2;
+
+pub trait TestScenario {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> Vec<RpcTransaction>;
+
+    fn n_txs(&self) -> usize;
+}
+
+pub struct InvokeTxs(pub usize);
+
+impl TestScenario for InvokeTxs {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> Vec<RpcTransaction> {
+        create_invoke_txs(tx_generator, account_id, self.0)
+    }
+
+    fn n_txs(&self) -> usize {
+        self.0
+    }
+}
+
+pub struct FirstBlock;
+
+impl TestScenario for FirstBlock {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> Vec<RpcTransaction> {
+        let txs = create_deploy_account_tx_and_invoke_tx(tx_generator, account_id);
+        assert_eq!(
+            txs.len(),
+            N_TXS_IN_FIRST_BLOCK,
+            "First block should contain exactly {} transactions, but {} transactions were created",
+            N_TXS_IN_FIRST_BLOCK,
+            txs.len(),
+        );
+        txs
+    }
+
+    fn n_txs(&self) -> usize {
+        N_TXS_IN_FIRST_BLOCK
+    }
+}
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -334,13 +385,13 @@ pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHas
 pub async fn send_account_txs<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
-    n_txs: usize,
+    test_scenario: &impl TestScenario,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_invoke_txs(tx_generator, account_id, n_txs);
+    let rpc_txs = test_scenario.create_txs(tx_generator, account_id);
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
