@@ -2,21 +2,7 @@ use std::fs::File;
 use std::io::BufWriter;
 
 use serde::{Deserialize, Serialize};
-use starknet_patricia::storage::errors::DeserializationError;
 use tracing::info;
-
-use crate::parse_input::cast::InputImpl;
-use crate::parse_input::raw_input::RawInput;
-
-#[cfg(test)]
-#[path = "read_test.rs"]
-pub mod read_test;
-
-type DeserializationResult<T> = Result<T, DeserializationError>;
-
-pub fn parse_input(input: &str) -> DeserializationResult<InputImpl> {
-    serde_json::from_str::<RawInput>(input)?.try_into()
-}
 
 pub fn read_input(input_path: String) -> String {
     String::from_utf8(

@@ -43,7 +43,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
@@ -65,7 +65,7 @@ jobs:
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
       - uses: 'google-github-actions/setup-gcloud@v2'
-      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
 
       # List the existing benchmarks.
@@ -83,7 +83,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           clean: false
-      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+      - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
 
       # Input files didn't change.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
