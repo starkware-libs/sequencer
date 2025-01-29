@@ -20,6 +20,7 @@ use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam}
 use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_batcher::VersionedConstantsOverrides;
+use starknet_class_manager::config::ClassManagerConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::GatewayConfig;
 use starknet_http_server::config::HttpServerConfig;
@@ -129,6 +130,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub batcher_config: BatcherConfig,
     #[validate]
+    pub class_manager_config: ClassManagerConfig,
+    #[validate]
     pub consensus_manager_config: ConsensusManagerConfig,
     #[validate]
     pub gateway_config: GatewayConfig,
@@ -154,6 +157,7 @@ impl SerializeConfig for SequencerNodeConfig {
             append_sub_config_name(self.components.dump(), "components"),
             append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
             append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
+            append_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
             append_sub_config_name(
                 self.consensus_manager_config.dump(),
                 "consensus_manager_config",
