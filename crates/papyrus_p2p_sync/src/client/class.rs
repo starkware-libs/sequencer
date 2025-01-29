@@ -21,7 +21,7 @@ use super::block_data_stream_builder::{
     BlockNumberLimit,
     ParseDataError,
 };
-use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::P2pSyncClientError;
 
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage<'a>(
@@ -81,12 +81,11 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
             ) = (0, DeclaredClasses::new(), DeprecatedDeclaredClasses::new());
 
             while current_class_len < target_class_len {
-                let maybe_contract_class =
-                    tokio::time::timeout(NETWORK_DATA_TIMEOUT, classes_response_manager.next())
-                        .await?
-                        .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
-                            type_description: Self::TYPE_DESCRIPTION,
-                        })?;
+                let maybe_contract_class = classes_response_manager.next().await.ok_or(
+                    P2pSyncClientError::ReceiverChannelTerminated {
+                        type_description: Self::TYPE_DESCRIPTION,
+                    },
+                )?;
                 let Some((api_contract_class, class_hash)) = maybe_contract_class?.0 else {
                     if current_class_len == 0 {
                         return Ok(None);

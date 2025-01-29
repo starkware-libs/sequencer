@@ -18,7 +18,7 @@ use super::block_data_stream_builder::{
     BlockNumberLimit,
     ParseDataError,
 };
-use super::{P2pSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::P2pSyncClientError;
 
 impl BlockData for (BlockBody, BlockNumber) {
     fn write_to_storage<'a>(
@@ -57,14 +57,11 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                 .expect("A header with number lower than the header marker is missing")
                 .n_transactions;
             while current_transaction_len < target_transaction_len {
-                let maybe_transaction = tokio::time::timeout(
-                    NETWORK_DATA_TIMEOUT,
-                    transactions_response_manager.next(),
-                )
-                .await?
-                .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
-                    type_description: Self::TYPE_DESCRIPTION,
-                })?;
+                let maybe_transaction = transactions_response_manager.next().await.ok_or(
+                    P2pSyncClientError::ReceiverChannelTerminated {
+                        type_description: Self::TYPE_DESCRIPTION,
+                    },
+                )?;
                 let Some(FullTransaction { transaction, transaction_output, transaction_hash }) =
                     maybe_transaction?.0
                 else {
