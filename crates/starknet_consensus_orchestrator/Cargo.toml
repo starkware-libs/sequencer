@@ -25,6 +25,7 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_class_manager_types.workspace = true
 starknet_consensus.workspace = true
 starknet_infra_utils.workspace = true
 starknet_state_sync_types = { workspace = true, features = ["testing"] }
