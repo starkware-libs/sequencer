@@ -56,8 +56,6 @@ use validator::Validate;
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 
-const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct P2pSyncClientConfig {
     pub num_headers_per_query: u64,
@@ -143,8 +141,6 @@ pub enum P2pSyncClientError {
     OldHeaderInStorage { block_number: BlockNumber, missing_field: &'static str },
     #[error("The sender end of the response receivers for {type_description:?} was closed.")]
     ReceiverChannelTerminated { type_description: &'static str },
-    #[error(transparent)]
-    NetworkTimeout(#[from] tokio::time::error::Elapsed),
     #[error(transparent)]
     StorageError(#[from] StorageError),
     #[error(transparent)]
