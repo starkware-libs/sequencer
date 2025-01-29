@@ -37,6 +37,7 @@ use crate::utils::{
     create_mempool_p2p_configs,
     create_state_sync_configs,
     send_account_txs,
+    TestScenario,
 };
 
 /// The number of consolidated local sequencers that participate in the test.
@@ -223,7 +224,7 @@ impl IntegrationTestManager {
         &mut self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         expected_initial_value: usize,
-        n_txs: usize,
+        test_scenario: impl TestScenario,
         sender_account: AccountId,
         expected_block_number: BlockNumber,
     ) {
@@ -233,11 +234,11 @@ impl IntegrationTestManager {
             expected_initial_value + 1,
         )
         .await;
-        self.run_integration_test_simulator(tx_generator, n_txs, sender_account).await;
+        self.run_integration_test_simulator(tx_generator, &test_scenario, sender_account).await;
         self.await_execution(expected_block_number).await;
         self.verify_results(
             tx_generator.account_with_id(sender_account).sender_address(),
-            expected_initial_value + n_txs + 1,
+            expected_initial_value + test_scenario.n_txs() + 1,
         )
         .await;
     }
@@ -280,14 +281,16 @@ impl IntegrationTestManager {
     pub async fn run_integration_test_simulator(
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        n_txs: usize,
+        test_scenario: &impl TestScenario,
         sender_account: AccountId,
     ) {
         info!("Running integration test simulator.");
         let send_rpc_tx_fn = &mut |rpc_tx| self.send_rpc_tx_fn(rpc_tx);
 
+        let n_txs = test_scenario.n_txs();
         info!("Sending {n_txs} txs.");
-        let tx_hashes = send_account_txs(tx_generator, sender_account, n_txs, send_rpc_tx_fn).await;
+        let tx_hashes =
+            send_account_txs(tx_generator, sender_account, test_scenario, send_rpc_tx_fn).await;
         assert_eq!(tx_hashes.len(), n_txs);
     }
 
