@@ -3,6 +3,8 @@ use std::sync::Arc;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::L1BlockReference;
 use starknet_batcher::batcher::{create_batcher, Batcher};
+use starknet_class_manager::class_manager::create_class_manager;
+use starknet_class_manager::ClassManager;
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
@@ -32,6 +34,7 @@ use crate::version::VERSION_FULL;
 
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
+    pub class_manager: Option<ClassManager>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
@@ -69,6 +72,18 @@ pub async fn create_node_components(
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
+
+    let class_manager = match config.components.class_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let compiler_shared_client = clients
+                .get_sierra_compiler_shared_client()
+                .expect("Sierra Compiler Client should be available");
+            Some(create_class_manager(config.class_manager_config.clone(), compiler_shared_client))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let batcher_client =
@@ -215,6 +230,7 @@ pub async fn create_node_components(
 
     SequencerNodeComponents {
         batcher,
+        class_manager,
         consensus_manager,
         gateway,
         http_server,
