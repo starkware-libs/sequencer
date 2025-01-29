@@ -164,7 +164,7 @@ impl TryFrom<(Transaction, &ChainId)> for executable_transaction::Transaction {
                 executable_transaction::L1HandlerTransaction {
                     tx,
                     tx_hash,
-                    // TODO (yael 1/12/2024): The paid fee should be an input from the l1_handler.
+                    // TODO(yael): The paid fee should be an input from the l1_handler.
                     paid_fee_on_l1: Fee(1),
                 },
             )),
