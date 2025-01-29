@@ -166,7 +166,7 @@ impl<'state> NativeSyscallHandler<'state> {
     fn get_tx_info_v1(&self) -> TxInfo {
         let tx_info = &self.base.context.tx_context.tx_info;
         TxInfo {
-            version: tx_info.version().0,
+            version: tx_info.signed_version().0,
             account_contract_address: Felt::from(tx_info.sender_address()),
             max_fee: tx_info.max_fee_for_execution_info_syscall().0,
             signature: tx_info.signature().0,
@@ -196,7 +196,7 @@ impl<'state> NativeSyscallHandler<'state> {
     fn get_tx_info_v2(&self) -> SyscallResult<TxV2Info> {
         let tx_info = &self.base.context.tx_context.tx_info;
         let native_tx_info = TxV2Info {
-            version: tx_info.version().0,
+            version: tx_info.signed_version().0,
             account_contract_address: Felt::from(tx_info.sender_address()),
             max_fee: tx_info.max_fee_for_execution_info_syscall().0,
             signature: tx_info.signature().0,
