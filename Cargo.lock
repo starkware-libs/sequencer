@@ -10786,6 +10786,7 @@ dependencies = [
  "mockall",
  "papyrus_proc_macros",
  "serde",
+ "serde_json",
  "starknet_api",
  "starknet_sequencer_infra",
  "starknet_sierra_multicompile_types",
