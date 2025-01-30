@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumDiscriminants;
 
 use crate::contract_class::EntryPointType;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -55,7 +56,7 @@ pub struct InternalRpcDeployAccountTransaction {
     pub contract_address: ContractAddress,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum InternalRpcTransactionWithoutTxHash {
