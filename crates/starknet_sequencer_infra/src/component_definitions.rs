@@ -35,11 +35,18 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
+pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() -> Result<(), ComponentError>
+{
+    info!("Starting component {} with the default starter.", short_type_name::<T>());
+    Ok(())
+}
+
+// TODO(Lev/Tsabary): Enforce metrics registration at the start of the component to avoid missing
+// metrics in the monitoring server.
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {} with the default starter.", short_type_name::<Self>());
-        Ok(())
+        default_component_start_fn::<Self>().await
     }
 }
 

@@ -38,6 +38,7 @@ use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerCl
 use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
     PROPOSAL_ABORTED,
@@ -121,8 +122,8 @@ impl Default for MockDependencies {
     }
 }
 
-fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
-    Batcher::new(
+async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
+    let mut batcher = Batcher::new(
         BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() },
         Arc::new(mock_dependencies.storage_reader),
         Box::new(mock_dependencies.storage_writer),
@@ -133,7 +134,10 @@ fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
             ChainId::create_for_testing(),
         ),
         Box::new(mock_dependencies.block_builder_factory),
-    )
+    );
+    // Call post-creation functionality (e.g., metrics registration).
+    batcher.start().await.unwrap();
+    batcher
 }
 
 fn abort_signal_sender() -> AbortSignalSender {
@@ -143,7 +147,7 @@ fn abort_signal_sender() -> AbortSignalSender {
 async fn batcher_propose_and_commit_block(
     mock_dependencies: MockDependencies,
 ) -> DecisionReachedResponse {
-    let mut batcher = create_batcher(mock_dependencies);
+    let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     batcher.await_active_proposal().await;
@@ -195,7 +199,8 @@ async fn batcher_with_active_validate_block(
         block_builder_factory,
         l1_provider_client,
         ..Default::default()
-    });
+    })
+    .await;
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
@@ -305,7 +310,7 @@ fn assert_proposal_metrics(
 async fn metrics_registered() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    let _batcher = create_batcher(MockDependencies::default());
+    let _batcher = create_batcher(MockDependencies::default()).await;
     let metrics = recorder.handle().render();
     assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 }
@@ -313,7 +318,7 @@ async fn metrics_registered() {
 #[rstest]
 #[tokio::test]
 async fn start_height_success() {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
     assert_eq!(batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await, Ok(()));
 }
 
@@ -334,14 +339,14 @@ async fn start_height_success() {
 )]
 #[tokio::test]
 async fn start_height_fail(#[case] height: BlockNumber, #[case] expected_error: BatcherError) {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
     assert_eq!(batcher.start_height(StartHeightInput { height }).await, Err(expected_error));
 }
 
 #[rstest]
 #[tokio::test]
 async fn duplicate_start_height() {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let initial_height = StartHeightInput { height: INITIAL_HEIGHT };
     assert_eq!(batcher.start_height(initial_height.clone()).await, Ok(()));
@@ -351,7 +356,7 @@ async fn duplicate_start_height() {
 #[rstest]
 #[tokio::test]
 async fn no_active_height() {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     // Calling `propose_block` and `validate_block` without starting a height should fail.
 
@@ -386,7 +391,8 @@ async fn consecutive_heights_success() {
         storage_reader,
         l1_provider_client,
         ..Default::default()
-    });
+    })
+    .await;
 
     // Prepare the propose_block requests for the first and the second heights.
     let first_propose_block_input = propose_block_input(PROPOSAL_ID);
@@ -441,7 +447,7 @@ async fn validate_block_full_flow() {
 #[case::send_abort(SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let send_proposal_content_input =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
@@ -541,7 +547,8 @@ async fn propose_block_full_flow() {
         block_builder_factory,
         l1_provider_client,
         ..Default::default()
-    });
+    })
+    .await;
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
@@ -583,7 +590,7 @@ async fn get_height() {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
 
-    let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
+    let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
     let result = batcher.get_height().await.unwrap();
     assert_eq!(result, GetHeightResponse { height: INITIAL_HEIGHT });
@@ -597,7 +604,8 @@ async fn propose_block_without_retrospective_block_hash() {
         .expect_height()
         .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
 
-    let mut batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
+    let mut batcher =
+        create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
     batcher
         .start_height(StartHeightInput { height: BlockNumber(constants::STORED_BLOCK_HASH_BUFFER) })
@@ -611,7 +619,7 @@ async fn propose_block_without_retrospective_block_hash() {
 #[rstest]
 #[tokio::test]
 async fn get_content_from_unknown_proposal() {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let get_proposal_content_input = GetProposalContentInput { proposal_id: PROPOSAL_ID };
     let result = batcher.get_proposal_content(get_proposal_content_input).await;
@@ -641,7 +649,8 @@ async fn consecutive_proposal_generation_success() {
         block_builder_factory,
         l1_provider_client,
         ..Default::default()
-    });
+    })
+    .await;
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
@@ -721,7 +730,7 @@ async fn add_sync_block() {
         .with(eq(vec![]), eq(INITIAL_HEIGHT))
         .returning(|_, _| Ok(()));
 
-    let mut batcher = create_batcher(mock_dependencies);
+    let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
@@ -742,7 +751,7 @@ async fn add_sync_block() {
 #[rstest]
 #[tokio::test]
 async fn add_sync_block_mismatch_block_number() {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
@@ -773,7 +782,7 @@ async fn revert_block() {
         .times(1)
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| Ok(()));
-    let mut batcher = create_batcher(mock_dependencies);
+    let mut batcher = create_batcher(mock_dependencies).await;
 
     let metrics = recorder.handle().render();
     assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
@@ -787,7 +796,7 @@ async fn revert_block() {
 
 #[tokio::test]
 async fn revert_block_mismatch_block_number() {
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let revert_input = RevertBlockInput { height: INITIAL_HEIGHT };
     let result = batcher.revert_block(revert_input).await;
@@ -806,7 +815,7 @@ async fn revert_block_empty_storage() {
     storage_reader.expect_height().returning(|| Ok(BlockNumber(0)));
 
     let mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
-    let mut batcher = create_batcher(mock_dependencies);
+    let mut batcher = create_batcher(mock_dependencies).await;
 
     let revert_input = RevertBlockInput { height: BlockNumber(0) };
     let result = batcher.revert_block(revert_input).await;
@@ -888,7 +897,7 @@ async fn decision_reached() {
 async fn decision_reached_no_executed_proposal() {
     let expected_error = BatcherError::ExecutedProposalNotFound { proposal_id: PROPOSAL_ID };
 
-    let mut batcher = create_batcher(MockDependencies::default());
+    let mut batcher = create_batcher(MockDependencies::default()).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
     let decision_reached_result =
