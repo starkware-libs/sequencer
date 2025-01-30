@@ -3,7 +3,6 @@ name = "starknet_os"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
-license.workspace = true
 license-file.workspace = true
 description = "The Starknet OS."
 
