@@ -49,6 +49,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -500,6 +501,10 @@ auto_impl_get_test_instance! {
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
     pub struct ContractAddressSalt(pub StarkHash);
+    pub enum ConsensusTransaction {
+        RpcTransaction(RpcTransaction) = 0,
+        L1Handler(L1HandlerTransaction) = 1,
+    }
     pub struct SierraContractClass {
         pub sierra_program: Vec<Felt>,
         pub contract_class_version: String,

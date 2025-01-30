@@ -50,7 +50,7 @@ message ProposalInit {
 }
 
 message TransactionBatch {
-    repeated Transaction transactions = 1;
+    repeated ConsensusTransaction transactions = 1;
 }
 
 message ProposalFin {

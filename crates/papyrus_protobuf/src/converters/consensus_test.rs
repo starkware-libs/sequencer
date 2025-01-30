@@ -1,14 +1,14 @@
 use papyrus_test_utils::{get_rng, GetTestInstance};
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::ValidResourceBounds;
-use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Transaction,
+use starknet_api::rpc_transaction::{
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
 };
 
 use crate::consensus::{
@@ -24,25 +24,25 @@ use crate::converters::test_instances::TestStreamId;
 
 // If all the fields of `AllResources` are 0 upon serialization,
 // then the deserialized value will be interpreted as the `L1Gas` variant.
-fn add_gas_values_to_transaction(transactions: &mut [Transaction]) {
+fn add_gas_values_to_transaction(transactions: &mut [ConsensusTransaction]) {
     let transaction = &mut transactions[0];
     match transaction {
-        Transaction::Declare(DeclareTransaction::V3(DeclareTransactionV3 {
-            resource_bounds,
-            ..
-        }))
-        | Transaction::Invoke(InvokeTransaction::V3(InvokeTransactionV3 {
-            resource_bounds, ..
-        }))
-        | Transaction::DeployAccount(DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-            resource_bounds,
-            ..
-        })) => {
-            if let ValidResourceBounds::AllResources(ref mut bounds) = resource_bounds {
-                bounds.l2_gas.max_amount = GasAmount(1);
+        ConsensusTransaction::RpcTransaction(rpc_transaction) => match rpc_transaction {
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+                resource_bounds,
+                ..
+            }))
+            | RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+                resource_bounds,
+                ..
+            }))
+            | RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
+                RpcDeployAccountTransactionV3 { resource_bounds, .. },
+            )) => {
+                resource_bounds.l2_gas.max_amount = GasAmount(1);
             }
-        }
-        _ => {}
+        },
+        ConsensusTransaction::L1Handler(_) => {}
     }
 }
 
