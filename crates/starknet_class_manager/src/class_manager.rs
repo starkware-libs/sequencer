@@ -1,20 +1,17 @@
 use starknet_class_manager_types::{ClassId, ClassManagerResult, ExecutableClassHash};
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,
 };
 
-use crate::class_storage::{CachedClassStorage, CachedClassStorageConfig, ClassStorage};
+use crate::class_storage::{CachedClassStorage, ClassHashStorage, ClassStorage, FsClassStorage};
+use crate::config::{ClassHashStorageConfig, ClassManagerConfig};
 
 #[cfg(test)]
 #[path = "class_manager_test.rs"]
 pub mod class_manager_test;
-
-#[derive(Clone, Copy, Debug)]
-pub struct ClassManagerConfig {
-    pub cached_class_storage_config: CachedClassStorageConfig,
-}
 
 pub struct ClassManager<S: ClassStorage> {
     pub config: ClassManagerConfig,
@@ -28,10 +25,11 @@ impl<S: ClassStorage> ClassManager<S> {
         compiler: SharedSierraCompilerClient,
         storage: S,
     ) -> Self {
+        let cached_class_storage_config = config.cached_class_storage_config.clone();
         Self {
             config,
             compiler,
-            classes: CachedClassStorage::new(config.cached_class_storage_config, storage),
+            classes: CachedClassStorage::new(cached_class_storage_config, storage),
         }
     }
 }
@@ -72,3 +70,21 @@ impl<S: ClassStorage> ClassManager<S> {
         Ok(())
     }
 }
+
+// TODO(Elin): rewrite this function
+pub fn create_class_manager(
+    config: ClassManagerConfig,
+    compiler_client: SharedSierraCompilerClient,
+) -> ClassManager<FsClassStorage> {
+    let persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
+    let storage_config = ClassHashStorageConfig {
+        path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
+        ..Default::default()
+    };
+    let class_hash_storage = ClassHashStorage::new(storage_config).unwrap();
+    let fs_class_storage = FsClassStorage::new(persistent_root, class_hash_storage);
+
+    ClassManager::new(config, compiler_client, fs_class_storage)
+}
+
+impl ComponentStarter for ClassManager<FsClassStorage> {}

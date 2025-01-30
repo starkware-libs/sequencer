@@ -10761,16 +10761,21 @@ dependencies = [
 name = "starknet_class_manager"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "hex",
  "mockall",
+ "papyrus_config",
  "papyrus_storage",
+ "serde",
  "serde_json",
  "starknet_api",
  "starknet_class_manager_types",
+ "starknet_sequencer_infra",
  "starknet_sierra_multicompile_types",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "validator",
 ]
 
 [[package]]
@@ -11301,6 +11306,7 @@ dependencies = [
  "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
+ "starknet_class_manager",
  "starknet_class_manager_types",
  "starknet_consensus_manager",
  "starknet_gateway",
