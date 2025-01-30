@@ -222,8 +222,8 @@ impl Mempool {
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
-    #[instrument(skip(self, args), err)]
-    pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+    #[instrument(skip(self, args))]
+    pub fn commit_block(&mut self, args: CommitBlockArgs) {
         let CommitBlockArgs { address_to_nonce, rejected_tx_hashes } = args;
         debug!(
             "Committing block with {} addresses and {} rejected tx to the mempool.",
@@ -282,8 +282,6 @@ impl Mempool {
             // TTL.
         }
         debug!("Removed rejected transactions known to mempool.");
-
-        Ok(())
     }
 
     pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
@@ -298,9 +296,9 @@ impl Mempool {
         self.state.validate_commitment(address, next_nonce);
     }
 
-    // TODO(Mohammad): Rename this method once consensus API is added.
-    pub fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
-        self.tx_queue.update_gas_price_threshold(threshold);
+    /// Updates the gas price threshold for transactions that are eligible for sequencing.
+    pub fn update_gas_price(&mut self, price: GasPrice) {
+        self.tx_queue.update_gas_price_threshold(price);
     }
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
