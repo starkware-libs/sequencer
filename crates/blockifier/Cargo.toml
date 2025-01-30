@@ -62,7 +62,7 @@ sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_infra_utils.workspace = true
-starknet_sierra_multicompile.workspace = true
+starknet_sierra_multicompile = { workspace = true, optional = true }
 strum.workspace = true
 strum_macros.workspace = true
 tempfile.workspace = true
