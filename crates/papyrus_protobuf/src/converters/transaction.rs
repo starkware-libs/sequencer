@@ -35,6 +35,7 @@ use starknet_api::transaction::{
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
+    DeclareTransactionV3Common,
     DeployAccountTransaction,
     DeployAccountTransactionV1,
     DeployAccountTransactionV3,
