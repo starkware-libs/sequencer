@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::{contract_address, nonce};
 use starknet_mempool::add_tx_input;
 use starknet_mempool::mempool::Mempool;
@@ -294,7 +294,7 @@ fn test_update_gas_price_threshold(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 2, address: "0x1", tip: 50, max_l2_gas_price: 30);
 
     // Test: only txs with gas price above the threshold are returned.
-    mempool.update_gas_price(GasPrice(30)).unwrap();
+    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(30))).unwrap();
     for input in [&input_gas_price_20, &input_gas_price_30] {
         add_tx(&mut mempool, input);
     }
@@ -303,7 +303,7 @@ fn test_update_gas_price_threshold(mut mempool: Mempool) {
     let nonces = [("0x1", 1)];
     commit_block(&mut mempool, nonces, []);
 
-    mempool.update_gas_price(GasPrice(10)).unwrap();
+    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(10))).unwrap();
     get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_20.tx]);
 }
 
