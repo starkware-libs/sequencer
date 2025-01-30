@@ -12,6 +12,7 @@ use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::stream_builder::BadPeerError;
 use crate::client::stream_builder::{
@@ -109,6 +110,13 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError> {
         storage_reader.begin_ro_txn()?.get_state_marker()
+    }
+
+    fn convert_sync_block_to_block_data(
+        block_number: BlockNumber,
+        sync_block: SyncBlock,
+    ) -> Option<(ThinStateDiff, BlockNumber)> {
+        Some((sync_block.state_diff, block_number))
     }
 }
 

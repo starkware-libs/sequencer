@@ -1,7 +1,11 @@
 use assert_matches::assert_matches;
-use blockifier::blockifier::transaction_executor::TransactionExecutorError;
+use blockifier::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutorError,
+};
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
+use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -10,6 +14,7 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -47,11 +52,13 @@ fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transact
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
 ) -> BlockExecutionArtifacts {
+    let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_infos,
         commitment_state_diff: Default::default(),
-        visited_segments_mapping: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
+        // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
+        l2_gas_used,
     }
 }
 
@@ -62,6 +69,10 @@ fn execution_info() -> TransactionExecutionInfo {
             max_fee: Fee(100),
             actual_fee: Fee(101),
         })),
+        receipt: TransactionReceipt {
+            gas: GasVector { l2_gas: GasAmount(1), ..Default::default() },
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -253,11 +264,11 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            expected_block_artifacts_copy.commitment_state_diff,
-            expected_block_artifacts_copy.visited_segments_mapping,
-            expected_block_artifacts_copy.bouncer_weights,
-        ))
+        Ok(BlockExecutionSummary {
+            state_diff: expected_block_artifacts_copy.commitment_state_diff,
+            compressed_state_diff: None,
+            bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
+        })
     });
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs]);
@@ -286,11 +297,11 @@ fn set_close_block_expectations(
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
-        Ok((
-            output_block_artifacts.commitment_state_diff,
-            output_block_artifacts.visited_segments_mapping,
-            output_block_artifacts.bouncer_weights,
-        ))
+        Ok(BlockExecutionSummary {
+            state_diff: output_block_artifacts.commitment_state_diff,
+            compressed_state_diff: None,
+            bouncer_weights: output_block_artifacts.bouncer_weights,
+        })
     });
     output_block_artifacts_copy
 }
@@ -543,4 +554,28 @@ async fn test_build_block_abort_immediately() {
         .await,
         Err(BlockBuilderError::Aborted)
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_l2_gas_used() {
+    let n_txs = 3;
+    let input_txs = test_txs(0..n_txs);
+    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len());
+    let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
+
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
+
+    // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
+    assert_eq!(result_block_artifacts.l2_gas_used, GasAmount(n_txs.try_into().unwrap()));
 }

@@ -64,6 +64,9 @@ pub enum DeprecatedSyscallSelector {
     GetTxInfo,
     GetTxSignature,
     Keccak,
+    // TODO(Noa): Remove it (as it is not a syscall) and define its resources in
+    // `OsResources`.
+    KeccakRound,
     Sha256ProcessBlock,
     LibraryCall,
     LibraryCallL1Handler,

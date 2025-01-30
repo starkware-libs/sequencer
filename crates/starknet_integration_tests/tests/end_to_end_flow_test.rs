@@ -16,7 +16,8 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
-use starknet_integration_tests::flow_test_setup::FlowTestSetup;
+use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
+use starknet_integration_tests::test_identifiers::TestIdentifier;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
@@ -41,16 +42,25 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(50);
     // Setup.
-    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
+    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(
+        &tx_generator,
+        TestIdentifier::EndToEndFlowTest.into(),
+    )
+    .await;
+
+    tokio::join!(
+        wait_for_sequencer_node(&mock_running_system.sequencer_0),
+        wait_for_sequencer_node(&mock_running_system.sequencer_1),
+    );
 
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let expected_content_ids = [
         Felt::from_hex_unchecked(
-            "0x457e9172b9c70fb4363bb3ff31bf778d8f83828184a9a3f9badadc497f2b954",
+            "0x58ad05a6987a675eda038663d8e7dcc8e1d91c9057dd57f16d9b3b9602fc840",
         ),
         Felt::from_hex_unchecked(
-            "0x572373fe992ac8c2413d5e727036316023ed6a2e8a2256b4952e223969e0221",
+            "0x79b59c5036c9427b5194796ede67bdfffed1f311a77382d715174fcfcc33003",
         ),
     ];
 
@@ -93,6 +103,10 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     }
 }
 
+async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
+    sequencer.is_alive_test_client.await_alive(5000, 50).await.expect("Node should be alive.");
+}
+
 async fn listen_to_broadcasted_messages(
     consensus_proposals_channels: &mut BroadcastTopicChannels<StreamMessage<ProposalPart>>,
     expected_batched_tx_hashes: &[TransactionHash],
@@ -106,9 +120,8 @@ async fn listen_to_broadcasted_messages(
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
         height: expected_height,
-        round: 0,
-        valid_round: None,
         proposer: expected_proposer_id,
+        ..Default::default()
     };
     let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
 

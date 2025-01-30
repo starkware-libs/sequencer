@@ -4,6 +4,8 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::execution::call_info::{EventSummary, ExecutionSummary};
+#[cfg(test)]
+use crate::execution::contract_class::TrackedResource;
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_vm_resources_cost;
 use crate::fee::gas_usage::{
@@ -96,9 +98,15 @@ impl ComputationResources {
         })
     }
 
+    /// Returns total consumed + reverted units of steps or sierra gas.
     #[cfg(test)]
-    pub fn total_charged_steps(&self) -> usize {
-        self.n_reverted_steps + self.vm_resources.n_steps
+    pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
+        match resource {
+            TrackedResource::CairoSteps => self.vm_resources.n_steps + self.n_reverted_steps,
+            TrackedResource::SierraGas => {
+                usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()
+            }
+        }
     }
 }
 

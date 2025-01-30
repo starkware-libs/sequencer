@@ -19,6 +19,7 @@ use cairo_native::starknet::{
 use num_bigint::BigUint;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
@@ -36,6 +37,8 @@ use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::versioned_constants::GasCosts;
 
+pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
+pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
 pub struct NativeSyscallHandler<'state> {
     pub base: Box<SyscallHandlerBase<'state>>,
 
@@ -53,19 +56,6 @@ impl<'state> NativeSyscallHandler<'state> {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
             unrecoverable_error: None,
         }
-    }
-
-    fn execute_inner_call(
-        &mut self,
-        entry_point: CallEntryPoint,
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<Retdata> {
-        let raw_retdata = self
-            .base
-            .execute_inner_call(entry_point, remaining_gas)
-            .map_err(|e| self.handle_error(remaining_gas, e))?;
-
-        Ok(Retdata(raw_retdata))
     }
 
     pub fn gas_costs(&self) -> &GasCosts {
@@ -97,6 +87,20 @@ impl<'state> NativeSyscallHandler<'state> {
 
         *remaining_gas -= required_gas;
 
+        // To support sierra gas charge for blockifier revert flow, we track the remaining gas left
+        // before executing a syscall if the current tracked resource is gas.
+        // 1. If the syscall does not run Cairo code (i.e. not library call, not call contract, and
+        //    not a deploy), any failure will not run in the OS, so no need to charge - the value
+        //    before entering the callback is good enough to charge.
+        // 2. If the syscall runs Cairo code, but the tracked resource is steps (and not gas), the
+        //    additional charge of reverted cairo steps will cover the inner cost, and the outer
+        //    cost we track here will be the additional reverted gas.
+        // 3. If the syscall runs Cairo code and the tracked resource is gas, either the inner
+        //    failure will be a Cairo1 revert (and the gas consumed on the call info will override
+        //    the current tracked value), or we will pass through another syscall before failing -
+        //    and by induction (we will reach this point again), the gas will be charged correctly.
+        self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(*remaining_gas));
+
         Ok(())
     }
 
@@ -116,7 +120,7 @@ impl<'state> NativeSyscallHandler<'state> {
         }
 
         match error {
-            SyscallExecutionError::SyscallError { error_data } => error_data,
+            SyscallExecutionError::Revert { error_data } => error_data,
             error => {
                 assert!(
                     self.unrecoverable_error.is_none(),
@@ -127,6 +131,36 @@ impl<'state> NativeSyscallHandler<'state> {
                 vec![]
             }
         }
+    }
+
+    fn execute_inner_call(
+        &mut self,
+        entry_point: CallEntryPoint,
+        remaining_gas: &mut u64,
+        class_hash: ClassHash,
+        error_wrapper_fn: impl Fn(
+            SyscallExecutionError,
+            ClassHash,
+            ContractAddress,
+            EntryPointSelector,
+        ) -> SyscallExecutionError,
+    ) -> SyscallResult<Retdata> {
+        let entry_point_clone = entry_point.clone();
+        let raw_data = self.base.execute_inner_call(entry_point, remaining_gas).map_err(|e| {
+            self.handle_error(
+                remaining_gas,
+                match e {
+                    SyscallExecutionError::Revert { .. } => e,
+                    _ => error_wrapper_fn(
+                        e,
+                        class_hash,
+                        entry_point_clone.storage_address,
+                        entry_point_clone.entry_point_selector,
+                    ),
+                },
+            )
+        })?;
+        Ok(Retdata(raw_data))
     }
 
     fn get_tx_info_v1(&self) -> TxInfo {
@@ -146,31 +180,16 @@ impl<'state> NativeSyscallHandler<'state> {
     }
 
     fn get_block_info(&self) -> BlockInfo {
-        let block_info = &self.base.context.tx_context.block_context.block_info;
-        if self.base.context.execution_mode == ExecutionMode::Validate {
-            let versioned_constants = self.base.context.versioned_constants();
-            let block_number = block_info.block_number.0;
-            let block_timestamp = block_info.block_timestamp.0;
-            // Round down to the nearest multiple of validate_block_number_rounding.
-            let validate_block_number_rounding =
-                versioned_constants.get_validate_block_number_rounding();
-            let rounded_block_number =
-                (block_number / validate_block_number_rounding) * validate_block_number_rounding;
-            // Round down to the nearest multiple of validate_timestamp_rounding.
-            let validate_timestamp_rounding = versioned_constants.get_validate_timestamp_rounding();
-            let rounded_timestamp =
-                (block_timestamp / validate_timestamp_rounding) * validate_timestamp_rounding;
-            BlockInfo {
-                block_number: rounded_block_number,
-                block_timestamp: rounded_timestamp,
-                sequencer_address: Felt::ZERO,
+        let block_info = match self.base.context.execution_mode {
+            ExecutionMode::Execute => self.base.context.tx_context.block_context.block_info(),
+            ExecutionMode::Validate => {
+                &self.base.context.tx_context.block_context.block_info_for_validate()
             }
-        } else {
-            BlockInfo {
-                block_number: block_info.block_number.0,
-                block_timestamp: block_info.block_timestamp.0,
-                sequencer_address: Felt::from(block_info.sequencer_address),
-            }
+        };
+        BlockInfo {
+            block_number: block_info.block_number.0,
+            block_timestamp: block_info.block_timestamp.0,
+            sequencer_address: Felt::from(block_info.sequencer_address),
         }
     }
 
@@ -310,11 +329,13 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
 
+        let selector = EntryPointSelector(function_selector);
+
         let entry_point = CallEntryPoint {
             class_hash: Some(class_hash),
             code_address: None,
             entry_point_type: EntryPointType::External,
-            entry_point_selector: EntryPointSelector(function_selector),
+            entry_point_selector: selector,
             calldata: wrapper_calldata,
             // The call context remains the same in a library call.
             storage_address: self.base.call.storage_address,
@@ -323,7 +344,17 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             initial_gas: *remaining_gas,
         };
 
-        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
+        let error_wrapper_function =
+            |e: SyscallExecutionError,
+             class_hash: ClassHash,
+             storage_address: ContractAddress,
+             selector: EntryPointSelector| {
+                e.as_lib_call_execution_error(class_hash, storage_address, selector)
+            };
+
+        Ok(self
+            .execute_inner_call(entry_point, remaining_gas, class_hash, error_wrapper_function)?
+            .0)
     }
 
     fn call_contract(
@@ -337,6 +368,12 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let contract_address = ContractAddress::try_from(address)
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
+
+        let class_hash = self
+            .base
+            .state
+            .get_class_hash_at(contract_address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
         if self.base.context.execution_mode == ExecutionMode::Validate
             && self.base.call.storage_address != contract_address
         {
@@ -357,12 +394,21 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             calldata: wrapper_calldata,
             storage_address: contract_address,
             caller_address: self.base.call.storage_address,
-
             call_type: CallType::Call,
             initial_gas: *remaining_gas,
         };
 
-        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
+        let error_wrapper_function =
+            |e: SyscallExecutionError,
+             class_hash: ClassHash,
+             storage_address: ContractAddress,
+             selector: EntryPointSelector| {
+                e.as_call_contract_execution_error(class_hash, storage_address, selector)
+            };
+
+        Ok(self
+            .execute_inner_call(entry_point, remaining_gas, class_hash, error_wrapper_function)?
+            .0)
     }
 
     fn storage_read(

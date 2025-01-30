@@ -7,3 +7,7 @@
 pub mod papyrus_consensus_context;
 #[allow(missing_docs)]
 pub mod sequencer_consensus_context;
+
+/// Centralized and decentralized communication types and functionallity.
+#[allow(missing_docs)]
+pub mod cende;

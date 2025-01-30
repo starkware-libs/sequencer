@@ -106,7 +106,7 @@ impl Sum for ExecutionSummary {
 #[derive(Clone, Debug, Default, Serialize, Eq, PartialEq)]
 pub struct ChargedResources {
     pub vm_resources: ExecutionResources, // Counted in CairoSteps mode calls.
-    pub gas_for_fee: GasAmount,           // Counted in SierraGas mode calls.
+    pub gas_consumed: GasAmount,          // Counted in SierraGas mode calls.
 }
 
 impl ChargedResources {
@@ -114,8 +114,8 @@ impl ChargedResources {
         Self { vm_resources: resources, ..Default::default() }
     }
 
-    pub fn from_gas(gas_for_fee: GasAmount) -> Self {
-        Self { gas_for_fee, ..Default::default() }
+    pub fn from_gas(gas_consumed: GasAmount) -> Self {
+        Self { gas_consumed, ..Default::default() }
     }
 }
 
@@ -132,8 +132,8 @@ impl Add<&ChargedResources> for &ChargedResources {
 impl AddAssign<&ChargedResources> for ChargedResources {
     fn add_assign(&mut self, other: &Self) {
         self.vm_resources += &other.vm_resources;
-        self.gas_for_fee =
-            self.gas_for_fee.checked_add(other.gas_for_fee).expect("Gas for fee overflowed.");
+        self.gas_consumed =
+            self.gas_consumed.checked_add(other.gas_consumed).expect("Gas for fee overflowed.");
     }
 }
 
@@ -145,8 +145,8 @@ pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,
     pub inner_calls: Vec<CallInfo>,
+    pub resources: ExecutionResources,
     pub tracked_resource: TrackedResource,
-    pub charged_resources: ChargedResources,
 
     // Additional information gathered during execution.
     pub time: std::time::Duration,
@@ -213,9 +213,12 @@ impl CallInfo {
         }
 
         ExecutionSummary {
-            // Note: the charged resourses of a call contains the inner call resources, unlike other
-            // fields such as events and messages,
-            charged_resources: self.charged_resources.clone(),
+            // Note: the vm_resources and gas_consumed of a call contains the inner call resources,
+            // unlike other fields such as events and messages.
+            charged_resources: ChargedResources {
+                vm_resources: self.resources.clone(),
+                gas_consumed: GasAmount(self.execution.gas_consumed),
+            },
             executed_class_hashes,
             visited_storage_entries,
             l2_to_l1_payload_lengths,
@@ -230,13 +233,13 @@ impl CallInfo {
         call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
     }
 
-    pub fn summarize_charged_resources<'a>(
+    pub fn summarize_vm_resources<'a>(
         call_infos: impl Iterator<Item = &'a CallInfo>,
-    ) -> ChargedResources {
-        // Note: the charged resourses of a call contains the inner call resources, unlike other
-        // fields such as events and messages,
-        call_infos.fold(ChargedResources::default(), |mut acc, inner_call| {
-            acc += &inner_call.charged_resources;
+    ) -> ExecutionResources {
+        // Note: the vm resources (and entire charged resources) of a call contains the inner call
+        // resources, unlike other fields such as events and messages.
+        call_infos.fold(ExecutionResources::default(), |mut acc, inner_call| {
+            acc += &inner_call.resources;
             acc
         })
     }

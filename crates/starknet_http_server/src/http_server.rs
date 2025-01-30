@@ -1,4 +1,3 @@
-use std::any::type_name;
 use std::clone::Clone;
 use std::net::SocketAddr;
 
@@ -10,6 +9,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
+use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{error, info, instrument};
@@ -89,7 +89,7 @@ pub fn create_http_server(
 #[async_trait]
 impl ComponentStarter for HttpServer {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<Self>());
+        info!("Starting component {}.", short_type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
     }
 }

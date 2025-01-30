@@ -26,14 +26,14 @@ tracing.workspace = true
 assert_matches.workspace = true
 itertools.workspace = true
 mockall.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
+papyrus_network = { path = "../papyrus_network", features = ["testing"] }
+papyrus_network_types = { path = "../papyrus_network_types", features = ["testing"] }
+papyrus_test_utils.path = "../papyrus_test_utils"
 rstest.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api = { path = "../starknet_api", features = ["testing"] }
 # Enable test utils feature for integration tests.
-starknet_mempool = { workspace = true, features = ["testing"] }
-starknet_mempool_p2p_types = { workspace = true, features = ["testing"] }
+starknet_mempool = { path = ".", features = ["testing"] }
+starknet_mempool_p2p_types = { path = "../starknet_mempool_p2p_types", features = ["testing"] }
 
 [features]
 testing = ["mempool_test_utils", "pretty_assertions", "starknet-types-core"]

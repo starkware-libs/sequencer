@@ -949,9 +949,16 @@ impl Add for ExecutionResources {
                 memory_holes,
             },
             data_availability: DataAvailabilityResources {
-                l1_gas: self.data_availability.l1_gas + other.data_availability.l1_gas,
-                l1_data_gas: self.data_availability.l1_data_gas
-                    + other.data_availability.l1_data_gas,
+                l1_gas: self
+                    .data_availability
+                    .l1_gas
+                    .checked_add(other.data_availability.l1_gas)
+                    .expect("L1 Gas overflow"),
+                l1_data_gas: self
+                    .data_availability
+                    .l1_data_gas
+                    .checked_add(other.data_availability.l1_data_gas)
+                    .expect("L1_Data Gas overflow"),
             },
         }
     }
@@ -1281,7 +1288,7 @@ impl From<MessageFromL1> for L1HandlerTransaction {
         calldata.extend_from_slice(&message.payload.0);
         let calldata = Calldata(Arc::new(calldata));
         Self {
-            version: TransactionVersion::ONE,
+            version: L1HandlerTransaction::VERSION,
             contract_address: message.to_address,
             entry_point_selector: message.entry_point_selector,
             calldata,

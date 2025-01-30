@@ -1,9 +1,43 @@
 name: Upload-Artifacts
 
 on:
-  workflow_run:
-    workflows: [Trigger-Workflow]
-    types: [completed]
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+      # Other than code-related changes, all changes related to the native-blockifier build-and-push
+      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
+      - '.github/workflows/blockifier_ci.yml'
+      - '.github/workflows/upload_artifacts_workflow.yml'
+      - 'build_native_in_docker.sh'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
+      - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
+      - 'scripts/install_build_tools.sh'
+      - 'scripts/sequencer-ci.Dockerfile'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+# Also, create different concurrency groups for different pushed commits, on push events.
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -12,65 +46,66 @@ jobs:
   native-blockifier-artifacts-push:
     runs-on: starkware-ubuntu-latest-medium
     steps:
-      - name: Get commit hash prefix for PR update
-        env:
-          COMMIT_SHA: ${{ github.event.workflow_run.head_commit.id }}
-        run: |
-          echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
-          echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_ENV
-
-      # This workflow is always triggered in `main` branch context, so need to checkout the commit.
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.COMMIT_SHA }}
+
+      # Commit hash on pull request event would be the head commit of the branch.
+      - name: Get commit hash prefix for PR update
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
+        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+
+      # On push event (to main, for example) we should take the commit post-push.
+      - name: Get commit hash prefix for merge
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          COMMIT_SHA: ${{ github.event.after }}
+        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       # Set environment variables.
       - name: Set environment variable
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pr_number=$(gh pr list --head "${{ github.event.workflow_run.head_branch }}" --json number --jq '.[0].number')
-          echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
           echo "WORKFLOW_LINK=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
       # Comment with a link to the workflow (or update existing comment on rerun).
-      # Required, as this is a triggered workflow, and does not appear on the PR status page.
       - name: Find Comment
-        if: env.PR_NUMBER != ''
+        if: github.event_name == 'pull_request'
         uses: starkware-libs/find-comment@v3
         id: find-comment
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ env.PR_NUMBER }}
+          issue-number: ${{ github.event.pull_request.number }}
           comment-author: 'github-actions[bot]'
           body-includes: Artifacts upload workflows
 
       - name: Create comment
         # If the PR number is found and the comment is not found, create a new comment.
-        if: env.PR_NUMBER != '' && steps.find-comment.outputs.comment-id == ''
+        if: github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id == ''
         uses: starkware-libs/create-or-update-comment@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ env.PR_NUMBER }}
+          issue-number: ${{ github.event.pull_request.number }}
           body: |
             Artifacts upload workflows:
-            * [Started at ${{ github.event.workflow_run.run_started_at }}](${{ env.WORKFLOW_LINK }})
+            * [Started at ${{ github.event.pull_request.updated_at }}](${{ env.WORKFLOW_LINK }})
 
       - name: Update comment
         # If the PR number is found and the comment exists, update it.
-        if: env.PR_NUMBER != '' && steps.find-comment.outputs.comment-id != ''
+        if: github.event_name == 'pull_request' && steps.find-comment.outputs.comment-id != ''
         uses: starkware-libs/create-or-update-comment@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
           edit-mode: append
           body: |
-            * [Started at ${{ github.event.workflow_run.run_started_at }}](${{ env.WORKFLOW_LINK }})
+            * [Started at ${{ github.event.pull_request.updated_at }}](${{ env.WORKFLOW_LINK }})
 
       # Build artifact.
-      - uses: ./.github/actions/bootstrap
       - name: Build native blockifier
-        run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
+        run: |
+          ./build_native_in_docker.sh scripts/build_native_blockifier.sh
 
       # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
       - name: Rename shared object
@@ -84,9 +119,23 @@ jobs:
         with:
           credentials_json: ${{ secrets.SA_NATIVE_BLOCKIFIER_ARTIFACTS_BUCKET_WRITER_ACCESS_KEY }}
 
-      - name: Upload binary to GCP
-        id: upload_file
+      - name: Upload native blockifier shared object to GCP
+        id: upload_nb_file
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
           path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
+          destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
+
+      - name: Upload starknet-native-compile to GCP
+        id: upload_snc_file
+        uses: "google-github-actions/upload-cloud-storage@v2"
+        with:
+          path: "target/release/shared_executables/starknet-native-compile"
+          destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
+
+      - name: Upload libcairo_native_runtime.a to GCP
+        id: upload_lnr_file
+        uses: "google-github-actions/upload-cloud-storage@v2"
+        with:
+          path: "crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"

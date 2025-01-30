@@ -46,8 +46,18 @@ impl ContractExecutor {
                 let mut virtual_machine =
                     VirtualMachine::new_starknet(program.to_owned(), entrypoints);
 
+                let builtin_costs = builtin_costs.map(|builtin_costs| sierra_emu::BuiltinCosts {
+                    r#const: builtin_costs.r#const,
+                    pedersen: builtin_costs.pedersen,
+                    bitwise: builtin_costs.bitwise,
+                    ecop: builtin_costs.ecop,
+                    poseidon: builtin_costs.poseidon,
+                    add_mod: builtin_costs.add_mod,
+                    mul_mod: builtin_costs.mul_mod,
+                });
+
                 let args = args.to_owned();
-                virtual_machine.call_contract(selector, gas, args);
+                virtual_machine.call_contract(selector, gas, args, builtin_costs);
 
                 let result = virtual_machine.run(&mut syscall_handler).unwrap();
 

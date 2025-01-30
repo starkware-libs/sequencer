@@ -29,6 +29,7 @@ on:
       - 'Cargo.toml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
+      - 'crates/starknet_sierra_multicompile/build.rs'
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
@@ -38,8 +39,12 @@ env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
+# Also, create different concurrency groups for different pushed commits, on push events.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

@@ -6,6 +6,7 @@ pub mod l1_handler;
 pub mod prices;
 pub mod struct_impls;
 pub mod syscall;
+pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
@@ -14,13 +15,22 @@ use std::slice::Iter;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use infra_utils::compile_time_cargo_manifest_dir;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::{
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+    MAX_FEE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
@@ -29,6 +39,7 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
@@ -44,13 +55,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
-// TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
-//   `initial_test_state` modules for testing.
-// Addresses.
-pub const TEST_SEQUENCER_ADDRESS: &str = "0x1000";
-pub const TEST_ERC20_CONTRACT_ADDRESS: &str = "0x1001";
-pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
-
 // Class hashes.
 // TODO(Adi, 15/01/2023): Remove and compute the class hash corresponding to the ERC20 contract in
 // starkgate once we use the real ERC20 contract.
@@ -115,6 +119,15 @@ pub enum CompilerBasedVersion {
     OldCairo1,
 }
 
+impl From<CompilerBasedVersion> for CairoVersion {
+    fn from(compiler_based_version: CompilerBasedVersion) -> Self {
+        match compiler_based_version {
+            CompilerBasedVersion::CairoVersion(version) => version,
+            CompilerBasedVersion::OldCairo1 => CairoVersion::Cairo1(RunnableCairo1::Casm),
+        }
+    }
+}
+
 impl CompilerBasedVersion {
     pub fn get_test_contract(&self) -> FeatureContract {
         match self {
@@ -151,29 +164,6 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
     get_fee_token_var_address(contract_address!(TEST_SEQUENCER_ADDRESS))
 }
 
-// The max_fee / resource bounds used for txs in this test.
-// V3 transactions:
-pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
-pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
-pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 9));
-pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_L2_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L2_GAS_PRICE;
-pub const MAX_L1_DATA_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_DATA_GAS_PRICE;
-
-pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Fri.
-pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of Fri.
-pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
-
-// Deprecated transactions:
-pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
-
 // Commitment fee bounds.
 const DEFAULT_L1_BOUNDS_COMMITTED_FEE: Fee =
     DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_GAS_PRICE);
@@ -189,14 +179,6 @@ pub const BALANCE: Fee = Fee(10
         const_max(DEFAULT_ALL_BOUNDS_COMMITTED_FEE.0, DEFAULT_L1_BOUNDS_COMMITTED_FEE.0),
         MAX_FEE.0,
     ));
-
-// The block number of the BlockContext being used for testing.
-pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
-pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
-
-// The block timestamp of the BlockContext being used for testing.
-pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
-pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
 
 #[derive(Default)]
 pub struct SaltManager {
@@ -419,7 +401,8 @@ pub fn calldata_for_deploy_test(
 }
 
 /// Creates the calldata for the "__execute__" entry point in the featured contracts
-/// AccountWithLongValidate and AccountWithoutValidations. The format of the returned calldata is:
+/// ([`FeatureContract`]) AccountWithLongValidate and AccountWithoutValidations. The format of the
+/// returned calldata is:
 /// [
 ///     contract_address,
 ///     entry_point_name,
@@ -448,7 +431,10 @@ pub fn create_calldata(
     )
 }
 
-/// Calldata for a trivial entry point in the test contract.
+/// Calldata for a trivial entry point in the [`FeatureContract`] TestContract. The calldata is
+/// formatted for using the featured contracts AccountWithLongValidate or AccountWithoutValidations
+/// as account contract.
+/// The contract_address is the address of the called contract, an instance address of TestContract.
 pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Calldata {
     create_calldata(
         test_contract_address,

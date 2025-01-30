@@ -1,0 +1,2 @@
+[submodule "crates/blockifier/cairo_native"]
+    recurse = true

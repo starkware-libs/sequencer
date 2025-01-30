@@ -3,7 +3,7 @@ kind: Ingress
 metadata:
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
-    cert-manager.io/common-name: test.gcp-integration.sw-dev.io
+    cert-manager.io/common-name: sequencer-node.test.sw-dev.io
     cert-manager.io/issue-temporary-certificate: "true"
     cert-manager.io/issuer: letsencrypt-prod
     kubernetes.io/tls-acme: "true"
@@ -12,8 +12,9 @@ metadata:
   name: sequencer-node-ingress
   namespace: test
 spec:
+  ingressClassName: premium-rwo
   rules:
-    - host: test.gcp-integration.sw-dev.io
+    - host: sequencer-node.test.sw-dev.io
       http:
         paths:
           - backend:
@@ -21,9 +22,9 @@ spec:
                 name: sequencer-node-service
                 port:
                   number: 8082
-            path: /monitoring/
+            path: /monitoring
             pathType: Prefix
   tls:
     - hosts:
-        - test.gcp-integration.sw-dev.io
-      secretName: sequencer-tls
+        - sequencer-node.test.sw-dev.io
+      secretName: sequencer-node-tls

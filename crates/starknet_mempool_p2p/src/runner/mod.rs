@@ -2,13 +2,14 @@
 mod test;
 
 use async_trait::async_trait;
+use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
-use futures::{pin_mut, StreamExt, TryFutureExt};
+use futures::StreamExt;
 use papyrus_network::network_manager::{
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
     BroadcastTopicServer,
-    NetworkManager,
+    NetworkError,
 };
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use starknet_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
@@ -20,7 +21,7 @@ use starknet_sequencer_infra::errors::ComponentError;
 use tracing::warn;
 
 pub struct MempoolP2pRunner {
-    network_manager: Option<NetworkManager>,
+    network_future: BoxFuture<'static, Result<(), NetworkError>>,
     broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
     gateway_client: SharedGatewayClient,
@@ -28,31 +29,23 @@ pub struct MempoolP2pRunner {
 
 impl MempoolP2pRunner {
     pub fn new(
-        network_manager: Option<NetworkManager>,
+        network_future: BoxFuture<'static, Result<(), NetworkError>>,
         broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
         gateway_client: SharedGatewayClient,
     ) -> Self {
-        Self { network_manager, broadcasted_topic_server, broadcast_topic_client, gateway_client }
+        Self { network_future, broadcasted_topic_server, broadcast_topic_client, gateway_client }
     }
 }
 
 #[async_trait]
 impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        let network_future = self
-            .network_manager
-            .take()
-            .expect("Network manager not found")
-            .run()
-            .map_err(|_| ComponentError::InternalComponentError);
-        pin_mut!(network_future);
         let mut gateway_futures = FuturesUnordered::new();
         loop {
             tokio::select! {
-                result = &mut network_future => {
-                    result?;
-                    panic!("Network stopped unexpectedly");
+                result = &mut self.network_future => {
+                    return result.map_err(|_| ComponentError::InternalComponentError);
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {

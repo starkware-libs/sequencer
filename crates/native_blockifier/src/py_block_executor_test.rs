@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use blockifier::blockifier::transaction_executor::BLOCK_STATE_ACCESS_ERR;
+use blockifier::blockifier::transaction_executor::{BLOCK_STATE_ACCESS_ERR, DEFAULT_STACK_SIZE};
 use blockifier::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use blockifier::state::state_api::StateReader;
-use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use starknet_api::class_hash;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 use starknet_types_core::felt::Felt;
@@ -32,8 +32,13 @@ fn global_contract_cache_update() {
         entry_points_by_type: Default::default(),
     };
     let sierra = SierraContractClass::default();
-    let contract_class =
-        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm.clone()).unwrap());
+    let contract_class = RunnableCompiledClass::V1(
+        CompiledClassV1::try_from((
+            casm.clone(),
+            SierraVersion::extract_from_program(&sierra.sierra_program).unwrap(),
+        ))
+        .unwrap(),
+    );
     let class_hash = class_hash!("0x1");
 
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
@@ -43,6 +48,7 @@ fn global_contract_cache_update() {
         PyOsConfig::default(),
         temp_storage_path,
         4000,
+        DEFAULT_STACK_SIZE,
     );
     block_executor
         .append_block(
@@ -69,7 +75,7 @@ fn global_contract_cache_update() {
         )
         .unwrap();
 
-    assert_eq!(block_executor.global_contract_cache.lock().cache_size(), 0);
+    assert_eq!(block_executor.contract_class_manager.get_casm_cache_size(), 0);
 
     let queried_contract_class = block_executor
         .tx_executor()
@@ -80,7 +86,7 @@ fn global_contract_cache_update() {
         .unwrap();
 
     assert_eq!(queried_contract_class, contract_class);
-    assert_eq!(block_executor.global_contract_cache.lock().cache_size(), 1);
+    assert_eq!(block_executor.contract_class_manager.get_casm_cache_size(), 1);
 }
 
 #[test]
@@ -124,6 +130,7 @@ fn global_contract_cache_update_large_contract() {
         Default::default(),
         temp_storage_path,
         4000,
+        DEFAULT_STACK_SIZE,
     );
     block_executor
         .append_block(

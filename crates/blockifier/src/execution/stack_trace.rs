@@ -709,6 +709,10 @@ fn extract_entry_point_execution_error_into_stack_trace(
         EntryPointExecutionError::CairoRunError(cairo_run_error) => {
             extract_cairo_run_error_into_stack_trace(error_stack, depth, cairo_run_error)
         }
+        #[cfg(feature = "cairo_native")]
+        EntryPointExecutionError::NativeUnrecoverableError(error) => {
+            extract_syscall_execution_error_into_stack_trace(error_stack, depth, error)
+        }
         EntryPointExecutionError::ExecutionFailed { error_trace } => {
             error_stack.push(error_trace.clone().into())
         }

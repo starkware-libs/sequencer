@@ -9,6 +9,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use starknet_infra_utils::type_name::short_type_name;
+use tracing::warn;
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
@@ -189,5 +191,15 @@ where
             .await
             .map_err(|err| ComponentServerError::HttpServerStartError(err.to_string()))?;
         Ok(())
+    }
+}
+
+impl<Request, Response> Drop for RemoteComponentServer<Request, Response>
+where
+    Request: Serialize + DeserializeOwned + Send + Sync + 'static,
+    Response: Serialize + DeserializeOwned + Send + Sync + 'static,
+{
+    fn drop(&mut self) {
+        warn!("Dropping {}.", short_type_name::<Self>());
     }
 }

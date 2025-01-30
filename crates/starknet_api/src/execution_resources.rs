@@ -9,13 +9,17 @@ use crate::transaction::fields::{Fee, Resource};
 
 #[cfg_attr(
     any(test, feature = "testing"),
-    derive(derive_more::Sum, derive_more::Div, derive_more::SubAssign)
+    derive(
+        derive_more::Sum,
+        derive_more::Div,
+        derive_more::SubAssign,
+        derive_more::Sub,
+        derive_more::Add,
+        derive_more::AddAssign,
+    )
 )]
 #[derive(
     derive_more::Display,
-    derive_more::Sub,
-    derive_more::Add,
-    derive_more::AddAssign,
     Clone,
     Copy,
     Debug,
@@ -158,48 +162,49 @@ impl GasVector {
         }
         sum
     }
+}
 
-    /// Compute l1_gas estimation from gas_vector using the following formula:
-    /// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
-    /// mode). For gas price GP and data gas price DGP, the discount for using blobs
-    /// would be DGP / (16 * GP).
-    /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
-    /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
-    /// summand, we get total_gas = (X + Y * DGP / GP).
-    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this discount
-    /// function does nothing.
-    /// Panics on overflow.
-    pub fn to_discounted_l1_gas(&self, gas_prices: &GasPriceVector) -> GasAmount {
-        if self.l2_gas.0 > 0 {
-            // TODO(Yoni, 10/12/2024): convert L2 gas as well.
-            todo!();
-        }
-        let l1_data_gas_fee = self
-            .l1_data_gas
-            .checked_mul(gas_prices.l1_data_gas_price.into())
-            .unwrap_or_else(|| {
-                panic!(
-                    "Discounted L1 gas cost overflowed: multiplication of L1 data gas ({}) by L1 \
-                     data gas price ({}) resulted in overflow.",
-                    self.l1_data_gas, gas_prices.l1_data_gas_price
-                );
-            });
-        let l1_data_gas_in_l1_gas_units =
-            l1_data_gas_fee.checked_div_ceil(gas_prices.l1_gas_price).unwrap_or_else(|| {
-                panic!(
-                    "Discounted L1 gas cost overflowed: division of L1 data fee ({}) by regular \
-                     L1 gas price ({}) resulted in overflow.",
-                    l1_data_gas_fee, gas_prices.l1_gas_price
-                );
-            });
-        self.l1_gas.checked_add(l1_data_gas_in_l1_gas_units).unwrap_or_else(|| {
+/// Computes the total L1 gas amount estimation from the different given L1 gas arguments using the
+/// following formula:
+/// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
+/// mode). For gas price GP and data gas price DGP, the discount for using blobs
+/// would be DGP / (16 * GP).
+/// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
+/// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
+/// summand, we get total_gas = (X + Y * DGP / GP).
+/// If this function is called with kzg_flag==false, then l1_data_gas==0, and this discount
+/// function does nothing.
+/// Panics on overflow.
+/// Does not take L2 gas into account - more context is required to convert L2 gas units to L1 gas
+/// units (context defined outside of the current crate).
+pub fn to_discounted_l1_gas(
+    l1_gas_price: NonzeroGasPrice,
+    l1_data_gas_price: GasPrice,
+    l1_gas: GasAmount,
+    l1_data_gas: GasAmount,
+) -> GasAmount {
+    let l1_data_gas_fee = l1_data_gas.checked_mul(l1_data_gas_price).unwrap_or_else(|| {
+        panic!(
+            "Discounted L1 gas cost overflowed: multiplication of L1 data gas ({}) by L1 data gas \
+             price ({}) resulted in overflow.",
+            l1_data_gas, l1_data_gas_price
+        );
+    });
+    let l1_data_gas_in_l1_gas_units =
+        l1_data_gas_fee.checked_div_ceil(l1_gas_price).unwrap_or_else(|| {
             panic!(
-                "Overflow while computing discounted L1 gas: L1 gas ({}) + L1 data gas in L1 gas \
-                 units ({}) resulted in overflow.",
-                self.l1_gas, l1_data_gas_in_l1_gas_units
-            )
-        })
-    }
+                "Discounted L1 gas cost overflowed: division of L1 data fee ({}) by regular L1 \
+                 gas price ({}) resulted in overflow.",
+                l1_data_gas_fee, l1_gas_price
+            );
+        });
+    l1_gas.checked_add(l1_data_gas_in_l1_gas_units).unwrap_or_else(|| {
+        panic!(
+            "Overflow while computing discounted L1 gas: L1 gas ({}) + L1 data gas in L1 gas \
+             units ({}) resulted in overflow.",
+            l1_gas, l1_data_gas_in_l1_gas_units
+        )
+    })
 }
 
 /// The execution resources used by a transaction.

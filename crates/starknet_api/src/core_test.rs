@@ -1,10 +1,12 @@
 use assert_matches::assert_matches;
+use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 
 use crate::core::{
     ascii_as_felt,
     calculate_contract_address,
+    felt_to_u128,
     ChainId,
     ContractAddress,
     EthAddress,
@@ -110,4 +112,22 @@ fn test_ascii_as_felt() {
     // This is the result of the Python snippet from the Chain-Id documentation.
     let expected_sn_main = Felt::from(23448594291968334_u128);
     assert_eq!(sn_main_felt, expected_sn_main);
+}
+
+#[test]
+fn test_value_too_large_for_type() {
+    // Happy flow.
+    let n = 1991_u128;
+    let n_as_felt = Felt::from(n);
+    felt_to_u128(&n_as_felt).unwrap();
+
+    // Value too large for type.
+    let overflowed_u128: BigUint = BigUint::from(1_u8) << 128;
+    let overflowed_u128_as_felt = Felt::from(overflowed_u128);
+    let error = felt_to_u128(&overflowed_u128_as_felt).unwrap_err();
+    assert_eq!(
+        format!("{error}"),
+        "Out of range Felt 340282366920938463463374607431768211456 is too big to convert to \
+         'u128'."
+    );
 }

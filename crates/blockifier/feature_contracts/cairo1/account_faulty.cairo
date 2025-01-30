@@ -140,7 +140,7 @@ mod Account {
             return starknet::VALIDATED;
         }
         if (scenario == GET_BLOCK_HASH){
-            let block_number: u64 = 0;
+            let block_number: u64 = 1992;
             get_block_hash_syscall(block_number).unwrap_syscall();
             return starknet::VALIDATED;
         }

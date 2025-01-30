@@ -30,25 +30,27 @@ pub enum EntryPointType {
     L1Handler,
 }
 
+pub type VersionedCasm = (CasmContractClass, SierraVersion);
+
 /// Represents a raw Starknet contract class.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, derive_more::From)]
 pub enum ContractClass {
     V0(DeprecatedContractClass),
-    V1(CasmContractClass),
+    V1(VersionedCasm),
 }
 
 impl ContractClass {
     pub fn compiled_class_hash(&self) -> CompiledClassHash {
         match self {
             ContractClass::V0(_) => panic!("Cairo 0 doesn't have compiled class hash."),
-            ContractClass::V1(casm_contract_class) => {
+            ContractClass::V1((casm_contract_class, _sierra_version)) => {
                 CompiledClassHash(casm_contract_class.compiled_class_hash())
             }
         }
     }
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub struct SierraVersion(Version);
 
 impl SierraVersion {
@@ -116,6 +118,12 @@ impl FromStr for SierraVersion {
     }
 }
 
+impl From<(u64, u64, u64)> for SierraVersion {
+    fn from((major, minor, patch): (u64, u64, u64)) -> Self {
+        Self::new(major, minor, patch)
+    }
+}
+
 /// All relevant information about a declared contract class, including the compiled contract class
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -132,7 +140,7 @@ impl ClassInfo {
     pub fn bytecode_length(&self) -> usize {
         match &self.contract_class {
             ContractClass::V0(contract_class) => contract_class.bytecode_length(),
-            ContractClass::V1(contract_class) => contract_class.bytecode.len(),
+            ContractClass::V1((contract_class, _sierra_version)) => contract_class.bytecode.len(),
         }
     }
 

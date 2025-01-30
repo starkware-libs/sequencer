@@ -7,7 +7,6 @@
 # More info on Cargo Chef: https://github.com/LukeMathWalker/cargo-chef
 
 FROM ubuntu:22.04 AS base
-# WORKDIR /app
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .

@@ -2,6 +2,7 @@
 mod test;
 
 use async_trait::async_trait;
+use futures::channel::mpsc::Receiver;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use papyrus_network::network_manager::{self, NetworkError};
@@ -9,9 +10,11 @@ use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClie
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_storage::{open_storage, StorageReader};
+use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
 use starknet_sequencer_infra::errors::ComponentError;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::config::StateSyncConfig;
 
@@ -38,7 +41,10 @@ impl ComponentStarter for StateSyncRunner {
 }
 
 impl StateSyncRunner {
-    pub fn new(config: StateSyncConfig) -> (Self, StorageReader) {
+    pub fn new(
+        config: StateSyncConfig,
+        new_block_receiver: Receiver<(BlockNumber, SyncBlock)>,
+    ) -> (Self, StorageReader) {
         let (storage_reader, storage_writer) =
             open_storage(config.storage_config).expect("StateSyncRunner failed opening storage");
 
@@ -66,7 +72,7 @@ impl StateSyncRunner {
             storage_reader.clone(),
             storage_writer,
             p2p_sync_client_channels,
-            futures::stream::pending().boxed(),
+            new_block_receiver.boxed(),
         );
 
         let header_server_receiver = network_manager

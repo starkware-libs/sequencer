@@ -271,7 +271,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // Get the first message to verify the init was sent.
         // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
         // the first message (message_id=0) has arrived.
-        let Some(first_part) = content_receiver.next().await else {
+        let Some(first_part) = content_receiver.try_next().map_err(|_| {
+            ConsensusError::InternalNetworkError(
+                "Stream handler must fill the first message before sending the stream".to_string(),
+            )
+        })?
+        else {
             return Err(ConsensusError::InternalNetworkError(
                 "Proposal receiver closed".to_string(),
             ));

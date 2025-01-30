@@ -15,7 +15,7 @@ const MAX_BLOCK_SIZE: u64 = 4000000000; // In gas units. It's equivalent to 40M 
 /// Calculate the base gas price for the next block according to EIP-1559.
 ///
 /// # Parameters
-/// - `price`: The base fee of the current block.
+/// - `price`: The base gas price of the current block.
 /// - `gas_used`: The total gas used in the current block.
 /// - `gas_target`: The target gas usage per block (usually half of the gas limit).
 pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64) -> u64 {

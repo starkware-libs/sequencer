@@ -4,7 +4,7 @@ use rstest::rstest;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{NonceManager, DEFAULT_STRK_L1_GAS_PRICE};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
@@ -29,7 +29,6 @@ use crate::test_utils::{
     CairoVersion,
     RunnableCairo1,
     BALANCE,
-    DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;

@@ -1,13 +1,14 @@
 use std::collections::VecDeque;
 
 use lazy_static::lazy_static;
+use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use starknet_api::block::BlockHash;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{StateMachine, StateMachineEvent};
-use crate::types::{ProposalContentId, ValidatorId, DEFAULT_VALIDATOR_ID};
+use crate::types::{ProposalContentId, ValidatorId};
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();

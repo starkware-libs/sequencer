@@ -48,11 +48,7 @@ fn scheduler_flow_test(
                                 Task::ExecutionTask(tx_index),
                                 &versioned_state,
                             );
-                            state_proxy.apply_writes(
-                                &new_writes,
-                                &ContractClassMapping::default(),
-                                &HashMap::default(),
-                            );
+                            state_proxy.apply_writes(&new_writes, &ContractClassMapping::default());
                             scheduler.finish_execution_during_commit(tx_index);
                         }
                     }
@@ -61,11 +57,9 @@ fn scheduler_flow_test(
                     Task::ExecutionTask(tx_index) => {
                         let (_, writes) =
                             get_reads_writes_for(Task::ExecutionTask(tx_index), &versioned_state);
-                        versioned_state.pin_version(tx_index).apply_writes(
-                            &writes,
-                            &ContractClassMapping::default(),
-                            &HashMap::default(),
-                        );
+                        versioned_state
+                            .pin_version(tx_index)
+                            .apply_writes(&writes, &ContractClassMapping::default());
                         scheduler.finish_execution(tx_index);
                         Task::AskForTask
                     }

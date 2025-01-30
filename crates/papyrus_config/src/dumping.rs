@@ -363,7 +363,7 @@ pub fn ser_pointer_target_required_param(
 /// Updates entries in the map to point to these targets, replacing values of entries that match
 /// the target parameter paths to contain only the name of the target they point to.
 /// Fails if a param is not pointing to a same-named pointer target nor whitelisted.
-pub(crate) fn combine_config_map_and_pointers(
+pub fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
     pointers: &ConfigPointers,
     non_pointer_params: &Pointers,

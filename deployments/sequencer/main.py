@@ -25,10 +25,10 @@ class SystemStructure:
 
 class SequencerNode(Chart):
     def __init__(
-        self, scope: Construct, name: str, namespace: str, topology: topology.ServiceTopology
+        self, scope: Construct, name: str, namespace: str, service_topology: topology.ServiceTopology
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
-        self.service = ServiceApp(self, name, namespace=namespace, topology=topology)
+        self.service = ServiceApp(self, name, namespace=namespace, service_topology=service_topology)
 
 
 def main():
@@ -45,7 +45,7 @@ def main():
         scope=app,
         name="sequencer-node",
         namespace=args.namespace,
-        topology=system_preset,
+        service_topology=system_preset,
     )
 
     app.synth()

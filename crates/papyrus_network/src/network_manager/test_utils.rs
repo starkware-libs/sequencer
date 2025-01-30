@@ -11,7 +11,7 @@ use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
 use libp2p::{Multiaddr, PeerId};
-use papyrus_common::tcp::find_n_free_ports;
+use starknet_sequencer_infra::test_utils::AvailablePorts;
 
 use super::{
     BroadcastTopicClient,
@@ -148,8 +148,11 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
-    let mut ports = find_n_free_ports(n);
+pub fn create_connected_network_configs(
+    n: usize,
+    available_ports: &mut AvailablePorts,
+) -> Vec<NetworkConfig> {
+    let mut ports = available_ports.get_next_ports(n);
     let port0 = ports.remove(0);
 
     let secret_key0 = [1u8; 32];
@@ -180,6 +183,7 @@ pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
 pub fn create_network_configs_connected_to_broadcast_channels<T>(
     n_configs: usize,
     topic: Topic,
+    available_ports: &mut AvailablePorts,
 ) -> (Vec<NetworkConfig>, BroadcastTopicChannels<T>)
 where
     T: TryFrom<Bytes> + 'static,
@@ -187,8 +191,8 @@ where
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let mut channels_configs = create_connected_network_configs(n_configs + 1);
-    let broadcast_channels = channels_configs.remove(0);
+    let mut channels_configs = create_connected_network_configs(n_configs + 1, available_ports);
+    let broadcast_channels = channels_configs.pop().unwrap();
 
     let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
     let broadcast_channels =

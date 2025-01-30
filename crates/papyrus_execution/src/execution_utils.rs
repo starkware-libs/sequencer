@@ -19,6 +19,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageResult, StorageTxn};
 // Expose the tool for creating entry point selectors from function names.
 pub use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -43,6 +44,8 @@ pub(crate) enum ExecutionUtilsError {
     StorageError(#[from] StorageError),
     #[error("Casm table not fully synced")]
     CasmTableNotSynced,
+    #[error(transparent)]
+    SierraValidationError(starknet_api::StarknetApiError),
 }
 
 /// Returns the execution config from the config file.
@@ -63,12 +66,15 @@ pub(crate) fn get_contract_class(
     match txn.get_state_reader()?.get_class_definition_block_number(class_hash)? {
         Some(block_number) if state_number.is_before(block_number) => return Ok(None),
         Some(_block_number) => {
-            let Some(casm) = txn.get_casm(class_hash)? else {
+            let (Some(casm), Some(sierra)) = txn.get_casm_and_sierra(class_hash)? else {
                 return Err(ExecutionUtilsError::CasmTableNotSynced);
             };
-            return Ok(Some(RunnableCompiledClass::V1(
-                CompiledClassV1::try_from(casm).map_err(ExecutionUtilsError::ProgramError)?,
-            )));
+            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)
+                .map_err(ExecutionUtilsError::SierraValidationError)?;
+            return Ok(Some(RunnableCompiledClass::V1(CompiledClassV1::try_from((
+                casm,
+                sierra_version,
+            ))?)));
         }
         None => {}
     };

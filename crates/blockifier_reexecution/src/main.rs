@@ -145,7 +145,7 @@ enum Command {
 fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber> {
     block_numbers
         .map(|block_numbers| block_numbers.into_iter().map(BlockNumber).collect())
-        .unwrap_or_else(get_block_numbers_for_reexecution)
+        .unwrap_or_else(|| get_block_numbers_for_reexecution(None))
 }
 
 #[derive(Debug, Args)]

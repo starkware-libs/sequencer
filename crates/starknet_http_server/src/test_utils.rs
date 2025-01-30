@@ -6,7 +6,6 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::rpc_tx_to_json;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_sequencer_infra::test_utils::get_available_socket;
 
 use crate::config::HttpServerConfig;
 
@@ -48,8 +47,6 @@ impl HttpTestClient {
     }
 }
 
-pub async fn create_http_server_config() -> HttpServerConfig {
-    // TODO(Tsabary): use ser_generated_param.
-    let socket = get_available_socket().await;
+pub async fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }

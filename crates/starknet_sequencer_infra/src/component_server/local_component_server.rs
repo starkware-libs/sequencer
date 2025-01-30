@@ -1,10 +1,10 @@
-use std::any::type_name;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
+use starknet_infra_utils::type_name::short_type_name;
 use tokio::sync::mpsc::Receiver;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::component_definitions::{
     ComponentRequestAndResponseSender,
@@ -126,10 +126,10 @@ where
     Response: Send + Sync + Debug,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
-        info!("Starting LocalComponentServer for {}.", type_name::<Component>());
+        info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
         request_response_loop(&mut self.rx, &mut self.component).await;
-        info!("Finished LocalComponentServer for {}.", type_name::<Component>());
+        info!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
         Ok(())
     }
 }
@@ -203,6 +203,18 @@ where
     }
 }
 
+impl<Component, Request, Response, LocalServerType> Drop
+    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    fn drop(&mut self) {
+        warn!("Dropping {}.", short_type_name::<Self>());
+    }
+}
+
 async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
@@ -211,20 +223,20 @@ async fn request_response_loop<Request, Response, Component>(
     Request: Send + Sync + Debug,
     Response: Send + Sync + Debug,
 {
-    info!("Starting server for component {}", type_name::<Component>());
+    info!("Starting server for component {}", short_type_name::<Component>());
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
-        debug!("Component {} received request {:?}", type_name::<Component>(), request);
+        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
         let response = component.handle_request(request).await;
-        debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
+        debug!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
 
         // Send the response to the client. This might result in a panic if the client has closed
         // the response channel, which is considered a bug.
         tx.send(response).await.expect("Response connection should be open.");
     }
 
-    info!("Stopping server for component {}", type_name::<Component>());
+    info!("Stopping server for component {}", short_type_name::<Component>());
 }

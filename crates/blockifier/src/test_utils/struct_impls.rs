@@ -10,18 +10,15 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContract
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use serde_json::Value;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::BlockInfo;
 use starknet_api::contract_address;
+#[cfg(feature = "cairo_native")]
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
-use super::{
-    update_json_value,
-    TEST_ERC20_CONTRACT_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS2,
-    TEST_SEQUENCER_ADDRESS,
-};
-use crate::blockifier::block::validated_gas_prices;
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -32,19 +29,12 @@ use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    SierraGasRevertTracker,
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::state_api::State;
-use crate::test_utils::{
-    get_raw_contract_class,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-};
+use crate::test_utils::{get_raw_contract_class, update_json_value};
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
@@ -84,6 +74,7 @@ impl CallEntryPoint {
             Arc::new(tx_context),
             execution_mode,
             limit_steps_by_resources,
+            SierraGasRevertTracker::new(GasAmount(self.initial_gas)),
         );
         let mut remaining_gas = self.initial_gas;
         self.execute(state, &mut context, &mut remaining_gas)
@@ -143,42 +134,6 @@ impl ChainInfo {
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
             },
         }
-    }
-}
-
-pub trait BlockInfoExt {
-    fn create_for_testing() -> Self;
-    fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self;
-}
-
-impl BlockInfoExt for BlockInfo {
-    fn create_for_testing() -> Self {
-        Self {
-            block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
-            block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
-            sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: validated_gas_prices(
-                DEFAULT_ETH_L1_GAS_PRICE,
-                DEFAULT_STRK_L1_GAS_PRICE,
-                DEFAULT_ETH_L1_DATA_GAS_PRICE,
-                DEFAULT_STRK_L1_DATA_GAS_PRICE,
-                NonzeroGasPrice::new(
-                    VersionedConstants::latest_constants()
-                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
-                )
-                .unwrap(),
-                NonzeroGasPrice::new(
-                    VersionedConstants::latest_constants()
-                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
-                )
-                .unwrap(),
-            ),
-            use_kzg_da: false,
-        }
-    }
-
-    fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
-        Self { use_kzg_da, ..Self::create_for_testing() }
     }
 }
 
@@ -262,6 +217,16 @@ impl NativeCompiledClassV1 {
             .extract_sierra_program()
             .expect("Cannot extract sierra program from sierra contract class");
 
+        let sierra_version_values = sierra_contract_class
+            .sierra_program
+            .iter()
+            .take(3)
+            .map(|x| x.value.clone())
+            .collect::<Vec<_>>();
+
+        let sierra_version = SierraVersion::extract_from_program(&sierra_version_values)
+            .expect("Cannot extract sierra version from sierra program");
+
         let executor = AotContractExecutor::new(
             &sierra_program,
             &sierra_contract_class.entry_points_by_type,
@@ -273,7 +238,7 @@ impl NativeCompiledClassV1 {
         let casm_contract_class =
             CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
                 .expect("Cannot compile sierra contract class into casm contract class");
-        let casm = CompiledClassV1::try_from(casm_contract_class)
+        let casm = CompiledClassV1::try_from((casm_contract_class, sierra_version))
             .expect("Cannot get CompiledClassV1 from CasmContractClass");
 
         NativeCompiledClassV1::new(executor.into(), casm)

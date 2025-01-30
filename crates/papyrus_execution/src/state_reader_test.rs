@@ -24,6 +24,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
@@ -48,9 +49,11 @@ fn read_state() {
     let storage_value1 = felt!(888_u128);
     // The class is not used in the execution, so it can be default.
     let class0 = SierraContractClass::default();
+    let sierra_version0 = SierraVersion::extract_from_program(&class0.sierra_program).unwrap();
     let casm0 = get_test_casm();
-    let blockifier_casm0 =
-        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm0.clone()).unwrap());
+    let blockifier_casm0 = RunnableCompiledClass::V1(
+        CompiledClassV1::try_from((casm0.clone(), sierra_version0)).unwrap(),
+    );
     let compiled_class_hash0 = CompiledClassHash(StarkHash::default());
 
     let class_hash1 = ClassHash(1u128.into());
@@ -62,10 +65,13 @@ fn read_state() {
     let storage_value2 = felt!(999_u128);
     let class_hash2 = ClassHash(1234u128.into());
     let compiled_class_hash2 = CompiledClassHash(StarkHash::TWO);
-    let mut casm1 = get_test_casm();
-    casm1.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
-    let blockifier_casm1 =
-        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm1.clone()).unwrap());
+    let mut casm2 = get_test_casm();
+    casm2.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
+    let class2 = SierraContractClass::default();
+    let sierra_version2 = SierraVersion::extract_from_program(&class2.sierra_program).unwrap();
+    let blockifier_casm2 = RunnableCompiledClass::V1(
+        CompiledClassV1::try_from((casm2.clone(), sierra_version2)).unwrap(),
+    );
     let nonce1 = Nonce(felt!(2_u128));
     let class_hash3 = ClassHash(567_u128.into());
     let class_hash4 = ClassHash(89_u128.into());
@@ -204,7 +210,8 @@ fn read_state() {
 
     // Test pending state diff
     let mut pending_classes = PendingClasses::default();
-    pending_classes.add_compiled_class(class_hash2, casm1);
+    pending_classes.add_compiled_class(class_hash2, casm2);
+    pending_classes.add_class(class_hash2, ApiContractClass::ContractClass(class2));
     pending_classes.add_class(class_hash3, ApiContractClass::ContractClass(class0));
     pending_classes
         .add_class(class_hash4, ApiContractClass::DeprecatedContractClass(class1.clone()));
@@ -234,7 +241,7 @@ fn read_state() {
     assert_eq!(state_reader2.get_nonce_at(address0).unwrap(), nonce0);
     assert_eq!(state_reader2.get_nonce_at(address2).unwrap(), nonce1);
     assert_eq!(state_reader2.get_compiled_class(class_hash0).unwrap(), blockifier_casm0);
-    assert_eq!(state_reader2.get_compiled_class(class_hash2).unwrap(), blockifier_casm1);
+    assert_eq!(state_reader2.get_compiled_class(class_hash2).unwrap(), blockifier_casm2);
     // Test that an error is returned if we only got the class without the casm.
     state_reader2.get_compiled_class(class_hash3).unwrap_err();
     // Test that if the class is deprecated it is returned.

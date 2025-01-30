@@ -6,8 +6,7 @@ use std::convert::{TryFrom, TryInto};
 use prost::Message;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{Transaction, TransactionHash};
-use starknet_types_core::felt::Felt;
+use starknet_api::transaction::Transaction;
 
 use crate::consensus::{
     ConsensusMessage,
@@ -24,6 +23,7 @@ use crate::consensus::{
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
+// TODO(guyn): remove this once we integrate ProposalPart everywhere.
 impl TryFrom<protobuf::Proposal> for Proposal {
     type Error = ProtobufConversionError;
 
@@ -227,8 +227,6 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
-// TODO(guyn): remove tx_hashes once we know how to compile the hashes
-// when making the executable transactions.
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionBatch) -> Result<Self, Self::Error> {
@@ -237,20 +235,14 @@ impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
             .into_iter()
             .map(|tx| tx.try_into())
             .collect::<Result<Vec<Transaction>, ProtobufConversionError>>()?;
-        let tx_hashes = value
-            .tx_hashes
-            .into_iter()
-            .map(|x| Felt::try_from(x).map(TransactionHash))
-            .collect::<Result<_, Self::Error>>()?;
-        Ok(TransactionBatch { transactions, tx_hashes })
+        Ok(TransactionBatch { transactions })
     }
 }
 
 impl From<TransactionBatch> for protobuf::TransactionBatch {
     fn from(value: TransactionBatch) -> Self {
         let transactions = value.transactions.into_iter().map(Into::into).collect();
-        let tx_hashes = value.tx_hashes.into_iter().map(|hash| hash.0.into()).collect();
-        protobuf::TransactionBatch { transactions, tx_hashes }
+        protobuf::TransactionBatch { transactions }
     }
 }
 

@@ -22,7 +22,7 @@ use crate::versioned_constants::VersionedConstants;
 
 #[derive(Debug, Default)]
 pub struct TestExecutionSummary {
-    pub gas_for_fee: GasAmount,
+    pub gas_consumed: GasAmount,
     pub num_of_events: usize,
     pub num_of_messages: usize,
     pub class_hash: ClassHash,
@@ -32,7 +32,7 @@ pub struct TestExecutionSummary {
 
 impl TestExecutionSummary {
     pub fn new(
-        gas_for_fee: u64,
+        gas_consumed: u64,
         num_of_events: usize,
         num_of_messages: usize,
         class_hash: ClassHash,
@@ -40,7 +40,7 @@ impl TestExecutionSummary {
         storage_key: &str,
     ) -> Self {
         TestExecutionSummary {
-            gas_for_fee: GasAmount(gas_for_fee),
+            gas_consumed: GasAmount(gas_consumed),
             num_of_events,
             num_of_messages,
             class_hash,
@@ -67,10 +67,7 @@ impl TestExecutionSummary {
                         },
                     })
                     .collect(),
-                ..Default::default()
-            },
-            charged_resources: ChargedResources {
-                gas_for_fee: self.gas_for_fee,
+                gas_consumed: self.gas_consumed.0,
                 ..Default::default()
             },
             accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
@@ -201,9 +198,9 @@ fn test_summarize(
 
     let expected_summary = ExecutionSummary {
         charged_resources: ChargedResources {
-            gas_for_fee: validate_params.gas_for_fee
-                + execute_params.gas_for_fee
-                + fee_transfer_params.gas_for_fee,
+            gas_consumed: validate_params.gas_consumed
+                + execute_params.gas_consumed
+                + fee_transfer_params.gas_consumed,
             ..Default::default()
         },
         executed_class_hashes: vec![

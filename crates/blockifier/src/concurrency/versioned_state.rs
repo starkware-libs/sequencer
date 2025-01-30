@@ -1,4 +1,3 @@
-use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -199,11 +198,7 @@ impl<S: StateReader> VersionedState<S> {
 }
 
 impl<U: UpdatableState> VersionedState<U> {
-    pub fn commit_chunk_and_recover_block_state(
-        mut self,
-        n_committed_txs: usize,
-        visited_pcs: HashMap<ClassHash, HashSet<usize>>,
-    ) -> U {
+    pub fn commit_chunk_and_recover_block_state(mut self, n_committed_txs: usize) -> U {
         if n_committed_txs == 0 {
             return self.into_initial_state();
         }
@@ -212,7 +207,7 @@ impl<U: UpdatableState> VersionedState<U> {
         let class_hash_to_class =
             self.compiled_contract_classes.get_writes_up_to_index(commit_index);
         let mut state = self.into_initial_state();
-        state.apply_writes(&writes, &class_hash_to_class, &visited_pcs);
+        state.apply_writes(&writes, &class_hash_to_class);
         state
     }
 }
@@ -271,14 +266,8 @@ impl<S: StateReader> VersionedStateProxy<S> {
     }
 }
 
-// TODO(Noa, 15/5/24): Consider using visited_pcs.
 impl<S: StateReader> UpdatableState for VersionedStateProxy<S> {
-    fn apply_writes(
-        &mut self,
-        writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
-        _visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
-    ) {
+    fn apply_writes(&mut self, writes: &StateMaps, class_hash_to_class: &ContractClassMapping) {
         self.state().apply_writes(self.tx_index, writes, class_hash_to_class)
     }
 }

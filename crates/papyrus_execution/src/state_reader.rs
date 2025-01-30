@@ -15,6 +15,7 @@ use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -76,24 +77,30 @@ impl BlockifierStateReader for ExecutionStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        if let Some(pending_casm) = self
-            .maybe_pending_data
-            .as_ref()
-            .and_then(|pending_data| pending_data.classes.get_compiled_class(class_hash))
+        if let Some(pending_classes) =
+            self.maybe_pending_data.as_ref().map(|pending_data| &pending_data.classes)
         {
-            return Ok(RunnableCompiledClass::V1(
-                CompiledClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
-            ));
-        }
-        if let Some(ApiContractClass::DeprecatedContractClass(pending_deprecated_class)) = self
-            .maybe_pending_data
-            .as_ref()
-            .and_then(|pending_data| pending_data.classes.get_class(class_hash))
-        {
-            return Ok(RunnableCompiledClass::V0(
-                CompiledClassV0::try_from(pending_deprecated_class)
-                    .map_err(StateError::ProgramError)?,
-            ));
+            if let Some(api_contract_class) = pending_classes.get_class(class_hash) {
+                match api_contract_class {
+                    ApiContractClass::ContractClass(sierra) => {
+                        if let Some(pending_casm) = pending_classes.get_compiled_class(class_hash) {
+                            let sierra_version =
+                                SierraVersion::extract_from_program(&sierra.sierra_program)?;
+                            let runnable_compiled_class = RunnableCompiledClass::V1(
+                                CompiledClassV1::try_from((pending_casm, sierra_version))
+                                    .map_err(StateError::ProgramError)?,
+                            );
+                            return Ok(runnable_compiled_class);
+                        }
+                    }
+                    ApiContractClass::DeprecatedContractClass(pending_deprecated_class) => {
+                        return Ok(RunnableCompiledClass::V0(
+                            CompiledClassV0::try_from(pending_deprecated_class)
+                                .map_err(StateError::ProgramError)?,
+                        ));
+                    }
+                }
+            }
         }
         match get_contract_class(
             &self.storage_reader.begin_ro_txn().map_err(storage_err_to_state_err)?,
@@ -108,6 +115,9 @@ impl BlockifierStateReader for ExecutionStateReader {
             }
             Err(ExecutionUtilsError::ProgramError(err)) => Err(StateError::ProgramError(err)),
             Err(ExecutionUtilsError::StorageError(err)) => Err(storage_err_to_state_err(err)),
+            Err(ExecutionUtilsError::SierraValidationError(err)) => {
+                Err(StateError::StarknetApiError(err))
+            }
         }
     }
 

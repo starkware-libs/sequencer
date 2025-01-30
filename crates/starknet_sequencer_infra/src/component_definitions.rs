@@ -1,4 +1,3 @@
-use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -8,6 +7,7 @@ use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use starknet_infra_utils::type_name::short_type_name;
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{error, info};
@@ -39,7 +39,7 @@ where
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {} with the default starter.", type_name::<Self>());
+        info!("Starting component {} with the default starter.", short_type_name::<Self>());
         Ok(())
     }
 }

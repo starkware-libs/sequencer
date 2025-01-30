@@ -1,16 +1,23 @@
 #![allow(non_local_definitions)]
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use blockifier::abi::constants;
-use blockifier::blockifier::config::{ConcurrencyConfig, ContractClassManagerConfig};
+use blockifier::blockifier::config::{
+    CairoNativeRunConfig,
+    ConcurrencyConfig,
+    ContractClassManagerConfig,
+};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
+use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::errors::{
     InvalidNativeBlockifierInputError,
@@ -159,20 +166,82 @@ impl From<PyConcurrencyConfig> for ConcurrencyConfig {
         }
     }
 }
+#[derive(Clone, Debug, Default, FromPyObject)]
+pub struct PySierraCompilationConfig {
+    pub sierra_to_native_compiler_path: String,
+    pub libcairo_native_runtime_path: String,
+    pub max_native_bytecode_size: u64,
+    pub max_cpu_time: u64,
+    pub max_memory_usage: u64,
+}
 
-#[derive(Debug, Clone, Copy, FromPyObject)]
-pub struct PyContractClassManagerConfig {
+impl From<PySierraCompilationConfig> for SierraCompilationConfig {
+    fn from(py_sierra_compilation_config: PySierraCompilationConfig) -> Self {
+        SierraCompilationConfig {
+            sierra_to_native_compiler_path: if py_sierra_compilation_config
+                .sierra_to_native_compiler_path
+                .is_empty()
+            {
+                None
+            } else {
+                Some(PathBuf::from(py_sierra_compilation_config.sierra_to_native_compiler_path))
+            },
+            libcairo_native_runtime_path: if py_sierra_compilation_config
+                .libcairo_native_runtime_path
+                .is_empty()
+            {
+                None
+            } else {
+                Some(PathBuf::from(py_sierra_compilation_config.libcairo_native_runtime_path))
+            },
+            max_native_bytecode_size: py_sierra_compilation_config.max_native_bytecode_size,
+            max_cpu_time: py_sierra_compilation_config.max_cpu_time,
+            max_memory_usage: py_sierra_compilation_config.max_memory_usage,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Clone, Debug, FromPyObject)]
+pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
+    pub channel_size: usize,
+}
+
+impl Default for PyCairoNativeRunConfig {
+    fn default() -> Self {
+        Self {
+            run_cairo_native: false,
+            wait_on_native_compilation: false,
+            channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+        }
+    }
+}
+
+impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
+    fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
+        CairoNativeRunConfig {
+            run_cairo_native: py_cairo_native_run_config.run_cairo_native,
+            wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
+            channel_size: py_cairo_native_run_config.channel_size,
+        }
+    }
+}
+
+#[derive(Debug, Clone, FromPyObject)]
+pub struct PyContractClassManagerConfig {
     pub contract_cache_size: usize,
+    pub cairo_native_run_config: PyCairoNativeRunConfig,
+    pub native_compiler_config: PySierraCompilationConfig,
 }
 
 impl Default for PyContractClassManagerConfig {
     fn default() -> Self {
         Self {
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            cairo_native_run_config: PyCairoNativeRunConfig::default(),
+            native_compiler_config: PySierraCompilationConfig::default(),
         }
     }
 }
@@ -180,9 +249,11 @@ impl Default for PyContractClassManagerConfig {
 impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
     fn from(py_contract_class_manager_config: PyContractClassManagerConfig) -> Self {
         ContractClassManagerConfig {
-            run_cairo_native: py_contract_class_manager_config.run_cairo_native,
-            wait_on_native_compilation: py_contract_class_manager_config.wait_on_native_compilation,
             contract_cache_size: py_contract_class_manager_config.contract_cache_size,
+            cairo_native_run_config: py_contract_class_manager_config
+                .cairo_native_run_config
+                .into(),
+            native_compiler_config: py_contract_class_manager_config.native_compiler_config.into(),
         }
     }
 }

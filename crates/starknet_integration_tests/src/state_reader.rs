@@ -4,15 +4,7 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    TEST_SEQUENCER_ADDRESS,
-};
+use blockifier::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
@@ -39,6 +31,12 @@ use starknet_api::block::{
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
+use starknet_api::test_utils::{
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
 use starknet_client::reader::PendingData;
@@ -276,17 +274,25 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
     }
 }
 
-/// Spawns a papyrus rpc server for given state reader.
+/// Spawns a papyrus rpc server for given state reader and chain id.
 /// Returns the address of the rpc server.
 pub async fn spawn_test_rpc_state_reader(
     storage_reader: StorageReader,
     chain_id: ChainId,
 ) -> SocketAddr {
-    let rpc_config = RpcConfig {
-        chain_id,
-        server_address: get_available_socket().await.to_string(),
-        ..Default::default()
-    };
+    let socket = get_available_socket().await;
+    spawn_test_rpc_state_reader_with_socket(storage_reader, chain_id, socket).await;
+    socket
+}
+
+/// Spawns a papyrus rpc server for given state reader, chain id, and socket address.
+pub async fn spawn_test_rpc_state_reader_with_socket(
+    storage_reader: StorageReader,
+    chain_id: ChainId,
+    socket: SocketAddr,
+) -> SocketAddr {
+    let rpc_config =
+        RpcConfig { chain_id, server_address: socket.to_string(), ..Default::default() };
     let (addr, handle) = run_server(
         &rpc_config,
         Arc::new(RwLock::new(None)),

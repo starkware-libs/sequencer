@@ -12,7 +12,7 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
-use crate::blockifier::transaction_executor::TransactionExecutor;
+use crate::blockifier::transaction_executor::{TransactionExecutor, DEFAULT_STACK_SIZE};
 use crate::context::{BlockContext, ChainInfo};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
@@ -37,6 +37,7 @@ pub struct TransfersGeneratorConfig {
     pub tx_version: TransactionVersion,
     pub recipient_generator_type: RecipientGeneratorType,
     pub concurrency_config: ConcurrencyConfig,
+    pub stack_size: usize,
 }
 
 impl Default for TransfersGeneratorConfig {
@@ -51,6 +52,7 @@ impl Default for TransfersGeneratorConfig {
             tx_version: TRANSACTION_VERSION,
             recipient_generator_type: RECIPIENT_GENERATOR_TYPE,
             concurrency_config: ConcurrencyConfig::create_for_testing(false),
+            stack_size: DEFAULT_STACK_SIZE,
         }
     }
 }
@@ -79,8 +81,10 @@ impl TransfersGenerator {
         let chain_info = block_context.chain_info().clone();
         let state =
             test_state(&chain_info, config.balance, &[(account_contract, config.n_accounts)]);
-        let executor_config =
-            TransactionExecutorConfig { concurrency_config: config.concurrency_config.clone() };
+        let executor_config = TransactionExecutorConfig {
+            concurrency_config: config.concurrency_config.clone(),
+            stack_size: config.stack_size,
+        };
         let executor = TransactionExecutor::new(state, block_context, executor_config);
         let account_addresses = (0..config.n_accounts)
             .map(|instance_id| account_contract.get_instance_address(instance_id))

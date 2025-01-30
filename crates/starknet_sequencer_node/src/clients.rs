@@ -64,8 +64,8 @@ pub struct SequencerNodeClients {
 ///
 /// # Returns
 ///
-/// An Option<Arc<dyn ClientTrait>> containing the available client (local_client or remote_client),
-/// wrapped in Arc. If neither exists, returns None.
+/// An `Option<Arc<dyn ClientTrait>>` containing the available client (local_client or
+/// remote_client), wrapped in Arc. If neither exists, returns None.
 ///
 /// # Example
 ///

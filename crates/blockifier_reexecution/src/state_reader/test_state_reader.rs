@@ -32,7 +32,10 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
 use crate::retry_request;
-use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
+use crate::state_reader::compile::{
+    legacy_to_contract_class_v0,
+    sierra_to_versioned_contract_class_v1,
+};
 use crate::state_reader::errors::ReexecutionResult;
 use crate::state_reader::offline_state_reader::SerializableDataNextBlock;
 use crate::state_reader::reexecution_state_reader::{
@@ -65,6 +68,7 @@ pub struct GetTransactionByHashParams {
     pub transaction_hash: String,
 }
 
+#[derive(Clone)]
 pub struct RetryConfig {
     pub(crate) n_retries: usize,
     pub(crate) retry_interval_milliseconds: u64,
@@ -83,6 +87,7 @@ impl Default for RetryConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct TestStateReader {
     pub(crate) rpc_state_reader: RpcStateReader,
     pub(crate) retry_config: RetryConfig,
@@ -131,7 +136,8 @@ impl StateReader for TestStateReader {
 
         match contract_class {
             StarknetContractClass::Sierra(sierra) => {
-                Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
+                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
+                Ok(RunnableCompiledClass::try_from(casm).unwrap())
             }
             StarknetContractClass::Legacy(legacy) => {
                 Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())

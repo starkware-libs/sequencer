@@ -89,6 +89,8 @@ pub enum NativeBlockifierInputError {
     ProgramError(#[from] ProgramError),
     #[error(transparent)]
     PyFeltParseError(#[from] FromStrError),
+    #[error("Sierra version is missing.")]
+    MissingSierraVersion,
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error("Unknown builtin: {0}.")]

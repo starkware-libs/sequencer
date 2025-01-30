@@ -23,9 +23,9 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 metrics.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 pretty_assertions.workspace = true
-starknet_client = { workspace = true, features = ["testing"] }
+starknet_client = { path = "../starknet_client", features = ["testing"] }
 tower = { workspace = true, features = ["util"] }
 
 [lints]

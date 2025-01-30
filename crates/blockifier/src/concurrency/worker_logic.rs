@@ -1,10 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-
-use starknet_api::core::ClassHash;
 
 use super::versioned_state::VersionedState;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
@@ -33,7 +31,6 @@ pub struct ExecutionTaskOutput {
     // TODO(Yoni): rename to state_diff.
     pub writes: StateMaps,
     pub contract_classes: ContractClassMapping,
-    pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
@@ -123,6 +120,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let tx = &self.chunk[tx_index];
+        // TODO(Yoni): is it necessary to use a transactional state here?
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let concurrency_mode = true;
@@ -135,23 +133,19 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 let tx_reads_writes = transactional_state.cache.take();
                 let writes = tx_reads_writes.to_state_diff().state_maps;
                 let contract_classes = transactional_state.class_hash_to_class.take();
-                let visited_pcs = transactional_state.visited_pcs;
-                // The versioned state does not carry the visited PCs.
-                tx_versioned_state.apply_writes(&writes, &contract_classes, &HashMap::default());
+                tx_versioned_state.apply_writes(&writes, &contract_classes);
                 ExecutionTaskOutput {
                     reads: tx_reads_writes.initial_reads,
                     writes,
                     contract_classes,
-                    visited_pcs,
                     result: execution_result,
                 }
             }
             Err(_) => ExecutionTaskOutput {
                 reads: transactional_state.cache.take().initial_reads,
-                // Failed transaction - ignore the writes and visited PCs.
+                // Failed transaction - ignore the writes.
                 writes: StateMaps::default(),
                 contract_classes: HashMap::default(),
-                visited_pcs: HashMap::default(),
                 result: execution_result,
             },
         };
@@ -261,13 +255,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
 }
 
 impl<U: UpdatableState> WorkerExecutor<'_, U> {
-    pub fn commit_chunk_and_recover_block_state(
-        self,
-        n_committed_txs: usize,
-        visited_pcs: HashMap<ClassHash, HashSet<usize>>,
-    ) -> U {
-        self.state
-            .into_inner_state()
-            .commit_chunk_and_recover_block_state(n_committed_txs, visited_pcs)
+    pub fn commit_chunk_and_recover_block_state(self, n_committed_txs: usize) -> U {
+        self.state.into_inner_state().commit_chunk_and_recover_block_state(n_committed_txs)
     }
 }

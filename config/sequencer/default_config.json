@@ -109,6 +109,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "batcher_config.block_builder_config.execute_config.stack_size": {
+    "description": "The thread stack size (proportional to the maximal gas of a transaction).",
+    "privacy": "Public",
+    "value": 0
+  },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
     "privacy": "Public",
@@ -129,10 +134,65 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
-  "batcher_config.global_contract_cache_size": {
-    "description": "Cache size for the global_class_hash_to_class. Initialized with this size on creation.",
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.contract_cache_size": {
+    "description": "The size of the global contract cache.",
     "privacy": "Public",
     "value": 400
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path": {
+    "description": "The path to the Cairo native runtime library file.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
+    "description": "Limitation of compiled casm bytecode size.",
+    "privacy": "Public",
+    "value": 81920
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 15
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 15728640
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
@@ -204,10 +264,45 @@
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
-  "compiler_config.max_bytecode_size": {
-    "description": "Limitation of contract bytecode size.",
+  "compiler_config.libcairo_native_runtime_path": {
+    "description": "The path to the Cairo native runtime library file.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "compiler_config.libcairo_native_runtime_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "compiler_config.max_casm_bytecode_size": {
+    "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",
     "value": 81920
+  },
+  "compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 15
+  },
+  "compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 15728640
+  },
+  "compiler_config.sierra_to_native_compiler_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "compiler_config.sierra_to_native_compiler_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",
@@ -1027,7 +1122,7 @@
   "state_sync_config.network_config.tcp_port": {
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
-    "value": 10000
+    "value": 12345
   },
   "state_sync_config.p2p_sync_client_config.buffer_size": {
     "description": "Size of the buffer for read from the storage and for incoming responses.",
@@ -1053,16 +1148,6 @@
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "privacy": "Public",
     "value": 10000
-  },
-  "state_sync_config.p2p_sync_client_config.stop_sync_at_block_number": {
-    "description": "Stops the sync at given block number and closes the node cleanly. Used to run profiling on the node.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.p2p_sync_client_config.stop_sync_at_block_number.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": {
     "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",

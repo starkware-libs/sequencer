@@ -11,6 +11,7 @@ pub mod config;
 pub mod constants;
 pub mod errors;
 pub mod paths;
+pub mod resource_limits;
 pub mod utils;
 
 #[cfg(test)]

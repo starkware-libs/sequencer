@@ -4,9 +4,9 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
-use starknet_api::block::{BlockInfo, FeeType};
+use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{to_discounted_l1_gas, GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas};
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource};
@@ -23,6 +23,42 @@ use crate::versioned_constants::VersionedConstants;
 #[cfg(test)]
 #[path = "fee_test.rs"]
 pub mod test;
+
+/// A trait for converting a gas vector to L1 gas for fee. Converts both L1 data gas and L2 gas to
+/// L1 gas units.
+/// The trait is defined to allow implementing a method on GasVector, which is a starknet-api type.
+pub trait GasVectorToL1GasForFee {
+    fn to_l1_gas_for_fee(
+        &self,
+        gas_prices: &GasPriceVector,
+        versioned_constants: &VersionedConstants,
+    ) -> GasAmount;
+}
+
+impl GasVectorToL1GasForFee for GasVector {
+    fn to_l1_gas_for_fee(
+        &self,
+        gas_prices: &GasPriceVector,
+        versioned_constants: &VersionedConstants,
+    ) -> GasAmount {
+        // Discounted gas converts data gas to L1 gas. Add L2 gas using conversion ratio.
+        let discounted_l1_gas = to_discounted_l1_gas(
+            gas_prices.l1_gas_price,
+            gas_prices.l1_data_gas_price.into(),
+            self.l1_gas,
+            self.l1_data_gas,
+        );
+        discounted_l1_gas
+            .checked_add(versioned_constants.sierra_gas_to_l1_gas_amount_round_up(self.l2_gas))
+            .unwrap_or_else(|| {
+                panic!(
+                    "L1 gas amount overflowed: addition of converted L2 gas ({}) to discounted \
+                     gas ({}) resulted in overflow.",
+                    self.l2_gas, discounted_l1_gas
+                );
+            })
+    }
+}
 
 /// Calculates the gas consumed when submitting the underlying Cairo program to SHARP.
 /// I.e., returns the heaviest Cairo resource weight (in terms of gas), as the size of

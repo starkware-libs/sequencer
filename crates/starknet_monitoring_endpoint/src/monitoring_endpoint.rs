@@ -1,4 +1,3 @@
-use std::any::type_name;
 use std::net::SocketAddr;
 
 use axum::http::StatusCode;
@@ -7,6 +6,7 @@ use axum::routing::get;
 use axum::{async_trait, Router, Server};
 use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{info, instrument};
@@ -95,7 +95,7 @@ pub fn create_monitoring_endpoint(
 #[async_trait]
 impl ComponentStarter for MonitoringEndpoint {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<Self>());
+        info!("Starting component {}.", short_type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
     }
 }

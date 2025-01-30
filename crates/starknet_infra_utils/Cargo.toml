@@ -1,5 +1,5 @@
 [package]
-name = "infra_utils"
+name = "starknet_infra_utils"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

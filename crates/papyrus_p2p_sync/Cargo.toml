@@ -19,7 +19,9 @@ papyrus_network.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+papyrus_test_utils.workspace = true
 rand.workspace = true
+rand_chacha.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_state_sync_types.workspace = true
@@ -32,11 +34,9 @@ tracing.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 lazy_static.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_protobuf = { workspace = true, features = ["testing"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
-rand_chacha.workspace = true
+papyrus_network = { path = "../papyrus_network", features = ["testing"] }
+papyrus_protobuf = { path = "../papyrus_protobuf", features = ["testing"] }
+papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 static_assertions.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 

@@ -162,6 +162,7 @@ pub enum Resource {
     #[serde(rename = "L2_GAS")]
     L2Gas,
     #[serde(rename = "L1_DATA")]
+    #[serde(alias = "L1_DATA_GAS")]
     L1DataGas,
 }
 

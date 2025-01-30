@@ -118,5 +118,5 @@ pub fn add_fee_to_sequencer_balance(
         ]),
         ..StateMaps::default()
     };
-    state.apply_writes(&writes, &ContractClassMapping::default(), &HashMap::default());
+    state.apply_writes(&writes, &ContractClassMapping::default());
 }

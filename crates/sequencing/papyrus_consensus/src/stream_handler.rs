@@ -28,7 +28,11 @@ type StreamKey = (PeerId, StreamId);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
-#[derive(Debug, Clone)]
+// Use this struct for each inbound stream.
+// Drop the struct when:
+// (1) receiver on the other end is dropped,
+// (2) fin message is received and all messages are sent.
+#[derive(Debug)]
 struct StreamData<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + 'static,
 > {
@@ -36,18 +40,22 @@ struct StreamData<
     // Last message ID. If None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
     max_message_id_received: MessageId,
+    // Keep the receiver until it is time to send it to the application.
+    receiver: Option<mpsc::Receiver<T>>,
     sender: mpsc::Sender<T>,
     // A buffer for messages that were received out of order.
     message_buffer: HashMap<MessageId, StreamMessage<T>>,
 }
 
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
-    fn new(sender: mpsc::Sender<T>) -> Self {
+    fn new() -> Self {
+        let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
         StreamData {
             next_message_id: 0,
             fin_message_id: None,
             max_message_id_received: 0,
             sender,
+            receiver: Some(receiver),
             message_buffer: HashMap::new(),
         }
     }
@@ -178,13 +186,45 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         }
     }
 
-    fn inbound_send(data: &mut StreamData<T>, message: StreamMessage<T>) {
+    // Returns true if the receiver for this stream is dropped.
+    fn inbound_send(&mut self, data: &mut StreamData<T>, message: StreamMessage<T>) -> bool {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
-            sender.try_send(content).expect("Send should succeed");
+            if message.message_id == 0 {
+                // TODO(guyn): consider the expect in both cases.
+                // If this is the first message, send the receiver to the application.
+                let receiver = data.receiver.take().expect("Receiver should exist");
+                // Send the receiver to the application.
+                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
+            }
+            match sender.try_send(content) {
+                Ok(_) => {}
+                Err(e) => {
+                    if e.is_disconnected() {
+                        warn!(
+                            "Sender is disconnected, dropping the message. StreamId: {}, \
+                             MessageId: {}",
+                            message.stream_id, message.message_id
+                        );
+                        return true;
+                    } else if e.is_full() {
+                        // TODO(guyn): replace panic with buffering of the message.
+                        panic!(
+                            "Sender is full, dropping the message. StreamId: {}, MessageId: {}",
+                            message.stream_id, message.message_id
+                        );
+                    } else {
+                        // TODO(guyn): replace panic with more graceful error handling
+                        panic!("Unexpected error: {:?}", e);
+                    }
+                }
+            };
             data.next_message_id += 1;
+            return false;
         }
+        // A Fin message is not sent. This is a no-op, can safely return true.
+        true
     }
 
     // Send the message to the network.
@@ -225,24 +265,37 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                 return;
             }
         };
+
+        let peer_id = metadata.originator_id.clone();
+        let stream_id = message.stream_id;
+        let key = (peer_id, stream_id);
+
+        let data = match self.inbound_stream_data.entry(key.clone()) {
+            // If data exists, remove it (it will be returned to hash map at end of function).
+            Occupied(entry) => entry.remove_entry().1,
+            Vacant(_) => {
+                // If we received a message for a stream that we have not seen before,
+                // we need to create a new receiver for it.
+                StreamData::new()
+            }
+        };
+        if let Some(data) = self.handle_message_inner(message, metadata, data) {
+            self.inbound_stream_data.insert(key, data);
+        }
+    }
+
+    /// Returns the StreamData struct if it should be put back into the hash map. None if the data
+    /// should be dropped.
+    fn handle_message_inner(
+        &mut self,
+        message: StreamMessage<T>,
+        metadata: BroadcastedMessageMetadata,
+        mut data: StreamData<T>,
+    ) -> Option<StreamData<T>> {
         let peer_id = metadata.originator_id;
         let stream_id = message.stream_id;
         let key = (peer_id, stream_id);
         let message_id = message.message_id;
-
-        let data = match self.inbound_stream_data.entry(key.clone()) {
-            Occupied(entry) => entry.into_mut(),
-            Vacant(e) => {
-                // If we received a message for a stream that we have not seen before,
-                // we need to create a new receiver for it.
-                let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
-                // TODO(guyn): reconsider the "expect" here.
-                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
-
-                let data = StreamData::new(sender);
-                e.insert(data)
-            }
-        };
 
         if data.max_message_id_received < message_id {
             data.max_message_id_received = message_id;
@@ -258,9 +311,11 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                     warn!(
                         "Received fin message with id that is smaller than a previous message! \
                          key: {:?}, fin_message_id: {}, max_message_id_received: {}",
-                        key, message_id, data.max_message_id_received
+                        key.clone(),
+                        message_id,
+                        data.max_message_id_received
                     );
-                    return;
+                    return None;
                 }
             }
         }
@@ -270,37 +325,44 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
             warn!(
                 "Received message with id that is bigger than the id of the fin message! key: \
                  {:?}, message_id: {}, fin_message_id: {}",
-                key,
+                key.clone(),
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
             );
-            return;
+            return None;
         }
 
         // This means we can just send the message without buffering it.
         match message_id.cmp(&data.next_message_id) {
             Ordering::Equal => {
-                Self::inbound_send(data, message);
-                Self::process_buffer(data);
+                let mut receiver_dropped = self.inbound_send(&mut data, message);
+                if !receiver_dropped {
+                    receiver_dropped = self.process_buffer(&mut data);
+                }
 
-                if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+                if data.message_buffer.is_empty() && data.fin_message_id.is_some()
+                    || receiver_dropped
+                {
                     data.sender.close_channel();
-                    self.inbound_stream_data.remove(&key);
+                    return None;
                 }
             }
             Ordering::Greater => {
-                Self::store(data, key, message);
+                Self::store(&mut data, key.clone(), message);
             }
             Ordering::Less => {
                 // TODO(guyn): replace warnings with more graceful error handling
                 warn!(
                     "Received message with id that is smaller than the next message expected! \
                      key: {:?}, message_id: {}, next_message_id: {}",
-                    key, message_id, data.next_message_id
+                    key.clone(),
+                    message_id,
+                    data.next_message_id
                 );
-                return;
+                return None;
             }
         }
+        Some(data)
     }
 
     // Store an inbound message in the buffer.
@@ -323,9 +385,13 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
 
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
-    fn process_buffer(data: &mut StreamData<T>) {
+    // Returns true if the receiver for this stream is dropped.
+    fn process_buffer(&mut self, data: &mut StreamData<T>) -> bool {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            Self::inbound_send(data, message);
+            if self.inbound_send(data, message) {
+                return true;
+            }
         }
+        false
     }
 }

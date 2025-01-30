@@ -7,7 +7,7 @@ use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{NonceManager, DEFAULT_STRK_L1_GAS_PRICE};
 use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
     calldata,
@@ -43,7 +43,7 @@ use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
+use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
@@ -441,7 +441,6 @@ fn test_apply_writes(
     safe_versioned_state.pin_version(0).apply_writes(
         &transactional_states[0].cache.borrow().writes,
         &transactional_states[0].class_hash_to_class.borrow().clone(),
-        &HashMap::default(),
     );
     assert!(transactional_states[1].get_class_hash_at(contract_address).unwrap() == class_hash_0);
     assert!(transactional_states[1].get_compiled_class(class_hash).unwrap() == contract_class_0);
@@ -470,7 +469,6 @@ fn test_apply_writes_reexecute_scenario(
     safe_versioned_state.pin_version(0).apply_writes(
         &transactional_states[0].cache.borrow().writes,
         &transactional_states[0].class_hash_to_class.borrow().clone(),
-        &HashMap::default(),
     );
     // Although transaction 0 wrote to the shared state, version 1 needs to be re-executed to see
     // the new value (its read value has already been cached).
@@ -516,11 +514,9 @@ fn test_delete_writes(
                 feature_contract.get_runnable_class(),
             )
             .unwrap();
-        safe_versioned_state.pin_version(i).apply_writes(
-            &tx_state.cache.borrow().writes,
-            &tx_state.class_hash_to_class.borrow(),
-            &HashMap::default(),
-        );
+        safe_versioned_state
+            .pin_version(i)
+            .apply_writes(&tx_state.cache.borrow().writes, &tx_state.class_hash_to_class.borrow());
     }
 
     safe_versioned_state.pin_version(tx_index_to_delete_writes).delete_writes(
@@ -579,11 +575,7 @@ fn test_delete_writes_completeness(
     let tx_index = 0;
     let mut versioned_state_proxy = safe_versioned_state.pin_version(tx_index);
 
-    versioned_state_proxy.apply_writes(
-        &state_maps_writes,
-        &class_hash_to_class_writes,
-        &HashMap::default(),
-    );
+    versioned_state_proxy.apply_writes(&state_maps_writes, &class_hash_to_class_writes);
     assert_eq!(
         safe_versioned_state.0.lock().unwrap().get_writes_of_index(tx_index),
         state_maps_writes
@@ -658,9 +650,8 @@ fn test_versioned_proxy_state_flow(
     for proxy in versioned_proxy_states {
         drop(proxy);
     }
-    let modified_block_state = safe_versioned_state
-        .into_inner_state()
-        .commit_chunk_and_recover_block_state(4, HashMap::new());
+    let modified_block_state =
+        safe_versioned_state.into_inner_state().commit_chunk_and_recover_block_state(4);
 
     assert!(modified_block_state.get_class_hash_at(contract_address).unwrap() == class_hash_3);
     assert!(modified_block_state.get_compiled_class(class_hash).unwrap() == contract_class_2);

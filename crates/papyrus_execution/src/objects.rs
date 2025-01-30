@@ -350,7 +350,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
                 })
                 .collect(),
             execution_resources: vm_resources_to_execution_resources(
-                call_info.charged_resources.vm_resources,
+                call_info.resources,
                 gas_vector,
             )?,
         })

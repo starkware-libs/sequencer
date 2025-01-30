@@ -40,7 +40,7 @@ use crate::execution::errors::{
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::entry_point_execution as native_entry_point_execution;
 use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
-use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
+use crate::execution::syscalls::hint_processor::{ENTRYPOINT_NOT_FOUND_ERROR, OUT_OF_GAS_ERROR};
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
@@ -57,16 +57,12 @@ pub fn execute_entry_point_call_wrapper(
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let current_tracked_resource = compiled_class.tracked_resource(
-        &context.versioned_constants().min_compiler_version_for_sierra_gas,
-        context.tracked_resource_stack.last(),
-    );
+    let current_tracked_resource = compiled_class.get_current_tracked_resource(context);
     if current_tracked_resource == TrackedResource::CairoSteps {
         // Override the initial gas with a high value so it won't limit the run.
-        call.initial_gas = context.versioned_constants().inifite_gas_for_vm_mode();
+        call.initial_gas = context.versioned_constants().infinite_gas_for_vm_mode();
     }
     let orig_call = call.clone();
-
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
     context.tracked_resource_stack.push(current_tracked_resource);
@@ -87,20 +83,27 @@ pub fn execute_entry_point_call_wrapper(
             update_remaining_gas(remaining_gas, &call_info);
             Ok(call_info)
         }
-        Err(EntryPointExecutionError::PreExecutionError(
-            PreExecutionError::EntryPointNotFound(_)
-            | PreExecutionError::NoEntryPointOfTypeFound(_),
-        )) if context.versioned_constants().enable_reverts => Ok(CallInfo {
-            call: orig_call,
-            execution: CallExecution {
-                retdata: Retdata(vec![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]),
-                failed: true,
-                gas_consumed: 0,
-                ..CallExecution::default()
-            },
-            tracked_resource: current_tracked_resource,
-            ..CallInfo::default()
-        }),
+        Err(EntryPointExecutionError::PreExecutionError(err))
+            if context.versioned_constants().enable_reverts =>
+        {
+            let error_code = match err {
+                PreExecutionError::EntryPointNotFound(_)
+                | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR,
+                PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR,
+                _ => return Err(err.into()),
+            };
+            Ok(CallInfo {
+                call: orig_call,
+                execution: CallExecution {
+                    retdata: Retdata(vec![Felt::from_hex(error_code).unwrap()]),
+                    failed: true,
+                    gas_consumed: 0,
+                    ..CallExecution::default()
+                },
+                tracked_resource: current_tracked_resource,
+                ..CallInfo::default()
+            })
+        }
         Err(err) => Err(err),
     }
 }
@@ -112,53 +115,42 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    match compiled_class {
+    let pre_time = std::time::Instant::now();
+    let mut result = match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
-            let pre_time = std::time::Instant::now();
-            let mut result = deprecated_entry_point_execution::execute_entry_point_call(
+            deprecated_entry_point_execution::execute_entry_point_call(
                 call,
                 compiled_class,
                 state,
                 context,
-            )?;
-            result.time = pre_time.elapsed();
-            Ok(result)
+            )
         }
         RunnableCompiledClass::V1(compiled_class) => {
-            let pre_time = std::time::Instant::now();
-            let mut result = entry_point_execution::execute_entry_point_call(
-                call,
-                compiled_class,
-                state,
-                context,
-            )?;
-            result.time = pre_time.elapsed();
-            Ok(result)
+            entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
-            // if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
-            //     // We cannot run native with cairo steps as the tracked resources (it's a vm
-            //     // resouorce).
-            //     entry_point_execution::execute_entry_point_call(
-            //         call,
-            //         compiled_class.casm(),
-            //         state,
-            //         context,
-            //     )
-            // } else {
-            let pre_time = std::time::Instant::now();
-            let mut result = native_entry_point_execution::execute_entry_point_call(
-                call,
-                compiled_class,
-                state,
-                context,
-            )?;
-            result.time = pre_time.elapsed();
-            Ok(result)
-            // }
+            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps)
+                && !cfg!(feature = "only-native")
+            {
+                entry_point_execution::execute_entry_point_call(
+                    call,
+                    compiled_class.casm(),
+                    state,
+                    context,
+                )
+            } else {
+                native_entry_point_execution::execute_entry_point_call(
+                    call,
+                    compiled_class,
+                    state,
+                    context,
+                )
+            }
         }
-    }
+    }?;
+    result.time = pre_time.elapsed();
+    Ok(result)
 }
 
 pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {

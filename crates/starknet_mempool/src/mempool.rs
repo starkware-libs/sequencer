@@ -12,6 +12,7 @@ use starknet_mempool_types::mempool_types::{
     CommitBlockArgs,
     MempoolResult,
 };
+use tracing::{debug, info, instrument};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -154,7 +155,7 @@ impl Mempool {
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
-    #[tracing::instrument(skip(self), err)]
+    #[instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
@@ -171,7 +172,7 @@ impl Mempool {
             self.state.stage(tx_reference)?;
         }
 
-        tracing::debug!(
+        info!(
             "Returned {} out of {n_txs} transactions, ready for sequencing.",
             eligible_tx_references.len()
         );
@@ -188,7 +189,7 @@ impl Mempool {
     }
 
     /// Adds a new transaction to the mempool.
-    #[tracing::instrument(
+    #[instrument(
         skip(self, args),
         fields( // Log subset of (informative) fields.
             tx_nonce = %args.tx.nonce(),
@@ -201,6 +202,7 @@ impl Mempool {
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
+        debug!("Adding transaction to mempool: {tx:#?}.");
         let tx_reference = TransactionReference::new(&tx);
         self.validate_incoming_tx(tx_reference)?;
 
@@ -220,10 +222,10 @@ impl Mempool {
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
-    #[tracing::instrument(skip(self, args), err)]
+    #[instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
         let CommitBlockArgs { address_to_nonce, tx_hashes } = args;
-        tracing::debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
+        debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
 
         // Align mempool data to committed nonces.
         for (&address, &next_nonce) in &address_to_nonce {
@@ -264,7 +266,7 @@ impl Mempool {
             self.tx_queue.insert(*tx_reference);
         }
 
-        tracing::debug!("Aligned mempool to committed nonces.");
+        debug!("Aligned mempool to committed nonces.");
 
         // Hard-delete: finally, remove committed transactions from the mempool.
         for tx_hash in tx_hashes {
@@ -275,7 +277,7 @@ impl Mempool {
             // TODO(clean_accounts): remove address with no transactions left after a block cycle /
             // TTL.
         }
-        tracing::debug!("Removed committed transactions known to mempool.");
+        debug!("Removed committed transactions known to mempool.");
 
         Ok(())
     }
@@ -307,7 +309,7 @@ impl Mempool {
         Ok(())
     }
 
-    #[tracing::instrument(level = "debug", skip(self, incoming_tx), err)]
+    #[instrument(level = "debug", skip(self, incoming_tx), err)]
     fn handle_fee_escalation(&mut self, incoming_tx: &AccountTransaction) -> MempoolResult<()> {
         let incoming_tx_reference = TransactionReference::new(incoming_tx);
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
@@ -327,7 +329,7 @@ impl Mempool {
         };
 
         if !self.should_replace_tx(&existing_tx_reference, &incoming_tx_reference) {
-            tracing::debug!(
+            debug!(
                 "{existing_tx_reference} was not replaced by {incoming_tx_reference} due to
                 insufficient fee escalation."
             );
@@ -335,7 +337,7 @@ impl Mempool {
             return Err(MempoolError::DuplicateNonce { address, nonce });
         }
 
-        tracing::debug!("{existing_tx_reference} will be replaced by {incoming_tx_reference}.");
+        debug!("{existing_tx_reference} will be replaced by {incoming_tx_reference}.");
 
         self.tx_queue.remove(address);
         self.tx_pool

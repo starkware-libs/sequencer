@@ -5,10 +5,10 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use starknet_sierra_compile::utils::into_contract_class_for_compilation;
-use starknet_sierra_compile::SierraToCasmCompiler;
+use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
+use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
+use starknet_sierra_multicompile::SierraToCasmCompiler;
 use tracing::{debug, error};
 
 use crate::errors::GatewayResult;
@@ -24,7 +24,7 @@ pub struct GatewayCompiler {
 }
 
 impl GatewayCompiler {
-    pub fn new_command_line_compiler(config: SierraToCasmCompilationConfig) -> Self {
+    pub fn new_command_line_compiler(config: SierraCompilationConfig) -> Self {
         Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler::new(config)) }
     }
 
@@ -39,11 +39,12 @@ impl GatewayCompiler {
         let rpc_contract_class = &tx.contract_class;
         let cairo_lang_contract_class = into_contract_class_for_compilation(rpc_contract_class);
 
-        let casm_contract_class = self.compile(cairo_lang_contract_class)?;
-
         let sierra_version =
             SierraVersion::extract_from_program(&rpc_contract_class.sierra_program)
                 .map_err(|e| GatewaySpecError::UnexpectedError { data: (e.to_string()) })?;
+
+        let casm_contract_class =
+            (self.compile(cairo_lang_contract_class)?, sierra_version.clone());
 
         Ok(ClassInfo {
             contract_class: ContractClass::V1(casm_contract_class),
@@ -59,7 +60,9 @@ impl GatewayCompiler {
     ) -> GatewayResult<CasmContractClass> {
         match self.sierra_to_casm_compiler.compile(cairo_lang_contract_class) {
             Ok(casm_contract_class) => Ok(casm_contract_class),
-            Err(starknet_sierra_compile::errors::CompilationUtilError::UnexpectedError(error)) => {
+            Err(starknet_sierra_multicompile::errors::CompilationUtilError::UnexpectedError(
+                error,
+            )) => {
                 error!("Compilation panicked. Error: {:?}", error);
                 Err(GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() })
             }

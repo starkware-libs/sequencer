@@ -179,9 +179,10 @@ impl PyClassInfo {
                 ContractClass::V0(serde_json::from_str(&py_class_info.raw_contract_class)?)
             }
             starknet_api::transaction::DeclareTransaction::V2(_)
-            | starknet_api::transaction::DeclareTransaction::V3(_) => {
-                ContractClass::V1(serde_json::from_str(&py_class_info.raw_contract_class)?)
-            }
+            | starknet_api::transaction::DeclareTransaction::V3(_) => ContractClass::V1((
+                serde_json::from_str(&py_class_info.raw_contract_class)?,
+                SierraVersion::from(py_class_info.sierra_version),
+            )),
         };
         let (major, minor, patch) = py_class_info.sierra_version;
 

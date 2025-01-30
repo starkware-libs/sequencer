@@ -1,17 +1,14 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use stacker;
 
-use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::entry_point_execution::gas_consumed_without_inner_calls;
-use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
+use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
@@ -32,41 +29,33 @@ pub fn execute_entry_point_call(
     let builtin_costs = BuiltinCosts {
         // todo(rodrigo): Unsure of what value `const` means, but 1 is the right value.
         r#const: 1,
-        pedersen: gas_costs.base.pedersen_gas_cost,
-        bitwise: gas_costs.base.bitwise_builtin_gas_cost,
-        ecop: gas_costs.base.ecop_gas_cost,
-        poseidon: gas_costs.base.poseidon_gas_cost,
-        add_mod: gas_costs.base.add_mod_gas_cost,
-        mul_mod: gas_costs.base.mul_mod_gas_cost,
+        pedersen: gas_costs.builtins.pedersen,
+        bitwise: gas_costs.builtins.bitwise,
+        ecop: gas_costs.builtins.ecop,
+        poseidon: gas_costs.builtins.poseidon,
+        add_mod: gas_costs.builtins.add_mod,
+        mul_mod: gas_costs.builtins.mul_mod,
     };
 
-    // Grow the stack (if it's below the red zone) to handle deep Cairo recursions -
-    // when running Cairo natively, the real stack is used and could get overflowed
-    // (unlike the VM where the stack is simulated in the heap as a memory segment).
-    //
-    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
-    // needs to be big enough ahead.
-    // However, making it very big is wasteful (especially with multi-threading).
-    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
-    // recursions to reach out-of-gas before hitting the bottom of the recursion.
-    //
-    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
-    // adjusting the stack size.
-    // This also limits multi-threading, since each thread has its own stack.
-    // TODO(Aviv/Yonatan): add these numbers to overridable VC.
-    let stack_size_red_zone = if !cfg!(feature = "profiling") { 160 * 1024 * 1024 } else { 0 };
-    let target_stack_size = stack_size_red_zone + 10 * 1024 * 1024;
-    // Use `maybe_grow` and not `grow` for performance, since in happy flows, only the main call
-    // should trigger the growth.
-    let execution_result = stacker::maybe_grow(stack_size_red_zone, target_stack_size, || {
-        compiled_class.executor.run(
-            entry_point.selector.0,
-            &syscall_handler.base.call.calldata.0.clone(),
-            syscall_handler.base.call.initial_gas,
-            Some(builtin_costs),
-            &mut syscall_handler,
-        )
-    });
+    // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal
+    // entry point code. When redepositing is used, the entry point is aware of this pre-charge
+    // and adjusts the gas counter accordingly if a smaller amount of gas is required.
+    let initial_budget = syscall_handler.base.context.gas_costs().base.entry_point_initial_budget;
+    let call_initial_gas = syscall_handler
+        .base
+        .call
+        .initial_gas
+        .checked_sub(initial_budget)
+        .ok_or(PreExecutionError::InsufficientEntryPointGas)?;
+
+    let execution_result = compiled_class.executor.run(
+        entry_point.selector.0,
+        &syscall_handler.base.call.calldata.0.clone(),
+        call_initial_gas,
+        Some(builtin_costs),
+        &mut syscall_handler,
+    );
+
     syscall_handler.finalize();
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
@@ -95,17 +84,7 @@ fn create_callinfo(
     }
 
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
-
-    let charged_resources_without_inner_calls = ChargedResources {
-        vm_resources: ExecutionResources::default(),
-        gas_for_fee: gas_consumed_without_inner_calls(
-            &TrackedResource::SierraGas,
-            gas_consumed,
-            &syscall_handler.base.inner_calls,
-        ),
-    };
-    let charged_resources = &charged_resources_without_inner_calls
-        + &CallInfo::summarize_charged_resources(syscall_handler.base.inner_calls.iter());
+    let vm_resources = CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
 
     Ok(CallInfo {
         call: syscall_handler.base.call,
@@ -116,7 +95,7 @@ fn create_callinfo(
             failed: call_result.failure_flag,
             gas_consumed,
         },
-        charged_resources,
+        resources: vm_resources,
         inner_calls: syscall_handler.base.inner_calls,
         storage_read_values: syscall_handler.base.read_values,
         accessed_storage_keys: syscall_handler.base.accessed_keys,

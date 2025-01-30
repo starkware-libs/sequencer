@@ -200,7 +200,7 @@ fn run_security_test(
         entry_point_selector: selector_from_name(entry_point_name),
         calldata,
         storage_address: security_contract.get_instance_address(0),
-        initial_gas: versioned_constants.inifite_gas_for_vm_mode(),
+        initial_gas: versioned_constants.infinite_gas_for_vm_mode(),
         ..Default::default()
     };
     let error = match entry_point_call.execute_directly(state) {
@@ -525,12 +525,8 @@ fn test_old_cairo1_entry_point_segment_arena() {
     };
 
     assert_eq!(
-        entry_point_call
-            .execute_directly(&mut state)
-            .unwrap()
-            .charged_resources
-            .vm_resources
-            .builtin_instance_counter[&BuiltinName::segment_arena],
+        entry_point_call.execute_directly(&mut state).unwrap().resources.builtin_instance_counter
+            [&BuiltinName::segment_arena],
         // Note: the number of segment_arena instances should not depend on the compiler or VM
         // version. Do not manually fix this then when upgrading them - it might be a bug.
         2

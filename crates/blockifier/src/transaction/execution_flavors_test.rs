@@ -5,7 +5,12 @@ use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{
+    NonceManager,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    MAX_FEE,
+};
 use starknet_api::transaction::fields::{
     Calldata,
     Fee,
@@ -33,9 +38,6 @@ use crate::test_utils::{
     get_tx_resources,
     CairoVersion,
     BALANCE,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    MAX_FEE,
 };
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{

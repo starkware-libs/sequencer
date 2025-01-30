@@ -31,6 +31,7 @@ struct TransactionReceiptParameters<'a> {
     execution_summary_without_fee_transfer: ExecutionSummary,
     tx_type: TransactionType,
     reverted_steps: usize,
+    reverted_sierra_gas: GasAmount,
 }
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
@@ -58,6 +59,7 @@ impl TransactionReceipt {
             execution_summary_without_fee_transfer,
             tx_type,
             reverted_steps,
+            reverted_sierra_gas,
         } = tx_receipt_params;
         let charged_resources = execution_summary_without_fee_transfer.charged_resources.clone();
         let starknet_resources = StarknetResources::new(
@@ -84,8 +86,8 @@ impl TransactionReceipt {
             computation: ComputationResources {
                 vm_resources: total_vm_resources,
                 n_reverted_steps: reverted_steps,
-                sierra_gas: charged_resources.gas_for_fee,
-                reverted_sierra_gas: GasAmount(0), // TODO(tzahi): compute value.
+                sierra_gas: charged_resources.gas_consumed,
+                reverted_sierra_gas,
             },
         };
 
@@ -127,6 +129,7 @@ impl TransactionReceipt {
             execution_summary_without_fee_transfer,
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
+            reverted_sierra_gas: GasAmount(0),
         })
     }
 
@@ -137,6 +140,7 @@ impl TransactionReceipt {
         state_changes: &'a StateChanges,
         execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
+        reverted_sierra_gas: GasAmount,
     ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
@@ -149,6 +153,7 @@ impl TransactionReceipt {
             execution_summary_without_fee_transfer,
             tx_type: account_tx.tx_type(),
             reverted_steps,
+            reverted_sierra_gas,
         })
     }
 }

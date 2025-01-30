@@ -17,7 +17,7 @@ alloy-dyn-abi.workspace = true
 alloy-json-rpc.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
-alloy-sol-types.workspace = true
+alloy-sol-types = { workspace = true, features = ["json"] }
 alloy-transport.workspace = true
 alloy-transport-http.workspace = true
 async-trait.workspace = true
@@ -35,7 +35,7 @@ url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 ethers-core.workspace = true
-papyrus_base_layer = { workspace = true, features = ["testing"] }
+papyrus_base_layer = { path = "../papyrus_base_layer", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api = { path = "../starknet_api", features = ["testing"] }

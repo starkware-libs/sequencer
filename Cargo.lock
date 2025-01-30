@@ -93,9 +93,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "alloy-chains"
-version = "0.1.53"
+version = "0.1.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da226340862e036ab26336dc99ca85311c6b662267c1440e1733890fd688802c"
+checksum = "56f15afc5993458b42739ab3b69bdb6b4c8112acd3997dbea9bc092c9517137c"
 dependencies = [
  "alloy-primitives",
  "num_enum",
@@ -422,6 +422,7 @@ version = "0.8.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19cc9c7f20b90f9be1a8f71a3d8e283a43745137b0837b1a1cb13159d37cad72"
 dependencies = [
+ "alloy-json-abi",
  "alloy-sol-macro-input",
  "const-hex",
  "heck 0.5.0",
@@ -440,11 +441,13 @@ version = "0.8.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "713b7e6dfe1cb2f55c80fb05fd22ed085a1b4e48217611365ed0ae598a74c6ac"
 dependencies = [
+ "alloy-json-abi",
  "const-hex",
  "dunce",
  "heck 0.5.0",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn 2.0.95",
  "syn-solidity",
 ]
@@ -1109,7 +1112,7 @@ dependencies = [
  "futures-lite 2.5.0",
  "parking",
  "polling 3.7.4",
- "rustix 0.38.43",
+ "rustix 0.38.42",
  "slab",
  "tracing",
  "windows-sys 0.59.0",
@@ -1130,7 +1133,7 @@ version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff6e472cdea888a4bd64f342f09b3f50e1886d32afe8df3d663c01140b811b18"
 dependencies = [
- "event-listener 5.4.0",
+ "event-listener 5.3.1",
  "event-listener-strategy",
  "pin-project-lite",
 ]
@@ -1159,9 +1162,9 @@ dependencies = [
  "async-task",
  "blocking",
  "cfg-if",
- "event-listener 5.4.0",
+ "event-listener 5.3.1",
  "futures-lite 2.5.0",
- "rustix 0.38.43",
+ "rustix 0.38.42",
  "tracing",
 ]
 
@@ -1188,7 +1191,7 @@ dependencies = [
  "cfg-if",
  "futures-core",
  "futures-io",
- "rustix 0.38.43",
+ "rustix 0.38.42",
  "signal-hook-registry",
  "slab",
  "windows-sys 0.59.0",
@@ -1250,9 +1253,9 @@ checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
-version = "0.1.85"
+version = "0.1.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f934833b4b7233644e5848f235df3f57ed8c80f1528a26c3dfa13d2147fa056"
+checksum = "1b1244b10dcd56c92219da4e14caa97e312079e185f04ba3eea25061561dc0a0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1624,7 +1627,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "ark-ec 0.4.2",
@@ -1643,7 +1646,6 @@ dependencies = [
  "derive_more 0.99.18",
  "glob",
  "indexmap 2.7.0",
- "infra_utils",
  "itertools 0.12.1",
  "keccak",
  "log",
@@ -1658,15 +1660,16 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "rstest",
+ "rstest_reuse",
  "semver 1.0.24",
  "serde",
  "serde_json",
  "sha2",
  "sierra-emu",
- "stacker",
  "starknet-types-core",
  "starknet_api",
- "starknet_sierra_compile",
+ "starknet_infra_utils",
+ "starknet_sierra_multicompile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -1678,7 +1681,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier_reexecution"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "blockifier",
@@ -2694,9 +2697,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.26"
+version = "4.5.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8eb5e908ef3a6efbe1ed62520fb7287959888c88485abe072543190ecc66783"
+checksum = "769b0145982b4b48713e01ec42d61614425f27b7058bda7180a3a41f30104796"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -2704,9 +2707,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.26"
+version = "4.5.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96b01801b5fc6a0a232407abc821660c9c6d25a1cafc0d4f85f29fb8d9afc121"
+checksum = "1b26884eb4b57140e4d2d93652abfa49498b938b3c9179f9fc487b0acc3edad7"
 dependencies = [
  "anstream",
  "anstyle",
@@ -2811,7 +2814,7 @@ dependencies = [
 
 [[package]]
 name = "committer_cli"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "clap",
  "criterion",
@@ -4058,9 +4061,9 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "event-listener"
-version = "5.4.0"
+version = "5.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3492acde4c3fc54c845eaab3eed8bd00c7a7d881f78bfc801e43a93dec1331ae"
+checksum = "6032be9bd27023a771701cc49f9f053c751055f71efb2e0ae5c15809093675ba"
 dependencies = [
  "concurrent-queue",
  "parking",
@@ -4073,7 +4076,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c3e4e0dd3673c1139bf041f3008816d9cf2946bbfac2945c09e523b8d7b05b2"
 dependencies = [
- "event-listener 5.4.0",
+ "event-listener 5.3.1",
  "pin-project-lite",
 ]
 
@@ -5533,17 +5536,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 
 [[package]]
-name = "infra_utils"
-version = "0.0.0"
-dependencies = [
- "pretty_assertions",
- "rstest",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "inout"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6555,9 +6547,9 @@ checksum = "ef53942eb7bf7ff43a617b3e2c1c4a5ecf5944a7c1bc12d7ee39bbb15e5c1519"
 
 [[package]]
 name = "linux-raw-sys"
-version = "0.4.15"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
+checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
 name = "litemap"
@@ -6744,15 +6736,15 @@ dependencies = [
 
 [[package]]
 name = "mempool_test_utils"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "blockifier",
- "infra_utils",
  "pretty_assertions",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
 ]
 
 [[package]]
@@ -7054,7 +7046,7 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "blockifier",
  "cached",
@@ -7072,6 +7064,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_sierra_multicompile",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -7590,7 +7583,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "alloy-contract",
  "alloy-dyn-abi",
@@ -7619,7 +7612,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "base64 0.13.1",
@@ -7640,26 +7633,27 @@ dependencies = [
 
 [[package]]
 name = "papyrus_config"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "clap",
- "infra_utils",
  "itertools 0.12.1",
  "lazy_static",
  "papyrus_test_utils",
  "serde",
  "serde_json",
  "starknet_api",
+ "starknet_infra_utils",
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
+ "tracing",
  "validator",
 ]
 
 [[package]]
 name = "papyrus_consensus"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -7685,15 +7679,18 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]
 name = "papyrus_consensus_orchestrator"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
+ "blockifier",
  "chrono",
  "futures",
+ "indexmap 2.7.0",
  "lazy_static",
  "mockall",
  "papyrus_consensus",
@@ -7701,17 +7698,21 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
+ "starknet_infra_utils",
  "test-case",
  "tokio",
+ "tokio-util",
  "tracing",
 ]
 
 [[package]]
 name = "papyrus_execution"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -7740,7 +7741,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_load_test"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -7758,7 +7759,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_monitoring_gateway"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "axum",
  "hyper 0.14.32",
@@ -7781,7 +7782,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -7803,6 +7804,7 @@ dependencies = [
  "replace_with",
  "serde",
  "starknet_api",
+ "starknet_sequencer_infra",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -7815,7 +7817,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "libp2p",
  "papyrus_test_utils",
@@ -7825,7 +7827,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_node"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -7834,7 +7836,6 @@ dependencies = [
  "const_format",
  "futures",
  "futures-util",
- "infra_utils",
  "insta",
  "itertools 0.12.1",
  "lazy_static",
@@ -7859,6 +7860,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_client",
+ "starknet_infra_utils",
  "strum 0.25.0",
  "tempfile",
  "tokio",
@@ -7870,7 +7872,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_p2p_sync"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -7902,7 +7904,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_proc_macros"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
@@ -7916,7 +7918,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_protobuf"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "indexmap 2.7.0",
  "lazy_static",
@@ -7937,7 +7939,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_rpc"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -7990,19 +7992,20 @@ dependencies = [
 
 [[package]]
 name = "papyrus_state_reader"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "blockifier",
  "indexmap 2.7.0",
  "papyrus_storage",
+ "rstest",
  "starknet-types-core",
  "starknet_api",
 ]
 
 [[package]]
 name = "papyrus_storage"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "byteorder",
@@ -8054,7 +8057,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_sync"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -8089,7 +8092,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_test_utils"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -8287,32 +8290,32 @@ dependencies = [
 
 [[package]]
 name = "phf"
-version = "0.11.3"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fd6780a80ae0c52cc120a26a1a42c1ae51b247a253e4e06113d23d2c2edd078"
+checksum = "ade2d8b8f33c7333b51bcf0428d37e217e9f32192ae4772156f65063b8ce03dc"
 dependencies = [
  "phf_macros",
- "phf_shared 0.11.3",
+ "phf_shared 0.11.2",
 ]
 
 [[package]]
 name = "phf_generator"
-version = "0.11.3"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c80231409c20246a13fddb31776fb942c38553c51e871f8cbd687a4cfb5843d"
+checksum = "48e4cc64c2ad9ebe670cb8fd69dd50ae301650392e81c05f9bfcb2d5bdbc24b0"
 dependencies = [
- "phf_shared 0.11.3",
+ "phf_shared 0.11.2",
  "rand 0.8.5",
 ]
 
 [[package]]
 name = "phf_macros"
-version = "0.11.3"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f84ac04429c13a7ff43785d75ad27569f2951ce0ffd30a3321230db2fc727216"
+checksum = "3444646e286606587e49f3bcf1679b8cef1dc2c5ecc29ddacaffc305180d464b"
 dependencies = [
  "phf_generator",
- "phf_shared 0.11.3",
+ "phf_shared 0.11.2",
  "proc-macro2",
  "quote",
  "syn 2.0.95",
@@ -8324,16 +8327,16 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6796ad771acdc0123d2a88dc428b5e38ef24456743ddb1744ed628f9815c096"
 dependencies = [
- "siphasher 0.3.11",
+ "siphasher",
 ]
 
 [[package]]
 name = "phf_shared"
-version = "0.11.3"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
+checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
 dependencies = [
- "siphasher 1.0.1",
+ "siphasher",
 ]
 
 [[package]]
@@ -8344,18 +8347,18 @@ checksum = "5be167a7af36ee22fe3115051bc51f6e6c7054c9348e28deb4f49bd6f705a315"
 
 [[package]]
 name = "pin-project"
-version = "1.1.8"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e2ec53ad785f4d35dac0adea7f7dc6f1bb277ad84a680c7afefeae05d1f5916"
+checksum = "be57f64e946e500c8ee36ef6331845d40a93055567ec57e8fae13efd33759b95"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "1.1.8"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56a66c0c55993aa927429d0f8a0abfd74f084e4d9c192cffed01e418d83eefb"
+checksum = "3c0f5fad0874fc7abcd4d750e76917eaebbecaa2c20bde22e1dbeeba8beb758c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8364,9 +8367,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.16"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
+checksum = "915a1e146535de9163f3987b8944ed8cf49a18bb0056bcebcdcece385cece4ff"
 
 [[package]]
 name = "pin-utils"
@@ -8453,7 +8456,7 @@ dependencies = [
  "concurrent-queue",
  "hermit-abi 0.4.0",
  "pin-project-lite",
- "rustix 0.38.43",
+ "rustix 0.38.42",
  "tracing",
  "windows-sys 0.59.0",
 ]
@@ -8670,7 +8673,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "procfs-core",
- "rustix 0.38.43",
+ "rustix 0.38.42",
 ]
 
 [[package]]
@@ -8806,15 +8809,6 @@ name = "psl-types"
 version = "2.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33cb294fe86a74cbcf50d4445b37da762029549ebeea341421c7c70370f86cac"
-
-[[package]]
-name = "psm"
-version = "0.1.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "200b9ff220857e53e184257720a14553b2f4aa02577d2ed9842d45d4b9654810"
-dependencies = [
- "cc",
-]
 
 [[package]]
 name = "publicsuffix"
@@ -9557,6 +9551,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rstest_reuse"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3a8fb4672e840a587a66fc577a5491375df51ddb88f2a2c2a792598c326fe14"
+dependencies = [
+ "quote",
+ "rand 0.8.5",
+ "syn 2.0.95",
+]
+
+[[package]]
 name = "rtnetlink"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9713,14 +9718,14 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.43"
+version = "0.38.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a78891ee6bf2340288408954ac787aa063d8e8817e9f53abb37c695c6d834ef6"
+checksum = "f93dc38ecbab2eb790ff964bb77fa94faf256fd3e73285fd7ba0903b76bedb85"
 dependencies = [
  "bitflags 2.6.0",
  "errno",
  "libc",
- "linux-raw-sys 0.4.15",
+ "linux-raw-sys 0.4.14",
  "windows-sys 0.59.0",
 ]
 
@@ -9979,9 +9984,9 @@ dependencies = [
 
 [[package]]
 name = "security-framework-sys"
-version = "2.14.0"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49db231d56a190491cb4aeda9527f1ad45345af50b0851622a7adb8c03b01c32"
+checksum = "1863fd3768cd83c56a7f60faa4dc0d403f1b6df0a38c3c25f44b7894e45370d5"
 dependencies = [
  "core-foundation-sys",
  "libc",
@@ -10059,9 +10064,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.135"
+version = "1.0.134"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b0d7ba2887406110130a978386c4e1befb98c674b4fba677954e4db976630d9"
+checksum = "d00f4175c42ee48b15416f6193a959ba3a0d67fc699a0db9ad12df9f83991c7d"
 dependencies = [
  "itoa",
  "memchr",
@@ -10222,7 +10227,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "sierra-emu"
 version = "0.1.0"
-source = "git+https://github.com/lambdaclass/sierra-emu.git?rev=58188e8da1e1e40d1c47b6bd311d1caf48cb08fb#58188e8da1e1e40d1c47b6bd311d1caf48cb08fb"
+source = "git+https://github.com/lambdaclass/sierra-emu?rev=d82044b6c21d9d53d9b931bc35360c168374ff50#d82044b6c21d9d53d9b931bc35360c168374ff50"
 dependencies = [
  "cairo-lang-compiler",
  "cairo-lang-filesystem",
@@ -10318,12 +10323,6 @@ name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
-
-[[package]]
-name = "siphasher"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "sketches-ddsketch"
@@ -10493,19 +10492,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
-name = "stacker"
-version = "0.1.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "799c883d55abdb5e98af1a7b3f23b9b6de8ecada0ecac058672d7635eb48ca7b"
-dependencies = [
- "cc",
- "cfg-if",
- "libc",
- "psm",
- "windows-sys 0.59.0",
-]
-
-[[package]]
 name = "starknet-core"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10622,7 +10608,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "bitvec",
@@ -10631,9 +10617,9 @@ dependencies = [
  "derive_more 0.99.18",
  "hex",
  "indexmap 2.7.0",
- "infra_utils",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
+ "num-traits",
  "pretty_assertions",
  "primitive-types",
  "rstest",
@@ -10644,6 +10630,7 @@ dependencies = [
  "starknet-crypto 0.7.3",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
@@ -10651,7 +10638,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_batcher"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -10681,7 +10668,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_batcher_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10697,8 +10684,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_class_manager_types"
+version = "0.14.0-rc.0"
+dependencies = [
+ "async-trait",
+ "cairo-lang-starknet-classes",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "starknet_client"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -10733,7 +10733,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "hex",
  "pretty_assertions",
@@ -10748,7 +10748,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_consensus_manager"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -10758,7 +10758,9 @@ dependencies = [
  "papyrus_network",
  "papyrus_protobuf",
  "serde",
+ "starknet_api",
  "starknet_batcher_types",
+ "starknet_infra_utils",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "tokio",
@@ -10768,7 +10770,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_gateway"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -10776,6 +10778,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "futures",
  "mempool_test_utils",
  "mockall",
  "mockito 1.6.1",
@@ -10795,7 +10798,8 @@ dependencies = [
  "starknet_mempool",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
+ "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -10805,7 +10809,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_gateway_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -10825,7 +10829,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_http_server"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "axum",
  "hyper 0.14.32",
@@ -10835,6 +10839,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_gateway_types",
+ "starknet_infra_utils",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
  "tokio",
@@ -10843,19 +10848,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_integration_tests"
-version = "0.0.0"
+name = "starknet_infra_utils"
+version = "0.14.0-rc.0"
 dependencies = [
- "anyhow",
+ "pretty_assertions",
+ "rstest",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "starknet_integration_tests"
+version = "0.14.0-rc.0"
+dependencies = [
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
  "futures",
  "indexmap 2.7.0",
- "infra_utils",
  "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_common",
+ "papyrus_config",
  "papyrus_consensus",
  "papyrus_execution",
  "papyrus_network",
@@ -10873,6 +10888,7 @@ dependencies = [
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
+ "starknet_infra_utils",
  "starknet_mempool_p2p",
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
@@ -10886,7 +10902,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_l1_provider"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -10905,7 +10921,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_l1_provider_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "mockall",
@@ -10919,7 +10935,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -10944,10 +10960,11 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_p2p"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "futures",
+ "libp2p",
  "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
@@ -10966,7 +10983,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_p2p_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "mockall",
@@ -10980,7 +10997,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "mockall",
@@ -10995,16 +11012,16 @@ dependencies = [
 
 [[package]]
 name = "starknet_monitoring_endpoint"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "axum",
  "hyper 0.14.32",
- "infra_utils",
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
  "papyrus_config",
  "pretty_assertions",
  "serde",
+ "starknet_infra_utils",
  "starknet_sequencer_infra",
  "tokio",
  "tower 0.4.13",
@@ -11014,7 +11031,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-recursion",
  "derive_more 0.99.18",
@@ -11035,7 +11052,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_sequencer_infra"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11047,6 +11064,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -11056,7 +11074,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_sequencer_node"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "assert-json-diff",
@@ -11065,11 +11083,10 @@ dependencies = [
  "colored",
  "const_format",
  "futures",
- "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
- "papyrus_consensus",
  "papyrus_proc_macros",
+ "papyrus_protobuf",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -11081,6 +11098,7 @@ dependencies = [
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
+ "starknet_infra_utils",
  "starknet_l1_provider",
  "starknet_l1_provider_types",
  "starknet_mempool",
@@ -11090,7 +11108,7 @@ dependencies = [
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
- "starknet_sierra_compile",
+ "starknet_sierra_multicompile",
  "starknet_state_sync",
  "starknet_state_sync_types",
  "tokio",
@@ -11099,22 +11117,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_sierra_compile"
-version = "0.0.0"
+name = "starknet_sierra_multicompile"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
- "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
+ "rlimit",
  "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
  "tempfile",
  "thiserror 1.0.69",
  "validator",
@@ -11122,7 +11141,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_state_sync"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -11131,6 +11150,7 @@ dependencies = [
  "papyrus_p2p_sync",
  "papyrus_storage",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
@@ -11140,12 +11160,14 @@ dependencies = [
 
 [[package]]
 name = "starknet_state_sync_types"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "async-trait",
+ "futures",
  "papyrus_proc_macros",
  "papyrus_storage",
  "serde",
+ "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
@@ -11153,7 +11175,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_task_executor"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "futures",
  "rstest",
@@ -11422,7 +11444,7 @@ dependencies = [
  "fastrand 2.3.0",
  "getrandom",
  "once_cell",
- "rustix 0.38.43",
+ "rustix 0.38.42",
  "windows-sys 0.59.0",
 ]
 
@@ -11685,9 +11707,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.43.0"
+version = "1.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d61fa4ffa3de412bfea335c6ecff681de2b609ba3c77ef3e00e521813a9ed9e"
+checksum = "5cec9b21b0450273377fc97bd4c33a8acffc8c996c987a7c5b319a0083707551"
 dependencies = [
  "backtrace",
  "bytes",
@@ -11703,9 +11725,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.5.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8"
+checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -12487,7 +12509,7 @@ dependencies = [
  "either",
  "home",
  "once_cell",
- "rustix 0.38.43",
+ "rustix 0.38.42",
 ]
 
 [[package]]
@@ -12850,7 +12872,7 @@ dependencies = [
 
 [[package]]
 name = "workspace_tests"
-version = "0.0.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "serde",
  "toml",
@@ -12932,15 +12954,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e105d177a3871454f754b33bb0ee637ecaaac997446375fd3e5d43a2ed00c909"
 dependencies = [
  "libc",
- "linux-raw-sys 0.4.15",
- "rustix 0.38.43",
+ "linux-raw-sys 0.4.14",
+ "rustix 0.38.42",
 ]
 
 [[package]]
 name = "xml-rs"
-version = "0.8.25"
+version = "0.8.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c5b940ebc25896e71dd073bad2dbaa2abfe97b0a391415e22ad1326d9c54e3c4"
+checksum = "ea8b391c9a790b496184c29f7f93b9ed5b16abb306c05415b68bcc16e4d06432"
 
 [[package]]
 name = "xmltree"

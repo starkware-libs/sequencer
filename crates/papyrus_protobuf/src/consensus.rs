@@ -1,6 +1,6 @@
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
@@ -31,6 +31,7 @@ pub struct Vote {
     pub voter: ContractAddress,
 }
 
+// TODO: remove this once we are sure everything works using just Vote.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum ConsensusMessage {
     Proposal(Proposal), // To be deprecated
@@ -52,7 +53,7 @@ pub enum StreamMessageBody<T> {
     Fin,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: StreamMessageBody<T>,
     pub stream_id: u64,
@@ -60,7 +61,7 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
 }
 
 /// This message must be sent first when proposing a new block.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
@@ -72,14 +73,26 @@ pub struct ProposalInit {
     pub proposer: ContractAddress,
 }
 
+/// A temporary constant to use as a validator ID. Zero is not a valid contract address.
+// TODO(Matan): Remove this once we have a proper validator set.
+pub const DEFAULT_VALIDATOR_ID: u64 = 100;
+
+impl Default for ProposalInit {
+    fn default() -> Self {
+        ProposalInit {
+            height: Default::default(),
+            round: Default::default(),
+            valid_round: Default::default(),
+            proposer: ContractAddress::from(DEFAULT_VALIDATOR_ID),
+        }
+    }
+}
+
 /// There is one or more batches of transactions in a proposed block.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
-    // TODO(guyn): remove this once we know how to get hashes as part of the compilation.
-    /// The transaction's hashes.
-    pub tx_hashes: Vec<TransactionHash>,
 }
 
 /// The proposal is done when receiving this fin message, which contains the block hash.

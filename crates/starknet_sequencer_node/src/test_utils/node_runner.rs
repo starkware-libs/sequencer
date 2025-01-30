@@ -1,18 +1,18 @@
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use infra_utils::command::create_shell_command;
-use infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::command::create_shell_command;
+use starknet_infra_utils::path::resolve_project_relative_path;
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
-pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
+pub fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
     task::spawn(async move {
         info!("Running the node from its spawned task.");
-        let _node_run_result = spawn_node_child_task(node_config_path).
+        let _node_run_result = spawn_node_child_process(node_config_path).
             await. // awaits the completion of spawn_node_child_task.
             wait(). // runs the node until completion -- should be running indefinitely.
             await; // awaits the completion of the node.
@@ -20,7 +20,8 @@ pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
     })
 }
 
-async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
+#[instrument()]
+async fn spawn_node_child_process(node_config_path: PathBuf) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();

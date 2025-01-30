@@ -1,10 +1,14 @@
-<!-- name: Papyrus-Docker-Publish
+name: Papyrus-Docker-Publish
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*.*.*"]
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+      - papyrus-v[0-9].**
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
@@ -21,8 +25,12 @@ on:
       - 'deployments/images/papyrus/Dockerfile'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
+# Also, create different concurrency groups for different pushed commits, on push events.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -67,8 +75,8 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=pr
-            # set `dev` tag for the default branch (`main`).
-            type=raw,value=dev,enable={{is_default_branch}}
+            # set `main*` tag for the default / release branches.
+            type=raw,value={{branch}},enable=${{ github.event_name == 'push' && contains(github.ref, 'main') }}
             type=raw,value={{branch}}{{tag}}-{{sha}},enable=${{ github.event_name == 'workflow_dispatch' }}
 
       # Build and push Docker image with Buildx
@@ -82,4 +90,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max -->
+          cache-to: type=gha,mode=max
