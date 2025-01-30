@@ -25,6 +25,7 @@ tar = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 

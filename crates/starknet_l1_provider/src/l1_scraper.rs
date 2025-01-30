@@ -125,6 +125,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
+    #[instrument(skip(self), err)]
     async fn fetch_events(&self) -> L1ScraperResult<Option<(L1BlockReference, Vec<Event>)>, B> {
         let latest_l1_block = self
             .base_layer

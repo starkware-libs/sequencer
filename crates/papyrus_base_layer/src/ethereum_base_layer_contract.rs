@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
+use tracing::instrument;
 use url::Url;
 use validator::Validate;
 
@@ -103,6 +104,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         matching_logs.into_iter().map(TryInto::try_into).collect()
     }
 
+    #[instrument(skip(self), err)]
     async fn latest_l1_block_number(
         &self,
         finality: u64,
