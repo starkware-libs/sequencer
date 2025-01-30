@@ -1,5 +1,9 @@
+use alloy::primitives::U256;
+use alloy::providers::ProviderBuilder;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
+use papyrus_base_layer::test_utils::DEFAULT_ANVIL_DEPLOY_ADDRESS;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     HeightAndRound,
@@ -66,6 +70,35 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     let mut expected_proposer_iter = sequencers.iter().cycle();
     // We start at height 1, so we need to skip the proposer of the initial height.
     expected_proposer_iter.next().unwrap();
+
+    // TODO: DONTMERGE FIXME(alonh):
+    // 1. Wrong place for this
+    // 2. Duplicated access to the contract. It'd be better to get the contract through:
+    // `base_layer.contract field`, when it is created.
+    // 3. figure out a way of encorporating into the scenarios cleanly, without messages from one
+    // scenario leaking into other scenarios (they all share the same `L1` inst).
+    // 4. Add a similar thingie for integration test, which currently has anvil but no txs.
+    // Note: To see that this works grep for "l1_provider: Retrieved" in the logs.
+    let l2_contract_address = "0x12"; // arbitrary.
+    let l2_entry_point = "0x34"; // arbitrary.
+
+    let l1_client = ProviderBuilder::new().on_http(mock_running_system.l1_handle.endpoint_url());
+    let contract = Starknet::new(DEFAULT_ANVIL_DEPLOY_ADDRESS.parse().unwrap(), l1_client);
+    let message_to_l2_0 = contract.sendMessageToL2(
+        l2_contract_address.parse().unwrap(),
+        l2_entry_point.parse().unwrap(),
+        vec![U256::from(1_u8), U256::from(2_u8)],
+    );
+    let message_to_l2_1 = contract.sendMessageToL2(
+        l2_contract_address.parse().unwrap(),
+        l2_entry_point.parse().unwrap(),
+        vec![U256::from(3_u8), U256::from(4_u8)],
+    );
+
+    // Send the transactions.
+    for msg in &[message_to_l2_0, message_to_l2_1] {
+        msg.send().await.unwrap().get_receipt().await.unwrap();
+    }
 
     // Build multiple heights to ensure heights are committed.
     for (height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id) in create_test_blocks()

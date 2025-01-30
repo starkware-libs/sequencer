@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+alloy = { workspace = true, features = ["full", "json-rpc", "node-bindings"] }
 assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
@@ -17,6 +18,7 @@ futures.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
+papyrus_base_layer = { path = "../papyrus_base_layer", features = ["testing"] }
 papyrus_config.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true

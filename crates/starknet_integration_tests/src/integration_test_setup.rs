@@ -1,8 +1,10 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
+use papyrus_base_layer::test_utils::anvil;
 use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -66,15 +68,11 @@ pub struct ExecutableSetup {
     pub batcher_storage_config: StorageConfig,
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
-    // Handlers for the storage and config files, maintained so the files are not deleted. Since
-    // these are only maintained to avoid dropping the handlers, private visibility suffices, and
-    // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
-    #[allow(dead_code)]
-    batcher_storage_handle: TempDir,
-    #[allow(dead_code)]
-    node_config_dir_handle: TempDir,
-    #[allow(dead_code)]
-    state_sync_storage_handle: TempDir,
+    // Handles for resource that are deleted when their handle is dropped.
+    pub batcher_storage_handle: TempDir,
+    pub node_config_dir_handle: TempDir,
+    pub state_sync_storage_handle: TempDir,
+    pub anvil_handle: AnvilInstance,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
@@ -107,6 +105,7 @@ impl ExecutableSetup {
             collect_metrics: true,
             ..Default::default()
         };
+        let anvil = anvil();
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
@@ -119,6 +118,7 @@ impl ExecutableSetup {
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
+            anvil.endpoint_url(),
         );
 
         let node_config_dir_handle = tempdir().unwrap();
@@ -145,6 +145,7 @@ impl ExecutableSetup {
             node_config_path,
             state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
+            anvil_handle: anvil,
         }
     }
 

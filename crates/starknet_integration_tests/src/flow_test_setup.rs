@@ -1,10 +1,12 @@
 use std::net::SocketAddr;
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_base_layer::test_utils::anvil;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
     network_config_into_broadcast_channels,
@@ -31,6 +33,7 @@ use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
+use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
@@ -50,6 +53,9 @@ const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 pub struct FlowTestSetup {
     pub sequencer_0: FlowSequencerSetup,
     pub sequencer_1: FlowSequencerSetup,
+
+    // Handle for L1 server: server is dropped when handle is dropped.
+    pub l1_handle: AnvilInstance,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels:
@@ -83,11 +89,14 @@ impl FlowTestSetup {
                 .try_into()
                 .unwrap();
 
+        let anvil = anvil();
+
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
             accounts.to_vec(),
             SEQUENCER_0,
             chain_info.clone(),
+            anvil.endpoint_url(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 1),
@@ -99,6 +108,7 @@ impl FlowTestSetup {
             accounts.to_vec(),
             SEQUENCER_1,
             chain_info,
+            anvil.endpoint_url(),
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 2),
@@ -106,7 +116,7 @@ impl FlowTestSetup {
         )
         .await;
 
-        Self { sequencer_0, sequencer_1, consensus_proposals_channels }
+        Self { sequencer_0, sequencer_1, l1_handle: anvil, consensus_proposals_channels }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
@@ -143,6 +153,7 @@ impl FlowSequencerSetup {
         accounts: Vec<AccountTransactionGenerator>,
         node_index: usize,
         chain_info: ChainInfo,
+        l1_endpoint_url: Url,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
@@ -178,6 +189,7 @@ impl FlowSequencerSetup {
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
+            l1_endpoint_url,
         );
 
         debug!("Sequencer config: {:#?}", node_config);

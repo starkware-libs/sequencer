@@ -154,15 +154,13 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(Some((latest_l1_block, events)))
     }
 
-    // FIXME: doesn't work in integration tests, remove the error suopression once Anvil is
-    // integrated.
     #[instrument(skip(self), err)]
     async fn run(&mut self) -> L1ScraperResult<(), B> {
-        let _ = self.initialize().await;
+        self.initialize().await?;
         loop {
             sleep(self.config.polling_interval).await;
 
-            let _error_in_flow_tests = self.send_events_to_l1_provider().await;
+            self.send_events_to_l1_provider().await?;
         }
     }
 
