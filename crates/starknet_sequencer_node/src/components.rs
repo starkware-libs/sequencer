@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::L1BlockReference;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
@@ -191,7 +192,7 @@ pub async fn create_node_components(
             // once `Anvil` support is added there.
             Some(
                 L1Scraper::new_at_l1_block(
-                    0,
+                    L1BlockReference { number: 0, ..Default::default() },
                     l1_scraper_config,
                     l1_provider_client,
                     base_layer,

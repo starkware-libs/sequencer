@@ -63,7 +63,7 @@ pub trait BaseLayerContract {
 }
 
 /// Reference to an L1 block, extend as needed.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct L1BlockReference {
     pub number: L1BlockNumber,
     pub hash: [u8; 32],
