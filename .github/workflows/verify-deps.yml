@@ -11,10 +11,10 @@ jobs:
   latest_deps:
     name: Latest Dependencies
     runs-on: starkware-ubuntu-latest-medium
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+      - run: npm install -g ganache@7.4.3
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build
