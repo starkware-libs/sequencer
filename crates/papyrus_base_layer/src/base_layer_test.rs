@@ -5,7 +5,7 @@ use starknet_api::felt;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
-use crate::test_utils::{anvil, get_test_ethereum_node};
+use crate::test_utils::{anvil, get_test_ethereum_node, DEFAULT_ANVIL_DEPLOY_ADDRESS};
 use crate::BaseLayerContract;
 
 // TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
@@ -59,9 +59,6 @@ async fn get_proved_block_at_unknown_block_number() {
     if !in_ci() {
         return;
     }
-
-    // TODO(Gilad): Moved into test-utils in an upcoming PR.
-    const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
     let anvil = anvil();
     let node_url = anvil.endpoint_url();

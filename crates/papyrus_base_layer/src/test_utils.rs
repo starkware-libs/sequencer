@@ -5,12 +5,18 @@ use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy::primitives::Address as EthereumContractAddress;
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
+use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
+// Default funded account, there are more fixed funded accounts,
+// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
+pub const DEFAULT_ANVIL_ACCOUNT_ADDRESS: StarkHash =
+    StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+pub const DEFAULT_ANVIL_DEPLOY_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A
