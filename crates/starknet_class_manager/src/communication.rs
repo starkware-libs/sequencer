@@ -19,7 +19,7 @@ use crate::ClassManager;
 
 pub type LocalClassManagerServer =
     ConcurrentLocalComponentServer<ClassManager, ClassManagerRequest, ClassManagerResponse>;
-pub type RemoteSierraCompilerServer =
+pub type RemoteClassManagerServer =
     RemoteComponentServer<ClassManagerRequest, ClassManagerResponse>;
 
 // TODO(Elin): rewrite as needed.

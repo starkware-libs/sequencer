@@ -14,6 +14,7 @@ use crate::config::{ClassHashStorageConfig, ClassManagerConfig};
 #[path = "class_manager_test.rs"]
 pub mod class_manager_test;
 
+#[derive(Clone)]
 pub struct ClassManager<S: ClassStorage> {
     pub config: ClassManagerConfig,
     pub compiler: SharedSierraCompilerClient,

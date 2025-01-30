@@ -4,7 +4,9 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use futures::executor::block_on;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
@@ -14,6 +16,7 @@ use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 use thiserror::Error;
+use tokio::sync::Mutex;
 
 use crate::config::ClassHashStorageConfig;
 
@@ -83,6 +86,7 @@ impl SerializeConfig for CachedClassStorageConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct CachedClassStorage<S: ClassStorage> {
     storage: S,
 
@@ -207,9 +211,11 @@ pub enum ClassHashStorageError {
 
 type ClassHashStorageResult<T> = Result<T, ClassHashStorageError>;
 
+#[derive(Clone)]
 pub struct ClassHashStorage {
     reader: papyrus_storage::StorageReader,
-    writer: papyrus_storage::StorageWriter,
+    // papyrus_storage::StorageWriter is not clonable. So we use Arc<Mutex<..,>> for that.
+    writer: Arc<Mutex<papyrus_storage::StorageWriter>>,
 }
 
 impl ClassHashStorage {
@@ -232,7 +238,7 @@ impl ClassHashStorage {
         };
         let (reader, writer) = papyrus_storage::open_storage(storage_config)?;
 
-        Ok(Self { reader, writer })
+        Ok(Self { reader, writer: Arc::new(Mutex::new(writer)) })
     }
 
     fn get_executable_class_hash(
@@ -250,10 +256,9 @@ impl ClassHashStorage {
         class_id: ClassId,
         executable_class_hash: ExecutableClassHash,
     ) -> ClassHashStorageResult<()> {
-        let txn = self
-            .writer
-            .begin_rw_txn()?
-            .set_executable_class_hash(&class_id, executable_class_hash)?;
+        let mut writer = block_on(self.writer.lock());
+        let txn =
+            writer.begin_rw_txn()?.set_executable_class_hash(&class_id, executable_class_hash)?;
         txn.commit()?;
         Ok(())
     }
@@ -261,6 +266,7 @@ impl ClassHashStorage {
 
 type FsClassStorageResult<T> = Result<T, FsClassStorageError>;
 
+#[derive(Clone)]
 pub struct FsClassStorage {
     persistent_root: PathBuf,
     class_hash_storage: ClassHashStorage,
