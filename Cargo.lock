@@ -11052,7 +11052,6 @@ dependencies = [
  "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_config",
- "papyrus_execution",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_storage",
