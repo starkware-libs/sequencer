@@ -4,7 +4,6 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use starknet_sequencer_infra::component_client::ClientError;
-use starknet_sequencer_metrics::metrics::MetricPresenter;
 
 use crate::config::HttpServerConfig;
 use crate::metrics::{

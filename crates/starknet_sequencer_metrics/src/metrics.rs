@@ -11,16 +11,6 @@ pub enum MetricScope {
     HttpServer,
 }
 
-pub trait MetricPresenter {
-    fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
-    }
-
-    fn get_name(&self) -> &'static str;
-
-    fn get_scope(&self) -> MetricScope;
-}
-
 pub struct MetricCounter {
     scope: MetricScope,
     name: &'static str,
@@ -38,6 +28,14 @@ impl MetricCounter {
         Self { scope, name, description, initial_value }
     }
 
+    pub const fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    pub const fn get_scope(&self) -> MetricScope {
+        self.scope
+    }
+
     pub fn register(&self) {
         counter!(self.name).absolute(self.initial_value);
         describe_counter!(self.name, self.description);
@@ -46,15 +44,9 @@ impl MetricCounter {
     pub fn increment(&self, value: u64) {
         counter!(self.name).increment(value);
     }
-}
 
-impl MetricPresenter for MetricCounter {
-    fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.scope
+    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
     }
 }
 
@@ -67,6 +59,14 @@ pub struct MetricGauge {
 impl MetricGauge {
     pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
         Self { scope, name, description }
+    }
+
+    pub const fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    pub const fn get_scope(&self) -> MetricScope {
+        self.scope
     }
 
     pub fn register(&self) -> Gauge {
@@ -84,15 +84,9 @@ impl MetricGauge {
     pub fn decrement<T: IntoF64>(&self, value: T) {
         gauge!(self.name).decrement(value.into_f64());
     }
-}
 
-impl MetricPresenter for MetricGauge {
-    fn get_name(&self) -> &'static str {
-        self.name
-    }
-
-    fn get_scope(&self) -> MetricScope {
-        self.scope
+    pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
     }
 }
 
