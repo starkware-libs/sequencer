@@ -1,8 +1,14 @@
+mod concurrent_servers_test;
 mod local_component_client_server_test;
 mod remote_component_client_server_test;
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_types_core::felt::Felt;
+use tokio::sync::Mutex;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
@@ -10,6 +16,12 @@ pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
+
+// Define the shared fixture
+pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
+    let available_ports = AvailablePorts::new(TestIdentifier::InfraUnitTests.into(), 0);
+    Arc::new(Mutex::new(available_ports))
+});
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentARequest {
