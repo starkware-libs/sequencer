@@ -92,11 +92,6 @@ fn test_valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
-<<<<<<< HEAD
-// TODO(Arni): share code with
-// `papyrus_node::config::config_test::default_config_file_is_up_to_date`.
-||||||| c4d606ec3
-=======
 #[cfg(not(feature = "cairo_native"))]
 fn remove_native_config(json: &mut serde_json::Value) {
     if let Some(obj) = json.as_object_mut() {
@@ -106,7 +101,8 @@ fn remove_native_config(json: &mut serde_json::Value) {
     }
 }
 
->>>>>>> origin/main-v0.13.4
+// TODO(Arni): share code with
+// `papyrus_node::config::config_test::default_config_file_is_up_to_date`.
 /// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
 /// cargo run --bin sequencer_dump_config -q
