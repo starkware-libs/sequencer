@@ -13,6 +13,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
+use tracing::{info, instrument};
 
 use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
@@ -56,6 +57,7 @@ impl L1Provider {
     }
 
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
+    #[instrument(skip(self), err)]
     pub fn get_txs(
         &mut self,
         n_txs: usize,
@@ -64,7 +66,8 @@ impl L1Provider {
         self.validate_height(height)?;
 
         match self.state {
-            ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
+            ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs))
+                .inspect(|txs| info!("Retrieved {} messages from L1", txs.len())),
             ProviderState::Pending | ProviderState::Bootstrap(_) => {
                 Err(L1ProviderError::OutOfSessionGetTransactions)
             }
