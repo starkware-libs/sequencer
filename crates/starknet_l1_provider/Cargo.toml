@@ -34,8 +34,13 @@ papyrus_base_layer = { path = "../papyrus_base_layer", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
-starknet_l1_provider_types = { path = "../starknet_l1_provider_types" }
+starknet_l1_provider_types = { path = "../starknet_l1_provider_types", features = ["testing"] }
 starknet_state_sync_types = { path = "../starknet_state_sync_types", features = ["testing"] }
 
 [lints]
 workspace = true
+
+[[test]]
+name = "startup_flows"
+path = "tests/startup_flows.rs"
+required-features = ["testing"]
