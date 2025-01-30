@@ -1,5 +1,6 @@
 pub mod class_manager;
 pub mod class_storage;
+pub mod communication;
 pub mod config;
 
 use crate::class_manager::ClassManager as GenericClassManager;

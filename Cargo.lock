@@ -10761,6 +10761,7 @@ dependencies = [
 name = "starknet_class_manager"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "hex",
  "mockall",
  "papyrus_config",
