@@ -121,7 +121,13 @@ impl Sum for ExecutionSummary {
 }
 
 impl ExecutionSummary {
-    pub fn to_gas_vector(
+    /// Returns the a gas cost _estimation_ for the execution summary.
+    ///
+    /// In particular, this calculation ignores state changes, cost of declared classes, L1 handler
+    /// payload length, plus Starknet OS overhead. These costs are only accounted for on a
+    /// transaction level and cannot be computed based on a single execution summary.
+    #[cfg(feature = "node_api")]
+    pub fn to_partial_gas_vector(
         self,
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
