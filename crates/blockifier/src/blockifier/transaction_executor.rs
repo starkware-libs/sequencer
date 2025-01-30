@@ -198,13 +198,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     pub fn execute_txs(
         &mut self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs)
-                .into_iter()
-                .map(|result| result.map(|(info, _)| info))
-                .collect()
         } else {
             log::debug!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
@@ -274,7 +271,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         use crate::concurrency::utils::AbortIfPanic;
 
         let block_state = self.block_state.take().expect("The block state should be `Some`.");

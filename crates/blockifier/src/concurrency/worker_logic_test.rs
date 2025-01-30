@@ -125,7 +125,7 @@ pub fn test_commit_tx() {
         let result = &execution_task_outputs.as_ref().unwrap().result;
         assert_eq!(result.is_err(), should_fail_execution);
         if !should_fail_execution {
-            assert!(!result.as_ref().unwrap().is_reverted());
+            assert!(!result.as_ref().unwrap().0.is_reverted());
         }
     }
 
@@ -150,10 +150,10 @@ pub fn test_commit_tx() {
         let actual_fee = if should_fail_execution {
             0
         } else {
-            execution_result.as_ref().unwrap().receipt.fee.0
+            execution_result.as_ref().unwrap().0.receipt.fee.0
         };
         if !should_fail_execution {
-            assert!(!execution_result.as_ref().unwrap().is_reverted());
+            assert!(!execution_result.as_ref().unwrap().0.is_reverted());
             // Check that the call info was fixed.
             for (expected_sequencer_storage_read, read_storage_index) in [
                 (expected_sequencer_balance_low, STORAGE_READ_SEQUENCER_BALANCE_INDICES.0),
@@ -162,6 +162,7 @@ pub fn test_commit_tx() {
                 let actual_sequencer_storage_read = execution_result
                     .as_ref()
                     .unwrap()
+                    .0
                     .fee_transfer_call_info
                     .as_ref()
                     .unwrap()
@@ -220,7 +221,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
     let execution_result = &execution_task_outputs.as_ref().unwrap().result;
     let fee_transfer_call_info =
-        execution_result.as_ref().unwrap().fee_transfer_call_info.as_ref().unwrap();
+        execution_result.as_ref().unwrap().0.fee_transfer_call_info.as_ref().unwrap();
     let read_values_before_commit = fee_transfer_call_info.storage_read_values.clone();
     drop(execution_task_outputs);
 
@@ -237,7 +238,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
     let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
     let commit_result = &execution_task_outputs.as_ref().unwrap().result;
     let fee_transfer_call_info =
-        commit_result.as_ref().unwrap().fee_transfer_call_info.as_ref().unwrap();
+        commit_result.as_ref().unwrap().0.fee_transfer_call_info.as_ref().unwrap();
     // Check that the result call info is the same as before the commit.
     assert_eq!(read_values_before_commit, fee_transfer_call_info.storage_read_values);
 
@@ -341,8 +342,8 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
     let execution_output = execution_output.as_ref().unwrap();
     let result = execution_output.result.as_ref().unwrap();
-    let account_balance = BALANCE.0 - result.receipt.fee.0;
-    assert!(!result.is_reverted());
+    let account_balance = BALANCE.0 - result.0.receipt.fee.0;
+    assert!(!result.0.is_reverted());
 
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc_contract_address = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2);
@@ -414,7 +415,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     );
     let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
     let execution_output = execution_output.as_ref().unwrap();
-    assert!(execution_output.result.as_ref().unwrap().is_reverted());
+    assert!(execution_output.result.as_ref().unwrap().0.is_reverted());
     assert_ne!(execution_output.writes, StateMaps::default());
 
     // Validate status change.
@@ -599,8 +600,10 @@ fn test_deploy_before_declare(
 
     let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
     let tx_execution_info = execution_output.as_ref().unwrap().result.as_ref().unwrap();
-    assert!(tx_execution_info.is_reverted());
-    assert!(tx_execution_info.revert_error.clone().unwrap().to_string().contains("not declared."));
+    assert!(tx_execution_info.0.is_reverted());
+    assert!(
+        tx_execution_info.0.revert_error.clone().unwrap().to_string().contains("not declared.")
+    );
     drop(execution_output);
 
     // Creates 2 active tasks.
@@ -614,7 +617,7 @@ fn test_deploy_before_declare(
     worker_executor.execute(1);
 
     let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
-    assert!(!execution_output.as_ref().unwrap().result.as_ref().unwrap().is_reverted());
+    assert!(!execution_output.as_ref().unwrap().result.as_ref().unwrap().0.is_reverted());
     drop(execution_output);
 
     // Successful validation for transaction 1.
@@ -710,7 +713,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     for execution_output in worker_executor.execution_outputs.iter() {
         let locked_execution_output = execution_output.lock().unwrap();
         let result = locked_execution_output.as_ref().unwrap().result.as_ref();
-        assert!(!result.unwrap().is_reverted());
+        assert!(!result.unwrap().0.is_reverted());
     }
 }
 
@@ -781,6 +784,6 @@ fn test_worker_commit_phase_with_halt() {
     for execution_output in worker_executor.execution_outputs.iter() {
         let locked_execution_output = execution_output.lock().unwrap();
         let result = locked_execution_output.as_ref().unwrap().result.as_ref();
-        assert!(!result.unwrap().is_reverted());
+        assert!(!result.unwrap().0.is_reverted());
     }
 }

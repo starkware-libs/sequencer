@@ -5,7 +5,10 @@ use std::thread;
 use std::time::Duration;
 
 use super::versioned_state::VersionedState;
-use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::blockifier::transaction_executor::{
+    TransactionExecutionOutput,
+    TransactionExecutorError,
+};
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task};
@@ -15,7 +18,7 @@ use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
-use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::objects::TransactionExecutionResult;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
 
@@ -31,7 +34,7 @@ pub struct ExecutionTaskOutput {
     // TODO(Yoni): rename to state_diff.
     pub writes: StateMaps,
     pub contract_classes: ContractClassMapping,
-    pub result: TransactionExecutionResult<TransactionExecutionInfo>,
+    pub result: TransactionExecutionResult<TransactionExecutionOutput>,
 }
 
 pub struct WorkerExecutor<'a, S: StateReader> {
@@ -126,27 +129,27 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let concurrency_mode = true;
         let execution_result =
             tx.execute_raw(&mut transactional_state, self.block_context, concurrency_mode);
-
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
-            Ok(_) => {
+            Ok(tx_execution_info) => {
                 let tx_reads_writes = transactional_state.cache.take();
                 let writes = tx_reads_writes.to_state_diff().state_maps;
                 let contract_classes = transactional_state.class_hash_to_class.take();
+                let state_diff = transactional_state.to_state_diff().unwrap().state_maps;
                 tx_versioned_state.apply_writes(&writes, &contract_classes);
                 ExecutionTaskOutput {
                     reads: tx_reads_writes.initial_reads,
                     writes,
                     contract_classes,
-                    result: execution_result,
+                    result: Ok((tx_execution_info, state_diff)),
                 }
             }
-            Err(_) => ExecutionTaskOutput {
+            Err(err) => ExecutionTaskOutput {
                 reads: transactional_state.cache.take().initial_reads,
                 // Failed transaction - ignore the writes.
                 writes: StateMaps::default(),
                 contract_classes: HashMap::default(),
-                result: execution_result,
+                result: Err(err), // TODO(AvivG): no info is lost?
             },
         };
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
@@ -220,7 +223,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 
-        if let Ok(tx_execution_info) = tx_result.as_mut() {
+        if let Ok((tx_execution_info, _state_diff)) = tx_result.as_mut() {
             let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
