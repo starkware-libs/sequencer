@@ -90,6 +90,5 @@ jobs:
           no-cache-filters: |
             builder
             final_stage
-          load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
