@@ -1,4 +1,4 @@
-use alloy_primitives::Address as EthereumContractAddress;
+use alloy::primitives::Address as EthereumContractAddress;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
