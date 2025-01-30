@@ -6,19 +6,15 @@ use prost::Message;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
     RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
-use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3};
 
 use super::ProtobufConversionError;
 use crate::auto_impl_into_and_try_from_vec_u8;
 use crate::mempool::RpcTransactionWrapper;
 use crate::protobuf::{self};
-
 auto_impl_into_and_try_from_vec_u8!(RpcTransactionWrapper, protobuf::MempoolTransaction);
 
 impl TryFrom<protobuf::MempoolTransaction> for RpcTransactionWrapper {
@@ -78,141 +74,6 @@ impl From<RpcTransaction> for protobuf::MempoolTransaction {
                 }
             }
         }
-    }
-}
-
-impl TryFrom<protobuf::transaction::DeployAccountV3> for RpcDeployAccountTransactionV3 {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::transaction::DeployAccountV3) -> Result<Self, Self::Error> {
-        let resource_bounds = value
-            .resource_bounds
-            .clone()
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeployAccountV3::resource_bounds",
-            })?
-            .try_into()?;
-        let DeployAccountTransactionV3 {
-            resource_bounds: _,
-            tip,
-            signature,
-            nonce,
-            class_hash,
-            contract_address_salt,
-            constructor_calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-        } = value.try_into()?;
-
-        Ok(Self {
-            resource_bounds,
-            tip,
-            signature,
-            nonce,
-            class_hash,
-            contract_address_salt,
-            constructor_calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-        })
-    }
-}
-
-impl From<RpcDeployAccountTransactionV3> for protobuf::transaction::DeployAccountV3 {
-    fn from(value: RpcDeployAccountTransactionV3) -> Self {
-        let RpcDeployAccountTransactionV3 {
-            resource_bounds,
-            tip,
-            signature,
-            nonce,
-            class_hash,
-            contract_address_salt,
-            constructor_calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-        } = value;
-        DeployAccountTransactionV3 {
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            tip,
-            signature,
-            nonce,
-            class_hash,
-            contract_address_salt,
-            constructor_calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-        }
-        .into()
-    }
-}
-
-impl TryFrom<protobuf::transaction::InvokeV3> for RpcInvokeTransactionV3 {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::transaction::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = value
-            .resource_bounds
-            .clone()
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "InvokeV3::resource_bounds",
-            })?
-            .try_into()?;
-        let InvokeTransactionV3 {
-            resource_bounds: _,
-            tip,
-            signature,
-            nonce,
-            sender_address,
-            calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-            account_deployment_data,
-        } = value.try_into()?;
-        Ok(Self {
-            resource_bounds,
-            tip,
-            signature,
-            nonce,
-            sender_address,
-            calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-            account_deployment_data,
-        })
-    }
-}
-
-impl From<RpcInvokeTransactionV3> for protobuf::transaction::InvokeV3 {
-    fn from(value: RpcInvokeTransactionV3) -> Self {
-        let RpcInvokeTransactionV3 {
-            resource_bounds,
-            tip,
-            signature,
-            nonce,
-            sender_address,
-            calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-            account_deployment_data,
-        } = value;
-        InvokeTransactionV3 {
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            tip,
-            signature,
-            nonce,
-            sender_address,
-            calldata,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-            account_deployment_data,
-        }
-        .into()
     }
 }
 
