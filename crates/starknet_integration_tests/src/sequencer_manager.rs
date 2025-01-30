@@ -36,11 +36,6 @@ use crate::utils::{
     send_account_txs,
 };
 
-/// The number of consolidated local sequencers that participate in the test.
-const N_CONSOLIDATED_SEQUENCERS: usize = 3;
-/// The number of distributed remote sequencers that participate in the test.
-const N_DISTRIBUTED_SEQUENCERS: usize = 2;
-
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -341,6 +336,8 @@ async fn await_batcher_block(
 
 pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
+    num_of_consolidated_nodes: usize,
+    num_of_distributed_nodes: usize,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
@@ -351,10 +348,10 @@ pub(crate) async fn get_sequencer_setup_configs(
     let node_component_configs: Vec<NodeComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
-        combined.extend(create_consolidated_sequencer_configs(N_CONSOLIDATED_SEQUENCERS));
+        combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
         combined.extend(create_distributed_node_configs(
             &mut available_ports,
-            N_DISTRIBUTED_SEQUENCERS,
+            num_of_distributed_nodes,
         ));
         combined
     };
