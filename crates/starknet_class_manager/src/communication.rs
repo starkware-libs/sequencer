@@ -10,16 +10,13 @@ use starknet_class_manager_types::{
     ExecutableClass,
 };
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
-use starknet_sequencer_infra::component_server::{
-    ConcurrentLocalComponentServer,
-    RemoteComponentServer,
-};
+use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::ClassManager;
 
 pub type LocalClassManagerServer =
-    ConcurrentLocalComponentServer<ClassManager, ClassManagerRequest, ClassManagerResponse>;
-pub type RemoteSierraCompilerServer =
+    LocalComponentServer<ClassManager, ClassManagerRequest, ClassManagerResponse>;
+pub type RemoteClassManagerServer =
     RemoteComponentServer<ClassManagerRequest, ClassManagerResponse>;
 
 // TODO(Elin): rewrite as needed.
