@@ -110,6 +110,7 @@ use crate::hints::execution::{
 };
 use crate::hints::find_element::search_sorted_optimistic;
 use crate::hints::kzg::store_da_segment;
+use crate::hints::math::log2_ceil;
 use crate::hints::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -979,6 +980,13 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     ids.evals = segments.add_temp_segment()
 
     segments.write_arg(ids.kzg_commitments.address_, list(itertools.chain(*kzg_commitments)))"#}
+    ),
+    (
+        Log2Ceil,
+        log2_ceil,
+        indoc! {r#"from starkware.python.math_utils import log2_ceil
+            ids.res = log2_ceil(ids.value)"#
+        }
     )
 );
 
