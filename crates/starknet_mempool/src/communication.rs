@@ -99,6 +99,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::ContainsTransactionFrom(account_address) => {
                 MempoolResponse::ContainsTransactionFrom(self.contains_tx_from(account_address))
             }
+            MempoolRequest::UpdateGasPrice(gas_price) => {
+                MempoolResponse::UpdateGasPrice(self.mempool.update_gas_price(gas_price))
+            }
         }
     }
 }

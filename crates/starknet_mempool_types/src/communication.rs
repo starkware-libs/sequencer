@@ -6,6 +6,7 @@ use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_sequencer_infra::component_client::{
@@ -50,6 +51,7 @@ pub trait MempoolClient: Send + Sync {
         &self,
         contract_address: ContractAddress,
     ) -> MempoolClientResult<bool>;
+    async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,6 +60,7 @@ pub enum MempoolRequest {
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
     ContainsTransactionFrom(ContractAddress),
+    UpdateGasPrice(GasPrice),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -66,6 +69,7 @@ pub enum MempoolResponse {
     CommitBlock(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<InternalRpcTransaction>>),
     ContainsTransactionFrom(MempoolResult<bool>),
+    UpdateGasPrice(MempoolResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -122,6 +126,17 @@ where
         handle_all_response_variants!(
             MempoolResponse,
             ContainsTransactionFrom,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()> {
+        let request = MempoolRequest::UpdateGasPrice(gas_price);
+        handle_all_response_variants!(
+            MempoolResponse,
+            UpdateGasPrice,
             MempoolClientError,
             MempoolError,
             Direct

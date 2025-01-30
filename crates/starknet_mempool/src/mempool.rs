@@ -298,9 +298,9 @@ impl Mempool {
         self.state.validate_commitment(address, next_nonce);
     }
 
-    // TODO(Mohammad): Rename this method once consensus API is added.
-    pub fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
+    pub fn update_gas_price(&mut self, threshold: GasPrice) -> MempoolResult<()> {
         self.tx_queue.update_gas_price_threshold(threshold);
+        Ok(())
     }
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
