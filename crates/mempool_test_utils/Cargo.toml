@@ -10,7 +10,7 @@ workspace = true
 
 [dependencies]
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["testing"] }
+blockifier = { workspace = true, features = ["jemalloc", "testing"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
