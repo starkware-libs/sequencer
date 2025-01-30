@@ -30,7 +30,7 @@ class BaseCommand(Enum):
             return ["cargo", "test"] + package_args
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["cargo", "clippy"] + clippy_args + ["--all-targets", "--features", "testing"]
+            return ["cargo", "clippy"] + clippy_args + ["--all-targets"]
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
             return ["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args
