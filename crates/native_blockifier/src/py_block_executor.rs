@@ -232,7 +232,7 @@ impl PyBlockExecutor {
             .into_iter()
             // Note: there might be less results than txs (if there is no room for all of them).
             .map(|result| match result {
-                Ok(tx_execution_info) => (
+                Ok((tx_execution_info, _state_diff)) => (
                     true,
                     ThinTransactionExecutionInfo::from_tx_execution_info(
                         tx_execution_info,

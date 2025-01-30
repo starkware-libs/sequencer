@@ -408,9 +408,9 @@ fn test_stack_overflow(#[values(true, false)] concurrency_enabled: bool) {
     let mut executor = TransactionExecutor::new(state, block_context, config);
     let results = executor.execute_txs(&vec![account_tx.into()]);
 
-    let execution_res = results[0].as_ref().unwrap();
-    assert!(execution_res.is_reverted());
-    let err = execution_res.revert_error.clone().unwrap().to_string();
+    let (tx_execution_info, _state_diff) = results[0].as_ref().unwrap();
+    assert!(tx_execution_info.is_reverted());
+    let err = tx_execution_info.revert_error.clone().unwrap().to_string();
 
     // Recursion is terminated by resource bounds before stack overflow occurs.
     assert!(err.contains("'Out of gas'"));

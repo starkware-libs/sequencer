@@ -197,13 +197,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     pub fn execute_txs(
         &mut self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs)
-                .into_iter()
-                .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
-                .collect()
         } else {
             log::debug!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
@@ -272,7 +269,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         use crate::concurrency::utils::AbortIfPanic;
 
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
@@ -340,8 +337,11 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                 .expect("Failed to lock execution output.")
                 .take()
                 .expect("Output must be ready.");
-            tx_execution_results
-                .push(locked_execution_output.result.map_err(TransactionExecutorError::from));
+            let tx_execution_output = locked_execution_output
+                .result
+                .map(|tx_execution_info| (tx_execution_info, locked_execution_output.state_diff))
+                .map_err(TransactionExecutorError::from);
+            tx_execution_results.push(tx_execution_output);
         }
 
         let block_state_after_commit = Arc::try_unwrap(worker_executor)
