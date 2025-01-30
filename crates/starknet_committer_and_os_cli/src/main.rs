@@ -1,4 +1,8 @@
 use clap::{Args, Parser, Subcommand};
+use starknet_committer_and_os_cli::block_hash_cli::run_block_hash_cli::{
+    run_block_hash_cli,
+    BlockHashCliCommand,
+};
 use starknet_committer_and_os_cli::committer_cli::run_committer_cli::{
     run_committer_cli,
     CommitterCliCommand,
@@ -22,6 +26,8 @@ struct CliArgs {
 enum CommitterOrOsCommand {
     /// Run Committer CLI.
     Committer(CommitterCliCommand),
+    /// Run BlockHash CLI.
+    BlockHash(BlockHashCliCommand),
     /// Run OS CLI.
     OS(OsCliCommand),
 }
@@ -45,6 +51,9 @@ async fn main() {
         }
         CommitterOrOsCommand::OS(command) => {
             run_os_cli(command, log_filter_handle).await;
+        }
+        CommitterOrOsCommand::BlockHash(command) => {
+            run_block_hash_cli(command).await;
         }
     }
 }
