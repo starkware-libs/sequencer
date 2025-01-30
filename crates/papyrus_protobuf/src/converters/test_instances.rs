@@ -4,8 +4,8 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, Ge
 use prost::DecodeError;
 use rand::Rng;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Transaction;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
@@ -41,7 +41,7 @@ auto_impl_get_test_instance! {
         pub proposal_content_id: BlockHash,
     }
     pub struct TransactionBatch {
-        pub transactions: Vec<Transaction>,
+        pub transactions: Vec<ConsensusTransaction>,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
@@ -91,12 +91,13 @@ impl Display for TestStreamId {
 }
 
 // The auto_impl_get_test_instance macro does not work for StreamMessage because it has
-// a generic type. TODO(guyn): try to make the macro work with generic types.
+// a generic type.
+// TODO(guyn): try to make the macro work with generic types.
 impl GetTestInstance for StreamMessage<ProposalPart, TestStreamId> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         let message = if rng.gen_bool(0.5) {
             StreamMessageBody::Content(ProposalPart::Transactions(TransactionBatch {
-                transactions: vec![Transaction::get_test_instance(rng)],
+                transactions: vec![ConsensusTransaction::get_test_instance(rng)],
             }))
         } else {
             StreamMessageBody::Fin

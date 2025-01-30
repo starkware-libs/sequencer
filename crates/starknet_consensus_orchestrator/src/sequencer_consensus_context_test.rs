@@ -4,6 +4,7 @@ use std::time::Duration;
 use std::vec;
 
 use futures::channel::{mpsc, oneshot};
+use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
@@ -23,12 +24,11 @@ use papyrus_protobuf::consensus::{
     Vote,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
-use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::Transaction;
+use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
@@ -42,6 +42,11 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
+use starknet_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
+use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::stream_handler::StreamHandler;
 use starknet_consensus::types::{ConsensusContext, ContextConfig};
 use starknet_state_sync_types::communication::MockStateSyncClient;
@@ -57,13 +62,19 @@ const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonH
 const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 lazy_static! {
-    static ref TX_BATCH: Vec<Transaction> = (0..3).map(generate_invoke_tx).collect();
-    static ref EXECUTABLE_TX_BATCH: Vec<ExecutableTransaction> =
-        TX_BATCH.iter().map(|tx| (tx.clone(), &CHAIN_ID).try_into().unwrap()).collect();
+    static ref TX_BATCH: Vec<ConsensusTransaction> =
+        (0..3).map(generate_invoke_tx).collect();
+    // TODO(shahak): Use MockTransactionConverter instead.
+    static ref TRANSACTION_CONVERTER: TransactionConverter =
+        TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID);
+    static ref INTERNAL_TX_BATCH: Vec<InternalConsensusTransaction> =
+        TX_BATCH.iter().cloned().map(|tx| {
+            block_on(TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx)).unwrap()
+        }).collect();
 }
 
-fn generate_invoke_tx(nonce: u8) -> Transaction {
-    Transaction::Invoke(invoke_tx(InvokeTxArgs {
+fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
+    ConsensusTransaction::RpcTransaction(rpc_invoke_tx(InvokeTxArgs {
         nonce: Nonce(felt!(nonce)),
         ..Default::default()
     }))
@@ -96,6 +107,8 @@ fn setup(
 
     let context = SequencerConsensusContext::new(
         ContextConfig { num_validators: NUM_VALIDATORS, chain_id: CHAIN_ID, ..Default::default() },
+        // TODO(shahak): Use MockTransactionConverter instead.
+        Arc::new(EmptyClassManagerClient),
         Arc::new(state_sync_client),
         Arc::new(batcher),
         outbound_proposal_stream_sender,
@@ -130,7 +143,7 @@ async fn build_proposal_setup(
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
         Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(EXECUTABLE_TX_BATCH.clone()),
+            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
         })
     });
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -176,7 +189,7 @@ async fn validate_proposal_success() {
             let SendProposalContent::Txs(txs) = input.content else {
                 panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
             };
-            assert_eq!(txs, *EXECUTABLE_TX_BATCH);
+            assert_eq!(txs, *INTERNAL_TX_BATCH);
             Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
         },
     );
@@ -287,7 +300,7 @@ async fn proposals_from_different_rounds() {
             let SendProposalContent::Txs(txs) = input.content else {
                 panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
             };
-            assert_eq!(txs, *EXECUTABLE_TX_BATCH);
+            assert_eq!(txs, *INTERNAL_TX_BATCH);
             Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
         },
     );
@@ -376,7 +389,7 @@ async fn interrupt_active_proposal() {
         .expect_send_proposal_content()
         .withf(|input| {
             input.proposal_id == ProposalId(1)
-                && input.content == SendProposalContent::Txs(EXECUTABLE_TX_BATCH.clone())
+                && input.content == SendProposalContent::Txs(INTERNAL_TX_BATCH.clone())
         })
         .times(1)
         .returning(move |_| {

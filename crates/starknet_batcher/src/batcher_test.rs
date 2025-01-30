@@ -9,8 +9,8 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
@@ -171,7 +171,7 @@ fn mock_create_builder_for_validate_block(
 
 fn mock_create_builder_for_propose_block(
     block_builder_factory: &mut MockBlockBuilderFactoryTrait,
-    output_txs: Vec<Transaction>,
+    output_txs: Vec<InternalConsensusTransaction>,
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
