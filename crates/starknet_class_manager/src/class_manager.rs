@@ -1,4 +1,5 @@
-use starknet_class_manager_types::{ClassId, ClassManagerResult, ExecutableClassHash};
+use starknet_api::state::SierraContractClass;
+use starknet_class_manager_types::{ClassHashes, ClassId, ClassManagerError, ClassManagerResult};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_multicompile_types::{
     RawClass,
@@ -35,22 +36,24 @@ impl<S: ClassStorage> ClassManager<S> {
 }
 
 impl<S: ClassStorage> ClassManager<S> {
-    pub async fn add_class(
-        &mut self,
-        class_id: ClassId,
-        class: RawClass,
-    ) -> ClassManagerResult<ExecutableClassHash> {
-        if let Ok(executable_class_hash) = self.classes.get_executable_class_hash(class_id) {
+    pub async fn add_class(&mut self, class: RawClass) -> ClassManagerResult<ClassHashes> {
+        // TODO(Elin): think how to not clone the class to deserialize.
+        let sierra_class =
+            SierraContractClass::try_from(class.clone()).map_err(ClassManagerError::from)?;
+        let class_hash = sierra_class.calculate_class_hash();
+        if let Ok(executable_class_hash) = self.classes.get_executable_class_hash(class_hash) {
             // Class already exists.
-            return Ok(executable_class_hash);
+            let class_hashes = ClassHashes { class_hash, executable_class_hash };
+            return Ok(class_hashes);
         }
 
         let (raw_executable_class, executable_class_hash) =
             self.compiler.compile(class.clone()).await?;
 
-        self.classes.set_class(class_id, class, executable_class_hash, raw_executable_class)?;
+        self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
 
-        Ok(executable_class_hash)
+        let class_hashes = ClassHashes { class_hash, executable_class_hash };
+        Ok(class_hashes)
     }
 
     pub fn get_executable(&self, class_id: ClassId) -> ClassManagerResult<RawExecutableClass> {
