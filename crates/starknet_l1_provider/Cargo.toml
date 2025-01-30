@@ -29,7 +29,6 @@ validator.workspace = true
 alloy-node-bindings.workspace = true
 alloy-primitives.workspace = true
 assert_matches.workspace = true
-colored.workspace = true
 itertools.workspace = true
 papyrus_base_layer = { path = "../papyrus_base_layer", features = ["testing"] }
 pretty_assertions.workspace = true

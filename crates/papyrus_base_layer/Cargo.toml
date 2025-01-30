@@ -37,6 +37,8 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
+alloy-node-bindings.workspace = true
+colored.workspace = true
 ethers-core.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
