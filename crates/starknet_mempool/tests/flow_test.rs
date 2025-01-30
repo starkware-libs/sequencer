@@ -1,6 +1,16 @@
+use std::time::Duration;
+
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use blockifier::transaction::test_utils::calculate_class_info_for_testing;
+use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
-use starknet_api::{contract_address, nonce};
+use starknet_api::core::Nonce;
+use starknet_api::test_utils::declare::executable_declare_tx;
+use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
+use starknet_api::transaction::TransactionVersion;
+use starknet_api::{contract_address, declare_tx_args, nonce};
 use starknet_mempool::add_tx_input;
 use starknet_mempool::mempool::{Mempool, MempoolConfig};
 use starknet_mempool::test_utils::{
@@ -10,12 +20,16 @@ use starknet_mempool::test_utils::{
     get_txs_and_assert_expected,
 };
 use starknet_mempool_types::errors::MempoolError;
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_types_core::felt::Felt;
+
+const DECLARE_DELAY_DURATION: std::time::Duration = std::time::Duration::from_millis(200);
 
 // Fixtures.
 
 #[fixture]
 fn mempool() -> Mempool {
-    Mempool::new(MempoolConfig::default())
+    Mempool::new(MempoolConfig { delay_duration: DECLARE_DELAY_DURATION, ..Default::default() })
 }
 
 // Tests.
@@ -333,4 +347,43 @@ fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // Note that in the future, the Mempool's state may be periodically cleared from records of old
     // committed transactions. Mirroring this behavior may require a modification of this test.
     assert!(mempool.contains_tx_from(account_address));
+}
+
+/// Test that declare txs are delayed before they are returned to the user.
+#[rstest]
+fn test_declare_txs_delayed(mut mempool: Mempool) {
+    const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo1(RunnableCairo1::Casm);
+
+    let account_contract = FeatureContract::AccountWithoutValidations(CAIRO_VERSION);
+    let sender_address = account_contract.get_instance_address(0);
+    let declared_contract = FeatureContract::Empty(CAIRO_VERSION);
+    let declare_tx = executable_declare_tx(
+        declare_tx_args! {
+            sender_address,
+            class_hash: declared_contract.get_class_hash(),
+            compiled_class_hash: declared_contract.get_compiled_class_hash(),
+            version: TransactionVersion::THREE,
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l2_gas: ResourceBounds {
+                    max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+        },
+        calculate_class_info_for_testing(declared_contract.get_class()),
+    );
+    let add_tx_args = AddTransactionArgs {
+        tx: declare_tx,
+        account_state: AccountState { address: sender_address, nonce: Nonce(Felt::ZERO) },
+    };
+
+    mempool.add_tx(add_tx_args).unwrap();
+    let txs = mempool.get_txs(1).unwrap();
+    assert!(txs.is_empty());
+
+    std::thread::sleep(DECLARE_DELAY_DURATION.saturating_add(Duration::from_millis(100)));
+
+    let txs = mempool.get_txs(1).unwrap();
+    assert_eq!(txs.len(), 1);
 }
