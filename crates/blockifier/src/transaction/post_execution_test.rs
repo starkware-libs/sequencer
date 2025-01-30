@@ -226,7 +226,7 @@ fn test_revert_on_overdraft(
 
 /// Tests that when a transaction requires more resources than what the sender bounds allow, the
 /// execution is reverted; in the non-revertible case, checks for the correct error.
-// TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
+// TODO(Aner): modify for 4844 (taking blob_gas into account).
 #[rstest]
 #[case::v0_no_revert(TransactionVersion::ZERO, false, default_all_resource_bounds(), None)]
 #[case::v1_insufficient_max_fee(TransactionVersion::ONE, true, default_all_resource_bounds(), None)]

@@ -149,7 +149,7 @@ fn calculate_actual_gas(
 }
 
 /// Asserts gas used and reported fee are as expected.
-// TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
+// TODO(Aner): modify for 4844 (taking blob_gas into account).
 fn check_gas_and_fee(
     block_context: &BlockContext,
     tx_execution_info: &TransactionExecutionInfo,
