@@ -47,7 +47,6 @@ use starknet_sequencer_metrics::metric_definitions::{
     REJECTED_TRANSACTIONS,
     STORAGE_HEIGHT,
 };
-use starknet_sequencer_metrics::metrics::MetricPresenter;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};

@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use crate::metric_definitions::{ALL_METRIC_COUNTERS, ALL_METRIC_GAUGES};
-use crate::metrics::MetricPresenter;
 
 // Tests that the metric names are unique.
 #[test]
