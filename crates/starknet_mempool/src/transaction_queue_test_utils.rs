@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::block::GasPrice;
+use starknet_api::block::NonzeroGasPrice;
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue::{PendingTransaction, PriorityTransaction, TransactionQueue};
@@ -15,7 +15,7 @@ type OptionalPendingTransactions = Option<Vec<PendingTransaction>>;
 pub struct TransactionQueueContent {
     priority_queue: OptionalPriorityTransactions,
     pending_queue: OptionalPendingTransactions,
-    gas_price_threshold: Option<GasPrice>,
+    gas_price_threshold: Option<NonzeroGasPrice>,
 }
 
 impl TransactionQueueContent {
@@ -66,7 +66,7 @@ impl TransactionQueueContent {
 pub struct TransactionQueueContentBuilder {
     priority_queue: OptionalPriorityTransactions,
     pending_queue: OptionalPendingTransactions,
-    gas_price_threshold: Option<GasPrice>,
+    gas_price_threshold: Option<NonzeroGasPrice>,
 }
 
 impl TransactionQueueContentBuilder {
@@ -88,7 +88,7 @@ impl TransactionQueueContentBuilder {
     }
 
     pub fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
-        self.gas_price_threshold = Some(gas_price_threshold.into());
+        self.gas_price_threshold = Some(NonzeroGasPrice::new_unchecked(gas_price_threshold.into()));
         self
     }
 
