@@ -13,7 +13,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::fee::resources::MessageResources;
 use crate::state::cached_state::StorageEntry;
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
@@ -132,7 +131,9 @@ impl ExecutionSummary {
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        let computation_resources = crate::fee::resources::ComputationResources {
+        use crate::fee::resources::{ComputationResources, MessageResources};
+
+        let computation_resources = ComputationResources {
             vm_resources: self.charged_resources.vm_resources,
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
