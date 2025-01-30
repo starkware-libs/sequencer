@@ -174,6 +174,15 @@ impl Batcher {
 
         self.set_active_proposal(propose_block_input.proposal_id).await?;
 
+        self.mempool_client
+            .update_gas_price(
+                propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price,
+            )
+            .await
+            .map_err(|err| {
+                error!("Failed to update gas price in mempool: {}", err);
+                BatcherError::MempoolNotAvailable
+            })?;
         self.l1_provider_client
             .start_block(SessionState::Propose, propose_block_input.block_info.block_number)
             .await

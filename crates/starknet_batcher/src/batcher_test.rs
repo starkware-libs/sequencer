@@ -36,8 +36,9 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
-use starknet_mempool_types::communication::MockMempoolClient;
+use starknet_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
+use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
@@ -110,11 +111,15 @@ impl Default for MockDependencies {
     fn default() -> Self {
         let mut storage_reader = MockBatcherStorageReaderTrait::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+        let mut mempool_client = MockMempoolClient::new();
+        let expected_gas_price =
+            propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price;
+        mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriterTrait::new(),
             l1_provider_client: MockL1ProviderClient::new(),
-            mempool_client: MockMempoolClient::new(),
+            mempool_client,
             block_builder_factory: MockBlockBuilderFactoryTrait::new(),
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
@@ -933,4 +938,19 @@ async fn test_execution_info_order_is_kept() {
     let expected_execution_infos: Vec<TransactionExecutionInfo> =
         block_builder_result.execution_infos.into_values().collect();
     assert_eq!(decision_reached_response.central_objects.execution_infos, expected_execution_infos);
+}
+
+#[tokio::test]
+async fn mempool_not_ready() {
+    let mut mock_dependencies = MockDependencies::default();
+    mock_dependencies.mempool_client.checkpoint();
+    mock_dependencies.mempool_client.expect_update_gas_price().returning(|_| {
+        Err(MempoolClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
+    });
+    mock_dependencies.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    let result = batcher.propose_block(propose_block_input(PROPOSAL_ID)).await;
+    assert_eq!(result, Err(BatcherError::MempoolNotAvailable));
 }

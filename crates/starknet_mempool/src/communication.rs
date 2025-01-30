@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use starknet_api::block::GasPrice;
+use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
@@ -84,7 +84,7 @@ impl MempoolCommunicationWrapper {
         Ok(self.mempool.contains_tx_from(account_address))
     }
 
-    fn update_gas_price(&mut self, gas_price: GasPrice) -> MempoolResult<()> {
+    fn update_gas_price(&mut self, gas_price: NonzeroGasPrice) -> MempoolResult<()> {
         self.mempool.update_gas_price(gas_price);
         Ok(())
     }
