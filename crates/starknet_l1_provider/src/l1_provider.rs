@@ -172,21 +172,6 @@ impl L1Provider {
         Ok(())
     }
 
-    /// Simple recovery from L1 and L2 reorgs by reseting the service, which rewinds L1 and L2
-    /// information.
-    pub async fn handle_reorg(&mut self) -> L1ProviderResult<()> {
-        self.reset().await
-    }
-
-    pub async fn reset(&mut self) -> L1ProviderResult<()> {
-        todo!(
-            "resets internal buffers and rewinds the internal crawler _pointer_ back for ~1 \
-             hour,so that the main loop will start collecting from that time gracefully. May hit \
-             base layer errors when finding the latest block on l1 to 'subtract' 1 hour from. \
-             Then, transition to Pending."
-        );
-    }
-
     fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
         if height != self.current_height {
             return Err(L1ProviderError::UnexpectedHeight {
