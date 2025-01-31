@@ -18,4 +18,5 @@ tempfile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }

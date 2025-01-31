@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::mem;
@@ -17,7 +18,7 @@ mod class_storage_test;
 pub type ClassStorageResult<T> = Result<T, ClassStorageError>;
 
 pub trait ClassStorage: Send + Sync {
-    type Error;
+    type Error: Debug + PartialEq;
 
     fn set_class(
         &mut self,
@@ -41,6 +42,8 @@ pub trait ClassStorage: Send + Sync {
         class_id: ClassId,
         class: RawExecutableClass,
     ) -> Result<(), Self::Error>;
+
+    fn class_not_found_error(&self, class_id: ClassId) -> Self::Error;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -59,7 +62,7 @@ pub struct CachedClassStorage<S: ClassStorage> {
     deprecated_classes: GlobalContractCache<RawExecutableClass>,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum CachedClassStorageError<E> {
     #[error("Class of hash: {class_id} not found")]
     ClassNotFound { class_id: ClassId },
@@ -168,6 +171,10 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         self.deprecated_classes.set(class_id, class);
 
         Ok(())
+    }
+
+    fn class_not_found_error(&self, class_id: ClassId) -> Self::Error {
+        CachedClassStorageError::ClassNotFound { class_id }
     }
 }
 
@@ -360,7 +367,12 @@ impl ClassStorage for FsClassStorage {
         &self,
         class_id: ClassId,
     ) -> Result<ExecutableClassHash, Self::Error> {
-        Ok(self.class_hash_storage.get_executable_class_hash(class_id)?)
+        self.class_hash_storage.get_executable_class_hash(class_id).map_err(|e| match e {
+            ClassHashStorageError::ClassNotFound { class_id } => {
+                FsClassStorageError::ClassNotFound { class_id }
+            }
+            other => FsClassStorageError::ClassHashStorage(other),
+        })
     }
 
     fn set_deprecated_class(
@@ -382,6 +394,10 @@ impl ClassStorage for FsClassStorage {
         std::fs::rename(tmp_dir, persistent_dir)?;
 
         Ok(())
+    }
+
+    fn class_not_found_error(&self, class_id: ClassId) -> Self::Error {
+        FsClassStorageError::ClassNotFound { class_id }
     }
 }
 
