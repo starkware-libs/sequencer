@@ -27,6 +27,7 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 #[cfg(feature = "cairo_native")]
 use crate::state::global_cache::CachedCairoNative;
 use crate::state::global_cache::{CachedCasm, ContractCaches};
+use crate::state::state_api::StateResult;
 pub const DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE: usize = 2000;
 
 #[cfg(all(test, feature = "cairo_native"))]
@@ -41,6 +42,10 @@ mod contract_class_manager_test;
 ///   execution in case of unexpected failure during native execution.
 #[cfg(feature = "cairo_native")]
 type CompilationRequest = (ClassHash, Arc<SierraContractClass>, CompiledClassV1);
+
+pub trait CasmReader {
+    fn read_casm(&self, class_hash: ClassHash) -> StateResult<CachedCasm>;
+}
 
 /// Manages the global cache of contract classes and handles sierra-to-native compilation requests.
 #[derive(Clone)]
@@ -66,11 +71,12 @@ impl ContractClassManager {
     /// 1. The feature `cairo_native` is not enabled.
     /// 2. `config.run_cairo_native` is `false`.
     /// 3. `config.wait_on_native_compilation` is `true`.
-    pub fn start(config: ContractClassManagerConfig) -> ContractClassManager {
+    pub fn start(config: ContractClassManagerConfig) -> Self {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let contract_caches = ContractCaches::new(config.contract_cache_size);
         #[cfg(not(feature = "cairo_native"))]
         return ContractClassManager { contract_caches };
+
         #[cfg(feature = "cairo_native")]
         {
             let cairo_native_run_config = config.cairo_native_run_config;
@@ -183,6 +189,31 @@ impl ContractClassManager {
     #[cfg(any(feature = "testing", test))]
     pub fn get_casm_cache_size(&self) -> usize {
         self.contract_caches.casm_cache.lock().cache_size()
+    }
+
+    #[cfg(feature = "cairo_native")]
+    // Handles `get_compiled_class` under the assumption that native compilation has finished.
+    // Returns the native compiled class if the compilation succeeded and the runnable casm upon
+    // failure.
+    fn get_compiled_class_after_waiting_on_native_compilation(
+        &self,
+        class_hash: ClassHash,
+        casm: RunnableCompiledClass,
+    ) -> RunnableCompiledClass {
+        assert!(
+            self.wait_on_native_compilation(),
+            "this function should only be called when the waiting on native compilation flag is \
+             on."
+        );
+        let cached_native = self
+            .get_native(&class_hash)
+            .expect("Should have native in cache in sync compilation flow.");
+        match cached_native {
+            CachedCairoNative::Compiled(compiled_native) => {
+                RunnableCompiledClass::from(compiled_native)
+            }
+            CachedCairoNative::CompilationFailed => casm,
+        }
     }
 }
 
