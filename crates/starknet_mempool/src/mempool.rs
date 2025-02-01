@@ -24,6 +24,7 @@ pub mod mempool_test;
 
 #[derive(Debug)]
 pub struct MempoolConfig {
+    /// Comment.
     enable_fee_escalation: bool,
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
