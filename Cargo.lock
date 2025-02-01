@@ -1747,6 +1747,7 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
  "starknet_infra_utils",
  "starknet_sierra_multicompile",
  "strum 0.25.0",
@@ -8067,11 +8068,13 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "futures",
  "indexmap 2.7.0",
  "papyrus_storage",
  "rstest",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
 ]
 
 [[package]]

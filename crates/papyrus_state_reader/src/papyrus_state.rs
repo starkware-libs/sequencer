@@ -12,14 +12,17 @@ use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedCairoNative;
 use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::{StateReader, StateResult};
+use futures::executor::block_on;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::{ContractClass, SierraVersion, VersionedCasm};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -32,6 +35,7 @@ pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
     contract_class_manager: ContractClassManager,
+    class_manager_client: Option<SharedClassManagerClient>,
 }
 
 impl PapyrusReader {
@@ -39,8 +43,9 @@ impl PapyrusReader {
         storage_reader: StorageReader,
         latest_block: BlockNumber,
         contract_class_manager: ContractClassManager,
+        class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
-        Self { storage_reader, latest_block, contract_class_manager }
+        Self { storage_reader, latest_block, contract_class_manager, class_manager_client }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
@@ -62,16 +67,7 @@ impl PapyrusReader {
                         Some(block_number) if block_number <= state_number.0);
 
         if class_is_declared {
-            let (option_casm, option_sierra) = self
-                .reader()?
-                .get_casm_and_sierra(&class_hash)
-                .map_err(|err| StateError::StateReadError(err.to_string()))?;
-            let (casm_compiled_class, sierra) =
-                couple_casm_and_sierra(class_hash, option_casm, option_sierra)?.expect(
-                    "Should be able to fetch a Casm and Sierra class if its definition exists, \
-                     database is inconsistent.",
-                );
-            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+            let (casm_compiled_class, sierra_version) = self.read_casm(class_hash)?;
             let runnable_casm = RunnableCompiledClass::V1(CompiledClassV1::try_from((
                 casm_compiled_class,
                 sierra_version,
@@ -89,12 +85,7 @@ impl PapyrusReader {
             return Ok(cached_casm);
         }
 
-        let v0_compiled_class = self
-            .reader()?
-            .get_state_reader()
-            .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
-
+        let v0_compiled_class = self.read_deprecated_casm(class_hash, state_number)?;
         match v0_compiled_class {
             Some(starknet_api_contract_class) => {
                 let runnable_casm = RunnableCompiledClass::V0(CompiledClassV0::try_from(
@@ -116,10 +107,6 @@ impl PapyrusReader {
                 Ok(runnable_casm_from_db)
             }
         }
-    }
-
-    fn get_casm(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        Ok(self.get_cached_casm(class_hash)?.to_runnable_casm())
     }
 
     #[cfg(feature = "cairo_native")]
@@ -146,6 +133,59 @@ impl PapyrusReader {
             }
             CachedCairoNative::CompilationFailed => casm,
         }
+    }
+
+    fn read_casm(&self, class_hash: ClassHash) -> StateResult<VersionedCasm> {
+        if let Some(client) = &self.class_manager_client {
+            let executable = block_on(client.get_executable(class_hash))?;
+            match executable {
+                ContractClass::V0(_) => {
+                    panic!("Class hash {class_hash} originates from a Cairo 1 contract.")
+                }
+                ContractClass::V1(versioned_casm) => {
+                    return Ok(versioned_casm);
+                }
+            }
+        }
+
+        let (option_casm, option_sierra) = self
+            .reader()?
+            .get_casm_and_sierra(&class_hash)
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        let (casm_compiled_class, sierra) =
+            couple_casm_and_sierra(class_hash, option_casm, option_sierra)?.expect(
+                "Should be able to fetch a Casm and Sierra class if its definition exists,
+                database is inconsistent.",
+            );
+        let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+
+        Ok((casm_compiled_class, sierra_version))
+    }
+
+    fn read_deprecated_casm(
+        &self,
+        class_hash: ClassHash,
+        state_number: StateNumber,
+    ) -> StateResult<Option<DeprecatedContractClass>> {
+        if let Some(client) = &self.class_manager_client {
+            let executable_result = block_on(client.get_executable(class_hash));
+            match executable_result {
+                Ok(executable) => match executable {
+                    ContractClass::V0(class) => {
+                        return Ok(Some(class));
+                    }
+                    ContractClass::V1(_) => {
+                        panic!("Class hash {class_hash} originates from a Cairo 0 contract.")
+                    }
+                },
+                Err(_) => return Ok(None),
+            }
+        }
+
+        self.reader()?
+            .get_state_reader()
+            .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))
     }
 }
 

@@ -4,6 +4,7 @@ use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
+use starknet_class_manager_types::ClassManagerClientError;
 use thiserror::Error;
 
 use crate::abi::constants;
@@ -12,6 +13,8 @@ use crate::abi::constants;
 pub enum StateError {
     #[error("CASM and Sierra mismatch for class hash {:#064x}: {message}.", class_hash.0)]
     CasmAndSierraMismatch { class_hash: ClassHash, message: String },
+    #[error(transparent)]
+    ClassManagerClient(#[from] ClassManagerClientError),
     #[error(transparent)]
     FromBigUint(#[from] TryFromBigIntError<BigUint>),
     #[error(
