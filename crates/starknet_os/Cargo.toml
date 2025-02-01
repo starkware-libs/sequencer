@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "The Starknet OS."
 
 [features]
+hint_coverage = []
 testing = ["dep:strum", "dep:strum_macros"]
 
 [dependencies]

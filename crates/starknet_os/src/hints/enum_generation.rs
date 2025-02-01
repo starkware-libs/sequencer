@@ -2,6 +2,8 @@
 macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
         #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[cfg_attr(feature = "hint_coverage", derive(Hash))]
+        #[derive(Clone, Copy, Eq, PartialEq)]
         pub enum $enum_name {
             $($hint_name),+
         }
@@ -32,7 +34,13 @@ macro_rules! define_hint_enum {
         impl HintImplementation for $enum_name {
             fn execute_hint(&self, hint_args: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
                 match self {
-                    $(Self::$hint_name => $implementation(hint_args),)+
+                    $(
+                        Self::$hint_name => {
+                            #[cfg(feature = "hint_coverage")]
+                            HINT_COVERAGE_TRACKER.lock().unwrap().insert((*self).into());
+                            $implementation(hint_args)
+                        }
+                    )+
                 }
             }
         }
@@ -51,7 +59,13 @@ macro_rules! define_hint_extension_enum {
                 hint_extension_args: HintExtensionArgs<'_, '_, '_, '_, '_>,
             ) -> HintExtensionResult {
                 match self {
-                    $(Self::$hint_name => $implementation(hint_extension_args),)+
+                    $(
+                        Self::$hint_name => {
+                            #[cfg(feature = "hint_coverage")]
+                            HINT_COVERAGE_TRACKER.lock().unwrap().insert((*self).into());
+                            $implementation(hint_extension_args)
+                        }
+                    )+
                 }
             }
         }

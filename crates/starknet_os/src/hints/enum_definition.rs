@@ -1,3 +1,10 @@
+#[cfg(feature = "hint_coverage")]
+use std::collections::HashSet;
+#[cfg(feature = "hint_coverage")]
+use std::sync::LazyLock;
+#[cfg(feature = "hint_coverage")]
+use std::sync::Mutex;
+
 use indoc::indoc;
 
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
@@ -193,6 +200,29 @@ use crate::{define_hint_enum, define_hint_extension_enum};
 #[cfg(test)]
 #[path = "enum_definition_test.rs"]
 pub mod test;
+
+#[cfg_attr(feature = "hint_coverage", derive(Hash))]
+#[derive(Eq, PartialEq)]
+pub enum AllHints {
+    Hint(Hint),
+    Extension(HintExtension),
+}
+
+impl From<Hint> for AllHints {
+    fn from(hint: Hint) -> Self {
+        Self::Hint(hint)
+    }
+}
+
+impl From<HintExtension> for AllHints {
+    fn from(extension: HintExtension) -> Self {
+        Self::Extension(extension)
+    }
+}
+
+#[cfg(feature = "hint_coverage")]
+pub static HINT_COVERAGE_TRACKER: LazyLock<Mutex<HashSet<AllHints>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
 define_hint_enum!(
     Hint,
