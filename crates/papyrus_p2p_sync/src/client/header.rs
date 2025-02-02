@@ -47,7 +47,7 @@ impl BlockData for SignedBlockHeader {
                     .expect("Vec::first should return a value on a vector of size 1"),
                 )?
                 .commit()?;
-            gauge!(papyrus_metrics::PAPYRUS_HEADER_MARKER).set(
+            gauge!(papyrus_metrics::APOLLO_HEADER_MARKER).set(
                 self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64,
             );
             // TODO(shahak): Fix code dup with central sync
@@ -62,7 +62,7 @@ impl BlockData for SignedBlockHeader {
             let header_latency = time_delta.num_seconds();
             debug!("Header latency: {}.", header_latency);
             if header_latency >= 0 {
-                gauge!(papyrus_metrics::PAPYRUS_HEADER_LATENCY_SEC).set(header_latency as f64);
+                gauge!(papyrus_metrics::APOLLO_HEADER_LATENCY_SEC).set(header_latency as f64);
             }
             Ok(())
         }

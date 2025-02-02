@@ -7833,7 +7833,6 @@ dependencies = [
  "libp2p-swarm-test",
  "metrics 0.24.1",
  "mockall",
- "papyrus_common",
  "papyrus_config",
  "papyrus_network_types",
  "pretty_assertions",
