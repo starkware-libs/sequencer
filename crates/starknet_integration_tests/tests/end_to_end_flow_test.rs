@@ -196,7 +196,7 @@ async fn listen_to_broadcasted_messages(
         proposer: expected_proposer_id,
         ..Default::default()
     };
-    let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
+    let expected_proposal_fin = ProposalFin { proposal_commitment: BlockHash(expected_content_id) };
 
     let StreamMessage {
         stream_id: first_stream_id,

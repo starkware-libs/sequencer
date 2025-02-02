@@ -38,7 +38,7 @@ auto_impl_get_test_instance! {
         pub proposer: ContractAddress,
     }
     pub struct ProposalFin {
-        pub proposal_content_id: BlockHash,
+        pub proposal_commitment: BlockHash,
     }
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,

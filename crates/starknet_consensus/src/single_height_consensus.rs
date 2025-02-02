@@ -314,7 +314,7 @@ impl SingleHeightConsensus {
                     "Validated proposal.",
                 );
                 // TODO(matan): Switch to signature validation.
-                if built_id != received_fin.as_ref().map(|fin| fin.proposal_content_id) {
+                if built_id != received_fin.as_ref().map(|fin| fin.proposal_commitment) {
                     warn!("proposal_id built from content received does not match fin.");
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
@@ -340,7 +340,7 @@ impl SingleHeightConsensus {
                     self.state_machine.round(),
                     "State machine should not progress while awaiting proposal"
                 );
-                debug!(%round, proposal_content_id = ?proposal_id, "Built proposal.");
+                debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 let sm_events = self
