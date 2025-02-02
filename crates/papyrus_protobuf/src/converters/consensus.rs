@@ -9,7 +9,9 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
+use super::common::{enum_int_to_l1_data_availability_mode, l1_data_availability_mode_to_enum_int};
 use crate::consensus::{
+    BlockInfo,
     IntoFromProto,
     ProposalFin,
     ProposalInit,
@@ -210,6 +212,61 @@ impl From<TransactionBatch> for protobuf::TransactionBatch {
 }
 
 auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch);
+
+impl TryFrom<protobuf::BlockInfo> for BlockInfo {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::BlockInfo) -> Result<Self, Self::Error> {
+        let height = value.height;
+        let block_timestamp = value.timestamp;
+        let sequencer_address = value
+            .sequencer
+            .ok_or(ProtobufConversionError::MissingField { field_description: "sequencer" })?
+            .try_into()?;
+        let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_da_mode)?;
+        let l2_gas_price_fri = value
+            .l2_gas_price_fri
+            .ok_or(ProtobufConversionError::MissingField { field_description: "l2_gas_price_fri" })?
+            .into();
+        let l1_gas_price_wei = value
+            .l1_gas_price_wei
+            .ok_or(ProtobufConversionError::MissingField { field_description: "l1_gas_price_wei" })?
+            .into();
+        let l1_data_gas_price_wei = value
+            .l1_data_gas_price_wei
+            .ok_or(ProtobufConversionError::MissingField {
+                field_description: "l1_data_gas_price_wei",
+            })?
+            .into();
+        let eth_to_strk_rate = value.eth_to_strk_rate;
+        Ok(BlockInfo {
+            block_number: BlockNumber(height),
+            block_timestamp,
+            sequencer_address,
+            l1_da_mode,
+            l2_gas_price_fri,
+            l1_gas_price_wei,
+            l1_data_gas_price_wei,
+            eth_to_strk_rate,
+        })
+    }
+}
+
+impl From<BlockInfo> for protobuf::BlockInfo {
+    fn from(value: BlockInfo) -> Self {
+        protobuf::BlockInfo {
+            height: value.block_number.0,
+            timestamp: value.block_timestamp,
+            sequencer: Some(value.sequencer_address.into()),
+            l1_da_mode: l1_data_availability_mode_to_enum_int(value.l1_da_mode),
+            l1_gas_price_wei: Some(value.l1_gas_price_wei.into()),
+            l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.into()),
+            l2_gas_price_fri: Some(value.l2_gas_price_fri.into()),
+            eth_to_strk_rate: value.eth_to_strk_rate,
+        }
+    }
+}
+
+auto_impl_into_and_try_from_vec_u8!(BlockInfo, protobuf::BlockInfo);
 
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;

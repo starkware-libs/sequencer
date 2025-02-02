@@ -49,6 +49,17 @@ message ProposalInit {
     Address proposer = 4;
 }
 
+message BlockInfo {
+    uint64 height = 1;
+    uint64 timestamp = 2;
+    Address sequencer = 3;
+    L1DataAvailabilityMode l1_da_mode = 4;
+    Uint128 l2_gas_price_fri = 5;
+    Uint128 l1_gas_price_wei = 6;
+    Uint128 l1_data_gas_price_wei = 7;
+    uint64 eth_to_strk_rate = 8;
+}
+
 message TransactionBatch {
     repeated ConsensusTransaction transactions = 1;
 }
