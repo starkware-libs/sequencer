@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+#[cfg(feature = "cairo_native")]
+use cairo_native::OptLevel;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -11,6 +13,10 @@ pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 80 * 1024;
 pub const DEFAULT_MAX_NATIVE_BYTECODE_SIZE: u64 = 15 * 1024 * 1024;
 pub const DEFAULT_MAX_CPU_TIME: u64 = 20;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
+#[cfg(feature = "cairo_native")]
+pub const DEFAULT_OPTIMIZATION_LEVEL: OptLevel = OptLevel::Default;
+#[cfg(not(feature = "cairo_native"))]
+pub const DEFAULT_OPTIMIZATION_LEVEL: usize = 2;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraCompilationConfig {
@@ -22,6 +28,8 @@ pub struct SierraCompilationConfig {
     pub max_cpu_time: u64,
     /// Compilation process’s virtual memory (address space) byte limit.
     pub max_memory_usage: u64,
+    pub optimization_level: usize,
+    pub panic_on_compilation_failure: bool,
     /// Sierra-to-Native compiler binary path.
     pub sierra_to_native_compiler_path: Option<PathBuf>,
 }
@@ -34,6 +42,11 @@ impl Default for SierraCompilationConfig {
             max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+            #[cfg(feature = "cairo_native")]
+            optimization_level: DEFAULT_OPTIMIZATION_LEVEL.into(),
+            #[cfg(not(feature = "cairo_native"))]
+            optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
+            panic_on_compilation_failure: false,
         }
     }
 }
@@ -63,6 +76,18 @@ impl SerializeConfig for SierraCompilationConfig {
                 "max_memory_usage",
                 &self.max_memory_usage,
                 "Limitation of compilation process's virtual memory (bytes).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "optimization_level",
+                &self.optimization_level,
+                "The optimization level to use.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "panic_on_compilation_failure",
+                &self.panic_on_compilation_failure,
+                "Whether to panic on compilation failure.",
                 ParamPrivacyInput::Public,
             ),
         ]);

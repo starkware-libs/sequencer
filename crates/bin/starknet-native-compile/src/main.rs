@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::process;
 
 use cairo_native::executor::AotContractExecutor;
-use cairo_native::OptLevel;
 use clap::Parser;
 
 use crate::utils::load_sierra_program_from_file;
@@ -16,6 +15,8 @@ struct Args {
     path: PathBuf,
     /// The output file path.
     output: PathBuf,
+    /// The optimization level to use.
+    optimization_level: usize,
 }
 
 fn main() {
@@ -23,6 +24,7 @@ fn main() {
     let args = Args::parse();
     let path = args.path;
     let output = args.output;
+    let optimization_level = args.optimization_level;
 
     let (contract_class, sierra_program) = load_sierra_program_from_file(&path);
 
@@ -30,7 +32,7 @@ fn main() {
     let mut contract_executor = AotContractExecutor::new(
         &sierra_program,
         &contract_class.entry_points_by_type,
-        OptLevel::default(),
+        optimization_level.into(),
     )
     .unwrap_or_else(|err| {
         eprintln!("Error compiling Sierra program: {}", err);
