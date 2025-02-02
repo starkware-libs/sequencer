@@ -104,6 +104,8 @@ pub struct ProposalFin {
 pub enum ProposalPart {
     /// The initialization part of the proposal.
     Init(ProposalInit),
+    /// The block info part of the proposal.
+    BlockInfo(BlockInfo),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
     /// The final part of the proposal, including the block hash.

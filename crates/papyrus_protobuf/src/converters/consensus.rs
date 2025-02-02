@@ -301,6 +301,7 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
 
         match part {
             Message::Init(init) => Ok(ProposalPart::Init(init.try_into()?)),
+            Message::BlockInfo(block_info) => Ok(ProposalPart::BlockInfo(block_info.try_into()?)),
             Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
             Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
         }
@@ -312,6 +313,9 @@ impl From<ProposalPart> for protobuf::ProposalPart {
         match value {
             ProposalPart::Init(init) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Init(init.into())),
+            },
+            ProposalPart::BlockInfo(block_info) => protobuf::ProposalPart {
+                message: Some(protobuf::proposal_part::Message::BlockInfo(block_info.into())),
             },
             ProposalPart::Transactions(content) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Transactions(content.into())),

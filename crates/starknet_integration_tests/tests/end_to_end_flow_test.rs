@@ -244,6 +244,9 @@ async fn listen_to_broadcasted_messages(
                     }
                 }));
             }
+            StreamMessageBody::Content(ProposalPart::BlockInfo(_)) => {
+                // TODO(Asmaa): Add validation for block info.
+            }
             StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
                 assert_eq!(
                     proposal_fin, expected_proposal_fin,
