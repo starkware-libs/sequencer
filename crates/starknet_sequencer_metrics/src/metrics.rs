@@ -36,6 +36,10 @@ impl MetricCounter {
         self.scope
     }
 
+    pub const fn get_description(&self) -> &'static str {
+        self.description
+    }
+
     pub fn register(&self) {
         counter!(self.name).absolute(self.initial_value);
         describe_counter!(self.name, self.description);
@@ -67,6 +71,10 @@ impl MetricGauge {
 
     pub const fn get_scope(&self) -> MetricScope {
         self.scope
+    }
+
+    pub const fn get_description(&self) -> &'static str {
+        self.description
     }
 
     pub fn register(&self) -> Gauge {
