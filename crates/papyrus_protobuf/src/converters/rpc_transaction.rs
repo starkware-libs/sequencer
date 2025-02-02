@@ -5,7 +5,6 @@ mod rpc_transaction_test;
 use prost::Message;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
     RpcInvokeTransaction,
@@ -13,11 +12,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
-use starknet_api::transaction::{
-    DeclareTransactionV3,
-    DeployAccountTransactionV3,
-    InvokeTransactionV3,
-};
+use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3};
 
 use super::ProtobufConversionError;
 use crate::auto_impl_into_and_try_from_vec_u8;
@@ -83,90 +78,6 @@ impl From<RpcTransaction> for protobuf::MempoolTransaction {
                 }
             }
         }
-    }
-}
-
-impl TryFrom<protobuf::mempool_transaction::DeclareV3> for RpcDeclareTransactionV3 {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::mempool_transaction::DeclareV3) -> Result<Self, Self::Error> {
-        let declare_v3 = value.declare_v3.ok_or(ProtobufConversionError::MissingField {
-            field_description: "DeclareV3::declare_v3",
-        })?;
-        let contract_class = value
-            .contract_class
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV3::contract_class",
-            })?
-            .try_into()?;
-        let DeclareTransactionV3 {
-            sender_address,
-            compiled_class_hash,
-            signature,
-            nonce,
-            resource_bounds,
-            class_hash: _,
-            tip,
-            paymaster_data,
-            account_deployment_data,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-        } = declare_v3.try_into()?;
-
-        let resource_bounds = match resource_bounds {
-            ValidResourceBounds::AllResources(resource_bounds) => resource_bounds,
-            ValidResourceBounds::L1Gas(resource_bounds) => AllResourceBounds {
-                l1_gas: resource_bounds,
-                l2_gas: Default::default(),
-                l1_data_gas: Default::default(),
-            },
-        };
-
-        Ok(Self {
-            sender_address,
-            compiled_class_hash,
-            signature,
-            nonce,
-            contract_class,
-            resource_bounds,
-            tip,
-            paymaster_data,
-            account_deployment_data,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-        })
-    }
-}
-
-impl From<RpcDeclareTransactionV3> for protobuf::mempool_transaction::DeclareV3 {
-    fn from(value: RpcDeclareTransactionV3) -> Self {
-        let RpcDeclareTransactionV3 {
-            sender_address,
-            compiled_class_hash,
-            signature,
-            nonce,
-            contract_class,
-            resource_bounds,
-            tip,
-            paymaster_data,
-            account_deployment_data,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-        } = value;
-        let declare_v3 = DeclareTransactionV3 {
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            tip,
-            signature,
-            nonce,
-            // TODO(Eitan): refactor the protobuf transaction to not have class_hash
-            class_hash: Default::default(),
-            compiled_class_hash,
-            sender_address,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-            paymaster_data,
-            account_deployment_data,
-        };
-        Self { contract_class: Some(contract_class.into()), declare_v3: Some(declare_v3.into()) }
     }
 }
 
