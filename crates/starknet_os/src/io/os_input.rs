@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use blockifier::context::ChainInfo;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use shared_execution_objects::objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
-use starknet_consensus_orchestrator::cende::central_objects::CentralTransactionExecutionInfo;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
