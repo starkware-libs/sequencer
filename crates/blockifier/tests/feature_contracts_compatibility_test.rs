@@ -5,8 +5,9 @@ use blockifier::test_utils::contracts::{
     CAIRO1_FEATURE_CONTRACTS_DIR,
     SIERRA_CONTRACTS_SUBDIR,
 };
-use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use blockifier::test_utils::CairoVersion;
 use blockifier_test_utils::cairo_compile::{prepare_group_tag_compiler_deps, CompilationArtifacts};
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use tracing::info;

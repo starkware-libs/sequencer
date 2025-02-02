@@ -5,8 +5,9 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use mempool_test_utils::starknet_api_test_utils::{
     executable_invoke_tx as create_executable_invoke_tx,
     VALID_L1_GAS_MAX_AMOUNT,
