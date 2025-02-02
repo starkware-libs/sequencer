@@ -1,0 +1,14 @@
+[package]
+name = "blockifier_test_utils"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Test utilities for the blockifier."
+
+[dependencies]
+starknet_api = { workspace = true, features = ["testing"] }
+starknet-types-core.workspace = true
+
+[lints]
+workspace = true
