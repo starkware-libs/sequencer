@@ -102,6 +102,9 @@ async fn class_basic_flow() {
         // We already validate the state diff query content in other tests.
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::StateDiff),
     );
+
+    // Sleep so class sync will wait for new data
+    actions.push(Action::SleepToLetSyncAdvance);
     for state_diffs_and_classes in &state_diffs_and_classes_of_blocks {
         for (state_diff, _) in state_diffs_and_classes {
             actions.push(Action::SendStateDiff(DataOrFin(Some(state_diff.clone()))));
@@ -109,6 +112,23 @@ async fn class_basic_flow() {
     }
 
     let len = state_diffs_and_classes_of_blocks.len();
+    // Wait for state diff sync to finish before continuing class sync.
+    actions.push(Action::CheckStorage(Box::new(move |reader| {
+        async move {
+            let block_number = BlockNumber(len.try_into().unwrap());
+            wait_for_marker(
+                DataType::StateDiff,
+                &reader,
+                block_number,
+                SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+                TIMEOUT_FOR_TEST,
+            )
+            .await;
+        }
+        .boxed()
+    })));
+    actions.push(Action::SimulateWaitPeriodForNewData);
+
     actions.push(Action::ReceiveQuery(
         Box::new(move |query| {
             assert_eq!(
