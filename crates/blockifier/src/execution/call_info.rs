@@ -4,6 +4,7 @@ use std::ops::{Add, AddAssign};
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
@@ -141,10 +142,14 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct StorageAccessTracker {
+    // TODO(Aner): refactor all to use a single enum with accessed_keys and ordered_values.
     pub storage_read_values: Vec<Felt>,
     pub accessed_storage_keys: HashSet<StorageKey>,
     pub read_class_hash_values: Vec<ClassHash>,
     pub accessed_contract_addresses: HashSet<ContractAddress>,
+    // TODO(Aner): add tests for storage tracking of contract 0x1
+    pub read_block_hash_values: Vec<BlockHash>,
+    pub accessed_blocks: HashSet<BlockNumber>,
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
