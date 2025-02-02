@@ -1792,8 +1792,13 @@ dependencies = [
 name = "blockifier_test_utils"
 version = "0.0.0"
 dependencies = [
+ "cached",
+ "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]
