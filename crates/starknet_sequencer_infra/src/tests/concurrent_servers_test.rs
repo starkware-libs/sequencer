@@ -9,14 +9,20 @@ use tokio::sync::Semaphore;
 use tokio::task;
 use tokio::time::timeout;
 
-use crate::component_client::{ClientResult, LocalComponentClient};
+use crate::component_client::{ClientResult, LocalComponentClient, RemoteComponentClient};
 use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    RemoteClientConfig,
 };
-use crate::component_server::{ComponentServerStarter, ConcurrentLocalComponentServer};
+use crate::component_server::{
+    ComponentServerStarter,
+    ConcurrentLocalComponentServer,
+    RemoteComponentServer,
+};
+use crate::tests::AVAILABLE_PORTS;
 
 type TestResult = ClientResult<()>;
 
@@ -32,6 +38,8 @@ enum ConcurrentComponentResponse {
 
 type LocalConcurrentComponentClient =
     LocalComponentClient<ConcurrentComponentRequest, ConcurrentComponentResponse>;
+type RemoteConcurrentComponentClient =
+    RemoteComponentClient<ConcurrentComponentRequest, ConcurrentComponentResponse>;
 
 #[async_trait]
 trait ConcurrentComponentClientTrait: Send + Sync {
@@ -100,7 +108,7 @@ where
     }
 }
 
-async fn setup_concurrent_test() -> LocalConcurrentComponentClient {
+async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     let component = ConcurrentComponent::new();
 
     let (tx_a, rx_a) = channel::<
@@ -117,8 +125,21 @@ async fn setup_concurrent_test() -> LocalConcurrentComponentClient {
     local_client
 }
 
+async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
+    let local_client = setup_concurrent_local_test().await;
+    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let config = RemoteClientConfig::default();
+
+    let mut concurrent_remote_server =
+        RemoteComponentServer::new(local_client.clone(), socket.ip(), socket.port());
+    task::spawn(async move {
+        let _ = concurrent_remote_server.start().await;
+    });
+    RemoteConcurrentComponentClient::new(config, &socket.ip().to_string(), socket.port())
+}
+
 async fn test_server(
-    client: impl ConcurrentComponentClientTrait,
+    client: Box<dyn ConcurrentComponentClientTrait>,
     field: TestSemaphore,
     number_of_iterations: usize,
 ) {
@@ -127,11 +148,10 @@ async fn test_server(
     }
 }
 
-#[tokio::test]
-async fn test_local_concurrent_server() {
-    let client_1 = setup_concurrent_test().await;
-    let client_2 = client_1.clone();
-
+async fn perform_concurrency_test(
+    client_1: Box<dyn ConcurrentComponentClientTrait>,
+    client_2: Box<dyn ConcurrentComponentClientTrait>,
+) {
     let number_of_iterations = 10;
     let test_task_1_handle =
         task::spawn(
@@ -152,4 +172,18 @@ async fn test_local_concurrent_server() {
         .is_ok(),
         "Test timed out"
     );
+}
+
+#[tokio::test]
+async fn test_local_concurrent_server() {
+    let client = setup_concurrent_local_test().await;
+
+    perform_concurrency_test(Box::new(client.clone()), Box::new(client)).await;
+}
+
+#[tokio::test]
+async fn test_remote_server_concurrency() {
+    let client = setup_concurrent_remote_test().await;
+
+    perform_concurrency_test(Box::new(client.clone()), Box::new(client)).await;
 }
