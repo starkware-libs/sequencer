@@ -11,27 +11,27 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use tracing::{info, trace};
 
-use crate::types::{ProposalContentId, Round, ValidatorId};
+use crate::types::{ProposalCommitment, Round, ValidatorId};
 
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StateMachineEvent {
-    /// Sent by the state machine when a block is required to propose (ProposalContentId is always
+    /// Sent by the state machine when a block is required to propose (ProposalCommitment is always
     /// None). While waiting for the response of GetProposal, the state machine will buffer all
     /// other events. The caller *must* respond with a valid proposal id for this height to the
     /// state machine, and the same round sent out.
-    GetProposal(Option<ProposalContentId>, Round),
+    GetProposal(Option<ProposalCommitment>, Round),
     /// Consensus message, can be both sent from and to the state machine.
     // (proposal_id, round, valid_round)
-    Proposal(Option<ProposalContentId>, Round, Option<Round>),
+    Proposal(Option<ProposalCommitment>, Round, Option<Round>),
     /// Consensus message, can be both sent from and to the state machine.
-    Prevote(Option<ProposalContentId>, Round),
+    Prevote(Option<ProposalCommitment>, Round),
     /// Consensus message, can be both sent from and to the state machine.
-    Precommit(Option<ProposalContentId>, Round),
+    Precommit(Option<ProposalCommitment>, Round),
     /// The state machine returns this event to the caller when a decision is reached. Not
     /// expected as an inbound message. We presume that the caller is able to recover the set of
     /// precommits which led to this decision from the information returned here.
-    Decision(ProposalContentId, Round),
+    Decision(ProposalCommitment, Round),
     /// Timeout events, can be both sent from and to the state machine.
     TimeoutPropose(Round),
     /// Timeout events, can be both sent from and to the state machine.
@@ -60,16 +60,16 @@ pub struct StateMachine {
     round_skip_threshold: u32,
     is_observer: bool,
     // {round: (proposal_id, valid_round)}
-    proposals: HashMap<Round, (Option<ProposalContentId>, Option<Round>)>,
+    proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
     // {round: {proposal_id: vote_count}
-    prevotes: HashMap<Round, HashMap<Option<ProposalContentId>, u32>>,
-    precommits: HashMap<Round, HashMap<Option<ProposalContentId>, u32>>,
+    prevotes: HashMap<Round, HashMap<Option<ProposalCommitment>, u32>>,
+    precommits: HashMap<Round, HashMap<Option<ProposalCommitment>, u32>>,
     // When true, the state machine will wait for a GetProposal event, buffering all other input
     // events in `events_queue`.
     awaiting_get_proposal: bool,
     events_queue: VecDeque<StateMachineEvent>,
-    locked_value_round: Option<(ProposalContentId, Round)>,
-    valid_value_round: Option<(ProposalContentId, Round)>,
+    locked_value_round: Option<(ProposalCommitment, Round)>,
+    valid_value_round: Option<(ProposalCommitment, Round)>,
     prevote_quorum: HashSet<Round>,
     mixed_prevote_quorum: HashSet<Round>,
     mixed_precommit_quorum: HashSet<Round>,
@@ -234,7 +234,7 @@ impl StateMachine {
 
     fn handle_get_proposal(
         &mut self,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: u32,
     ) -> VecDeque<StateMachineEvent> {
         // TODO(matan): Will we allow other events (timeoutPropose) to exit this state?
@@ -247,7 +247,7 @@ impl StateMachine {
     // A proposal from a peer (or self) node.
     fn handle_proposal<LeaderFn>(
         &mut self,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: u32,
         valid_round: Option<Round>,
         leader_fn: &LeaderFn,
@@ -272,7 +272,7 @@ impl StateMachine {
     // A prevote from a peer (or self) node.
     fn handle_prevote<LeaderFn>(
         &mut self,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: u32,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
@@ -297,7 +297,7 @@ impl StateMachine {
     // A precommit from a peer (or self) node.
     fn handle_precommit<LeaderFn>(
         &mut self,
-        proposal_id: Option<ProposalContentId>,
+        proposal_id: Option<ProposalCommitment>,
         round: u32,
         leader_fn: &LeaderFn,
     ) -> VecDeque<StateMachineEvent>
@@ -550,7 +550,7 @@ impl StateMachine {
 }
 
 fn round_has_enough_votes(
-    votes: &HashMap<u32, HashMap<Option<ProposalContentId>, u32>>,
+    votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
     round: u32,
     threshold: u32,
 ) -> bool {
@@ -558,9 +558,9 @@ fn round_has_enough_votes(
 }
 
 fn value_has_enough_votes(
-    votes: &HashMap<u32, HashMap<Option<ProposalContentId>, u32>>,
+    votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
     round: u32,
-    value: &Option<ProposalContentId>,
+    value: &Option<ProposalCommitment>,
     threshold: u32,
 ) -> bool {
     votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)) >= threshold

@@ -28,7 +28,7 @@ use validator::Validate;
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
 pub type Round = u32;
-pub type ProposalContentId = BlockHash;
+pub type ProposalCommitment = BlockHash;
 
 // TODO(guyn): move this to another file.
 /// Configuration for the Context struct.
@@ -107,7 +107,7 @@ pub trait ConsensusContext {
         &mut self,
         init: ProposalInit,
         timeout: Duration,
-    ) -> oneshot::Receiver<ProposalContentId>;
+    ) -> oneshot::Receiver<ProposalCommitment>;
 
     /// This function is called by consensus to validate a block. It expects that this call will
     /// return immediately and that context can then stream in the block's content in parallel to
@@ -128,15 +128,15 @@ pub trait ConsensusContext {
         init: ProposalInit,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalPart>,
-    ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
+    ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
     /// validated proposal. It broadcasts the proposal to the network.
     ///
     /// Params:
-    /// - `id`: The `ProposalContentId` associated with the block's content.
+    /// - `id`: The `ProposalCommitment` associated with the block's content.
     /// - `init`: The `ProposalInit` that is broadcast to the network.
-    async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit);
+    async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit);
 
     /// Get the set of validators for a given height. These are the nodes that can propose and vote
     /// on blocks.
@@ -156,7 +156,7 @@ pub trait ConsensusContext {
     ///   quorum (>2/3 of the voting power) for this height.
     async fn decision_reached(
         &mut self,
-        block: ProposalContentId,
+        block: ProposalCommitment,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;
 
@@ -172,7 +172,7 @@ pub trait ConsensusContext {
 #[derive(PartialEq)]
 pub struct Decision {
     pub precommits: Vec<Vote>,
-    pub block: ProposalContentId,
+    pub block: ProposalCommitment,
 }
 
 impl Debug for Decision {
