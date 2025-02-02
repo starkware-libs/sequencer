@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::L1BlockReference;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
-use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
@@ -61,8 +58,9 @@ pub async fn create_node_components(
             let l1_provider_client = clients
                 .get_l1_provider_shared_client()
                 .expect("L1 Provider Client should be available");
-            // TODO(noamsp): Remove this and use the real client instead once implemented.
-            let class_manager_client = Arc::new(EmptyClassManagerClient);
+            let class_manager_client = clients
+                .get_class_manager_shared_client()
+                .expect("Class Manager Client should be available");
             Some(create_batcher(
                 config.batcher_config.clone(),
                 mempool_client,
@@ -91,12 +89,14 @@ pub async fn create_node_components(
             let state_sync_client = clients
                 .get_state_sync_shared_client()
                 .expect("State Sync Client should be available");
+            let class_manager_client = clients
+                .get_class_manager_shared_client()
+                .expect("Class Manager Client should be available");
             Some(ConsensusManager::new(
                 config.consensus_manager_config.clone(),
                 batcher_client,
                 state_sync_client,
-                // TODO(shahak): use the correct client.
-                Arc::new(EmptyClassManagerClient),
+                class_manager_client,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
@@ -109,8 +109,9 @@ pub async fn create_node_components(
             let state_sync_client = clients
                 .get_state_sync_shared_client()
                 .expect("State Sync Client should be available");
-            // TODO(noamsp): Remove this and use the real client instead once implemented.
-            let class_manager_client = Arc::new(EmptyClassManagerClient);
+            let class_manager_client = clients
+                .get_class_manager_shared_client()
+                .expect("Class Manager Client should be available");
             Some(create_gateway(
                 config.gateway_config.clone(),
                 state_sync_client,
@@ -137,8 +138,9 @@ pub async fn create_node_components(
                 let gateway_client = clients
                     .get_gateway_shared_client()
                     .expect("Gateway Client should be available");
-                // TODO(noamsp): Remove this and use the real client instead once implemented.
-                let class_manager_client = Arc::new(EmptyClassManagerClient);
+                let class_manager_client = clients
+                    .get_class_manager_shared_client()
+                    .expect("Class Manager Client should be available");
                 let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
                     config.mempool_p2p_config.clone(),
                     gateway_client,
@@ -174,8 +176,9 @@ pub async fn create_node_components(
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            // TODO(noamsp): Remove this and use the real client instead once implemented.
-            let class_manager_client = Arc::new(EmptyClassManagerClient);
+            let class_manager_client = clients
+                .get_class_manager_shared_client()
+                .expect("Class Manager Client should be available");
             let (state_sync, state_sync_runner) = create_state_sync_and_runner(
                 config.state_sync_config.clone(),
                 class_manager_client,
