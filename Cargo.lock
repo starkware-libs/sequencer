@@ -8046,6 +8046,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "blockifier_test_utils",
  "cairo-lang-starknet-classes",
  "indexmap 2.7.0",
  "log",
@@ -11064,6 +11065,7 @@ dependencies = [
  "assert_matches",
  "axum",
  "blockifier",
+ "blockifier_test_utils",
  "cairo-lang-starknet-classes",
  "futures",
  "indexmap 2.7.0",

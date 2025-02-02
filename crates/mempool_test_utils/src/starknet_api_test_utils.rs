@@ -7,7 +7,8 @@ use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use blockifier::test_utils::CairoVersion;
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
@@ -169,7 +170,8 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 ///
 /// ```
 /// use blockifier::test_utils::contracts::FeatureContract;
-/// use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+/// use blockifier::test_utils::CairoVersion;
+/// use blockifier_test_utils::cairo_versions::RunnableCairo1;
 /// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 /// use starknet_api::transaction::fields::ContractAddressSalt;
 ///

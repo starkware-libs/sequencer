@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
@@ -88,7 +89,6 @@ use crate::test_utils::{
     get_tx_resources,
     CairoVersion,
     CompilerBasedVersion,
-    RunnableCairo1,
     BALANCE,
 };
 use crate::transaction::account_transaction::{
