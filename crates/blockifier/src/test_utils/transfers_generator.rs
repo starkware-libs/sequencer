@@ -27,6 +27,7 @@ const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
 const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
 
+#[derive(Clone)]
 pub struct TransfersGeneratorConfig {
     pub n_accounts: u16,
     pub balance: Fee,
@@ -57,6 +58,7 @@ impl Default for TransfersGeneratorConfig {
     }
 }
 
+#[derive(Clone)]
 pub enum RecipientGeneratorType {
     Random,
     RoundRobin,
