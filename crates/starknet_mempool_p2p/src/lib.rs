@@ -14,6 +14,7 @@ use crate::propagator::MempoolP2pPropagator;
 use crate::runner::MempoolP2pRunner;
 
 pub const MEMPOOL_TOPIC: &str = "starknet_mempool_transaction_propagation/0.1.0";
+const MEMPOOL_P2P_METRICS_PREFIX: &str = "mempool_p2p";
 
 pub fn create_p2p_propagator_and_runner(
     mempool_p2p_config: MempoolP2pConfig,
@@ -28,6 +29,7 @@ pub fn create_p2p_propagator_and_runner(
         mempool_p2p_config.network_config,
         // TODO(Shahak): Consider filling this once the sequencer node has a name.
         None,
+        MEMPOOL_P2P_METRICS_PREFIX,
     );
     let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
         network_manager

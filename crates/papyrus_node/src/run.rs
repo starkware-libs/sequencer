@@ -54,6 +54,8 @@ const GENESIS_HASH: &str = "0x0";
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
 const STORAGE_METRICS_UPDATE_INTERVAL: Duration = Duration::from_secs(10);
 
+const PAPYRUS_NETWORK_METRICS_PREFIX: &str = "papyrus";
+
 pub struct PapyrusResources {
     pub storage_reader: StorageReader,
     pub storage_writer: StorageWriter,
@@ -118,6 +120,7 @@ fn build_network_manager(
     let network_manager = network_manager::NetworkManager::new(
         network_config.clone(),
         Some(VERSION_FULL.to_string()),
+        PAPYRUS_NETWORK_METRICS_PREFIX,
     );
     let local_peer_id = network_manager.get_local_peer_id();
 

@@ -31,6 +31,8 @@ use super::{
 use crate::sqmr::Bytes;
 use crate::NetworkConfig;
 
+pub const TEST_COMPONENT_NAME: &str = "test";
+
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
     buffer_size: usize,
     // TODO(eitan): wrap second type with a struct to make it more readable
@@ -190,7 +192,7 @@ where
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let mut network_manager = NetworkManager::new(network_config, None);
+    let mut network_manager = NetworkManager::new(network_config, None, TEST_COMPONENT_NAME);
     let broadcast_channels =
         network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
 

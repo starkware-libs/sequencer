@@ -24,6 +24,7 @@ use super::swarm_trait::{Event, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
+use crate::network_manager::test_utils::TEST_COMPONENT_NAME;
 use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
@@ -198,7 +199,7 @@ impl SwarmTrait for MockSwarm {
         Ok(PeerId::random())
     }
 
-    // TODO (shahak): Add test for continue propagation.
+    // TODO(shahak): Add test for continue propagation.
     fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
@@ -217,7 +218,8 @@ async fn register_sqmr_protocol_client_and_use_channels() {
     mock_swarm.first_polled_event_notifier = Some(event_notifier);
 
     // network manager to register subscriber
-    let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
+    let mut network_manager =
+        GenericNetworkManager::generic_new(mock_swarm, None, TEST_COMPONENT_NAME);
 
     // register subscriber and send payload
     let mut payload_sender = network_manager.register_sqmr_protocol_client::<Vec<u8>, Vec<u8>>(
@@ -279,7 +281,8 @@ async fn process_incoming_query() {
     let get_responses_fut = mock_swarm.get_responses_sent_to_inbound_session(inbound_session_id);
     let mut get_supported_inbound_protocol_fut = mock_swarm.get_supported_inbound_protocol();
 
-    let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
+    let mut network_manager =
+        GenericNetworkManager::generic_new(mock_swarm, None, TEST_COMPONENT_NAME);
 
     let mut inbound_payload_receiver = network_manager
         .register_sqmr_protocol_server::<Vec<u8>, Vec<u8>>(protocol.to_string(), BUFFER_SIZE);
@@ -315,7 +318,8 @@ async fn broadcast_message() {
     let mut mock_swarm = MockSwarm::default();
     let mut messages_we_broadcasted_stream = mock_swarm.stream_messages_we_broadcasted();
 
-    let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
+    let mut network_manager =
+        GenericNetworkManager::generic_new(mock_swarm, None, TEST_COMPONENT_NAME);
 
     let mut broadcast_topic_client = network_manager
         .register_broadcast_topic(topic.clone(), BUFFER_SIZE)
@@ -351,7 +355,8 @@ async fn receive_broadcasted_message_and_report_it() {
     )));
     let mut reported_peer_receiver = mock_swarm.get_reported_peers_stream();
 
-    let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
+    let mut network_manager =
+        GenericNetworkManager::generic_new(mock_swarm, None, TEST_COMPONENT_NAME);
 
     let BroadcastTopicChannels {
         mut broadcast_topic_client,
