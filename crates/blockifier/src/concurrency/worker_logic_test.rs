@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -25,13 +26,7 @@ use crate::state::cached_state::StateMaps;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
-};
+use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{

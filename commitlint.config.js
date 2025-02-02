@@ -22,6 +22,7 @@ const Configuration = {
         'scope-enum': [2, 'always', [
             'blockifier',
             'blockifier_reexecution',
+            'blockifier_test_utils',
             'cairo_native',
             'ci',
             'committer',
