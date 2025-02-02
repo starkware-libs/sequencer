@@ -47,7 +47,7 @@ use starknet_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use starknet_consensus::types::{ConsensusContext, ContextConfig};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
@@ -83,7 +83,8 @@ fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
-    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart, HeightAndRound>>,
+    _new_proposal_network:
+        BroadcastNetworkMock<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 }
 
 fn setup(

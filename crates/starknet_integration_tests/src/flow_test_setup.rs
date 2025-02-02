@@ -14,6 +14,7 @@ use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_consensus::stream_handler::StreamIdAndNonce;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC;
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -53,7 +54,7 @@ pub struct FlowTestSetup {
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels:
-        BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+        BroadcastTopicChannels<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 }
 
 impl FlowTestSetup {
@@ -212,7 +213,7 @@ pub fn create_consensus_manager_configs_and_channels(
     ports: Vec<u16>,
 ) -> (
     Vec<ConsensusManagerConfig>,
-    BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+    BroadcastTopicChannels<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>,
 ) {
     let mut network_configs = create_connected_network_configs(ports);
 

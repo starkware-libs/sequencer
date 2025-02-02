@@ -12,7 +12,7 @@ use starknet_api::block::BlockNumber;
 use starknet_batcher_types::batcher_types::RevertBlockInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, StreamIdAndNonce};
 use starknet_consensus::types::ConsensusError;
 use starknet_consensus_orchestrator::cende::CendeAmbassador;
 use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
@@ -58,7 +58,7 @@ impl ConsensusManager {
         let mut network_manager = NetworkManager::new(self.config.network_config.clone(), None);
 
         let proposals_broadcast_channels = network_manager
-            .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(
+            .register_broadcast_topic::<StreamMessage<ProposalPart, StreamIdAndNonce<HeightAndRound>>>(
                 Topic::new(CONSENSUS_PROPOSALS_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )
