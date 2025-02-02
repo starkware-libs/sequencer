@@ -26,6 +26,7 @@ members = [
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
+  "crates/shared_execution_objects",
   "crates/starknet_api",
   "crates/starknet_batcher",
   "crates/starknet_batcher_types",
@@ -215,6 +216,7 @@ serde_repr = "0.1.19"
 serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"
+shared_execution_objects = { path = "crates/shared_execution_objects", version = "0.0.0" }
 simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
