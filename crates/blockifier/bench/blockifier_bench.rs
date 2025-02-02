@@ -7,6 +7,7 @@
 //!
 //! Run the benchmarks using `cargo bench --bench blockifier_bench`.
 
+use blockifier::blockifier::config::ConcurrencyConfig;
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType,
     TransfersGenerator,
@@ -14,9 +15,12 @@ use blockifier::test_utils::transfers_generator::{
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 
+const CONCURRENCY_ENABLED: bool = false;
+
 pub fn transfers_benchmark(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {
         recipient_generator_type: RecipientGeneratorType::Random,
+        concurrency_config: ConcurrencyConfig::create_for_testing(CONCURRENCY_ENABLED),
         ..Default::default()
     };
     let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
