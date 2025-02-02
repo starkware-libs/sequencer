@@ -2,6 +2,7 @@
 use std::collections::{hash_map, HashMap, HashSet};
 use std::convert::From;
 
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
@@ -49,7 +50,9 @@ pub struct SyscallHandlerBase<'state> {
     pub read_class_hash_values: Vec<ClassHash>,
     // Accessed addresses by the `get_class_hash_at` syscall.
     pub accessed_contract_addresses: HashSet<ContractAddress>,
-
+    pub read_block_hash_values: Vec<BlockHash>,
+    // Accessed block hashes by the `get_block_hash` syscall.
+    pub accessed_blocks: HashSet<BlockNumber>,
     // The original storage value of the executed contract.
     // Should be moved back `context.revert_info` before executing an inner call.
     pub original_values: HashMap<StorageKey, Felt>,
@@ -83,12 +86,14 @@ impl<'state> SyscallHandlerBase<'state> {
             accessed_keys: HashSet::new(),
             read_class_hash_values: Vec::new(),
             accessed_contract_addresses: HashSet::new(),
+            read_block_hash_values: Vec::new(),
+            accessed_blocks: HashSet::new(),
             original_values,
             revert_info_idx,
         }
     }
 
-    pub fn get_block_hash(&self, requested_block_number: u64) -> SyscallResult<Felt> {
+    pub fn get_block_hash(&mut self, requested_block_number: u64) -> SyscallResult<Felt> {
         // Note: we take the actual block number (and not the rounded one for validate)
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
         let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
@@ -123,6 +128,7 @@ impl<'state> SyscallHandlerBase<'state> {
             }
         }
 
+        self.accessed_blocks.insert(BlockNumber(requested_block_number));
         let key = StorageKey::try_from(Felt::from(requested_block_number))?;
         let block_hash_contract_address = self
             .context
@@ -132,7 +138,9 @@ impl<'state> SyscallHandlerBase<'state> {
             .os_constants
             .os_contract_addresses
             .block_hash_contract_address();
-        Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
+        let block_hash = self.state.get_storage_at(block_hash_contract_address, key)?;
+        self.read_block_hash_values.push(BlockHash(block_hash));
+        Ok(block_hash)
     }
 
     pub fn storage_read(&mut self, key: StorageKey) -> SyscallResult<Felt> {
