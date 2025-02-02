@@ -5,9 +5,10 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use tracing::info;
 
+use crate::block_hash_cli::tests::python_tests::BlockHashPythonTestRunner;
 use crate::committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
 use crate::shared_utils::read::{load_input, write_to_file};
-use crate::shared_utils::types::IoArgs;
+use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
 #[derive(Parser, Debug)]
 pub struct BlockHashCliCommand {
@@ -27,6 +28,7 @@ enum Command {
         #[clap(flatten)]
         io_args: IoArgs,
     },
+    PythonTest(PythonTestArg),
 }
 
 pub async fn run_block_hash_cli(block_hash_cli_command: BlockHashCliCommand) {
@@ -53,6 +55,9 @@ pub async fn run_block_hash_cli(block_hash_cli_command: BlockHashCliCommand) {
             );
             write_to_file(&output_path, &commitments);
             info!("Successfully computed block hash commitment: \n{:?}", commitments);
+        }
+        Command::PythonTest(python_test_arg) => {
+            run_python_test::<BlockHashPythonTestRunner>(python_test_arg).await;
         }
     }
 }
