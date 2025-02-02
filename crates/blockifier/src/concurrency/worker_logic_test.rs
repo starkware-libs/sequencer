@@ -352,7 +352,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     // This is because when executing transaction in concurrency mode on, we manually remove the
     // writes and reads to and from the sequencer balance (to avoid the inevitable dependency
     // between all the transactions).
-    let writes = StateMaps {
+    let state_diff = StateMaps {
         nonces: HashMap::from([(account_address, nonce!(1_u8))]),
         storage: HashMap::from([
             ((test_contract_address, storage_key), storage_value),
@@ -383,7 +383,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         ..Default::default()
     };
 
-    assert_eq!(execution_output.writes, writes.diff(&reads));
+    assert_eq!(execution_output.state_diff, state_diff.diff(&reads));
     assert_eq!(execution_output.reads, reads);
 
     // Failed execution.
@@ -402,7 +402,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         ..Default::default()
     };
     assert_eq!(execution_output.reads, reads);
-    assert_eq!(execution_output.writes, StateMaps::default());
+    assert_eq!(execution_output.state_diff, StateMaps::default());
 
     // Reverted execution.
     let tx_index = 2;
@@ -415,7 +415,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
     let execution_output = execution_output.as_ref().unwrap();
     assert!(execution_output.result.as_ref().unwrap().is_reverted());
-    assert_ne!(execution_output.writes, StateMaps::default());
+    assert_ne!(execution_output.state_diff, StateMaps::default());
 
     // Validate status change.
     for tx_index in 0..3 {
