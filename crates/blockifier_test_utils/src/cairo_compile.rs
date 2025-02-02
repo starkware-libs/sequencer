@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use tempfile::NamedTempFile;
 
-use crate::test_utils::contracts::TagAndToolchain;
+use crate::contracts::TagAndToolchain;
 
 const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
@@ -62,7 +62,7 @@ pub enum CompilationArtifacts {
 /// Returns the version of the Cairo1 compiler defined in the root Cargo.toml (by checking the
 /// package version of one of the crates from the compiler in the dependencies).
 pub fn cairo1_compiler_version() -> String {
-    let cargo_toml: CargoToml = toml::from_str(include_str!("../../../../Cargo.toml")).unwrap();
+    let cargo_toml: CargoToml = toml::from_str(include_str!("../../../Cargo.toml")).unwrap();
     match cargo_toml.workspace.dependencies.cairo_lang_casm {
         DependencyValue::String(version) | DependencyValue::Object { version } => version.clone(),
     }
