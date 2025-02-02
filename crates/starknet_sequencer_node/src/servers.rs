@@ -4,6 +4,7 @@ use std::pin::Pin;
 use futures::{Future, FutureExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
+use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
@@ -45,6 +46,7 @@ use crate::config::node_config::SequencerNodeConfig;
 // Component servers that can run locally.
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
+    pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
@@ -67,6 +69,7 @@ struct WrapperServers {
 // TODO(Nadin): Remove pub from the struct and update the fields to be pub(crate).
 pub struct RemoteServers {
     pub batcher: Option<Box<RemoteBatcherServer>>,
+    pub class_manager: Option<Box<RemoteClassManagerServer>>,
     pub gateway: Option<Box<RemoteGatewayServer>>,
     pub l1_provider: Option<Box<RemoteL1ProviderServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
@@ -242,6 +245,12 @@ fn create_local_servers(
         communication.take_batcher_rx(),
         REGULAR_LOCAL_SERVER
     );
+    let class_manager_server = create_local_server!(
+        &config.components.class_manager.execution_mode,
+        &mut components.class_manager,
+        communication.take_class_manager_rx(),
+        REGULAR_LOCAL_SERVER
+    );
     let gateway_server = create_local_server!(
         &config.components.gateway.execution_mode,
         &mut components.gateway,
@@ -281,6 +290,7 @@ fn create_local_servers(
 
     LocalServers {
         batcher: batcher_server,
+        class_manager: class_manager_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
         mempool: mempool_server,
@@ -309,6 +319,7 @@ impl LocalServers {
     async fn run(self) -> JoinSet<(Result<(), ComponentServerError>, String)> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
+            server_future_and_label(self.class_manager, "Local Class Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
@@ -329,6 +340,13 @@ pub fn create_remote_servers(
         || { clients.get_batcher_local_client() },
         config.components.batcher.ip,
         config.components.batcher.port
+    );
+
+    let class_manager_server = create_remote_server!(
+        &config.components.class_manager.execution_mode,
+        || { clients.get_class_manager_local_client() },
+        config.components.class_manager.ip,
+        config.components.class_manager.port
     );
 
     let gateway_server = create_remote_server!(
@@ -368,6 +386,7 @@ pub fn create_remote_servers(
 
     RemoteServers {
         batcher: batcher_server,
+        class_manager: class_manager_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
         mempool: mempool_server,
@@ -380,6 +399,7 @@ impl RemoteServers {
     async fn run(self) -> JoinSet<(Result<(), ComponentServerError>, String)> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Remote Batcher"),
+            server_future_and_label(self.class_manager, "Remote Class Manager"),
             server_future_and_label(self.gateway, "Remote Gateway"),
             server_future_and_label(self.l1_provider, "Remote L1 Provider"),
             server_future_and_label(self.mempool, "Remote Mempool"),
