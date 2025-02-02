@@ -1,4 +1,5 @@
 use assert_matches::assert_matches;
+use blockifier_test_utils::calldata::create_calldata;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
@@ -46,7 +47,7 @@ use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::test_templates::cairo_version;
-use crate::test_utils::{create_calldata, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::test_utils::{
     block_context,
