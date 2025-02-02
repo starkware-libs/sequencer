@@ -45,6 +45,7 @@ use indexmap::indexmap;
 use num_bigint::BigUint;
 use rstest::rstest;
 use serde_json::Value;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{
     BlockHash,
     BlockInfo,
@@ -111,7 +112,6 @@ use super::{
     CentralInvokeTransaction,
     CentralStateDiff,
     CentralTransaction,
-    CentralTransactionExecutionInfo,
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::casm_contract_class_central_format;
