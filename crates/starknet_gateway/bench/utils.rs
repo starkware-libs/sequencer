@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_trivial_calldata;
 use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use starknet_api::core::ContractAddress;
 use starknet_api::invoke_tx_args;
