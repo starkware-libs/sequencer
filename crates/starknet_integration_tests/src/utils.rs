@@ -230,7 +230,7 @@ pub fn create_many_invoke_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     const N_TXS: usize = 15;
-    create_account_txs(tx_generator, ACCOUNT_ID_1, N_TXS)
+    create_invoke_txs(tx_generator, ACCOUNT_ID_1, N_TXS)
 }
 
 pub fn create_funding_txs(
@@ -245,13 +245,28 @@ pub fn create_funding_txs(
 
 fn fund_new_account(
     funding_account: &mut AccountTransactionGenerator,
-    receipient: &Contract,
+    recipient: &Contract,
 ) -> Vec<RpcTransaction> {
-    let funding_tx = funding_account.generate_transfer(receipient);
+    let funding_tx = funding_account.generate_transfer(recipient);
     vec![funding_tx]
 }
 
-fn create_account_txs(
+/// Generates a deploy account transaction followed by an invoke transaction from the same account.
+/// The first invoke_tx can be inserted to the first block right after the deploy_tx due to
+/// the skip_validate feature. This feature allows the gateway to accept this transaction although
+/// the account does not exist yet.
+pub fn create_deploy_account_tx_and_invoke_tx(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    account_id: AccountId,
+) -> Vec<RpcTransaction> {
+    let undeployed_account_tx_generator = tx_generator.account_with_id_mut(account_id);
+    assert!(!undeployed_account_tx_generator.is_deployed());
+    let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
+    let invoke_tx = undeployed_account_tx_generator.generate_invoke_with_tip(1);
+    vec![deploy_tx, invoke_tx]
+}
+
+pub fn create_invoke_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     n_txs: usize,
@@ -325,7 +340,7 @@ pub async fn send_account_txs<'a, Fut>(
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_account_txs(tx_generator, account_id, n_txs);
+    let rpc_txs = create_invoke_txs(tx_generator, account_id, n_txs);
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
