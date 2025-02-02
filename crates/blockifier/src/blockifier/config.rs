@@ -11,7 +11,7 @@ use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
     pub stack_size: usize,
@@ -24,6 +24,16 @@ impl TransactionExecutorConfig {
             stack_size: DEFAULT_STACK_SIZE,
         }
     }
+}
+
+impl Default for TransactionExecutorConfig {
+    fn default() -> Self {
+        Self {
+            concurrency_config: ConcurrencyConfig::default(),
+            stack_size: DEFAULT_STACK_SIZE,
+        }
+    }
+
 }
 
 impl SerializeConfig for TransactionExecutorConfig {
