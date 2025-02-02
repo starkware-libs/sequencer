@@ -1,0 +1,17 @@
+[package]
+name = "shared_execution_objects"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[features]
+deserialize = ["blockifier/transaction_serde"]
+
+[dependencies]
+blockifier.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+
+[lints]
+workspace = true
