@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::time::Duration;
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::block::BlockNumber;
@@ -9,7 +10,7 @@ use crate::sequencer_manager::{get_sequencer_setup_configs, IntegrationTestManag
 use crate::utils::InvokeTxs;
 
 pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
-    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(10);
+    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(5);
     const LATE_NODE_EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(25);
     const N_TXS: usize = 50;
     const SENDER_ACCOUNT: AccountId = 0;
@@ -48,6 +49,12 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
 
     // Run the late node.
     integration_test_manager.run(HashSet::from([1])).await;
+
+    // Shutdown the node with index 2 to ensure that the late-joining node (index 1) participates in
+    // the consensus.
+    info!("Sleeping for 30 seconds to allow the late node to join.");
+    tokio::time::sleep(Duration::from_secs(30)).await;
+    integration_test_manager.shutdown_nodes(HashSet::from([2]));
 
     // Run the tests after the late node joins.
     integration_test_manager
