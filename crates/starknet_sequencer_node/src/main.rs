@@ -3,14 +3,14 @@ use std::process::exit;
 
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
-use starknet_infra_utils::set_global_allocator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use tracing::{error, info};
 
-set_global_allocator!();
+#[cfg(feature = "jemalloc")]
+starknet_infra_utils::set_global_allocator!();
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

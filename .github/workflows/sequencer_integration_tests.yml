@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: |
-          cargo build --bin starknet_sequencer_node
+          cargo build --bin starknet_sequencer_node --features=jemalloc
           cargo build --bin sequencer_node_end_to_end_integration_test
           target/debug/sequencer_node_end_to_end_integration_test
 

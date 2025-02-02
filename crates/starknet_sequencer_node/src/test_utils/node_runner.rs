@@ -99,7 +99,7 @@ pub fn get_node_executable_path() -> String {
         |_| {
             error!(
                 "Sequencer node binary is not present. Please compile it using 'cargo build --bin \
-                 starknet_sequencer_node' command."
+                 starknet_sequencer_node --features=jemalloc' command."
             );
             panic!("Node executable should be available");
         },

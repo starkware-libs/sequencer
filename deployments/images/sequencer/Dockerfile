@@ -7,7 +7,7 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS builder
 WORKDIR /app
 COPY . .
-RUN cargo build --bin starknet_sequencer_node
+RUN cargo build --bin starknet_sequencer_node --features=jemalloc
 
 FROM ubuntu:24.04 as final_stage
 
