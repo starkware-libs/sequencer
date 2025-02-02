@@ -1,6 +1,7 @@
 use std::sync::mpsc::sync_channel;
 use std::sync::Arc;
 
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use rstest::rstest;
 
 use crate::blockifier::config::CairoNativeRunConfig;
@@ -8,7 +9,7 @@ use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::contract_class_manager::{CompilationRequest, ContractClassManager};
 use crate::state::global_cache::{ContractCaches, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
 use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::{CairoVersion, RunnableCairo1};
+use crate::test_utils::CairoVersion;
 
 const TEST_CHANNEL_SIZE: usize = 10;
 

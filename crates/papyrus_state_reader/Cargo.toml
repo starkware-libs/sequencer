@@ -21,6 +21,7 @@ starknet_class_manager_types.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 blockifier = { path = "../blockifier", features = ["testing"] }
+blockifier_test_utils = { path = "../blockifier_test_utils" }
 indexmap.workspace = true
 papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
 rstest.workspace = true

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -17,7 +18,6 @@ use crate::test_utils::{
     trivial_external_entry_point_new,
     CairoVersion,
     CompilerBasedVersion,
-    RunnableCairo1,
     BALANCE,
 };
 

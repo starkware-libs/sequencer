@@ -10,7 +10,8 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1};
+use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
@@ -169,7 +170,7 @@ fn test_get_compiled_class_without_native_in_cache(
     let compiled_class = papyrus_reader.get_compiled_class(test_class_hash).unwrap();
 
     if cached_with_sierra {
-        // TODO: Test that a compilation request was sent.
+        // TODO(Meshi): Test that a compilation request was sent.
         if wait_on_native_compilation {
             #[cfg(feature = "cairo_native")]
             assert_matches!(

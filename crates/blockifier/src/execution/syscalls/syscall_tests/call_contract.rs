@@ -1,6 +1,7 @@
 use core::panic;
 use std::sync::Arc;
 
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::calldata::create_calldata;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -24,7 +25,6 @@ use crate::test_utils::{
     trivial_external_entry_point_new,
     CairoVersion,
     CompilerBasedVersion,
-    RunnableCairo1,
     BALANCE,
 };
 

@@ -1,4 +1,5 @@
 use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::calldata::create_calldata;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -24,7 +25,7 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::l1_handler::l1handler_tx;
-use crate::test_utils::{maybe_dummy_block_hash_and_number, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{maybe_dummy_block_hash_and_number, CairoVersion, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
