@@ -46,6 +46,7 @@ use num_bigint::BigUint;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::block::{
+    BlockHash,
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
@@ -491,6 +492,8 @@ fn call_info() -> CallInfo {
             accessed_storage_keys: HashSet::from([StorageKey::from(1_u128)]),
             read_class_hash_values: vec![ClassHash(felt!("0x80020000"))],
             accessed_contract_addresses: HashSet::from([contract_address!("0x1")]),
+            read_block_hash_values: vec![BlockHash(felt!("0xdeafbee"))],
+            accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
     }
 }

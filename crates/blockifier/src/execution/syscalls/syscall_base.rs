@@ -1,7 +1,8 @@
 /// This file is for sharing common logic between Native and VM syscall implementations.
-use std::collections::{hash_map, HashMap, HashSet};
+use std::collections::{hash_map, HashMap};
 use std::convert::From;
 
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
@@ -10,7 +11,13 @@ use starknet_types_core::felt::Felt;
 
 use super::exceeds_event_size_limit;
 use crate::abi::constants;
-use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
+use crate::execution::call_info::{
+    CallInfo,
+    MessageToL1,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    StorageAccessTracker,
+};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -44,11 +51,7 @@ pub struct SyscallHandlerBase<'state> {
     pub inner_calls: Vec<CallInfo>,
 
     // Additional information gathered during execution.
-    pub read_values: Vec<Felt>,
-    pub accessed_keys: HashSet<StorageKey>,
-    pub read_class_hash_values: Vec<ClassHash>,
-    // Accessed addresses by the `get_class_hash_at` syscall.
-    pub accessed_contract_addresses: HashSet<ContractAddress>,
+    pub storage_access_tracker: StorageAccessTracker,
 
     // The original storage value of the executed contract.
     // Should be moved back `context.revert_info` before executing an inner call.
@@ -79,16 +82,13 @@ impl<'state> SyscallHandlerBase<'state> {
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
             inner_calls: Vec::new(),
-            read_values: Vec::new(),
-            accessed_keys: HashSet::new(),
-            read_class_hash_values: Vec::new(),
-            accessed_contract_addresses: HashSet::new(),
+            storage_access_tracker: StorageAccessTracker::default(),
             original_values,
             revert_info_idx,
         }
     }
 
-    pub fn get_block_hash(&self, requested_block_number: u64) -> SyscallResult<Felt> {
+    pub fn get_block_hash(&mut self, requested_block_number: u64) -> SyscallResult<Felt> {
         // Note: we take the actual block number (and not the rounded one for validate)
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
         let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
@@ -123,6 +123,7 @@ impl<'state> SyscallHandlerBase<'state> {
             }
         }
 
+        self.storage_access_tracker.accessed_blocks.insert(BlockNumber(requested_block_number));
         let key = StorageKey::try_from(Felt::from(requested_block_number))?;
         let block_hash_contract_address = self
             .context
@@ -132,13 +133,15 @@ impl<'state> SyscallHandlerBase<'state> {
             .os_constants
             .os_contract_addresses
             .block_hash_contract_address();
-        Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
+        let block_hash = self.state.get_storage_at(block_hash_contract_address, key)?;
+        self.storage_access_tracker.read_block_hash_values.push(BlockHash(block_hash));
+        Ok(block_hash)
     }
 
     pub fn storage_read(&mut self, key: StorageKey) -> SyscallResult<Felt> {
-        self.accessed_keys.insert(key);
+        self.storage_access_tracker.accessed_storage_keys.insert(key);
         let value = self.state.get_storage_at(self.call.storage_address, key)?;
-        self.read_values.push(value);
+        self.storage_access_tracker.storage_read_values.push(value);
         Ok(value)
     }
 
@@ -152,7 +155,7 @@ impl<'state> SyscallHandlerBase<'state> {
             hash_map::Entry::Occupied(_) => {}
         }
 
-        self.accessed_keys.insert(key);
+        self.storage_access_tracker.accessed_storage_keys.insert(key);
         self.state.set_storage_at(contract_address, key, value)?;
 
         Ok(())
@@ -168,9 +171,9 @@ impl<'state> SyscallHandlerBase<'state> {
                 execution_mode: ExecutionMode::Validate,
             });
         }
-        self.accessed_contract_addresses.insert(contract_address);
+        self.storage_access_tracker.accessed_contract_addresses.insert(contract_address);
         let class_hash = self.state.get_class_hash_at(contract_address)?;
-        self.read_class_hash_values.push(class_hash);
+        self.storage_access_tracker.read_class_hash_values.push(class_hash);
         Ok(class_hash)
     }
 
