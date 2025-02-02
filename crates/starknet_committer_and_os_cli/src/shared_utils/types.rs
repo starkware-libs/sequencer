@@ -4,7 +4,6 @@ use clap::Args;
 
 use crate::shared_utils::read::{read_input, write_to_file};
 
-// TODO(Amos): Make this optional.
 #[derive(Debug, Args)]
 pub(crate) struct IoArgs {
     /// File path to input.
@@ -18,6 +17,7 @@ pub(crate) struct IoArgs {
 
 #[derive(Debug, Args)]
 pub(crate) struct PythonTestArg {
+    // TODO(Amos): Make this optional.
     #[clap(flatten)]
     pub(crate) io_args: IoArgs,
 
