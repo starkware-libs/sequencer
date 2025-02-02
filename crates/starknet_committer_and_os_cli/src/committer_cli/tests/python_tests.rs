@@ -3,12 +3,6 @@ use std::fmt::Debug;
 
 use ethnum::U256;
 use serde_json::json;
-use starknet_api::block_hash::block_hash_calculator::{
-    TransactionHashingData,
-    TransactionOutputForHash,
-};
-use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::TransactionExecutionStatus;
 use starknet_committer::block_committer::input::{
     ContractAddress,
     StarknetStorageKey,
@@ -44,11 +38,6 @@ use super::utils::parse_from_python::TreeFlowInput;
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
 use crate::committer_cli::parse_input::cast::InputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
-use crate::committer_cli::tests::utils::objects::{
-    get_thin_state_diff,
-    get_transaction_output_for_hash,
-    get_tx_data,
-};
 use crate::committer_cli::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::committer_cli::tests::utils::random_structs::DummyRandomValue;
 use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
@@ -68,9 +57,6 @@ pub enum CommitterPythonTestRunner {
     StorageNode,
     FilledForestOutput,
     TreeHeightComparison,
-    ParseTxOutput,
-    ParseStateDiff,
-    ParseTxData,
     SerializeForRustCommitterFlowTest,
     ComputeHashSingleTree,
     MaybePanic,
@@ -107,9 +93,6 @@ impl TryFrom<String> for CommitterPythonTestRunner {
             "storage_node_test" => Ok(Self::StorageNode),
             "filled_forest_output" => Ok(Self::FilledForestOutput),
             "compare_tree_height" => Ok(Self::TreeHeightComparison),
-            "parse_tx_output_test" => Ok(Self::ParseTxOutput),
-            "parse_state_diff_test" => Ok(Self::ParseStateDiff),
-            "parse_tx_data_test" => Ok(Self::ParseTxData),
             "serialize_to_rust_committer_flow_test" => Ok(Self::SerializeForRustCommitterFlowTest),
             "tree_test" => Ok(Self::ComputeHashSingleTree),
             "maybe_panic" => Ok(Self::MaybePanic),
@@ -160,21 +143,6 @@ impl PythonTestRunner for CommitterPythonTestRunner {
             }
             Self::FilledForestOutput => filled_forest_output_test(),
             Self::TreeHeightComparison => Ok(get_actual_tree_height()),
-            Self::ParseTxOutput => {
-                let tx_output: TransactionOutputForHash =
-                    serde_json::from_str(Self::non_optional_input(input)?)?;
-                Ok(parse_tx_output_test(tx_output))
-            }
-            Self::ParseStateDiff => {
-                let tx_output: ThinStateDiff =
-                    serde_json::from_str(Self::non_optional_input(input)?)?;
-                Ok(parse_state_diff_test(tx_output))
-            }
-            Self::ParseTxData => {
-                let tx_data: TransactionHashingData =
-                    serde_json::from_str(Self::non_optional_input(input)?)?;
-                Ok(parse_tx_data_test(tx_data))
-            }
             Self::SerializeForRustCommitterFlowTest => {
                 // TODO(Aner, 8/7/2024): refactor using structs for deserialization.
                 let input: HashMap<String, String> =
@@ -249,29 +217,6 @@ pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {
     let x = test_args.get("x").expect("Failed to get value for key 'x'");
     let y = test_args.get("y").expect("Failed to get value for key 'y'");
     format!("Calling example test with args: x: {}, y: {}", x, y)
-}
-
-pub(crate) fn parse_tx_output_test(tx_execution_info: TransactionOutputForHash) -> String {
-    let expected_object = get_transaction_output_for_hash(&tx_execution_info.execution_status);
-    is_success_string(expected_object == tx_execution_info)
-}
-
-pub(crate) fn parse_state_diff_test(state_diff: ThinStateDiff) -> String {
-    let expected_object = get_thin_state_diff();
-    is_success_string(expected_object == state_diff)
-}
-
-pub(crate) fn parse_tx_data_test(tx_data: TransactionHashingData) -> String {
-    let expected_object = get_tx_data(&TransactionExecutionStatus::Succeeded);
-    is_success_string(expected_object == tx_data)
-}
-
-fn is_success_string(is_success: bool) -> String {
-    match is_success {
-        true => "Success",
-        false => "Failure",
-    }
-    .to_owned()
 }
 
 /// Serializes a Felt into a string.
