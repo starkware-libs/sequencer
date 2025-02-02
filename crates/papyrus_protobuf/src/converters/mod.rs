@@ -7,8 +7,8 @@ mod header;
 mod receipt;
 pub mod rpc_transaction;
 mod state_diff;
-#[cfg(test)]
-mod test_instances;
+#[cfg(any(test, feature = "testing"))]
+pub mod test_instances;
 mod transaction;
 
 mod deprecated_transaction;

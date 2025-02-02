@@ -1,4 +1,3 @@
-use std::fmt::Display;
 use std::time::Duration;
 
 use futures::channel::mpsc;
@@ -12,9 +11,8 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
-use papyrus_protobuf::converters::ProtobufConversionError;
+use papyrus_protobuf::converters::test_instances::TestStreamId;
 use papyrus_test_utils::{get_rng, GetTestInstance};
-use prost::DecodeError;
 
 use super::{
     MessageId,
@@ -27,45 +25,6 @@ use super::{
 
 const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 100;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct TestStreamId(u64);
-
-impl From<TestStreamId> for Vec<u8> {
-    fn from(value: TestStreamId) -> Self {
-        value.0.to_be_bytes().to_vec()
-    }
-}
-
-impl TryFrom<Vec<u8>> for TestStreamId {
-    type Error = ProtobufConversionError;
-    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        if bytes.len() != 8 {
-            return Err(ProtobufConversionError::DecodeError(DecodeError::new("Invalid length")));
-        }
-        let mut array = [0; 8];
-        array.copy_from_slice(&bytes);
-        Ok(TestStreamId(u64::from_be_bytes(array)))
-    }
-}
-
-impl PartialOrd for TestStreamId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for TestStreamId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
-    }
-}
-
-impl Display for TestStreamId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
 
 type TestStreamIdAndNonce = StreamIdAndNonce<TestStreamId>;
 
@@ -86,6 +45,7 @@ mod tests {
     use std::collections::HashMap;
 
     use papyrus_protobuf::consensus::{IntoFromProto, ProposalInit, ProposalPart};
+    use papyrus_protobuf::converters::ProtobufConversionError;
 
     use super::*;
 
