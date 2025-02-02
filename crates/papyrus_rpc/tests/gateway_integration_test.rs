@@ -102,9 +102,7 @@ async fn test_gw_integration_testnet() {
 
     // Update the signature.
     let hash = get_transaction_hash(
-        &Transaction::Invoke(
-            InvokeTransactionRPC0_8::Version1(invoke_tx.clone()).try_into().unwrap(),
-        ),
+        &Transaction::Invoke(InvokeTransactionRPC0_8::Version1(invoke_tx.clone()).into()),
         &ChainId::Sepolia,
         &TransactionOptions::default(),
     )
