@@ -1,4 +1,4 @@
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
@@ -25,7 +25,7 @@ use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     calculate_class_info_for_testing,

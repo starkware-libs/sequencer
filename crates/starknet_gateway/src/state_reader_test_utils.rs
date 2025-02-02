@@ -5,7 +5,8 @@ use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateRe
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
-use blockifier::test_utils::{CairoVersion, BALANCE};
+use blockifier::test_utils::BALANCE;
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;

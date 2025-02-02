@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::CairoVersion;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;

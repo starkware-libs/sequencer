@@ -1,5 +1,5 @@
 use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use rstest::rstest;
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -9,7 +9,7 @@ use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::transaction::test_utils::{
     block_context,
     create_account_tx_for_validate_test_nonce_0,

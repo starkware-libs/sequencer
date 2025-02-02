@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
@@ -22,7 +22,7 @@ use crate::state::cached_state::*;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::transaction::test_utils::{default_all_resource_bounds, run_invoke_tx, STORAGE_WRITE};
 const CONTRACT_ADDRESS: &str = "0x100";
 

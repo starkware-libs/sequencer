@@ -1,4 +1,4 @@
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, class_hash, contract_address, felt};
 use test_case::test_case;
@@ -10,7 +10,7 @@ use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_GET_CLASS
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 
 /// Tests the `get_class_hash_at` syscall, ensuring that:
 /// 1. `accessed_contract_addresses` contains `address` for a valid entry.

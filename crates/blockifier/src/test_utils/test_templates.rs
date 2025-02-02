@@ -1,10 +1,8 @@
 #[cfg(test)]
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use rstest::rstest;
 use rstest_reuse::{apply, template};
 
-#[cfg(test)]
-use crate::test_utils::CairoVersion;
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
