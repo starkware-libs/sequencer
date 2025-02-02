@@ -29,6 +29,7 @@ on:
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'crates/blockifier/**'
+      - 'crates/blockifier_test_utils/**'
       - 'crates/native_blockifier/**'
       - 'crates/starknet_sierra_multicompile/build.rs'
       - 'scripts/build_native_blockifier.sh'
