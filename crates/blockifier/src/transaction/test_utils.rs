@@ -1,3 +1,4 @@
+use blockifier_test_utils::calldata::create_calldata;
 use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
@@ -40,7 +41,7 @@ use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{CairoVersion, BALANCE};
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
