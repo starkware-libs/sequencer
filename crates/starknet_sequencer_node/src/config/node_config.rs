@@ -54,7 +54,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.storage.db_config.chain_id",
                 "consensus_manager_config.consensus_config.chain_id",
                 "consensus_manager_config.context_config.chain_id",
-                "consensus_manager_config.consensus_config.network_config.chain_id",
+                "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "l1_scraper_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",

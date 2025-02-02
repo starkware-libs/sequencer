@@ -131,11 +131,11 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .into_iter()
         // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
+            network_config,
             consensus_config: ConsensusConfig {
                 start_height: BlockNumber(1),
-		// TODO(Matan, Dan): Set the right amount
+                // TODO(Matan, Dan): Set the right amount
                 consensus_delay: Duration::from_secs(15),
-                network_config,
                 num_validators,
                 timeouts: timeouts.clone(),
                 ..Default::default()
@@ -149,7 +149,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
             },
-            revert_up_to_and_including: None,
+            ..Default::default()
         })
         .collect()
 }
