@@ -104,10 +104,12 @@ pub struct ProposalFin {
 pub enum ProposalPart {
     /// The initialization part of the proposal.
     Init(ProposalInit),
+    /// Identifies the content of the proposal; contains `id(v)` in Tendermint terms.
+    Fin(ProposalFin),
+    /// The block info part of the proposal.
+    BlockInfo(BlockInfo),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
-    /// The final part of the proposal, including the block hash.
-    Fin(ProposalFin),
 }
 
 impl TryInto<ProposalInit> for ProposalPart {

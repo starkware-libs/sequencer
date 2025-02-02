@@ -230,6 +230,17 @@ async fn listen_to_broadcasted_messages(
             StreamMessageBody::Content(ProposalPart::Init(init)) => {
                 panic!("Unexpected init: {:?}", init)
             }
+            StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
+                assert_eq!(
+                    proposal_fin, expected_proposal_fin,
+                    "Unexpected fin message: {:?}, expected: {:?}",
+                    proposal_fin, expected_proposal_fin
+                );
+                got_proposal_fin = true;
+            }
+            StreamMessageBody::Content(ProposalPart::BlockInfo(_)) => {
+                // TODO(Asmaa): Add validation for block info.
+            }
             StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
                 // TODO(Arni): add calculate_transaction_hash to consensus transaction and use it
                 // here.
@@ -243,14 +254,6 @@ async fn listen_to_broadcasted_messages(
                         tx.calculate_transaction_hash(&chain_id, &TransactionVersion::ZERO).unwrap()
                     }
                 }));
-            }
-            StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
-                assert_eq!(
-                    proposal_fin, expected_proposal_fin,
-                    "Unexpected fin message: {:?}, expected: {:?}",
-                    proposal_fin, expected_proposal_fin
-                );
-                got_proposal_fin = true;
             }
             StreamMessageBody::Fin => {
                 got_channel_fin = true;
