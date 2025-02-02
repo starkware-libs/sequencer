@@ -437,6 +437,7 @@ fn create_distributed_node_configs(
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
+        let class_manager_socket = available_ports.get_next_local_host_socket();
 
         NodeComponentConfigs::new(
             vec![
@@ -445,12 +446,14 @@ fn create_distributed_node_configs(
                     mempool_socket,
                     mempool_p2p_socket,
                     state_sync_socket,
+                    class_manager_socket,
                 ),
                 get_non_http_container_config(
                     gateway_socket,
                     mempool_socket,
                     mempool_p2p_socket,
                     state_sync_socket,
+                    class_manager_socket,
                 ),
             ],
             // batcher is in executable index 1.
@@ -478,6 +481,7 @@ fn get_http_container_config(
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
     state_sync_socket: SocketAddr,
+    class_manager_socket: SocketAddr,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
@@ -502,6 +506,11 @@ fn get_http_container_config(
         state_sync_socket.ip(),
         state_sync_socket.port(),
     );
+    config.class_manager = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        class_manager_socket.ip(),
+        class_manager_socket.port(),
+    );
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
@@ -511,6 +520,7 @@ fn get_non_http_container_config(
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
     state_sync_socket: SocketAddr,
+    class_manager_socket: SocketAddr,
 ) -> ComponentConfig {
     let local_url = "127.0.0.1".to_string();
     ComponentConfig {
@@ -535,6 +545,11 @@ fn get_non_http_container_config(
             local_url.clone(),
             state_sync_socket.ip(),
             state_sync_socket.port(),
+        ),
+        class_manager: ReactiveComponentExecutionConfig::remote(
+            local_url.clone(),
+            class_manager_socket.ip(),
+            class_manager_socket.port(),
         ),
         ..ComponentConfig::default()
     }
