@@ -40,16 +40,23 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 use tracing::{debug, error, info, warn};
 
-use super::utils::objects::{get_thin_state_diff, get_transaction_output_for_hash, get_tx_data};
 use super::utils::parse_from_python::TreeFlowInput;
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
 use crate::committer_cli::parse_input::cast::InputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
+use crate::committer_cli::tests::utils::objects::{
+    get_thin_state_diff,
+    get_transaction_output_for_hash,
+    get_tx_data,
+};
 use crate::committer_cli::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::committer_cli::tests::utils::random_structs::DummyRandomValue;
+use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
+
+pub type CommitterPythonTestError = PythonTestError<CommitterSpecificTestError>;
 
 // Enum representing different Python tests.
-pub enum PythonTest {
+pub enum CommitterPythonTestRunner {
     ExampleTest,
     FeltSerialize,
     HashFunction,
@@ -70,13 +77,9 @@ pub enum PythonTest {
     LogError,
 }
 
-/// Error type for PythonTest enum.
+/// Error type for CommitterPythonTest enum.
 #[derive(Debug, thiserror::Error)]
-pub enum PythonTestError {
-    #[error("Unknown test name: {0}")]
-    UnknownTestName(String),
-    #[error(transparent)]
-    ParseInputError(#[from] serde_json::Error),
+pub enum CommitterSpecificTestError {
     #[error(transparent)]
     ParseIntError(#[from] std::num::ParseIntError),
     #[error("{0}")]
@@ -85,13 +88,11 @@ pub enum PythonTestError {
     InvalidCastError(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     DeserializationTestFailure(#[from] DeserializationError),
-    #[error("None value found in input.")]
-    NoneInputError,
 }
 
-/// Implements conversion from a string to a `PythonTest`.
-impl TryFrom<String> for PythonTest {
-    type Error = PythonTestError;
+/// Implements conversion from a string to the test runner.
+impl TryFrom<String> for CommitterPythonTestRunner {
+    type Error = CommitterPythonTestError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
@@ -118,14 +119,11 @@ impl TryFrom<String> for PythonTest {
     }
 }
 
-impl PythonTest {
-    /// Returns the input string if it's `Some`, or an error if it's `None`.
-    pub fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
-        input.ok_or(PythonTestError::NoneInputError)
-    }
+impl PythonTestRunner for CommitterPythonTestRunner {
+    type SpecificError = CommitterSpecificTestError;
 
     /// Runs the test with the given arguments.
-    pub async fn run(&self, input: Option<&str>) -> Result<String, PythonTestError> {
+    async fn run(&self, input: Option<&str>) -> Result<String, CommitterPythonTestError> {
         match self {
             Self::ExampleTest => {
                 let example_input: HashMap<String, String> =
@@ -133,7 +131,9 @@ impl PythonTest {
                 Ok(example_test(example_input))
             }
             Self::FeltSerialize => {
-                let felt = Self::non_optional_input(input)?.parse::<u128>()?;
+                let felt = Self::non_optional_input(input)?.parse::<u128>().map_err(|err| {
+                    PythonTestError::SpecificError(CommitterSpecificTestError::ParseIntError(err))
+                })?;
                 Ok(felt_serialize_test(felt))
             }
             Self::HashFunction => {
@@ -232,12 +232,12 @@ fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> Str
 fn get_or_key_not_found<'a, T: Debug>(
     map: &'a HashMap<String, T>,
     key: &'a str,
-) -> Result<&'a T, PythonTestError> {
+) -> Result<&'a T, CommitterPythonTestError> {
     map.get(key).ok_or_else(|| {
-        PythonTestError::KeyNotFound(format!(
+        PythonTestError::SpecificError(CommitterSpecificTestError::KeyNotFound(format!(
             "Failed to get value for key '{}' from {:?}.",
             key, map
-        ))
+        )))
     })
 }
 
@@ -334,8 +334,12 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
         .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {}", error))
 }
 
-pub(crate) fn parse_input_test(committer_input: String) -> Result<String, PythonTestError> {
-    Ok(create_output_to_python(parse_input(&committer_input)?))
+pub(crate) fn parse_input_test(
+    committer_input: String,
+) -> Result<String, CommitterPythonTestError> {
+    Ok(create_output_to_python(parse_input(&committer_input).map_err(|err| {
+        PythonTestError::SpecificError(CommitterSpecificTestError::DeserializationTestFailure(err))
+    })?))
 }
 
 fn create_output_to_python(actual_input: InputImpl) -> String {
@@ -513,7 +517,7 @@ pub(crate) fn test_node_db_key() -> String {
 /// StorageValue pairs for u128 values in the range 0..=1000,
 /// serializes it to a JSON string using Serde,
 /// and returns the serialized JSON string or panics with an error message if serialization fails.
-pub(crate) fn storage_serialize_test() -> Result<String, PythonTestError> {
+pub(crate) fn storage_serialize_test() -> Result<String, CommitterPythonTestError> {
     let mut storage = MapStorage { storage: HashMap::new() };
     for i in 0..=99_u128 {
         let key = StorageKey(Felt::from(i).to_bytes_be().to_vec());
@@ -547,9 +551,9 @@ fn python_hash_constants_compare() -> String {
 ///   - `"contract_class_leaf"`: Compiled class leaf data.
 ///
 /// # Returns
-/// A `Result<String, PythonTestError>` containing a serialized map of all nodes on success, or an
-/// error if keys are missing or parsing fails.
-fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTestError> {
+/// A `Result<String, CommitterTestError>` containing a serialized map of all nodes on
+/// success, or an error if keys are missing or parsing fails.
+fn test_storage_node(data: HashMap<String, String>) -> Result<String, CommitterPythonTestError> {
     // Create a storage to store the nodes.
     let mut rust_fact_storage = MapStorage { storage: HashMap::new() };
 
@@ -579,8 +583,14 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
             bottom_hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom::new(
                 U256::from(*get_or_key_not_found(&edge_data, "path")?).into(),
-                EdgePathLength::new((*get_or_key_not_found(&edge_data, "length")?).try_into()?)
-                    .expect("Invalid length"),
+                EdgePathLength::new(
+                    (*get_or_key_not_found(&edge_data, "length")?).try_into().map_err(|err| {
+                        PythonTestError::SpecificError(
+                            CommitterSpecificTestError::InvalidCastError(err),
+                        )
+                    })?,
+                )
+                .expect("Invalid length"),
             )
             .expect("Illegal PathToBottom"),
         }),
@@ -653,7 +663,7 @@ fn test_storage_node(data: HashMap<String, String>) -> Result<String, PythonTest
 }
 
 /// Generates a dummy random filled forest and serializes it to a JSON string.
-pub(crate) fn filled_forest_output_test() -> Result<String, PythonTestError> {
+pub(crate) fn filled_forest_output_test() -> Result<String, CommitterPythonTestError> {
     let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
     let output = dummy_forest.forest_to_output();
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
