@@ -230,6 +230,9 @@ async fn listen_to_broadcasted_messages(
             StreamMessageBody::Content(ProposalPart::Init(init)) => {
                 panic!("Unexpected init: {:?}", init)
             }
+            StreamMessageBody::Content(ProposalPart::BlockInfo(_)) => {
+                // TODO(Asmaa): Add validation for block info.
+            }
             StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
                 // TODO(Arni): add calculate_transaction_hash to consensus transaction and use it
                 // here.
