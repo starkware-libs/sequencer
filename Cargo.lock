@@ -1752,12 +1752,10 @@ dependencies = [
  "starknet_sierra_multicompile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
- "tempfile",
  "test-case",
  "thiserror 1.0.69",
  "tikv-jemallocator",
  "tokio",
- "toml",
  "tracing",
  "tracing-test",
 ]
@@ -1792,8 +1790,13 @@ dependencies = [
 name = "blockifier_test_utils"
 version = "0.0.0"
 dependencies = [
+ "cached",
+ "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_infra_utils",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]
