@@ -12,6 +12,7 @@ workspace = true
 assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
+blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 indexmap.workspace = true
