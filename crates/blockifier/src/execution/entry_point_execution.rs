@@ -393,6 +393,8 @@ pub fn finalize_execution(
             accessed_storage_keys: syscall_handler_base.accessed_keys,
             read_class_hash_values: syscall_handler_base.read_class_hash_values,
             accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
+            read_block_hash_values: syscall_handler_base.read_block_hash_values,
+            accessed_blocks: syscall_handler_base.accessed_blocks,
         },
     })
 }
