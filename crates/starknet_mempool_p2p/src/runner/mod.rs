@@ -54,9 +54,17 @@ impl ComponentStarter for MempoolP2pRunner {
                             if let GatewayClientError::GatewayError(
                                 GatewayError::GatewaySpecError{p2p_message_metadata: Some(p2p_message_metadata), ..}
                             ) = gateway_client_error {
+                                warn!(
+                                    "Gateway rejected transaction we received from another peer. Reporting peer."
+                                );
                                 if let Err(e) = self.broadcast_topic_client.report_peer(p2p_message_metadata.clone()).await {
                                     warn!("Failed to report peer: {:?}", e);
                                 }
+                            } else {
+                                warn!(
+                                    "Failed sending transaction to gateway. {:?}",
+                                    gateway_client_error
+                                );
                             }
                         }
                     }
