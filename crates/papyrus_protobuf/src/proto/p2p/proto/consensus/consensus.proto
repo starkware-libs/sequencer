@@ -76,8 +76,9 @@ message ProposalFin {
 message ProposalPart {
     oneof message {
         ProposalInit init = 1;
-        ProposalFin fin = 2;
-        TransactionBatch transactions = 3;
+        BlockInfo block_info = 2;
+        ProposalFin fin = 3;
+        TransactionBatch transactions = 4;
     }
 }
 

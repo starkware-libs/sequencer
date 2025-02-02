@@ -192,27 +192,6 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
-impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::TransactionBatch) -> Result<Self, Self::Error> {
-        let transactions = value
-            .transactions
-            .into_iter()
-            .map(|tx| tx.try_into())
-            .collect::<Result<Vec<ConsensusTransaction>, ProtobufConversionError>>()?;
-        Ok(TransactionBatch { transactions })
-    }
-}
-
-impl From<TransactionBatch> for protobuf::TransactionBatch {
-    fn from(value: TransactionBatch) -> Self {
-        let transactions = value.transactions.into_iter().map(Into::into).collect();
-        protobuf::TransactionBatch { transactions }
-    }
-}
-
-auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch);
-
 impl TryFrom<protobuf::BlockInfo> for BlockInfo {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::BlockInfo) -> Result<Self, Self::Error> {
@@ -268,6 +247,27 @@ impl From<BlockInfo> for protobuf::BlockInfo {
 
 auto_impl_into_and_try_from_vec_u8!(BlockInfo, protobuf::BlockInfo);
 
+impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::TransactionBatch) -> Result<Self, Self::Error> {
+        let transactions = value
+            .transactions
+            .into_iter()
+            .map(|tx| tx.try_into())
+            .collect::<Result<Vec<ConsensusTransaction>, ProtobufConversionError>>()?;
+        Ok(TransactionBatch { transactions })
+    }
+}
+
+impl From<TransactionBatch> for protobuf::TransactionBatch {
+    fn from(value: TransactionBatch) -> Self {
+        let transactions = value.transactions.into_iter().map(Into::into).collect();
+        protobuf::TransactionBatch { transactions }
+    }
+}
+
+auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch);
+
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
@@ -301,6 +301,7 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
 
         match part {
             Message::Init(init) => Ok(ProposalPart::Init(init.try_into()?)),
+            Message::BlockInfo(block_info) => Ok(ProposalPart::BlockInfo(block_info.try_into()?)),
             Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
             Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
         }
@@ -312,6 +313,9 @@ impl From<ProposalPart> for protobuf::ProposalPart {
         match value {
             ProposalPart::Init(init) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Init(init.into())),
+            },
+            ProposalPart::BlockInfo(block_info) => protobuf::ProposalPart {
+                message: Some(protobuf::proposal_part::Message::BlockInfo(block_info.into())),
             },
             ProposalPart::Transactions(content) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Transactions(content.into())),

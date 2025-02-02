@@ -6,9 +6,11 @@ use rand::Rng;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
+use starknet_api::data_availability::L1DataAvailabilityMode;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
+    BlockInfo,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -43,10 +45,21 @@ auto_impl_get_test_instance! {
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,
     }
+    pub struct BlockInfo {
+        pub block_number: BlockNumber,
+        pub block_timestamp: u64,
+        pub sequencer_address: ContractAddress,
+        pub l1_da_mode: L1DataAvailabilityMode,
+        pub l2_gas_price_fri: u128,
+        pub l1_gas_price_wei: u128,
+        pub l1_data_gas_price_wei: u128,
+        pub eth_to_strk_rate: u64,
+    }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
-        Fin(ProposalFin) = 1,
-        Transactions(TransactionBatch) = 2,
+        BlockInfo(BlockInfo) = 1,
+        Fin(ProposalFin) = 2,
+        Transactions(TransactionBatch) = 3,
     }
 
 }
