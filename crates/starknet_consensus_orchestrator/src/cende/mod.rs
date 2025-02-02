@@ -18,7 +18,6 @@ use central_objects::{
     CentralCasmContractClass,
     CentralCompressedStateDiff,
     CentralStateDiff,
-    CentralTransactionExecutionInfo,
     CentralTransactionWritten,
 };
 #[cfg(test)]
@@ -27,6 +26,7 @@ use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
 use serde::{Deserialize, Serialize};
+use shared_execution_objects::objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};

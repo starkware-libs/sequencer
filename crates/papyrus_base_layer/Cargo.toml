@@ -27,6 +27,7 @@ colored = { workspace = true, optional = true }
 ethers.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
+shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tar = { workspace = true, optional = true }
