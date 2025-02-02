@@ -234,6 +234,7 @@ impl<'state> NativeSyscallHandler<'state> {
 
 impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
     fn get_block_hash(
+        // HERE???
         &mut self,
         block_number: u64,
         remaining_gas: &mut u64,
