@@ -130,6 +130,7 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
+    ResourceBoundsError,
     TransactionExecutionError,
     TransactionFeeError,
     TransactionPreValidationError,
@@ -1187,14 +1188,9 @@ fn test_insufficient_new_resource_bounds_pre_validation(
         Err(err) => match err {
             TransactionExecutionError::TransactionPreValidationError(
                 TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxGasAmountTooLow { .. },
+                    TransactionFeeError::InsufficientResourceBounds { .. },
                 ),
-            ) => panic!("Transaction failed with expected minimal amount."),
-            TransactionExecutionError::TransactionPreValidationError(
-                TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxGasPriceTooLow { .. },
-                ),
-            ) => panic!("Transaction failed with expected minimal price."),
+            ) => panic!("Transaction failed with expected minimal resource bounds."),
             // Ignore failures other than those above (e.g., post-validation errors).
             _ => 0,
         },
@@ -1227,10 +1223,15 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             execution_error,
             TransactionExecutionError::TransactionPreValidationError(
                 TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxGasAmountTooLow{
-                        resource,
-                        ..}))
-            if resource == insufficient_resource
+                    TransactionFeeError::InsufficientResourceBounds{errors}
+                )
+            ) => {
+                assert_matches!(
+                    errors[0],
+                    ResourceBoundsError::MaxGasAmountTooLow{resource, ..}
+                    if resource == insufficient_resource
+                )
+            }
         );
     }
 
@@ -1253,10 +1254,14 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             execution_error,
             TransactionExecutionError::TransactionPreValidationError(
                 TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxGasPriceTooLow{
-                        resource,
-                        ..}))
-            if resource == insufficient_resource
+                    TransactionFeeError::InsufficientResourceBounds{ errors }
+                )
+            ) =>
+            assert_matches!(
+                errors[0],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == insufficient_resource
+            )
         );
     }
 }
@@ -1322,12 +1327,18 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxGasAmountTooLow{
-                    resource,
-                    max_gas_amount,
-                    minimal_gas_amount}))
-        if max_gas_amount == insufficient_max_l1_gas_amount &&
-        minimal_gas_amount == minimal_l1_gas && resource == L1Gas
+                TransactionFeeError::InsufficientResourceBounds{ errors }
+            )
+        ) =>
+        assert_matches!(
+            errors[0],
+            ResourceBoundsError::MaxGasAmountTooLow{
+                resource,
+                max_gas_amount,
+                minimal_gas_amount}
+            if max_gas_amount == insufficient_max_l1_gas_amount &&
+            minimal_gas_amount == minimal_l1_gas && resource == L1Gas
+        )
     );
 
     // Max L1 gas price too low, old resource bounds.
@@ -1341,9 +1352,16 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }))
-        if max_l1_gas_price == insufficient_max_l1_gas_price &&
-        actual_l1_gas_price == actual_strk_l1_gas_price.into()
+                TransactionFeeError::InsufficientResourceBounds{errors,..}
+            )
+        ) => {
+            assert_matches!(
+                errors[0],
+                ResourceBoundsError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }
+                if max_l1_gas_price == insufficient_max_l1_gas_price &&
+                actual_l1_gas_price == actual_strk_l1_gas_price.into()
+            )
+        }
     );
 }
 

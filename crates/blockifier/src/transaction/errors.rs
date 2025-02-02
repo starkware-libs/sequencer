@@ -16,6 +16,24 @@ use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertSu
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
 
+#[derive(Debug, Error)]
+pub enum ResourceBoundsError {
+    #[error(
+        "Max {resource} price ({max_gas_price}) is lower than the actual gas price: \
+         {actual_gas_price}."
+    )]
+    MaxGasPriceTooLow { resource: Resource, max_gas_price: GasPrice, actual_gas_price: GasPrice },
+    #[error(
+        "Max {resource} amount ({max_gas_amount}) is lower than the minimal gas amount: \
+         {minimal_gas_amount}."
+    )]
+    MaxGasAmountTooLow {
+        resource: Resource,
+        max_gas_amount: GasAmount,
+        minimal_gas_amount: GasAmount,
+    },
+}
+
 // TODO(Yoni, 1/9/2024): implement Display for Fee.
 #[derive(Debug, Error)]
 pub enum TransactionFeeError {
@@ -43,20 +61,8 @@ pub enum TransactionFeeError {
     MaxFeeExceedsBalance { max_fee: Fee, balance: BigUint },
     #[error("Max fee ({}) is too low. Minimum fee: {}.", max_fee.0, min_fee.0)]
     MaxFeeTooLow { min_fee: Fee, max_fee: Fee },
-    #[error(
-        "Max {resource} price ({max_gas_price}) is lower than the actual gas price: \
-         {actual_gas_price}."
-    )]
-    MaxGasPriceTooLow { resource: Resource, max_gas_price: GasPrice, actual_gas_price: GasPrice },
-    #[error(
-        "Max {resource} amount ({max_gas_amount}) is lower than the minimal gas amount: \
-         {minimal_gas_amount}."
-    )]
-    MaxGasAmountTooLow {
-        resource: Resource,
-        max_gas_amount: GasAmount,
-        minimal_gas_amount: GasAmount,
-    },
+    #[error("Resource bounds were not satisfied: {}", errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n"))]
+    InsufficientResourceBounds { errors: Vec<ResourceBoundsError> },
     #[error("Missing L1 gas bounds in resource bounds.")]
     MissingL1GasBounds,
     #[error(transparent)]

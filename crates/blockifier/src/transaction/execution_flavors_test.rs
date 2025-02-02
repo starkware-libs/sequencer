@@ -41,6 +41,7 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
+    ResourceBoundsError,
     TransactionExecutionError,
     TransactionFeeError,
     TransactionPreValidationError,
@@ -149,7 +150,6 @@ fn calculate_actual_gas(
 }
 
 /// Asserts gas used and reported fee are as expected.
-// TODO(Aner): modify for 4844 (taking blob_gas into account).
 fn check_gas_and_fee(
     block_context: &BlockContext,
     tx_execution_info: &TransactionExecutionInfo,
@@ -290,9 +290,14 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
             err,
             TransactionExecutionError::TransactionPreValidationError(
                 TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxGasAmountTooLow { resource , .. }
+                    TransactionFeeError::InsufficientResourceBounds { errors }
                 )
-            ) if resource == Resource::L1Gas
+            ) =>
+            assert_matches!(
+                errors[0],
+                ResourceBoundsError::MaxGasAmountTooLow { resource , .. }
+                if resource == Resource::L1Gas
+            )
         );
     }
 
@@ -356,10 +361,14 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
             err,
             TransactionExecutionError::TransactionPreValidationError(
                 TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxGasPriceTooLow { resource, .. }
+                    TransactionFeeError::InsufficientResourceBounds{ errors }
                 )
+            ) =>
+            assert_matches!(
+                errors[0],
+                ResourceBoundsError::MaxGasPriceTooLow { resource, .. }
+                if resource == Resource::L1Gas
             )
-            if resource == Resource::L1Gas
         );
     }
 }
