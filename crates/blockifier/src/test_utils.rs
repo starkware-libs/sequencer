@@ -12,6 +12,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::slice::Iter;
 
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -62,19 +63,6 @@ pub const TEST_ERC20_CONTRACT_CLASS_HASH: &str = "0x1010";
 // Paths.
 pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                        erc20_contract_without_some_syscalls_compiled.json";
-
-#[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
-pub enum RunnableCairo1 {
-    Casm,
-    #[cfg(feature = "cairo_native")]
-    Native,
-}
-
-impl Default for RunnableCairo1 {
-    fn default() -> Self {
-        Self::Casm
-    }
-}
 
 // TODO(Aviv, 14/7/2024): Move from test utils module, and use it in ContractClassVersionMismatch
 // error.

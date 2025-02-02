@@ -1,3 +1,4 @@
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use itertools::concat;
 #[cfg(feature = "cairo_native")]
 use pretty_assertions::assert_eq;
@@ -16,7 +17,7 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
 const KEYS: [Felt; 2] = [Felt::from_hex_unchecked("0x2019"), Felt::from_hex_unchecked("0x2020")];
 const DATA: [Felt; 3] = [
