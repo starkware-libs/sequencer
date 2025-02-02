@@ -1,7 +1,7 @@
 use core::panic;
 use std::sync::Arc;
 
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -21,12 +21,7 @@ use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
-use crate::test_utils::{
-    trivial_external_entry_point_new,
-    CairoVersion,
-    CompilerBasedVersion,
-    BALANCE,
-};
+use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm;"VM")]

@@ -1,4 +1,4 @@
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
 use starknet_api::state::StorageKey;
@@ -9,7 +9,7 @@ use crate::context::ChainInfo;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::versioned_constants::VersionedConstants;
 
 #[test]

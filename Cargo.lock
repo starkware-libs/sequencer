@@ -11023,6 +11023,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "blockifier",
+ "blockifier_test_utils",
  "futures",
  "hyper 0.14.32",
  "jsonrpsee",

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -123,7 +123,6 @@ use crate::test_utils::{
     get_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
-    CairoVersion,
     SaltManager,
     BALANCE,
 };

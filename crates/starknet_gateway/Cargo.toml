@@ -15,6 +15,7 @@ testing = []
 async-trait.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true

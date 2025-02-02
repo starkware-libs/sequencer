@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
@@ -84,13 +84,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::test_templates::cairo_version;
-use crate::test_utils::{
-    get_syscall_resources,
-    get_tx_resources,
-    CairoVersion,
-    CompilerBasedVersion,
-    BALANCE,
-};
+use crate::test_utils::{get_syscall_resources, get_tx_resources, CompilerBasedVersion, BALANCE};
 use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
