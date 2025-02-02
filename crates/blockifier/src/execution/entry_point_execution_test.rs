@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -14,12 +14,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
-use crate::test_utils::{
-    trivial_external_entry_point_new,
-    CairoVersion,
-    CompilerBasedVersion,
-    BALANCE,
-};
+use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};
 
 /// Asserts that the charged resources of a call is consistent with the inner calls in its subtree.
 fn assert_charged_resource_as_expected_rec(call_info: &CallInfo) {

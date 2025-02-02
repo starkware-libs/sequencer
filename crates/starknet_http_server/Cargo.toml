@@ -31,6 +31,7 @@ validator.workspace = true
 
 [dev-dependencies]
 blockifier = { path = "../blockifier", features = ["testing"] }
+blockifier_test_utils.path = "../blockifier_test_utils"
 futures.workspace = true
 mempool_test_utils.path = "../mempool_test_utils"
 metrics.workspace = true

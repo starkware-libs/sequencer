@@ -3,7 +3,7 @@ use std::panic::AssertUnwindSafe;
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use blockifier::test_utils::CairoVersion;
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use futures::FutureExt;
 use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;

@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use cairo_vm::types::builtin_name::BuiltinName;
 use num_bigint::BigInt;
 use pretty_assertions::assert_eq;
@@ -18,7 +19,7 @@ use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 
 #[test]
 fn test_call_info_iteration() {
