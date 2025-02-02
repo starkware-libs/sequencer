@@ -246,8 +246,13 @@ fn process_compilation_request(
             Ok(())
         }
         Err(err) => {
-            contract_caches.set_native(class_hash, CachedCairoNative::CompilationFailed);
             log::debug!("Error compiling contract class: {}", err);
+            match compiler.panic_on_compilation_failure() {
+                true => panic!("Compilation failed."),
+                false => {
+                    contract_caches.set_native(class_hash, CachedCairoNative::CompilationFailed)
+                }
+            };
             Err(err)
         }
     }

@@ -79,7 +79,8 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let output_file_path = output_file.path().to_str().ok_or(
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
-        let additional_args = [output_file_path];
+        let optimization_level = self.config.optimization_level.to_string();
+        let additional_args = [output_file_path, &optimization_level];
         let resource_limits = ResourceLimits::new(
             Some(self.config.max_cpu_time),
             Some(self.config.max_native_bytecode_size),
@@ -93,6 +94,11 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         )?;
 
         Ok(AotContractExecutor::load(Path::new(&output_file_path))?)
+    }
+
+    #[cfg(feature = "cairo_native")]
+    fn panic_on_compilation_failure(&self) -> bool {
+        self.config.panic_on_compilation_failure
     }
 }
 
