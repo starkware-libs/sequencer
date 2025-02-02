@@ -44,6 +44,8 @@ async fn transaction_basic_flow() {
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];
 
+    // Sleep so transaction sync will wait for new data
+    actions.push(Action::SleepToLetSyncAdvance);
     // Send headers with corresponding transaction length
     for (i, block_body) in block_bodies.iter().enumerate() {
         actions.push(Action::SendHeader(DataOrFin(Some(random_header(
@@ -54,6 +56,24 @@ async fn transaction_basic_flow() {
         )))));
     }
     actions.push(Action::SendHeader(DataOrFin(None)));
+
+    let len = block_bodies.len();
+    // Wait for header sync to finish before continuing transaction sync.
+    actions.push(Action::CheckStorage(Box::new(move |reader| {
+        async move {
+            let block_number = BlockNumber(len.try_into().unwrap());
+            wait_for_marker(
+                DataType::Header,
+                &reader,
+                block_number,
+                SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+                TIMEOUT_FOR_TEST,
+            )
+            .await;
+        }
+        .boxed()
+    })));
+    actions.push(Action::SimulateWaitPeriodForNewData);
 
     // Send transactions for each block and then validate they were written
     for (i, BlockBody { transactions, transaction_outputs, transaction_hashes }) in
