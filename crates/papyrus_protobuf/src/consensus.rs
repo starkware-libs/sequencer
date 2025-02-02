@@ -5,6 +5,7 @@ use prost::DecodeError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
+use starknet_api::data_availability::L1DataAvailabilityMode;
 
 use crate::converters::ProtobufConversionError;
 
@@ -54,6 +55,18 @@ pub struct ProposalInit {
     pub valid_round: Option<u32>,
     /// Address of the one who proposed the block.
     pub proposer: ContractAddress,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BlockInfo {
+    pub height: BlockNumber,
+    pub timestamp: u64,
+    pub builder: ContractAddress,
+    pub l1_da_mode: L1DataAvailabilityMode,
+    pub l2_gas_price_fri: u128,
+    pub l1_gas_price_wei: u128,
+    pub l1_data_gas_price_wei: u128,
+    pub eth_to_strk_rate: u64,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
