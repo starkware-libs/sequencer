@@ -28,7 +28,7 @@ const Configuration = {
             'committer_cli',
             'consensus',
             'deployment',
-            'helm',
+            'infra',
             'mempool_test_utils',
             'native_blockifier',
             'papyrus_base_layer',
