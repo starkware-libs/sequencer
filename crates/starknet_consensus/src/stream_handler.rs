@@ -31,6 +31,7 @@ type MessageId = u64;
 // TODO(guyn): add all of these to the config
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 const MAX_STREAMS_PER_PEER: NonZeroUsize = NonZeroUsize::new(10).unwrap();
+const MAX_MESSAGES_PER_STREAM: usize = 100;
 
 /// A combination of trait bounds needed for the content of the stream.
 pub trait StreamContentTrait:
@@ -97,6 +98,29 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
             receiver: Some(receiver),
             message_buffer: HashMap::new(),
         }
+    }
+
+    // Store an inbound message in the buffer.
+    // Returns true if the message was successfully stored.
+    // Returns false if the receiver should be dropped.
+    fn store(&mut self, message: StreamMessage<StreamContent, StreamId>) -> bool {
+        let message_id = message.message_id;
+        let buffer_length = self.message_buffer.len();
+        match self.message_buffer.entry(message_id) {
+            Vacant(e) => {
+                if buffer_length >= MAX_MESSAGES_PER_STREAM {
+                    // Buffer is full. Since we can't record the message we won't be able to
+                    // complete the stream.
+                    return false;
+                }
+                e.insert(message);
+            }
+            Occupied(_) => {
+                // Network replay, ignoring.
+            }
+        }
+        // If the operation successfully inserted the message, return true (no error).
+        true
     }
 }
 
@@ -223,6 +247,9 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         }
     }
 
+    // Send the message to the application.
+    // - If the receiver remains viable, return true.
+    // - If the receiver should be dropped, return false.
     fn inbound_send(
         &mut self,
         data: &mut StreamData<StreamContent, StreamId>,
@@ -240,7 +267,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
                              MessageId: {}",
                             message.stream_id, message.message_id
                         );
-                        return true;
+                        return false;
                     } else if e.is_full() {
                         // TODO(guyn): replace panic with buffering of the message.
                         panic!(
@@ -262,10 +289,11 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
                 self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
             }
             data.next_message_id += 1;
-            return false;
+            return true; // All is good, keep using the receiver. 
         }
-        // A Fin message is not sent. This is a no-op, can safely return true.
-        true
+        // A Fin message is not sent. This is a no-op.
+        // Can safely return false for dropping the receiver.
+        false
     }
 
     // Send the message to the network.
@@ -401,20 +429,20 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         // This means we can just send the message without buffering it.
         match message_id.cmp(&data.next_message_id) {
             Ordering::Equal => {
-                let mut receiver_dropped = self.inbound_send(&mut data, message);
-                if !receiver_dropped {
-                    receiver_dropped = self.process_buffer(&mut data);
+                let mut receiver_ok = self.inbound_send(&mut data, message);
+                if receiver_ok {
+                    receiver_ok = self.process_buffer(&mut data);
                 }
 
-                if data.message_buffer.is_empty() && data.fin_message_id.is_some()
-                    || receiver_dropped
-                {
+                if data.message_buffer.is_empty() && data.fin_message_id.is_some() || !receiver_ok {
                     data.sender.close_channel();
                     return None;
                 }
             }
             Ordering::Greater => {
-                Self::store(&mut data, peer_id.clone(), stream_id.clone(), message);
+                if !data.store(message) {
+                    return None;
+                }
             }
             Ordering::Less => {
                 // TODO(guyn): replace warnings with more graceful error handling
@@ -430,40 +458,17 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         Some(data)
     }
 
-    // Store an inbound message in the buffer.
-    fn store(
-        data: &mut StreamData<StreamContent, StreamId>,
-        peer_id: PeerId,
-        stream_id: StreamId,
-        message: StreamMessage<StreamContent, StreamId>,
-    ) {
-        let message_id = message.message_id;
-
-        match data.message_buffer.entry(message_id) {
-            Vacant(e) => {
-                e.insert(message);
-            }
-            Occupied(_) => {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: \
-                     {:?}",
-                    peer_id.clone(),
-                    stream_id.clone(),
-                );
-            }
-        }
-    }
-
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
-    // Returns true if the receiver for this stream is dropped.
+    // Returns false if the receiver for this stream is dropped.
     fn process_buffer(&mut self, data: &mut StreamData<StreamContent, StreamId>) -> bool {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            if self.inbound_send(data, message) {
-                return true;
+            if !self.inbound_send(data, message) {
+                // After sending we got false, meaning the receiver should be dropped.
+                return false;
             }
         }
-        false
+        // If nothing went wrong, we keep the receiver.
+        true
     }
 }
