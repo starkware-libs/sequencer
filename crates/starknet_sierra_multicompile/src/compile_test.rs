@@ -14,6 +14,7 @@ use crate::config::{
     DEFAULT_MAX_CPU_TIME,
     DEFAULT_MAX_MEMORY_USAGE,
     DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
+    DEFAULT_OPTIMIZATION_LEVEL,
 };
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
@@ -27,6 +28,8 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+    optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
+    panic_on_compilation_failure: false, // TODO(AvivG): what should be the default?
 };
 
 fn command_line_compiler() -> CommandLineCompiler {

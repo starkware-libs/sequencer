@@ -11,6 +11,7 @@ pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 80 * 1024;
 pub const DEFAULT_MAX_NATIVE_BYTECODE_SIZE: u64 = 15 * 1024 * 1024;
 pub const DEFAULT_MAX_CPU_TIME: u64 = 20;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
+pub const DEFAULT_OPTIMIZATION_LEVEL: u8 = 3; //TODO(AvivG): what should be the default?
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraCompilationConfig {
@@ -24,6 +25,8 @@ pub struct SierraCompilationConfig {
     pub max_memory_usage: u64,
     /// Sierra-to-Native compiler binary path.
     pub sierra_to_native_compiler_path: Option<PathBuf>,
+    pub optimization_level: u8,
+    pub panic_on_compilation_failure: bool,
 }
 
 impl Default for SierraCompilationConfig {
@@ -34,6 +37,8 @@ impl Default for SierraCompilationConfig {
             max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+            optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
+            panic_on_compilation_failure: false, // TODO(AvivG): what should be the default?
         }
     }
 }
