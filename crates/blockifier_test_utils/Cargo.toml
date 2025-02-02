@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Test utilities for the blockifier."
 
+[features]
+cairo_native = []
+
 [dependencies]
 cached.workspace = true
 serde = { workspace = true, features = ["derive"] }
