@@ -103,6 +103,9 @@ async fn state_diff_basic_flow() {
         Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
     ];
 
+    // Sleep so state diff sync will reach the sleep waiting for header protocol to receive new
+    // data.
+    actions.push(Action::SleepToLetSyncAdvance);
     // Send headers with corresponding state diff length
     for (i, (state_diff, _)) in state_diffs_and_chunks.iter().enumerate() {
         actions.push(Action::SendHeader(DataOrFin(Some(random_header(
@@ -113,6 +116,24 @@ async fn state_diff_basic_flow() {
         )))));
     }
     actions.push(Action::SendHeader(DataOrFin(None)));
+
+    let len = state_diffs_and_chunks.len();
+    // Wait for header sync to finish before continuing state diff sync.
+    actions.push(Action::CheckStorage(Box::new(move |reader| {
+        async move {
+            let block_number = BlockNumber(len.try_into().unwrap());
+            wait_for_marker(
+                DataType::Header,
+                &reader,
+                block_number,
+                SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+                TIMEOUT_FOR_TEST,
+            )
+            .await;
+        }
+        .boxed()
+    })));
+    actions.push(Action::SimulateWaitPeriodForNewData);
 
     let len = state_diffs_and_chunks.len();
     actions.push(Action::ReceiveQuery(
