@@ -112,6 +112,8 @@ fn test_default_config_file_is_up_to_date() {
         .expect("Couldn't set working dir.");
     let mut from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+    #[cfg(not(feature = "cairo_native"))]
+    remove_native_config(&mut from_default_config_file);
 
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();
@@ -127,8 +129,6 @@ fn test_default_config_file_is_up_to_date() {
     // Read the dumped config from the file.
     let from_code: serde_json::Value =
         serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
-    #[cfg(not(feature = "cairo_native"))]
-    remove_native_config(&mut from_default_config_file);
 
     let error_message = format!(
         "{}\n{}",
