@@ -8,8 +8,7 @@ use axum::Router;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     AccountTransactionGenerator,

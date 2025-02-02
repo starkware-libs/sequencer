@@ -1,4 +1,4 @@
-use blockifier::test_utils::CairoVersion;
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;

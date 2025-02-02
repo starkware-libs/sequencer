@@ -9,12 +9,13 @@ version.workspace = true
 workspace = true
 
 [features]
-testing = []
+testing = ["blockifier_test_utils"]
 
 [dependencies]
 async-trait.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true

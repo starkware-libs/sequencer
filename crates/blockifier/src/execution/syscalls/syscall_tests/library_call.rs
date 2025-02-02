@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt, storage_key};
@@ -17,7 +17,7 @@ use crate::execution::syscalls::syscall_tests::constants::{
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
