@@ -1,8 +1,5 @@
 #![allow(non_local_definitions)]
 
-use std::collections::HashMap;
-
-use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -12,20 +9,15 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
-use blockifier::execution::call_info::CallInfo;
-use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
-use serde::Serialize;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -47,65 +39,16 @@ use crate::storage::{
 };
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
+const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
 #[cfg(test)]
 #[path = "py_block_executor_test.rs"]
 mod py_block_executor_test;
 
-const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
-
-/// A mapping from a transaction execution resource to its actual usage.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
-pub struct ResourcesMapping(pub HashMap<String, usize>);
-
-/// Stripped down `TransactionExecutionInfo` for Python serialization, containing only the required
-/// fields.
-#[derive(Debug, Serialize)]
-pub(crate) struct ThinTransactionExecutionInfo {
-    pub validate_call_info: Option<CallInfo>,
-    pub execute_call_info: Option<CallInfo>,
-    pub fee_transfer_call_info: Option<CallInfo>,
-    pub actual_fee: Fee,
-    pub da_gas: GasVector,
-    pub actual_resources: ResourcesMapping,
-    pub revert_error: Option<String>,
-    pub total_gas: GasVector,
-}
-
-impl ThinTransactionExecutionInfo {
-    pub fn from_tx_execution_info(tx_execution_info: TransactionExecutionInfo) -> Self {
-        Self {
-            validate_call_info: tx_execution_info.validate_call_info,
-            execute_call_info: tx_execution_info.execute_call_info,
-            fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
-            actual_fee: tx_execution_info.receipt.fee,
-            da_gas: tx_execution_info.receipt.da_gas,
-            actual_resources: ThinTransactionExecutionInfo::receipt_to_resources_mapping(
-                &tx_execution_info.receipt,
-            ),
-            revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
-            total_gas: tx_execution_info.receipt.gas,
-        }
-    }
-    pub fn serialize(self) -> RawTransactionExecutionResult {
-        serde_json::to_vec(&self).expect(RESULT_SERIALIZE_ERR)
-    }
-
-    pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
-        let vm_resources = &receipt.resources.computation.vm_resources;
-        let mut resources = HashMap::from([(
-            abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
-        )]);
-        resources.extend(
-            vm_resources
-                .prover_builtins()
-                .iter()
-                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
-        );
-
-        ResourcesMapping(resources)
-    }
+fn serialize_block_execution_info(
+    py_tx_execution_info: CentralTransactionExecutionInfo,
+) -> RawTransactionExecutionResult {
+    serde_json::to_vec(&py_tx_execution_info).expect(RESULT_SERIALIZE_ERR)
 }
 
 #[pyclass]
@@ -198,11 +141,11 @@ impl PyBlockExecutor {
     ) -> NativeBlockifierResult<Py<PyBytes>> {
         let tx: Transaction = py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
         let (tx_execution_info, _state_diff) = self.tx_executor().execute(&tx)?;
-        let thin_tx_execution_info =
-            ThinTransactionExecutionInfo::from_tx_execution_info(tx_execution_info);
+        let central_tx_execution_info = CentralTransactionExecutionInfo::from(tx_execution_info);
 
         // Serialize and convert to PyBytes.
-        let serialized_tx_execution_info = thin_tx_execution_info.serialize();
+        let serialized_tx_execution_info =
+            serialize_block_execution_info(central_tx_execution_info);
         Ok(Python::with_gil(|py| PyBytes::new(py, &serialized_tx_execution_info).into()))
     }
 
@@ -234,10 +177,9 @@ impl PyBlockExecutor {
             .map(|result| match result {
                 Ok((tx_execution_info, _state_diff)) => (
                     true,
-                    ThinTransactionExecutionInfo::from_tx_execution_info(
+                    serialize_block_execution_info(CentralTransactionExecutionInfo::from(
                         tx_execution_info,
-                    )
-                    .serialize(),
+                    )),
                 ),
                 Err(error) => (false, serialize_failure_reason(error)),
             })
