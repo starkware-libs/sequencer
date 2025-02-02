@@ -7,6 +7,7 @@ license.workspace = true
 
 [features]
 cairo_native = []
+jemalloc = ["dep:tikv-jemallocator"]
 testing = []
 
 [lints]
@@ -45,7 +46,7 @@ starknet_sierra_multicompile.workspace = true
 starknet_sierra_multicompile_types.workspace = true
 starknet_state_sync.workspace = true
 starknet_state_sync_types.workspace = true
-tikv-jemallocator.workspace = true
+tikv-jemallocator = { workspace = true, optional = true }
 tokio.workspace = true
 tracing.workspace = true
 url.workspace = true
