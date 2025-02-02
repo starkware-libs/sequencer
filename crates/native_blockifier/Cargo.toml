@@ -42,6 +42,7 @@ papyrus_state_reader.workspace = true
 papyrus_storage.workspace = true
 pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true
+shared_execution_objects.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true

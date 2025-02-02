@@ -7188,6 +7188,7 @@ dependencies = [
  "pyo3-log",
  "serde",
  "serde_json",
+ "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
  "starknet_sierra_multicompile",
@@ -7726,6 +7727,7 @@ dependencies = [
  "papyrus_config",
  "pretty_assertions",
  "serde",
+ "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
  "tar",
@@ -10312,6 +10314,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "shared_execution_objects"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "serde",
+ "serde_json",
+ "starknet_api",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10925,6 +10937,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
