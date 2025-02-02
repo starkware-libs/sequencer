@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
@@ -118,8 +119,6 @@ use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
