@@ -1,12 +1,13 @@
+<<<<<<< HEAD
 use std::collections::HashMap;
 use std::str::FromStr;
 
 use blockifier::abi::constants as abi_constants;
+=======
+use assert_matches::assert_matches;
+>>>>>>> ffb898a10 (refactor(native_blockifier, starknet_consensus_orchestrator): share execution objects)
 use blockifier::bouncer::BouncerWeights;
-use blockifier::execution::call_info::CallInfo;
-use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
-use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::NestedIntList;
 use indexmap::{indexmap, IndexMap};
@@ -28,6 +29,7 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
+<<<<<<< HEAD
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::rpc_transaction::{
@@ -39,6 +41,17 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransaction,
 };
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
+=======
+use starknet_api::executable_transaction::{
+    AccountTransaction,
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    L1HandlerTransaction,
+    Transaction,
+};
+use starknet_api::state::{StorageKey, ThinStateDiff};
+>>>>>>> ffb898a10 (refactor(native_blockifier, starknet_consensus_orchestrator): share execution objects)
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -440,58 +453,6 @@ pub(crate) fn casm_contract_class_central_format(
         ..compiled_class_hash
     }
 }
-
-/// A mapping from a transaction execution resource to its actual usage.
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Debug, Eq, PartialEq, Serialize)]
-struct ResourcesMapping(pub HashMap<String, usize>);
-
-impl From<TransactionReceipt> for ResourcesMapping {
-    fn from(receipt: TransactionReceipt) -> ResourcesMapping {
-        let vm_resources = &receipt.resources.computation.vm_resources;
-        let mut resources = HashMap::from([(
-            abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
-        )]);
-        resources.extend(
-            vm_resources
-                .prover_builtins()
-                .iter()
-                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
-        );
-
-        ResourcesMapping(resources)
-    }
-}
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Debug, Serialize)]
-pub struct CentralTransactionExecutionInfo {
-    validate_call_info: Option<CallInfo>,
-    execute_call_info: Option<CallInfo>,
-    fee_transfer_call_info: Option<CallInfo>,
-    actual_fee: Fee,
-    da_gas: GasVector,
-    actual_resources: ResourcesMapping,
-    revert_error: Option<String>,
-    total_gas: GasVector,
-}
-
-impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
-    fn from(tx_execution_info: TransactionExecutionInfo) -> CentralTransactionExecutionInfo {
-        CentralTransactionExecutionInfo {
-            validate_call_info: tx_execution_info.validate_call_info,
-            execute_call_info: tx_execution_info.execute_call_info,
-            fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
-            actual_fee: tx_execution_info.receipt.fee,
-            da_gas: tx_execution_info.receipt.da_gas,
-            revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
-            total_gas: tx_execution_info.receipt.gas,
-            actual_resources: tx_execution_info.receipt.into(),
-        }
-    }
-}
-
 async fn get_contract_classes_if_declare(
     class_manager: SharedClassManagerClient,
     tx: &InternalConsensusTransaction,
