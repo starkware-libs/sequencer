@@ -7,8 +7,13 @@ license-file.workspace = true
 description = "Test utilities for the blockifier."
 
 [dependencies]
+cached.workspace = true
+serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
+tempfile.workspace = true
+toml.workspace = true
 
 [lints]
 workspace = true
