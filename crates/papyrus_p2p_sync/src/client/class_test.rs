@@ -127,7 +127,7 @@ async fn class_basic_flow() {
         }
         .boxed()
     })));
-    actions.push(Action::SimulateWaitPeriodForNewData);
+    actions.push(Action::SimulateWaitPeriodForOtherProtocol);
 
     actions.push(Action::ReceiveQuery(
         Box::new(move |query| {

@@ -1264,6 +1264,11 @@
     "privacy": "Public",
     "value": 50
   },
+  "state_sync_config.p2p_sync_client_config.wait_period_for_other_protocol": {
+    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
+    "privacy": "Public",
+    "value": 50
+  },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",

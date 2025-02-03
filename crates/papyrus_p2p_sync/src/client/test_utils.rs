@@ -59,6 +59,7 @@ pub const CLASS_DIFF_QUERY_LENGTH: u64 = 3;
 pub const TRANSACTION_QUERY_LENGTH: u64 = 3;
 pub const SLEEP_DURATION_TO_LET_SYNC_ADVANCE: Duration = Duration::from_millis(10);
 pub const WAIT_PERIOD_FOR_NEW_DATA: Duration = Duration::from_secs(1);
+pub const WAIT_PERIOD_FOR_OTHER_PROTOCOL: Duration = Duration::from_secs(1);
 pub const TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE: Duration =
     WAIT_PERIOD_FOR_NEW_DATA.saturating_add(Duration::from_secs(1));
 
@@ -69,6 +70,7 @@ lazy_static! {
         num_block_transactions_per_query: TRANSACTION_QUERY_LENGTH,
         num_block_classes_per_query: CLASS_DIFF_QUERY_LENGTH,
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
+        wait_period_for_other_protocol: WAIT_PERIOD_FOR_OTHER_PROTOCOL,
         buffer_size: BUFFER_SIZE,
     };
 }
@@ -168,9 +170,8 @@ pub enum Action {
     SendInternalBlock(SyncBlock),
     /// Sleep for SLEEP_DURATION_TO_LET_SYNC_ADVANCE duration.
     SleepToLetSyncAdvance,
-    // TODO(noamsp): Rename once we split wait_period_for_new_data.
-    /// Simulate WAIT_PERIOD_FOR_NEW_DATA duration has passed.
-    SimulateWaitPeriodForNewData,
+    /// Simulate WAIT_PERIOD_FOR_OTHER_PROTOCOL duration has passed.
+    SimulateWaitPeriodForOtherProtocol,
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
@@ -191,6 +192,7 @@ pub async fn run_test(
             .unwrap_or(1),
         num_block_classes_per_query: max_query_lengths.get(&DataType::Class).cloned().unwrap_or(1),
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
+        wait_period_for_other_protocol: WAIT_PERIOD_FOR_OTHER_PROTOCOL,
         buffer_size: BUFFER_SIZE,
     };
     let class_manager_client = class_manager_client.unwrap_or_default();
@@ -321,9 +323,9 @@ pub async fn run_test(
                     Action::SleepToLetSyncAdvance => {
                         tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
                     }
-                    Action::SimulateWaitPeriodForNewData => {
+                    Action::SimulateWaitPeriodForOtherProtocol => {
                         tokio::time::pause();
-                        tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
+                        tokio::time::advance(WAIT_PERIOD_FOR_OTHER_PROTOCOL).await;
                         tokio::time::resume();
                     }
                 }
