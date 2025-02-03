@@ -13,6 +13,12 @@ use blockifier::test_utils::transfers_generator::{
     TransfersGeneratorConfig,
 };
 use criterion::{criterion_group, criterion_main, Criterion};
+use starknet_infra_utils::set_global_allocator;
+
+// TODO(Arni): Consider how to run this benchmark both with and without setting the allocator. Maybe
+// hide this macro call under a feature, and run this benchmark regularly or with
+// `cargo bench --bench blockifier_bench --feature=specified_allocator`
+set_global_allocator!();
 
 pub fn transfers_benchmark(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {
