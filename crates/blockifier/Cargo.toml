@@ -83,6 +83,7 @@ rstest.workspace = true
 rstest_reuse.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
 test-case.workspace = true
+tikv-jemallocator.workspace = true
 
 [build-dependencies]
 starknet_infra_utils.workspace = true
