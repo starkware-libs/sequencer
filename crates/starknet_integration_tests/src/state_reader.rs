@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
@@ -46,27 +47,31 @@ type ContractClassesMap =
 
 pub struct StorageTestSetup {
     pub batcher_storage_config: StorageConfig,
-    pub batcher_storage_handle: TempDir,
+    pub batcher_storage_handle: Option<TempDir>,
     pub state_sync_storage_config: StorageConfig,
-    pub state_sync_storage_handle: TempDir,
+    pub state_sync_storage_handle: Option<TempDir>,
 }
 
 impl StorageTestSetup {
     pub fn new(
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
+        path: Option<PathBuf>,
     ) -> Self {
+        let batcher_db_path = path.as_ref().map(|p| p.join("batcher"));
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
-            TestStorageBuilder::default()
+            TestStorageBuilder::new(batcher_db_path)
                 .scope(StorageScope::StateOnly)
                 .chain_id(chain_info.chain_id.clone())
                 .build();
         create_test_state(&mut batcher_storage_writer, chain_info, test_defined_accounts.clone());
+
+        let state_sync_db_path = path.as_ref().map(|p| p.join("state_sync"));
         let (
             (_, mut state_sync_storage_writer),
             state_sync_storage_config,
             state_sync_storage_handle,
-        ) = TestStorageBuilder::default()
+        ) = TestStorageBuilder::new(state_sync_db_path)
             .scope(StorageScope::FullArchive)
             .chain_id(chain_info.chain_id.clone())
             .build();

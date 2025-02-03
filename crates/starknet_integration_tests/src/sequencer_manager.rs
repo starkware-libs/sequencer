@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use futures::future::join_all;
 use futures::TryFutureExt;
@@ -306,6 +307,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
+    path_to_base_dir: Option<PathBuf>,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
@@ -372,6 +374,10 @@ pub(crate) async fn get_sequencer_setup_configs(
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
             let chain_info = chain_info.clone();
+            let exec_db_path = path_to_base_dir.as_ref().map(|p| {
+                p.join(format!("node_{}", node_index))
+                    .join(format!("executable_{}", executable_index))
+            });
             executables.push(
                 ExecutableSetup::new(
                     accounts.to_vec(),
@@ -382,6 +388,7 @@ pub(crate) async fn get_sequencer_setup_configs(
                     state_sync_config,
                     AvailablePorts::new(test_unique_id.into(), global_index.try_into().unwrap()),
                     executable_component_config.clone(),
+                    exec_db_path,
                 )
                 .await,
             );

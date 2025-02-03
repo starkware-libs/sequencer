@@ -70,11 +70,11 @@ pub struct ExecutableSetup {
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
     #[allow(dead_code)]
-    batcher_storage_handle: TempDir,
+    batcher_storage_handle: Option<TempDir>,
     #[allow(dead_code)]
     node_config_dir_handle: TempDir,
     #[allow(dead_code)]
-    state_sync_storage_handle: TempDir,
+    state_sync_storage_handle: Option<TempDir>,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
@@ -90,10 +90,11 @@ impl ExecutableSetup {
         mut state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
+        db_path_dir: Option<PathBuf>,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
-        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+        let storage_for_test = StorageTestSetup::new(accounts, &chain_info, db_path_dir);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
