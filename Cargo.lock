@@ -10831,6 +10831,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_committer",
+ "starknet_os",
  "starknet_patricia",
  "strum 0.25.0",
  "strum_macros 0.25.3",
