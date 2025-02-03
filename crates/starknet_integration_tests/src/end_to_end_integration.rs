@@ -24,6 +24,7 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
         tx_generator,
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
+        None,
     )
     .await;
 
