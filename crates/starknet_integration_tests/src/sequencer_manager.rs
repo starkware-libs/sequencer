@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransac
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::Nonce;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_infra_utils::test_utils::{
@@ -22,7 +23,6 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
-use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -232,14 +232,11 @@ impl IntegrationTestManager {
         node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
     }
 
-    fn running_batcher_monitoring_client(&self) -> &MonitoringClient {
-        self.running_nodes
-            .iter()
-            .next()
-            .expect("At least one node should be running.")
-            .1
-            .node_setup
-            .batcher_monitoring_client()
+    /// Returns the sequencer index of the first running node and its monitoring client.
+    fn running_batcher_monitoring_client(&self) -> (usize, &MonitoringClient) {
+        let (sequencer_idx, running_node) =
+            self.running_nodes.iter().next().expect("At least one node should be running.");
+        (*sequencer_idx, running_node.node_setup.batcher_monitoring_client())
     }
 
     pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
@@ -278,7 +275,8 @@ impl IntegrationTestManager {
     }
 
     pub async fn await_execution(&self, expected_block_number: BlockNumber) {
-        await_execution(self.running_batcher_monitoring_client(), expected_block_number).await;
+        let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
+        await_execution(sequencer_idx, monitoring_client, expected_block_number).await;
     }
 
     pub async fn verify_txs_accepted(
@@ -286,20 +284,26 @@ impl IntegrationTestManager {
         tx_generator: &mut MultiAccountTransactionGenerator,
         sender_account: AccountId,
     ) {
+        let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = tx_generator.account_with_id(sender_account);
-        let expected_n_batched_txs = account.get_nonce().0;
-        info!("Verifying {} batched txs.", expected_n_batched_txs);
-        let n_batched_txs = self
-            .running_batcher_monitoring_client()
+        let expected_n_batched_txs = nonce_to_usize(account.get_nonce());
+        info!("Verifying that sequencer {sequencer_idx} got {expected_n_batched_txs} batched txs.");
+        let n_batched_txs = monitoring_client
             .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
             .await
             .expect("Failed to get batched txs metric.");
         assert_eq!(
-            Felt::from(n_batched_txs),
-            expected_n_batched_txs,
-            "Unexpected number of batched txs."
+            n_batched_txs, expected_n_batched_txs,
+            "Sequencer {sequencer_idx} got an unexpected number of batched txs. Expected \
+             {expected_n_batched_txs} got {n_batched_txs}"
         );
     }
+}
+
+fn nonce_to_usize(nonce: Nonce) -> usize {
+    let prefixed_hex = nonce.0.to_hex_string();
+    let unprefixed_hex = prefixed_hex.split_once("0x").unwrap().1;
+    usize::from_str_radix(unprefixed_hex, 16).unwrap()
 }
 
 pub(crate) async fn get_sequencer_setup_configs(

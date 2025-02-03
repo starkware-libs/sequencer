@@ -25,6 +25,7 @@ pub async fn await_batcher_block(
     interval: u64,
     target_block_number: BlockNumber,
     max_attempts: usize,
+    sequencer_idx: usize,
     batcher_monitoring_client: &MonitoringClient,
 ) -> Result<BlockNumber, ()> {
     let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
@@ -33,7 +34,10 @@ pub async fn await_batcher_block(
 
     let logger = CustomLogger::new(
         TraceLevel::Info,
-        Some("Waiting for storage to include block".to_string()),
+        Some(format!(
+            "Waiting for batcher height metric to reach block {target_block_number} in sequencer \
+             {sequencer_idx}."
+        )),
     );
 
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
@@ -42,11 +46,15 @@ pub async fn await_batcher_block(
 }
 
 pub async fn await_execution(
+    sequencer_idx: usize,
     monitoring_client: &MonitoringClient,
     expected_block_number: BlockNumber,
 ) {
-    info!("Awaiting until {expected_block_number} blocks have been created.");
-    await_batcher_block(5000, expected_block_number, 50, monitoring_client)
+    info!(
+        "Awaiting until {expected_block_number} blocks have been created in sequencer \
+         {sequencer_idx}."
+    );
+    await_batcher_block(5000, expected_block_number, 50, sequencer_idx, monitoring_client)
         .await
         .expect("Block number should have been reached.");
 }
