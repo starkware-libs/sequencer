@@ -14,6 +14,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
+    BlockInfo as ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
     ProposalInit,
@@ -26,7 +27,6 @@ use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
     BlockHeaderWithoutHash,
-    BlockInfo,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -37,6 +37,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -400,7 +401,10 @@ impl ConsensusContext for SequencerConsensusContext {
         self.cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 // TODO(dvir): use the real `BlockInfo` when consensus will save it.
-                block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
+                block_info: starknet_api::block::BlockInfo {
+                    block_number: BlockNumber(height),
+                    ..Default::default()
+                },
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions,
@@ -538,11 +542,16 @@ async fn build_proposal(
     gas_prices: GasPrices,
     transaction_converter: TransactionConverter,
 ) {
-    initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
+    let block_info =
+        initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
     proposal_sender
         .send(ProposalPart::Init(proposal_init))
         .await
         .expect("Failed to send proposal init");
+    proposal_sender
+        .send(ProposalPart::BlockInfo(block_info))
+        .await
+        .expect("Failed to send block info");
 
     let Some((proposal_commitment, content)) = get_proposal_content(
         proposal_id,
@@ -575,10 +584,21 @@ async fn initialize_build(
     timeout: Duration,
     batcher: &dyn BatcherClient,
     gas_prices: GasPrices,
-) {
+) -> ConsensusBlockInfo {
     let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
+    // TODO(Asmaa): change this to the real values.
+    let block_info = ConsensusBlockInfo {
+        height: proposal_init.height,
+        timestamp: now.timestamp().try_into().expect("Failed to convert timestamp"),
+        builder: proposal_init.proposer,
+        l1_da_mode: L1DataAvailabilityMode::Blob,
+        l2_gas_price_fri: gas_prices.strk_gas_prices.l2_gas_price.get().0,
+        l1_gas_price_wei: gas_prices.eth_gas_prices.l1_gas_price.get().0,
+        l1_data_gas_price_wei: gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
+        eth_to_strk_rate: 1,
+    };
     let build_proposal_input = ProposeBlockInput {
         proposal_id,
         deadline: now + batcher_timeout,
@@ -588,14 +608,12 @@ async fn initialize_build(
             hash: BlockHash::default(),
         }),
         // TODO(Dan, Matan): Fill block info.
-        block_info: BlockInfo {
-            block_number: proposal_init.height,
+        block_info: starknet_api::block::BlockInfo {
+            block_number: block_info.height,
             gas_prices,
-            block_timestamp: BlockTimestamp(
-                now.timestamp().try_into().expect("Failed to convert timestamp"),
-            ),
+            block_timestamp: BlockTimestamp(block_info.timestamp),
             use_kzg_da: true,
-            sequencer_address: proposal_init.proposer,
+            sequencer_address: block_info.builder,
         },
     };
     // TODO(Matan): Should we be returning an error?
@@ -603,6 +621,7 @@ async fn initialize_build(
     // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");
     batcher.propose_block(build_proposal_input).await.expect("Failed to initiate proposal build");
+    block_info
 }
 
 // 1. Receive chunks of content from the batcher.
@@ -773,7 +792,7 @@ async fn initiate_validation(
             hash: BlockHash::default(),
         }),
         // TODO(Dan, Matan): Fill block info.
-        block_info: BlockInfo {
+        block_info: starknet_api::block::BlockInfo {
             block_number: height,
             gas_prices,
             block_timestamp: BlockTimestamp(
@@ -800,6 +819,33 @@ async fn handle_proposal_part(
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
+        Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
+            // Output this along with the ID from batcher, to compare them.
+            let input =
+                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
+            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
+                panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
+            });
+            let response_id = match response.response {
+                ProposalStatus::Finished(id) => id,
+                ProposalStatus::InvalidProposal => {
+                    return HandledProposalPart::Failed("Invalid proposal".to_string());
+                }
+                status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
+            };
+            let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
+            info!(
+                network_block_id = ?id,
+                ?batcher_block_id,
+                num_txs = %content.len(),
+                "Finished validating proposal."
+            );
+            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
+        }
+        Some(ProposalPart::BlockInfo(_)) => {
+            // TODO(Asmaa): Validate the block info.
+            HandledProposalPart::Continue
+        }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
             let txs = futures::future::join_all(txs.into_iter().map(|tx| {
@@ -823,29 +869,6 @@ async fn handle_proposal_part(
                 ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
-        }
-        Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
-            // Output this along with the ID from batcher, to compare them.
-            let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
-            });
-            let response_id = match response.response {
-                ProposalStatus::Finished(id) => id,
-                ProposalStatus::InvalidProposal => {
-                    return HandledProposalPart::Failed("Invalid proposal".to_string());
-                }
-                status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
-            };
-            let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
-            info!(
-                network_block_id = ?id,
-                ?batcher_block_id,
-                num_txs = %content.len(),
-                "Finished validating proposal."
-            );
-            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
         }
         // TODO(Asmaa): Handle invalid proposal part by aborting the proposal, not the node.
         _ => panic!("Invalid proposal part: {:?}", proposal_part),
