@@ -31,7 +31,6 @@ name = "native_blockifier"
 crate-type = ["cdylib"]
 
 [dependencies]
-# TODO(Dori, 1/1/2025): Add the "jemalloc" feature to the blockifier crate when possible.
 blockifier = { workspace = true, features = ["native_blockifier"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
