@@ -13,7 +13,7 @@ function build() {
     pushd crates/native_blockifier
     pypy3.9 -m venv venv
     source venv/bin/activate
-    cargo build --release -p native_blockifier --features "testing" || clean
+    cargo +1.80 build --release -p native_blockifier --features "testing" || clean
     clean
     popd
 }

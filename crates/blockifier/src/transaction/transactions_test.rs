@@ -19,6 +19,7 @@ use starknet_api::transaction::{
     EventKey,
     Fee,
     L2ToL1Payload,
+    Resource,
     ResourceBoundsMapping,
     TransactionSignature,
     TransactionVersion,
@@ -2044,13 +2045,16 @@ fn max_event_data() -> usize {
     }))]
 fn test_emit_event_exceeds_limit(
     block_context: BlockContext,
-    max_resource_bounds: ResourceBoundsMapping,
+    mut max_resource_bounds: ResourceBoundsMapping,
     #[case] event_keys: Vec<Felt>,
     #[case] event_data: Vec<Felt>,
     #[case] n_emitted_events: usize,
     #[case] expected_error: Option<EmitEventError>,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
+    let mut l1_bound = max_resource_bounds.0[&Resource::L1Gas];
+    l1_bound.max_amount *= 10;
+    max_resource_bounds.0.insert(Resource::L1Gas, l1_bound);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let block_context = &block_context;
@@ -2093,7 +2097,7 @@ fn test_emit_event_exceeds_limit(
             assert!(error_string.contains(&format!("{}", expected_error)));
         }
         None => {
-            assert!(!execution_info.is_reverted());
+            assert_matches!(execution_info.revert_error, None);
         }
     }
 }
