@@ -16,6 +16,7 @@ blockifier.workspace = true
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_class_manager_types.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
