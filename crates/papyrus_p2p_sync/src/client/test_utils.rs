@@ -166,6 +166,11 @@ pub enum Action {
     /// Sends an internal block to the sync.
     #[allow(dead_code)]
     SendInternalBlock(SyncBlock),
+    /// Sleep for SLEEP_DURATION_TO_LET_SYNC_ADVANCE duration.
+    SleepToLetSyncAdvance,
+    // TODO(noamsp): Rename once we split wait_period_for_new_data.
+    /// Simulate WAIT_PERIOD_FOR_NEW_DATA duration has passed.
+    SimulateWaitPeriodForNewData,
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
@@ -312,6 +317,14 @@ pub async fn run_test(
                     }
                     Action::RunP2pSync => {
                         sync_future_sender.take().expect("Called RunP2pSync twice").send(()).expect("Failed to send message to run p2p sync");
+                    }
+                    Action::SleepToLetSyncAdvance => {
+                        tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
+                    }
+                    Action::SimulateWaitPeriodForNewData => {
+                        tokio::time::pause();
+                        tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
+                        tokio::time::resume();
                     }
                 }
             }
