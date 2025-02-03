@@ -13,6 +13,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
+use tracing::{trace, warn};
 
 use super::block_data_stream_builder::{
     BadPeerError,
@@ -30,13 +31,36 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
         class_manager_client: &'a mut SharedClassManagerClient,
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
-            // TODO(noamsp): handle non fatal errors by reporting the peer instead of failing
-            for (_class_hash, class) in self.0 {
-                class_manager_client.add_class(class).await?;
+            for (class_hash, class) in self.0 {
+                // We can't continue without writing to the class manager, so we'll keep retrying
+                // until it succeeds.
+                // TODO(shahak): Test this flow.
+                // TODO(shahak): Verify class hash matches class manager response. report if not.
+                // TODO(shahak): Try to avoid cloning. See if ClientError can contain the request.
+                while let Err(err) = class_manager_client.add_class(class.clone()).await {
+                    warn!(
+                        "Failed writing class with hash {class_hash:?} to class manager. Trying \
+                         again. Error: {err:?}"
+                    );
+                    trace!("Class: {class:?}");
+                    // TODO(shahak): Consider sleeping here.
+                }
             }
 
             for (class_hash, deprecated_class) in self.1 {
-                class_manager_client.add_deprecated_class(class_hash, deprecated_class).await?;
+                // TODO(shahak): Test this flow.
+                // TODO(shahak): Try to avoid cloning. See if ClientError can contain the request.
+                while let Err(err) = class_manager_client
+                    .add_deprecated_class(class_hash, deprecated_class.clone())
+                    .await
+                {
+                    warn!(
+                        "Failed writing deprecated class with hash {class_hash:?} to class \
+                         manager. Trying again. Error: {err:?}"
+                    );
+                    trace!("Class: {deprecated_class:?}");
+                    // TODO(shahak): Consider sleeping here.
+                }
             }
 
             storage_writer.begin_rw_txn()?.update_class_manager_block_marker(&self.2)?.commit()?;

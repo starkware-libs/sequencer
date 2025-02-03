@@ -45,7 +45,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
-use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
 use tokio_stream::StreamExt;
@@ -145,8 +145,6 @@ pub enum P2pSyncClientError {
     StorageError(#[from] StorageError),
     #[error(transparent)]
     SendError(#[from] SendError),
-    #[error(transparent)]
-    ClassManagerClientError(#[from] ClassManagerClientError),
 }
 
 type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
