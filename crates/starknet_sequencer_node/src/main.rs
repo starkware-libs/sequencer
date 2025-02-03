@@ -9,6 +9,8 @@ use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use tracing::{error, info};
 
+starknet_infra_utils::set_global_allocator!();
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
