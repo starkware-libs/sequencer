@@ -122,8 +122,8 @@ pub struct FlowSequencerSetup {
     pub add_tx_http_client: HttpTestClient,
 
     // Handlers for the storage files, maintained so the files are not deleted.
-    pub batcher_storage_file_handle: TempDir,
-    pub state_sync_storage_file_handle: TempDir,
+    pub batcher_storage_file_handle: Option<TempDir>,
+    pub state_sync_storage_file_handle: Option<TempDir>,
 
     // Node configuration.
     pub node_config: SequencerNodeConfig,
@@ -153,7 +153,7 @@ impl FlowSequencerSetup {
             batcher_storage_handle,
             state_sync_storage_config,
             state_sync_storage_handle,
-        } = StorageTestSetup::new(accounts, &chain_info);
+        } = StorageTestSetup::new(accounts, &chain_info, None);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
