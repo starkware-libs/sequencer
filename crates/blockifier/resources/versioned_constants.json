@@ -1,8 +1,8 @@
 {
     "tx_event_limits": {
-        "max_data_length": 300,
-        "max_keys_length": 50,
-        "max_n_emitted_events": 1000
+        "max_data_length": 1500,
+        "max_keys_length": 250,
+        "max_n_emitted_events": 5000
     },
     "gateway": {
         "max_calldata_length": 5000,
