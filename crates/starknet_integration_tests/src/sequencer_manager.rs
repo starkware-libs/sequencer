@@ -26,7 +26,7 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
-use crate::monitoring_utils::await_batcher_block;
+use crate::monitoring_utils::await_execution;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -278,15 +278,7 @@ impl IntegrationTestManager {
     }
 
     pub async fn await_execution(&self, expected_block_number: BlockNumber) {
-        info!("Awaiting until {expected_block_number} blocks have been created.");
-        await_batcher_block(
-            5000,
-            expected_block_number,
-            50,
-            self.running_batcher_monitoring_client(),
-        )
-        .await
-        .expect("Block number should have been reached.");
+        await_execution(self.running_batcher_monitoring_client(), expected_block_number).await;
     }
 
     pub async fn verify_results(&self, expected_n_batched_tx: usize) {

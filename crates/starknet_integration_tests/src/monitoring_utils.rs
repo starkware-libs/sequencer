@@ -3,6 +3,7 @@ use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_metrics::metric_definitions;
+use tracing::info;
 
 /// Gets the latest block number from the batcher's metrics.
 pub async fn get_batcher_latest_block_number(
@@ -38,4 +39,14 @@ pub async fn await_batcher_block(
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
         .ok_or(())
+}
+
+pub async fn await_execution(
+    monitoring_client: &MonitoringClient,
+    expected_block_number: BlockNumber,
+) {
+    info!("Awaiting until {expected_block_number} blocks have been created.");
+    await_batcher_block(5000, expected_block_number, 50, monitoring_client)
+        .await
+        .expect("Block number should have been reached.");
 }
