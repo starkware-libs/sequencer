@@ -6,7 +6,6 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-cairo_native = []
 testing = ["papyrus_proc_macros"]
 
 [lints]
