@@ -167,8 +167,11 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
     let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(tx_a);
     let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(tx_b);
 
-    let mut component_a_local_server = LocalComponentServer::new(component_a, rx_a);
-    let mut component_b_local_server = LocalComponentServer::new(component_b, rx_b);
+    let max_concurrency = 1;
+    let mut component_a_local_server =
+        LocalComponentServer::new(component_a, rx_a, max_concurrency);
+    let mut component_b_local_server =
+        LocalComponentServer::new(component_b, rx_b, max_concurrency);
 
     let mut component_a_remote_server =
         RemoteComponentServer::new(a_local_client, a_socket.ip(), a_socket.port());

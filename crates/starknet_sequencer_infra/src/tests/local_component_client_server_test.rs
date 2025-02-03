@@ -74,8 +74,9 @@ async fn test_setup() {
     let component_a = ComponentA::new(Box::new(b_client.clone()));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
-    let mut component_a_server = LocalComponentServer::new(component_a, rx_a);
-    let mut component_b_server = LocalComponentServer::new(component_b, rx_b);
+    let max_concurrency = 1;
+    let mut component_a_server = LocalComponentServer::new(component_a, rx_a, max_concurrency);
+    let mut component_b_server = LocalComponentServer::new(component_b, rx_b, max_concurrency);
 
     task::spawn(async move {
         let _ = component_a_server.start().await;
