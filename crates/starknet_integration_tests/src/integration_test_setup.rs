@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
@@ -39,6 +39,11 @@ impl NodeExecutionId {
     pub fn get_executable_index(&self) -> usize {
         self.executable_index
     }
+
+    pub fn build_path(&self, base: &Path) -> PathBuf {
+        base.join(format!("node_{}", self.node_index))
+            .join(format!("executable_{}", self.executable_index))
+    }
 }
 
 impl std::fmt::Display for NodeExecutionId {
@@ -70,11 +75,11 @@ pub struct ExecutableSetup {
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
     #[allow(dead_code)]
-    batcher_storage_handle: TempDir,
+    batcher_storage_handle: Option<TempDir>,
     #[allow(dead_code)]
     node_config_dir_handle: TempDir,
     #[allow(dead_code)]
-    state_sync_storage_handle: TempDir,
+    state_sync_storage_handle: Option<TempDir>,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
@@ -90,10 +95,11 @@ impl ExecutableSetup {
         mut state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
+        db_path_dir: Option<PathBuf>,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
-        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+        let storage_for_test = StorageTestSetup::new(accounts, &chain_info, db_path_dir);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
