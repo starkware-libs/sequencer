@@ -61,6 +61,10 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 pub const TPS: u64 = 2;
 const N_TXS_IN_FIRST_BLOCK: usize = 2;
 
+pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
+pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
+pub type ExpectedContentId = Felt;
+
 pub trait TestScenario {
     fn create_txs(
         &self,
@@ -358,9 +362,9 @@ where
 /// list of transaction hashes, in the order they are expected to be in the mempool.
 pub async fn run_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
-    create_rpc_txs_fn: impl Fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>,
+    create_rpc_txs_fn: CreateRpcTxsFn,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
-    test_tx_hashes_fn: impl Fn(&[TransactionHash]) -> Vec<TransactionHash>,
+    test_tx_hashes_fn: TestTxHashesFn,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,

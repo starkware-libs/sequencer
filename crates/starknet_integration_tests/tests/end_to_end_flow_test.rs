@@ -30,10 +30,12 @@ use starknet_integration_tests::utils::{
     run_test_scenario,
     test_many_invoke_txs,
     test_multiple_account_txs,
+    CreateRpcTxsFn,
+    ExpectedContentId,
+    TestTxHashesFn,
     UNDEPLOYED_ACCOUNT_ID,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_types_core::felt::Felt;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
@@ -105,10 +107,6 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     }
 }
 
-type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
-type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
-type ExpectedContentId = Felt;
-
 fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> {
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
@@ -116,21 +114,21 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
         (
             create_multiple_account_txs,
             test_multiple_account_txs,
-            Felt::from_hex_unchecked(
+            ExpectedContentId::from_hex_unchecked(
                 "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
             ),
         ),
         (
             create_funding_txs,
             test_single_tx,
-            Felt::from_hex_unchecked(
+            ExpectedContentId::from_hex_unchecked(
                 "0x354a08374de0b194773930010006a0cc42f7f984f509ceb0d564da37ed15bab",
             ),
         ),
         (
             deploy_account_and_invoke,
             test_two_txs,
-            Felt::from_hex_unchecked(
+            ExpectedContentId::from_hex_unchecked(
                 "0xb28fc13e038eaff29d46d8ead91e9a37e004949c3ea6b78020c5df315ef745",
             ),
         ),
@@ -140,7 +138,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
         (
             create_many_invoke_txs,
             test_many_invoke_txs,
-            Felt::from_hex_unchecked(
+            ExpectedContentId::from_hex_unchecked(
                 "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
             ),
         ),
@@ -162,7 +160,7 @@ async fn listen_to_broadcasted_messages(
     >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
-    expected_content_id: Felt,
+    expected_content_id: ExpectedContentId,
     expected_proposer_id: ValidatorId,
 ) {
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
