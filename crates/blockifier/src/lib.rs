@@ -4,11 +4,6 @@
 // when converting usize to u128.
 #![cfg(any(target_pointer_width = "16", target_pointer_width = "32", target_pointer_width = "64",))]
 
-#[cfg(feature = "jemalloc")]
-// Override default allocator.
-#[global_allocator]
-static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
-
 pub mod abi;
 pub mod blockifier;
 pub mod bouncer;
