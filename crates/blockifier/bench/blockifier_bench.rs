@@ -14,6 +14,9 @@ use blockifier::test_utils::transfers_generator::{
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 
+// Note, it might be interesting to run this benchmark with and without the Jemalloc allocator.
+starknet_infra_utils::set_global_allocator!();
+
 pub fn transfers_benchmark(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {
         recipient_generator_type: RecipientGeneratorType::Random,
