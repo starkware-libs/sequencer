@@ -249,7 +249,7 @@ pub fn commit_block(
         HashSet::from_iter(rejected_tx_hashes.into_iter().map(|tx_hash| tx_hash!(tx_hash)));
     let args = CommitBlockArgs { address_to_nonce: nonces, rejected_tx_hashes };
 
-    assert_eq!(mempool.commit_block(args), Ok(()));
+    mempool.commit_block(args);
 }
 
 #[track_caller]

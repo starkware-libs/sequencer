@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
@@ -71,15 +72,21 @@ impl MempoolCommunicationWrapper {
     }
 
     fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
-        self.mempool.commit_block(args)
+        self.mempool.commit_block(args);
+        Ok(())
     }
 
     fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
         self.mempool.get_txs(n_txs)
     }
 
-    pub(crate) fn contains_tx_from(&self, account_address: ContractAddress) -> MempoolResult<bool> {
+    fn contains_tx_from(&self, account_address: ContractAddress) -> MempoolResult<bool> {
         Ok(self.mempool.contains_tx_from(account_address))
+    }
+
+    fn update_gas_price(&mut self, gas_price: GasPrice) -> MempoolResult<()> {
+        self.mempool.update_gas_price(gas_price);
+        Ok(())
     }
 }
 
@@ -98,6 +105,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             }
             MempoolRequest::ContainsTransactionFrom(account_address) => {
                 MempoolResponse::ContainsTransactionFrom(self.contains_tx_from(account_address))
+            }
+            MempoolRequest::UpdateGasPrice(gas_price) => {
+                MempoolResponse::UpdateGasPrice(self.update_gas_price(gas_price))
             }
         }
     }
