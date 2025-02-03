@@ -6,7 +6,7 @@ use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::info;
 
 use crate::sequencer_manager::{get_sequencer_setup_configs, IntegrationTestManager};
-use crate::utils::{BootstrapTxs, InvokeTxs, N_TXS_IN_FIRST_BLOCK};
+use crate::utils::{BootstrapTxs, InvokeTxs};
 
 pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGenerator) {
     const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
@@ -44,16 +44,13 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
 
     // Run the first block scenario to bootstrap the accounts.
     integration_test_manager
-        .test_and_verify(tx_generator, 0, BootstrapTxs, SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
+        .test_and_verify(tx_generator, BootstrapTxs, SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
         .await;
 
     // Run the test.
     integration_test_manager
         .test_and_verify(
             tx_generator,
-            // TODO(Yael): consider removing this parameter and take it from the tx_generator
-            // instead.
-            N_TXS_IN_FIRST_BLOCK,
             InvokeTxs(N_TXS),
             SENDER_ACCOUNT,
             BLOCK_TO_WAIT_FOR_FIRST_ROUND,
@@ -67,7 +64,6 @@ pub async fn end_to_end_integration(tx_generator: &mut MultiAccountTransactionGe
     integration_test_manager
         .test_and_verify(
             tx_generator,
-            N_TXS + N_TXS_IN_FIRST_BLOCK,
             InvokeTxs(N_TXS),
             SENDER_ACCOUNT,
             BLOCK_TO_WAIT_FOR_LATE_NODE,
