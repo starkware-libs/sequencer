@@ -719,6 +719,7 @@ pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
     pub range_check: u64,
+    pub range_check96: u64,
     // Priced builtins.
     pub keccak: u64,
     pub pedersen: u64,
@@ -739,7 +740,7 @@ impl BuiltinGasCosts {
             BuiltinName::ec_op => self.ecop,
             BuiltinName::keccak => self.keccak,
             BuiltinName::poseidon => self.poseidon,
-            BuiltinName::range_check96 => self.range_check,
+            BuiltinName::range_check96 => self.range_check96,
             BuiltinName::add_mod => self.add_mod,
             BuiltinName::mul_mod => self.mul_mod,
             BuiltinName::ecdsa => self.ecdsa,
