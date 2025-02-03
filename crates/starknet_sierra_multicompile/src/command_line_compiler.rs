@@ -105,7 +105,9 @@ impl SierraToNativeCompiler for CommandLineCompiler {
             resource_limits,
         )?;
 
-        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?)
+        let aot_executor = AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap();
+
+        Ok(aot_executor)
     }
 }
 
