@@ -31,11 +31,16 @@ def validate_todo_format(file_path: str) -> bool:
     # parenthesis bounding a non-empty string (owner name), and a colon.
     required_comment_todo_pattern = re.compile(r"(\/\/|#) ?TODO\([^)]+\):")
     invalid_todos = []
-    with open(file_path, "r") as file:
-        for line_number, line in enumerate(file, start=1):
-            if comment_todo_pattern.search(line):
-                if not required_comment_todo_pattern.search(line):
-                    invalid_todos.append((file_path, line_number, line.strip()))
+    try: 
+        with open(file_path, "r") as file:
+            for line_number, line in enumerate(file, start=1):
+                if comment_todo_pattern.search(line):
+                    if not required_comment_todo_pattern.search(line):
+                        invalid_todos.append((file_path, line_number, line.strip()))
+    except Exception as e:
+        # Make sure to report which file caused the error before re-raising the exception.
+        print(f"Error while reading file {file_path}: {e}")
+        raise e
     if len(invalid_todos) > 0:
         print(f"{len(invalid_todos)} invalid TODOs found.")
         for file_path, line_number, line in invalid_todos:
