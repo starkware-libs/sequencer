@@ -5,5 +5,7 @@ pub(crate) mod transaction_pool;
 pub(crate) mod transaction_queue;
 pub(crate) mod utils;
 
+#[cfg(test)]
+mod flow_tests;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;

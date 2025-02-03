@@ -1,15 +1,11 @@
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::{contract_address, nonce};
-use starknet_mempool::add_tx_input;
-use starknet_mempool::mempool::Mempool;
-use starknet_mempool::test_utils::{
-    add_tx,
-    add_tx_expect_error,
-    commit_block,
-    get_txs_and_assert_expected,
-};
 use starknet_mempool_types::errors::MempoolError;
+
+use crate::add_tx_input;
+use crate::mempool::Mempool;
+use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 
 // Fixtures.
 
