@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -206,10 +207,11 @@ pub enum ClassHashStorageError {
 }
 
 type ClassHashStorageResult<T> = Result<T, ClassHashStorageError>;
+type LockedWriter<'a> = MutexGuard<'a, papyrus_storage::StorageWriter>;
 
 pub struct ClassHashStorage {
     reader: papyrus_storage::StorageReader,
-    writer: papyrus_storage::StorageWriter,
+    writer: Arc<Mutex<papyrus_storage::StorageWriter>>,
 }
 
 impl ClassHashStorage {
@@ -232,7 +234,11 @@ impl ClassHashStorage {
         };
         let (reader, writer) = papyrus_storage::open_storage(storage_config)?;
 
-        Ok(Self { reader, writer })
+        Ok(Self { reader, writer: Arc::new(Mutex::new(writer)) })
+    }
+
+    fn writer(&self) -> ClassHashStorageResult<LockedWriter<'_>> {
+        Ok(self.writer.lock().expect("Writer is poisoned."))
     }
 
     fn get_executable_class_hash(
@@ -250,11 +256,11 @@ impl ClassHashStorage {
         class_id: ClassId,
         executable_class_hash: ExecutableClassHash,
     ) -> ClassHashStorageResult<()> {
-        let txn = self
-            .writer
-            .begin_rw_txn()?
-            .set_executable_class_hash(&class_id, executable_class_hash)?;
+        let mut writer = self.writer()?;
+        let txn =
+            writer.begin_rw_txn()?.set_executable_class_hash(&class_id, executable_class_hash)?;
         txn.commit()?;
+
         Ok(())
     }
 }
