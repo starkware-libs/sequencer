@@ -474,6 +474,32 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     }
 }
 
+impl TryFrom<DeployAccountTransactionV3> for RpcDeployAccountTransactionV3 {
+    type Error = StarknetApiError;
+
+    fn try_from(value: DeployAccountTransactionV3) -> Result<Self, Self::Error> {
+        Ok(Self {
+            resource_bounds: match value.resource_bounds {
+                ValidResourceBounds::AllResources(bounds) => bounds,
+                _ => {
+                    return Err(StarknetApiError::OutOfRange {
+                        string: "resource_bounds".to_string(),
+                    });
+                }
+            },
+            signature: value.signature,
+            nonce: value.nonce,
+            class_hash: value.class_hash,
+            contract_address_salt: value.contract_address_salt,
+            constructor_calldata: value.constructor_calldata,
+            tip: value.tip,
+            paymaster_data: value.paymaster_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        })
+    }
+}
+
 impl DeployAccountTransactionV3Trait for RpcDeployAccountTransactionV3 {
     fn resource_bounds(&self) -> ValidResourceBounds {
         ValidResourceBounds::AllResources(self.resource_bounds)
@@ -583,6 +609,32 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
             paymaster_data: tx.paymaster_data,
             account_deployment_data: tx.account_deployment_data,
         }
+    }
+}
+
+impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
+    type Error = StarknetApiError;
+
+    fn try_from(value: InvokeTransactionV3) -> Result<Self, Self::Error> {
+        Ok(Self {
+            resource_bounds: match value.resource_bounds {
+                ValidResourceBounds::AllResources(bounds) => bounds,
+                _ => {
+                    return Err(StarknetApiError::OutOfRange {
+                        string: "resource_bounds".to_string(),
+                    });
+                }
+            },
+            signature: value.signature,
+            nonce: value.nonce,
+            tip: value.tip,
+            paymaster_data: value.paymaster_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+            sender_address: value.sender_address,
+            calldata: value.calldata,
+            account_deployment_data: value.account_deployment_data,
+        })
     }
 }
 
