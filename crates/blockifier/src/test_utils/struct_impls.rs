@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::sync::{LazyLock, RwLock};
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;
 #[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
