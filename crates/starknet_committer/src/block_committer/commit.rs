@@ -71,7 +71,7 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
     Ok(filled_forest)
 }
 
-/// Compares the previous state's nonce and class hash with the given in the state diff.
+/// Compares the previous state's nonce and class hash with the given in the state diff .
 /// In case of trivial update, logs out a warning for trivial state diff update.
 fn check_trivial_nonce_and_class_hash_updates(
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
