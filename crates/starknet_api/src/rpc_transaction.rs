@@ -351,6 +351,34 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
     }
 }
 
+impl TryFrom<(DeclareTransactionV3, SierraContractClass)> for RpcDeclareTransactionV3 {
+    type Error = StarknetApiError;
+
+    fn try_from(value: (DeclareTransactionV3, SierraContractClass)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            resource_bounds: match value.0.resource_bounds {
+                ValidResourceBounds::AllResources(bounds) => bounds,
+                _ => {
+                    // This happens if the resource_bounds are not AllResources.
+                    return Err(StarknetApiError::OutOfRange {
+                        string: "resource_bounds".to_string(),
+                    });
+                }
+            },
+            signature: value.0.signature,
+            nonce: value.0.nonce,
+            compiled_class_hash: value.0.compiled_class_hash,
+            sender_address: value.0.sender_address,
+            contract_class: value.1,
+            tip: value.0.tip,
+            paymaster_data: value.0.paymaster_data,
+            account_deployment_data: value.0.account_deployment_data,
+            nonce_data_availability_mode: value.0.nonce_data_availability_mode,
+            fee_data_availability_mode: value.0.fee_data_availability_mode,
+        })
+    }
+}
+
 /// An [RpcDeclareTransactionV3] that contains a class hash instead of the full contract class.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct InternalRpcDeclareTransactionV3 {
