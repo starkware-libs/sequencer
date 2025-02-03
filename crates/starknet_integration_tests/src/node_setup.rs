@@ -19,6 +19,7 @@ pub async fn node_setup(
         tx_generator,
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
+        None,
     )
     .await;
 
