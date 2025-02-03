@@ -3,7 +3,7 @@ use papyrus_storage::db::TransactionKind;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber, BlockStatus, BlockTimestamp, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, BlockStatus, BlockTimestamp, GasPricePerToken};
 use starknet_api::core::{GlobalRoot, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 
@@ -20,9 +20,9 @@ pub struct BlockHeader {
     pub sequencer_address: SequencerContractAddress,
     pub new_root: GlobalRoot,
     pub timestamp: BlockTimestamp,
-    pub l1_gas_price: ResourcePrice,
-    pub l1_data_gas_price: ResourcePrice,
-    pub l2_gas_price: ResourcePrice,
+    pub l1_gas_price: GasPricePerToken,
+    pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -33,9 +33,9 @@ pub struct PendingBlockHeader {
     pub parent_hash: BlockHash,
     pub sequencer_address: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
-    pub l1_gas_price: ResourcePrice,
-    pub l1_data_gas_price: ResourcePrice,
-    pub l2_gas_price: ResourcePrice,
+    pub l1_gas_price: GasPricePerToken,
+    pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub starknet_version: String,
 }
@@ -56,15 +56,15 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
             sequencer_address: header.block_header_without_hash.sequencer,
             new_root: header.block_header_without_hash.state_root,
             timestamp: header.block_header_without_hash.timestamp,
-            l1_gas_price: ResourcePrice {
+            l1_gas_price: GasPricePerToken {
                 price_in_wei: header.block_header_without_hash.l1_gas_price.price_in_wei,
                 price_in_fri: header.block_header_without_hash.l1_gas_price.price_in_fri,
             },
-            l1_data_gas_price: ResourcePrice {
+            l1_data_gas_price: GasPricePerToken {
                 price_in_wei: header.block_header_without_hash.l1_data_gas_price.price_in_wei,
                 price_in_fri: header.block_header_without_hash.l1_data_gas_price.price_in_fri,
             },
-            l2_gas_price: ResourcePrice {
+            l2_gas_price: GasPricePerToken {
                 price_in_wei: header.block_header_without_hash.l2_gas_price.price_in_wei,
                 price_in_fri: header.block_header_without_hash.l2_gas_price.price_in_fri,
             },
@@ -72,12 +72,6 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
             starknet_version: header.block_header_without_hash.starknet_version.to_string(),
         }
     }
-}
-
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct ResourcePrice {
-    pub price_in_wei: GasPrice,
-    pub price_in_fri: GasPrice,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]

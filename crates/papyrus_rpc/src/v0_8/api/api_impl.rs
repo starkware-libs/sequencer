@@ -20,7 +20,13 @@ use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
-use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockStatus};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockStatus,
+    GasPricePerToken,
+};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ChainId,
@@ -66,7 +72,6 @@ use super::super::block::{
     BlockNotRevertedValidator,
     GeneralBlockHeader,
     PendingBlockHeader,
-    ResourcePrice,
 };
 use super::super::broadcasted_transaction::{
     BroadcastedDeclareTransaction,
@@ -1550,15 +1555,15 @@ impl JsonRpcServerImpl {
                 parent_hash: block.parent_block_hash(),
                 sequencer_address: block.sequencer_address(),
                 timestamp: block.timestamp(),
-                l1_gas_price: ResourcePrice {
+                l1_gas_price: GasPricePerToken {
                     price_in_wei: block.l1_gas_price().price_in_wei,
                     price_in_fri: block.l1_gas_price().price_in_fri,
                 },
-                l1_data_gas_price: ResourcePrice {
+                l1_data_gas_price: GasPricePerToken {
                     price_in_wei: block.l1_data_gas_price().price_in_wei,
                     price_in_fri: block.l1_data_gas_price().price_in_fri,
                 },
-                l2_gas_price: ResourcePrice {
+                l2_gas_price: GasPricePerToken {
                     price_in_wei: block.l2_gas_price().price_in_wei,
                     price_in_fri: block.l2_gas_price().price_in_fri,
                 },
