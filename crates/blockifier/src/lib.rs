@@ -10,6 +10,8 @@ pub mod bouncer;
 pub mod concurrency;
 pub mod context;
 pub mod execution;
+#[cfg(test)]
+mod feature_contracts_compatibility_test;
 pub mod fee;
 pub mod state;
 #[cfg(any(feature = "testing", test))]
