@@ -304,6 +304,11 @@
     "privacy": "Public",
     "value": 32
   },
+  "components.batcher.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.batcher.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -343,6 +348,11 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.class_manager.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
   },
   "components.class_manager.port": {
     "description": "Listening port of the remote component server.",
@@ -389,6 +399,11 @@
     "privacy": "Public",
     "value": 32
   },
+  "components.gateway.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.gateway.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -433,6 +448,11 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.l1_provider.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
   },
   "components.l1_provider.port": {
     "description": "Listening port of the remote component server.",
@@ -479,6 +499,11 @@
     "privacy": "Public",
     "value": 32
   },
+  "components.mempool.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.mempool.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -518,6 +543,11 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.mempool_p2p.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
   },
   "components.mempool_p2p.port": {
     "description": "Listening port of the remote component server.",
@@ -564,6 +594,11 @@
     "privacy": "Public",
     "value": 32
   },
+  "components.sierra_compiler.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.sierra_compiler.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
@@ -603,6 +638,11 @@
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
+  },
+  "components.state_sync.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
   },
   "components.state_sync.port": {
     "description": "Listening port of the remote component server.",
