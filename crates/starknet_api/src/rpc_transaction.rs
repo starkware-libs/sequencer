@@ -237,7 +237,10 @@ pub enum RpcDeclareTransaction {
 impl From<RpcDeclareTransaction> for DeclareTransaction {
     fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
         match rpc_declare_transaction {
-            RpcDeclareTransaction::V3(tx) => DeclareTransaction::V3(tx.into()),
+            RpcDeclareTransaction::V3(tx) => {
+                let (declare_tx, _) = tx.into();
+                DeclareTransaction::V3(declare_tx)
+            }
         }
     }
 }
@@ -333,21 +336,24 @@ pub struct RpcDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
+impl From<RpcDeclareTransactionV3> for (DeclareTransactionV3, SierraContractClass) {
     fn from(tx: RpcDeclareTransactionV3) -> Self {
-        Self {
-            class_hash: tx.contract_class.calculate_class_hash(),
-            resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
-            tip: tx.tip,
-            signature: tx.signature,
-            nonce: tx.nonce,
-            compiled_class_hash: tx.compiled_class_hash,
-            sender_address: tx.sender_address,
-            nonce_data_availability_mode: tx.nonce_data_availability_mode,
-            fee_data_availability_mode: tx.fee_data_availability_mode,
-            paymaster_data: tx.paymaster_data,
-            account_deployment_data: tx.account_deployment_data,
-        }
+        (
+            DeclareTransactionV3 {
+                class_hash: tx.contract_class.calculate_class_hash(),
+                resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
+                tip: tx.tip,
+                signature: tx.signature,
+                nonce: tx.nonce,
+                compiled_class_hash: tx.compiled_class_hash,
+                sender_address: tx.sender_address,
+                nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                fee_data_availability_mode: tx.fee_data_availability_mode,
+                paymaster_data: tx.paymaster_data,
+                account_deployment_data: tx.account_deployment_data,
+            },
+            tx.contract_class,
+        )
     }
 }
 
