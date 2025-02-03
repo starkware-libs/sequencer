@@ -215,8 +215,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let state_diff =
             &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).state_diff;
-        // TODO(Yoni): get rid of this clone.
-        let mut tx_state_changes_keys = state_diff.clone().into_keys();
+        let mut tx_state_changes_keys = state_diff.keys();
         let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 
