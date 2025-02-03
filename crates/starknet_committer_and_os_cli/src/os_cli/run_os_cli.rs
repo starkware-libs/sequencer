@@ -1,8 +1,10 @@
 use clap::{Parser, Subcommand};
-use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
+
+use crate::os_cli::tests::python_tests::OsPythonTestRunner;
+use crate::shared_utils::types::{run_python_test, PythonTestArg};
 
 #[derive(Parser, Debug)]
 pub struct OsCliCommand {
@@ -12,7 +14,7 @@ pub struct OsCliCommand {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    NotImplemented,
+    PythonTest(PythonTestArg),
 }
 
 pub async fn run_os_cli(
@@ -20,8 +22,8 @@ pub async fn run_os_cli(
     _log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
     match os_command.command {
-        Command::NotImplemented => {
-            info!("Not implemented");
+        Command::PythonTest(python_test_arg) => {
+            run_python_test::<OsPythonTestRunner>(python_test_arg).await;
         }
     }
 }
