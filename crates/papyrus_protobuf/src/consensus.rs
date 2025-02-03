@@ -69,6 +69,21 @@ pub struct BlockInfo {
     pub eth_to_strk_rate: u64,
 }
 
+impl Default for BlockInfo {
+    fn default() -> Self {
+        BlockInfo {
+            block_number: Default::default(),
+            block_timestamp: Default::default(),
+            sequencer_address: Default::default(),
+            l1_da_mode: Default::default(),
+            l2_gas_price_fri: 1,
+            l1_gas_price_wei: 1,
+            l1_data_gas_price_wei: 1,
+            eth_to_strk_rate: 1,
+        }
+    }
+}
+
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
 // TODO(Matan): Remove this once we have a proper validator set.
 pub const DEFAULT_VALIDATOR_ID: u64 = 100;
