@@ -112,7 +112,7 @@
   "batcher_config.block_builder_config.execute_config.stack_size": {
     "description": "The thread stack size (proportional to the maximal gas of a transaction).",
     "privacy": "Public",
-    "value": 0
+    "value": 62914560
   },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
