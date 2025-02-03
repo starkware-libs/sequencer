@@ -1,3 +1,4 @@
+use std::sync::Arc;
 #[cfg(feature = "cairo_native")]
 use std::sync::Arc;
 
@@ -20,6 +21,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -32,6 +34,7 @@ pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
     contract_class_manager: ContractClassManager,
+    _class_reader: SharedClassManagerClient,
 }
 
 impl PapyrusReader {
@@ -40,7 +43,9 @@ impl PapyrusReader {
         latest_block: BlockNumber,
         contract_class_manager: ContractClassManager,
     ) -> Self {
-        Self { storage_reader, latest_block, contract_class_manager }
+        // TODO(Elin): integrate class manager client.
+        let _class_reader = Arc::new(EmptyClassManagerClient);
+        Self { storage_reader, latest_block, contract_class_manager, _class_reader }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
