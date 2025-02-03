@@ -1,9 +1,11 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use starknet_infra_utils::type_name::short_type_name;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::Semaphore;
 use tracing::{debug, error, info, warn};
 
 use crate::component_definitions::{
@@ -90,7 +92,8 @@ use crate::errors::{ComponentServerError, ReplaceComponentError};
 ///     let component = MyComponent {};
 ///
 ///     // Instantiate the server.
-///     let mut server = LocalComponentServer::new(component, rx);
+///     let max_concurrency = 1;
+///     let mut server = LocalComponentServer::new(component, rx, max_concurrency);
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -150,7 +153,8 @@ where
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
-        concurrent_request_response_loop(&mut self.rx, &mut self.component).await;
+        concurrent_request_response_loop(&mut self.rx, &mut self.component, self.max_concurrency)
+            .await;
         error!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
@@ -164,6 +168,8 @@ where
 {
     component: Component,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    // TODO(Itay, Lev): find the way to provide max_concurrency only for non-blocking server.
+    max_concurrency: usize,
     _local_server_type: PhantomData<LocalServerType>,
 }
 
@@ -177,8 +183,9 @@ where
     pub fn new(
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+        max_concurrency: usize,
     ) -> Self {
-        Self { component, rx, _local_server_type: PhantomData }
+        Self { component, rx, max_concurrency, _local_server_type: PhantomData }
     }
 }
 
@@ -232,20 +239,29 @@ async fn request_response_loop<Request, Response, Component>(
 async fn concurrent_request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
+    max_concurrency: usize,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Clone + Send + 'static,
     Request: Send + Debug + 'static,
     Response: Send + Debug + 'static,
 {
     info!("Starting concurrent server for component {}", short_type_name::<Component>());
+    let task_limiter = Arc::new(Semaphore::new(max_concurrency));
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
+        // Acquire a permit to run the task.
+        let permit = task_limiter.clone().acquire_owned().await.unwrap();
+
         let mut cloned_component = component.clone();
-        tokio::spawn(async move { process_request(&mut cloned_component, request, tx).await });
+        tokio::spawn(async move {
+            process_request(&mut cloned_component, request, tx).await;
+            // Drop the permit to allow more tasks to be created.
+            drop(permit);
+        });
     }
 
     error!("Stopping concurrent server for component {}", short_type_name::<Component>());
