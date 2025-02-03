@@ -9,6 +9,7 @@ use crate::sequencer_manager::{get_sequencer_setup_configs, NodeSetup};
 pub async fn node_setup(
     tx_generator: &mut MultiAccountTransactionGenerator,
     config_path: &str,
+    base_db_path_dir: PathBuf,
 ) -> Vec<NodeSetup> {
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
@@ -19,7 +20,7 @@ pub async fn node_setup(
         tx_generator,
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
-        None,
+        Some(base_db_path_dir),
     )
     .await;
 
@@ -31,4 +32,17 @@ pub async fn node_setup(
     rename(&original_config_path, &new_config_path).await.expect("Failed to move node config file");
     println!("Config file moved from {:?} to {:?}", original_config_path, new_config_path);
     sequencers_setup
+}
+
+// TODO(Nadin): Improve the argument parsing.
+pub fn get_base_db_path(args: Vec<String>) -> PathBuf {
+    let arg_name = "--base_db_path_dir";
+    match args.as_slice() {
+        [] => PathBuf::from("./data"),
+        [arg, path] if arg == arg_name => PathBuf::from(path),
+        _ => {
+            eprintln!("Error: Bad argument. The only allowed argument is '{}'.", arg_name);
+            std::process::exit(1);
+        }
+    }
 }
