@@ -228,7 +228,9 @@ impl NativeCompiledClassV1 {
 
         let sierra_version = SierraVersion::extract_from_program(&sierra_version_values)
             .expect("Cannot extract sierra version from sierra program");
-        let (sierra_version_id, _) = version_id_from_serialized_sierra_program(&sierra_contract_class.sierra_program).unwrap();
+        let (sierra_version_id, _) =
+            version_id_from_serialized_sierra_program(&sierra_contract_class.sierra_program)
+                .unwrap();
         let executor = AotContractExecutor::new(
             &sierra_program,
             &sierra_contract_class.entry_points_by_type,
