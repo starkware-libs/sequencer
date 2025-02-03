@@ -10,7 +10,7 @@ on:
       - edited # for when the PR title is edited
     paths:
       - ".github/workflows/papyrus_ci.yml"
-      - "Dockerfile"
+      - "deployments/images/base/Dockerfile"
       - "papyrus_utilities.Dockerfile"
       - "Cargo.toml"
       - "Cargo.lock"
@@ -98,21 +98,20 @@ jobs:
         env:
           SEED: 0
 
-  build-papyrus-utilities-image:
-    runs-on: starkware-ubuntu-latest-medium
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Build Papyrus utilites docker image
-        uses: docker/build-push-action@v3.2.0
-        continue-on-error: true # ignore the failure of a step and avoid terminating the job.
-        with:
-          push: false
-          context: .
-          file: papyrus_utilities.Dockerfile
-          cache-from: type=gha,scope=buildkit-ci
-          cache-to: type=gha,mode=max,scope=buildkit-ci
+  # TODO(DanB): Re-enable this job when necessary.
+  # Note that currently the `papyrus_load_test` build fails.
+  # build-papyrus-utilities-image:
+  #   runs-on: starkware-ubuntu-latest-medium
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+  #     - name: Build Papyrus utilites docker image
+  #       uses: docker/build-push-action@v3.2.0
+  #       with:
+  #         push: false
+  #         context: .
+  #         file: papyrus_utilities.Dockerfile
 
   random-table-test:
     runs-on: starkware-ubuntu-latest-medium
