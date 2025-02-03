@@ -29,6 +29,7 @@ function install_pypy() {
 
 function install_rust () {
     curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path
+    rustup toolchain install 1.80
 }
 
 install_pypy &
