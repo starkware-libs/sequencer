@@ -8039,6 +8039,7 @@ dependencies = [
  "rstest",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
 ]
 
 [[package]]

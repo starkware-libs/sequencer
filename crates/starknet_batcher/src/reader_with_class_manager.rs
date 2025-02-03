@@ -8,6 +8,7 @@ use starknet_api::state::StorageKey;
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
+// TODO(Elin): remove once class manager is properly integrated into Papyrus reader.
 pub struct ReaderWithClassManager<S: StateReader> {
     state_reader: S,
     class_manager_client: SharedClassManagerClient,
