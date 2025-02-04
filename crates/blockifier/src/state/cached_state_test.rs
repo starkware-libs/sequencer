@@ -547,7 +547,7 @@ fn test_contract_cache_is_used() {
 #[test]
 fn test_cache_get_write_keys() {
     // Trivial case.
-    assert_eq!(StateMaps::default().into_keys(), StateChangesKeys::default());
+    assert_eq!(StateMaps::default().keys(), StateChangesKeys::default());
 
     // Interesting case.
     let some_felt = felt!("0x1");
@@ -592,7 +592,7 @@ fn test_cache_get_write_keys() {
         ]),
     };
 
-    assert_eq!(state_maps.into_keys(), expected_keys);
+    assert_eq!(state_maps.keys(), expected_keys);
 }
 
 #[test]
