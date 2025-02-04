@@ -6,7 +6,7 @@ use rstest::rstest;
 use crate::blockifier::config::CairoNativeRunConfig;
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::contract_class_manager::{CompilationRequest, ContractClassManager};
-use crate::state::global_cache::{ContractCaches, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
+use crate::state::global_cache::{RawClassCache, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::{CairoVersion, RunnableCairo1};
 
@@ -80,7 +80,7 @@ fn test_send_compilation_request_channel_disconnected() {
     let (sender, receiver) = sync_channel(native_config.channel_size);
     let manager = ContractClassManager {
         cairo_native_run_config: native_config,
-        contract_caches: ContractCaches::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+        cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         sender: Some(sender),
         compiler: None,
     };

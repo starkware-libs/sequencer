@@ -7982,6 +7982,7 @@ dependencies = [
  "assert_matches",
  "blockifier",
  "indexmap 2.7.0",
+ "log",
  "papyrus_storage",
  "rstest",
  "starknet-types-core",

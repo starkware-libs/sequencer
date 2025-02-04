@@ -8,6 +8,8 @@ use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::contract_class_manager::ContractClassManager;
+#[cfg(feature = "cairo_native")]
+use blockifier::state::global_cache::{CachedCairoNative, CachedClass};
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1};
@@ -152,8 +154,6 @@ fn test_get_compiled_class_without_native_in_cache(
     #[cfg(not(feature = "cairo_native"))]
     assert!(!run_cairo_native);
 
-    // We store the sierra with the casm only when the casm is cairo1 and the native flag is enabled
-    let cached_with_sierra = run_cairo_native && matches!(cairo_version, CairoVersion::Cairo1(_));
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
     let contract_manager_config = ContractClassManagerConfig::create_for_testing(
@@ -163,33 +163,36 @@ fn test_get_compiled_class_without_native_in_cache(
 
     let papyrus_reader =
         build_papyrus_state_reader_and_declare_contract(test_contract, contract_manager_config);
-    #[cfg(feature = "cairo_native")]
-    assert!(papyrus_reader.contract_class_manager.get_native(&test_class_hash).is_none());
+    // Sanity check - the cache is empty.
+    assert!(papyrus_reader.contract_class_manager.get_runnable(&test_class_hash).is_none());
 
     let compiled_class = papyrus_reader.get_compiled_class(test_class_hash).unwrap();
 
-    if cached_with_sierra {
-        // TODO: Test that a compilation request was sent.
-        if wait_on_native_compilation {
-            #[cfg(feature = "cairo_native")]
-            assert_matches!(
+    match cairo_version {
+        CairoVersion::Cairo1(_) => {
+            // TODO: Test that a compilation request was sent.
+            if wait_on_native_compilation {
+                #[cfg(feature = "cairo_native")]
+                assert_matches!(
+                    compiled_class,
+                    RunnableCompiledClass::V1Native(_),
+                    "We should have waited to the native class."
+                );
+            } else {
+                assert_matches!(
+                    compiled_class,
+                    RunnableCompiledClass::V1(_),
+                    "We do not wait for native, return the cairo1 casm."
+                );
+            }
+        }
+        CairoVersion::Cairo0 => {
+            assert_eq!(
                 compiled_class,
-                RunnableCompiledClass::V1Native(_),
-                "We should have waited to the native class."
-            );
-        } else {
-            assert_matches!(
-                compiled_class,
-                RunnableCompiledClass::V1(_),
-                "We do not wait for native, return the cairo1 casm."
+                test_contract.get_runnable_class(),
+                "`get_compiled_class` should return the casm."
             );
         }
-    } else {
-        assert_eq!(
-            compiled_class,
-            test_contract.get_runnable_class(),
-            "`get_compiled_class` should return the casm"
-        );
     }
 }
 
@@ -208,7 +211,10 @@ fn test_get_compiled_class_when_native_is_cached() {
     if let RunnableCompiledClass::V1Native(native_compiled_class) =
         test_contract.get_runnable_class()
     {
-        papyrus_reader.contract_class_manager.set_native(test_class_hash, native_compiled_class);
+        papyrus_reader.contract_class_manager.set_and_compile(
+            test_class_hash,
+            CachedClass::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
+        );
     } else {
         panic!("Expected NativeCompiledClassV1");
     }
