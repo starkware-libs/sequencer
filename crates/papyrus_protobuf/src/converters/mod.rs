@@ -1,5 +1,5 @@
 mod class;
-mod common;
+pub mod common;
 // TODO(matan): Internalize once we remove the dependency on the protobuf crate.
 pub mod consensus;
 mod event;

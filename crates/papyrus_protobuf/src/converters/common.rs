@@ -189,7 +189,7 @@ impl TestInstance for protobuf::ConsensusSignature {
 }
 
 #[allow(dead_code)]
-pub(super) fn enum_int_to_volition_domain(
+pub fn enum_int_to_volition_domain(
     value: i32,
 ) -> Result<DataAvailabilityMode, ProtobufConversionError> {
     match value {
