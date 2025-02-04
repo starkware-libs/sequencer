@@ -137,6 +137,12 @@
             "0x0",
             "0x1",
             "0x2"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
           ]
         },
         "tracked_resource": "SierraGas",
@@ -165,6 +171,12 @@
         "0x0",
         "0x1",
         "0x2"
+      ],
+      "read_block_hash_values": [
+        "0xdeafbee"
+      ],
+      "accessed_blocks": [
+        100
       ]
     },
     "tracked_resource": "SierraGas"
@@ -296,6 +308,12 @@
             "0x0",
             "0x1",
             "0x2"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
           ]
         },
         "tracked_resource": "SierraGas",
@@ -324,6 +342,12 @@
         "0x0",
         "0x1",
         "0x2"
+      ],
+      "read_block_hash_values": [
+        "0xdeafbee"
+      ],
+      "accessed_blocks": [
+        100
       ]
     },
     "tracked_resource": "SierraGas"
@@ -461,6 +485,12 @@
             "0x0",
             "0x1",
             "0x2"
+          ],
+          "read_block_hash_values": [
+            "0xdeafbee"
+          ],
+          "accessed_blocks": [
+            100
           ]
         },
         "tracked_resource": "SierraGas",
@@ -489,6 +519,12 @@
         "0x0",
         "0x1",
         "0x2"
+      ],
+      "read_block_hash_values": [
+        "0xdeafbee"
+      ],
+      "accessed_blocks": [
+        100
       ]
     },
     "tracked_resource": "SierraGas"
