@@ -1,7 +1,6 @@
 use std::process::Command;
 
 use starknet_integration_tests::end_to_end_integration::end_to_end_integration;
-use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::{error, info, warn};
@@ -67,9 +66,6 @@ async fn main() {
         sequencer_path
     );
 
-    // Creates a multi-account transaction generator for integration test
-    let mut tx_generator = create_integration_test_tx_generator();
-
     // Run end to end integration test.
-    end_to_end_integration(&mut tx_generator).await;
+    end_to_end_integration().await;
 }

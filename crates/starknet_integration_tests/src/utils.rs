@@ -48,7 +48,7 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
-use tracing::{debug, Instrument};
+use tracing::{debug, info, Instrument};
 use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
@@ -410,8 +410,13 @@ pub async fn send_account_txs<'a, Fut>(
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
+    let n_txs = test_scenario.n_txs();
+    info!("Sending {n_txs} txs.");
+
     let rpc_txs = test_scenario.create_txs(tx_generator, account_id);
-    send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
+    let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    assert_eq!(tx_hashes.len(), n_txs);
+    tx_hashes
 }
 
 pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
