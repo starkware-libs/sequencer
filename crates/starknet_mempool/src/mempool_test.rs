@@ -687,7 +687,6 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
 }
 
 #[rstest]
-#[ignore = "Reenable when overflow bug fixed"]
 fn test_fee_escalation_valid_replacement_maximum_values() {
     // Setup.
     let tx = tx!(tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1);

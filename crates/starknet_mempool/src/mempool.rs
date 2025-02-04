@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Div;
 
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -372,8 +373,8 @@ impl Mempool {
         let percentage = u128::from(self.config.fee_escalation_percentage);
 
         let Some(escalation_qualified_value) = existing_value
+            .div(100)
             .checked_mul(percentage)
-            .map(|v| v / 100)
             .and_then(|increase| existing_value.checked_add(increase))
         else {
             // Overflow occurred during calculation; reject the transaction.
