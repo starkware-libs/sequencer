@@ -199,7 +199,7 @@ impl SwarmTrait for MockSwarm {
         Ok(PeerId::random())
     }
 
-    // TODO (shahak): Add test for continue propagation.
+    // TODO(shahak): Add test for continue propagation.
     fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
