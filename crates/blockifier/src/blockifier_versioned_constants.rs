@@ -38,14 +38,14 @@ pub mod test;
 define_versioned_constants!(
     VersionedConstants,
     VersionedConstantsError,
-    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
-    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
-    (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
-    (V0_14_0, "../resources/versioned_constants_0_14_0.json"),
+    (V0_13_0, "../resources/blockifier_versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/blockifier_versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/blockifier_versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/blockifier_versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/blockifier_versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/blockifier_versioned_constants_0_13_3.json"),
+    (V0_13_4, "../resources/blockifier_versioned_constants_0_13_4.json"),
+    (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
 );
 
 pub type ResourceCost = Ratio<u64>;
