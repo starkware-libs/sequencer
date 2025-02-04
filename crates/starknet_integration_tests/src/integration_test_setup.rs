@@ -1,5 +1,6 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::process::Command;
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
@@ -17,11 +18,50 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
-use tracing::instrument;
+use tracing::{error, info, instrument};
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{create_node_config, spawn_local_success_recorder};
+
+// Logs the processes that are using the susceptible ports, for debugging purposes in case of port
+// binding conflicts.
+// TODO(Tsabary): Remove this function once the test is stable enough.
+pub fn log_susceptible_ports() {
+    const SUSCEPTIBLE_PORTS: [u16; 50] = [
+        55000, 55001, 55002, 55060, 55061, 55062, 55120, 55121, 55122, 55180, 55181, 55182, 55240,
+        55241, 55242, 55300, 55301, 55302, 55360, 55361, 55362, 55540, 55541, 55542, 55543, 55544,
+        55545, 55546, 55547, 55548, 55549, 55550, 55551, 55552, 55553, 55554, 55555, 55556, 55557,
+        55558, 55559, 55560, 55561, 55562, 55563, 55564, 55565, 55566, 55567, 55568,
+    ];
+
+    for &port in SUSCEPTIBLE_PORTS.iter() {
+        let command = format!("lsof -i :{}", port);
+        info!("Executing command: {}", command);
+
+        // Execute the command.
+        let output = Command::new("sh").arg("-c").arg(&command).output();
+
+        match output {
+            Ok(output) => {
+                if output.stdout.is_empty() && output.stderr.is_empty() {
+                    info!("Port {}: No output (command may not have found any result)", port);
+                } else {
+                    // Print the standard output and error.
+                    info!(
+                        "Port {}:\nSTDOUT:\n{}\nSTDERR:\n{}",
+                        port,
+                        String::from_utf8_lossy(&output.stdout),
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+            }
+            Err(e) => {
+                error!("Failed to execute command for port {}: {}", port, e);
+            }
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
