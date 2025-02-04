@@ -1,8 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use starknet_api::{contract_address, nonce, tx_hash};
+use starknet_api::transaction::TransactionHash;
+use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
@@ -240,13 +241,12 @@ pub fn add_tx_expect_error(
 pub fn commit_block(
     mempool: &mut Mempool,
     nonces: impl IntoIterator<Item = (&'static str, u8)>,
-    rejected_tx_hashes: impl IntoIterator<Item = u8>,
+    rejected_tx_hashes: impl IntoIterator<Item = TransactionHash>,
 ) {
     let nonces = HashMap::from_iter(
         nonces.into_iter().map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
     );
-    let rejected_tx_hashes =
-        HashSet::from_iter(rejected_tx_hashes.into_iter().map(|tx_hash| tx_hash!(tx_hash)));
+    let rejected_tx_hashes = rejected_tx_hashes.into_iter().collect();
     let args = CommitBlockArgs { address_to_nonce: nonces, rejected_tx_hashes };
 
     mempool.commit_block(args);
