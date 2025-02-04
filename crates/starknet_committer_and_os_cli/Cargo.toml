@@ -16,6 +16,7 @@ pretty_assertions.workspace = true
 tempfile.workspace = true
 
 [dependencies]
+cairo-vm.workspace = true                                   # Should be moved under `testing` feature, when it exists.
 clap = { workspace = true, features = ["cargo", "derive"] }
 derive_more.workspace = true
 ethnum.workspace = true
@@ -28,6 +29,8 @@ serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
+# Should be moved under `testing` feature, when it exists.
+starknet_os = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
