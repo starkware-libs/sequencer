@@ -119,10 +119,20 @@
     "privacy": "Public",
     "value": 100
   },
+  "context.block_timestamp_window": {
+    "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
+    "privacy": "Public",
+    "value": 1
+  },
   "context.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
+  },
+  "context.l1_da_mode": {
+    "description": "The data availability mode, true: Blob, false: Calldata.",
+    "privacy": "Public",
+    "value": true
   },
   "context.num_validators": {
     "description": "The number of validators.",
