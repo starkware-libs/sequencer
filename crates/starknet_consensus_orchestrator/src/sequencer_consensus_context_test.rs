@@ -15,6 +15,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
+    BlockInfo,
     HeightAndRound,
     ProposalFin,
     ProposalInit,
@@ -26,6 +27,7 @@ use papyrus_protobuf::consensus::{
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
@@ -80,6 +82,18 @@ fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
+fn block_info(height: BlockNumber) -> BlockInfo {
+    BlockInfo {
+        height,
+        timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
+        builder: Default::default(),
+        l1_da_mode: L1DataAvailabilityMode::Blob,
+        l2_gas_price_fri: 1,
+        l1_gas_price_wei: 1,
+        l1_data_gas_price_wei: 1,
+        eth_to_strk_rate: 1,
+    }
+}
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
@@ -211,6 +225,7 @@ async fn validate_proposal_success() {
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await
@@ -259,6 +274,7 @@ async fn repropose() {
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch {
             transactions: vec![generate_invoke_tx(2)],
@@ -330,6 +346,7 @@ async fn proposals_from_different_rounds() {
 
     // The proposal from the past round is ignored.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
     let mut init = ProposalInit { round: 0, ..Default::default() };
@@ -339,6 +356,7 @@ async fn proposals_from_different_rounds() {
 
     // The proposal from the current round should be validated.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     init.round = 1;
@@ -347,6 +365,7 @@ async fn proposals_from_different_rounds() {
 
     // The proposal from the future round should not be processed.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
@@ -368,18 +387,6 @@ async fn interrupt_active_proposal() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    batcher
-        .expect_validate_block()
-        .times(1)
-        .withf(|input| input.proposal_id == ProposalId(0))
-        .returning(|_| Ok(()));
-    batcher
-        .expect_send_proposal_content()
-        .withf(|input| {
-            input.proposal_id == ProposalId(0) && input.content == SendProposalContent::Abort
-        })
-        .times(1)
-        .returning(move |_| Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }));
     batcher
         .expect_validate_block()
         .times(1)
@@ -420,6 +427,7 @@ async fn interrupt_active_proposal() {
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender_1.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender_1
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await
