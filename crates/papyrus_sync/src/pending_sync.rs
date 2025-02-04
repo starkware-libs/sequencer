@@ -63,7 +63,7 @@ pub(crate) async fn sync_pending_data<
             PendingSyncTaskResult::PendingSyncFinished => return Ok(()),
             PendingSyncTaskResult::DownloadedNewPendingData => {
                 let (declared_classes, old_declared_contracts) = {
-                    // TODO (shahak): Consider getting the pending data from the task result instead
+                    // TODO(shahak): Consider getting the pending data from the task result instead
                     // of reading from the lock.
                     let pending_state_diff = &pending_data.read().await.state_update.state_diff;
                     (

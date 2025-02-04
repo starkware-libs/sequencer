@@ -58,7 +58,7 @@ fn test_total_tx_limits_less_than_max_sierra_gas() {
     );
 }
 
-// TODO (AvivG) move this test to Transaction executor
+// TODO(AvivG): move this test to Transaction executor
 
 // #[cfg(feature = "cairo_native")]
 // #[cfg(feature = "cairo_native")]

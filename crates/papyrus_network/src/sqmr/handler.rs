@@ -91,7 +91,7 @@ pub struct Handler {
 }
 
 impl Handler {
-    // TODO(shahak) If we'll add more parameters, consider creating a HandlerConfig struct.
+    // TODO(shahak): If we'll add more parameters, consider creating a HandlerConfig struct.
     pub fn new(
         config: Config,
         next_inbound_session_id: Arc<AtomicUsize>,
@@ -251,7 +251,7 @@ impl ConnectionHandler for Handler {
                 outbound_session_id,
                 protocol_name,
             } => {
-                // TODO(shahak) Consider extracting to a utility function to prevent forgetfulness
+                // TODO(shahak): Consider extracting to a utility function to prevent forgetfulness
                 // of the timeout.
 
                 // No need to wake because the swarm guarantees that `poll` will be called after
