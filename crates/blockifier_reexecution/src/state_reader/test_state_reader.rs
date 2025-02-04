@@ -12,7 +12,7 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use serde::Serialize;
 use serde_json::{json, to_value};
 use starknet_api::block::{

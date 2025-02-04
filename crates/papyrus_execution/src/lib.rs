@@ -42,7 +42,7 @@ use blockifier::transaction::objects::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsError};
+use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsError};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use execution_utils::{get_trace_constructor, induced_state_diff};

@@ -18,7 +18,7 @@ use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionInfo};
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "fee_test.rs"]

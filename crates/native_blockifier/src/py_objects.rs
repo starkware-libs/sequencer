@@ -12,7 +12,7 @@ use blockifier::blockifier::config::{
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
-use blockifier::versioned_constants::VersionedConstantsOverrides;
+use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;

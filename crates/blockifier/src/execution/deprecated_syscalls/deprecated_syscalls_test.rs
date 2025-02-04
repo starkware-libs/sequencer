@@ -47,7 +47,7 @@ use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 #[test]

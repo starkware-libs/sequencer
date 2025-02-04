@@ -19,7 +19,7 @@ use crate::execution::call_info::{
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[derive(Debug, Default)]
 pub struct TestExecutionSummary {

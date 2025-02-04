@@ -31,7 +31,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
-use crate::versioned_constants::{EventLimits, VersionedConstants};
+use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
 mod secp;

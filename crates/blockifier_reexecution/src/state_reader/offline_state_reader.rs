@@ -10,7 +10,7 @@ use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};

@@ -7,7 +7,7 @@ use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionInfoCreator;
 use blockifier::transaction::transaction_types::TransactionType;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use pyo3::{pyclass, pymethods, PyAny};
 use starknet_api::core::Nonce;
 use starknet_api::transaction::TransactionHash;

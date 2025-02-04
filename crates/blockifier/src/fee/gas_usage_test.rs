@@ -27,7 +27,7 @@ use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::get_vm_resource_usage;
 use crate::transaction::test_utils::invoke_tx_with_default_flags;
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::{ResourceCost, VersionedConstants, VmResourceCosts};
+use crate::blockifier_versioned_constants::{ResourceCost, VersionedConstants, VmResourceCosts};
 
 pub fn create_event_for_testing(keys_size: usize, data_size: usize) -> OrderedEvent {
     OrderedEvent {

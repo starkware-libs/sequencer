@@ -15,7 +15,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]

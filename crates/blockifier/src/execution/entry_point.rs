@@ -36,7 +36,7 @@ use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::usize_from_u64;
-use crate::versioned_constants::{GasCosts, VersionedConstants};
+use crate::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
 #[path = "entry_point_test.rs"]

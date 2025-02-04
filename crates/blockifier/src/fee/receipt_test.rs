@@ -38,7 +38,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u64_from_usize, usize_from_u64};
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[fixture]
 fn versioned_constants() -> &'static VersionedConstants {

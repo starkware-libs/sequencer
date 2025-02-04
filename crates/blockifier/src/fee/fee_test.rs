@@ -36,7 +36,7 @@ use crate::transaction::test_utils::{
     l1_resource_bounds,
 };
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[rstest]
 fn test_simple_get_vm_resource_usage(

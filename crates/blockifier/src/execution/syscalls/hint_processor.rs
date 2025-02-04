@@ -79,7 +79,7 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::versioned_constants::GasCosts;
+use crate::blockifier_versioned_constants::GasCosts;
 
 pub type SyscallCounter = HashMap<SyscallSelector, usize>;
 

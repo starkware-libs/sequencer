@@ -56,7 +56,7 @@ use crate::transaction::test_utils::{
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::AllocationCost;
+use crate::blockifier_versioned_constants::AllocationCost;
 const VALIDATE_GAS_OVERHEAD: GasAmount = GasAmount(21);
 
 struct FlavorTestInitialState {

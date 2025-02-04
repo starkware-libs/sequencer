@@ -31,7 +31,7 @@ use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "objects_test.rs"]

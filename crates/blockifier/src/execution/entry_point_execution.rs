@@ -28,7 +28,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
-use crate::versioned_constants::GasCosts;
+use crate::blockifier_versioned_constants::GasCosts;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]

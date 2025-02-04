@@ -16,4 +16,4 @@ pub mod state;
 pub mod test_utils;
 pub mod transaction;
 pub mod utils;
-pub mod versioned_constants;
+pub mod blockifier_versioned_constants;

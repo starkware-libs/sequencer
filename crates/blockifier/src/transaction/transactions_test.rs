@@ -166,7 +166,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::versioned_constants::{AllocationCost, VersionedConstants};
+use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
 use crate::{
     check_tx_execution_error_for_custom_hint,
     check_tx_execution_error_for_invalid_scenario,

@@ -42,7 +42,7 @@ use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
-use crate::versioned_constants::{
+use crate::blockifier_versioned_constants::{
     GasCosts,
     OsConstants,
     VersionedConstants,

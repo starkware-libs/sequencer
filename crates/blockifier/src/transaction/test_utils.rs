@@ -45,7 +45,7 @@ use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;

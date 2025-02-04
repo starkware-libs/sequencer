@@ -40,7 +40,7 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::versioned_constants::AllocationCost;
+use crate::blockifier_versioned_constants::AllocationCost;
 
 fn init_data_by_version(chain_info: &ChainInfo, cairo_version: CairoVersion) -> TestInitData {
     let test_contract = FeatureContract::TestContract(cairo_version);

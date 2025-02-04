@@ -20,7 +20,7 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 
 #[derive(Clone, Debug)]
 pub struct TransactionContext {

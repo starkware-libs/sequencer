@@ -16,7 +16,7 @@ use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
