@@ -1,7 +1,6 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
-snapshot_kind: text
 ---
 {
   "base_layer.node_url": {
@@ -142,9 +141,21 @@ snapshot_kind: text
     },
     "privacy": "Public"
   },
+  "context.block_timestamp_window": {
+    "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
+  },
   "context.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "value": "SN_MAIN",
+    "privacy": "Public"
+  },
+  "context.l1_da_mode": {
+    "description": "The data availability mode, true: Blob, false: Calldata.",
+    "value": true,
     "privacy": "Public"
   },
   "context.num_validators": {
