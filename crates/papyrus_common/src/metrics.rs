@@ -24,15 +24,6 @@ pub const PAPYRUS_BASE_LAYER_MARKER: &str = "papyrus_base_layer_marker";
 /// node stores the header.
 pub const PAPYRUS_HEADER_LATENCY_SEC: &str = "papyrus_header_latency";
 
-/// The number of peers this node is connected to.
-pub const PAPYRUS_NUM_CONNECTED_PEERS: &str = "papyrus_num_connected_peers";
-
-/// The number of active sessions this peer has in which it sends data.
-pub const PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS: &str = "papyrus_num_active_inbound_sessions";
-
-/// The number of active sessions this peer has in which it requests data.
-pub const PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS: &str = "papyrus_num_active_outbound_sessions";
-
 // TODO(Shahak): consider making this value non static and add a way to change this while the app is
 // running. e.g via a monitoring endpoint.
 /// Global variable set by the main config to enable collecting profiling metrics.

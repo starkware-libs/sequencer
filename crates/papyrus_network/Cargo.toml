@@ -29,7 +29,6 @@ libp2p = { workspace = true, features = [
   "yamux",
 ] }
 metrics.workspace = true
-papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network_types.workspace = true
 replace_with.workspace = true
