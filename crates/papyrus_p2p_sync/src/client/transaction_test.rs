@@ -74,7 +74,7 @@ async fn transaction_basic_flow() {
         }
         .boxed()
     })));
-    actions.push(Action::SimulateWaitPeriodForNewData);
+    actions.push(Action::SimulateWaitPeriodForOtherProtocol);
 
     // Send transactions for each block and then validate they were written
     for (i, BlockBody { transactions, transaction_outputs, transaction_hashes }) in

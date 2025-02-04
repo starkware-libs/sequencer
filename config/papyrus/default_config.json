@@ -289,6 +289,11 @@
     "privacy": "Public",
     "value": 50
   },
+  "p2p_sync.wait_period_for_other_protocol": {
+    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
+    "privacy": "Public",
+    "value": 50
+  },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
