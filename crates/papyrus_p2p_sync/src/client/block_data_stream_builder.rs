@@ -103,6 +103,7 @@ where
         storage_reader: StorageReader,
         mut internal_block_receiver: Option<Receiver<SyncBlock>>,
         wait_period_for_new_data: Duration,
+        wait_period_for_other_protocol: Duration,
         num_blocks_per_query: u64,
     ) -> BoxStream<'static, BlockDataResult>
     where
@@ -124,7 +125,7 @@ where
                         let limit = min(last_block_number.0 - current_block_number.0, num_blocks_per_query);
                         if limit == 0 {
                             trace!("{:?} sync is waiting for a new {}", Self::TYPE_DESCRIPTION, description);
-                            tokio::time::sleep(wait_period_for_new_data).await;
+                            tokio::time::sleep(wait_period_for_other_protocol).await;
                             continue;
                         }
                         limit

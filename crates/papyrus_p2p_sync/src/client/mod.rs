@@ -64,6 +64,8 @@ pub struct P2pSyncClientConfig {
     pub num_block_classes_per_query: u64,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub wait_period_for_new_data: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub wait_period_for_other_protocol: Duration,
     pub buffer_size: usize,
 }
 
@@ -103,6 +105,13 @@ impl SerializeConfig for P2pSyncClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "wait_period_for_other_protocol",
+                &self.wait_period_for_other_protocol.as_millis(),
+                "Time in millisseconds to wait for a dependency protocol to advance (e.g.state \
+                 diff sync depends on header sync)",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "buffer_size",
                 &self.buffer_size,
                 "Size of the buffer for read from the storage and for incoming responses.",
@@ -122,6 +131,7 @@ impl Default for P2pSyncClientConfig {
             num_block_transactions_per_query: 100,
             num_block_classes_per_query: 100,
             wait_period_for_new_data: Duration::from_millis(50),
+            wait_period_for_other_protocol: Duration::from_millis(50),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
         }
@@ -181,6 +191,7 @@ impl P2pSyncClientChannels {
             storage_reader.clone(),
             Some(internal_blocks_receivers.header_receiver),
             config.wait_period_for_new_data,
+            config.wait_period_for_other_protocol,
             config.num_headers_per_query,
         );
 
@@ -189,6 +200,7 @@ impl P2pSyncClientChannels {
             storage_reader.clone(),
             Some(internal_blocks_receivers.state_diff_receiver),
             config.wait_period_for_new_data,
+            config.wait_period_for_other_protocol,
             config.num_block_state_diffs_per_query,
         );
 
@@ -197,6 +209,7 @@ impl P2pSyncClientChannels {
             storage_reader.clone(),
             Some(internal_blocks_receivers.transaction_receiver),
             config.wait_period_for_new_data,
+            config.wait_period_for_other_protocol,
             config.num_block_transactions_per_query,
         );
 
@@ -205,6 +218,7 @@ impl P2pSyncClientChannels {
             storage_reader.clone(),
             Some(internal_blocks_receivers.class_receiver),
             config.wait_period_for_new_data,
+            config.wait_period_for_other_protocol,
             config.num_block_classes_per_query,
         );
 

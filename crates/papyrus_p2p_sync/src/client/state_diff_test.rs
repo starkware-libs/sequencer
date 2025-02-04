@@ -133,7 +133,7 @@ async fn state_diff_basic_flow() {
         }
         .boxed()
     })));
-    actions.push(Action::SimulateWaitPeriodForNewData);
+    actions.push(Action::SimulateWaitPeriodForOtherProtocol);
 
     let len = state_diffs_and_chunks.len();
     actions.push(Action::ReceiveQuery(
