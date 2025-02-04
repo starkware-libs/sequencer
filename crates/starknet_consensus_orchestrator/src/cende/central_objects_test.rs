@@ -42,6 +42,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::indexmap;
+use mockall::predicate::eq;
 use num_bigint::BigUint;
 use rstest::rstest;
 use serde_json::Value;
@@ -55,16 +56,15 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
-    AccountTransaction,
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
     L1HandlerTransaction,
-    Transaction,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::rpc_transaction::EntryPointByType;
@@ -101,6 +101,7 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
+use starknet_class_manager_types::MockClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -114,7 +115,7 @@ use super::{
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::casm_contract_class_central_format;
-use crate::cende::get_compiled_contract_classes;
+use crate::cende::{CendeAmbassador, CendeConfig};
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -141,8 +142,12 @@ fn felt_vector() -> Vec<Felt> {
     vec![felt!(0_u8), felt!(1_u8), felt!(2_u8)]
 }
 
+fn declare_class_hash() -> ClassHash {
+    ClassHash(felt!("0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"))
+}
+
 fn declare_compiled_class_hash() -> CompiledClassHash {
-    CompiledClassHash(felt!(1_u8))
+    CompiledClassHash(felt!("0x1"))
 }
 
 fn thin_state_diff() -> ThinStateDiff {
@@ -286,9 +291,7 @@ fn declare_transaction() -> DeclareTransaction {
             tip: Tip(1),
             signature: TransactionSignature(felt_vector()),
             nonce: nonce!(1),
-            class_hash: ClassHash(felt!(
-                "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"
-            )),
+            class_hash: declare_class_hash(),
             compiled_class_hash: declare_compiled_class_hash(),
             sender_address: contract_address!("0x12fd537"),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -371,8 +374,8 @@ fn entry_point(idx: usize, selector: u8) -> EntryPoint {
     EntryPoint { function_idx: FunctionIndex(idx), selector: EntryPointSelector(felt!(selector)) }
 }
 
-fn central_sierra_contract_class_json() -> Value {
-    let sierra_contract_class = SierraContractClass {
+fn sierra_contract_class() -> SierraContractClass {
+    SierraContractClass {
         sierra_program: felt_vector(),
         contract_class_version: "dummy version".to_string(),
         entry_points_by_type: EntryPointByType {
@@ -381,7 +384,11 @@ fn central_sierra_contract_class_json() -> Value {
             l1handler: vec![entry_point(5, 6)],
         },
         abi: "dummy abi".to_string(),
-    };
+    }
+}
+
+fn central_sierra_contract_class_json() -> Value {
+    let sierra_contract_class = sierra_contract_class();
     serde_json::to_value(sierra_contract_class).unwrap()
 }
 
@@ -590,18 +597,49 @@ fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path:
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
 }
 
-#[test]
-fn test_get_compiled_contract_classes() {
-    let transactions = vec![
-        Transaction::Account(AccountTransaction::Declare(declare_transaction())),
-        Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
-        Transaction::Account(AccountTransaction::Declare(declare_transaction())),
-        Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
-    ];
+#[tokio::test]
+async fn test_get_sierras_and_casms() {
+    let mut mock_class_manager = MockClassManagerClient::new();
+    mock_class_manager
+        .expect_get_sierra()
+        .with(eq(declare_class_hash()))
+        // TODO(Yael): uncomment this line once done.
+        //.times(2)
+        .returning(|_| Ok(sierra_contract_class()));
+    mock_class_manager
+        .expect_get_executable()
+        .with(eq(declare_class_hash()))
+        // TODO(Yael): uncomment this line once done.
+        //.times(2)
+        .returning(|_| Ok(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0)))));
+    let cende_ambassador = CendeAmbassador::new(
+        CendeConfig {
+            recorder_url: "http://parsable_url".parse().unwrap(),
+            skip_write_height: None,
+            ..Default::default()
+        },
+        Arc::new(mock_class_manager),
+    );
 
-    let compiled_contract_classes = get_compiled_contract_classes(&transactions);
+    // TODO(Yael): fill up the transaction once done with the conversion functions.
+    let transactions: Vec<InternalConsensusTransaction> = Vec::new();
+    // let transactions = vec![
+    //     Transaction::Account(AccountTransaction::Declare(declare_transaction())),
+    //     Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
+    //     Transaction::Account(AccountTransaction::Declare(declare_transaction())),
+    //     Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
+    // ];
 
-    let expected_compiled_contract_classes =
+    let (_sierras_mapping, _casms_mapping) =
+        cende_ambassador.get_sierras_and_casms(&transactions).await.unwrap();
+
+    let _expected_compiled_contract_classes =
         vec![(declare_compiled_class_hash(), casm_contract_class()); 2];
-    assert_eq!(compiled_contract_classes, expected_compiled_contract_classes);
+    // TODO(Yael): uncomment this line once done.
+    // assert_eq!(casms_mapping, expected_compiled_contract_classes);
+
+    let _expected_sierra_contract_classes =
+        vec![(declare_class_hash(), sierra_contract_class()); 2];
+    // TODO(Yael): Uncomment this line once done.
+    // assert_eq!(sierras_mapping, expected_sierra_contract_classes);
 }

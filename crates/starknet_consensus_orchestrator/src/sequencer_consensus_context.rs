@@ -390,7 +390,9 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
-        let transactions = futures::future::join_all(transactions.into_iter().map(|tx| {
+        // TODO(Yael): remove this conversion once cende is updated to use the only
+        // rpc_transactions.
+        let executable_transactions = futures::future::join_all(transactions.clone().into_iter().map(|tx| {
                 self.transaction_converter.convert_internal_consensus_tx_to_executable_tx(tx)
             }))
             .await
@@ -403,11 +405,14 @@ impl ConsensusContext for SequencerConsensusContext {
                 block_info: BlockInfo { block_number: BlockNumber(height), ..Default::default() },
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
-                transactions,
+                transactions: executable_transactions,
+                rpc_transactions: transactions,
                 execution_infos: central_objects.execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
             })
-            .await;
+            .await
+            // TODO(shahak): Do not panic here.
+            .expect("Cende ambassador failed due to the class manager client failure");
 
         self.l2_gas_price = calculate_next_base_gas_price(
             self.l2_gas_price,

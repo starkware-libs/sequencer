@@ -36,7 +36,7 @@ use starknet_api::executable_transaction::{
     Transaction,
 };
 use starknet_api::execution_resources::GasVector;
-use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -61,6 +61,7 @@ mod central_objects_test;
 pub type CentralBouncerWeights = BouncerWeights;
 pub type CentralCompressedStateDiff = CentralStateDiff;
 pub type CentralCasmContractClass = CasmContractClass;
+pub type CentralSierraContractClass = SierraContractClass;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {
@@ -380,8 +381,6 @@ impl From<(Transaction, u64)> for CentralTransactionWritten {
 }
 
 // Converts the CasmContractClass into a format that serializes into the python object.
-// TODO(Yael): remove allow dead code once used
-#[allow(dead_code)]
 pub fn casm_contract_class_central_format(
     compiled_class_hash: CasmContractClass,
 ) -> CentralCasmContractClass {
