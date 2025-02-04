@@ -7,13 +7,13 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::SierraContractClass;
 
 pub trait PendingClassesTrait {
-    // TODO(shahak) Return an Arc to avoid cloning the class. This requires to re-implement
+    // TODO(shahak): Return an Arc to avoid cloning the class. This requires to re-implement
     // From/TryFrom for various structs in a way that the input is passed by reference.
     fn get_class(&self, class_hash: ClassHash) -> Option<ApiContractClass>;
 
     fn add_class(&mut self, class_hash: ClassHash, class: ApiContractClass);
 
-    // TODO(shahak) Return an Arc to avoid cloning the class. This requires to re-implement
+    // TODO(shahak): Return an Arc to avoid cloning the class. This requires to re-implement
     // From/TryFrom for various structs in a way that the input is passed by reference.
     fn get_compiled_class(&self, class_hash: ClassHash) -> Option<CasmContractClass>;
 
