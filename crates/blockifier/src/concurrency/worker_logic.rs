@@ -213,13 +213,10 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
 
         // Execution is final.
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let state_diff =
-            &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).state_diff;
-        let mut tx_state_changes_keys = state_diff.keys();
-        let tx_result =
-            &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
+        let execution_output = execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let mut tx_state_changes_keys = execution_output.state_diff.keys();
 
-        if let Ok(tx_execution_info) = tx_result.as_mut() {
+        if let Ok(tx_execution_info) = execution_output.result.as_mut() {
             let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
@@ -244,7 +241,12 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                     }
                 }
             }
-            complete_fee_transfer_flow(&tx_context, tx_execution_info, &mut tx_versioned_state);
+            complete_fee_transfer_flow(
+                &tx_context,
+                tx_execution_info,
+                &mut execution_output.state_diff,
+                &mut tx_versioned_state,
+            );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
         }

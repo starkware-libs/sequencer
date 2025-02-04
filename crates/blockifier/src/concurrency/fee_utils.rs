@@ -25,6 +25,7 @@ pub(crate) const STORAGE_READ_SEQUENCER_BALANCE_INDICES: (usize, usize) = (2, 3)
 pub fn complete_fee_transfer_flow(
     tx_context: &TransactionContext,
     tx_execution_info: &mut TransactionExecutionInfo,
+    state_diff: &mut StateMaps,
     state: &mut impl UpdatableState,
 ) {
     if tx_context.is_sequencer_the_sender() {
@@ -54,6 +55,8 @@ pub fn complete_fee_transfer_flow(
             tx_execution_info.receipt.fee,
             &tx_context.block_context,
             sequencer_balance,
+            tx_context.tx_info.sender_address(),
+            state_diff,
         );
     } else {
         // Assumes we set the charge fee flag to the transaction enforce fee value.
@@ -97,7 +100,13 @@ pub fn add_fee_to_sequencer_balance(
     actual_fee: Fee,
     block_context: &BlockContext,
     sequencer_balance: (Felt, Felt),
+    sender_address: ContractAddress,
+    state_diff: &mut StateMaps,
 ) {
+    assert_ne!(
+        sender_address, block_context.block_info.sequencer_address,
+        "The sender cannot be the sequencer."
+    );
     let (low, high) = sequencer_balance;
     let sequencer_balance_low_as_u128 =
         low.to_u128().expect("sequencer balance low should be u128");
@@ -118,5 +127,18 @@ pub fn add_fee_to_sequencer_balance(
         ]),
         ..StateMaps::default()
     };
+    // Update the high balance if overflow occurs
+    if carry {
+        state_diff
+            .storage
+            .insert((fee_token_address, sequencer_balance_key_high), Felt::from(new_value_high));
+    }
+
+    // Update the low balance only if it has changed
+    if sequencer_balance_low_as_u128 != new_value_low {
+        state_diff
+            .storage
+            .insert((fee_token_address, sequencer_balance_key_low), Felt::from(new_value_low));
+    }
     state.apply_writes(&writes, &ContractClassMapping::default());
 }
