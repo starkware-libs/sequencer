@@ -845,36 +845,44 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
 fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
     // Setup.
     let tx_address_1_nonce_2 =
-        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 2, account_nonce: 2);
+        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 2, account_nonce: 2, tip: 1);
     let tx_address_1_nonce_3 =
-        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 3, account_nonce: 2);
+        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 3, account_nonce: 2, tip: 1);
 
     let tx_address_2_nonce_1 =
-        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 1, account_nonce: 1);
+        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 1, account_nonce: 1, tip: 0);
     let tx_address_2_nonce_2 =
-        add_tx_input!(tx_hash: 8, address: "0x2", tx_nonce: 2, account_nonce: 1);
+        add_tx_input!(tx_hash: 8, address: "0x2", tx_nonce: 2, account_nonce: 1, tip: 0);
 
     let mut expected_pool_txs = vec![];
     for input in
-        [&tx_address_1_nonce_2, &tx_address_1_nonce_3, &tx_address_2_nonce_1, &tx_address_2_nonce_2]
+        [&tx_address_1_nonce_2, &tx_address_2_nonce_1, &tx_address_1_nonce_3, &tx_address_2_nonce_2]
     {
         add_tx(&mut mempool, input);
         expected_pool_txs.push(input.tx.clone());
     }
 
-    // All the transactions are in the mempool.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(expected_pool_txs.clone()).build();
+    // Assert initial mempool content.
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool(expected_pool_txs.clone())
+        .with_priority_queue(
+            [&tx_address_1_nonce_2.tx, &tx_address_2_nonce_1.tx].map(TransactionReference::new),
+        )
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 
-    // Transaction 4 and 8 are rejected.
+    // Get transactions from the mempool.
+    get_txs_and_assert_expected(&mut mempool, 4, &expected_pool_txs);
+
+    // Commit block with transactions 4 and 8 rejected.
     let rejected_tx = [4, 8];
-    commit_block(&mut mempool, [], rejected_tx);
+    commit_block(&mut mempool, [("0x2", 2)], rejected_tx);
 
     // Assert transactions 4 and 8 are removed from the mempool.
-    expected_pool_txs.retain(|x| *x != tx_address_1_nonce_2.tx && *x != tx_address_2_nonce_2.tx);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(expected_pool_txs).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool([tx_address_1_nonce_3.tx])
+        .with_priority_queue(vec![])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
