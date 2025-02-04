@@ -28,6 +28,7 @@ use crate::config::ConsensusManagerConfig;
 pub const BROADCAST_BUFFER_SIZE: usize = 10000;
 pub const CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
 pub const CONSENSUS_VOTES_TOPIC: &str = "consensus_votes";
+const CONSENSUS_NETWORK_METRICS_PREFIX: &str = "consensus";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -55,7 +56,11 @@ impl ConsensusManager {
             return std::future::pending().await;
         }
 
-        let mut network_manager = NetworkManager::new(self.config.network_config.clone(), None);
+        let mut network_manager = NetworkManager::new(
+            self.config.network_config.clone(),
+            None,
+            CONSENSUS_NETWORK_METRICS_PREFIX,
+        );
 
         let proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(

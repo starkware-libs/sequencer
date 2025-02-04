@@ -39,6 +39,8 @@ use tokio::sync::RwLock;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 
+const P2P_STATE_SYNC_METRICS_PREFIX: &str = "state_sync";
+
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     // TODO(Matan): change client and server to requester and responder respectively
@@ -85,8 +87,11 @@ impl StateSyncRunner {
             network_config,
         } = config;
 
-        let mut network_manager =
-            network_manager::NetworkManager::new(network_config, Some(VERSION_FULL.to_string()));
+        let mut network_manager = network_manager::NetworkManager::new(
+            network_config,
+            Some(VERSION_FULL.to_string()),
+            P2P_STATE_SYNC_METRICS_PREFIX,
+        );
 
         let (storage_reader, storage_writer) =
             open_storage(storage_config).expect("StateSyncRunner failed opening storage");
