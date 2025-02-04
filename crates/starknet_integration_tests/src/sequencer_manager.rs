@@ -21,7 +21,7 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -31,12 +31,14 @@ use crate::monitoring_utils::await_execution;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
+    create_integration_test_tx_generator,
     create_mempool_p2p_configs,
     create_state_sync_configs,
     send_account_txs,
+    BootstrapTxs,
+    InvokeTxs,
     TestScenario,
 };
-
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -155,6 +157,64 @@ impl RunningNode {
         });
 
         join_all(await_alive_tasks).await;
+    }
+}
+
+pub struct IntegrationTestManagerWrapper {
+    tx_generator: MultiAccountTransactionGenerator,
+    pub node_indices: HashSet<usize>,
+    integration_test_manager: IntegrationTestManager,
+}
+
+const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
+const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
+impl IntegrationTestManagerWrapper {
+    pub async fn new(num_of_consolidated_nodes: usize, num_of_distributed_nodes: usize) -> Self {
+        let tx_generator = create_integration_test_tx_generator();
+
+        info!("Checking that the sequencer node executable is present.");
+        get_node_executable_path();
+
+        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
+            &tx_generator,
+            num_of_consolidated_nodes,
+            num_of_distributed_nodes,
+        )
+        .await;
+
+        let integration_test_manager = IntegrationTestManager::new(sequencers_setup, Vec::new());
+
+        Self { tx_generator, node_indices, integration_test_manager }
+    }
+
+    pub async fn test_bootstrap_txs_and_verify(&mut self) {
+        self.integration_test_manager
+            .test_and_verify(
+                &mut self.tx_generator,
+                BootstrapTxs,
+                DEFAULT_SENDER_ACCOUNT,
+                BLOCK_TO_WAIT_FOR_BOOTSTRAP,
+            )
+            .await;
+    }
+
+    pub async fn test_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
+        self.integration_test_manager
+            .test_and_verify(
+                &mut self.tx_generator,
+                InvokeTxs(n_txs),
+                DEFAULT_SENDER_ACCOUNT,
+                wait_for_block,
+            )
+            .await;
+    }
+
+    pub async fn run(&mut self, nodes_to_run: HashSet<usize>) {
+        self.integration_test_manager.run(nodes_to_run).await;
+    }
+
+    pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
+        self.integration_test_manager.shutdown_nodes(nodes_to_shutdown);
     }
 }
 
