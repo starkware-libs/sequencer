@@ -12,6 +12,8 @@ const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_INVALID_PORT: u16 = 0;
 
+pub const MAX_CONCURRENCY: usize = 10;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
     Disabled,
@@ -36,6 +38,8 @@ pub struct ReactiveComponentExecutionConfig {
     pub execution_mode: ReactiveComponentExecutionMode,
     pub local_server_config: LocalServerConfig,
     pub remote_client_config: RemoteClientConfig,
+    #[validate(custom = "validate_max_concurrency")]
+    pub max_concurrency: usize,
     pub url: String,
     pub ip: IpAddr,
     pub port: u16,
@@ -48,6 +52,12 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
                 "execution_mode",
                 &self.execution_mode,
                 "The component execution mode.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_concurrency",
+                &self.max_concurrency,
+                "The maximum number of concurrent requests handling.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -93,6 +103,7 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
+            max_concurrency: MAX_CONCURRENCY,
             url: DEFAULT_URL.to_string(),
             ip: DEFAULT_IP,
             port: DEFAULT_INVALID_PORT,
@@ -103,6 +114,7 @@ impl ReactiveComponentExecutionConfig {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Remote,
             local_server_config: LocalServerConfig::default(),
+            max_concurrency: MAX_CONCURRENCY,
             remote_client_config: RemoteClientConfig::default(),
             url,
             ip,
@@ -115,6 +127,7 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
+            max_concurrency: MAX_CONCURRENCY,
             url,
             ip,
             port,
@@ -128,6 +141,7 @@ impl ReactiveComponentExecutionConfig {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: LocalServerConfig::default(),
             remote_client_config: RemoteClientConfig::default(),
+            max_concurrency: MAX_CONCURRENCY,
             url: DEFAULT_URL.to_string(),
             ip: DEFAULT_IP,
             port: DEFAULT_INVALID_PORT,
@@ -177,19 +191,40 @@ fn validate_url(url: &str) -> Result<(), ValidationError> {
     let arbitrary_port: u16 = 0;
     let socket_addrs = (url, arbitrary_port)
         .to_socket_addrs()
-        .map_err(|e| create_validation_error(format!("Failed to resolve url IP: {}", e)))?;
+        .map_err(|e| create_url_validation_error(format!("Failed to resolve url IP: {}", e)))?;
 
     if socket_addrs.count() > 0 {
         Ok(())
     } else {
-        Err(create_validation_error("No IP address found for the domain".to_string()))
+        Err(create_url_validation_error("No IP address found for the domain".to_string()))
     }
 }
 
-fn create_validation_error(error_msg: String) -> ValidationError {
+fn create_url_validation_error(error_msg: String) -> ValidationError {
+    create_validation_error(error_msg, "Failed to resolve url IP", "Ensure the url is valid.")
+}
+
+// Validate the configured max concurrency. If the max concurrency is invalid, it returns an error.
+fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationError> {
+    if max_concurrency > 0 {
+        Ok(())
+    } else {
+        Err(create_validation_error(
+            format!("Invalid max_concurrency: {}", max_concurrency),
+            "Invalid max concurrency",
+            "Ensure the max concurrency is greater than 0.",
+        ))
+    }
+}
+
+fn create_validation_error(
+    error_msg: String,
+    validate_code: &'static str,
+    validate_error_msg: &'static str,
+) -> ValidationError {
     error!(error_msg);
-    let mut error = ValidationError::new("Failed to resolve url IP");
-    error.message = Some("Ensure the url is valid.".into());
+    let mut error = ValidationError::new(validate_code);
+    error.message = Some(validate_error_msg.into());
     error
 }
 

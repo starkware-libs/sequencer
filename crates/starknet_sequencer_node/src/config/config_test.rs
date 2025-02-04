@@ -85,6 +85,7 @@ fn test_valid_component_execution_config(
         execution_mode,
         local_server_config,
         remote_client_config,
+        max_concurrency: 1,
         url: url.to_string(),
         ip,
         port,
