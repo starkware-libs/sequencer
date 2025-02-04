@@ -48,7 +48,6 @@ use starknet_api::block::{
     BlockNumber,
     BlockStatus,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -114,7 +113,7 @@ use starknet_client::ClientError;
 use starknet_types_core::felt::Felt;
 
 use super::super::api::EventsChunk;
-use super::super::block::{Block, GeneralBlockHeader, PendingBlockHeader, ResourcePrice};
+use super::super::block::{Block, GeneralBlockHeader, PendingBlockHeader};
 use super::super::broadcasted_transaction::BroadcastedDeclareTransaction;
 use super::super::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use super::super::error::{
@@ -613,12 +612,12 @@ async fn get_block_w_full_transactions() {
             parent_hash: block_hash,
             sequencer_address: pending_sequencer_address,
             timestamp: pending_timestamp,
-            l1_gas_price: ResourcePrice {
+            l1_gas_price: GasPricePerToken {
                 price_in_wei: pending_l1_gas_price.price_in_wei,
                 price_in_fri: pending_l1_gas_price.price_in_fri,
             },
-            l1_data_gas_price: ResourcePrice::default(),
-            l2_gas_price: ResourcePrice {
+            l1_data_gas_price: GasPricePerToken::default(),
+            l2_gas_price: GasPricePerToken {
                 price_in_wei: pending_l2_gas_price.price_in_wei,
                 price_in_fri: pending_l2_gas_price.price_in_fri,
             },
@@ -805,12 +804,12 @@ async fn get_block_w_full_transactions_and_receipts() {
             parent_hash: block_hash,
             sequencer_address: pending_sequencer_address,
             timestamp: pending_timestamp,
-            l1_gas_price: ResourcePrice {
+            l1_gas_price: GasPricePerToken {
                 price_in_wei: pending_l1_gas_price.price_in_wei,
                 price_in_fri: pending_l1_gas_price.price_in_fri,
             },
-            l1_data_gas_price: ResourcePrice::default(),
-            l2_gas_price: ResourcePrice {
+            l1_data_gas_price: GasPricePerToken::default(),
+            l2_gas_price: GasPricePerToken {
                 price_in_wei: pending_l2_gas_price.price_in_wei,
                 price_in_fri: pending_l2_gas_price.price_in_fri,
             },
@@ -997,15 +996,15 @@ async fn get_block_w_transaction_hashes() {
             parent_hash: block_hash,
             sequencer_address: pending_sequencer_address,
             timestamp: pending_timestamp,
-            l1_gas_price: ResourcePrice {
+            l1_gas_price: GasPricePerToken {
                 price_in_wei: pending_l1_gas_price.price_in_wei,
                 price_in_fri: pending_l1_gas_price.price_in_fri,
             },
-            l2_gas_price: ResourcePrice {
+            l2_gas_price: GasPricePerToken {
                 price_in_wei: pending_l2_gas_price.price_in_wei,
                 price_in_fri: pending_l2_gas_price.price_in_fri,
             },
-            l1_data_gas_price: ResourcePrice::default(),
+            l1_data_gas_price: GasPricePerToken::default(),
             l1_da_mode: L1DataAvailabilityMode::Calldata,
             starknet_version: starknet_version.to_string(),
         }),
@@ -4178,15 +4177,11 @@ auto_impl_get_test_instance! {
         pub parent_hash: BlockHash,
         pub sequencer_address: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
-        pub l1_gas_price: ResourcePrice,
-        pub l1_data_gas_price: ResourcePrice,
-        pub l2_gas_price: ResourcePrice,
+        pub l1_gas_price: GasPricePerToken,
+        pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
         pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: String,
-    }
-    pub struct ResourcePrice {
-        pub price_in_wei: GasPrice,
-        pub price_in_fri: GasPrice,
     }
     pub enum TypedInvokeTransaction {
         Invoke(InvokeTransaction) = 0,
