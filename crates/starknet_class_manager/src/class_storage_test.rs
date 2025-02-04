@@ -31,7 +31,7 @@ impl FsClassStorage {
         let test_persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
         let class_hash_storage = ClassHashStorage::new_for_testing();
 
-        Self::new(test_persistent_root, class_hash_storage)
+        Self { persistent_root: test_persistent_root, class_hash_storage }
     }
 }
 
