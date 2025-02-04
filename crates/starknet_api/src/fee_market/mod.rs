@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use starknet_api::starknet_versioned_constants::VersionedConstants;
+use crate::starknet_versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 mod test;

@@ -38,6 +38,7 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::fee_market::calculate_next_base_gas_price;
 use starknet_api::starknet_versioned_constants::VersionedConstants;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
@@ -75,7 +76,6 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
-use crate::fee_market::calculate_next_base_gas_price;
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {

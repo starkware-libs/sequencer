@@ -8,6 +8,3 @@ pub mod sequencer_consensus_context;
 /// Centralized and decentralized communication types and functionality.
 #[allow(missing_docs)]
 pub mod cende;
-
-/// Fee market logic.
-pub mod fee_market;
