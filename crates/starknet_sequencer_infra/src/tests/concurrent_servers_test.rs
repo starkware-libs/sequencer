@@ -132,8 +132,13 @@ async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let config = RemoteClientConfig::default();
 
-    let mut concurrent_remote_server =
-        RemoteComponentServer::new(local_client.clone(), socket.ip(), socket.port());
+    let max_concurrency = 10;
+    let mut concurrent_remote_server = RemoteComponentServer::new(
+        local_client.clone(),
+        socket.ip(),
+        socket.port(),
+        max_concurrency,
+    );
     task::spawn(async move {
         let _ = concurrent_remote_server.start().await;
     });
