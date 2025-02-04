@@ -1,43 +1,26 @@
-#[cfg(feature = "cairo_native")]
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
-#[cfg(feature = "cairo_native")]
 use std::sync::Arc;
 
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
-#[cfg(feature = "cairo_native")]
 use log;
 use starknet_api::core::ClassHash;
-#[cfg(feature = "cairo_native")]
 use starknet_api::state::SierraContractClass;
-#[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
-#[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::errors::CompilationUtilError;
-#[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
-#[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::SierraToNativeCompiler;
-#[cfg(feature = "cairo_native")]
 use thiserror::Error;
 
-#[cfg(feature = "cairo_native")]
-use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerConfig;
-#[cfg(feature = "cairo_native")]
-use crate::execution::contract_class::CompiledClassV1;
-use crate::execution::contract_class::RunnableCompiledClass;
-#[cfg(feature = "cairo_native")]
+use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
-#[cfg(feature = "cairo_native")]
-use crate::state::global_cache::CachedCairoNative;
-use crate::state::global_cache::{CachedClass, RawClassCache};
+use crate::state::global_cache::{CachedCairoNative, CachedClass, RawClassCache};
 
-#[cfg(all(test, feature = "cairo_native"))]
+#[cfg(test)]
 #[path = "native_class_manager_test.rs"]
 mod native_class_manager_test;
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
-#[cfg(feature = "cairo_native")]
 pub enum ContractClassManagerError {
     #[error("Error compiling contract class: {0}")]
     CompilationError(CompilationUtilError),
@@ -52,22 +35,18 @@ pub enum ContractClassManagerError {
 /// * `sierra_contract_class` - the sierra contract class to be compiled.
 /// * `casm_compiled_class` - stored in [`NativeCompiledClassV1`] to allow fallback to cairo_vm
 ///   execution in case of unexpected failure during native execution.
-#[cfg(feature = "cairo_native")]
 type CompilationRequest = (ClassHash, Arc<SierraContractClass>, CompiledClassV1);
 
 /// Manages the global cache of contract classes and handles sierra-to-native compilation requests.
 #[derive(Clone)]
 pub struct NativeClassManager {
-    #[cfg(feature = "cairo_native")]
     cairo_native_run_config: CairoNativeRunConfig,
     /// The global cache of raw contract classes.
     cache: RawClassCache,
     /// The sending half of the compilation request channel. Set to `None` if native compilation is
     /// disabled.
-    #[cfg(feature = "cairo_native")]
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
-    #[cfg(feature = "cairo_native")]
     compiler: Option<Arc<dyn SierraToNativeCompiler>>,
 }
 
@@ -82,47 +61,37 @@ impl NativeClassManager {
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let cache = RawClassCache::new(config.contract_cache_size);
-        #[cfg(not(feature = "cairo_native"))]
-        return NativeClassManager { cache };
-        #[cfg(feature = "cairo_native")]
-        {
-            let cairo_native_run_config = config.cairo_native_run_config;
-            if !cairo_native_run_config.run_cairo_native {
-                // Native compilation is disabled - no need to start the compilation worker.
-                return NativeClassManager {
-                    cairo_native_run_config: config.cairo_native_run_config,
-                    cache,
-                    sender: None,
-                    compiler: None,
-                };
-            }
+        let cairo_native_run_config = config.cairo_native_run_config;
+        if !cairo_native_run_config.run_cairo_native {
+            // Native compilation is disabled - no need to start the compilation worker.
+            return NativeClassManager {
+                cairo_native_run_config: config.cairo_native_run_config,
+                cache,
+                sender: None,
+                compiler: None,
+            };
+        }
 
-            let compiler_config = config.native_compiler_config.clone();
-            let compiler = Arc::new(CommandLineCompiler::new(compiler_config));
-            if cairo_native_run_config.wait_on_native_compilation {
-                // Compilation requests are processed synchronously. No need to start the worker.
-                return NativeClassManager {
-                    cairo_native_run_config,
-                    cache,
-                    sender: None,
-                    compiler: Some(compiler),
-                };
-            }
-
-            let (sender, receiver) = sync_channel(cairo_native_run_config.channel_size);
-
-            std::thread::spawn({
-                let cache = cache.clone();
-                move || run_compilation_worker(cache, receiver, compiler)
-            });
-
-            NativeClassManager {
+        let compiler_config = config.native_compiler_config.clone();
+        let compiler = Arc::new(CommandLineCompiler::new(compiler_config));
+        if cairo_native_run_config.wait_on_native_compilation {
+            // Compilation requests are processed synchronously. No need to start the worker.
+            return NativeClassManager {
                 cairo_native_run_config,
                 cache,
-                sender: Some(sender),
-                compiler: None,
-            }
+                sender: None,
+                compiler: Some(compiler),
+            };
         }
+
+        let (sender, receiver) = sync_channel(cairo_native_run_config.channel_size);
+
+        std::thread::spawn({
+            let cache = cache.clone();
+            move || run_compilation_worker(cache, receiver, compiler)
+        });
+
+        NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in cache.
@@ -131,7 +100,6 @@ impl NativeClassManager {
         if let CachedClass::V1(_, _) = cached_class {
             // TODO(Yoni): make sure `wait_on_native_compilation` and `run_cairo_native` cannot be
             // set to true together.
-            #[cfg(feature = "cairo_native")]
             assert!(
                 !self.wait_on_native_compilation(),
                 "Manager did not wait on native compilation."
@@ -149,7 +117,6 @@ impl NativeClassManager {
             CachedClass::V0(_) => self.cache.set(class_hash, compiled_class),
             CachedClass::V1(compiled_class_v1, sierra_contract_class) => {
                 // TODO(Yoni): instead of these two flag, use an enum.
-                #[cfg(feature = "cairo_native")]
                 if self.wait_on_native_compilation() {
                     assert!(self.run_cairo_native(), "Native compilation is disabled.");
                     let compiler = self.compiler.as_ref().expect("Compiler not available.");
@@ -170,7 +137,6 @@ impl NativeClassManager {
                     class_hash,
                     CachedClass::V1(compiled_class_v1.clone(), sierra_contract_class.clone()),
                 );
-                #[cfg(feature = "cairo_native")]
                 if self.run_cairo_native() {
                     // Send a non-blocking compilation request.
                     // Ignore compilation errors for now.
@@ -183,7 +149,6 @@ impl NativeClassManager {
                 }
             }
             // TODO(Yoni): consider panic since this flow should not be reachable.
-            #[cfg(feature = "cairo_native")]
             CachedClass::V1Native(_) => self.cache.set(class_hash, compiled_class),
         }
     }
@@ -191,7 +156,6 @@ impl NativeClassManager {
     /// Sends a compilation request to the compilation worker. Does not block the sender. Logs an
     /// error if the channel is full.
     /// TODO(Yoni): make it private.
-    #[cfg(feature = "cairo_native")]
     pub fn send_compilation_request(
         &self,
         request: CompilationRequest,
@@ -214,13 +178,11 @@ impl NativeClassManager {
         })
     }
 
-    #[cfg(feature = "cairo_native")]
-    pub fn run_cairo_native(&self) -> bool {
+    fn run_cairo_native(&self) -> bool {
         self.cairo_native_run_config.run_cairo_native
     }
 
-    #[cfg(feature = "cairo_native")]
-    pub fn wait_on_native_compilation(&self) -> bool {
+    fn wait_on_native_compilation(&self) -> bool {
         self.cairo_native_run_config.wait_on_native_compilation
     }
 
@@ -238,7 +200,6 @@ impl NativeClassManager {
 /// Handles compilation requests from the channel, holding the receiver end of the channel.
 /// If no request is available, non-busy-waits until a request is available.
 /// When the sender is dropped, the worker processes all pending requests and terminates.
-#[cfg(feature = "cairo_native")]
 fn run_compilation_worker(
     cache: RawClassCache,
     receiver: Receiver<CompilationRequest>,
@@ -253,7 +214,6 @@ fn run_compilation_worker(
 }
 
 /// Processes a compilation request and caches the result.
-#[cfg(feature = "cairo_native")]
 fn process_compilation_request(
     cache: RawClassCache,
     compiler: Arc<dyn SierraToNativeCompiler>,
