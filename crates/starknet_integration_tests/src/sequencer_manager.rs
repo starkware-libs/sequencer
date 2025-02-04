@@ -21,7 +21,7 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use starknet_sequencer_node::test_utils::node_runner::spawn_run_node;
+use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -31,11 +31,16 @@ use crate::monitoring_utils::await_execution;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
+    create_integration_test_tx_generator,
     create_mempool_p2p_configs,
     create_state_sync_configs,
     send_account_txs,
+    BootstrapTxs,
+    InvokeTxs,
     TestScenario,
 };
+const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
+const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 struct NodeComponentConfigs {
@@ -159,19 +164,33 @@ impl RunningNode {
 }
 
 pub struct IntegrationTestManager {
+    pub node_indices: HashSet<usize>,
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
+    tx_generator: MultiAccountTransactionGenerator,
 }
 
 impl IntegrationTestManager {
-    pub fn new(idle_nodes: Vec<NodeSetup>, running_nodes: Vec<RunningNode>) -> Self {
-        let idle_nodes_map = create_map(idle_nodes, |node| node.get_node_index());
-        let running_nodes_map =
-            create_map(running_nodes, |running_node| running_node.node_setup.get_node_index());
+    pub async fn new(num_of_consolidated_nodes: usize, num_of_distributed_nodes: usize) -> Self {
+        let tx_generator = create_integration_test_tx_generator();
 
-        Self { idle_nodes: idle_nodes_map, running_nodes: running_nodes_map }
+        info!("Checking that the sequencer node executable is present.");
+        get_node_executable_path();
+
+        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
+            &tx_generator,
+            num_of_consolidated_nodes,
+            num_of_distributed_nodes,
+        )
+        .await;
+
+        let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
+        let running_nodes = HashMap::new();
+
+        Self { node_indices, idle_nodes, running_nodes, tx_generator }
     }
-    pub async fn run(&mut self, nodes_to_run: HashSet<usize>) {
+
+    pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
         info!("Running specified nodes.");
 
         nodes_to_run.into_iter().for_each(|index| {
@@ -192,6 +211,15 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
+    pub async fn send_bootstrap_txs_and_verify(&mut self) {
+        self.test_and_verify(BootstrapTxs, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
+            .await;
+    }
+
+    pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
+        self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+    }
+
     /// This function tests and verifies the integration of the transaction flow.
     ///
     /// # Parameters
@@ -206,18 +234,17 @@ impl IntegrationTestManager {
     ///
     /// The function verifies the initial state, runs the test with the given number of
     /// transactions, waits for execution to complete, and then verifies the final state.
-    pub async fn test_and_verify(
+    async fn test_and_verify(
         &mut self,
-        tx_generator: &mut MultiAccountTransactionGenerator,
         test_scenario: impl TestScenario,
         sender_account: AccountId,
         wait_for_block: BlockNumber,
     ) {
         // Verify the initial state
-        self.verify_txs_accepted(tx_generator, sender_account).await;
-        self.run_integration_test_simulator(tx_generator, &test_scenario, sender_account).await;
+        self.verify_txs_accepted(sender_account).await;
+        self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_execution(wait_for_block).await;
-        self.verify_txs_accepted(tx_generator, sender_account).await;
+        self.verify_txs_accepted(sender_account).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -225,11 +252,6 @@ impl IntegrationTestManager {
             self.running_nodes.values().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
-    }
-
-    async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        let node_0 = self.running_nodes.get(&0).expect("Node 0 should running.");
-        node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
     }
 
     fn running_batcher_monitoring_client(&self) -> &MonitoringClient {
@@ -261,32 +283,31 @@ impl IntegrationTestManager {
         });
     }
 
-    pub async fn run_integration_test_simulator(
-        &self,
-        tx_generator: &mut MultiAccountTransactionGenerator,
+    async fn run_integration_test_simulator(
+        &mut self,
         test_scenario: &impl TestScenario,
         sender_account: AccountId,
     ) {
         info!("Running integration test simulator.");
-        let send_rpc_tx_fn = &mut |rpc_tx| self.send_rpc_tx_fn(rpc_tx);
+        let send_rpc_tx_fn = &mut |rpc_tx| async {
+            let node_0 = self.running_nodes.get(&0).expect("Node 0 should be running.");
+            node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
+        };
 
         let n_txs = test_scenario.n_txs();
         info!("Sending {n_txs} txs.");
         let tx_hashes =
-            send_account_txs(tx_generator, sender_account, test_scenario, send_rpc_tx_fn).await;
+            send_account_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
+                .await;
         assert_eq!(tx_hashes.len(), n_txs);
     }
 
-    pub async fn await_execution(&self, expected_block_number: BlockNumber) {
+    async fn await_execution(&self, expected_block_number: BlockNumber) {
         await_execution(self.running_batcher_monitoring_client(), expected_block_number).await;
     }
 
-    pub async fn verify_txs_accepted(
-        &self,
-        tx_generator: &mut MultiAccountTransactionGenerator,
-        sender_account: AccountId,
-    ) {
-        let account = tx_generator.account_with_id(sender_account);
+    async fn verify_txs_accepted(&self, sender_account: AccountId) {
+        let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_batched_txs = account.get_nonce().0;
         info!("Verifying {} batched txs.", expected_n_batched_txs);
         let n_batched_txs = self
