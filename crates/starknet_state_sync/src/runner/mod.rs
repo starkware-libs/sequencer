@@ -83,13 +83,27 @@ impl StateSyncRunner {
             p2p_sync_client_config,
             central_sync_client_config,
             network_config,
+            revert_up_to_and_including,
         } = config;
-
-        let mut network_manager =
-            network_manager::NetworkManager::new(network_config, Some(VERSION_FULL.to_string()));
 
         let (storage_reader, storage_writer) =
             open_storage(storage_config).expect("StateSyncRunner failed opening storage");
+
+        if let Some(revert_up_to_and_including) = revert_up_to_and_including {
+            return Self {
+                network_future: pending().boxed(),
+                p2p_sync_client_future: revert_blocks_and_eternal_pending(// TODO: FILL THIS
+                        )
+                .boxed(),
+
+                p2p_sync_server_future: pending().boxed(),
+                central_sync_client_future: pending().boxed(),
+                new_block_dev_null_future: pending().boxed(),
+            };
+        }
+
+        let mut network_manager =
+            network_manager::NetworkManager::new(network_config, Some(VERSION_FULL.to_string()));
 
         // Creating the sync server future
         let p2p_sync_server = Self::new_p2p_state_sync_server(

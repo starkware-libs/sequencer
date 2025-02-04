@@ -27,6 +27,9 @@ pub struct StateSyncConfig {
     pub central_sync_client_config: Option<CentralSyncClientConfig>,
     #[validate]
     pub network_config: NetworkConfig,
+    // TODO(shahak): Create a pointer for this and consensus.
+    // In order to do that, make this into a struct with BlockNumber and bool.
+    pub revert_up_to_and_including: Option<BlockNumber>,
 }
 
 impl SerializeConfig for StateSyncConfig {
@@ -36,6 +39,19 @@ impl SerializeConfig for StateSyncConfig {
             append_sub_config_name(self.network_config.dump(), "network_config"),
             ser_optional_sub_config(&self.p2p_sync_client_config, "p2p_sync_client_config"),
             ser_optional_sub_config(&self.central_sync_client_config, "central_sync_client_config"),
+
+            // TODO(shahak): reduce code duplication with consensus, possibly by defining this
+            // field as a sub config.
+            config.extend(ser_optional_param(
+                &self.revert_up_to_and_including,
+                // Use u64::MAX as a placeholder to prevent setting this value to
+                // a low block number by mistake, which will cause significant revert operations.
+                BlockNumber(u64::MAX),
+                "revert_up_to_and_including",
+                "The sync will revert blocks up to this block number (including). Use this \
+                 configurations carefully to prevent significant revert operations and data loss.",
+                ParamPrivacyInput::Public,
+            ));
         ]
         .into_iter()
         .flatten()
