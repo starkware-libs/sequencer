@@ -754,10 +754,20 @@
     "privacy": "Public",
     "value": 100
   },
+  "consensus_manager_config.context_config.block_timestamp_window": {
+    "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
+    "privacy": "Public",
+    "value": 1
+  },
   "consensus_manager_config.context_config.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
+  },
+  "consensus_manager_config.context_config.l1_da_mode": {
+    "description": "The data availability mode, true: Blob, false: Calldata.",
+    "privacy": "Public",
+    "value": true
   },
   "consensus_manager_config.context_config.num_validators": {
     "description": "The number of validators.",
