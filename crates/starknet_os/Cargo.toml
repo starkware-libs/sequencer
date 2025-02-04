@@ -10,6 +10,7 @@ description = "The Starknet OS."
 testing = ["dep:strum", "dep:strum_macros"]
 
 [dependencies]
+blockifier.workspace = true
 cairo-vm.workspace = true
 indoc.workspace = true
 starknet-types-core.workspace = true
