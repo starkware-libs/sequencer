@@ -28,6 +28,7 @@ serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
+starknet_os = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
