@@ -173,10 +173,11 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
     let mut component_b_local_server =
         LocalComponentServer::new(component_b, rx_b, max_concurrency);
 
+    let max_concurrency = 10;
     let mut component_a_remote_server =
-        RemoteComponentServer::new(a_local_client, a_socket.ip(), a_socket.port());
+        RemoteComponentServer::new(a_local_client, a_socket.ip(), a_socket.port(), max_concurrency);
     let mut component_b_remote_server =
-        RemoteComponentServer::new(b_local_client, b_socket.ip(), b_socket.port());
+        RemoteComponentServer::new(b_local_client, b_socket.ip(), b_socket.port(), max_concurrency);
 
     task::spawn(async move {
         let _ = component_a_local_server.start().await;

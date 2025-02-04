@@ -9,6 +9,8 @@ use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, St
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_infra_utils::type_name::short_type_name;
+use tower::limit::ConcurrencyLimitLayer;
+use tower::ServiceBuilder;
 use tracing::warn;
 
 use crate::component_client::{ClientError, LocalComponentClient};
@@ -88,10 +90,15 @@ use crate::serde_utils::SerdeWrapper;
 ///     // Set the ip address and port of the server's socket.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
+///     let max_concurrency = 10;
 ///
 ///     // Instantiate the server.
-///     let mut server =
-///         RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, ip_address, port);
+///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(
+///         local_client,
+///         ip_address,
+///         port,
+///         max_concurrency,
+///     );
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -106,6 +113,7 @@ where
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
+    max_concurrency: usize,
 }
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
@@ -117,8 +125,9 @@ where
         local_client: LocalComponentClient<Request, Response>,
         ip: IpAddr,
         port: u16,
+        max_concurrency: usize,
     ) -> Self {
-        Self { local_client, socket: SocketAddr::new(ip, port) }
+        Self { local_client, socket: SocketAddr::new(ip, port), max_concurrency }
     }
 
     async fn remote_component_server_handler(
@@ -173,14 +182,23 @@ where
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
-            async {
-                Ok::<_, hyper::Error>(service_fn(move |req| {
-                    Self::remote_component_server_handler(req, local_client.clone())
-                }))
+            let max_concurrency = self.max_concurrency;
+            async move {
+                let service = service_fn(move |req| {
+                    let local_client = local_client.clone();
+                    Self::remote_component_server_handler(req, local_client)
+                });
+
+                // Apply the ConcurrencyLimitLayer middleware
+                let service = ServiceBuilder::new()
+                    .layer(ConcurrencyLimitLayer::new(max_concurrency))
+                    .service(service);
+
+                Ok::<_, hyper::Error>(service)
             }
         });
 
-        Server::bind(&self.socket.clone())
+        Server::bind(&self.socket)
             .serve(make_svc)
             .await
             .map_err(|err| ComponentServerError::HttpServerStartError(err.to_string()))?;
