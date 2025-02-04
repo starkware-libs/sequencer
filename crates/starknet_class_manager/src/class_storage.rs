@@ -16,7 +16,7 @@ use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableC
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 use thiserror::Error;
 
-use crate::config::ClassHashStorageConfig;
+use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
 
 #[cfg(test)]
 #[path = "class_storage_test.rs"]
@@ -64,7 +64,6 @@ impl Default for CachedClassStorageConfig {
     }
 }
 
-// TODO(Elin): provide description for the fields.
 impl SerializeConfig for CachedClassStorageConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([
@@ -299,8 +298,9 @@ pub enum FsClassStorageError {
 }
 
 impl FsClassStorage {
-    pub fn new(persistent_root: PathBuf, class_hash_storage: ClassHashStorage) -> Self {
-        Self { persistent_root, class_hash_storage }
+    pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
+        let class_hash_storage = ClassHashStorage::new(config.class_hash_storage_config)?;
+        Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
 
     fn contains_class(&self, class_id: ClassId) -> bool {

@@ -15,13 +15,12 @@ pub struct ClassHashStorageConfig {
     pub max_size: usize,
 }
 
-// TODO(Elin): set appropriated default values.
 impl Default for ClassHashStorageConfig {
     fn default() -> Self {
         Self {
             path_prefix: "/data".into(),
             enforce_file_exists: false,
-            max_size: 1 << 30, // 1GB.
+            max_size: 1 << 20, // 1MB.
         }
     }
 }
@@ -32,29 +31,61 @@ impl SerializeConfig for ClassHashStorageConfig {
             ser_param(
                 "path_prefix",
                 &self.path_prefix,
-                "Prefix of the path of the node's storage directory",
+                "Prefix of the path of class hash storage directory",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "enforce_file_exists",
                 &self.enforce_file_exists,
-                "Whether to enforce that the path exists.",
+                "Whether to enforce that the above path exists.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_size",
                 &self.max_size,
-                "The maximum size of the node's storage in bytes.",
+                "The maximum size of the class hash storage in bytes.",
                 ParamPrivacyInput::Public,
             ),
         ])
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct FsClassStorageConfig {
+    pub persistent_root: PathBuf,
+    pub class_hash_storage_config: ClassHashStorageConfig,
+}
+
+impl Default for FsClassStorageConfig {
+    fn default() -> Self {
+        Self { persistent_root: "/classes".into(), class_hash_storage_config: Default::default() }
+    }
+}
+
+impl SerializeConfig for FsClassStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "persistent_root",
+                &self.persistent_root,
+                "Path to the node's class storage directory",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "class_hash_storage_config",
+                &self.class_hash_storage_config,
+                "Configuration of the class hash storage.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+// TODO(Elin): reconsider config structure.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ClassManagerConfig {
     pub cached_class_storage_config: CachedClassStorageConfig,
-    pub storage: ClassHashStorageConfig,
+    pub class_storage_config: FsClassStorageConfig,
 }
 
 impl SerializeConfig for ClassManagerConfig {
@@ -64,7 +95,10 @@ impl SerializeConfig for ClassManagerConfig {
             self.cached_class_storage_config.dump(),
             "cached_class_storage_config",
         ));
-        dump.append(&mut append_sub_config_name(self.storage.dump(), "storage"));
+        dump.append(&mut append_sub_config_name(
+            self.class_storage_config.dump(),
+            "class_storage_config",
+        ));
         dump
     }
 }
