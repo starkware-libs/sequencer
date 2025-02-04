@@ -96,7 +96,10 @@ impl ConsensusManager {
             Arc::clone(&self.batcher_client),
             outbound_internal_sender,
             votes_broadcast_channels.broadcast_topic_client.clone(),
-            Arc::new(CendeAmbassador::new(self.config.cende_config.clone())),
+            Arc::new(CendeAmbassador::new(
+                self.config.cende_config.clone(),
+                Arc::clone(&self.class_manager_client),
+            )),
         );
 
         let mut network_handle = tokio::task::spawn(network_manager.run());

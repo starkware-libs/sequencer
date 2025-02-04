@@ -12,11 +12,12 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
-    casm_contract_class_central_format,
+    process_transactions,
     CentralBlockInfo,
     CentralBouncerWeights,
-    CentralCasmContractClass,
+    CentralCasmContractClassEntry,
     CentralCompressedStateDiff,
+    CentralSierraContractClassEntry,
     CentralStateDiff,
     CentralTransactionExecutionInfo,
     CentralTransactionWritten,
@@ -28,13 +29,23 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
-use starknet_api::core::CompiledClassHash;
-use starknet_api::executable_transaction::{AccountTransaction, Transaction};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::debug;
 use url::Url;
+
+#[derive(thiserror::Error, Debug)]
+pub enum CendeAmbassadorError {
+    #[error(transparent)]
+    ClassManagerError(#[from] ClassManagerClientError),
+    #[error(transparent)]
+    StarknetApiError(#[from] starknet_api::StarknetApiError),
+}
+
+pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize)]
@@ -48,7 +59,8 @@ pub(crate) struct AerospikeBlob {
     bouncer_weights: CentralBouncerWeights,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
-    compiled_classes: Vec<(CompiledClassHash, CentralCasmContractClass)>,
+    contract_classes: Vec<CentralSierraContractClassEntry>,
+    compiled_classes: Vec<CentralCasmContractClassEntry>,
 }
 
 #[cfg_attr(test, automock)]
@@ -60,10 +72,13 @@ pub trait CendeContext: Send + Sync {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool>;
 
     // Prepares the previous height blob that will be written in the next height.
-    async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters);
+    async fn prepare_blob_for_next_height(
+        &self,
+        blob_parameters: BlobParameters,
+    ) -> CendeAmbassadorResult<()>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CendeAmbassador {
     // TODO(dvir): consider creating enum varaiant instead of the `Option<AerospikeBlob>`.
     // `None` indicates that there is no blob to write, and therefore, the node can't be the
@@ -72,13 +87,14 @@ pub struct CendeAmbassador {
     url: Url,
     client: Client,
     skip_write_height: Option<BlockNumber>,
+    class_manager: SharedClassManagerClient,
 }
 
 /// The path to write blob in the Recorder.
 pub const RECORDER_WRITE_BLOB_PATH: &str = "/cende_recorder/write_blob";
 
 impl CendeAmbassador {
-    pub fn new(cende_config: CendeConfig) -> Self {
+    pub fn new(cende_config: CendeConfig, class_manager: SharedClassManagerClient) -> Self {
         CendeAmbassador {
             prev_height_blob: Arc::new(Mutex::new(None)),
             url: cende_config
@@ -87,6 +103,7 @@ impl CendeAmbassador {
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
             client: Self::build_client(cende_config.certificates_file_path),
             skip_write_height: cende_config.skip_write_height,
+            class_manager,
         }
     }
 
@@ -197,10 +214,48 @@ impl CendeContext for CendeAmbassador {
         })
     }
 
-    async fn prepare_blob_for_next_height(&self, blob_parameters: BlobParameters) {
-        // TODO(dvir, yael): make the full creation of blob.
+    async fn prepare_blob_for_next_height(
+        &self,
+        blob_parameters: BlobParameters,
+    ) -> CendeAmbassadorResult<()> {
         // TODO(dvir): as optimization, call the `into` and other preperation when writing to AS.
-        *self.prev_height_blob.lock().await = Some(blob_parameters.into());
+        let block_number = blob_parameters.block_info.block_number;
+        let block_timestamp = blob_parameters.block_info.block_timestamp.0;
+
+        let block_info =
+            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
+        let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
+        let compressed_state_diff =
+            blob_parameters.compressed_state_diff.map(|compressed_state_diff| {
+                CentralStateDiff::from((compressed_state_diff, block_info))
+            });
+
+        let (central_transactions, contract_classes, compiled_classes) = process_transactions(
+            self.class_manager.clone(),
+            blob_parameters.transactions,
+            block_timestamp,
+        )
+        .await?;
+
+        let execution_infos = blob_parameters
+            .execution_infos
+            .into_iter()
+            .map(CentralTransactionExecutionInfo::from)
+            .collect();
+
+        let aerospike_blob = AerospikeBlob {
+            block_number,
+            state_diff,
+            compressed_state_diff,
+            bouncer_weights: blob_parameters.bouncer_weights,
+            transactions: central_transactions,
+            execution_infos,
+            contract_classes,
+            compiled_classes,
+        };
+
+        *self.prev_height_blob.lock().await = Some(aerospike_blob);
+        Ok(())
     }
 }
 
@@ -236,62 +291,6 @@ pub struct BlobParameters {
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
-    pub(crate) transactions: Vec<Transaction>,
+    pub(crate) transactions: Vec<InternalConsensusTransaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
-}
-
-impl From<BlobParameters> for AerospikeBlob {
-    fn from(blob_parameters: BlobParameters) -> Self {
-        let block_number = blob_parameters.block_info.block_number;
-        let block_timestamp = blob_parameters.block_info.block_timestamp.0;
-
-        let block_info =
-            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
-        let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
-        let compressed_state_diff =
-            blob_parameters.compressed_state_diff.map(|compressed_state_diff| {
-                CentralStateDiff::from((compressed_state_diff, block_info))
-            });
-
-        let compiled_contract_classes =
-            get_compiled_contract_classes(&blob_parameters.transactions);
-
-        let transactions = blob_parameters
-            .transactions
-            .into_iter()
-            .map(|tx| CentralTransactionWritten::from((tx, block_timestamp)))
-            .collect();
-
-        let execution_infos = blob_parameters
-            .execution_infos
-            .into_iter()
-            .map(CentralTransactionExecutionInfo::from)
-            .collect();
-
-        AerospikeBlob {
-            block_number,
-            state_diff,
-            compressed_state_diff,
-            bouncer_weights: blob_parameters.bouncer_weights,
-            transactions,
-            execution_infos,
-            compiled_classes: compiled_contract_classes,
-        }
-    }
-}
-
-fn get_compiled_contract_classes(
-    transactions: &[Transaction],
-) -> Vec<(CompiledClassHash, CentralCasmContractClass)> {
-    transactions
-        .iter()
-        .filter_map(|tx| {
-            let Transaction::Account(AccountTransaction::Declare(declare_tx)) = tx else {
-                return None;
-            };
-            let compiled_contract_class =
-                casm_contract_class_central_format(declare_tx.casm_contract_class().clone());
-            Some((declare_tx.compiled_class_hash(), compiled_contract_class))
-        })
-        .collect()
 }
