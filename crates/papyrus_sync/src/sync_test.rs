@@ -194,6 +194,7 @@ fn store_base_layer_block_test() {
         reader,
         writer,
         sequencer_pub_key: None,
+        class_manager_client: None,
     };
 
     // Trying to store a block without a header in the storage.
