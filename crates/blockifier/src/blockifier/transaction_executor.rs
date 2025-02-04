@@ -236,7 +236,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         return self.execute_txs_sequentially_inner(txs);
         #[cfg(feature = "cairo_native")]
         {
-            // TODO meshi: find a way to access the contract class manager config from transaction
+            // TODO(meshi): find a way to access the contract class manager config from transaction
             // executor.
             let txs = txs.to_vec();
             std::thread::scope(|s| {

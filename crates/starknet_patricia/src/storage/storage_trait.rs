@@ -31,7 +31,7 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
-// TODO(Aviv, 17/07/2024); Split between Storage prefix representation (trait) and node
+// TODO(Aviv, 17/07/2024): Split between Storage prefix representation (trait) and node
 // specific implementation (enum).
 #[derive(Clone, Debug)]
 pub enum StarknetPrefix {
