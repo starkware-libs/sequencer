@@ -10,6 +10,7 @@ use starknet_api::core::ChainId;
 use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
+use crate::network_manager::test_utils::TEST_METRICS_PREFIX;
 use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
 use crate::peer_manager::PeerManagerConfig;
 use crate::sqmr;
@@ -49,7 +50,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
 fn create_network_manager(
     swarm: Swarm<MixedBehaviour>,
 ) -> GenericNetworkManager<Swarm<MixedBehaviour>> {
-    GenericNetworkManager::generic_new(swarm, None)
+    GenericNetworkManager::generic_new(swarm, None, TEST_METRICS_PREFIX)
 }
 
 const BUFFER_SIZE: usize = 100;

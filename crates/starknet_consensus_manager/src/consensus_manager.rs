@@ -24,6 +24,8 @@ use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
 
+const CONSENSUS_NETWORK_METRICS_PREFIX: &str = "consensus";
+
 #[derive(Clone)]
 pub struct ConsensusManager {
     pub config: ConsensusManagerConfig,
@@ -50,7 +52,11 @@ impl ConsensusManager {
             return std::future::pending().await;
         }
 
-        let mut network_manager = NetworkManager::new(self.config.network_config.clone(), None);
+        let mut network_manager = NetworkManager::new(
+            self.config.network_config.clone(),
+            None,
+            CONSENSUS_NETWORK_METRICS_PREFIX,
+        );
 
         let proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(
