@@ -32,7 +32,7 @@ use starknet_api::core::{
 };
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff as StarknetApiThinStateDiff};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     EventContent,
@@ -138,6 +138,7 @@ use super::{
 use crate::api::{BlockHashOrNumber, JsonRpcServerTrait, Tag};
 use crate::pending::client_pending_data_to_execution_pending_data;
 use crate::syncing_state::{get_last_synced_block, SyncStatus, SyncingState};
+use crate::v0_8::state::ThinStateDiff;
 use crate::version_config::VERSION_0_8 as VERSION;
 use crate::{
     get_block_status,
@@ -501,11 +502,13 @@ impl JsonRpcServer for JsonRpcServerImpl {
         // the computation of state diff commitment.
         thin_state_diff.storage_diffs.retain(|_k, v| !v.is_empty());
 
+        let state_diff =
+            self.convert_thin_state_diff(thin_state_diff, block_id, block_number).await?;
         Ok(StateUpdate::AcceptedStateUpdate(AcceptedStateUpdate {
             block_hash: header.block_hash,
             new_root: header.new_root,
             old_root,
-            state_diff: thin_state_diff.into(),
+            state_diff,
         }))
     }
 
@@ -631,28 +634,9 @@ impl JsonRpcServer for JsonRpcServerImpl {
         block_id: BlockId,
         contract_address: ContractAddress,
     ) -> RpcResult<ClassHash> {
-        let txn = self.storage_reader.begin_ro_txn().map_err(internal_server_error)?;
-
-        let maybe_pending_deployed_contracts_and_replaced_classes =
-            if let BlockId::Tag(Tag::Pending) = block_id {
-                let pending_state_diff =
-                    read_pending_data(&self.pending_data, &txn).await?.state_update.state_diff;
-                Some((pending_state_diff.deployed_contracts, pending_state_diff.replaced_classes))
-            } else {
-                None
-            };
-
-        let block_number = get_accepted_block_number(&txn, block_id)?;
-        let state_number = StateNumber::unchecked_right_after_block(block_number);
-        execution_utils::get_class_hash_at(
-            &txn,
-            state_number,
-            // This map converts &(T, S) to (&T, &S).
-            maybe_pending_deployed_contracts_and_replaced_classes.as_ref().map(|t| (&t.0, &t.1)),
-            contract_address,
-        )
-        .map_err(internal_server_error)?
-        .ok_or_else(|| ErrorObjectOwned::from(CONTRACT_NOT_FOUND))
+        self.maybe_get_class_hash_at(block_id, contract_address)
+            .await?
+            .ok_or_else(|| ErrorObjectOwned::from(CONTRACT_NOT_FOUND))
     }
 
     #[instrument(skip(self), level = "debug", err, ret)]
@@ -1091,17 +1075,21 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         block_not_reverted_validator.validate(&self.storage_reader)?;
 
-        Ok(simulation_results
-            .into_iter()
-            .map(|simulation_output| SimulatedTransaction {
-                transaction_trace: (
-                    simulation_output.transaction_trace,
+        let mut res = vec![];
+        for simulation_output in simulation_results {
+            let state_diff = self
+                .convert_thin_state_diff(
                     simulation_output.induced_state_diff,
+                    block_id,
+                    block_number,
                 )
-                    .into(),
+                .await?;
+            res.push(SimulatedTransaction {
+                transaction_trace: (simulation_output.transaction_trace, state_diff).into(),
                 fee_estimation: simulation_output.fee_estimation,
-            })
-            .collect())
+            });
+        }
+        Ok(res)
     }
 
     #[instrument(skip(self), level = "debug", err)]
@@ -1219,6 +1207,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         let chain_id = self.chain_id.clone();
         let reader = self.storage_reader.clone();
 
+        let is_pending = maybe_pending_data.is_some();
         let mut simulation_results = tokio::task::spawn_blocking(move || {
             exec_simulate_transactions(
                 executable_transactions,
@@ -1242,7 +1231,16 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         let simulation_result =
             simulation_results.pop().expect("Should have transaction exeuction result");
-        Ok((simulation_result.transaction_trace, simulation_result.induced_state_diff).into())
+
+        let block_id = if is_pending {
+            BlockId::Tag(Tag::Pending)
+        } else {
+            BlockId::HashOrNumber(BlockHashOrNumber::Number(block_number))
+        };
+        let state_diff = self
+            .convert_thin_state_diff(simulation_result.induced_state_diff, block_id, block_number)
+            .await?;
+        Ok((simulation_result.transaction_trace, state_diff).into())
     }
 
     #[instrument(skip(self), level = "debug", err)]
@@ -1356,18 +1354,23 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         block_not_reverted_validator.validate(&self.storage_reader)?;
 
-        Ok(simulation_results
-            .into_iter()
-            .zip(transaction_hashes)
-            .map(|(simulation_output, transaction_hash)| TransactionTraceWithHash {
-                transaction_hash,
-                trace_root: (
-                    simulation_output.transaction_trace,
+        let mut res = vec![];
+        for (simulation_output, transaction_hash) in
+            simulation_results.into_iter().zip(transaction_hashes)
+        {
+            let state_diff = self
+                .convert_thin_state_diff(
                     simulation_output.induced_state_diff,
+                    block_id,
+                    block_number,
                 )
-                    .into(),
-            })
-            .collect())
+                .await?;
+            res.push(TransactionTraceWithHash {
+                transaction_hash,
+                trace_root: (simulation_output.transaction_trace, state_diff).into(),
+            });
+        }
+        Ok(res)
     }
 
     #[instrument(skip(self, message), level = "debug", err)]
@@ -1583,6 +1586,69 @@ impl JsonRpcServerImpl {
             header,
             transactions: get_transactions(&txn, block_number)?,
         })
+    }
+
+    async fn maybe_get_class_hash_at(
+        &self,
+        block_id: BlockId,
+        contract_address: ContractAddress,
+    ) -> RpcResult<Option<ClassHash>> {
+        let txn = self.storage_reader.begin_ro_txn().map_err(internal_server_error)?;
+
+        let maybe_pending_deployed_contracts_and_replaced_classes =
+            if let BlockId::Tag(Tag::Pending) = block_id {
+                let pending_state_diff =
+                    read_pending_data(&self.pending_data, &txn).await?.state_update.state_diff;
+                Some((pending_state_diff.deployed_contracts, pending_state_diff.replaced_classes))
+            } else {
+                None
+            };
+
+        let block_number = get_accepted_block_number(&txn, block_id)?;
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        execution_utils::get_class_hash_at(
+            &txn,
+            state_number,
+            // This map converts &(T, S) to (&T, &S).
+            maybe_pending_deployed_contracts_and_replaced_classes.as_ref().map(|t| (&t.0, &t.1)),
+            contract_address,
+        )
+        .map_err(internal_server_error)
+    }
+
+    async fn is_deployed(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> RpcResult<bool> {
+        let block_id = BlockId::HashOrNumber(BlockHashOrNumber::Number(block_number));
+        Ok(self.maybe_get_class_hash_at(block_id, contract_address).await?.is_some())
+    }
+
+    async fn convert_thin_state_diff(
+        &self,
+        mut thin_state_diff: StarknetApiThinStateDiff,
+        // TODO(AlonH): Remove the `block_id` parameter once we don't have pending blocks.
+        block_id: BlockId,
+        block_number: BlockNumber,
+    ) -> RpcResult<ThinStateDiff> {
+        let prev_block_number = match block_id {
+            BlockId::Tag(Tag::Pending) => Some(block_number),
+            _ => block_number.prev(),
+        };
+        let mut replaced_classes = vec![];
+        for (&address, &class_hash) in thin_state_diff.deployed_contracts.iter() {
+            // Check if the class was replaced.
+            if let Some(prev_block_number) = prev_block_number {
+                if self.is_deployed(prev_block_number, address).await? {
+                    replaced_classes.push((address, class_hash));
+                }
+            }
+        }
+        replaced_classes.iter().for_each(|(address, _)| {
+            thin_state_diff.deployed_contracts.swap_remove(address);
+        });
+        Ok(ThinStateDiff::from(thin_state_diff, replaced_classes))
     }
 }
 
