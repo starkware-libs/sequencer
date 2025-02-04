@@ -30,6 +30,10 @@ pub struct ConsensusConfig {
     /// The duration (seconds) between sync attempts.
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub sync_retry_interval: Duration,
+    /// How many heights in the future should we cache.
+    pub future_height_limit: u32,
+    /// How many rounds in the future should we cache.
+    pub future_round_limit: u32,
 }
 
 impl SerializeConfig for ConsensusConfig {
@@ -53,6 +57,18 @@ impl SerializeConfig for ConsensusConfig {
                 "The duration (seconds) between sync attempts.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "future_height_limit",
+                &self.future_height_limit,
+                "How many heights in the future should we cache.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "future_round_limit",
+                &self.future_round_limit,
+                "How many rounds in the future should we cache.",
+                ParamPrivacyInput::Public,
+            ),
         ]);
         config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
         config
@@ -66,6 +82,8 @@ impl Default for ConsensusConfig {
             startup_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
+            future_height_limit: 10,
+            future_round_limit: 10,
         }
     }
 }
