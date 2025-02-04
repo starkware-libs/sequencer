@@ -25,6 +25,7 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::GasCosts;
 use crate::execution::call_info::{MessageToL1, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
@@ -40,7 +41,6 @@ use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_G
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
-use crate::versioned_constants::GasCosts;
 
 pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
 pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";

@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -36,7 +37,6 @@ use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::usize_from_u64;
-use crate::versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
 #[path = "entry_point_test.rs"]

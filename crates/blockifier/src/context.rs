@@ -12,6 +12,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::BouncerConfig;
 use crate::execution::call_info::CallInfo;
 use crate::transaction::objects::{
@@ -20,7 +21,6 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::versioned_constants::VersionedConstants;
 
 #[derive(Clone, Debug)]
 pub struct TransactionContext {

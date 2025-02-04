@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use blockifier::blockifier::block::validated_gas_prices;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::state::cached_state::CommitmentStateDiff;
-use blockifier::versioned_constants::VersionedConstants;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use pyo3::FromPyObject;

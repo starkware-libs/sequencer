@@ -6,6 +6,7 @@ use starknet_api::transaction::L2ToL1Payload;
 use starknet_api::{class_hash, contract_address, storage_key};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -19,7 +20,6 @@ use crate::execution::call_info::{
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;
-use crate::versioned_constants::VersionedConstants;
 
 #[derive(Debug, Default)]
 pub struct TestExecutionSummary {

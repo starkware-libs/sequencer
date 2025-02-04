@@ -22,6 +22,7 @@ use starknet_api::transaction::fields::{
 };
 
 use crate::blockifier::block::validated_gas_prices;
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::BlockContext;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
@@ -36,7 +37,6 @@ use crate::transaction::test_utils::{
     l1_resource_bounds,
 };
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::VersionedConstants;
 
 #[rstest]
 fn test_simple_get_vm_resource_usage(

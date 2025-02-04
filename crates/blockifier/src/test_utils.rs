@@ -45,6 +45,7 @@ use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
@@ -54,7 +55,6 @@ use crate::fee::resources::{StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u64_from_usize};
-use crate::versioned_constants::VersionedConstants;
 // Class hashes.
 // TODO(Adi, 15/01/2023): Remove and compute the class hash corresponding to the ERC20 contract in
 // starkgate once we use the real ERC20 contract.

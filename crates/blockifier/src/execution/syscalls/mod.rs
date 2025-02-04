@@ -21,6 +21,7 @@ use self::hint_processor::{
     SyscallExecutionError,
     SyscallHintProcessor,
 };
+use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -31,7 +32,6 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
-use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
 mod secp;
