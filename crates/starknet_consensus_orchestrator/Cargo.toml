@@ -28,7 +28,6 @@ starknet_class_manager_types.workspace = true
 starknet_consensus.workspace = true
 starknet_infra_utils.workspace = true
 starknet_state_sync_types = { workspace = true, features = ["testing"] }
-thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true

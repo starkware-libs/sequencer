@@ -18,6 +18,7 @@ pub mod execution_utils;
 pub mod hash;
 pub mod rpc_transaction;
 pub mod serde_utils;
+pub mod starknet_versioned_constants;
 pub mod state;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
