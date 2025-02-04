@@ -84,7 +84,7 @@ impl ConsensusManager {
                 error!("Failed to get height from batcher: {:?}", e);
                 ConsensusError::Other("Failed to get height from batcher".to_string())
             })?;
-        let active_height = if self.config.consensus_config.start_height == observer_height {
+        let active_height = if self.config.immediate_active_height == observer_height {
             // Setting `start_height` is only used to enable consensus starting immediately without
             // observing the first height. This means consensus may return to a height
             // it has already voted on, risking equivocation. This is only safe to do if we
@@ -110,7 +110,7 @@ impl ConsensusManager {
             active_height,
             observer_height,
             self.config.consensus_config.validator_id,
-            self.config.consensus_config.consensus_delay,
+            self.config.consensus_config.startup_delay,
             self.config.consensus_config.timeouts.clone(),
             self.config.consensus_config.sync_retry_interval,
             votes_broadcast_channels.into(),
