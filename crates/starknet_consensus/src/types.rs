@@ -40,6 +40,10 @@ pub struct ContextConfig {
     pub num_validators: u64,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
+    /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
+    pub block_timestamp_window: u64,
+    /// The data availability mode, true: Blob, false: Calldata.
+    pub l1_da_mode: bool,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -63,13 +67,32 @@ impl SerializeConfig for ContextConfig {
                 "The chain id of the Starknet chain.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "block_timestamp_window",
+                &self.block_timestamp_window,
+                "Maximum allowed deviation (seconds) of a proposed block's timestamp from the \
+                 current time.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_da_mode",
+                &self.l1_da_mode,
+                "The data availability mode, true: Blob, false: Calldata.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
 
 impl Default for ContextConfig {
     fn default() -> Self {
-        Self { batcher_build_buffer: 100, num_validators: 1, chain_id: ChainId::Mainnet }
+        Self {
+            batcher_build_buffer: 100,
+            num_validators: 1,
+            chain_id: ChainId::Mainnet,
+            block_timestamp_window: 1,
+            l1_da_mode: true,
+        }
     }
 }
 

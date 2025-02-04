@@ -150,6 +150,9 @@ pub struct SequencerConsensusContext {
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
     l2_gas_price: u64,
+    l1_da_mode: L1DataAvailabilityMode,
+    block_timestamp_window: u64,
+    last_block_timestamp: Option<u64>,
 }
 
 impl SequencerConsensusContext {
@@ -163,6 +166,11 @@ impl SequencerConsensusContext {
         cende_ambassador: Arc<dyn CendeContext>,
     ) -> Self {
         let num_validators = config.num_validators;
+        let l1_da_mode = if config.l1_da_mode {
+            L1DataAvailabilityMode::Blob
+        } else {
+            L1DataAvailabilityMode::Calldata
+        };
         Self {
             transaction_converter: TransactionConverter::new(
                 class_manager_client,
@@ -184,6 +192,9 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             cende_ambassador,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
+            l1_da_mode,
+            block_timestamp_window: config.block_timestamp_window,
+            last_block_timestamp: None,
         }
     }
 
@@ -222,6 +233,7 @@ impl ConsensusContext for SequencerConsensusContext {
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
         let (proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         self.outbound_proposal_sender
             .send((stream_id, proposal_receiver))
@@ -236,6 +248,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 build_proposal(
                     timeout,
                     proposal_init,
+                    l1_da_mode,
                     proposal_sender,
                     fin_sender,
                     batcher,
@@ -292,6 +305,8 @@ impl ConsensusContext for SequencerConsensusContext {
                     timeout,
                     content_receiver,
                     fin_sender,
+                    self.block_timestamp_window,
+                    self.last_block_timestamp,
                 )
                 .await;
                 fin_receiver
@@ -418,6 +433,9 @@ impl ConsensusContext for SequencerConsensusContext {
             l2_gas_used.0,
             VersionedConstants::latest_constants().max_block_size / 2,
         );
+        self.last_block_timestamp = Some(
+            chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64"),
+        );
 
         Ok(())
     }
@@ -472,11 +490,21 @@ impl ConsensusContext for SequencerConsensusContext {
         let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
             return;
         };
-        self.validate_current_round_proposal(height, validator, timeout, content, fin_sender).await;
+        self.validate_current_round_proposal(
+            height,
+            validator,
+            timeout,
+            content,
+            fin_sender,
+            self.block_timestamp_window,
+            self.last_block_timestamp,
+        )
+        .await;
     }
 }
 
 impl SequencerConsensusContext {
+    #[allow(clippy::too_many_arguments)]
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
@@ -484,6 +512,8 @@ impl SequencerConsensusContext {
         timeout: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
+        block_timestamp_window: u64,
+        last_block_timestamp: Option<u64>,
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
@@ -492,7 +522,6 @@ impl SequencerConsensusContext {
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        let gas_prices = self.gas_prices();
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
 
@@ -502,14 +531,14 @@ impl SequencerConsensusContext {
                     proposal_id,
                     batcher.as_ref(),
                     height,
-                    proposer,
                     timeout,
                     valid_proposals,
                     content_receiver,
                     fin_sender,
                     cancel_token_clone,
-                    gas_prices,
                     transaction_converter,
+                    block_timestamp_window,
+                    last_block_timestamp,
                 )
                 .await
             }
@@ -533,6 +562,7 @@ impl SequencerConsensusContext {
 async fn build_proposal(
     timeout: Duration,
     proposal_init: ProposalInit,
+    l1_da_mode: L1DataAvailabilityMode,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
@@ -542,8 +572,15 @@ async fn build_proposal(
     gas_prices: GasPrices,
     transaction_converter: TransactionConverter,
 ) {
-    let block_info =
-        initialize_build(proposal_id, &proposal_init, timeout, batcher.as_ref(), gas_prices).await;
+    let block_info = initialize_build(
+        proposal_id,
+        &proposal_init,
+        l1_da_mode,
+        timeout,
+        batcher.as_ref(),
+        gas_prices,
+    )
+    .await;
     proposal_sender
         .send(ProposalPart::Init(proposal_init))
         .await
@@ -581,6 +618,7 @@ async fn build_proposal(
 async fn initialize_build(
     proposal_id: ProposalId,
     proposal_init: &ProposalInit,
+    l1_da_mode: L1DataAvailabilityMode,
     timeout: Duration,
     batcher: &dyn BatcherClient,
     gas_prices: GasPrices,
@@ -593,7 +631,7 @@ async fn initialize_build(
         height: proposal_init.height,
         timestamp: now.timestamp().try_into().expect("Failed to convert timestamp"),
         builder: proposal_init.proposer,
-        l1_da_mode: L1DataAvailabilityMode::Blob,
+        l1_da_mode,
         l2_gas_price_fri: gas_prices.strk_gas_prices.l2_gas_price.get().0,
         l1_gas_price_wei: gas_prices.eth_gas_prices.l1_gas_price.get().0,
         l1_data_gas_price_wei: gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
@@ -708,19 +746,65 @@ async fn validate_proposal(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     height: BlockNumber,
-    proposer: ValidatorId,
     timeout: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     mut content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
     cancel_token: CancellationToken,
-    gas_prices: GasPrices,
     transaction_converter: TransactionConverter,
+    block_timestamp_window: u64,
+    last_block_timestamp: Option<u64>,
 ) {
-    initiate_validation(batcher, proposal_id, height, proposer, timeout, gas_prices).await;
-
     let mut content = Vec::new();
     let deadline = tokio::time::Instant::now() + timeout;
+    // Validating first proposal part, it should be fin in case this is an empty proposal,
+    // or block info.
+    tokio::select! {
+        _ = cancel_token.cancelled() => {
+            warn!("Proposal interrupted");
+            return;
+        }
+        _ = tokio::time::sleep_until(deadline) => {
+            warn!("Validation timed out.");
+            return;
+        }
+        proposal_part = content_receiver.next() => {
+            match proposal_part {
+                None => {
+                    warn!("Failed to receive proposal content");
+                    return;
+                }
+                Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
+                    warn!("Received an empty proposal.");
+                    // TODO(Asmaa): Check the correct value for an empty block commitment.
+                    if fin_sender
+                        .send((BlockHash::default(), ProposalFin { proposal_commitment: id }))
+                        .is_err()
+                    {
+                        // Consensus may exit early (e.g. sync).
+                        warn!("Failed to send proposal content ids");
+                    }
+                    return;
+                }
+                Some(ProposalPart::BlockInfo(block_info)) => {
+                    initiate_validation(
+                        batcher,
+                        block_info,
+                        proposal_id,
+                        height,
+                        timeout,
+                        block_timestamp_window,
+                        last_block_timestamp,
+                    )
+                    .await;
+                }
+                _ => {
+                    panic!("Unexpected proposal part: {proposal_part:?}");
+                }
+            }
+        }
+    };
+    // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = cancel_token.cancelled() => {
@@ -773,16 +857,42 @@ async fn validate_proposal(
 
 async fn initiate_validation(
     batcher: &dyn BatcherClient,
+    block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     height: BlockNumber,
-    proposer: ValidatorId,
     timeout: Duration,
-    gas_prices: GasPrices,
+    block_timestamp_window: u64,
+    last_block_timestamp: Option<u64>,
 ) {
-    // Initiate the validation.
+    // TODO(Asmaa): Validate the rest of the block info.
+    assert!(
+        block_info.height == height
+            && (block_info.timestamp >= last_block_timestamp.unwrap_or(0)
+                && block_info.timestamp <= block_info.timestamp + block_timestamp_window),
+        "Invalid block info."
+    );
     let chrono_timeout = chrono::Duration::from_std(timeout + VALIDATE_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
+    let gas_prices = GasPrices {
+        eth_gas_prices: GasPriceVector {
+            l1_gas_price: NonzeroGasPrice::new(GasPrice(block_info.l1_gas_price_wei)).unwrap(),
+            l1_data_gas_price: NonzeroGasPrice::new(GasPrice(block_info.l1_data_gas_price_wei))
+                .unwrap(),
+            l2_gas_price: NonzeroGasPrice::MIN,
+        },
+        strk_gas_prices: GasPriceVector {
+            l1_gas_price: NonzeroGasPrice::new(GasPrice(
+                block_info.l1_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
+            ))
+            .unwrap(),
+            l1_data_gas_price: NonzeroGasPrice::new(GasPrice(
+                block_info.l1_data_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
+            ))
+            .unwrap(),
+            l2_gas_price: NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap(),
+        },
+    };
     let input = ValidateBlockInput {
         proposal_id,
         deadline: now + chrono_timeout,
@@ -793,13 +903,11 @@ async fn initiate_validation(
         }),
         // TODO(Dan, Matan): Fill block info.
         block_info: starknet_api::block::BlockInfo {
-            block_number: height,
+            block_number: block_info.height,
+            block_timestamp: BlockTimestamp(block_info.timestamp),
+            sequencer_address: block_info.builder,
             gas_prices,
-            block_timestamp: BlockTimestamp(
-                now.timestamp().try_into().expect("Failed to convert timestamp"),
-            ),
-            use_kzg_da: true,
-            sequencer_address: proposer,
+            use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
         },
     };
     debug!("Initiating validate proposal: input={input:?}");
@@ -841,10 +949,6 @@ async fn handle_proposal_part(
                 "Finished validating proposal."
             );
             HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
-        }
-        Some(ProposalPart::BlockInfo(_)) => {
-            // TODO(Asmaa): Validate the block info.
-            HandledProposalPart::Continue
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
