@@ -5,7 +5,7 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::{contract_address, nonce};
@@ -672,18 +672,17 @@ fn test_fee_escalation_invalid_replacement(
 }
 
 #[rstest]
-// TODO(Elin): add a test staring with low nonzero values, too check they are not accidentally
-// zeroed.
 fn test_fee_escalation_valid_replacement_minimum_values() {
     // Setup.
-    let tx = tx!(tip: 0, max_l2_gas_price: 0);
+    let min_gas_price = 1;
+    let tx = tx!(tip: 0, max_l2_gas_price: min_gas_price);
     let mempool = MempoolContentBuilder::new()
         .with_pool([tx])
         .with_fee_escalation_percentage(0) // Always replace.
         .build_into_mempool();
 
     // Test and assert: replacement with maximum values.
-    let valid_replacement_input = add_tx_input!(tip: 0, max_l2_gas_price: 0);
+    let valid_replacement_input = add_tx_input!(tip: 0, max_l2_gas_price: min_gas_price);
     add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
@@ -763,7 +762,7 @@ fn test_update_gas_price_threshold_increases_threshold() {
         .into();
 
     // Test.
-    mempool.update_gas_price(GasPrice(101));
+    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(101)));
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new()
@@ -789,7 +788,7 @@ fn test_update_gas_price_threshold_decreases_threshold() {
         .into();
 
     // Test.
-    mempool.update_gas_price(GasPrice(90));
+    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(90)));
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new()

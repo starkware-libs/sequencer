@@ -8,6 +8,12 @@ use crate::batcher_types::ProposalId;
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BatcherError {
     #[error(
+        "There is already an active proposal {}, can't start proposal {}.",
+        active_proposal_id,
+        new_proposal_id
+    )]
+    AnotherProposalInProgress { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
+    #[error(
         "Decision reached for proposal with ID {proposal_id} that does not exist (might still \
          being executed)."
     )]
@@ -22,12 +28,8 @@ pub enum BatcherError {
     MissingRetrospectiveBlockHash,
     #[error("Attempt to start proposal with no active height.")]
     NoActiveHeight,
-    #[error(
-        "There is already an active proposal {}, can't start proposal {}.",
-        active_proposal_id,
-        new_proposal_id
-    )]
-    AnotherProposalInProgress { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
+    #[error("Proposal aborted.")]
+    ProposalAborted,
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
     #[error(
@@ -37,8 +39,6 @@ pub enum BatcherError {
     ProposalAlreadyFinished { proposal_id: ProposalId },
     #[error("Proposal failed.")]
     ProposalFailed,
-    #[error("Proposal aborted.")]
-    ProposalAborted,
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
     #[error(
