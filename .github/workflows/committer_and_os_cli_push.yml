@@ -7,15 +7,6 @@ on:
       - main-v[0-9].**
     tags:
       - v[0-9].**
-    paths:
-      - '.github/workflows/committer_and_os_cli_push.yml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/starknet_committer_and_os_cli/**'
-      - 'crates/starknet_api/**'
-      - 'crates/starknet_committer/**'
-      - 'crates/starknet_patricia/**'
-      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
