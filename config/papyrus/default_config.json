@@ -60,7 +60,7 @@
     "privacy": "Public"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
@@ -195,7 +195,7 @@
     "value": true
   },
   "network.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -290,7 +290,7 @@
     "value": 50
   },
   "rpc.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -355,7 +355,7 @@
     "value": "https://alpha-mainnet.starknet.io/"
   },
   "storage.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
