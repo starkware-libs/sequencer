@@ -8,6 +8,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
+use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -15,7 +16,6 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;

@@ -12,13 +12,13 @@ use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionInfo};
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "fee_test.rs"]

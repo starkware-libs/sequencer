@@ -26,6 +26,7 @@ use starknet_api::{calldata, felt, nonce, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, StorageAccessTracker};
 use crate::execution::common_hints::ExecutionMode;
@@ -47,7 +48,6 @@ use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
-use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 #[test]

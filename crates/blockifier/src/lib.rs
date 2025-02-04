@@ -6,6 +6,7 @@
 
 pub mod abi;
 pub mod blockifier;
+pub mod blockifier_versioned_constants;
 pub mod bouncer;
 pub mod concurrency;
 pub mod context;
@@ -16,4 +17,3 @@ pub mod state;
 pub mod test_utils;
 pub mod transaction;
 pub mod utils;
-pub mod versioned_constants;

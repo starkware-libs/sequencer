@@ -10,9 +10,9 @@ use starknet_api::block::{
 use starknet_api::state::StorageKey;
 
 use crate::abi::constants;
+use crate::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateResult};
-use crate::versioned_constants::{OsConstants, VersionedConstants};
 
 #[cfg(test)]
 #[path = "block_test.rs"]

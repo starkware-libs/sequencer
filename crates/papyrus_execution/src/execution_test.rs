@@ -3,11 +3,11 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
 use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
-use blockifier::versioned_constants::VersionedConstants;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
