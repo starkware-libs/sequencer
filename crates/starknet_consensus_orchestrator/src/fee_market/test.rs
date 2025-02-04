@@ -1,7 +1,8 @@
 use std::sync::LazyLock;
 
+use starknet_api::starknet_versioned_constants::VersionedConstants;
+
 use crate::fee_market::calculate_next_base_gas_price;
-use crate::versioned_constants::VersionedConstants;
 
 static VERSIONED_CONSTANTS: LazyLock<&VersionedConstants> =
     LazyLock::new(VersionedConstants::latest_constants);

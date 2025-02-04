@@ -1,7 +1,8 @@
 use serde::Deserialize;
-use starknet_api::block::StarknetVersion;
-use starknet_api::define_versioned_constants;
 use thiserror::Error;
+
+use crate::block::StarknetVersion;
+use crate::define_versioned_constants;
 
 /// Versioned constants for the Consensus.
 #[derive(Clone, Deserialize)]

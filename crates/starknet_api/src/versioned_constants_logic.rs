@@ -19,25 +19,25 @@ macro_rules! define_versioned_constants {
 
         impl $struct_name {
             /// Gets the path to the JSON file for the specified Starknet version.
-            pub fn path_to_json(version: &starknet_api::block::StarknetVersion) -> Result<&'static str, $error_type> {
+            pub fn path_to_json(version: $crate::block::StarknetVersion) -> Result<&'static str, $error_type> {
                 match version {
-                    $(starknet_api::block::StarknetVersion::$variant => Ok($path_to_json),)*
-                    _ => Err($error_type::InvalidStarknetVersion(*version)),
+                    $($crate::block::StarknetVersion::$variant => Ok($path_to_json),)*
+                    _ => Err($error_type::InvalidStarknetVersion(version)),
                 }
             }
 
             /// Gets the constants that shipped with the current version of the Starknet.
             /// To use custom constants, initialize the struct from a file using `from_path`.
             pub fn latest_constants() -> &'static Self {
-                Self::get(&starknet_api::block::StarknetVersion::LATEST)
+                Self::get(&$crate::block::StarknetVersion::LATEST)
                     .expect("Latest version should support VC.")
             }
 
             /// Gets the constants for the specified Starknet version.
-            pub fn get(version: &starknet_api::block::StarknetVersion) -> Result<&'static Self, $error_type> {
+            pub fn get(version: &$crate::block::StarknetVersion) -> Result<&'static Self, $error_type> {
                 match version {
                     $(
-                        starknet_api::block::StarknetVersion::$variant => Ok(
+                        $crate::block::StarknetVersion::$variant => Ok(
                             & paste::paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
                         ),
                     )*
@@ -52,7 +52,7 @@ macro_rules! define_versioned_constants {
             let path_to_json: std::path::PathBuf = [
                 starknet_infra_utils::compile_time_cargo_manifest_dir!(),
                 "src".into(),
-                $struct_name::path_to_json(&latest_variant)
+                $struct_name::path_to_json(latest_variant)
                     .expect("Latest variant should have a path to json.").into()
             ].iter().collect();
             std::fs::read_to_string(path_to_json.clone())
