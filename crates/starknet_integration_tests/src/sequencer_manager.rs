@@ -234,9 +234,8 @@ impl IntegrationTestManager {
 
     /// Returns the sequencer index of the first running node and its monitoring client.
     fn running_batcher_monitoring_client(&self) -> (usize, &MonitoringClient) {
-        let (sequencer_idx, running_node) =
-            self.running_nodes.iter().next().expect("At least one node should be running.");
-        (*sequencer_idx, running_node.node_setup.batcher_monitoring_client())
+        let running_node = self.running_nodes.get(&0).expect("Node 0 should be running.");
+        (0, running_node.node_setup.batcher_monitoring_client())
     }
 
     pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
