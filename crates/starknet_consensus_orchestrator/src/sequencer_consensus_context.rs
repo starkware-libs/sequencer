@@ -422,13 +422,6 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
-        let transactions = futures::future::join_all(transactions.into_iter().map(|tx| {
-                self.transaction_converter.convert_internal_consensus_tx_to_executable_tx(tx)
-            }))
-            .await
-            .into_iter().collect::<Result<Vec<_>, _>>()
-            // TODO(shahak): Do not panic here.
-            .expect("Failed converting transactions for cende");
         self.cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 // TODO(dvir): use the real `BlockInfo` when consensus will save it.
@@ -442,7 +435,9 @@ impl ConsensusContext for SequencerConsensusContext {
                 execution_infos: central_objects.execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
             })
-            .await;
+            .await
+            // TODO(shahak): Do not panic here.
+            .expect("Cende ambassador failed converting transactions.");
 
         self.l2_gas_price = calculate_next_base_gas_price(
             self.l2_gas_price,

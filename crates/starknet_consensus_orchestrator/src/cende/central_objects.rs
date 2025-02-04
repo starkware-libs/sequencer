@@ -1,6 +1,6 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
-use assert_matches::assert_matches;
 use blockifier::abi::constants as abi_constants;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::execution::call_info::CallInfo;
@@ -18,7 +18,8 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -27,18 +28,19 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{
-    AccountTransaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    L1HandlerTransaction,
-    Transaction,
-};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
-use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::rpc_transaction::{
+    InternalRpcDeclareTransactionV3,
+    InternalRpcDeployAccountTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
@@ -46,10 +48,12 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionSignature,
-    ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
+
+use super::{CendeAmbassadorError, CendeAmbassadorResult};
 
 /// Central objects are required in order to continue processing the block by the centralized
 /// Python pipline. These objects are written to the Aerospike database and are used by python
@@ -60,7 +64,10 @@ mod central_objects_test;
 
 pub type CentralBouncerWeights = BouncerWeights;
 pub type CentralCompressedStateDiff = CentralStateDiff;
+pub type CentralSierraContractClass = SierraContractClass;
 pub type CentralCasmContractClass = CasmContractClass;
+pub type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
+pub type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct CentralResourcePrice {
@@ -159,15 +166,12 @@ pub struct CentralResourceBounds {
     pub l1_data_gas: ResourceBounds,
 }
 
-impl From<ValidResourceBounds> for CentralResourceBounds {
-    fn from(resource_bounds: ValidResourceBounds) -> CentralResourceBounds {
-        match resource_bounds {
-            ValidResourceBounds::AllResources(resource_bounds) => CentralResourceBounds {
-                l1_gas: resource_bounds.l1_gas,
-                l2_gas: resource_bounds.l2_gas,
-                l1_data_gas: resource_bounds.l1_data_gas,
-            },
-            _ => panic!("Transaction should be V3"),
+impl From<AllResourceBounds> for CentralResourceBounds {
+    fn from(resource_bounds: AllResourceBounds) -> CentralResourceBounds {
+        CentralResourceBounds {
+            l1_gas: resource_bounds.l1_gas,
+            l2_gas: resource_bounds.l2_gas,
+            l1_data_gas: resource_bounds.l1_data_gas,
         }
     }
 }
@@ -187,21 +191,23 @@ pub struct CentralInvokeTransactionV3 {
     pub hash_value: TransactionHash,
 }
 
-impl From<InvokeTransaction> for CentralInvokeTransactionV3 {
-    fn from(tx: InvokeTransaction) -> CentralInvokeTransactionV3 {
-        assert_matches!(tx.tx, starknet_api::transaction::InvokeTransaction::V3(_));
+impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV3 {
+    fn from(
+        (tx, hash_value): (RpcInvokeTransaction, TransactionHash),
+    ) -> CentralInvokeTransactionV3 {
+        let RpcInvokeTransaction::V3(tx) = tx;
         CentralInvokeTransactionV3 {
-            sender_address: tx.sender_address(),
-            calldata: tx.calldata(),
-            signature: tx.signature(),
-            nonce: tx.nonce(),
-            resource_bounds: tx.resource_bounds().into(),
-            tip: tx.tip(),
-            paymaster_data: tx.paymaster_data(),
-            account_deployment_data: tx.account_deployment_data(),
-            nonce_data_availability_mode: tx.nonce_data_availability_mode().into(),
-            fee_data_availability_mode: tx.fee_data_availability_mode().into(),
-            hash_value: tx.tx_hash(),
+            sender_address: tx.sender_address,
+            calldata: tx.calldata,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            resource_bounds: tx.resource_bounds.into(),
+            tip: tx.tip,
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
+            fee_data_availability_mode: tx.fee_data_availability_mode.into(),
+            hash_value,
         }
     }
 }
@@ -229,21 +235,28 @@ pub struct CentralDeployAccountTransactionV3 {
     pub hash_value: TransactionHash,
 }
 
-impl From<DeployAccountTransaction> for CentralDeployAccountTransactionV3 {
-    fn from(tx: DeployAccountTransaction) -> CentralDeployAccountTransactionV3 {
+impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
+    for CentralDeployAccountTransactionV3
+{
+    fn from(
+        (tx, hash_value): (InternalRpcDeployAccountTransaction, TransactionHash),
+    ) -> CentralDeployAccountTransactionV3 {
+        let sender_address = tx.contract_address;
+        let RpcDeployAccountTransaction::V3(tx) = tx.tx;
+
         CentralDeployAccountTransactionV3 {
-            resource_bounds: tx.resource_bounds().into(),
-            tip: tx.tip(),
-            signature: tx.signature(),
-            nonce: tx.nonce(),
-            class_hash: tx.class_hash(),
-            contract_address_salt: tx.contract_address_salt(),
-            constructor_calldata: tx.constructor_calldata(),
-            nonce_data_availability_mode: tx.nonce_data_availability_mode().into(),
-            fee_data_availability_mode: tx.fee_data_availability_mode().into(),
-            paymaster_data: tx.paymaster_data(),
-            hash_value: tx.tx_hash(),
-            sender_address: tx.contract_address,
+            resource_bounds: tx.resource_bounds.into(),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            class_hash: tx.class_hash,
+            contract_address_salt: tx.contract_address_salt,
+            constructor_calldata: tx.constructor_calldata,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
+            fee_data_availability_mode: tx.fee_data_availability_mode.into(),
+            paymaster_data: tx.paymaster_data,
+            hash_value,
+            sender_address,
         }
     }
 }
@@ -278,25 +291,37 @@ pub struct CentralDeclareTransactionV3 {
     pub hash_value: TransactionHash,
 }
 
-impl From<DeclareTransaction> for CentralDeclareTransactionV3 {
-    fn from(tx: DeclareTransaction) -> CentralDeclareTransactionV3 {
-        CentralDeclareTransactionV3 {
-            resource_bounds: tx.resource_bounds().into(),
-            tip: tx.tip(),
-            signature: tx.signature(),
-            nonce: tx.nonce(),
-            class_hash: tx.class_hash(),
-            compiled_class_hash: tx.compiled_class_hash(),
-            sender_address: tx.sender_address(),
-            nonce_data_availability_mode: tx.nonce_data_availability_mode().into(),
-            fee_data_availability_mode: tx.fee_data_availability_mode().into(),
-            paymaster_data: tx.paymaster_data(),
-            account_deployment_data: tx.account_deployment_data(),
-            sierra_program_size: tx.class_info.sierra_program_length,
-            abi_size: tx.class_info.abi_length,
-            sierra_version: into_string_tuple(tx.class_info.sierra_version),
-            hash_value: tx.tx_hash,
-        }
+impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, TransactionHash)>
+    for CentralDeclareTransactionV3
+{
+    type Error = CendeAmbassadorError;
+
+    fn try_from(
+        (tx, sierra, hash_value): (
+            InternalRpcDeclareTransactionV3,
+            &SierraContractClass,
+            TransactionHash,
+        ),
+    ) -> CendeAmbassadorResult<CentralDeclareTransactionV3> {
+        Ok(CentralDeclareTransactionV3 {
+            resource_bounds: tx.resource_bounds.into(),
+            tip: tx.tip,
+            signature: tx.signature,
+            nonce: tx.nonce,
+            class_hash: tx.class_hash,
+            compiled_class_hash: tx.compiled_class_hash,
+            sender_address: tx.sender_address,
+            nonce_data_availability_mode: tx.nonce_data_availability_mode.into(),
+            fee_data_availability_mode: tx.fee_data_availability_mode.into(),
+            paymaster_data: tx.paymaster_data,
+            account_deployment_data: tx.account_deployment_data,
+            sierra_program_size: sierra.sierra_program.len(),
+            abi_size: sierra.abi.len(),
+            sierra_version: into_string_tuple(SierraVersion::from_str(
+                &sierra.contract_class_version,
+            )?),
+            hash_value,
+        })
     }
 }
 
@@ -343,21 +368,37 @@ pub enum CentralTransaction {
     L1Handler(CentralL1HandlerTransaction),
 }
 
-impl From<Transaction> for CentralTransaction {
-    fn from(tx: Transaction) -> CentralTransaction {
+impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for CentralTransaction {
+    type Error = CendeAmbassadorError;
+
+    fn try_from(
+        (tx, sierra): (InternalConsensusTransaction, Option<&SierraContractClass>),
+    ) -> CendeAmbassadorResult<CentralTransaction> {
         match tx {
-            Transaction::Account(AccountTransaction::Invoke(invoke_tx)) => {
-                CentralTransaction::Invoke(CentralInvokeTransaction::V3(invoke_tx.into()))
+            InternalConsensusTransaction::RpcTransaction(rpc_transaction) => {
+                match rpc_transaction.tx {
+                    InternalRpcTransactionWithoutTxHash::Invoke(invoke_tx) => {
+                        Ok(CentralTransaction::Invoke(CentralInvokeTransaction::V3(
+                            (invoke_tx, rpc_transaction.tx_hash).into(),
+                        )))
+                    }
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_tx) => {
+                        Ok(CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
+                            (deploy_tx, rpc_transaction.tx_hash).into(),
+                        )))
+                    }
+                    InternalRpcTransactionWithoutTxHash::Declare(declare_tx) => {
+                        let sierra = sierra
+                            .expect("Sierra contract class is required for declare_tx conversion");
+                        Ok(CentralTransaction::Declare(CentralDeclareTransaction::V3(
+                            (declare_tx, sierra, rpc_transaction.tx_hash).try_into()?,
+                        )))
+                    }
+                }
             }
-            Transaction::Account(AccountTransaction::DeployAccount(deploy_tx)) => {
-                CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
-                    deploy_tx.into(),
-                ))
+            InternalConsensusTransaction::L1Handler(l1_handler_tx) => {
+                Ok(CentralTransaction::L1Handler(l1_handler_tx.into()))
             }
-            Transaction::Account(AccountTransaction::Declare(declare_tx)) => {
-                CentralTransaction::Declare(CentralDeclareTransaction::V3(declare_tx.into()))
-            }
-            Transaction::L1Handler(l1_handler) => CentralTransaction::L1Handler(l1_handler.into()),
         }
     }
 }
@@ -365,23 +406,26 @@ impl From<Transaction> for CentralTransaction {
 #[derive(Debug, PartialEq, Serialize)]
 pub struct CentralTransactionWritten {
     pub tx: CentralTransaction,
+    // The timestamp is required for monitoring data, we use the block timestamp for this.
     pub time_created: u64,
 }
 
-impl From<(Transaction, u64)> for CentralTransactionWritten {
-    fn from((tx, timestamp): (Transaction, u64)) -> CentralTransactionWritten {
-        CentralTransactionWritten {
-            tx: CentralTransaction::from(tx),
-            // This timestamp is required for metrics data. Yoni and Noa approved that it is
-            // sufficient to take the time during the batcher run.
+impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>, u64)>
+    for CentralTransactionWritten
+{
+    type Error = CendeAmbassadorError;
+
+    fn try_from(
+        (tx, sierra, timestamp): (InternalConsensusTransaction, Option<&SierraContractClass>, u64),
+    ) -> CendeAmbassadorResult<CentralTransactionWritten> {
+        Ok(CentralTransactionWritten {
+            tx: CentralTransaction::try_from((tx, sierra))?,
             time_created: timestamp,
-        }
+        })
     }
 }
 
 // Converts the CasmContractClass into a format that serializes into the python object.
-// TODO(Yael): remove allow dead code once used
-#[allow(dead_code)]
 pub fn casm_contract_class_central_format(
     compiled_class_hash: CasmContractClass,
 ) -> CentralCasmContractClass {
@@ -444,4 +488,62 @@ impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
             actual_resources: tx_execution_info.receipt.into(),
         }
     }
+}
+
+// TODO(Yael): Consider implementing this logic as part of the TransactionConverter.
+async fn process_transaction(
+    class_manager: SharedClassManagerClient,
+    tx: InternalConsensusTransaction,
+    timestamp: u64,
+) -> CendeAmbassadorResult<(
+    CentralTransactionWritten,
+    Option<CentralSierraContractClassEntry>,
+    Option<CentralCasmContractClassEntry>,
+)> {
+    if let InternalConsensusTransaction::RpcTransaction(rpc_transaction) = &tx {
+        if let InternalRpcTransactionWithoutTxHash::Declare(declare_tx) = &rpc_transaction.tx {
+            let class_hash = declare_tx.class_hash;
+
+            let ContractClass::V1(casm) = class_manager.get_executable(class_hash).await? else {
+                panic!("Only V1 contract classes are supported");
+            };
+
+            let casm = (declare_tx.compiled_class_hash, casm_contract_class_central_format(casm.0));
+            let sierra = (class_hash, class_manager.get_sierra(class_hash).await?);
+
+            return Ok((
+                CentralTransactionWritten::try_from((tx, Some(&sierra.1), timestamp))?,
+                Some(sierra),
+                Some(casm),
+            ));
+        }
+    }
+
+    Ok((CentralTransactionWritten::try_from((tx, None, timestamp))?, None, None))
+}
+
+pub(crate) async fn process_transactions(
+    class_manager: SharedClassManagerClient,
+    txs: Vec<InternalConsensusTransaction>,
+    timestamp: u64,
+) -> CendeAmbassadorResult<(
+    Vec<CentralTransactionWritten>,
+    Vec<CentralSierraContractClassEntry>,
+    Vec<CentralCasmContractClassEntry>,
+)> {
+    let mut contract_classes = Vec::new();
+    let mut compiled_classes = Vec::new();
+    let mut central_transactions = Vec::new();
+    for tx in txs {
+        let (central_transaction, contract_class, compiled_class) =
+            process_transaction(class_manager.clone(), tx, timestamp).await?;
+        if let Some(contract_class) = contract_class {
+            contract_classes.push(contract_class);
+        }
+        if let Some(compiled_class) = compiled_class {
+            compiled_classes.push(compiled_class);
+        }
+        central_transactions.push(central_transaction);
+    }
+    Ok((central_transactions, contract_classes, compiled_classes))
 }
