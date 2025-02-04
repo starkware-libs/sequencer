@@ -10915,7 +10915,6 @@ dependencies = [
 name = "starknet_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
- "assert_matches",
  "async-trait",
  "blockifier",
  "cairo-lang-casm",

@@ -25,13 +25,13 @@
         "paymaster_data": [],
         "class_hash": "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056",
         "compiled_class_hash": "0x1",
-        "sierra_program_size": 8844,
+        "sierra_program_size": 3,
         "sierra_version": [
+            "0x0",
             "0x1",
-            "0x6",
             "0x0"
         ],
-        "abi_size": 11237,
+        "abi_size": 9,
         "account_deployment_data": [],
         "type": "DECLARE"
     },
