@@ -198,6 +198,18 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 }
 
+impl Clone for CachedClassStorage<FsClassStorage> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            classes: self.classes.clone(),
+            executable_classes: self.executable_classes.clone(),
+            executable_class_hashes: self.executable_class_hashes.clone(),
+            deprecated_classes: self.deprecated_classes.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ClassHashStorageError {
     #[error("Class of hash: {class_id} not found")]
@@ -209,6 +221,7 @@ pub enum ClassHashStorageError {
 type ClassHashStorageResult<T> = Result<T, ClassHashStorageError>;
 type LockedWriter<'a> = MutexGuard<'a, papyrus_storage::StorageWriter>;
 
+#[derive(Clone)]
 pub struct ClassHashStorage {
     reader: papyrus_storage::StorageReader,
     writer: Arc<Mutex<papyrus_storage::StorageWriter>>,
@@ -267,6 +280,7 @@ impl ClassHashStorage {
 
 type FsClassStorageResult<T> = Result<T, FsClassStorageError>;
 
+#[derive(Clone)]
 pub struct FsClassStorage {
     persistent_root: PathBuf,
     class_hash_storage: ClassHashStorage,
