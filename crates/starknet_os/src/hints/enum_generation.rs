@@ -1,7 +1,8 @@
 #[macro_export]
 macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
-        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter,
+            strum_macros::Display))]
         pub enum $enum_name {
             $($hint_name),+
         }

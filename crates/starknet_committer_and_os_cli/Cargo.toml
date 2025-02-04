@@ -16,18 +16,22 @@ pretty_assertions.workspace = true
 tempfile.workspace = true
 
 [dependencies]
+cairo-vm = {version="2.0.0-rc4", features = ["cairo-0-secp-hints", "cairo-0-data-availability-hints"]} # Should be moved under `testing` feature, when it exists.
 clap = { workspace = true, features = ["cargo", "derive"] }
 derive_more.workspace = true
 ethnum.workspace = true
 indexmap.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
+regex.workspace = true # Should be moved under `testing` feature, when it exists.
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
+# Should be moved under `testing` feature, when it exists.
+starknet_os = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
