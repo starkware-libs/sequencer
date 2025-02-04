@@ -7,6 +7,7 @@ use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
 use starknet_sequencer_infra::component_client::{
     ClientError,
@@ -66,6 +67,24 @@ impl TryFrom<ContractClass> for RawExecutableClass {
 }
 
 impl TryFrom<RawExecutableClass> for ContractClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
+        serde_json::from_value(class.0)
+    }
+}
+
+// TODO(Elin): consider separating to `RawDeprecatedExecutableClass` once class manager's deprecated
+// class API is stable.`
+impl TryFrom<DeprecatedClass> for RawExecutableClass {
+    type Error = serde_json::Error;
+
+    fn try_from(class: DeprecatedClass) -> Result<Self, Self::Error> {
+        Ok(Self(serde_json::to_value(class)?))
+    }
+}
+
+impl TryFrom<RawExecutableClass> for DeprecatedClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
