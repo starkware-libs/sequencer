@@ -117,7 +117,9 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
 
     let local_client = LocalConcurrentComponentClient::new(tx_a);
 
-    let mut concurrent_local_server = ConcurrentLocalComponentServer::new(component, rx_a);
+    let max_concurrency = 10;
+    let mut concurrent_local_server =
+        ConcurrentLocalComponentServer::new(component, rx_a, max_concurrency);
     task::spawn(async move {
         let _ = concurrent_local_server.start().await;
     });

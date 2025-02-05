@@ -147,6 +147,7 @@ macro_rules! create_remote_server {
 /// * $component - The component that will be taken to initialize the server if the execution mode
 ///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
 /// * $receiver - receiver side for the server.
+/// * $max_concurrency - the maximum number of concurrent requests the server will handle.
 /// * $server_type - the type of the server, one of string literals REGULAR_LOCAL_SERVER or
 ///   CONCURRENT_LOCAL_SERVER.
 ///
@@ -164,6 +165,7 @@ macro_rules! create_remote_server {
 ///     &config.components.batcher.execution_mode,
 ///     components.batcher,
 ///     communication.take_batcher_rx(),
+///     config.components.batcher.max_concurrency,
 ///     REGULAR_LOCAL_SERVER,
 /// );
 /// match batcher_server {
@@ -172,7 +174,7 @@ macro_rules! create_remote_server {
 /// }
 /// ```
 macro_rules! create_local_server {
-    ($execution_mode:expr, $component:expr, $receiver:expr, $server_type:tt) => {
+    ($execution_mode:expr, $component:expr, $receiver:expr, $max_concurrency:expr, $server_type:tt) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -181,6 +183,7 @@ macro_rules! create_local_server {
                         .take()
                         .expect(concat!(stringify!($component), " is not initialized.")),
                     $receiver,
+                    $max_concurrency,
                 )))
             }
             ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -247,48 +250,56 @@ fn create_local_servers(
         &config.components.batcher.execution_mode,
         &mut components.batcher,
         communication.take_batcher_rx(),
+        config.components.batcher.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
     let class_manager_server = create_local_server!(
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
         communication.take_class_manager_rx(),
+        config.components.class_manager.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
     let gateway_server = create_local_server!(
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
+        config.components.gateway.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
     let l1_provider_server = create_local_server!(
         &config.components.l1_provider.execution_mode,
         &mut components.l1_provider,
         communication.take_l1_provider_rx(),
+        config.components.l1_provider.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
         &mut components.mempool,
         communication.take_mempool_rx(),
+        config.components.mempool.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
     let mempool_p2p_propagator_server = create_local_server!(
         &config.components.mempool_p2p.execution_mode,
         &mut components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx(),
+        config.components.mempool_p2p.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
     let sierra_compiler_server = create_local_server!(
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
+        config.components.sierra_compiler.max_concurrency,
         CONCURRENT_LOCAL_SERVER
     );
     let state_sync_server = create_local_server!(
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
+        config.components.state_sync.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
 
