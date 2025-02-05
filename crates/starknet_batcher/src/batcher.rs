@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use futures::executor::block_on;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -735,9 +736,8 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     }
 
     fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
-        let (txn, reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
-        trace!("Reverted state diff: {:#?}", reverted_state_diff);
-        txn.commit()
+        block_on(apollo_reverts::revert_block(self, height));
+        Ok(())
     }
 }
 

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_reverts::RevertConfig;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
@@ -34,7 +35,10 @@ async fn revert_batcher_blocks() {
     }
 
     let manager_config = ConsensusManagerConfig {
-        revert_up_to_and_including: Some(REVERT_UP_TO_AND_INCLUDING_HEIGHT),
+        revert_config: RevertConfig {
+            revert_up_to_and_including: REVERT_UP_TO_AND_INCLUDING_HEIGHT,
+            revert_on: true,
+        },
         ..Default::default()
     };
 
@@ -50,11 +54,11 @@ async fn revert_batcher_blocks() {
 }
 
 #[rstest]
-#[should_panic(expected = "Batcher height marker 10 is not larger than the target height marker \
-                           10. No reverts are needed.")]
+#[should_panic(expected = "Batcher current block 10 is not larger than the target block 10. No \
+                           reverts are needed.")]
 #[case::equal_block(BATCHER_HEIGHT)]
-#[should_panic(expected = "Batcher height marker 10 is not larger than the target height marker \
-                           11. No reverts are needed.")]
+#[should_panic(expected = "Batcher current block 10 is not larger than the target block 11. No \
+                           reverts are needed.")]
 #[case::larger_block(BATCHER_HEIGHT.unchecked_next())]
 #[tokio::test]
 async fn revert_with_invalid_height_panics(#[case] revert_up_to_and_including: BlockNumber) {
@@ -62,7 +66,7 @@ async fn revert_with_invalid_height_panics(#[case] revert_up_to_and_including: B
     mock_batcher.expect_get_height().returning(|| Ok(GetHeightResponse { height: BATCHER_HEIGHT }));
 
     let consensus_manager_config = ConsensusManagerConfig {
-        revert_up_to_and_including: Some(revert_up_to_and_including),
+        revert_config: RevertConfig { revert_up_to_and_including, revert_on: true },
         ..Default::default()
     };
 
@@ -78,8 +82,7 @@ async fn revert_with_invalid_height_panics(#[case] revert_up_to_and_including: B
 
 #[tokio::test]
 async fn no_reverts_without_config() {
-    let manager_config =
-        ConsensusManagerConfig { revert_up_to_and_including: None, ..Default::default() };
+    let manager_config = ConsensusManagerConfig { ..Default::default() };
 
     let mut mock_batcher = MockBatcherClient::new();
     mock_batcher.expect_revert_block().times(0).returning(|_| Ok(()));

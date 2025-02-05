@@ -20,6 +20,7 @@ const Configuration = {
     rules: {
         'scope-empty': [2, 'never'],
         'scope-enum': [2, 'always', [
+            "apollo_reverts",
             'blockifier',
             'blockifier_reexecution',
             'blockifier_test_utils',
