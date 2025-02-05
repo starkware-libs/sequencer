@@ -32,8 +32,6 @@ pub mod test_utils;
 #[path = "compile_test.rs"]
 pub mod compile_test;
 
-// TODO(Elin): SierraCompilerResult defined here and in the starknet_sierra_types_type crate. Should
-// be consolidated.
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 
 pub trait SierraToCasmCompiler: Send + Sync {

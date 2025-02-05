@@ -7,8 +7,8 @@ use starknet_sierra_multicompile_types::{
     SharedSierraCompilerClient,
 };
 
-use crate::class_storage::{CachedClassStorage, ClassHashStorage, ClassStorage, FsClassStorage};
-use crate::config::{ClassHashStorageConfig, ClassManagerConfig};
+use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
+use crate::config::{ClassManagerConfig, FsClassManagerConfig};
 use crate::FsClassManager;
 
 #[cfg(test)]
@@ -75,20 +75,15 @@ impl<S: ClassStorage> ClassManager<S> {
     }
 }
 
-// TODO(Elin): rewrite this function
 pub fn create_class_manager(
-    config: ClassManagerConfig,
+    config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
 ) -> FsClassManager {
-    let persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
-    let storage_config = ClassHashStorageConfig {
-        path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
-        ..Default::default()
-    };
-    let class_hash_storage = ClassHashStorage::new(storage_config).unwrap();
-    let fs_class_storage = FsClassStorage::new(persistent_root, class_hash_storage);
+    let FsClassManagerConfig { class_manager_config, class_storage_config } = config;
+    let fs_class_storage =
+        FsClassStorage::new(class_storage_config).expect("Failed to create class storage.");
+    let class_manager = ClassManager::new(class_manager_config, compiler_client, fs_class_storage);
 
-    let class_manager = ClassManager::new(config, compiler_client, fs_class_storage);
     FsClassManager(class_manager)
 }
 
