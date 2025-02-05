@@ -1,8 +1,17 @@
-/// The number of peers this node is connected to.
-pub const PAPYRUS_NUM_CONNECTED_PEERS: &str = "papyrus_num_connected_peers";
+use starknet_sequencer_metrics::metrics::MetricGauge;
+pub struct NetworkManagerMetrics {
+    pub num_connected_peers: MetricGauge,
+    pub num_active_inbound_sessions: MetricGauge,
+    pub num_active_outbound_sessions: MetricGauge,
+}
 
-/// The number of active sessions this peer has in which it sends data.
-pub const PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS: &str = "papyrus_num_active_inbound_sessions";
-
-/// The number of active sessions this peer has in which it requests data.
-pub const PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS: &str = "papyrus_num_active_outbound_sessions";
+impl NetworkManagerMetrics {
+    pub fn register(&self) {
+        let num_connected_peers_metric = self.num_connected_peers.register();
+        num_connected_peers_metric.set(0f64);
+        let num_active_inbound_sessions_metric = self.num_active_inbound_sessions.register();
+        num_active_inbound_sessions_metric.set(0f64);
+        let num_active_outbound_sessions_metric = self.num_active_outbound_sessions.register();
+        num_active_outbound_sessions_metric.set(0f64);
+    }
+}
