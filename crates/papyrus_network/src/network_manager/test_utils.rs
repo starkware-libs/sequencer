@@ -190,7 +190,7 @@ where
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let mut network_manager = NetworkManager::new(network_config, None);
+    let mut network_manager = NetworkManager::new(network_config, None, None);
     let broadcast_channels =
         network_manager.register_broadcast_topic(topic.clone(), BUFFER_SIZE).unwrap();
 
