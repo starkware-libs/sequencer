@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "crates/apollo_reverts",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/mempool_test_utils",
@@ -82,6 +83,7 @@ alloy-sol-types = "0.8.3"
 alloy-transport = "0.3.5"
 alloy-transport-http = "0.3.5"
 anyhow = "1.0.44"
+apollo_reverts = { path = "crates/apollo_reverts", version = "0.0.0" }
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
 ark-secp256k1 = "0.4.0"
