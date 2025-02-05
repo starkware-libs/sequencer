@@ -8034,6 +8034,7 @@ dependencies = [
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
+ "futures",
  "indexmap 2.7.0",
  "papyrus_storage",
  "rstest",
