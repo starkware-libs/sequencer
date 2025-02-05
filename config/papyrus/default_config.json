@@ -227,7 +227,7 @@
   "network.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",
-    "value": 31536000
+    "value": 1
   },
   "network.peer_manager_config.unstable_timeout_millis": {
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",

@@ -1,7 +1,6 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
-snapshot_kind: text
 ---
 {
   "base_layer.node_url": {
@@ -268,7 +267,7 @@ snapshot_kind: text
   "network.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "value": {
-      "$serde_json::private::Number": "31536000"
+      "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
