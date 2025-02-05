@@ -10,6 +10,7 @@ description = "Library for computing and updating Patricia trees."
 workspace = true
 
 [features]
+deserialize = []
 testing = []
 
 [dev-dependencies]
