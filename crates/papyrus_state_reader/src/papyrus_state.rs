@@ -1,3 +1,4 @@
+#[cfg(feature = "cairo_native")]
 use std::sync::Arc;
 
 use blockifier::execution::contract_class::{
@@ -12,16 +13,17 @@ use blockifier::state::global_cache::CachedCairoNative;
 use blockifier::state::global_cache::CachedCasm;
 use blockifier::state::state_api::{StateReader, StateResult};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use futures::executor::block_on;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
-use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]
@@ -34,7 +36,8 @@ pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
     contract_class_manager: ContractClassManager,
-    _class_reader: SharedClassManagerClient,
+    // Reader is `None` for reader invoked through `native_blockifier`.
+    class_reader: Option<SharedClassManagerClient>,
 }
 
 impl PapyrusReader {
@@ -43,9 +46,13 @@ impl PapyrusReader {
         latest_block: BlockNumber,
         contract_class_manager: ContractClassManager,
     ) -> Self {
-        // TODO(Elin): integrate class manager client.
-        let _class_reader = Arc::new(EmptyClassManagerClient);
-        Self { storage_reader, latest_block, contract_class_manager, _class_reader }
+        Self {
+            storage_reader,
+            latest_block,
+            contract_class_manager,
+            // TODO(Elin): integrate class manager client.
+            class_reader: None,
+        }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
@@ -144,28 +151,51 @@ impl PapyrusReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<(CasmContractClass, SierraContractClass)> {
-        let (option_casm, option_sierra) = self
-            .reader()?
-            .get_casm_and_sierra(&class_hash)
+        let Some(class_reader) = &self.class_reader else {
+            let (option_casm, option_sierra) = self
+                .reader()?
+                .get_casm_and_sierra(&class_hash)
+                .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            let (casm, sierra) = couple_casm_and_sierra(class_hash, option_casm, option_sierra)?
+                .expect(
+                    "Should be able to fetch a Casm and Sierra class if its definition exists,
+                    database is inconsistent.",
+                );
+
+            return Ok((casm, sierra));
+        };
+
+        let casm = block_on(class_reader.get_executable(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
-        let (casm, sierra) = couple_casm_and_sierra(class_hash, option_casm, option_sierra)?
-            .expect(
-                "Should be able to fetch a Casm and Sierra class if its definition exists,
-                database is inconsistent.",
-            );
+        let ContractClass::V1((casm, _sierra_version)) = casm else {
+            panic!("Class hash {class_hash} originated from a Cairo 1 contract.");
+        };
+        // TODO(Elin): consider not reading Sierra if compilation is disabled.
+        let sierra = block_on(class_reader.get_sierra(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
         Ok((casm, sierra))
     }
 
     fn read_deprecated_casm(&self, class_hash: ClassHash) -> StateResult<Option<DeprecatedClass>> {
-        let state_number = StateNumber(self.latest_block);
-        let option_casm = self
-            .reader()?
-            .get_state_reader()
-            .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        let Some(class_reader) = &self.class_reader else {
+            let state_number = StateNumber(self.latest_block);
+            let option_casm = self
+                .reader()?
+                .get_state_reader()
+                .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
+                .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
-        Ok(option_casm)
+            return Ok(option_casm);
+        };
+
+        let casm = block_on(class_reader.get_executable(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        let ContractClass::V0(casm) = casm else {
+            panic!("Class hash {class_hash} originated from a Cairo 0 contract.");
+        };
+
+        Ok(Some(casm))
     }
 }
 
