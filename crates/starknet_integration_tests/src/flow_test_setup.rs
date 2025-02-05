@@ -146,17 +146,20 @@ impl FlowSequencerSetup {
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
-        mut state_sync_config: StateSyncConfig,
+        state_sync_config: StateSyncConfig,
     ) -> Self {
-        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+        let StorageTestSetup {
+            batcher_storage_config,
+            batcher_storage_handle,
+            state_sync_storage_config,
+            state_sync_storage_handle,
+        } = StorageTestSetup::new(accounts, &chain_info);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         let component_config = ComponentConfig::default();
-
-        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Explicitly avoid collecting metrics in the monitoring endpoint; metrics are collected
         // using a global recorder, which fails when being set multiple times in the same
@@ -172,7 +175,8 @@ impl FlowSequencerSetup {
             &mut available_ports,
             NodeExecutionId::new(node_index, 0),
             chain_info,
-            storage_for_test.batcher_storage_config,
+            batcher_storage_config,
+            state_sync_storage_config,
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
@@ -195,8 +199,8 @@ impl FlowSequencerSetup {
         Self {
             node_index,
             add_tx_http_client,
-            batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
-            state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
+            batcher_storage_file_handle: batcher_storage_handle,
+            state_sync_storage_file_handle: state_sync_storage_handle,
             node_config,
             monitoring_client,
             _clients,

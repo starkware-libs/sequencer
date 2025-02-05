@@ -130,7 +130,8 @@ pub fn create_node_config(
     node_execution_id: NodeExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
-    state_sync_config: StateSyncConfig,
+    state_sync_storage_config: StorageConfig,
+    mut state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
@@ -144,6 +145,7 @@ pub fn create_node_config(
     let gateway_config = create_gateway_config(chain_info.clone());
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
+    state_sync_config.storage_config = state_sync_storage_config;
 
     (
         SequencerNodeConfig {
