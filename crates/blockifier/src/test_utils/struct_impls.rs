@@ -263,6 +263,7 @@ impl NativeCompiledClassV1 {
         let executor = AotContractExecutor::new(
             &sierra_program,
             &sierra_contract_class.entry_points_by_type,
+            sierra_version.clone().into(),
             cairo_native::OptLevel::Default,
         )
         .expect("Cannot compile sierra into native");
