@@ -1,4 +1,4 @@
-use crate::toml_utils::{DependencyValue, LocalCrate, PackageEntryValue, ROOT_TOML};
+use toml_test_utils::{DependencyValue, LocalCrate, PackageEntryValue, ROOT_TOML};
 
 #[test]
 fn test_path_dependencies_are_members() {

@@ -16,9 +16,6 @@ fn main() {
 }
 
 const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.0-rc.1";
-#[cfg(feature = "cairo_native")]
-// TODO(Avi, 15/2/2025): Add test that checks the version of this constant is the workspace version.
-const REQUIRED_CAIRO_NATIVE_VERSION: &str = "v0.14.0-rc.0";
 
 /// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
 /// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
@@ -38,8 +35,8 @@ fn install_starknet_sierra_compile() {
 /// compilation is required.
 #[cfg(feature = "cairo_native")]
 fn install_starknet_native_compile() {
-    let binary_name = CAIRO_NATIVE_BINARY_NAME;
-    let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
+    let binary_name = NATIVE_COMPILE_BINARY_NAME;
+    let required_version = REQUIRED_NATIVE_COMPILE_VERSION;
 
     let repo_root_dir =
         starknet_infra_utils::path::project_path().expect("Should be able to get the project path");
