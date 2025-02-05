@@ -7,7 +7,12 @@ license-file.workspace = true
 description = "The Starknet OS."
 
 [features]
-deserialize = ["serde", "starknet_committer/deserialize", "starknet_patricia/deserialize"]
+deserialize = [
+  "blockifier/transaction_serde",
+  "serde",
+  "starknet_committer/deserialize",
+  "starknet_patricia/deserialize",
+]
 testing = ["dep:strum", "dep:strum_macros"]
 
 [dependencies]
