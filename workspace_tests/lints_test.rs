@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::toml_utils::{CrateCargoToml, LintValue, ROOT_TOML};
+use toml_test_utils::{CrateCargoToml, LintValue, ROOT_TOML};
 
 #[test]
 fn test_lints_section_exists() {

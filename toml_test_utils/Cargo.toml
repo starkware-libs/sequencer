@@ -1,0 +1,14 @@
+[package]
+name = "toml_test_utils"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Utilities for working with TOML files in tests."
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+toml.workspace = true
