@@ -10,6 +10,7 @@ description = "The Starknet OS."
 deserialize = [
   "blockifier/transaction_serde",
   "serde",
+  "starknet-types-core/serde",
   "starknet_committer/deserialize",
   "starknet_patricia/deserialize",
 ]
