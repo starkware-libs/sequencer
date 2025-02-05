@@ -17,7 +17,7 @@ impl ClassManager<FsClassStorage> {
 
         let cached_class_storage_config =
             CachedClassStorageConfig { class_cache_size: 10, deprecated_class_cache_size: 10 };
-        let config = ClassManagerConfig { cached_class_storage_config, ..Default::default() };
+        let config = ClassManagerConfig { cached_class_storage_config };
         let storage = FsClassStorage::new_for_testing();
 
         ClassManager::new(config, Arc::new(compiler), storage)

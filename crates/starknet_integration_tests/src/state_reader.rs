@@ -38,7 +38,7 @@ use starknet_api::test_utils::{
 };
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
-use starknet_class_manager::config::FsClassStorageConfig;
+use starknet_class_manager::config::{ClassHashStorageConfig, FsClassStorageConfig};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
@@ -81,16 +81,24 @@ impl StorageTestSetup {
             .build();
         create_test_state(&mut state_sync_storage_writer, chain_info, test_defined_accounts);
 
-        // TODO(Elin): move to proper config structs.
+        // TODO(Yair): restructure this.
         let persistent_root_handle = tempfile::tempdir().unwrap();
         let class_hash_storage_handle = tempfile::tempdir().unwrap();
+        let class_manager_storage_config = FsClassStorageConfig {
+            persistent_root: persistent_root_handle.path().to_path_buf(),
+            class_hash_storage_config: ClassHashStorageConfig {
+                path_prefix: class_hash_storage_handle.path().to_path_buf(),
+                enforce_file_exists: false,
+                max_size: 1 << 20, // 1MB.
+            },
+        };
 
         Self {
             batcher_storage_config,
             batcher_storage_handle,
             state_sync_storage_config,
             state_sync_storage_handle,
-            class_manager_storage_config: FsClassStorageConfig,
+            class_manager_storage_config,
             class_manager_storage_handles: (persistent_root_handle, class_hash_storage_handle),
         }
     }
