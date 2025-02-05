@@ -117,7 +117,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     let mut common_execution_config = generate_struct_pointer(
         "revert_config".to_owned(),
         &RevertConfig::default(),
-        set_pointing_param_paths(&["consensus_manager_config.revert_config"]),
+        set_pointing_param_paths(&[
+            "state_sync_config.revert_config",
+            "consensus_manager_config.revert_config",
+        ]),
     );
     pointers.append(&mut common_execution_config);
     pointers

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::result;
 
+use apollo_reverts::RevertConfig;
 use papyrus_config::dumping::{append_sub_config_name, ser_optional_sub_config, SerializeConfig};
 use papyrus_config::{ParamPath, SerializedParam};
 use papyrus_network::NetworkConfig;
@@ -27,19 +28,26 @@ pub struct StateSyncConfig {
     pub central_sync_client_config: Option<CentralSyncClientConfig>,
     #[validate]
     pub network_config: NetworkConfig,
+    #[validate]
+    pub revert_config: RevertConfig,
 }
 
 impl SerializeConfig for StateSyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        vec![
-            append_sub_config_name(self.storage_config.dump(), "storage_config"),
-            append_sub_config_name(self.network_config.dump(), "network_config"),
-            ser_optional_sub_config(&self.p2p_sync_client_config, "p2p_sync_client_config"),
-            ser_optional_sub_config(&self.central_sync_client_config, "central_sync_client_config"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
+        let mut config = BTreeMap::new();
+
+        config.extend(append_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
+        config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(ser_optional_sub_config(
+            &self.p2p_sync_client_config,
+            "p2p_sync_client_config",
+        ));
+        config.extend(ser_optional_sub_config(
+            &self.central_sync_client_config,
+            "central_sync_client_config",
+        ));
+        config
     }
 }
 
@@ -67,6 +75,7 @@ impl Default for StateSyncConfig {
             p2p_sync_client_config: Some(P2pSyncClientConfig::default()),
             central_sync_client_config: None,
             network_config: NetworkConfig { tcp_port: STATE_SYNC_TCP_PORT, ..Default::default() },
+            revert_config: RevertConfig::default(),
         }
     }
 }
