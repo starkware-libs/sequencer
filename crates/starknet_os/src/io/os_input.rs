@@ -24,6 +24,16 @@ pub struct CommitmentInfo {
     _commitment_facts: HashMap<HashOutput, Vec<Felt>>,
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+pub struct ContractClassComponentHashes {
+    _contract_class_version: Felt,
+    _external_functions_hash: HashOutput,
+    _l1_handlers_hash: HashOutput,
+    _constructors_hash: HashOutput,
+    _abi_hash: HashOutput,
+    _sierra_program_hash: HashOutput,
+}
+
 /// All input needed to initialize the execution helper.
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
@@ -37,6 +47,8 @@ pub struct StarknetOsInput {
     _chain_info: ChainInfo,
     _transactions: Vec<Transaction>,
     _tx_execution_infos: Vec<TransactionExecutionInfo>,
+    // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
+    _declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
     _prev_block_hash: BlockHash,
     _new_block_hash: BlockHash,
     // The block number and block hash of the (current_block_number - buffer) block, where
