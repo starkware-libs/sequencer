@@ -815,7 +815,8 @@ async fn revert_block() {
         .expect_revert_block()
         .times(1)
         .with(eq(LATEST_BLOCK_IN_STORAGE))
-        .returning(|_| Ok(()));
+        .returning(|_| ());
+
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let metrics = recorder.handle().render();

@@ -1,11 +1,7 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
-};
+use apollo_reverts::RevertConfig;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
@@ -24,7 +20,7 @@ pub struct ConsensusManagerConfig {
     #[validate]
     pub network_config: NetworkConfig,
     pub cende_config: CendeConfig,
-    pub revert_up_to_and_including: Option<BlockNumber>,
+    pub revert_config: RevertConfig,
     pub votes_topic: String,
     pub proposals_topic: String,
     pub broadcast_buffer_size: usize,
@@ -59,20 +55,11 @@ impl SerializeConfig for ConsensusManagerConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(ser_optional_param(
-            &self.revert_up_to_and_including,
-            // Use u64::MAX as a placeholder to prevent setting this value to
-            // a low block number by mistake, which will cause significant revert operations.
-            BlockNumber(u64::MAX),
-            "revert_up_to_and_including",
-            "The batcher will revert blocks up to this block number (including). Use this \
-             configurations carefully to prevent significant revert operations and data loss.",
-            ParamPrivacyInput::Private,
-        ));
         config.extend(append_sub_config_name(self.consensus_config.dump(), "consensus_config"));
         config.extend(append_sub_config_name(self.context_config.dump(), "context_config"));
         config.extend(append_sub_config_name(self.cende_config.dump(), "cende_config"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
+        config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
         config
     }
 }
@@ -84,7 +71,7 @@ impl Default for ConsensusManagerConfig {
             context_config: ContextConfig::default(),
             cende_config: CendeConfig::default(),
             network_config: NetworkConfig::default(),
-            revert_up_to_and_including: None,
+            revert_config: RevertConfig::default(),
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
             broadcast_buffer_size: 10000,
