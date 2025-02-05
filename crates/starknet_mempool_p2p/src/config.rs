@@ -6,6 +6,8 @@ use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+const MEMPOOL_TCP_PORT: u16 = 11111;
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolP2pConfig {
     #[validate]
@@ -15,7 +17,10 @@ pub struct MempoolP2pConfig {
 
 impl Default for MempoolP2pConfig {
     fn default() -> Self {
-        Self { network_config: NetworkConfig::default(), network_buffer_size: 10000 }
+        Self {
+            network_config: NetworkConfig { tcp_port: MEMPOOL_TCP_PORT, ..Default::default() },
+            network_buffer_size: 10000,
+        }
     }
 }
 

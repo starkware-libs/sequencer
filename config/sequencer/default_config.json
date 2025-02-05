@@ -1082,7 +1082,7 @@
   "mempool_p2p_config.network_config.tcp_port": {
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
-    "value": 10000
+    "value": 11111
   },
   "monitoring_endpoint_config.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring endpoint.",
