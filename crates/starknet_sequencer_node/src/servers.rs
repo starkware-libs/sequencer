@@ -98,6 +98,7 @@ pub struct SequencerNodeServers {
 ///   initialization if needed.
 /// * `$ip` - Remote component server binding address, default "0.0.0.0".
 /// * `$port` - Remote component server listening port.
+/// * `$max_concurrency` - the maximum number of concurrent connections the server will handle.
 ///
 /// # Returns
 ///
@@ -112,7 +113,8 @@ pub struct SequencerNodeServers {
 ///     &config.components.batcher.execution_mode,
 ///     || {clients.get_gateway_local_client()},
 ///     config.components.batcher.ip,
-///    config.components.batcher.port
+///     config.components.batcher.port,
+///     config.components.batcher.max_concurrency
 /// );
 /// match batcher_remote_server {
 ///     Some(server) => println!("Remote server created: {:?}", server),
@@ -121,13 +123,24 @@ pub struct SequencerNodeServers {
 /// ```
 #[macro_export]
 macro_rules! create_remote_server {
-    ($execution_mode:expr, $local_client_getter:expr, $url:expr, $port:expr) => {
+    (
+        $execution_mode:expr,
+        $local_client_getter:expr,
+        $url:expr,
+        $port:expr,
+        $max_concurrency:expr
+    ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client_getter()
                     .expect("Local client should be set for inbound remote connections.");
 
-                Some(Box::new(RemoteComponentServer::new(local_client, $url, $port)))
+                Some(Box::new(RemoteComponentServer::new(
+                    local_client,
+                    $url,
+                    $port,
+                    $max_concurrency,
+                )))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::Remote
@@ -354,49 +367,56 @@ pub fn create_remote_servers(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
         config.components.batcher.ip,
-        config.components.batcher.port
+        config.components.batcher.port,
+        config.components.batcher.max_concurrency
     );
 
     let class_manager_server = create_remote_server!(
         &config.components.class_manager.execution_mode,
         || { clients.get_class_manager_local_client() },
         config.components.class_manager.ip,
-        config.components.class_manager.port
+        config.components.class_manager.port,
+        config.components.class_manager.max_concurrency
     );
 
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
         config.components.gateway.ip,
-        config.components.gateway.port
+        config.components.gateway.port,
+        config.components.gateway.max_concurrency
     );
 
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
         config.components.l1_provider.ip,
-        config.components.l1_provider.port
+        config.components.l1_provider.port,
+        config.components.l1_provider.max_concurrency
     );
 
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
         config.components.mempool.ip,
-        config.components.mempool.port
+        config.components.mempool.port,
+        config.components.mempool.max_concurrency
     );
 
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
         config.components.mempool_p2p.ip,
-        config.components.mempool_p2p.port
+        config.components.mempool_p2p.port,
+        config.components.mempool_p2p.max_concurrency
     );
 
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
         config.components.state_sync.ip,
-        config.components.state_sync.port
+        config.components.state_sync.port,
+        config.components.state_sync.max_concurrency
     );
 
     RemoteServers {
