@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use apollo_reverts::revert_block;
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
@@ -650,6 +651,7 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
+    // This function will panic if there is a storage failure to revert the block.
     pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
         info!("Reverting block at height {}.", input.height);
         let height = self.get_height_from_storage()?.prev().ok_or(
@@ -671,10 +673,7 @@ impl Batcher {
             self.abort_active_height().await;
         }
 
-        self.storage_writer.revert_block(height).map_err(|err| {
-            error!("Failed to revert block at height {}: {}", height, err);
-            BatcherError::InternalError
-        })?;
+        self.storage_writer.revert_block(height);
         STORAGE_HEIGHT.decrement(1);
         Ok(())
     }
@@ -733,7 +732,7 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         state_diff: ThinStateDiff,
     ) -> papyrus_storage::StorageResult<()>;
 
-    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()>;
+    fn revert_block(&mut self, height: BlockNumber);
 }
 
 impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
@@ -746,10 +745,9 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
     }
 
-    fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
-        let (txn, reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
-        trace!("Reverted state diff: {:#?}", reverted_state_diff);
-        txn.commit()
+    // This function will panic if there is a storage failure to revert the block.
+    fn revert_block(&mut self, height: BlockNumber) {
+        revert_block(self, height);
     }
 }
 

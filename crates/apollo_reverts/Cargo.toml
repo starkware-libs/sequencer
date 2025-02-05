@@ -1,0 +1,18 @@
+[package]
+name = "apollo_reverts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+futures.workspace = true
+papyrus_config.workspace = true
+papyrus_storage.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+tracing.workspace = true
+validator.workspace = true

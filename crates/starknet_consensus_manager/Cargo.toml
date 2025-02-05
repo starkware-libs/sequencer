@@ -9,6 +9,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+apollo_reverts.workspace = true
 async-trait.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
