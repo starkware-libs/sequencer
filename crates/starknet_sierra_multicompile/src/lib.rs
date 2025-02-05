@@ -34,4 +34,7 @@ pub trait SierraToNativeCompiler: Send + Sync {
         &self,
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError>;
+
+    #[cfg(feature = "cairo_native")]
+    fn panic_on_compilation_failure(&self) -> bool;
 }

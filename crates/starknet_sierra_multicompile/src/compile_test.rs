@@ -8,30 +8,20 @@ use rstest::rstest;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
 use crate::command_line_compiler::CommandLineCompiler;
-use crate::config::{
-    SierraCompilationConfig,
-    DEFAULT_MAX_CASM_BYTECODE_SIZE,
-    DEFAULT_MAX_CPU_TIME,
-    DEFAULT_MAX_MEMORY_USAGE,
-    DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
-};
+use crate::config::SierraCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
 
-const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
-    max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
-    sierra_to_native_compiler_path: None,
-    max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
-    max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-};
-
 fn command_line_compiler() -> CommandLineCompiler {
-    CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
+    CommandLineCompiler::new(SierraCompilationConfig {
+        panic_on_compilation_failure: true,
+        ..SierraCompilationConfig::default()
+    })
 }
+
 fn get_test_contract() -> ContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Failed to set current dir.");
