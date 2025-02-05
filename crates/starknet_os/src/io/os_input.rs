@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::core::ContractAddress;
+use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
@@ -26,4 +28,6 @@ pub struct StarknetOsInput {
     _address_to_storage_commitment_info:
         HashMap<ContractAddress, CommitmentInfo<StarknetStorageValue>>,
     _contract_class_commitment_info: CommitmentInfo<CompiledClassHash>,
+    _deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    _compiled_classes: HashMap<ClassHash, CasmContractClass>,
 }
