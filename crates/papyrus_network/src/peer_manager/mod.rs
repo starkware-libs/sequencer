@@ -76,8 +76,8 @@ pub(crate) enum PeerManagerError {
 impl Default for PeerManagerConfig {
     fn default() -> Self {
         Self {
-            // 1 year.
-            malicious_timeout_seconds: Duration::from_secs(3600 * 24 * 365),
+            // TODO(shahak): Increase this once we're in a non-trusted setup.
+            malicious_timeout_seconds: Duration::from_secs(1),
             unstable_timeout_millis: Duration::from_millis(1000),
         }
     }
