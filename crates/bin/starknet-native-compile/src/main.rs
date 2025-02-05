@@ -6,7 +6,6 @@ use cairo_native::OptLevel;
 use clap::Parser;
 
 use crate::utils::load_sierra_program_from_file;
-
 mod utils;
 
 #[derive(Parser, Debug)]
@@ -24,20 +23,22 @@ fn main() {
     let path = args.path;
     let output = args.output;
 
-    let (contract_class, sierra_program) = load_sierra_program_from_file(&path);
+    let (contract_class, sierra_program, sierra_version) = load_sierra_program_from_file(&path);
 
     // TODO(Avi, 01/12/2024): Test different optimization levels for best performance.
-    let mut contract_executor = AotContractExecutor::new(
+    AotContractExecutor::new_into(
         &sierra_program,
         &contract_class.entry_points_by_type,
+        sierra_version.clone(),
+        output.clone(),
         OptLevel::default(),
     )
     .unwrap_or_else(|err| {
         eprintln!("Error compiling Sierra program: {}", err);
         process::exit(1);
-    });
-    contract_executor.save(output.clone()).unwrap_or_else(|err| {
-        eprintln!("Error saving compiled program: {}", err);
+    })
+    .unwrap_or_else(|| {
+        eprintln!("Failed to take lock on path {} ", output.display());
         process::exit(1);
     });
 }
