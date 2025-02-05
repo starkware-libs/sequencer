@@ -59,7 +59,7 @@ impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, Component
 }
 
 #[tokio::test]
-async fn test_setup() {
+async fn local_client_server() {
     let setup_value: ValueB = Felt::from(30);
     let expected_value: ValueA = setup_value;
 

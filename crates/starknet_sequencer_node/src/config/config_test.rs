@@ -73,7 +73,7 @@ const VALID_PORT: u16 = 8080;
     VALID_IP,
     VALID_PORT
 )]
-fn test_valid_component_execution_config(
+fn valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
     #[case] local_server_config: LocalServerConfig,
     #[case] remote_client_config: RemoteClientConfig,
@@ -108,7 +108,7 @@ fn remove_native_config(json: &mut serde_json::Value) {
 /// date. To update the default config file, run:
 /// cargo run --bin sequencer_dump_config -q
 #[test]
-fn test_default_config_file_is_up_to_date() {
+fn default_config_file_is_up_to_date() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     let mut from_default_config_file: serde_json::Value =
@@ -144,7 +144,7 @@ fn test_default_config_file_is_up_to_date() {
 
 /// Test that the default preset config file is up to date.
 #[test]
-fn test_default_preset_file_is_up_to_date() {
+fn default_preset_file_is_up_to_date() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     let from_default_preset_file: serde_json::Value =
@@ -165,7 +165,7 @@ fn test_default_preset_file_is_up_to_date() {
 
 /// Tests parsing a node config without additional args.
 #[test]
-fn test_config_parsing() {
+fn config_parsing() {
     let required_params = RequiredParams::create_for_testing();
     let args = create_test_config_load_args(required_params);
     let config = SequencerNodeConfig::load_and_process(args);
@@ -178,7 +178,7 @@ fn test_config_parsing() {
 /// Tests compatibility of the required parameter settings: required params (containing required
 /// pointer targets) and test util struct.
 #[test]
-fn test_required_params_setting() {
+fn required_params_setting() {
     // Load the default config file.
     let file =
         std::fs::File::open(resolve_project_relative_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
@@ -197,13 +197,13 @@ fn test_required_params_setting() {
 }
 
 #[test]
-fn test_validate_config_success() {
+fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
 }
 
 #[test]
-fn test_validate_batcher_config_failure() {
+fn validate_batcher_config_failure() {
     let config = SequencerNodeConfig {
         batcher_config: BatcherConfig {
             input_stream_content_buffer_size: 99,

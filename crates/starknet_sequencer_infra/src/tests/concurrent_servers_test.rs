@@ -182,14 +182,14 @@ async fn perform_concurrency_test(
 }
 
 #[tokio::test]
-async fn test_local_concurrent_server() {
+async fn local_concurrent_server() {
     let client = setup_concurrent_local_test().await;
 
     perform_concurrency_test(Box::new(client.clone()), Box::new(client)).await;
 }
 
 #[tokio::test]
-async fn test_remote_server_concurrency() {
+async fn remote_server_concurrency() {
     let client = setup_concurrent_remote_test().await;
 
     perform_concurrency_test(Box::new(client.clone()), Box::new(client)).await;

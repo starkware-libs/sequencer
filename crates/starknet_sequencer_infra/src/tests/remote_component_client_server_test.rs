@@ -199,7 +199,7 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
 }
 
 #[tokio::test]
-async fn test_proper_setup() {
+async fn proper_setup() {
     let setup_value: ValueB = Felt::from(90);
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
@@ -217,7 +217,7 @@ async fn test_proper_setup() {
 }
 
 #[tokio::test]
-async fn test_faulty_client_setup() {
+async fn faulty_client_setup() {
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     // Todo(uriel): Find a better way to pass expected value to the setup
@@ -252,7 +252,7 @@ async fn test_faulty_client_setup() {
 }
 
 #[tokio::test]
-async fn test_unconnected_server() {
+async fn unconnected_server() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let client_config = RemoteClientConfig::default();
     let client = ComponentAClient::new(client_config, &socket.ip().to_string(), socket.port());
@@ -273,7 +273,7 @@ async fn test_unconnected_server() {
     &[DESERIALIZE_RES_ERROR_MESSAGE],
 )]
 #[tokio::test]
-async fn test_faulty_server(
+async fn faulty_server(
     #[case] client: ComponentAClient,
     #[case] expected_error_contained_keywords: &[&str],
 ) {
@@ -281,7 +281,7 @@ async fn test_faulty_server(
 }
 
 #[tokio::test]
-async fn test_retry_request() {
+async fn retry_request() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     // Spawn a server that responses with OK every other request.
     task::spawn(async move {
