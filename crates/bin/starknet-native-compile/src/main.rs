@@ -5,7 +5,8 @@ use cairo_native::executor::AotContractExecutor;
 use cairo_native::OptLevel;
 use clap::Parser;
 
-use crate::utils::load_sierra_program_from_file;
+use crate::utils::{get_sierra_verizon_from_program, load_sierra_program_from_file};
+const N_RETRIES: usize = 10;
 
 mod utils;
 
@@ -25,19 +26,30 @@ fn main() {
     let output = args.output;
 
     let (contract_class, sierra_program) = load_sierra_program_from_file(&path);
+    let raw_sierra_program = contract_class
+        .sierra_program
+        .clone()
+        .into_iter()
+        .map(|felt| felt.value)
+        .collect::<Vec<_>>();
+    let sierra_version = get_sierra_verizon_from_program(&raw_sierra_program);
 
-    // TODO(Avi, 01/12/2024): Test different optimization levels for best performance.
-    let mut contract_executor = AotContractExecutor::new(
-        &sierra_program,
-        &contract_class.entry_points_by_type,
-        OptLevel::default(),
-    )
-    .unwrap_or_else(|err| {
-        eprintln!("Error compiling Sierra program: {}", err);
-        process::exit(1);
-    });
-    contract_executor.save(output.clone()).unwrap_or_else(|err| {
-        eprintln!("Error saving compiled program: {}", err);
-        process::exit(1);
-    });
+    for _ in 0..N_RETRIES {
+        // TODO(Avi, 01/12/2024): Test different optimization levels for best performance.
+        let contract_executor = AotContractExecutor::new_into(
+            &sierra_program,
+            &contract_class.entry_points_by_type,
+            sierra_version.clone(),
+            output.clone(),
+            OptLevel::default(),
+        )
+        .unwrap_or_else(|err| {
+            eprintln!("Error compiling Sierra program: {}", err);
+            process::exit(1);
+        });
+        if contract_executor.is_some() {
+            break;
+        }
+        eprintln!("Failed to take lock on path {} . Retrying...", output.display());
+    }
 }

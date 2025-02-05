@@ -92,7 +92,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
             resource_limits,
         )?;
 
-        Ok(AotContractExecutor::load(Path::new(&output_file_path))?)
+        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap())
     }
 }
 
