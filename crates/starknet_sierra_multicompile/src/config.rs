@@ -22,6 +22,7 @@ pub struct SierraCompilationConfig {
     pub max_cpu_time: u64,
     /// Compilation process’s virtual memory (address space) byte limit.
     pub max_memory_usage: u64,
+    pub panic_on_compilation_failure: bool,
     /// Sierra-to-Native compiler binary path.
     pub sierra_to_native_compiler_path: Option<PathBuf>,
 }
@@ -34,6 +35,7 @@ impl Default for SierraCompilationConfig {
             max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+            panic_on_compilation_failure: false,
         }
     }
 }
@@ -63,6 +65,12 @@ impl SerializeConfig for SierraCompilationConfig {
                 "max_memory_usage",
                 &self.max_memory_usage,
                 "Limitation of compilation process's virtual memory (bytes).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "panic_on_compilation_failure",
+                &self.panic_on_compilation_failure,
+                "Whether to panic on compilation failure.",
                 ParamPrivacyInput::Public,
             ),
         ]);
