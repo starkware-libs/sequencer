@@ -21,6 +21,10 @@ pub mod test_utils;
 #[path = "compile_test.rs"]
 pub mod compile_test;
 
+#[cfg(test)]
+#[path = "constants_test.rs"]
+pub mod constants_test;
+
 pub trait SierraToCasmCompiler: Send + Sync {
     fn compile(
         &self,
