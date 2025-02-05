@@ -2,8 +2,13 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::result;
 
-use papyrus_config::dumping::{append_sub_config_name, ser_optional_sub_config, SerializeConfig};
-use papyrus_config::{ParamPath, SerializedParam};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_optional_param,
+    ser_optional_sub_config,
+    SerializeConfig,
+};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::P2pSyncClientConfig;
 use papyrus_storage::db::DbConfig;
@@ -11,6 +16,7 @@ use papyrus_storage::StorageConfig;
 use papyrus_sync::sources::central::CentralSourceConfig;
 use papyrus_sync::SyncConfig;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use validator::{Validate, ValidationError};
 
 const STATE_SYNC_TCP_PORT: u16 = 12345;
@@ -27,19 +33,39 @@ pub struct StateSyncConfig {
     pub central_sync_client_config: Option<CentralSyncClientConfig>,
     #[validate]
     pub network_config: NetworkConfig,
+    // TODO(shahak): Create a pointer for this and consensus.
+    // In order to do that, make this into a struct with BlockNumber and bool.
+    pub revert_up_to_and_including: Option<BlockNumber>,
 }
 
 impl SerializeConfig for StateSyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        vec![
-            append_sub_config_name(self.storage_config.dump(), "storage_config"),
-            append_sub_config_name(self.network_config.dump(), "network_config"),
-            ser_optional_sub_config(&self.p2p_sync_client_config, "p2p_sync_client_config"),
-            ser_optional_sub_config(&self.central_sync_client_config, "central_sync_client_config"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
+        let mut config = BTreeMap::new();
+
+        config.extend(append_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
+        config.extend(ser_optional_sub_config(
+            &self.p2p_sync_client_config,
+            "p2p_sync_client_config",
+        ));
+        config.extend(ser_optional_sub_config(
+            &self.central_sync_client_config,
+            "central_sync_client_config",
+        ));
+        // TODO(shahak): reduce code duplication with consensus, possibly by defining this
+        // field as a sub config.
+        config.extend(ser_optional_param(
+            &self.revert_up_to_and_including,
+            // Use u64::MAX as a placeholder to prevent setting this value to
+            // a low block number by mistake, which will cause significant revert operations.
+            BlockNumber(u64::MAX),
+            "revert_up_to_and_including",
+            "The sync will revert blocks up to this block number (including). Use this \
+             configurations carefully to prevent significant revert operations and data loss.",
+            ParamPrivacyInput::Public,
+        ));
+
+        config
     }
 }
 
@@ -67,6 +93,7 @@ impl Default for StateSyncConfig {
             p2p_sync_client_config: Some(P2pSyncClientConfig::default()),
             central_sync_client_config: None,
             network_config: NetworkConfig { tcp_port: STATE_SYNC_TCP_PORT, ..Default::default() },
+            revert_up_to_and_including: None,
         }
     }
 }
