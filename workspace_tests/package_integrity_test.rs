@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::toml_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, ROOT_TOML};
+use toml_test_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, ROOT_TOML};
 
 #[test]
 fn test_package_names_match_directory() {
