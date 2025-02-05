@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod cende_test;
-mod central_objects;
+pub mod central_objects;
 
 use std::collections::BTreeMap;
 use std::fs;

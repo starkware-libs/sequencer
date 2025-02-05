@@ -396,6 +396,7 @@ pub fn casm_contract_class_central_format(
 }
 
 /// A mapping from a transaction execution resource to its actual usage.
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct ResourcesMapping(pub HashMap<String, usize>);
 
@@ -417,6 +418,7 @@ impl From<TransactionReceipt> for ResourcesMapping {
     }
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Debug, Serialize)]
 pub struct CentralTransactionExecutionInfo {
     pub validate_call_info: Option<CallInfo>,
