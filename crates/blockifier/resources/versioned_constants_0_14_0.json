@@ -119,6 +119,9 @@
         "validated": "VALID",
         "v1_bound_accounts_cairo0": [
             "0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f"
+        ],
+        "v1_bound_accounts_cairo1": [
+            "0x04c6d6cf894f8bc96bb9c525e6853e5483177841f7388f74a46cfda6f028c755"
         ]
     },
     "os_resources": {
