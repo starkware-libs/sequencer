@@ -4134,6 +4134,9 @@ name = "ethnum"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b90ca2580b73ab6a1f724b76ca11ab632df820fd6040c336200d2c1df7b3c82c"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "event-listener"
@@ -10806,6 +10809,7 @@ dependencies = [
  "hex",
  "pretty_assertions",
  "rstest",
+ "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_patricia",
@@ -11239,8 +11243,11 @@ dependencies = [
  "blockifier",
  "cairo-vm",
  "indoc 2.0.5",
+ "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
+ "starknet_patricia",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",

@@ -10,6 +10,7 @@ use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 
 // TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct ClassHash(pub Felt);
 
@@ -20,11 +21,13 @@ impl From<&ClassHash> for NodeIndex {
 }
 
 impl_from_hex_for_felt_wrapper!(ClassHash);
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Nonce(pub Felt);
 
 impl_from_hex_for_felt_wrapper!(Nonce);
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
 

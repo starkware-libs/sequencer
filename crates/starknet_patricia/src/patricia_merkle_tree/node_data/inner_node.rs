@@ -11,6 +11,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 pub mod inner_node_test;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumDiscriminants))]
 #[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(strum_macros::EnumIter)))]
 // A Patricia-Merkle tree node's data, i.e., the pre-image of its hash.
@@ -20,6 +21,7 @@ pub enum NodeData<L: Leaf> {
     Leaf(L),
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BinaryData {
     pub left_hash: HashOutput,
@@ -27,6 +29,7 @@ pub struct BinaryData {
 }
 
 // Wraps a U256. Maximal possible value is the longest path in a tree of height 251 (2 ^ 251 - 1).
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct EdgePath(pub U256);
 
@@ -63,6 +66,7 @@ impl From<&EdgePath> for U256 {
         path.0
     }
 }
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(
     Clone, Copy, Debug, Default, PartialOrd, derive_more::Add, derive_more::Sub, PartialEq, Eq, Hash,
 )]
@@ -94,6 +98,7 @@ impl From<EdgePathLength> for Felt {
 }
 
 #[allow(clippy::manual_non_exhaustive)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct PathToBottom {
     pub path: EdgePath,
@@ -116,6 +121,7 @@ impl PathToBottom {
     }
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct EdgeData {
     pub bottom_hash: HashOutput,
