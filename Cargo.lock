@@ -11576,6 +11576,7 @@ dependencies = [
 name = "starknet_state_sync"
 version = "0.0.0"
 dependencies = [
+ "apollo_reverts",
  "async-trait",
  "cairo-lang-starknet-classes",
  "futures",
