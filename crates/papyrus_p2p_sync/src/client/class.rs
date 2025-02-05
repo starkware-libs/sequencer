@@ -82,9 +82,9 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
 
             while current_class_len < target_class_len {
                 let maybe_contract_class = classes_response_manager.next().await.ok_or(
-                    P2pSyncClientError::ReceiverChannelTerminated {
+                    ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
                         type_description: Self::TYPE_DESCRIPTION,
-                    },
+                    }),
                 )?;
                 let Some((api_contract_class, class_hash)) = maybe_contract_class?.0 else {
                     if current_class_len == 0 {
