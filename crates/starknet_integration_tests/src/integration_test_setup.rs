@@ -87,19 +87,22 @@ impl ExecutableSetup {
         chain_info: ChainInfo,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
-        mut state_sync_config: StateSyncConfig,
+        state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
-        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
+        let StorageTestSetup {
+            batcher_storage_config,
+            batcher_storage_handle,
+            state_sync_storage_config,
+            state_sync_storage_handle,
+        } = StorageTestSetup::new(accounts, &chain_info);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
-
-        state_sync_config.storage_config = storage_for_test.state_sync_storage_config;
 
         // Explicitly collect metrics in the monitoring endpoint.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
@@ -113,7 +116,8 @@ impl ExecutableSetup {
             &mut available_ports,
             node_execution_id,
             chain_info,
-            storage_for_test.batcher_storage_config,
+            batcher_storage_config,
+            state_sync_storage_config,
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
@@ -139,11 +143,11 @@ impl ExecutableSetup {
             node_execution_id,
             add_tx_http_client,
             monitoring_client,
-            batcher_storage_handle: storage_for_test.batcher_storage_handle,
+            batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage,
             node_config_dir_handle,
             node_config_path,
-            state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
+            state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
         }
     }

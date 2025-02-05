@@ -56,7 +56,7 @@ impl StorageTestSetup {
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
     ) -> Self {
-        let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
+        let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_handle) =
             TestStorageBuilder::default()
                 .scope(StorageScope::StateOnly)
                 .chain_id(chain_info.chain_id.clone())
@@ -73,7 +73,7 @@ impl StorageTestSetup {
         create_test_state(&mut state_sync_storage_writer, chain_info, test_defined_accounts);
         Self {
             batcher_storage_config,
-            batcher_storage_handle: batcher_storage_file_handle,
+            batcher_storage_handle,
             state_sync_storage_config,
             state_sync_storage_handle,
         }
