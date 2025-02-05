@@ -55,8 +55,6 @@ fn versioned_constants() -> &'static VersionedConstants {
 ///     5. A transaction with L2-to-L1 messages.
 ///     6. A transaction that modifies the storage.
 ///     7. A combination of cases 4. 5. and 6.
-// TODO(Aner, 29/01/24): Refactor with assert on GasVector objects.
-// TODO(Aner, 29/01/24): Refactor to replace match with if when formatting is nicer
 #[rstest]
 fn test_calculate_tx_gas_usage_basic<'a>(
     #[values(false, true)] use_kzg_da: bool,
