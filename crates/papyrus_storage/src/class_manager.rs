@@ -21,7 +21,12 @@ where
     // To enforce that no commit happen after a failure, we consume and return Self on success.
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self>;
 
-    // TODO(DanB): add revert functionality
+    /// When reverting a block, if the class manager marker points to the block afterward, revert
+    /// the marker.
+    fn try_revert_class_manager_marker(
+        self,
+        reverted_block_number: BlockNumber,
+    ) -> StorageResult<Self>;
 }
 
 impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
@@ -40,5 +45,17 @@ impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
             &block_number.unchecked_next(),
         )?;
         Ok(self)
+    }
+
+    fn try_revert_class_manager_marker(
+        self,
+        reverted_block_number: BlockNumber,
+    ) -> StorageResult<Self> {
+        let cur_marker = self.get_class_manager_block_marker()?;
+        if cur_marker == reverted_block_number.unchecked_next() {
+            Ok(self.update_class_manager_block_marker(&reverted_block_number)?)
+        } else {
+            Ok(self)
+        }
     }
 }
