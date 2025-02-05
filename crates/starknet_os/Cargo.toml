@@ -7,14 +7,18 @@ license-file.workspace = true
 description = "The Starknet OS."
 
 [features]
+deserialize = ["starknet_committer/deserialize", "starknet_patricia/deserialize"]
 testing = ["dep:strum", "dep:strum_macros"]
 
 [dependencies]
 blockifier.workspace = true
 cairo-vm.workspace = true
 indoc.workspace = true
+serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_committer.workspace = true
+starknet_patricia.workspace = true
 strum = { workspace = true, optional = true }
 strum_macros = { workspace = true, optional = true }
 thiserror.workspace = true
