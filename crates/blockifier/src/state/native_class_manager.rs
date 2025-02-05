@@ -238,6 +238,9 @@ fn process_compilation_request(
             cache
                 .set(class_hash, CachedClass::V1Native(CachedCairoNative::CompilationFailed(casm)));
             log::debug!("Error compiling contract class: {}", err);
+            if compiler.panic_on_compilation_failure() {
+                panic!("Compilation failed: {}", err);
+            }
             Err(err)
         }
     }
