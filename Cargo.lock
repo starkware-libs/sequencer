@@ -641,6 +641,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
+name = "apollo_reverts"
+version = "0.0.0"
+dependencies = [
+ "futures",
+ "papyrus_config",
+ "papyrus_storage",
+ "serde",
+ "starknet_api",
+ "tracing",
+ "validator",
+]
+
+[[package]]
 name = "aquamarine"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10695,6 +10708,7 @@ dependencies = [
 name = "starknet_batcher"
 version = "0.0.0"
 dependencies = [
+ "apollo_reverts",
  "assert_matches",
  "async-trait",
  "blockifier",
@@ -10895,6 +10909,7 @@ dependencies = [
 name = "starknet_consensus_manager"
 version = "0.0.0"
 dependencies = [
+ "apollo_reverts",
  "async-trait",
  "mockall",
  "papyrus_config",
@@ -11331,6 +11346,7 @@ name = "starknet_sequencer_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_reverts",
  "assert_matches",
  "clap",
  "colored 3.0.0",
