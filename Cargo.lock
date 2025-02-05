@@ -11215,6 +11215,7 @@ dependencies = [
  "indexmap 2.7.1",
  "itertools 0.12.1",
  "mempool_test_utils",
+ "papyrus_base_layer",
  "papyrus_config",
  "papyrus_network",
  "papyrus_protobuf",
