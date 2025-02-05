@@ -28,13 +28,13 @@ where
 }
 
 #[test]
-fn test_serde_native_type() {
+fn serde_native_type() {
     let data: u32 = 8;
     test_generic_data_serde(data);
 }
 
 #[test]
-fn test_serde_struct_type() {
+fn serde_struct_type() {
     #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
     struct TestStruct {
         a: u32,
@@ -46,13 +46,13 @@ fn test_serde_struct_type() {
 }
 
 #[test]
-fn test_serde_felt() {
+fn serde_felt() {
     let data: Felt = Felt::ONE;
     test_generic_data_serde(data);
 }
 
 #[test]
-fn test_serde_rpc_invoke_tx() {
+fn serde_rpc_invoke_tx() {
     let invoke_tx = RpcInvokeTransactionV3 {
         sender_address: Default::default(),
         calldata: Default::default(),
@@ -71,7 +71,7 @@ fn test_serde_rpc_invoke_tx() {
 }
 
 #[test]
-fn test_serde_rpc_deploy_account_tx() {
+fn serde_rpc_deploy_account_tx() {
     let deploy_account_tx = RpcDeployAccountTransactionV3 {
         signature: Default::default(),
         nonce: Default::default(),
@@ -90,7 +90,7 @@ fn test_serde_rpc_deploy_account_tx() {
 }
 
 #[test]
-fn test_serde_rpc_declare_tx() {
+fn serde_rpc_declare_tx() {
     let declare_tx = RpcDeclareTransactionV3 {
         sender_address: Default::default(),
         compiled_class_hash: Default::default(),
