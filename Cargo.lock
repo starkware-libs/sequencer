@@ -11240,6 +11240,7 @@ dependencies = [
  "cairo-vm",
  "indoc 2.0.5",
  "starknet-types-core",
+ "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
