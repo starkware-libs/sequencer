@@ -149,8 +149,6 @@ pub enum P2pSyncClientError {
          field."
     )]
     OldHeaderInStorage { block_number: BlockNumber, missing_field: &'static str },
-    #[error("The sender end of the response receivers for {type_description:?} was closed.")]
-    ReceiverChannelTerminated { type_description: &'static str },
     #[error(transparent)]
     StorageError(#[from] StorageError),
     #[error(transparent)]

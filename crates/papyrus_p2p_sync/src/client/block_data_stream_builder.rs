@@ -208,10 +208,25 @@ where
                     Some(Ok(DataOrFin(None))) => {
                         debug!("Network query ending at block {} for {:?} finished", end_block_number, Self::TYPE_DESCRIPTION);
                     },
-                    Some(_) => Err(P2pSyncClientError::TooManyResponses)?,
-                    None => Err(P2pSyncClientError::ReceiverChannelTerminated {
-                        type_description: Self::TYPE_DESCRIPTION
-                    })?,
+                    Some(_) => {
+                        warn!(
+                            "Query for {:?} returned more messages after {:?} even though it \
+                            should have returned Fin. reporting peer and retrying query.",
+                            Self::TYPE_DESCRIPTION, current_block_number
+                        );
+                        client_response_manager.report_peer();
+                        continue 'send_query_and_parse_responses;
+                    }
+
+                    None => {
+                        warn!(
+                            "Query for {:?} didn't send Fin after block {:?}. \
+                            Reporting peer and retrying query.",
+                            Self::TYPE_DESCRIPTION, current_block_number
+                        );
+                        client_response_manager.report_peer();
+                        continue 'send_query_and_parse_responses;
+                    }
                 }
             }
         }.boxed()
@@ -220,6 +235,8 @@ where
 
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum BadPeerError {
+    #[error("The sender end of the response receivers for {type_description:?} was closed.")]
+    SessionEndedWithoutFin { type_description: &'static str },
     #[error(
         "Blocks returned unordered from the network. Expected header with \
          {expected_block_number}, got {actual_block_number}."

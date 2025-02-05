@@ -75,9 +75,9 @@ impl BlockDataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                 let maybe_state_diff_chunk = state_diff_chunks_response_manager
                     .next()
                     .await
-                    .ok_or(P2pSyncClientError::ReceiverChannelTerminated {
+                    .ok_or(ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
                         type_description: Self::TYPE_DESCRIPTION,
-                    })?;
+                    }))?;
                 let Some(state_diff_chunk) = maybe_state_diff_chunk?.0 else {
                     if current_state_diff_len == 0 {
                         return Ok(None);

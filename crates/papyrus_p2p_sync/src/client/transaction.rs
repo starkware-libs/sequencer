@@ -58,9 +58,9 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                 .n_transactions;
             while current_transaction_len < target_transaction_len {
                 let maybe_transaction = transactions_response_manager.next().await.ok_or(
-                    P2pSyncClientError::ReceiverChannelTerminated {
+                    ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
                         type_description: Self::TYPE_DESCRIPTION,
-                    },
+                    }),
                 )?;
                 let Some(FullTransaction { transaction, transaction_output, transaction_hash }) =
                     maybe_transaction?.0

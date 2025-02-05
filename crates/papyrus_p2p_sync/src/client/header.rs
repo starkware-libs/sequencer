@@ -87,9 +87,9 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
     ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let maybe_signed_header = signed_headers_response_manager.next().await.ok_or(
-                P2pSyncClientError::ReceiverChannelTerminated {
+                ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
                     type_description: Self::TYPE_DESCRIPTION,
-                },
+                }),
             )?;
             let Some(signed_block_header) = maybe_signed_header?.0 else {
                 return Ok(None);
