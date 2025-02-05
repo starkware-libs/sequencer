@@ -11241,6 +11241,7 @@ name = "starknet_os"
 version = "0.0.0"
 dependencies = [
  "blockifier",
+ "cairo-lang-starknet-classes",
  "cairo-vm",
  "indoc 2.0.5",
  "serde",
