@@ -193,6 +193,7 @@ pub struct PySierraCompilationConfig {
     pub max_native_bytecode_size: u64,
     pub max_cpu_time: u64,
     pub max_memory_usage: u64,
+    pub panic_on_compilation_failure: bool,
 }
 
 impl From<PySierraCompilationConfig> for SierraCompilationConfig {
@@ -209,6 +210,7 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
             max_native_bytecode_size: py_sierra_compilation_config.max_native_bytecode_size,
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
             max_memory_usage: py_sierra_compilation_config.max_memory_usage,
+            panic_on_compilation_failure: py_sierra_compilation_config.panic_on_compilation_failure,
             ..Default::default()
         }
     }
