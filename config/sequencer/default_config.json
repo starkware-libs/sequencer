@@ -1309,6 +1309,16 @@
     "privacy": "Public",
     "value": 50
   },
+  "state_sync_config.revert_up_to_and_including": {
+    "description": "The sync will revert blocks up to this block number (including). Use this configurations carefully to prevent significant revert operations and data loss.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "state_sync_config.revert_up_to_and_including.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
