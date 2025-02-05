@@ -10,6 +10,7 @@ use crate::block_committer::input::StarknetStorageValue;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ContractState {
     pub nonce: Nonce,

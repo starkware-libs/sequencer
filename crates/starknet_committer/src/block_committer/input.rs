@@ -53,6 +53,7 @@ impl From<&StarknetStorageKey> for NodeIndex {
     }
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq)]
 pub struct StarknetStorageValue(pub Felt);
 
