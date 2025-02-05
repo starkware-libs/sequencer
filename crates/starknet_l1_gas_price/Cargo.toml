@@ -1,0 +1,13 @@
+[package]
+name = "starknet_l1_gas_price"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+starknet_api.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
