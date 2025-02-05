@@ -12,6 +12,7 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_reverts.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 const_format.workspace = true
