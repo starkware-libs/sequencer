@@ -2,12 +2,12 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
-use blockifier::versioned_constants::VersionedConstants;
 use futures::executor::block_on;
 #[cfg(test)]
 use mockall::automock;

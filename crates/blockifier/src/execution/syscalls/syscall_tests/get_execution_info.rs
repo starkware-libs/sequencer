@@ -25,6 +25,7 @@ use starknet_api::{felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
@@ -42,7 +43,6 @@ use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
-use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(
     feature = "cairo_native",

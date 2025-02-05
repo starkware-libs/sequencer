@@ -27,6 +27,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::abi::sierra_types::SierraTypeError;
+use crate::blockifier_versioned_constants::GasCosts;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
@@ -80,7 +81,6 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::versioned_constants::GasCosts;
 
 pub type SyscallCounter = HashMap<SyscallSelector, usize>;
 

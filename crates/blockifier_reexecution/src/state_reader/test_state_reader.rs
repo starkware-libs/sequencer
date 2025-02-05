@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
@@ -12,7 +13,6 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier::versioned_constants::VersionedConstants;
 use serde::Serialize;
 use serde_json::{json, to_value};
 use starknet_api::block::{

@@ -9,6 +9,7 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::abi::constants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
@@ -20,7 +21,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
-use crate::versioned_constants::VersionedConstants;
 
 pub fn initialize_state(
     test_contract: FeatureContract,

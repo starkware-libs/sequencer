@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
-use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use itertools::Itertools;

@@ -9,6 +9,7 @@ use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::{calldata, felt, storage_key};
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::entry_point::CallEntryPoint;
@@ -18,7 +19,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
-use crate::versioned_constants::VersionedConstants;
 
 #[test]
 fn test_call_info_iteration() {

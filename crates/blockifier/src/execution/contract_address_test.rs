@@ -4,6 +4,7 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress}
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::{calldata, felt};
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
@@ -13,7 +14,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{CairoVersion, BALANCE};
-use crate::versioned_constants::VersionedConstants;
 
 #[rstest]
 fn test_calculate_contract_address() {

@@ -10,6 +10,7 @@ use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::GasCosts;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
@@ -28,7 +29,6 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
-use crate::versioned_constants::GasCosts;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]

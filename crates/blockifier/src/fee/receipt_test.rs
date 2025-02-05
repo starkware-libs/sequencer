@@ -5,6 +5,7 @@ use starknet_api::transaction::{constants, L2ToL1Payload};
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::BlockContext;
 use crate::execution::call_info::{
     CallExecution,
@@ -38,7 +39,6 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u64_from_usize, usize_from_u64};
-use crate::versioned_constants::VersionedConstants;
 
 #[fixture]
 fn versioned_constants() -> &'static VersionedConstants {

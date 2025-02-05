@@ -34,6 +34,7 @@ use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invo
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
@@ -45,7 +46,6 @@ use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::versioned_constants::VersionedConstants;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
