@@ -11,7 +11,7 @@ use tempfile::NamedTempFile;
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 #[cfg(feature = "cairo_native")]
-use crate::constants::CAIRO_NATIVE_BINARY_NAME;
+use crate::constants::NATIVE_COMPILE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
 use crate::resource_limits::ResourceLimits;
@@ -33,7 +33,7 @@ impl CommandLineCompiler {
         #[cfg(feature = "cairo_native")]
         let path_to_starknet_native_compile_binary = match &config.sierra_to_native_compiler_path {
             Some(path) => path.clone(),
-            None => binary_path(out_dir(), CAIRO_NATIVE_BINARY_NAME),
+            None => binary_path(out_dir(), NATIVE_COMPILE_BINARY_NAME),
         };
         Self {
             config,

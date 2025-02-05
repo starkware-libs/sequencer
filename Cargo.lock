@@ -11090,6 +11090,7 @@ dependencies = [
  "starknet_infra_utils",
  "tempfile",
  "thiserror 1.0.69",
+ "toml_test_utils",
  "validator",
 ]
 
@@ -11816,6 +11817,14 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow 0.6.22",
+]
+
+[[package]]
+name = "toml_test_utils"
+version = "0.14.0-rc.0"
+dependencies = [
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -12828,8 +12837,7 @@ dependencies = [
 name = "workspace_tests"
 version = "0.14.0-rc.0"
 dependencies = [
- "serde",
- "toml",
+ "toml_test_utils",
 ]
 
 [[package]]
