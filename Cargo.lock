@@ -8033,6 +8033,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "cairo-lang-starknet-classes",
  "indexmap 2.7.0",
  "papyrus_storage",
  "rstest",
