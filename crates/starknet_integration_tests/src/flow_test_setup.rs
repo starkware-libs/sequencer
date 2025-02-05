@@ -33,7 +33,7 @@ use tempfile::TempDir;
 use tracing::{debug, instrument};
 
 use crate::integration_test_setup::NodeExecutionId;
-use crate::state_reader::StorageTestSetup;
+use crate::state_reader::{StorageTestSetup, TempDirHandlePair};
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -124,6 +124,7 @@ pub struct FlowSequencerSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: Option<TempDir>,
     pub state_sync_storage_file_handle: Option<TempDir>,
+    pub class_manager_storage_file_handles: TempDirHandlePair,
 
     // Node configuration.
     pub node_config: SequencerNodeConfig,
@@ -148,12 +149,15 @@ impl FlowSequencerSetup {
         mut available_ports: AvailablePorts,
         state_sync_config: StateSyncConfig,
     ) -> Self {
+        let path = None;
         let StorageTestSetup {
             batcher_storage_config,
             batcher_storage_handle,
             state_sync_storage_config,
             state_sync_storage_handle,
-        } = StorageTestSetup::new(accounts, &chain_info, None);
+            class_manager_storage_config,
+            class_manager_storage_handles,
+        } = StorageTestSetup::new(accounts, &chain_info, path);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
@@ -177,6 +181,7 @@ impl FlowSequencerSetup {
             chain_info,
             batcher_storage_config,
             state_sync_storage_config,
+            class_manager_storage_config,
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
@@ -201,6 +206,7 @@ impl FlowSequencerSetup {
             add_tx_http_client,
             batcher_storage_file_handle: batcher_storage_handle,
             state_sync_storage_file_handle: state_sync_storage_handle,
+            class_manager_storage_file_handles: class_manager_storage_handles,
             node_config,
             monitoring_client,
             _clients,
