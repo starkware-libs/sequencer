@@ -6,6 +6,8 @@ use std::sync::{LazyLock, RwLock};
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
+use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;
+#[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
@@ -226,10 +228,13 @@ impl NativeCompiledClassV1 {
 
         let sierra_version = SierraVersion::extract_from_program(&sierra_version_values)
             .expect("Cannot extract sierra version from sierra program");
-
+        let (sierra_version_id, _) =
+            version_id_from_serialized_sierra_program(&sierra_contract_class.sierra_program)
+                .unwrap();
         let executor = AotContractExecutor::new(
             &sierra_program,
             &sierra_contract_class.entry_points_by_type,
+            sierra_version_id,
             cairo_native::OptLevel::Default,
         )
         .expect("Cannot compile sierra into native");
