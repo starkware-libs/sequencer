@@ -12,6 +12,7 @@ testing = ["dep:strum", "dep:strum_macros"]
 
 [dependencies]
 blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indoc.workspace = true
 serde = { workspace = true, optional = true, features = ["derive"] }
