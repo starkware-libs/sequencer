@@ -3,9 +3,10 @@ mod test;
 
 use std::sync::Arc;
 
+use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
-use futures::future::{self, BoxFuture};
+use futures::future::{self, pending, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
@@ -18,6 +19,7 @@ use papyrus_p2p_sync::client::{
 };
 use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
+use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{open_storage, StorageReader, StorageWriter};
 use papyrus_sync::sources::central::{CentralError, CentralSource};
 use papyrus_sync::sources::pending::PendingSource;
@@ -83,13 +85,46 @@ impl StateSyncRunner {
             p2p_sync_client_config,
             central_sync_client_config,
             network_config,
+            revert_config,
         } = config;
+
+        let (storage_reader, mut storage_writer) =
+            open_storage(storage_config).expect("StateSyncRunner failed opening storage");
+
+        if revert_config.should_revert {
+            let revert_up_to_and_including = revert_config.revert_up_to_and_including;
+            let current_header_marker = storage_reader
+                .begin_ro_txn()
+                .expect("Should be able to begin read only transaction")
+                .get_header_marker()
+                .expect("Should have a header marker");
+
+            let revert_block_fn = move |current_block_number| {
+                revert_block(&mut storage_writer, current_block_number);
+                async {}
+            };
+
+            return (
+                Self {
+                    network_future: pending().boxed(),
+                    p2p_sync_client_future: revert_blocks_and_eternal_pending(
+                        current_header_marker,
+                        revert_up_to_and_including,
+                        revert_block_fn,
+                        "State Sync",
+                    )
+                    .map(|_never| unreachable!("Never should never be constructed"))
+                    .boxed(),
+                    p2p_sync_server_future: pending().boxed(),
+                    central_sync_client_future: pending().boxed(),
+                    new_block_dev_null_future: pending().boxed(),
+                },
+                storage_reader,
+            );
+        }
 
         let mut network_manager =
             network_manager::NetworkManager::new(network_config, Some(VERSION_FULL.to_string()));
-
-        let (storage_reader, storage_writer) =
-            open_storage(storage_config).expect("StateSyncRunner failed opening storage");
 
         // Creating the sync server future
         let p2p_sync_server = Self::new_p2p_state_sync_server(
