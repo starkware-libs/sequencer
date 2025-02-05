@@ -83,6 +83,10 @@ pub struct SequencerNodeServers {
     wrapper_servers: WrapperServers,
 }
 
+// TODO(Tsabary): remove ComponentServerError and ComponentError, their wrapping Result return
+// types, and their usage in trait definitions. In a case where each of these occur the code should
+// panic, not return an error.
+
 /// A macro for creating a remote component server based on the component's execution mode.
 /// Returns a remote server if the component is configured with Remote execution mode; otherwise,
 /// returns None.
@@ -487,7 +491,7 @@ fn get_server_error(
     if let Some(result) = result {
         match result {
             Ok((res, label)) => {
-                error!("{} Server stoped", label);
+                error!("{} Server stopped", label);
                 Ok(res?)
             }
             Err(e) => {
