@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
+use apollo_reverts::RevertConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::{
@@ -110,6 +111,13 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             "batcher_config.block_builder_config.versioned_constants_overrides",
             "gateway_config.stateful_tx_validator_config.versioned_constants_overrides",
         ]),
+    );
+    pointers.append(&mut common_execution_config);
+
+    let mut common_execution_config = generate_struct_pointer(
+        "revert_config".to_owned(),
+        &RevertConfig::default(),
+        set_pointing_param_paths(&["consensus_manager_config.revert_config"]),
     );
     pointers.append(&mut common_execution_config);
     pointers

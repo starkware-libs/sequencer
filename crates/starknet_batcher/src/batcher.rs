@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use apollo_reverts::revert_block;
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
@@ -638,6 +639,7 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
+    // This function will panic if there is a storage failure to revert the block.
     pub async fn revert_block(&mut self, input: RevertBlockInput) -> BatcherResult<()> {
         info!("Reverting block at height {}.", input.height);
         let height = self.get_height_from_storage()?.prev().ok_or(
@@ -735,9 +737,8 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     }
 
     fn revert_block(&mut self, height: BlockNumber) -> papyrus_storage::StorageResult<()> {
-        let (txn, reverted_state_diff) = self.begin_rw_txn()?.revert_state_diff(height)?;
-        trace!("Reverted state diff: {:#?}", reverted_state_diff);
-        txn.commit()
+        revert_block(self, height);
+        Ok(())
     }
 }
 
