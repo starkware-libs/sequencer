@@ -50,6 +50,8 @@ async fn main() {
     configure_tracing().await;
     info!("Running integration test setup.");
 
+    set_ephemeral_port_range();
+
     // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
     // spawning.
     let default_panic = std::panic::take_hook();
@@ -72,4 +74,27 @@ async fn main() {
 
     // Run end to end integration test.
     end_to_end_integration(&mut tx_generator).await;
+}
+
+fn set_ephemeral_port_range() {
+    let output = Command::new("sudo")
+        .arg("sysctl")
+        .arg("-w")
+        .arg("net.ipv4.ip_local_port_range=40000 40010")
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            info!("Ephemeral port range set successfully.");
+        }
+        Ok(output) => {
+            eprintln!(
+                "Failed to set ephemeral port range: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        Err(e) => {
+            eprintln!("Error executing sysctl command: {}", e);
+        }
+    }
 }
