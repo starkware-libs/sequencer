@@ -261,11 +261,10 @@ impl Mempool {
         let addresses_to_rewind = self.state.commit(address_to_nonce);
         for address in addresses_to_rewind {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
-            let tx_reference = self
-                .tx_pool
-                .account_txs_sorted_by_nonce(address)
-                .next()
-                .expect("Address {address} should appear in transaction pool.");
+            let tx_reference =
+                self.tx_pool.account_txs_sorted_by_nonce(address).next().unwrap_or_else(|| {
+                    panic!("Address {address} should appear in transaction pool.")
+                });
             self.tx_queue.remove(address);
             self.tx_queue.insert(*tx_reference);
         }
@@ -274,7 +273,9 @@ impl Mempool {
 
         // Remove rejected transactions from the mempool.
         for tx_hash in rejected_tx_hashes {
-            let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
+            if let Ok(tx) = self.tx_pool.remove(tx_hash) {
+                self.tx_queue.remove(tx.contract_address());
+            } else {
                 continue; // Transaction hash unknown to mempool, from a different node.
             };
 
