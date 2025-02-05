@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use blockifier::context::ChainInfo;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass;
+use starknet_api::executable_transaction::Transaction;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -33,6 +35,8 @@ pub struct StarknetOsInput {
     _deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,
     _chain_info: ChainInfo,
+    _transactions: Vec<Transaction>,
+    _tx_execution_infos: Vec<TransactionExecutionInfo>,
     _prev_block_hash: BlockHash,
     _new_block_hash: BlockHash,
     // The block number and block hash of the (current_block_number - buffer) block, where
