@@ -25,7 +25,12 @@ use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
-use starknet_class_manager::config::FsClassStorageConfig;
+use starknet_class_manager::class_storage::CachedClassStorageConfig;
+use starknet_class_manager::config::{
+    ClassManagerConfig,
+    FsClassManagerConfig,
+    FsClassStorageConfig,
+};
 use starknet_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use starknet_consensus::types::{ContextConfig, ValidatorId};
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -132,8 +137,7 @@ pub fn create_node_config(
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
     state_sync_storage_config: StorageConfig,
-    // TODO(Elin): use.
-    _class_manager_storage_config: FsClassStorageConfig,
+    class_manager_storage_config: FsClassStorageConfig,
     mut state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
@@ -148,11 +152,13 @@ pub fn create_node_config(
     let gateway_config = create_gateway_config(chain_info.clone());
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
+    let class_manager_config = create_class_manager_config(class_manager_storage_config);
     state_sync_config.storage_config = state_sync_storage_config;
 
     (
         SequencerNodeConfig {
             batcher_config,
+            class_manager_config,
             consensus_manager_config,
             gateway_config,
             http_server_config,
@@ -442,6 +448,15 @@ pub fn create_batcher_config(
         },
         ..Default::default()
     }
+}
+
+pub fn create_class_manager_config(
+    class_storage_config: FsClassStorageConfig,
+) -> FsClassManagerConfig {
+    let cached_class_storage_config =
+        CachedClassStorageConfig { class_cache_size: 100, deprecated_class_cache_size: 100 };
+    let class_manager_config = ClassManagerConfig { cached_class_storage_config };
+    FsClassManagerConfig { class_manager_config, class_storage_config }
 }
 
 fn set_validator_id(
