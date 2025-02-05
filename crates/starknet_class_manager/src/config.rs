@@ -51,6 +51,21 @@ impl SerializeConfig for ClassHashStorageConfig {
     }
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct FsClassStorageConfig;
+
+impl Default for FsClassStorageConfig {
+    fn default() -> Self {
+        Self
+    }
+}
+
+impl SerializeConfig for FsClassStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::new()
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ClassManagerConfig {
     pub cached_class_storage_config: CachedClassStorageConfig,

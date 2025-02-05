@@ -11063,6 +11063,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher",
+ "starknet_class_manager",
  "starknet_consensus",
  "starknet_consensus_manager",
  "starknet_consensus_orchestrator",

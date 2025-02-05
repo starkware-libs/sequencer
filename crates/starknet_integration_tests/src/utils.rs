@@ -25,6 +25,7 @@ use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
+use starknet_class_manager::config::FsClassStorageConfig;
 use starknet_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use starknet_consensus::types::{ContextConfig, ValidatorId};
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -131,6 +132,8 @@ pub fn create_node_config(
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
     state_sync_storage_config: StorageConfig,
+    // TODO(Elin): use.
+    _class_manager_storage_config: FsClassStorageConfig,
     mut state_sync_config: StateSyncConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,

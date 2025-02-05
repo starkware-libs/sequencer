@@ -20,7 +20,7 @@ use tempfile::{tempdir, TempDir};
 use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
-use crate::state_reader::StorageTestSetup;
+use crate::state_reader::{StorageTestSetup, TempDirHandlePair};
 use crate::utils::{create_node_config, spawn_local_success_recorder};
 
 #[derive(Debug, Copy, Clone)]
@@ -75,6 +75,8 @@ pub struct ExecutableSetup {
     node_config_dir_handle: TempDir,
     #[allow(dead_code)]
     state_sync_storage_handle: TempDir,
+    #[allow(dead_code)]
+    class_manager_storage_handles: TempDirHandlePair,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
@@ -98,6 +100,8 @@ impl ExecutableSetup {
             batcher_storage_handle,
             state_sync_storage_config,
             state_sync_storage_handle,
+            class_manager_storage_config,
+            class_manager_storage_handles,
         } = StorageTestSetup::new(accounts, &chain_info);
 
         let (recorder_url, _join_handle) =
@@ -118,6 +122,7 @@ impl ExecutableSetup {
             chain_info,
             batcher_storage_config,
             state_sync_storage_config,
+            class_manager_storage_config,
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
@@ -149,6 +154,7 @@ impl ExecutableSetup {
             node_config_path,
             state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
+            class_manager_storage_handles,
         }
     }
 
