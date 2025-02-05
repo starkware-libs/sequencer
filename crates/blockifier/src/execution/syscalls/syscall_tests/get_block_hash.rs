@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::CURRENT_BLOCK_NUMBER;
@@ -54,8 +55,22 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
+    let call_info = entry_point_call.clone().execute_directly(&mut state).unwrap();
+
+    assert_eq!(call_info.storage_access_tracker.accessed_blocks.len(), 1);
+    assert!(
+        call_info
+            .storage_access_tracker
+            .accessed_blocks
+            .contains(&BlockNumber(block_number.try_into().unwrap()))
+    );
     assert_eq!(
-        entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
+        call_info.storage_access_tracker.read_block_hash_values,
+        vec![BlockHash(block_hash)]
+    );
+
+    assert_eq!(
+        call_info.execution,
         CallExecution {
             gas_consumed: REQUIRED_GAS_GET_BLOCK_HASH_TEST,
             ..CallExecution::from_retdata(retdata![block_hash])
