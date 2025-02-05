@@ -65,11 +65,6 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     reported_peers_sender: Sender<PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
-    // Fields for metrics
-    // Are these fields only used for metrics? if so they can be removed, and the metrics can be
-    // updated directly
-    num_active_inbound_sessions: usize,
-    num_active_outbound_sessions: usize,
     // Defining the metrics kept for the network manager. Allowing None for tests and for Papyrus
     // node run, where we don't care about the metrics.
     metrics: Option<NetworkManagerMetrics>,
@@ -136,8 +131,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             reported_peers_sender,
             continue_propagation_sender,
             continue_propagation_receiver,
-            num_active_inbound_sessions: 0,
-            num_active_outbound_sessions: 0,
             metrics,
         }
     }
@@ -432,10 +425,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             );
             return;
         };
-        self.num_active_inbound_sessions += 1;
         if let Some(metrics) = self.metrics.as_ref() {
-            gauge!(metrics.num_active_inbound_sessions.get_name())
-                .set(self.num_active_inbound_sessions as f64);
+            metrics.num_active_inbound_sessions.increment(1);
         }
         let (responses_sender, responses_receiver) = futures::channel::mpsc::channel(
             *self
@@ -595,11 +586,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         let outbound_session_id = self.swarm.send_query(query, protocol.clone());
-        self.num_active_outbound_sessions += 1;
         #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         if let Some(metrics) = self.metrics.as_ref() {
-            gauge!(metrics.num_active_outbound_sessions.get_name())
-                .set(self.num_active_outbound_sessions as f64);
+            metrics.num_active_outbound_sessions.increment(1);
         }
         self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
         self.sqmr_outbound_report_receivers_awaiting_assignment
@@ -614,17 +603,13 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match session_id {
             SessionId::InboundSessionId(_) => {
-                self.num_active_inbound_sessions -= 1;
                 if let Some(metrics) = self.metrics.as_ref() {
-                    gauge!(metrics.num_active_inbound_sessions.get_name())
-                        .set(self.num_active_inbound_sessions as f64);
+                    metrics.num_active_inbound_sessions.decrement(1);
                 }
             }
             SessionId::OutboundSessionId(_) => {
-                self.num_active_outbound_sessions += 1;
                 if let Some(metrics) = self.metrics.as_ref() {
-                    gauge!(metrics.num_active_outbound_sessions.get_name())
-                        .set(self.num_active_outbound_sessions as f64);
+                    metrics.num_active_outbound_sessions.decrement(1);
                 }
             }
         }
