@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::{info, warn};
@@ -18,7 +18,7 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{ClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{class_hash_into_node_index, Nonce};
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
@@ -119,8 +119,11 @@ pub(crate) fn get_all_modified_indices(
         .iter()
         .map(|address| contract_address_into_node_index(address))
         .collect();
-    let classes_trie_indices: Vec<NodeIndex> =
-        state_diff.class_hash_to_compiled_class_hash.keys().map(NodeIndex::from).collect();
+    let classes_trie_indices: Vec<NodeIndex> = state_diff
+        .class_hash_to_compiled_class_hash
+        .keys()
+        .map(class_hash_into_node_index)
+        .collect();
     let storage_tries_indices: HashMap<ContractAddress, Vec<NodeIndex>> = accessed_addresses
         .iter()
         .map(|address| {
