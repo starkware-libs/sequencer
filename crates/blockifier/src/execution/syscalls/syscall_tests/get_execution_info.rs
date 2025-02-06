@@ -96,8 +96,15 @@ use crate::transaction::objects::{
     TransactionVersion::ONE,
     false,
     false;
+<<<<<<< HEAD
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V1."
+||||||| 91889fd5e
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    V1."
+=======
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction V1."
+>>>>>>> origin/main-v0.13.4
     )
 )]
 #[cfg_attr(
@@ -108,8 +115,15 @@ use crate::transaction::objects::{
     TransactionVersion::THREE,
     false,
     false;
+<<<<<<< HEAD
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V3."
+||||||| 91889fd5e
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction 
+    V3."
+=======
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction V3."
+>>>>>>> origin/main-v0.13.4
     )
 )]
 #[cfg_attr(

@@ -25,6 +25,9 @@ impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecu
         txs: &[BlockifierTransaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
         self.execute_txs(txs)
+            .into_iter()
+            .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
+            .collect()
     }
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.

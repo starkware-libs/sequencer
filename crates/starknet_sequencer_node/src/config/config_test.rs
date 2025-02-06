@@ -93,6 +93,7 @@ fn valid_component_execution_config(
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
 
+<<<<<<< HEAD
 #[cfg(not(feature = "cairo_native"))]
 fn remove_native_config(json: &mut serde_json::Value) {
     if let Some(obj) = json.as_object_mut() {
@@ -104,6 +105,18 @@ fn remove_native_config(json: &mut serde_json::Value) {
 
 // TODO(Arni): share code with
 // `papyrus_node::config::config_test::default_config_file_is_up_to_date`.
+||||||| 91889fd5e
+#[cfg(not(feature = "cairo_native"))]
+fn remove_native_config(json: &mut serde_json::Value) {
+    if let Some(obj) = json.as_object_mut() {
+        // Remove fields related to Sierra compilation, used only when "cairo_native" feature is
+        // enabled.
+        obj.retain(|key, _| !key.contains("native_compiler_config."));
+    }
+}
+
+=======
+>>>>>>> origin/main-v0.13.4
 /// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
 /// date. To update the default config file, run:
 /// cargo run --bin sequencer_dump_config -q
@@ -111,7 +124,7 @@ fn remove_native_config(json: &mut serde_json::Value) {
 fn default_config_file_is_up_to_date() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    let mut from_default_config_file: serde_json::Value =
+    let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
     // Create a temporary file and dump the default config to it.
@@ -128,8 +141,6 @@ fn default_config_file_is_up_to_date() {
     // Read the dumped config from the file.
     let from_code: serde_json::Value =
         serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
-    #[cfg(not(feature = "cairo_native"))]
-    remove_native_config(&mut from_default_config_file);
 
     let error_message = format!(
         "{}\n{}",

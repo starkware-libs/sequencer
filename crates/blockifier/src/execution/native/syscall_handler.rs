@@ -75,7 +75,7 @@ impl<'state> NativeSyscallHandler<'state> {
         syscall_gas_cost: u64,
     ) -> SyscallResult<()> {
         if self.unrecoverable_error.is_some() {
-            // An unrecoverable error was found in a previous syscall, we return immediatly to
+            // An unrecoverable error was found in a previous syscall, we return immediately to
             // accelerate the end of the execution. The returned data is not important
             return Err(vec![]);
         }
