@@ -1,4 +1,4 @@
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -12,7 +12,7 @@ use starknet_types_core::felt::Felt;
 use super::leaf_serde::CommitterLeafPrefix;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::hash_function::hash::TreeHashFunctionImpl;
-use crate::patricia_merkle_tree::types::{CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ContractState {

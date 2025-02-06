@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::{info, warn};
@@ -18,7 +18,7 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{from_class_hash_for_node_index, Nonce};
+use crate::patricia_merkle_tree::types::from_class_hash_for_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
