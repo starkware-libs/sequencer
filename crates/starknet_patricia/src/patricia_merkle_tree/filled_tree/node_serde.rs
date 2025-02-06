@@ -1,7 +1,7 @@
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{

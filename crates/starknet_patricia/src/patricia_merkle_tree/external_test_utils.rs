@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ethnum::U256;
 use rand::Rng;
 use serde_json::json;
+use starknet_types_core::felt::Felt;
 
 use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use super::node_data::inner_node::{EdgePathLength, PathToBottom};
@@ -13,24 +14,21 @@ use super::original_skeleton_tree::tree::{OriginalSkeletonTree, OriginalSkeleton
 use super::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use super::updated_skeleton_tree::hash_function::TreeHashFunction;
 use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTreeImpl};
-use crate::felt::Felt;
+use crate::felt::u256_from_felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::storage::map_storage::MapStorage;
 use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
 
-impl TryFrom<&U256> for Felt {
-    type Error = TypesError<U256>;
-    fn try_from(value: &U256) -> Result<Self, Self::Error> {
-        if *value > U256::from(&Felt::MAX) {
-            return Err(TypesError::ConversionError {
-                from: *value,
-                to: "Felt",
-                reason: "value is bigger than felt::max",
-            });
-        }
-        Ok(Self::from_bytes_be(&value.to_be_bytes()))
+pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
+    if *value > u256_from_felt(&Felt::MAX) {
+        return Err(TypesError::ConversionError {
+            from: *value,
+            to: "Felt",
+            reason: "value is bigger than felt::max",
+        });
     }
+    Ok(Felt::from_bytes_be(&value.to_be_bytes()))
 }
 
 /// Generates a random U256 number between low and high (exclusive).
@@ -126,7 +124,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
 
     let mut result_map = HashMap::new();
     // Serialize the hash result.
-    let json_hash = &json!(hash_result.0.to_hex());
+    let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
     let json_storage = &json!(filled_tree.serialize());

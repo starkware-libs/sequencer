@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_types_core::felt::Felt;
 
 use super::OriginalSkeletonTreeImpl;
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::{
     create_binary_entry,

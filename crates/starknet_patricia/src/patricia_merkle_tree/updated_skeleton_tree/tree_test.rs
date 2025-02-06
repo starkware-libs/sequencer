@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use rstest::{fixture, rstest};
+use starknet_types_core::felt::Felt;
 
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::internal_test_utils::{
     get_initial_updated_skeleton,

@@ -1,11 +1,11 @@
 use std::fmt::Debug;
 
 use rstest::rstest;
-use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::storage::db_object::Deserializable;
 use starknet_patricia::storage::storage_trait::StorageValue;
+use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;

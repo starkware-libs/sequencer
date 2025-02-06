@@ -24,8 +24,8 @@ impl SerializedForest {
         let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
         Output {
             storage,
-            contract_storage_root_hash: contract_storage_root_hash.to_hex(),
-            compiled_class_root_hash: compiled_class_root_hash.to_hex(),
+            contract_storage_root_hash: contract_storage_root_hash.to_hex_string(),
+            compiled_class_root_hash: compiled_class_root_hash.to_hex_string(),
         }
     }
 }

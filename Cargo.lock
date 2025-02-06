@@ -10829,6 +10829,7 @@ dependencies = [
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "clap",
  "criterion",
  "derive_more 0.99.18",

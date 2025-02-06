@@ -1,16 +1,21 @@
 use std::collections::HashMap;
 
 use serde_json::Value;
-use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia::storage::db_object::{DBObject, Deserializable};
 use starknet_patricia::storage::errors::DeserializationError;
 use starknet_patricia::storage::storage_trait::{StarknetPrefix, StorageValue};
+use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{
+    fixed_hex_string_no_prefix,
+    ClassHash,
+    CompiledClassHash,
+    Nonce,
+};
 
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
@@ -26,7 +31,7 @@ impl DBObject for StarknetStorageValue {
 impl DBObject for CompiledClassHash {
     /// Creates a json string describing the leaf and casts it into a byte vector.
     fn serialize(&self) -> StorageValue {
-        let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex());
+        let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex_string());
         StorageValue(json_string.into_bytes())
     }
 
@@ -40,10 +45,10 @@ impl DBObject for ContractState {
     fn serialize(&self) -> StorageValue {
         let json_string = format!(
             r#"{{"contract_hash": "{}", "storage_commitment_tree": {{"root": "{}", "height": {}}}, "nonce": "{}"}}"#,
-            self.class_hash.0.to_fixed_hex_string(),
-            self.storage_root_hash.0.to_fixed_hex_string(),
+            fixed_hex_string_no_prefix(&self.class_hash.0),
+            fixed_hex_string_no_prefix(&self.storage_root_hash.0),
             SubTreeHeight::ACTUAL_HEIGHT,
-            self.nonce.0.to_hex(),
+            self.nonce.0.to_hex_string(),
         );
         StorageValue(json_string.into_bytes())
     }

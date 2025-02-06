@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 
-use crate::felt::Felt;
+use starknet_types_core::felt::Felt;
+
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;

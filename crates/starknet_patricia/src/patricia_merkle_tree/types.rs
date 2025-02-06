@@ -1,6 +1,7 @@
 use ethnum::U256;
+use starknet_types_core::felt::Felt;
 
-use crate::felt::Felt;
+use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 
@@ -131,7 +132,7 @@ impl NodeIndex {
     }
 
     pub(crate) fn from_felt_value(felt: &Felt) -> Self {
-        Self(U256::from(felt))
+        Self(u256_from_felt(felt))
     }
 }
 
