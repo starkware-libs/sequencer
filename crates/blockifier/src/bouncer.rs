@@ -194,253 +194,47 @@ impl std::fmt::Display for BouncerWeights {
     }
 }
 
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    Deserialize,
-    PartialEq,
-    Serialize,
-)]
-pub struct BuiltinCount {
-    pub add_mod: usize,
-    pub bitwise: usize,
-    pub ecdsa: usize,
-    pub ec_op: usize,
-    pub keccak: usize,
-    pub mul_mod: usize,
-    pub pedersen: usize,
-    pub poseidon: usize,
-    pub range_check: usize,
-    pub range_check96: usize,
+pub fn to_sierra_gas(
+    builtin_counts: &HashMapWrapper,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    // Fetch the latest gas cost constants
+    let gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
+
+    let total_gas = builtin_counts
+        .iter()
+        .try_fold(0u64, |accumulated_gas, (&builtin, &count)| {
+            let builtin_gas_cost = match builtin {
+                BuiltinName::add_mod => gas_costs.add_mod,
+                BuiltinName::bitwise => gas_costs.bitwise,
+                BuiltinName::ecdsa => gas_costs.ecdsa,
+                BuiltinName::ec_op => gas_costs.ecop,
+                BuiltinName::keccak => gas_costs.keccak,
+                BuiltinName::mul_mod => gas_costs.mul_mod,
+                BuiltinName::pedersen => gas_costs.pedersen,
+                BuiltinName::poseidon => gas_costs.poseidon,
+                BuiltinName::range_check => gas_costs.range_check,
+                BuiltinName::range_check96 => gas_costs.range_check96,
+                _ => panic!("Unsupported builtin: {:?}", builtin),
+            };
+
+            let builtin_count_u64 = u64_from_usize(count);
+            let builtin_total_cost = builtin_count_u64.checked_mul(builtin_gas_cost)?;
+            accumulated_gas.checked_add(builtin_total_cost)
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "Overflow occurred while converting built-in resources to gas. Builtins: {:?}",
+                builtin_counts
+            )
+        });
+
+    GasAmount(total_gas)
 }
 
-macro_rules! impl_all_non_zero {
-    ($($field:ident),+) => {
-        pub fn all_non_zero(&self) -> bool {
-            $( self.$field != 0 )&&+
-        }
-    };
-}
-
-macro_rules! impl_builtin_variants {
-    ($($field:ident),+) => {
-        impl_checked_ops!($($field),+);
-        impl_all_non_zero!($($field),+);
-    };
-}
-
-impl BuiltinCount {
-    impl_builtin_variants!(
-        add_mod,
-        bitwise,
-        ec_op,
-        ecdsa,
-        keccak,
-        mul_mod,
-        pedersen,
-        poseidon,
-        range_check,
-        range_check96
-    );
-
-    pub fn max() -> Self {
-        Self {
-            add_mod: usize::MAX,
-            bitwise: usize::MAX,
-            ecdsa: usize::MAX,
-            ec_op: usize::MAX,
-            keccak: usize::MAX,
-            mul_mod: usize::MAX,
-            pedersen: usize::MAX,
-            poseidon: usize::MAX,
-            range_check: usize::MAX,
-            range_check96: usize::MAX,
-        }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            add_mod: 0,
-            bitwise: 0,
-            ecdsa: 0,
-            ec_op: 0,
-            keccak: 0,
-            mul_mod: 0,
-            pedersen: 0,
-            poseidon: 0,
-            range_check: 0,
-            range_check96: 0,
-        }
-    }
-
-    pub fn to_sierra_gas(&self, versioned_constants: &VersionedConstants) -> GasAmount {
-        // Fetch the latest gas cost constants
-        let gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
-
-        let builtins_count_and_costs = [
-            (self.add_mod, gas_costs.add_mod),
-            (self.bitwise, gas_costs.bitwise),
-            (self.ecdsa, gas_costs.ecdsa),
-            (self.ec_op, gas_costs.ecop),
-            (self.keccak, gas_costs.keccak),
-            (self.mul_mod, gas_costs.mul_mod),
-            (self.pedersen, gas_costs.pedersen),
-            (self.poseidon, gas_costs.poseidon),
-            (self.range_check, gas_costs.range_check),
-            (self.range_check96, gas_costs.range_check96),
-        ];
-        let total_gas = builtins_count_and_costs
-            .iter()
-            .try_fold(0u64, |accumulated_gas, &(builtin_count, builtin_gas_cost)| {
-                let builtin_count_u64 = u64_from_usize(builtin_count);
-                let builtin_total_cost = builtin_count_u64.checked_mul(builtin_gas_cost)?;
-                accumulated_gas.checked_add(builtin_total_cost)
-            })
-            .unwrap_or_else(|| {
-                panic!(
-                    "Overflow occurred while converting built-in resources to gas. Builtins: {:?}",
-                    self
-                )
-            });
-
-        GasAmount(total_gas)
-    }
-}
-
-impl From<HashMapWrapper> for BuiltinCount {
-    fn from(mut data: HashMapWrapper) -> Self {
-        // TODO(yael 24/3/24): replace the unwrap_or_default with expect, once the
-        // ExecutionResources contains all the builtins.
-        // The keccak config we get from python is not always present.
-        let builtin_count = Self {
-            add_mod: data.remove(&BuiltinName::add_mod).unwrap_or_default(),
-            bitwise: data.remove(&BuiltinName::bitwise).unwrap_or_default(),
-            ecdsa: data.remove(&BuiltinName::ecdsa).unwrap_or_default(),
-            ec_op: data.remove(&BuiltinName::ec_op).unwrap_or_default(),
-            keccak: data.remove(&BuiltinName::keccak).unwrap_or_default(),
-            mul_mod: data.remove(&BuiltinName::mul_mod).unwrap_or_default(),
-            pedersen: data.remove(&BuiltinName::pedersen).unwrap_or_default(),
-            poseidon: data.remove(&BuiltinName::poseidon).unwrap_or_default(),
-            range_check: data.remove(&BuiltinName::range_check).unwrap_or_default(),
-            range_check96: data.remove(&BuiltinName::range_check96).unwrap_or_default(),
-        };
-        assert!(
-            data.is_empty(),
-            "The following keys do not exist in BuiltinCount: {:?} ",
-            data.keys()
-        );
-        builtin_count
-    }
-}
-
-impl std::fmt::Display for BuiltinCount {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "BuiltinCount {{ add_mod: {}, bitwise: {}, ecdsa: {}, ec_op: {}, keccak: {}, mul_mod: \
-             {}, pedersen: {}, poseidon: {}, range_check: {}, range_check96: {} }}",
-            self.add_mod,
-            self.bitwise,
-            self.ecdsa,
-            self.ec_op,
-            self.keccak,
-            self.mul_mod,
-            self.pedersen,
-            self.poseidon,
-            self.range_check,
-            self.range_check96
-        )
-    }
-}
-
-impl Default for BuiltinCount {
-    // TODO: update the default values once the actual production values are known.
-    fn default() -> Self {
-        Self {
-            add_mod: 156250,
-            bitwise: 39062,
-            ecdsa: 1220,
-            ec_op: 2441,
-            keccak: 1220,
-            mul_mod: 156250,
-            pedersen: 78125,
-            poseidon: 78125,
-            range_check: 156250,
-            range_check96: 156250,
-        }
-    }
-}
-
-impl SerializeConfig for BuiltinCount {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "add_mod",
-                &self.add_mod,
-                "Max number of add mod builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bitwise",
-                &self.bitwise,
-                "Max number of bitwise builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "ecdsa",
-                &self.ecdsa,
-                "Max number of ECDSA builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "ec_op",
-                &self.ec_op,
-                "Max number of EC operation builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "keccak",
-                &self.keccak,
-                "Max number of keccak builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "mul_mod",
-                &self.mul_mod,
-                "Max number of mul mod builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "pedersen",
-                &self.pedersen,
-                "Max number of pedersen builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "poseidon",
-                &self.poseidon,
-                "Max number of poseidon builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "range_check",
-                &self.range_check,
-                "Max number of range check builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "range_check96",
-                &self.range_check96,
-                "Max number of range check 96 builtin usage in a block.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
+// TODO(AvivG): impl std::fmt::Display for HashMapWrapper?
+// TODO (AvivG): make sure no default is implicitly changed by removing impl Default for
+// BuiltinCounter
 
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
@@ -569,8 +363,7 @@ fn vm_resources_to_sierra_gas(
     resources: ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_count = BuiltinCount::from(resources.prover_builtins());
-    let builtins_gas_cost = builtins_count.to_sierra_gas(versioned_constants);
+    let builtins_gas_cost = to_sierra_gas(&resources.prover_builtins(), versioned_constants);
     let n_steps_gas_cost = n_steps_to_sierra_gas(resources.total_n_steps(), versioned_constants);
     n_steps_gas_cost.checked_add(builtins_gas_cost).unwrap_or_else(|| {
         panic!(
