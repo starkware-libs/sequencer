@@ -70,30 +70,8 @@ impl PapyrusReader {
                         Some(block_number) if block_number <= state_number.0);
 
         if class_is_declared {
-<<<<<<< HEAD
-            let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
-||||||| 91889fd5e
-            let (option_casm, option_sierra) = self
-                .reader()?
-                .get_casm_and_sierra(&class_hash)
-                .map_err(|err| StateError::StateReadError(err.to_string()))?;
-            let (casm_compiled_class, sierra) =
-                couple_casm_and_sierra(class_hash, option_casm, option_sierra)?.expect(
-                    "Should be able to fetch a Casm and Sierra class if its definition exists, \
-                     database is inconsistent.",
-                );
-=======
             // Cairo 1.
-            let (option_casm, option_sierra) = self
-                .reader()?
-                .get_casm_and_sierra(&class_hash)
-                .map_err(|err| StateError::StateReadError(err.to_string()))?;
-            let (casm_compiled_class, sierra) =
-                couple_casm_and_sierra(class_hash, option_casm, option_sierra)?.expect(
-                    "Should be able to fetch a Casm and Sierra class if its definition exists, \
-                     database is inconsistent.",
-                );
->>>>>>> origin/main-v0.13.4
+            let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
             return Ok(CachedClass::V1(
                 CompiledClassV1::try_from((casm_compiled_class, sierra_version))?,
@@ -101,72 +79,13 @@ impl PapyrusReader {
             ));
         }
 
-<<<<<<< HEAD
-        let v0_compiled_class = self.read_deprecated_casm(class_hash)?;
-||||||| 91889fd5e
-        let v0_compiled_class = self
-            .reader()?
-            .get_state_reader()
-            .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
-
-=======
         // Possibly Cairo 0.
-        let v0_compiled_class = self
-            .reader()?
-            .get_state_reader()
-            .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
-
->>>>>>> origin/main-v0.13.4
+        let v0_compiled_class = self.read_deprecated_casm(class_hash)?;
         match v0_compiled_class {
             Some(starknet_api_contract_class) => {
                 Ok(CachedClass::V0(CompiledClassV0::try_from(starknet_api_contract_class)?))
             }
             None => Err(StateError::UndeclaredClassHash(class_hash)),
-        }
-    }
-<<<<<<< HEAD
-
-    /// Returns cached casm from cache if exists, otherwise fetches it from state.
-    fn get_cached_casm(&self, class_hash: ClassHash) -> StateResult<CachedCasm> {
-        match self.contract_class_manager.get_casm(&class_hash) {
-            Some(contract_class) => Ok(contract_class),
-            None => {
-                let runnable_casm_from_db = self.get_compiled_class_inner(class_hash)?;
-                self.contract_class_manager.set_casm(class_hash, runnable_casm_from_db.clone());
-                Ok(runnable_casm_from_db)
-            }
-        }
-    }
-
-    fn get_casm(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        Ok(self.get_cached_casm(class_hash)?.to_runnable_casm())
-    }
-
-    #[cfg(feature = "cairo_native")]
-    // Handles `get_compiled_class` under the assumption that native compilation has finished.
-    // Returns the native compiled class if the compilation succeeded and the runnable casm upon
-    // failure.
-    fn get_compiled_class_after_waiting_on_native_compilation(
-        &self,
-        class_hash: ClassHash,
-        casm: RunnableCompiledClass,
-    ) -> RunnableCompiledClass {
-        assert!(
-            self.contract_class_manager.wait_on_native_compilation(),
-            "this function should only be called when the waiting on native compilation flag is \
-             on."
-        );
-        let cached_native = self
-            .contract_class_manager
-            .get_native(&class_hash)
-            .expect("Should have native in cache in sync compilation flow.");
-        match cached_native {
-            CachedCairoNative::Compiled(compiled_native) => {
-                RunnableCompiledClass::from(compiled_native)
-            }
-            CachedCairoNative::CompilationFailed => casm,
         }
     }
 
@@ -197,51 +116,6 @@ impl PapyrusReader {
 
         Ok(option_casm)
     }
-||||||| 91889fd5e
-
-    /// Returns cached casm from cache if exists, otherwise fetches it from state.
-    fn get_cached_casm(&self, class_hash: ClassHash) -> StateResult<CachedCasm> {
-        match self.contract_class_manager.get_casm(&class_hash) {
-            Some(contract_class) => Ok(contract_class),
-            None => {
-                let runnable_casm_from_db = self.get_compiled_class_inner(class_hash)?;
-                self.contract_class_manager.set_casm(class_hash, runnable_casm_from_db.clone());
-                Ok(runnable_casm_from_db)
-            }
-        }
-    }
-
-    fn get_casm(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        Ok(self.get_cached_casm(class_hash)?.to_runnable_casm())
-    }
-
-    #[cfg(feature = "cairo_native")]
-    // Handles `get_compiled_class` under the assumption that native compilation has finished.
-    // Returns the native compiled class if the compilation succeeded and the runnable casm upon
-    // failure.
-    fn get_compiled_class_after_waiting_on_native_compilation(
-        &self,
-        class_hash: ClassHash,
-        casm: RunnableCompiledClass,
-    ) -> RunnableCompiledClass {
-        assert!(
-            self.contract_class_manager.wait_on_native_compilation(),
-            "this function should only be called when the waiting on native compilation flag is \
-             on."
-        );
-        let cached_native = self
-            .contract_class_manager
-            .get_native(&class_hash)
-            .expect("Should have native in cache in sync compilation flow.");
-        match cached_native {
-            CachedCairoNative::Compiled(compiled_native) => {
-                RunnableCompiledClass::from(compiled_native)
-            }
-            CachedCairoNative::CompilationFailed => casm,
-        }
-    }
-=======
->>>>>>> origin/main-v0.13.4
 }
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.

@@ -6,15 +6,8 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-<<<<<<< HEAD
 cairo_native = []
 testing = []
-||||||| 91889fd5e
-cairo_native = []
-testing = ["papyrus_proc_macros"]
-=======
-testing = ["papyrus_proc_macros"]
->>>>>>> origin/main-v0.13.4
 
 [lints]
 workspace = true
