@@ -154,7 +154,7 @@ impl TransfersGenerator {
         let results = self.executor.execute_txs(&txs);
         assert_eq!(results.len(), self.config.n_txs);
         for result in results {
-            assert!(!result.unwrap().is_reverted());
+            assert!(!result.unwrap().0.is_reverted());
         }
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.
