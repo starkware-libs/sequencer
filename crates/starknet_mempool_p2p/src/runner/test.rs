@@ -13,7 +13,7 @@ use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkError};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
 use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
@@ -65,8 +65,9 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
     let (add_tx_indicator_sender, add_tx_indicator_receiver) = futures::channel::oneshot::channel();
 
     let message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-    let expected_rpc_transaction =
-        RpcTransactionWrapper(RpcTransaction::get_test_instance(&mut get_rng()));
+    let expected_rpc_transaction = RpcTransactionWrapper(RpcTransaction::Invoke(
+        RpcInvokeTransaction::get_test_instance(&mut get_rng()),
+    ));
     let gateway_input = GatewayInput {
         rpc_tx: expected_rpc_transaction.0.clone(),
         message_metadata: Some(message_metadata.clone()),
@@ -114,8 +115,9 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
 
     let message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     let message_metadata_clone = message_metadata.clone();
-    let expected_rpc_transaction =
-        RpcTransactionWrapper(RpcTransaction::get_test_instance(&mut get_rng()));
+    let expected_rpc_transaction = RpcTransactionWrapper(RpcTransaction::Invoke(
+        RpcInvokeTransaction::get_test_instance(&mut get_rng()),
+    ));
 
     let mut mock_gateway_client = MockGatewayClient::new();
     mock_gateway_client.expect_add_tx().return_once(move |_| {
