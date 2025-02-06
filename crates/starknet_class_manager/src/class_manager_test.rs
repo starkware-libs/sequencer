@@ -8,9 +8,10 @@ use starknet_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, Raw
 use crate::class_manager::ClassManager;
 use crate::class_storage::{CachedClassStorageConfig, FsClassStorage, FsClassStorageError};
 use crate::config::ClassManagerConfig;
+use crate::test_utils::FileHandles;
 
 impl ClassManager<FsClassStorage> {
-    fn new_for_testing(compiler: MockSierraCompilerClient) -> Self {
+    fn new_for_testing(compiler: MockSierraCompilerClient) -> (Self, FileHandles) {
         use std::sync::Arc;
 
         use crate::class_storage::FsClassStorage;
@@ -18,9 +19,9 @@ impl ClassManager<FsClassStorage> {
         let cached_class_storage_config =
             CachedClassStorageConfig { class_cache_size: 10, deprecated_class_cache_size: 10 };
         let config = ClassManagerConfig { cached_class_storage_config };
-        let storage = FsClassStorage::new_for_testing();
+        let (storage, handles) = FsClassStorage::new_for_testing();
 
-        ClassManager::new(config, Arc::new(compiler), storage)
+        (ClassManager::new(config, Arc::new(compiler), storage), handles)
     }
 }
 
@@ -39,7 +40,7 @@ async fn class_manager() {
     });
 
     // Prepare class manager.
-    let mut class_manager = ClassManager::new_for_testing(compiler);
+    let (mut class_manager, _handles) = ClassManager::new_for_testing(compiler);
 
     // Test.
 
