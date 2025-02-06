@@ -7,7 +7,11 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerContract,
     Starknet,
 };
-use papyrus_base_layer::test_utils::anvil;
+use papyrus_base_layer::test_utils::{
+    anvil,
+    DEFAULT_ANVIL_ACCOUNT_ADDRESS,
+    DEFAULT_ANVIL_DEPLOY_ADDRESS,
+};
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
@@ -18,11 +22,7 @@ use starknet_l1_provider_types::Event;
 
 use crate::event_identifiers_to_track;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
-use crate::test_utils::{
-    FakeL1ProviderClient,
-    DEFAULT_ANVIL_ACCOUNT_ADDRESS,
-    DEFAULT_ANVIL_DEPLOY_ADDRESS,
-};
+use crate::test_utils::FakeL1ProviderClient;
 
 // TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
 // confusing `#[ignore]` api to mark slow tests.
