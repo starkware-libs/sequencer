@@ -62,13 +62,20 @@ impl StorageTestSetup {
         chain_info: &ChainInfo,
         path: Option<PathBuf>,
     ) -> Self {
+        let preset_test_contracts = PresetTestContracts::new();
+
         let batcher_db_path = path.as_ref().map(|p| p.join("batcher"));
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_handle) =
             TestStorageBuilder::new(batcher_db_path)
                 .scope(StorageScope::StateOnly)
                 .chain_id(chain_info.chain_id.clone())
                 .build();
-        create_test_state(&mut batcher_storage_writer, chain_info, test_defined_accounts.clone());
+        create_test_state(
+            &mut batcher_storage_writer,
+            chain_info,
+            test_defined_accounts.clone(),
+            preset_test_contracts.clone(),
+        );
 
         let state_sync_db_path = path.as_ref().map(|p| p.join("state_sync"));
         let (
@@ -79,7 +86,12 @@ impl StorageTestSetup {
             .scope(StorageScope::FullArchive)
             .chain_id(chain_info.chain_id.clone())
             .build();
-        create_test_state(&mut state_sync_storage_writer, chain_info, test_defined_accounts);
+        create_test_state(
+            &mut state_sync_storage_writer,
+            chain_info,
+            test_defined_accounts,
+            preset_test_contracts,
+        );
 
         // TODO(Yair): restructure this.
         let persistent_root_handle = tempfile::tempdir().unwrap();
@@ -111,44 +123,51 @@ fn create_test_state(
     storage_writer: &mut StorageWriter,
     chain_info: &ChainInfo,
     test_defined_accounts: Vec<AccountTransactionGenerator>,
+    preset_test_contracts: PresetTestContracts,
 ) {
-    let into_contract = |contract: FeatureContract| Contract {
-        contract,
-        sender_address: contract.get_instance_address(0),
-    };
-    let default_test_contracts = [
-        FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    ]
-    .into_iter()
-    .map(into_contract)
-    .collect();
-
-    let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
-    let erc20_contract = into_contract(erc20_contract);
-
     initialize_papyrus_test_state(
         storage_writer,
         chain_info,
         test_defined_accounts,
-        default_test_contracts,
-        erc20_contract,
+        preset_test_contracts,
     );
+}
+
+#[derive(Clone)]
+struct PresetTestContracts {
+    pub default_test_contracts: Vec<Contract>,
+    pub erc20_contract: Contract,
+}
+
+impl PresetTestContracts {
+    pub fn new() -> Self {
+        let into_contract = |contract: FeatureContract| Contract {
+            contract,
+            sender_address: contract.get_instance_address(0),
+        };
+        let default_test_contracts = [
+            FeatureContract::TestContract(CairoVersion::Cairo0),
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        ]
+        .into_iter()
+        .map(into_contract)
+        .collect();
+
+        let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
+        let erc20_contract = into_contract(erc20_contract);
+
+        Self { default_test_contracts, erc20_contract }
+    }
 }
 
 fn initialize_papyrus_test_state(
     storage_writer: &mut StorageWriter,
     chain_info: &ChainInfo,
     test_defined_accounts: Vec<AccountTransactionGenerator>,
-    default_test_contracts: Vec<Contract>,
-    erc20_contract: Contract,
+    preset_test_contracts: PresetTestContracts,
 ) {
-    let state_diff = prepare_state_diff(
-        chain_info,
-        &test_defined_accounts,
-        &default_test_contracts,
-        &erc20_contract,
-    );
+    let state_diff = prepare_state_diff(chain_info, &test_defined_accounts, &preset_test_contracts);
+    let PresetTestContracts { default_test_contracts, erc20_contract } = preset_test_contracts;
 
     let contract_classes_to_retrieve = test_defined_accounts
         .into_iter()
@@ -171,17 +190,23 @@ fn initialize_papyrus_test_state(
 fn prepare_state_diff(
     chain_info: &ChainInfo,
     test_defined_accounts: &[AccountTransactionGenerator],
-    default_test_contracts: &[Contract],
-    erc20_contract: &Contract,
+    preset_test_contracts: &PresetTestContracts,
 ) -> ThinStateDiff {
     let mut state_diff_builder = ThinStateDiffBuilder::new(chain_info);
+    let PresetTestContracts { default_test_contracts, erc20_contract } = preset_test_contracts;
 
     // Setup the common test contracts that are used by default in all test invokes.
     // TODO(batcher): this does nothing until we actually start excuting stuff in the batcher.
-    state_diff_builder.set_contracts(default_test_contracts).declare().deploy();
+    state_diff_builder
+        .set_contracts(default_test_contracts)
+        .declare()
+        .deploy();
 
     // Declare and deploy and the ERC20 contract, so that transfers from it can be made.
-    state_diff_builder.set_contracts(std::slice::from_ref(erc20_contract)).declare().deploy();
+    state_diff_builder
+        .set_contracts(std::slice::from_ref(erc20_contract))
+        .declare()
+        .deploy();
 
     // TODO(deploy_account_support): once we have batcher with execution, replace with:
     // ```
