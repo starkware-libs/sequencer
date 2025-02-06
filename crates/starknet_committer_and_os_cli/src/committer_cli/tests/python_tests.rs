@@ -3,8 +3,8 @@ use std::fmt::Debug;
 
 use ethnum::U256;
 use serde_json::json;
+use starknet_api::core::ContractAddress;
 use starknet_committer::block_committer::input::{
-    ContractAddress,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,

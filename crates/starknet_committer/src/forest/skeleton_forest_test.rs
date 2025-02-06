@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::core::ContractAddress;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
@@ -23,8 +24,8 @@ use tracing::level_filters::LevelFilter;
 
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
+    from_contract_address_for_node_index,
     ConfigImpl,
-    ContractAddress,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -222,7 +223,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         },
         storage_tries: HashMap::from([
             (
-                ContractAddress(Felt::ZERO),
+                ContractAddress::try_from(Felt::ZERO).unwrap(),
                 OriginalSkeletonTreeImpl {
                     nodes: create_expected_skeleton_nodes(
                         vec![
@@ -241,7 +242,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
                 }
             ),
             (
-                ContractAddress(Felt::from(6_u128)),
+                ContractAddress::try_from(Felt::from(6_u128)).unwrap(),
                 OriginalSkeletonTreeImpl {
                     nodes: create_expected_skeleton_nodes(
                         vec![
@@ -259,7 +260,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
                 }
             ),
             (
-                ContractAddress(Felt::from(7_u128)),
+                ContractAddress::try_from(Felt::from(7_u128)).unwrap(),
                 OriginalSkeletonTreeImpl {
                     nodes: create_expected_skeleton_nodes(
                         vec![
@@ -317,7 +318,7 @@ fn test_create_original_skeleton_forest(
     .unwrap();
     let expected_original_contracts_trie_leaves = expected_original_contracts_trie_leaves
         .into_iter()
-        .map(|(address, state)| ((&address).into(), state))
+        .map(|(address, state)| (from_contract_address_for_node_index(&address), state))
         .collect();
     assert_eq!(original_contracts_trie_leaves, expected_original_contracts_trie_leaves);
 
@@ -334,7 +335,7 @@ fn test_create_original_skeleton_forest(
     );
 
     for (contract, indices) in expected_storage_tries_sorted_indices {
-        let contract_address = ContractAddress(Felt::from(contract));
+        let contract_address = ContractAddress::try_from(Felt::from(contract)).unwrap();
         compare_skeleton_tree!(
             &actual_forest.storage_tries[&contract_address],
             &expected_forest.storage_tries[&contract_address],
@@ -348,7 +349,8 @@ fn create_contract_leaves(leaves: &[(u128, u128)]) -> HashMap<ContractAddress, C
         .iter()
         .map(|(idx, root)| {
             (
-                ContractAddress(Felt::from_bytes_be_slice(&create_32_bytes_entry(*idx))),
+                ContractAddress::try_from(Felt::from_bytes_be_slice(&create_32_bytes_entry(*idx)))
+                    .unwrap(),
                 ContractState {
                     nonce: Nonce(Felt::from(*root)),
                     storage_root_hash: HashOutput(Felt::from(*root)),
@@ -366,7 +368,7 @@ fn create_storage_updates(
         .iter()
         .map(|(address, address_indices)| {
             (
-                ContractAddress(Felt::from(u128::from(*address))),
+                ContractAddress::try_from(Felt::from(u128::from(*address))).unwrap(),
                 address_indices
                     .iter()
                     .map(|val| {

@@ -1,4 +1,5 @@
 use serde_json;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
@@ -33,6 +34,8 @@ pub enum DeserializationError {
     FeltParsingError(#[from] FromStrError),
     #[error("Encountered an invalid type when deserializing a leaf.")]
     LeafTypeError,
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
     #[error("Invalid value for deserialization: {0}.")]
     ValueError(Box<dyn std::error::Error>),
 }
