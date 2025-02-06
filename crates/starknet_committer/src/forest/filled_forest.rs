@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::core::ContractAddress;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -8,7 +9,11 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::Update
 use starknet_patricia::storage::storage_trait::Storage;
 use tracing::info;
 
-use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
+use crate::block_committer::input::{
+    from_contract_address_for_node_index,
+    try_from_node_index_for_contract_address,
+    StarknetStorageValue,
+};
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
@@ -94,12 +99,14 @@ impl FilledForest {
                 .into_iter()
                 .map(|(node_index, storage_trie)| {
                     (
-                        ContractAddress::try_from(&node_index).unwrap_or_else(|error| {
-                            panic!(
-                                "Got the following error when trying to convert node index \
-                                 {node_index:?} to a contract address: {error:?}",
-                            )
-                        }),
+                        try_from_node_index_for_contract_address(&node_index).unwrap_or_else(
+                            |error| {
+                                panic!(
+                                    "Got the following error when trying to convert node index \
+                                     {node_index:?} to a contract address: {error:?}",
+                                )
+                            },
+                        ),
                         storage_trie,
                     )
                 })
@@ -132,7 +139,7 @@ impl FilledForest {
         // `contract_address_to_storage_updates` includes all modified contracts, even those with
         // unmodified storage, see StateDiff::actual_storage_updates().
         for (contract_address, storage_updates) in contract_address_to_storage_updates {
-            let node_index = NodeIndex::from(&contract_address);
+            let node_index = from_contract_address_for_node_index(&contract_address);
             let original_contract_state = original_contracts_trie_leaves
                 .get(&node_index)
                 .ok_or(ForestError::MissingContractCurrentState(contract_address))?;

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use starknet_api::core::ContractAddress;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
-    ContractAddress,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -31,7 +31,7 @@ impl TryFrom<RawInput> for InputImpl {
             add_unique(
                 &mut address_to_class_hash,
                 "address to class hash",
-                ContractAddress(Felt::from_bytes_be_slice(&entry.key)),
+                ContractAddress::try_from(Felt::from_bytes_be_slice(&entry.key))?,
                 ClassHash(Felt::from_bytes_be_slice(&entry.value)),
             )?;
         }
@@ -41,7 +41,7 @@ impl TryFrom<RawInput> for InputImpl {
             add_unique(
                 &mut address_to_nonce,
                 "address to nonce",
-                ContractAddress(Felt::from_bytes_be_slice(&entry.key)),
+                ContractAddress::try_from(Felt::from_bytes_be_slice(&entry.key))?,
                 Nonce(Felt::from_bytes_be_slice(&entry.value)),
             )?;
         }
@@ -71,7 +71,7 @@ impl TryFrom<RawInput> for InputImpl {
             add_unique(
                 &mut storage_updates,
                 "starknet storage updates",
-                ContractAddress(Felt::from_bytes_be_slice(&outer_entry.address)),
+                ContractAddress::try_from(Felt::from_bytes_be_slice(&outer_entry.address))?,
                 inner_map,
             )?;
         }

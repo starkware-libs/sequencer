@@ -1,11 +1,18 @@
 use std::collections::HashMap;
 
+use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia::storage::map_storage::MapStorage;
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
-use crate::block_committer::input::{Config, ConfigImpl, ContractAddress, Input, StateDiff};
+use crate::block_committer::input::{
+    from_contract_address_for_node_index,
+    Config,
+    ConfigImpl,
+    Input,
+    StateDiff,
+};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
@@ -80,7 +87,7 @@ fn check_trivial_nonce_and_class_hash_updates(
 ) {
     for (address, nonce) in address_to_nonce.iter() {
         if original_contracts_trie_leaves
-            .get(&address.into())
+            .get(&from_contract_address_for_node_index(address))
             .is_some_and(|previous_contract_state| previous_contract_state.nonce == *nonce)
         {
             warn!("Encountered a trivial nonce update of contract {:?}", address)
@@ -88,9 +95,12 @@ fn check_trivial_nonce_and_class_hash_updates(
     }
 
     for (address, class_hash) in address_to_class_hash.iter() {
-        if original_contracts_trie_leaves.get(&address.into()).is_some_and(
-            |previous_contract_state| previous_contract_state.class_hash == *class_hash,
-        ) {
+        if original_contracts_trie_leaves
+            .get(&from_contract_address_for_node_index(address))
+            .is_some_and(|previous_contract_state| {
+                previous_contract_state.class_hash == *class_hash
+            })
+        {
             warn!("Encountered a trivial class hash update of contract {:?}", address)
         }
     }
@@ -105,8 +115,10 @@ pub(crate) fn get_all_modified_indices(
     state_diff: &StateDiff,
 ) -> (StorageTriesIndices, ContractsTrieIndices, ClassesTrieIndices) {
     let accessed_addresses = state_diff.accessed_addresses();
-    let contracts_trie_indices: Vec<NodeIndex> =
-        accessed_addresses.iter().map(|address| NodeIndex::from(*address)).collect();
+    let contracts_trie_indices: Vec<NodeIndex> = accessed_addresses
+        .iter()
+        .map(|address| from_contract_address_for_node_index(address))
+        .collect();
     let classes_trie_indices: Vec<NodeIndex> =
         state_diff.class_hash_to_compiled_class_hash.keys().map(NodeIndex::from).collect();
     let storage_tries_indices: HashMap<ContractAddress, Vec<NodeIndex>> = accessed_addresses
