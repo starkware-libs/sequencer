@@ -18,9 +18,12 @@ use starknet_committer::patricia_merkle_tree::types::{
     StorageTrie,
     StorageTrieMap,
 };
-use starknet_patricia::felt::Felt;
+use starknet_patricia::felt::u256_from_felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::external_test_utils::get_random_u256;
+use starknet_patricia::patricia_merkle_tree::external_test_utils::{
+    get_random_u256,
+    u256_try_into_felt,
+};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -32,6 +35,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 pub trait RandomValue {
@@ -44,7 +48,7 @@ pub trait DummyRandomValue {
 
 impl RandomValue for Felt {
     fn random<R: Rng>(rng: &mut R, _max: Option<U256>) -> Self {
-        Felt::try_from(&get_random_u256(rng, U256::ONE, U256::from(&Felt::MAX) + 1))
+        u256_try_into_felt(&get_random_u256(rng, U256::ONE, u256_from_felt(&Felt::MAX) + 1))
             .expect("Failed to create a random Felt")
     }
 }

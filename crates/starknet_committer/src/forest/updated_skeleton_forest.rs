@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use starknet_patricia::felt::Felt;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::ContractAddress;
 use crate::forest::forest_errors::{ForestError, ForestResult};
