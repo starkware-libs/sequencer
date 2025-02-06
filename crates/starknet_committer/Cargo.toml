@@ -20,6 +20,7 @@ tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
 [dev-dependencies]
+starknet_api = { path = "../starknet_api", features = ["testing"] }
 starknet_patricia = { path = "../starknet_patricia", features = ["testing"] }
 
 [lints]
