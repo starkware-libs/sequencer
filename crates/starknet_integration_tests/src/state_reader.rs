@@ -28,6 +28,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
@@ -39,6 +40,7 @@ use starknet_api::test_utils::{
 };
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
+use starknet_class_manager::class_storage::{ClassStorage, FsClassStorage};
 use starknet_class_manager::config::FsClassStorageConfig;
 use starknet_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use starknet_types_core::felt::Felt;
@@ -111,8 +113,13 @@ impl StorageTestSetup {
             fs_class_storage_builder = fs_class_storage_builder
                 .with_existing_paths(class_hash_storage_path_prefix, persistent_root);
         }
-        let (_class_manager_storage, class_manager_storage_config, class_manager_storage_handles) =
-            fs_class_storage_builder.build();
+        let (
+            mut class_manager_storage,
+            class_manager_storage_config,
+            class_manager_storage_handles,
+        ) = fs_class_storage_builder.build();
+
+        initialize_class_manager_test_state(&mut class_manager_storage, classes);
 
         Self {
             batcher_storage_config,
@@ -191,6 +198,32 @@ impl TestClasses {
             prepare_contract_classes(contract_classes_to_retrieve);
 
         Self { cairo0_contract_classes, cairo1_contract_classes }
+    }
+}
+
+fn initialize_class_manager_test_state(
+    class_manager_storage: &mut FsClassStorage,
+    classes: TestClasses,
+) {
+    let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
+
+    for (class_hash, cairo_0_class) in cairo0_contract_classes {
+        class_manager_storage
+            .set_deprecated_class(class_hash, cairo_0_class.try_into().unwrap())
+            .unwrap();
+    }
+    for (class_hash, (sierra, casm)) in cairo1_contract_classes {
+        let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
+        let class = ContractClass::V1((casm, sierra_version));
+        let compiled_class_hash = class.compiled_class_hash();
+        class_manager_storage
+            .set_class(
+                class_hash,
+                sierra.try_into().unwrap(),
+                compiled_class_hash,
+                class.try_into().unwrap(),
+            )
+            .unwrap();
     }
 }
 
