@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -13,17 +13,10 @@ pub fn fixed_hex_string_no_prefix(felt: &Felt) -> String {
     felt.to_fixed_hex_string().strip_prefix("0x").unwrap_or("0").to_string()
 }
 
-// TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct ClassHash(pub Felt);
-
-impl From<&ClassHash> for NodeIndex {
-    fn from(val: &ClassHash) -> Self {
-        NodeIndex::from_leaf_felt(&val.0)
-    }
+pub fn from_class_hash_for_node_index(class_hash: &ClassHash) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&class_hash.0)
 }
 
-impl_from_hex_for_felt_wrapper!(ClassHash);
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Nonce(pub Felt);
 

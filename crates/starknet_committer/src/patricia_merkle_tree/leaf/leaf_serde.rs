@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde_json::Value;
+use starknet_api::core::ClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia::storage::db_object::{DBObject, Deserializable};
@@ -10,12 +11,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{
-    fixed_hex_string_no_prefix,
-    ClassHash,
-    CompiledClassHash,
-    Nonce,
-};
+use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash, Nonce};
 
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
@@ -104,7 +100,7 @@ impl Deserializable for ContractState {
         Ok(Self {
             nonce: Nonce::from_hex(&nonce_as_hex)?,
             storage_root_hash: HashOutput::from_hex(&root_hash_as_hex)?,
-            class_hash: ClassHash::from_hex(&class_hash_as_hex)?,
+            class_hash: ClassHash(Felt::from_hex(&class_hash_as_hex)?),
         })
     }
 
