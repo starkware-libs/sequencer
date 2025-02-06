@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 
 use assert_matches::assert_matches;
@@ -38,7 +39,8 @@ use starknet_api::test_utils::{
 };
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
-use starknet_class_manager::config::{ClassHashStorageConfig, FsClassStorageConfig};
+use starknet_class_manager::config::FsClassStorageConfig;
+use starknet_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
@@ -55,7 +57,7 @@ pub struct StorageTestSetup {
     pub state_sync_storage_config: StorageConfig,
     pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_config: FsClassStorageConfig,
-    pub class_manager_storage_handles: TempDirHandlePair,
+    pub class_manager_storage_handles: Option<starknet_class_manager::test_utils::FileHandles>,
 }
 
 impl StorageTestSetup {
@@ -99,17 +101,18 @@ impl StorageTestSetup {
             &classes,
         );
 
-        // TODO(Yair): restructure this.
-        let persistent_root_handle = tempfile::tempdir().unwrap();
-        let class_hash_storage_handle = tempfile::tempdir().unwrap();
-        let class_manager_storage_config = FsClassStorageConfig {
-            persistent_root: persistent_root_handle.path().to_path_buf(),
-            class_hash_storage_config: ClassHashStorageConfig {
-                path_prefix: class_hash_storage_handle.path().to_path_buf(),
-                enforce_file_exists: false,
-                max_size: 1 << 20, // 1MB.
-            },
-        };
+        let fs_class_storage_db_path = path.as_ref().map(|p| p.join("class_manager"));
+        let mut fs_class_storage_builder = FsClassStorageBuilderForTesting::default();
+        if let Some(class_manager_path) = fs_class_storage_db_path.as_ref() {
+            let class_hash_storage_path_prefix = class_manager_path.join("class_hash_storage");
+            create_dir_all(&class_hash_storage_path_prefix).unwrap();
+            let persistent_root = class_manager_path.join("persistent_root");
+            create_dir_all(&persistent_root).unwrap();
+            fs_class_storage_builder = fs_class_storage_builder
+                .with_existing_paths(class_hash_storage_path_prefix, persistent_root);
+        }
+        let (_class_manager_storage, class_manager_storage_config, class_manager_storage_handles) =
+            fs_class_storage_builder.build();
 
         Self {
             batcher_storage_config,
@@ -117,7 +120,7 @@ impl StorageTestSetup {
             state_sync_storage_config,
             state_sync_storage_handle,
             class_manager_storage_config,
-            class_manager_storage_handles: (persistent_root_handle, class_hash_storage_handle),
+            class_manager_storage_handles,
         }
     }
 }
