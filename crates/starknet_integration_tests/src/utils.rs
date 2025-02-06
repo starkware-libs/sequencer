@@ -44,6 +44,7 @@ use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
+use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
     EthereumBaseLayerConfigRequiredParams,
@@ -89,6 +90,8 @@ impl TestScenario for InvokeTxs {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> Vec<RpcTransaction> {
+        info!("In InvokeTxs::create_txs");
+        info!("Creating {} transactions for account_id: {}", self.0, account_id);
         create_invoke_txs(tx_generator, account_id, self.0)
     }
 
@@ -347,6 +350,8 @@ pub fn create_invoke_txs(
     account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
+    info!("In create_invoke_txs");
+    info!("Creating {} invoke transactions for account_id: {}", n_txs, account_id);
     (0..n_txs)
         .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()

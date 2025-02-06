@@ -1,0 +1,994 @@
+[2m2025-02-03T10:58:55.949833Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[2m2025-02-03T10:58:55.949917Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Running integration test setup.
+[2m2025-02-03T10:58:55.950009Z[0m [33m WARN[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m This test uses a compiled sequencer node binary located at /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node. Make sure to pre-compile the binary before running this test. Alternatively, you can compile the binary and run this test with './scripts/sequencer_integration_test.sh'
+[2m2025-02-03T10:58:55.952183Z[0m [32m INFO[0m [2mstarknet_integration_tests::end_to_end_integration[0m[2m:[0m Checking that the sequencer node executable is present.
+[2m2025-02-03T10:58:55.952296Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55540 in range [55540,55600]
+[2m2025-02-03T10:58:55.952313Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55541 in range [55540,55600]
+[2m2025-02-03T10:58:55.952322Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55542 in range [55540,55600]
+[2m2025-02-03T10:58:55.952331Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55543 in range [55540,55600]
+[2m2025-02-03T10:58:55.952351Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55544 in range [55540,55600]
+[2m2025-02-03T10:58:55.952361Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55545 in range [55540,55600]
+[2m2025-02-03T10:58:55.952370Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55546 in range [55540,55600]
+[2m2025-02-03T10:58:55.952380Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55547 in range [55540,55600]
+[2m2025-02-03T10:58:55.952396Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Creating node configurations.
+[2m2025-02-03T10:58:55.952433Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55548 in range [55540,55600]
+[2m2025-02-03T10:58:55.952443Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55549 in range [55540,55600]
+[2m2025-02-03T10:58:55.952451Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55550 in range [55540,55600]
+[2m2025-02-03T10:58:55.952460Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55551 in range [55540,55600]
+[2m2025-02-03T10:58:55.952468Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55552 in range [55540,55600]
+[2m2025-02-03T10:58:55.952476Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55553 in range [55540,55600]
+[2m2025-02-03T10:58:55.952484Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55554 in range [55540,55600]
+[2m2025-02-03T10:58:55.952996Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55555 in range [55540,55600]
+[2m2025-02-03T10:58:55.953011Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55556 in range [55540,55600]
+[2m2025-02-03T10:58:55.953020Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55557 in range [55540,55600]
+[2m2025-02-03T10:58:55.953029Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55558 in range [55540,55600]
+[2m2025-02-03T10:58:55.953037Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55559 in range [55540,55600]
+[2m2025-02-03T10:58:55.953045Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55560 in range [55540,55600]
+[2m2025-02-03T10:58:55.953054Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55561 in range [55540,55600]
+[2m2025-02-03T10:58:55.953257Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55562 in range [55540,55600]
+[2m2025-02-03T10:58:55.953269Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55563 in range [55540,55600]
+[2m2025-02-03T10:58:55.953278Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55564 in range [55540,55600]
+[2m2025-02-03T10:58:55.953287Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55565 in range [55540,55600]
+[2m2025-02-03T10:58:55.953322Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55566 in range [55540,55600]
+[2m2025-02-03T10:58:55.953330Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55567 in range [55540,55600]
+[2m2025-02-03T10:58:55.953338Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55568 in range [55540,55600]
+TempDir { path: "/tmp/.tmpknMMmD" }
+TempDir { path: "/tmp/.tmpSUDtWy" }
+[2m2025-02-03T10:58:56.634261Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55000 in range [55000,55060]
+[2m2025-02-03T10:58:56.634360Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55001 in range [55000,55060]
+[2m2025-02-03T10:58:56.634386Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55002 in range [55000,55060]
+[2m2025-02-03T10:58:56.634733Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55000
+[2m2025-02-03T10:58:56.636391Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmplDsOFq/node_integration_test_config_changes.json"
+TempDir { path: "/tmp/.tmpEXHnzq" }
+[2m2025-02-03T10:58:56.832274Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55000:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 79737 nadin    9u  IPv4 72088617      0t0  TCP localhost:55000 (LISTEN)
+sequencer 79737 nadin   11u  IPv4 72098550      0t0  TCP localhost:55000->localhost:58894 (ESTABLISHED)
+starknet_ 80544 nadin   53u  IPv4 72104650      0t0  TCP localhost:58894->localhost:55000 (ESTABLISHED)
+
+STDERR:
+
+[2m2025-02-03T10:58:56.832324Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55001
+[2m2025-02-03T10:58:56.985352Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55001:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 79737 nadin   10u  IPv4 72100739      0t0  TCP localhost:52910->localhost:55001 (ESTABLISHED)
+starknet_ 80544 nadin   42u  IPv4 72104265      0t0  TCP *:55001 (LISTEN)
+starknet_ 80544 nadin   51u  IPv4 72111190      0t0  TCP localhost:55001->localhost:52910 (ESTABLISHED)
+
+STDERR:
+
+[2m2025-02-03T10:58:56.985385Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55002
+TempDir { path: "/tmp/.tmp9JiuEY" }
+[2m2025-02-03T10:58:57.121130Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55002:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 80544 nadin   41u  IPv4 72106518      0t0  TCP localhost:55002 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:58:57.121161Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55060
+[2m2025-02-03T10:58:57.262952Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55060: No output (command may not have found any result)
+[2m2025-02-03T10:58:57.262997Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55061
+[2m2025-02-03T10:58:57.371241Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55060 in range [55060,55120]
+[2m2025-02-03T10:58:57.371419Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55061 in range [55060,55120]
+[2m2025-02-03T10:58:57.371462Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55062 in range [55060,55120]
+[2m2025-02-03T10:58:57.374925Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmpFdluaQ/node_integration_test_config_changes.json"
+TempDir { path: "/tmp/.tmphMJY46" }
+[2m2025-02-03T10:58:57.443679Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55061: No output (command may not have found any result)
+[2m2025-02-03T10:58:57.443729Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55062
+[2m2025-02-03T10:58:57.593905Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55062: No output (command may not have found any result)
+[2m2025-02-03T10:58:57.593956Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55120
+[2m2025-02-03T10:58:57.734604Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55120: No output (command may not have found any result)
+[2m2025-02-03T10:58:57.734647Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55121
+TempDir { path: "/tmp/.tmpwiJKkL" }
+[2m2025-02-03T10:58:57.868858Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55121: No output (command may not have found any result)
+[2m2025-02-03T10:58:57.868901Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55122
+[2m2025-02-03T10:58:58.016298Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55122: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.016338Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55180
+[2m2025-02-03T10:58:58.081928Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55120 in range [55120,55180]
+[2m2025-02-03T10:58:58.082036Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55121 in range [55120,55180]
+[2m2025-02-03T10:58:58.082055Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55122 in range [55120,55180]
+[2m2025-02-03T10:58:58.084063Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmpyADTCU/node_integration_test_config_changes.json"
+TempDir { path: "/tmp/.tmpbEsJeE" }
+[2m2025-02-03T10:58:58.153184Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55180: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.153227Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55181
+[2m2025-02-03T10:58:58.295786Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55181: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.295830Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55182
+[2m2025-02-03T10:58:58.436991Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55182: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.437030Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55240
+TempDir { path: "/tmp/.tmpQOTjyP" }
+[2m2025-02-03T10:58:58.575876Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55240: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.575929Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55241
+[2m2025-02-03T10:58:58.727477Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55241: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.727517Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55242
+[2m2025-02-03T10:58:58.787590Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55180 in range [55180,55240]
+[2m2025-02-03T10:58:58.787748Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55181 in range [55180,55240]
+[2m2025-02-03T10:58:58.787786Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55182 in range [55180,55240]
+[2m2025-02-03T10:58:58.790579Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmp3znu6U/node_integration_test_config_changes.json"
+TempDir { path: "/tmp/.tmpRjXcdf" }
+[2m2025-02-03T10:58:58.884165Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55242: No output (command may not have found any result)
+[2m2025-02-03T10:58:58.884212Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55300
+[2m2025-02-03T10:58:59.045610Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55300: No output (command may not have found any result)
+[2m2025-02-03T10:58:59.045651Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55301
+TempDir { path: "/tmp/.tmp7IPhqU" }
+[2m2025-02-03T10:58:59.193011Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55301: No output (command may not have found any result)
+[2m2025-02-03T10:58:59.193045Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55302
+[2m2025-02-03T10:58:59.359561Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55302: No output (command may not have found any result)
+[2m2025-02-03T10:58:59.359607Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55360
+[2m2025-02-03T10:58:59.523259Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55360: No output (command may not have found any result)
+[2m2025-02-03T10:58:59.523338Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55361
+[2m2025-02-03T10:58:59.537090Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55240 in range [55240,55300]
+[2m2025-02-03T10:58:59.537230Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55241 in range [55240,55300]
+[2m2025-02-03T10:58:59.537264Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55242 in range [55240,55300]
+[2m2025-02-03T10:58:59.540909Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmpgu6xpx/node_integration_test_config_changes.json"
+TempDir { path: "/tmp/.tmpbILYEk" }
+[2m2025-02-03T10:58:59.660602Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55361: No output (command may not have found any result)
+[2m2025-02-03T10:58:59.660633Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55362
+[2m2025-02-03T10:58:59.816806Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55362: No output (command may not have found any result)
+[2m2025-02-03T10:58:59.816856Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55540
+TempDir { path: "/tmp/.tmpiIynaV" }
+[2m2025-02-03T10:58:59.961566Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55540:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 80544 nadin   43u  IPv4 72105107      0t0  TCP *:55540 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:58:59.961598Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55541
+[2m2025-02-03T10:59:00.121880Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55541:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 80544 nadin   29u  IPv4 72107459      0t0  TCP *:55541 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:00.121928Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55542
+[2m2025-02-03T10:59:00.264428Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55542:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 80544 nadin   27u  IPv4 72107457      0t0  TCP *:55542 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:00.264477Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55543
+[2m2025-02-03T10:59:00.280794Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55300 in range [55300,55360]
+[2m2025-02-03T10:59:00.280959Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55301 in range [55300,55360]
+[2m2025-02-03T10:59:00.280993Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55302 in range [55300,55360]
+[2m2025-02-03T10:59:00.284805Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmpmnc0wW/node_integration_test_config_changes.json"
+TempDir { path: "/tmp/.tmpQ7Ogee" }
+[2m2025-02-03T10:59:00.398334Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55543: No output (command may not have found any result)
+[2m2025-02-03T10:59:00.398365Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55544
+[2m2025-02-03T10:59:00.533217Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55544: No output (command may not have found any result)
+[2m2025-02-03T10:59:00.533262Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55545
+TempDir { path: "/tmp/.tmpVVrvuP" }
+[2m2025-02-03T10:59:00.672840Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55545: No output (command may not have found any result)
+[2m2025-02-03T10:59:00.672870Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55546
+[2m2025-02-03T10:59:00.818124Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55546: No output (command may not have found any result)
+[2m2025-02-03T10:59:00.818160Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55547
+[2m2025-02-03T10:59:00.966654Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55547: No output (command may not have found any result)
+[2m2025-02-03T10:59:00.966687Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55548
+[2m2025-02-03T10:59:01.007450Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55360 in range [55360,55420]
+[2m2025-02-03T10:59:01.007554Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55361 in range [55360,55420]
+[2m2025-02-03T10:59:01.007575Z[0m [32m INFO[0m [2mstarknet_infra_utils::test_utils[0m[2m:[0m Allocated port: 55362 in range [55360,55420]
+[2m2025-02-03T10:59:01.009626Z[0m [32m INFO[0m [2mstarknet_sequencer_node::config::config_utils[0m[2m:[0m Writing required config changes to: "/tmp/.tmpIawrTQ/node_integration_test_config_changes.json"
+[2m2025-02-03T10:59:01.039660Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running specified nodes.
+[2m2025-02-03T10:59:01.039694Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running node 2.
+[2m2025-02-03T10:59:01.039705Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running Node id 2 part 0.
+[2m2025-02-03T10:59:01.039756Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running node 3.
+[2m2025-02-03T10:59:01.039762Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running Node id 3 part 0.
+[2m2025-02-03T10:59:01.039770Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running Node id 3 part 1.
+[2m2025-02-03T10:59:01.039777Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running node 4.
+[2m2025-02-03T10:59:01.039782Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running Node id 4 part 0.
+[2m2025-02-03T10:59:01.039788Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running Node id 4 part 1.
+[2m2025-02-03T10:59:01.039795Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running node 0.
+[2m2025-02-03T10:59:01.039799Z[0m [32m INFO[0m [2mstarknet_integration_tests::sequencer_manager[0m[2m:[0m Running Node id 0 part 0.
+[2m2025-02-03T10:59:01.039819Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::test_utils[0m[2m:[0m Querying the node for aliveness.
+[2m2025-02-03T10:59:01.039847Z[0m [32m INFO[0m [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from its spawned task.
+[2m2025-02-03T10:59:01.039885Z[0m [32m INFO[0m [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from its spawned task.
+[2m2025-02-03T10:59:01.039900Z[0m [32m INFO[0m [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from its spawned task.
+[2m2025-02-03T10:59:01.039939Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Getting the node executable. [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmp3znu6U/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.039939Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Getting the node executable. [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpyADTCU/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.039968Z[0m [32m INFO[0m [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from its spawned task.
+[2m2025-02-03T10:59:01.039952Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Getting the node executable. [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpgu6xpx/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.039980Z[0m [32m INFO[0m [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from its spawned task.
+[2m2025-02-03T10:59:01.039999Z[0m [32m INFO[0m [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from its spawned task.
+[2m2025-02-03T10:59:01.040000Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from: /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmp3znu6U/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040000Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from: /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpyADTCU/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040012Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from: /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpgu6xpx/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040048Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::test_utils[0m[2m:[0m Querying the node for aliveness.
+[2m2025-02-03T10:59:01.040041Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Getting the node executable. [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpIawrTQ/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040058Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Getting the node executable. [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmplDsOFq/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040041Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Getting the node executable. [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpmnc0wW/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040098Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from: /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpIawrTQ/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040105Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from: /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmpmnc0wW/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040135Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::test_utils[0m[2m:[0m Querying the node for aliveness.
+[2m2025-02-03T10:59:01.040099Z[0m [32m INFO[0m [1mspawn_node_child_process[0m: [2mstarknet_sequencer_node::test_utils::node_runner[0m[2m:[0m Running the node from: /home/nadin/workspace/sequencer5/target/debug/starknet_sequencer_node [2m[3mnode_config_path[0m[2m=[0m"/tmp/.tmplDsOFq/node_integration_test_config_changes.json"[0m
+[2m2025-02-03T10:59:01.040195Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::test_utils[0m[2m:[0m Querying the node for aliveness.
+[2m2025-02-03T10:59:01.040273Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::test_utils[0m[2m:[0m Querying the node for aliveness.
+[2m2025-02-03T10:59:01.040342Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::test_utils[0m[2m:[0m Querying the node for aliveness.
+[2m2025-02-03T10:59:01.040502Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Attempt 1/50, Value false
+[2m2025-02-03T10:59:01.040582Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Attempt 1/50, Value false
+[2m2025-02-03T10:59:01.040633Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Attempt 1/50, Value false
+[2m2025-02-03T10:59:01.040739Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Attempt 1/50, Value false
+[2m2025-02-03T10:59:01.040793Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Attempt 1/50, Value false
+[2m2025-02-03T10:59:01.041726Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Attempt 1/50, Value true
+[2m2025-02-03T10:59:01.041882Z[0m [32m INFO[0m [2mstarknet_infra_utils::tracing[0m[2m:[0m Waiting for node to be alive: Condition met on attempt 1/50
+[31mNode id 0 part 0:[0m [2m2025-02-03T10:59:01.047227Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[31mNode id 0 part 0:[0m [2m2025-02-03T10:59:01.092662Z[0m [32m INFO[0m [1mload[0m: [2mpapyrus_config::loading[0m[2m:[0m config_map: {
+[31mNode id 0 part 0:[0m   "base_layer_config.node_url": "https://node_url/",
+[31mNode id 0 part 0:[0m   "base_layer_config.starknet_contract_address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.add_mod": 156250,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.bitwise": 39062,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ec_op": 2441,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ecdsa": 1220,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.keccak": 1220,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.mul_mod": 156250,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.pedersen": 78125,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.poseidon": 78125,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check": 156250,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check96": 156250,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_steps": 75000,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": 250000000,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": 4000,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.chain_info.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": "0x1001",
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": "0x1002",
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": 0,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": false,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": 0,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.execute_config.stack_size": 0,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.tx_chunk_size": 100,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": 50,
+[31mNode id 0 part 0:[0m   "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": 1000000,
+[31mNode id 0 part 0:[0m   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": 2000,
+[31mNode id 0 part 0:[0m   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": false,
+[31mNode id 0 part 0:[0m   "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": false,
+[31mNode id 0 part 0:[0m   "batcher_config.contract_class_manager_config.contract_cache_size": 600,
+[31mNode id 0 part 0:[0m   "batcher_config.input_stream_content_buffer_size": 400,
+[31mNode id 0 part 0:[0m   "batcher_config.max_l1_handler_txs_per_block_proposal": 3,
+[31mNode id 0 part 0:[0m   "batcher_config.outstream_content_buffer_size": 100,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.db_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "batcher_config.storage.db_config.enforce_file_exists": false,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.db_config.growth_step": 67108864,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.db_config.max_size": 34359738368,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.db_config.min_size": 1048576,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.db_config.path_prefix": "/tmp/.tmpknMMmD",
+[31mNode id 0 part 0:[0m   "batcher_config.storage.mmap_file_config.growth_step": 1048576,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.mmap_file_config.max_object_size": 65536,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.mmap_file_config.max_size": 16777216,
+[31mNode id 0 part 0:[0m   "batcher_config.storage.scope": "StateOnly",
+[31mNode id 0 part 0:[0m   "chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "class_manager_config.cached_class_storage_config.class_cache_size": 10,
+[31mNode id 0 part 0:[0m   "class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 10,
+[31mNode id 0 part 0:[0m   "class_manager_config.storage.enforce_file_exists": false,
+[31mNode id 0 part 0:[0m   "class_manager_config.storage.max_size": 1073741824,
+[31mNode id 0 part 0:[0m   "class_manager_config.storage.path_prefix": "/data",
+[31mNode id 0 part 0:[0m   "compiler_config.max_casm_bytecode_size": 81920,
+[31mNode id 0 part 0:[0m   "compiler_config.max_cpu_time": 20,
+[31mNode id 0 part 0:[0m   "compiler_config.max_memory_usage": 5368709120,
+[31mNode id 0 part 0:[0m   "compiler_config.max_native_bytecode_size": 15728640,
+[31mNode id 0 part 0:[0m   "compiler_config.sierra_to_native_compiler_path": null,
+[31mNode id 0 part 0:[0m   "components.batcher.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.batcher.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.batcher.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.batcher.port": 0,
+[31mNode id 0 part 0:[0m   "components.batcher.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.batcher.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.batcher.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.batcher.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.class_manager.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.class_manager.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.class_manager.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.class_manager.port": 0,
+[31mNode id 0 part 0:[0m   "components.class_manager.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.class_manager.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.class_manager.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.class_manager.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.consensus_manager.execution_mode": "Enabled",
+[31mNode id 0 part 0:[0m   "components.gateway.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.gateway.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.gateway.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.gateway.port": 0,
+[31mNode id 0 part 0:[0m   "components.gateway.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.gateway.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.gateway.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.gateway.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.http_server.execution_mode": "Enabled",
+[31mNode id 0 part 0:[0m   "components.l1_provider.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.l1_provider.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.l1_provider.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.l1_provider.port": 0,
+[31mNode id 0 part 0:[0m   "components.l1_provider.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.l1_provider.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.l1_provider.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.l1_provider.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.l1_scraper.execution_mode": "Enabled",
+[31mNode id 0 part 0:[0m   "components.mempool.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.mempool.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.mempool.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.mempool.port": 0,
+[31mNode id 0 part 0:[0m   "components.mempool.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.mempool.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.mempool.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.mempool.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.port": 0,
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.mempool_p2p.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.monitoring_endpoint.execution_mode": "Enabled",
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.port": 0,
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.sierra_compiler.url": "localhost",
+[31mNode id 0 part 0:[0m   "components.state_sync.execution_mode": "LocalExecutionWithRemoteDisabled",
+[31mNode id 0 part 0:[0m   "components.state_sync.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "components.state_sync.local_server_config.channel_buffer_size": 32,
+[31mNode id 0 part 0:[0m   "components.state_sync.port": 0,
+[31mNode id 0 part 0:[0m   "components.state_sync.remote_client_config.idle_connections": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "components.state_sync.remote_client_config.idle_timeout": 90,
+[31mNode id 0 part 0:[0m   "components.state_sync.remote_client_config.retries": 3,
+[31mNode id 0 part 0:[0m   "components.state_sync.url": "localhost",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.cende_config.certificates_file_path": null,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.cende_config.recorder_url": "http://127.0.0.1:55000/",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.cende_config.skip_write_height": 1,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.consensus_delay": 15,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.network_topic": "consensus",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.num_validators": 5,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.start_height": 1,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.sync_retry_interval": 1.0,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.timeouts.precommit_timeout": 3.0,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.timeouts.prevote_timeout": 3.0,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.timeouts.proposal_timeout": 9.0,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.consensus_config.validator_id": "0x64",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.context_config.batcher_build_buffer": 100,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.context_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.context_config.num_validators": 5,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.immediate_active_height": 0,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.advertised_multiaddr": null,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.bootstrap_peer_multiaddr": null,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.discovery_config.heartbeat_interval": 100,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.idle_connection_timeout": 120,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.peer_manager_config.malicious_timeout_seconds": 31536000,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.session_timeout": 120,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.network_config.tcp_port": 55548,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.proposals_topic": "consensus_proposals",
+[31mNode id 0 part 0:[0m   "consensus_manager_config.revert_up_to_and_including": null,
+[31mNode id 0 part 0:[0m   "consensus_manager_config.votes_topic": "consensus_votes",
+[31mNode id 0 part 0:[0m   "eth_fee_token_address": "0x1001",
+[31mNode id 0 part 0:[0m   "gateway_config.chain_info.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": "0x1001",
+[31mNode id 0 part 0:[0m   "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": "0x1002",
+[31mNode id 0 part 0:[0m   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
+[31mNode id 0 part 0:[0m   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+[31mNode id 0 part 0:[0m   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": 50,
+[31mNode id 0 part 0:[0m   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": 1000000,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_calldata_length": 10,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": 1,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": 5,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": 18446744073709551615,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_signature_length": 2,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": 1,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": 1,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": 0,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_data_gas_fee": false,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": true,
+[31mNode id 0 part 0:[0m   "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": false,
+[31mNode id 0 part 0:[0m   "http_server_config.ip": "127.0.0.1",
+[31mNode id 0 part 0:[0m   "http_server_config.port": 55002,
+[31mNode id 0 part 0:[0m   "l1_provider_config.bootstrap_catch_up_height": 0,
+[31mNode id 0 part 0:[0m   "l1_provider_config.provider_startup_height": 1,
+[31mNode id 0 part 0:[0m   "l1_provider_config.startup_sync_sleep_retry_interval": 0.0,
+[31mNode id 0 part 0:[0m   "l1_scraper_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "l1_scraper_config.finality": 0,
+[31mNode id 0 part 0:[0m   "l1_scraper_config.polling_interval": 1,
+[31mNode id 0 part 0:[0m   "l1_scraper_config.startup_rewind_time": 0,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_buffer_size": 10000,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.advertised_multiaddr": null,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": null,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": 100,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.idle_connection_timeout": 120,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout_seconds": 31536000,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.session_timeout": 120,
+[31mNode id 0 part 0:[0m   "mempool_p2p_config.network_config.tcp_port": 55562,
+[31mNode id 0 part 0:[0m   "monitoring_endpoint_config.collect_metrics": true,
+[31mNode id 0 part 0:[0m   "monitoring_endpoint_config.ip": "0.0.0.0",
+[31mNode id 0 part 0:[0m   "monitoring_endpoint_config.port": 55001,
+[31mNode id 0 part 0:[0m   "recorder_url": "http://127.0.0.1:55000/",
+[31mNode id 0 part 0:[0m   "state_sync_config.central_sync_client_conf[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.047096Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.099843Z[0m [32m INFO[0m [1mload[0m: [2mpapyrus_config::loading[0m[2m:[0m config_map: {
+[34mNode id 3 part 0:[0m   "base_layer_config.node_url": "https://node_url/",
+[34mNode id 3 part 0:[0m   "base_layer_config.starknet_contract_address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.add_mod": 156250,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.bitwise": 39062,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ec_op": 2441,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ecdsa": 1220,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.keccak": 1220,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.mul_mod": 156250,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.pedersen": 78125,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.poseidon": 78125,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check": 156250,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check96": 156250,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_steps": 75000,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": 250000000,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": 4000,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.chain_info.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": "0x1001",
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": "0x1002",
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": 0,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": false,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": 0,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.execute_config.stack_size": 0,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.tx_chunk_size": 100,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": 50,
+[34mNode id 3 part 0:[0m   "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": 1000000,
+[34mNode id 3 part 0:[0m   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": 2000,
+[34mNode id 3 part 0:[0m   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": false,
+[34mNode id 3 part 0:[0m   "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": false,
+[34mNode id 3 part 0:[0m   "batcher_config.contract_class_manager_config.contract_cache_size": 600,
+[34mNode id 3 part 0:[0m   "batcher_config.input_stream_content_buffer_size": 400,
+[34mNode id 3 part 0:[0m   "batcher_config.max_l1_handler_txs_per_block_proposal": 3,
+[34mNode id 3 part 0:[0m   "batcher_config.outstream_content_buffer_size": 100,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.db_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "batcher_config.storage.db_config.enforce_file_exists": false,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.db_config.growth_step": 67108864,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.db_config.max_size": 34359738368,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.db_config.min_size": 1048576,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.db_config.path_prefix": "/tmp/.tmpbEsJeE",
+[34mNode id 3 part 0:[0m   "batcher_config.storage.mmap_file_config.growth_step": 1048576,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.mmap_file_config.max_object_size": 65536,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.mmap_file_config.max_size": 16777216,
+[34mNode id 3 part 0:[0m   "batcher_config.storage.scope": "StateOnly",
+[34mNode id 3 part 0:[0m   "chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "class_manager_config.cached_class_storage_config.class_cache_size": 10,
+[34mNode id 3 part 0:[0m   "class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 10,
+[34mNode id 3 part 0:[0m   "class_manager_config.storage.enforce_file_exists": false,
+[34mNode id 3 part 0:[0m   "class_manager_config.storage.max_size": 1073741824,
+[34mNode id 3 part 0:[0m   "class_manager_config.storage.path_prefix": "/data",
+[34mNode id 3 part 0:[0m   "compiler_config.max_casm_bytecode_size": 81920,
+[34mNode id 3 part 0:[0m   "compiler_config.max_cpu_time": 20,
+[34mNode id 3 part 0:[0m   "compiler_config.max_memory_usage": 5368709120,
+[34mNode id 3 part 0:[0m   "compiler_config.max_native_bytecode_size": 15728640,
+[34mNode id 3 part 0:[0m   "compiler_config.sierra_to_native_compiler_path": null,
+[34mNode id 3 part 0:[0m   "components.batcher.execution_mode": "Disabled",
+[34mNode id 3 part 0:[0m   "components.batcher.ip": "0.0.0.0",
+[34mNode id 3 part 0:[0m   "components.batcher.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.batcher.port": 0,
+[34mNode id 3 part 0:[0m   "components.batcher.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.batcher.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.batcher.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.batcher.url": "localhost",
+[34mNode id 3 part 0:[0m   "components.class_manager.execution_mode": "Disabled",
+[34mNode id 3 part 0:[0m   "components.class_manager.ip": "0.0.0.0",
+[34mNode id 3 part 0:[0m   "components.class_manager.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.class_manager.port": 0,
+[34mNode id 3 part 0:[0m   "components.class_manager.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.class_manager.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.class_manager.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.class_manager.url": "localhost",
+[34mNode id 3 part 0:[0m   "components.consensus_manager.execution_mode": "Disabled",
+[34mNode id 3 part 0:[0m   "components.gateway.execution_mode": "LocalExecutionWithRemoteEnabled",
+[34mNode id 3 part 0:[0m   "components.gateway.ip": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.gateway.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.gateway.port": 55540,
+[34mNode id 3 part 0:[0m   "components.gateway.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.gateway.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.gateway.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.gateway.url": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.http_server.execution_mode": "Enabled",
+[34mNode id 3 part 0:[0m   "components.l1_provider.execution_mode": "Disabled",
+[34mNode id 3 part 0:[0m   "components.l1_provider.ip": "0.0.0.0",
+[34mNode id 3 part 0:[0m   "components.l1_provider.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.l1_provider.port": 0,
+[34mNode id 3 part 0:[0m   "components.l1_provider.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.l1_provider.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.l1_provider.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.l1_provider.url": "localhost",
+[34mNode id 3 part 0:[0m   "components.l1_scraper.execution_mode": "Disabled",
+[34mNode id 3 part 0:[0m   "components.mempool.execution_mode": "LocalExecutionWithRemoteEnabled",
+[34mNode id 3 part 0:[0m   "components.mempool.ip": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.mempool.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.mempool.port": 55541,
+[34mNode id 3 part 0:[0m   "components.mempool.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.mempool.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.mempool.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.mempool.url": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.execution_mode": "LocalExecutionWithRemoteEnabled",
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.ip": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.port": 55542,
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.mempool_p2p.url": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.monitoring_endpoint.execution_mode": "Enabled",
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.execution_mode": "Disabled",
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.ip": "0.0.0.0",
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.port": 0,
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.sierra_compiler.url": "localhost",
+[34mNode id 3 part 0:[0m   "components.state_sync.execution_mode": "Remote",
+[34mNode id 3 part 0:[0m   "components.state_sync.ip": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "components.state_sync.local_server_config.channel_buffer_size": 32,
+[34mNode id 3 part 0:[0m   "components.state_sync.port": 55543,
+[34mNode id 3 part 0:[0m   "components.state_sync.remote_client_config.idle_connections": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "components.state_sync.remote_client_config.idle_timeout": 90,
+[34mNode id 3 part 0:[0m   "components.state_sync.remote_client_config.retries": 3,
+[34mNode id 3 part 0:[0m   "components.state_sync.url": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.cende_config.certificates_file_path": null,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.cende_config.recorder_url": "http://127.0.0.1:55180/",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.cende_config.skip_write_height": 1,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.consensus_delay": 15,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.network_topic": "consensus",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.num_validators": 5,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.start_height": 1,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.sync_retry_interval": 1.0,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.timeouts.precommit_timeout": 3.0,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.timeouts.prevote_timeout": 3.0,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.timeouts.proposal_timeout": 9.0,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.consensus_config.validator_id": "0x67",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.context_config.batcher_build_buffer": 100,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.context_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.context_config.num_validators": 5,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.immediate_active_height": 0,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.advertised_multiaddr": null,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/55548/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.discovery_config.heartbeat_interval": 100,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.idle_connection_timeout": 120,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.peer_manager_config.malicious_timeout_seconds": 31536000,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.secret_key": "",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.session_timeout": 120,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.network_config.tcp_port": 55551,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.proposals_topic": "consensus_proposals",
+[34mNode id 3 part 0:[0m   "consensus_manager_config.revert_up_to_and_including": null,
+[34mNode id 3 part 0:[0m   "consensus_manager_config.votes_topic": "consensus_votes",
+[34mNode id 3 part 0:[0m   "eth_fee_token_address": "0x1001",
+[34mNode id 3 part 0:[0m   "gateway_config.chain_info.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": "0x1001",
+[34mNode id 3 part 0:[0m   "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": "0x1002",
+[34mNode id 3 part 0:[0m   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
+[34mNode id 3 part 0:[0m   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+[34mNode id 3 part 0:[0m   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": 50,
+[34mNode id 3 part 0:[0m   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": 1000000,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_calldata_length": 10,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": 1,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": 5,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": 18446744073709551615,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.max_signature_length": 2,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": 1,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": 1,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": 0,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_data_gas_fee": false,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": true,
+[34mNode id 3 part 0:[0m   "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": false,
+[34mNode id 3 part 0:[0m   "http_server_config.ip": "127.0.0.1",
+[34mNode id 3 part 0:[0m   "http_server_config.port": 55182,
+[34mNode id 3 part 0:[0m   "l1_provider_config.bootstrap_catch_up_height": 0,
+[34mNode id 3 part 0:[0m   "l1_provider_config.provider_startup_height": 1,
+[34mNode id 3 part 0:[0m   "l1_provider_config.startup_sync_sleep_retry_interval": 0.0,
+[34mNode id 3 part 0:[0m   "l1_scraper_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "l1_scraper_config.finality": 0,
+[34mNode id 3 part 0:[0m   "l1_scraper_config.polling_interval": 1,
+[34mNode id 3 part 0:[0m   "l1_scraper_config.startup_rewind_time": 0,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_buffer_size": 10000,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.advertised_multiaddr": null,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/55562/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": 100,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.idle_connection_timeout": 120,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout_seconds": 31536000,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.secret_key": "",
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.session_timeout": 120,
+[34mNode id 3 part 0:[0m   "mempool_p2p_config.network_config.tcp_port": 55565,
+[34mNode id 3 part 0:[0m   "monitoring_endpoint_config.collect_metrics": true,
+[34mNode id 3 part 0:[0m   "monitoring_endpoint_config.ip": "0.0.0.0",
+[34mNode id 3 part 0:[0m   "monitoring_endpoint_config.port": 55181,
+[34mNode id 3 part 0:[0m   "recorder_url": "http://127.0.0.1:55180/",
+[34mNode id 3 part 0:[0m   "state_sync_config.central_sync_client_config": null,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.advertised_multiaddr": null,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/55555/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.discovery_config.heartbeat_interval": 100,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.idle_connection_timeout": 120,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": 31536000,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.secret_key": "",
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.session_timeout": 120,
+[34mNode id 3 part 0:[0m   "state_sync_config.network_config.tcp_port": 55558,
+[34mNode id 3 part 0:[0m   "state_sync_config.p2p_sync_client_config.buffer_size": 100000,
+[34mNode id 3 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": 100,
+[34mNode id 3 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_block_state_diffs_per_query": 100,
+[34mNode id 3 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_block_transactions_per_query": 100,
+[34mNode id 3 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_headers_per_query": 10000,
+[34mNode id 3 part 0:[0m   "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": 50,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.db_config.chain_id": "CHAIN_ID_SUBDIR",
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.db_config.enforce_file_exists": false,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.db_config.growth_step": 67108864,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.db_config.max_size": 34359738368,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.db_config.min_size": 1048576,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.db_config.path_prefix": "/tmp/.tmpQOTjyP",
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.mmap_file_config.growth_step": 1048576,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.mmap_file_config.max_object_size": 65536,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.mmap_file_config.max_size": 16777216,
+[34mNode id 3 part 0:[0m   "state_sync_config.storage_config.scope": "FullArchive",
+[34mNode id 3 part 0:[0m   "strk_fee_token_address": "0x1002",
+[34mNode id 3 part 0:[0m   "validator_id": "0x67",
+[34mNode id 3 part 0:[0m   "versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+[34mNode id 3 part 0:[0m   "versioned_constants_overrides.max_recursion_depth": 50,
+[34mNode id 3 part 0:[0m   "versioned_constants_overrides.validate_max_n_steps": 1000000
+[34mNode id 3 part 0:[0m }
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.100865Z[0m [32m INFO[0m [2mstarknet_sequencer_node[0m[2m:[0m Finished loading configuration.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.100947Z[0m [32m INFO[0m [2mstarknet_sequencer_node[0m[2m:[0m Finished validating configuration.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.101081Z[0m [32m INFO[0m [2mstarknet_http_server::metrics[0m[2m:[0m Initializing HTTP Server metrics
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.102562Z[0m [32m INFO[0m [2mlibp2p_swarm[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWDbgrfJjLhz4fF2wg8tuWkAJzHta4vdAc9NB2jK9x5JyM
+[34mNode id 3 part 0:[0m [2m2025-02-03T10thread 'tokio-runtime-worker' panicked at /home/nadin/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hyper-0.14.32/src/server/server.rs:81:13:
+error binding to 127.0.0.1:55540: error creating server listener: Address already in use (os error 98)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+thread 'tokio-runtime-worker' panicked at /home/nadin/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hyper-0.14.32/src/server/server.rs:81:13:
+error binding to 127.0.0.1:55541: error creating server listener: Address already in use (os error 98)
+thread 'tokio-runtime-worker' panicked at /home/nadin/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hyper-0.14.32/src/server/server.rs:81:13:
+error binding to 127.0.0.1:55542: error creating server listener: Address already in use (os error 98)
+:59:01.103557Z[0m [32m INFO[0m [2mstarknet_sequencer_node[0m[2m:[0m Starting components!
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103670Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting LocalComponentServer for MempoolP2pPropagator.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103668Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting LocalComponentServer for MempoolCommunicationWrapper.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103668Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting LocalComponentServer for Gateway.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103696Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component MempoolP2pPropagator with the default starter.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103699Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component MempoolCommunicationWrapper with the default starter.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103705Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component Gateway with the default starter.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103708Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting server for component MempoolP2pPropagator
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103717Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting server for component MempoolCommunicationWrapper
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103721Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting server for component Gateway
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103729Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::empty_component_server[0m[2m:[0m Starting WrapperServer for HttpServer.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103740Z[0m [32m INFO[0m [2mstarknet_http_server::http_server[0m[2m:[0m Starting component HttpServer.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103744Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::empty_component_server[0m[2m:[0m Starting WrapperServer for MempoolP2pRunner.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103746Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::empty_component_server[0m[2m:[0m Starting WrapperServer for MonitoringEndpoint.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103781Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::monitoring_endpoint[0m[2m:[0m Starting component MonitoringEndpoint.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103857Z[0m [32m INFO[0m [2mstarknet_http_server::http_server[0m[2m:[0m HttpServer running using socket: 127.0.0.1:55182
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.103928Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::monitoring_endpoint[0m[2m:[0m MonitoringEndpoint running using socket: 0.0.0.0:55181
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.104926Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/10.100.102.9/tcp/55565
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.104974Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/172.17.0.1/tcp/55565
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.105049Z[0m [33m WARN[0m [2mpapyrus_network::peer_manager::behaviour_impl[0m[2m:[0m Dial failure of an unknown peer. peer id: 12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.105115Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Outgoing connection error. connection id: ConnectionId(2), requested peer id: Some(PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5")), error: Transport([(/ip4/127.0.0.1/tcp/55562/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5, Other(Custom { kind: Other, error: Other(Transport(Left(Left(Os { code: 111, kind: ConnectionRefused, message: "Connection refused" })))) }))])
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.106834Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_server::remote_component_server[0m[2m:[0m Dropping RemoteComponentServer<MempoolRequest,MempoolResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.106853Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<MempoolRequest,MempoolResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.106841Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_server::remote_component_server[0m[2m:[0m Dropping RemoteComponentServer<MempoolP2pPropagatorRequest,MempoolP2pPropagatorResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.106841Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_server::remote_component_server[0m[2m:[0m Dropping RemoteComponentServer<GatewayRequest,GatewayResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.106872Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<MempoolP2pPropagatorRequest,MempoolP2pPropagatorResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.106873Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<GatewayRequest,GatewayResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107036Z[0m [31mERROR[0m [2mstarknet_sequencer_node::servers[0m[2m:[0m Error while waiting for the first task: JoinError::Panic(Id(25), "error binding to 127.0.0.1:55541: error creating server listener: Address already in use (os error 98)", ...)
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107051Z[0m [31mERROR[0m [2mstarknet_sequencer_node::servers[0m[2m:[0m Remote Servers ended unexpectedly.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107080Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<GatewayRequest,GatewayResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107091Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<MempoolRequest,MempoolResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107100Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Dropping BaseLocalComponentServer<Gateway,GatewayRequest,GatewayResponse,BlockingLocalServerType>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107104Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<MempoolP2pPropagatorRequest,MempoolP2pPropagatorResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107102Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Dropping BaseLocalComponentServer<MempoolCommunicationWrapper,MempoolRequest,MempoolResponse,BlockingLocalServerType>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107125Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<MempoolP2pPropagatorRequest,MempoolP2pPropagatorResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107132Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<MempoolRequest,MempoolResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107135Z[0m [33m WARN[0m [2mstaError: task 25 panicked with message "error binding to 127.0.0.1:55541: error creating server listener: Address already in use (os error 98)"
+rknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<GatewayRequest,GatewayResponse>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107158Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Dropping BaseLocalComponentServer<MempoolP2pPropagator,MempoolP2pPropagatorRequest,MempoolP2pPropagatorResponse,BlockingLocalServerType>.
+[34mNode id 3 part 0:[0m [2m2025-02-03T10:59:01.107446Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<GatewayRequest,GatewayResponse>.
+[2m2025-02-03T10:59:01.108934Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55000
+[2m2025-02-03T10:59:01.162072Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55548: No output (command may not have found any result)
+[2m2025-02-03T10:59:01.162102Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55549
+[2m2025-02-03T10:59:01.254079Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55000:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 79737 nadin    9u  IPv4 72088617      0t0  TCP localhost:55000 (LISTEN)
+sequencer 79737 nadin   11u  IPv4 72098550      0t0  TCP localhost:55000->localhost:58894 (ESTABLISHED)
+starknet_ 80544 nadin   53u  IPv4 72104650      0t0  TCP localhost:58894->localhost:55000 (ESTABLISHED)
+
+STDERR:
+
+[2m2025-02-03T10:59:01.254126Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55001
+[2m2025-02-03T10:59:01.336995Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55549: No output (command may not have found any result)
+[2m2025-02-03T10:59:01.337033Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55550
+[2m2025-02-03T10:59:01.400428Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55001:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 79737 nadin   10u  IPv4 72100739      0t0  TCP localhost:52910->localhost:55001 (ESTABLISHED)
+starknet_ 80544 nadin   42u  IPv4 72104265      0t0  TCP *:55001 (LISTEN)
+starknet_ 80544 nadin   51u  IPv4 72111190      0t0  TCP localhost:55001->localhost:52910 (ESTABLISHED)
+starknet_ 80544 nadin   54u  IPv4 72206558      0t0  TCP localhost:55001->localhost:45198 (ESTABLISHED)
+sequencer 86331 nadin   28u  IPv4 72190244      0t0  TCP localhost:45198->localhost:55001 (ESTABLISHED)
+
+STDERR:
+
+[2m2025-02-03T10:59:01.400479Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55002
+thread 'tokio-runtime-worker' panicked at /home/nadin/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hyper-0.14.32/src/server/server.rs:81:13:
+error binding to 127.0.0.1:55002: error creating server listener: Address already in use (os error 98)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+thread 'tokio-runtime-worker' panicked at /home/nadin/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hyper-0.14.32/src/server/server.rs:81:13:
+error binding to 0.0.0.0:55001: error creating server listener: Address already in use (os error 98)
+thread 'tokio-runtime-worker' panicked at /home/nadin/workspace/sequencer5/crates/starknet_sequencer_infra/src/component_client/local_component_client.rs:94:48:
+Outbound connection should be open.: SendError { .. }
+Error: task 31 panicked with message "error binding to 0.0.0.0:55001: error creating server listener: Address already in use (os error 98)"
+[2m2025-02-03T10:59:01.494647Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55550: No output (command may not have found any result)
+[2m2025-02-03T10:59:01.494682Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55551
+[2m2025-02-03T10:59:01.562179Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55002:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 80544 nadin   41u  IPv4 72106518      0t0  TCP localhost:55002 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:01.562217Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55060
+[2m2025-02-03T10:59:01.686199Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55551: No output (command may not have found any result)
+[2m2025-02-03T10:59:01.686244Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55552
+[2m2025-02-03T10:59:01.700358Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55060:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 86331 nadin    9u  IPv4 72187520      0t0  TCP localhost:55060 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:01.700393Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55061
+[2m2025-02-03T10:59:01.849986Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55552:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86478 nadin   41u  IPv4 72176379      0t0  TCP *:55552 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:01.850020Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55553
+[2m2025-02-03T10:59:01.851013Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55061: No output (command may not have found any result)
+[2m2025-02-03T10:59:01.851034Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55062
+[2m2025-02-03T10:59:02.009633Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55553: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.009638Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55062: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.009666Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55554
+[2m2025-02-03T10:59:02.009678Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55120
+[2m2025-02-03T10:59:02.155420Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55554:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86480 nadin   42u  IPv4 72206594      0t0  TCP *:55554 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:02.155524Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55555
+[2m2025-02-03T10:59:02.161104Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55120:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 86331 nadin   10u  IPv4 72187528      0t0  TCP localhost:55120 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:02.161143Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55121
+[2m2025-02-03T10:59:02.310662Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55121:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86479 nadin   42u  IPv4 72192824      0t0  TCP *:55121 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:02.310696Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55122
+[2m2025-02-03T10:59:02.329131Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55555: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.329172Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55556
+[2m2025-02-03T10:59:02.454775Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55122:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86479 nadin   41u  IPv4 72188895      0t0  TCP localhost:55122 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:02.454810Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55180
+[2m2025-02-03T10:59:02.494829Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55556: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.494881Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55557
+[2m2025-02-03T10:59:02.601002Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55180:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 86331 nadin   11u  IPv4 72207442      0t0  TCP localhost:55180 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:02.601038Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55181
+[2m2025-02-03T10:59:02.691698Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55557:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86479 nadin   29u  IPv4 72195382      0t0  TCP *:55557 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:02.691732Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55558
+[2m2025-02-03T10:59:02.773527Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55181: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.773563Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55182
+[2m2025-02-03T10:59:02.852519Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55558: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.852558Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55559
+[2m2025-02-03T10:59:02.964098Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55182: No output (command may not have found any result)
+[2m2025-02-03T10:59:02.964150Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55240
+[2m2025-02-03T10:59:03.017133Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55559:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86478 nadin   27u  IPv4 72187735      0t0  TCP *:55559 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.017173Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55560
+[2m2025-02-03T10:59:03.128442Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55240:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 86331 nadin   12u  IPv4 72207498      0t0  TCP localhost:55240 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.128492Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55241
+[2m2025-02-03T10:59:03.176277Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55560: No output (command may not have found any result)
+[2m2025-02-03T10:59:03.176329Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55561
+[2m2025-02-03T10:59:03.289624Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55241:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86478 nadin   40u  IPv4 72192820      0t0  TCP *:55241 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.289701Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55242
+[2m2025-02-03T10:59:03.324919Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55561:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86480 nadin   27u  IPv4 72192797      0t0  TCP *:55561 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.324966Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55562
+[2m2025-02-03T10:59:03.458673Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55242: No output (command may not have found any result)
+[2m2025-02-03T10:59:03.458723Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55300
+[2m2025-02-03T10:59:03.468319Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55562: No output (command may not have found any result)
+[2m2025-02-03T10:59:03.468369Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55563
+[2m2025-02-03T10:59:03.620155Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55300:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 86331 nadin   13u  IPv4 72207549      0t0  TCP localhost:55300 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.620211Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55301
+[2m2025-02-03T10:59:03.623974Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55563: No output (command may not have found any result)
+[2m2025-02-03T10:59:03.624051Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55564
+[2m2025-02-03T10:59:03.763060Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55301:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86481 nadin   14u  IPv4 72176331      0t0  TCP *:55301 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.763106Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55302
+[2m2025-02-03T10:59:03.769634Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55564:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86479 nadin   27u  IPv4 72195380      0t0  TCP *:55564 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.769682Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55565
+[2m2025-02-03T10:59:03.906635Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55565: No output (command may not have found any result)
+[2m2025-02-03T10:59:03.906688Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55566
+[2m2025-02-03T10:59:03.906748Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55302:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86481 nadin   15u  IPv4 72192761      0t0  TCP localhost:55302 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:03.906782Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55360
+[2m2025-02-03T10:59:04.054003Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55566: No output (command may not have found any result)
+[2m2025-02-03T10:59:04.054051Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55567
+[2m2025-02-03T10:59:04.064132Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55360:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+sequencer 86331 nadin   14u  IPv4 72195332      0t0  TCP localhost:55360 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:04.064190Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55361
+[2m2025-02-03T10:59:04.194391Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55567:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86481 nadin    9u  IPv4 72192759      0t0  TCP *:55567 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:04.194442Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55568
+[2m2025-02-03T10:59:04.202690Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55361:
+STDOUT:
+COMMAND     PID  USER   FD   TYPE   DEVICE SIZE/OFF NODE NAME
+starknet_ 86480 nadin   40u  IPv4 72187760      0t0  TCP *:55361 (LISTEN)
+
+STDERR:
+
+[2m2025-02-03T10:59:04.202739Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55362
+[2m2025-02-03T10:59:04.343666Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55362: No output (command may not have found any result)
+[2m2025-02-03T10:59:04.343716Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Executing command: lsof -i :55540
+[2m2025-02-03T10:59:04.348677Z[0m [32m INFO[0m [2msequencer_node_end_to_end_integration_test[0m[2m:[0m Port 55568: No output (command may not have found any result)
+thread 'tokio-runtime-worker' panicked at /home/nadin/.cargo/registry/src/index.crates.io-6f17d22bba15001f/hyper-0.14.32/src/server/server.rs:81:13:
+error binding to 127.0.0.1:55000: error creating server listener: Address already in use (os error 98)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+[34mNode id 3 part 1:[0m [2m2025-02-03T10:59:01.046910Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[35mNode id 4 part 0:[0m [2m2025-02-03T10:59:01.047400Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+ig": null,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.advertised_multiaddr": null,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.bootstrap_peer_multiaddr": null,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.discovery_config.heartbeat_interval": 100,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.idle_connection_timeout": 120,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": 31536000,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.session_timeout": 120,
+[31mNode id 0 part 0:[0m   "state_sync_config.network_config.tcp_port": 55555,
+[31mNode id 0 part 0:[0m   "state_sync_config.p2p_sync_client_config.buffer_size": 100000,
+[31mNode id 0 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": 100,
+[31mNode id 0 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_block_state_diffs_per_query": 100,
+[31mNode id 0 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_block_transactions_per_query": 100,
+[31mNode id 0 part 0:[0m   "state_sync_config.p2p_sync_client_config.num_headers_per_query": 10000,
+[31mNode id 0 part 0:[0m   "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": 50,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.db_config.chain_id": "CHAIN_ID_SUBDIR",
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.db_config.enforce_file_exists": false,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.db_config.growth_step": 67108864,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.db_config.max_size": 34359738368,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.db_config.min_size": 1048576,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.db_config.path_prefix": "/tmp/.tmpSUDtWy",
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.mmap_file_config.growth_step": 1048576,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.mmap_file_config.max_object_size": 65536,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.mmap_file_config.max_size": 16777216,
+[31mNode id 0 part 0:[0m   "state_sync_config.storage_config.scope": "FullArchive",
+[31mNode id 0 part 0:[0m   "strk_fee_token_address": "0x1002",
+[31mNode id 0 part 0:[0m   "validator_id": "0x64",
+[31mNode id 0 part 0:[0m   "versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+[31mNode id 0 part 0:[0m   "versioned_constants_overrides.max_recursion_depth": 50,
+[31mNode id 0 part 0:[0m   "versioned_constants_overrides.validate_max_n_steps": 1000000
+[31mNode id 0 part 0:[0m }
+[31mNode id 0 part 0:[0m [2m2025-02-03T10:59:01.093514Z[0m [32m INFO[0m [2mstarknet_sequencer_node[0m[2m:[0m Finished loading configuration.
+[31mNode id 0 part 0:[0m [2m2025-02-03T10:59:01.093587Z[0m [32m INFO[0m [2mstarknet_sequencer_node[0m[2m:[0m Finished validating configuration.
+[31mNode id 0 part 0:[0m [2m2025-02-03T10:59:01.101259Z[0m [32m INFO[0m [2mpapyrus_storage[0m[2m:[0m Created storage directory: /tmp/.tmpZ0gRkB
+[35mNode id 4 part 1:[0m [2m2025-02-03T10:59:01.047086Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[33mNode id 2 part 0:[0m [2m2025-02-03T10:59:01.047203Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.

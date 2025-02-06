@@ -360,6 +360,8 @@ pub(crate) async fn get_sequencer_setup_configs(
     info!("Creating node configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
+    info!("####");
+    info!(" accounts: {:?}", accounts);
     let n_distributed_sequencers = node_component_configs
         .iter()
         .map(|node_component_config| node_component_config.len())

@@ -172,10 +172,10 @@ impl Mempool {
             self.state.stage(tx_reference)?;
         }
 
-        info!(
-            "Returned {} out of {n_txs} transactions, ready for sequencing.",
-            eligible_tx_references.len()
-        );
+        // info!(
+        //     "Returned {} out of {n_txs} transactions, ready for sequencing.",
+        //     eligible_tx_references.len()
+        // );
 
         Ok(eligible_tx_references
             .iter()
@@ -205,13 +205,18 @@ impl Mempool {
         debug!("Adding transaction to mempool: {tx:#?}.");
         let tx_reference = TransactionReference::new(&tx);
         self.validate_incoming_tx(tx_reference)?;
+        debug!("Transaction validated.");
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
+        debug!("Transaction inserted into pool.");
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
         let stored_account_nonce = self.state.get_or_insert(address, incoming_account_nonce);
+        debug!(
+            "Account nonce: {incoming_account_nonce} (incoming), {stored_account_nonce} (stored)."
+        );
         if tx_reference.nonce == stored_account_nonce {
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
