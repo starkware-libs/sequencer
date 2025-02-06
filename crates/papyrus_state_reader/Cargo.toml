@@ -13,7 +13,12 @@ workspace = true
 
 [dependencies]
 blockifier.workspace = true
+<<<<<<< HEAD
 cairo-lang-starknet-classes.workspace = true
+||||||| 91889fd5e
+=======
+log.workspace = true
+>>>>>>> origin/main-v0.13.4
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true

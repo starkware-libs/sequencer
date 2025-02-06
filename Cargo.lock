@@ -8035,6 +8035,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "indexmap 2.7.0",
+ "log",
  "papyrus_storage",
  "rstest",
  "starknet-types-core",

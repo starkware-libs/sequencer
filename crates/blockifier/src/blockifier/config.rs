@@ -3,15 +3,13 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "cairo_native")]
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
-#[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
     pub stack_size: usize,
@@ -23,6 +21,12 @@ impl TransactionExecutorConfig {
             concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
             stack_size: DEFAULT_STACK_SIZE,
         }
+    }
+}
+
+impl Default for TransactionExecutorConfig {
+    fn default() -> Self {
+        Self { concurrency_config: ConcurrencyConfig::default(), stack_size: DEFAULT_STACK_SIZE }
     }
 }
 
@@ -84,7 +88,6 @@ impl SerializeConfig for ConcurrencyConfig {
 pub struct ContractClassManagerConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,
     pub contract_cache_size: usize,
-    #[cfg(feature = "cairo_native")]
     pub native_compiler_config: SierraCompilationConfig,
 }
 
@@ -93,7 +96,6 @@ impl Default for ContractClassManagerConfig {
         Self {
             cairo_native_run_config: CairoNativeRunConfig::default(),
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
-            #[cfg(feature = "cairo_native")]
             native_compiler_config: SierraCompilationConfig::default(),
         }
     }
@@ -123,7 +125,6 @@ impl SerializeConfig for ContractClassManagerConfig {
             self.cairo_native_run_config.dump(),
             "cairo_native_run_config",
         ));
-        #[cfg(feature = "cairo_native")]
         dump.append(&mut append_sub_config_name(
             self.native_compiler_config.dump(),
             "native_compiler_config",

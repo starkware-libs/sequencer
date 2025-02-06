@@ -244,7 +244,6 @@ impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
             cairo_native_run_config: py_contract_class_manager_config
                 .cairo_native_run_config
                 .into(),
-            #[cfg(feature = "cairo_native")]
             native_compiler_config: py_contract_class_manager_config.native_compiler_config.into(),
         }
     }

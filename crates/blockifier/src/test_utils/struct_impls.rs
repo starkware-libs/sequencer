@@ -63,6 +63,28 @@ impl CallEntryPoint {
         )
     }
 
+    pub fn execute_directly_given_block_context(
+        self,
+        state: &mut dyn State,
+        block_context: BlockContext,
+    ) -> EntryPointExecutionResult<CallInfo> {
+        // Do not limit steps by resources as we use default resources.
+        let limit_steps_by_resources = false;
+        let tx_context = TransactionContext {
+            block_context,
+            tx_info: TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
+        };
+
+        let mut context = EntryPointExecutionContext::new(
+            Arc::new(tx_context),
+            ExecutionMode::Execute,
+            limit_steps_by_resources,
+            SierraGasRevertTracker::new(GasAmount(self.initial_gas)),
+        );
+        let mut remaining_gas = self.initial_gas;
+        self.execute(state, &mut context, &mut remaining_gas)
+    }
+
     pub fn execute_directly_given_tx_info(
         self,
         state: &mut dyn State,
