@@ -6,7 +6,10 @@ INCLUDE deployments/images/base/Dockerfile
 # Compile the sequencer_node crate in release mode, ensuring dependencies are locked.
 FROM base AS builder
 WORKDIR /app
+
+# Workaround for better cache handling (dont bust the cache on config change).
 COPY . .
+
 RUN cargo build --bin starknet_sequencer_node
 
 FROM ubuntu:24.04 as final_stage
@@ -17,7 +20,7 @@ COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/sta
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
-COPY config/sequencer/default_config.json /app/config/sequencer/
+COPY config/sequencer/ /app/config/sequencer/
 
 # Create a new user "sequencer".
 RUN set -ex; \
@@ -27,6 +30,10 @@ RUN set -ex; \
 
 # Expose RPC and monitoring ports.
 EXPOSE 8080 8081 8082
+
+# Default storage dir.
+RUN mkdir /data
+RUN chown -R sequencer:sequencer /data
 
 # Switch to the new user.
 USER ${ID}
