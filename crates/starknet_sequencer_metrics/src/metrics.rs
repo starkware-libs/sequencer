@@ -78,9 +78,9 @@ impl MetricGauge {
     }
 
     pub fn register(&self) -> Gauge {
-        let storage_height_metric = gauge!(self.name);
+        let gauge_metric = gauge!(self.name);
         describe_gauge!(self.name, self.description);
-        storage_height_metric
+        gauge_metric
     }
 
     /// Increments the gauge.
