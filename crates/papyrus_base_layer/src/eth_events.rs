@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use alloy_primitives::{Address as EthereumContractAddress, U256};
-use alloy_rpc_types_eth::Log;
-use alloy_sol_types::SolEventInterface;
+use alloy::primitives::{Address as EthereumContractAddress, U256};
+use alloy::rpc::types::Log;
+use alloy::sol_types::SolEventInterface;
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;

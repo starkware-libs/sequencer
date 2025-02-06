@@ -74,16 +74,7 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-alloy-contract = "0.9"
-alloy-dyn-abi = "0.8.3"
-alloy-json-rpc = "0.9"
-alloy-node-bindings = "0.9"
-alloy-primitives = "0.8.3"
-alloy-provider = "0.9"
-alloy-rpc-types-eth = "0.9"
-alloy-sol-types = "0.8.3"
-alloy-transport = "0.9"
-alloy-transport-http = "0.9"
+alloy = "0.9"
 anyhow = "1.0.44"
 apollo_reverts = { path = "crates/apollo_reverts", version = "0.0.0" }
 ark-ec = "0.4.2"
