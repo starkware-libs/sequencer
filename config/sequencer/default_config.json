@@ -164,6 +164,36 @@
     "privacy": "Public",
     "value": 600
   },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
+    "description": "Limitation of compiled casm bytecode size.",
+    "privacy": "Public",
+    "value": 81920
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 20
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_native_bytecode_size": {
+    "description": "Limitation of compiled native bytecode size.",
+    "privacy": "Public",
+    "value": 15728640
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
     "privacy": "Public",
