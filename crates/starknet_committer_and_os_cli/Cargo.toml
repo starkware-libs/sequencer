@@ -29,7 +29,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_repr.workspace = true
 starknet-types-core.workspace = true
-starknet_api.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 starknet_committer.workspace = true
 # Should be moved under `testing` feature, when it exists.
 starknet_os = { workspace = true, features = ["testing"] }
