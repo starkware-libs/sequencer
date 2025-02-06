@@ -14,6 +14,7 @@ cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native"]
 native_blockifier = []
 reexecution = ["transaction_serde"]
 testing = [
+  "blockifier_test_utils",
   "rand",
   "rstest",
   "rstest_reuse",
@@ -32,6 +33,7 @@ ark-ec.workspace = true
 ark-ff.workspace = true
 ark-secp256k1.workspace = true
 ark-secp256r1.workspace = true
+blockifier_test_utils = { workspace = true, optional = true }
 cached.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
@@ -73,6 +75,7 @@ tracing-test = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches.workspace = true
+blockifier_test_utils.path = "../blockifier_test_utils"
 criterion = { workspace = true, features = ["html_reports"] }
 glob.workspace = true
 itertools.workspace = true

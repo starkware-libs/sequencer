@@ -1715,6 +1715,7 @@ dependencies = [
  "ark-secp256k1 0.4.0",
  "ark-secp256r1 0.4.0",
  "assert_matches",
+ "blockifier_test_utils",
  "cached",
  "cairo-lang-casm",
  "cairo-lang-runner",
@@ -1785,6 +1786,14 @@ dependencies = [
  "starknet_gateway",
  "thiserror 1.0.69",
  "tokio",
+]
+
+[[package]]
+name = "blockifier_test_utils"
+version = "0.0.0"
+dependencies = [
+ "starknet-types-core",
+ "starknet_api",
 ]
 
 [[package]]
@@ -6846,6 +6855,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "blockifier_test_utils",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -10951,6 +10961,7 @@ dependencies = [
  "async-trait",
  "axum",
  "blockifier",
+ "blockifier_test_utils",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
  "criterion",
