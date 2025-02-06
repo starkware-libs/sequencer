@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
+[features]
+deserialize = ["blockifier/transaction_serde"]
+
 [dependencies]
 assert_matches.workspace = true
 async-trait.workspace = true

@@ -11255,6 +11255,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_consensus_orchestrator",
  "starknet_patricia",
  "strum 0.25.0",
  "strum_macros 0.25.3",
