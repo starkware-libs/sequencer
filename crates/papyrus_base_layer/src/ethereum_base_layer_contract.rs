@@ -156,7 +156,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         match (block.header.timestamp, block.header.base_fee_per_gas) {
             (timestamp, Some(base_fee_per_gas)) => Ok(Some(PriceSample {
                 timestamp,
-                base_fee_per_gas: base_fee_per_gas.into(),
+                base_fee_per_gas,
                 blob_fee: block.header.blob_fee().unwrap_or(0),
             })),
             _ => Ok(None),
