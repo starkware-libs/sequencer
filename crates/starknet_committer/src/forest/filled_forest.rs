@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
@@ -18,12 +18,7 @@ use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
 use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
-use crate::patricia_merkle_tree::types::{
-    ClassesTrie,
-    CompiledClassHash,
-    ContractsTrie,
-    StorageTrieMap,
-};
+use crate::patricia_merkle_tree::types::{ClassesTrie, ContractsTrie, StorageTrieMap};
 
 pub struct FilledForest {
     pub storage_tries: StorageTrieMap,

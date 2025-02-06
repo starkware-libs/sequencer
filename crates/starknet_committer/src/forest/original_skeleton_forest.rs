@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{CompiledClassHash, ContractAddress};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
@@ -22,7 +22,6 @@ use crate::patricia_merkle_tree::tree::{
     OriginalSkeletonContractsTrieConfig,
     OriginalSkeletonStorageTrieConfig,
 };
-use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct OriginalSkeletonForest<'a> {

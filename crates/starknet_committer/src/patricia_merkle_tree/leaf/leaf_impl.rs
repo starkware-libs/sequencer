@@ -9,7 +9,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::hash_function::hash::TreeHashFunctionImpl;
-use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ContractState {
@@ -19,19 +18,6 @@ pub struct ContractState {
 }
 
 impl Leaf for StarknetStorageValue {
-    type Input = Self;
-    type Output = ();
-
-    fn is_empty(&self) -> bool {
-        self.0 == Felt::ZERO
-    }
-
-    async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
-        Ok((input, ()))
-    }
-}
-
-impl Leaf for CompiledClassHash {
     type Input = Self;
     type Output = ();
 

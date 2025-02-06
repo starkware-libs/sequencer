@@ -1,3 +1,4 @@
+use starknet_api::core::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
@@ -9,7 +10,6 @@ use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash};
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 /// Implementation of HashFunction for Pedersen hash function.
 pub struct PedersenHashFunction;

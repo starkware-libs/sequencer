@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use serde_json::Value;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -11,7 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
+use crate::patricia_merkle_tree::types::fixed_hex_string_no_prefix;
 
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
@@ -21,18 +19,6 @@ impl DBObject for StarknetStorageValue {
 
     fn get_prefix(&self) -> Vec<u8> {
         StarknetPrefix::StorageLeaf.to_storage_prefix()
-    }
-}
-
-impl DBObject for CompiledClassHash {
-    /// Creates a json string describing the leaf and casts it into a byte vector.
-    fn serialize(&self) -> StorageValue {
-        let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex_string());
-        StorageValue(json_string.into_bytes())
-    }
-
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
     }
 }
 
@@ -61,21 +47,6 @@ impl Deserializable for StarknetStorageValue {
 
     fn prefix() -> Vec<u8> {
         StarknetPrefix::StorageLeaf.to_storage_prefix()
-    }
-}
-
-impl Deserializable for CompiledClassHash {
-    fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
-        let json_str = std::str::from_utf8(&value.0)?;
-        let map: HashMap<String, String> = serde_json::from_str(json_str)?;
-        let hash_as_hex = map
-            .get("compiled_class_hash")
-            .ok_or(DeserializationError::NonExistingKey("compiled_class_hash".to_string()))?;
-        Ok(Self::from_hex(hash_as_hex)?)
-    }
-
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
     }
 }
 
