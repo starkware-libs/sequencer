@@ -1,8 +1,8 @@
 use std::fs::File;
 use std::process::Command;
 
-use alloy_node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
-pub(crate) use alloy_primitives::Address as EthereumContractAddress;
+use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
+pub(crate) use alloy::primitives::Address as EthereumContractAddress;
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use tar::Archive;

@@ -1,4 +1,4 @@
-use alloy_sol_types::SolEvent;
+use alloy::sol_types::SolEvent;
 
 use crate::ethereum_base_layer_contract::Starknet;
 
