@@ -1,17 +1,15 @@
-use std::collections::HashMap;
-
 use serde_json::Value;
-use starknet_api::core::{ClassHash, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
-use starknet_patricia_storage::db_object::{DBObject, Deserializable};
+use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
+use crate::patricia_merkle_tree::types::fixed_hex_string_no_prefix;
 
 #[derive(Clone, Debug)]
 pub enum CommitterLeafPrefix {
@@ -25,7 +23,9 @@ impl From<CommitterLeafPrefix> for DbKeyPrefix {
         match value {
             CommitterLeafPrefix::StorageLeaf => Self::new(b"starknet_storage_leaf"),
             CommitterLeafPrefix::StateTreeLeaf => Self::new(b"contract_state"),
-            CommitterLeafPrefix::CompiledClassLeaf => Self::new(b"contract_class_leaf"),
+            // This leaf type is defined outside the current crate; it's prefix is therefore also
+            // defined outside the current crate.
+            CommitterLeafPrefix::CompiledClassLeaf => CompiledClassHash::get_static_prefix(),
         }
     }
 }
@@ -34,14 +34,6 @@ impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
-    }
-}
-
-impl DBObject for CompiledClassHash {
-    /// Creates a json string describing the leaf and casts it into a byte vector.
-    fn serialize(&self) -> DbValue {
-        let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex_string());
-        DbValue(json_string.into_bytes())
     }
 }
 
@@ -62,17 +54,6 @@ impl DBObject for ContractState {
 impl Deserializable for StarknetStorageValue {
     fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
-    }
-}
-
-impl Deserializable for CompiledClassHash {
-    fn deserialize(value: &DbValue) -> Result<Self, DeserializationError> {
-        let json_str = std::str::from_utf8(&value.0)?;
-        let map: HashMap<String, String> = serde_json::from_str(json_str)?;
-        let hash_as_hex = map
-            .get("compiled_class_hash")
-            .ok_or(DeserializationError::NonExistingKey("compiled_class_hash".to_string()))?;
-        Ok(Self::from_hex(hash_as_hex)?)
     }
 }
 
