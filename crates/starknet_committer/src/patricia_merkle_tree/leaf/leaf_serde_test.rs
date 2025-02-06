@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
 use rstest::rstest;
+use starknet_api::core::ClassHash;
+use starknet_api::felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia_storage::db_object::Deserializable;
@@ -9,7 +11,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{CompiledClassHash, Nonce};
 
 #[rstest]
 #[case::zero_storage_leaf(StarknetStorageValue(Felt::ZERO))]
@@ -62,6 +64,6 @@ fn test_deserialize_contract_state_without_nonce() {
 
     // Validate the fields (nonce should be the default "0")
     assert_eq!(contract_state.nonce, Nonce::from_hex("0x0").unwrap());
-    assert_eq!(contract_state.class_hash, ClassHash::from_hex("0x1234abcd").unwrap());
+    assert_eq!(contract_state.class_hash, ClassHash(felt!("0x1234abcd")));
     assert_eq!(contract_state.storage_root_hash, HashOutput::from_hex("0x5678").unwrap());
 }

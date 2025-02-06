@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_committer::block_committer::input::{
     ConfigImpl,
     Input,
@@ -8,7 +8,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use starknet_committer::patricia_merkle_tree::types::{CompiledClassHash, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
