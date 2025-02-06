@@ -5,6 +5,7 @@ use std::time::Duration;
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::Router;
+use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
@@ -442,6 +443,7 @@ pub fn create_batcher_config(
     chain_info: ChainInfo,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
+    let concurrency_enabled = true;
     BatcherConfig {
         storage: batcher_storage_config,
         block_builder_config: BlockBuilderConfig {
@@ -449,6 +451,7 @@ pub fn create_batcher_config(
             bouncer_config: BouncerConfig {
                 block_max_capacity: BouncerWeights { n_steps: 75000, ..Default::default() },
             },
+            execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
             ..Default::default()
         },
         ..Default::default()
