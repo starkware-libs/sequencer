@@ -1,6 +1,6 @@
 use ethnum::U256;
+use starknet_types_core::felt::Felt;
 
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::errors::{EdgePathError, PathToBottomError};
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
