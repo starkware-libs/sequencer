@@ -5,108 +5,42 @@ use starknet_api::block::NonzeroGasPrice;
 use crate::mempool::TransactionReference;
 use crate::transaction_queue::{PendingTransaction, PriorityTransaction, TransactionQueue};
 
-type OptionalPriorityTransactions = Option<Vec<PriorityTransaction>>;
-type OptionalPendingTransactions = Option<Vec<PendingTransaction>>;
-
-/// Represents the internal content of the transaction queue.
-/// Enables customized (and potentially inconsistent) creation for unit testing.
-/// Note: gas price threshold is only used for building the (non-test) queue struct.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct TransactionQueueContent {
-    priority_queue: OptionalPriorityTransactions,
-    pending_queue: OptionalPendingTransactions,
-    gas_price_threshold: Option<NonzeroGasPrice>,
+    pub priority_txs: Vec<TransactionReference>,
+    pub pending_txs: Vec<TransactionReference>,
 }
 
-impl TransactionQueueContent {
-    #[track_caller]
-    pub fn assert_eq(&self, tx_queue: &TransactionQueue) {
-        if let Some(priority_queue) = &self.priority_queue {
-            let expected_priority_txs: Vec<_> = priority_queue.iter().map(|tx| &tx.0).collect();
-            let actual_priority_txs: Vec<_> = tx_queue.iter_over_ready_txs().collect();
-            assert_eq!(actual_priority_txs, expected_priority_txs);
-        }
-
-        if let Some(pending_queue) = &self.pending_queue {
-            let expected_pending_txs: Vec<_> = pending_queue.iter().map(|tx| &tx.0).collect();
-            let actual_pending_txs: Vec<_> =
-                tx_queue.pending_queue.iter().rev().map(|tx| &tx.0).collect();
-            assert_eq!(actual_pending_txs, expected_pending_txs);
+impl TransactionQueue {
+    pub fn content(&self) -> TransactionQueueContent {
+        TransactionQueueContent {
+            priority_txs: self.iter_over_ready_txs().cloned().collect(),
+            pending_txs: self.pending_queue.iter().rev().map(|tx| tx.0).collect(),
         }
     }
+}
 
-    pub fn complete_to_tx_queue(self) -> TransactionQueue {
-        let pending_queue = self.pending_queue.unwrap_or_default();
-        let priority_queue = self.priority_queue.unwrap_or_default();
-        let gas_price_threshold = self.gas_price_threshold.unwrap_or_default();
+impl From<(TransactionQueueContent, NonzeroGasPrice)> for TransactionQueue {
+    fn from(input: (TransactionQueueContent, NonzeroGasPrice)) -> TransactionQueue {
+        let (content, gas_price_threshold) = input;
+        let pending_queue = content.pending_txs;
+        let priority_queue = content.priority_txs;
 
         // Build address to nonce mapping, check queues are mutually exclusive in addresses.
-        let tx_references = pending_queue
-            .iter()
-            .map(|pending_tx| pending_tx.0)
-            .chain(priority_queue.iter().map(|priority_tx| priority_tx.0));
+        let tx_references = pending_queue.iter().chain(priority_queue.iter());
         let mut address_to_tx = HashMap::new();
         for tx_ref in tx_references {
             let address = tx_ref.address;
-            if address_to_tx.insert(address, tx_ref).is_some() {
+            if address_to_tx.insert(address, *tx_ref).is_some() {
                 panic!("Duplicate address: {address}; queues must be mutually exclusive.");
             }
         }
 
         TransactionQueue {
-            priority_queue: priority_queue.into_iter().collect(),
-            pending_queue: pending_queue.into_iter().collect(),
+            priority_queue: priority_queue.into_iter().map(PriorityTransaction).collect(),
+            pending_queue: pending_queue.into_iter().map(PendingTransaction).collect(),
             address_to_tx,
             gas_price_threshold,
         }
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct TransactionQueueContentBuilder {
-    priority_queue: OptionalPriorityTransactions,
-    pending_queue: OptionalPendingTransactions,
-    gas_price_threshold: Option<NonzeroGasPrice>,
-}
-
-impl TransactionQueueContentBuilder {
-    pub fn with_priority<P>(mut self, priority_txs: P) -> Self
-    where
-        P: IntoIterator<Item = TransactionReference>,
-    {
-        self.priority_queue =
-            Some(priority_txs.into_iter().map(PriorityTransaction::from).collect());
-        self
-    }
-
-    pub fn with_pending<P>(mut self, pending_txs: P) -> Self
-    where
-        P: IntoIterator<Item = TransactionReference>,
-    {
-        self.pending_queue = Some(pending_txs.into_iter().map(PendingTransaction::from).collect());
-        self
-    }
-
-    pub fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
-        self.gas_price_threshold = Some(NonzeroGasPrice::new_unchecked(gas_price_threshold.into()));
-        self
-    }
-
-    pub fn build(self) -> Option<TransactionQueueContent> {
-        if self.is_default() {
-            return None;
-        }
-
-        Some(TransactionQueueContent {
-            priority_queue: self.priority_queue,
-            pending_queue: self.pending_queue,
-            gas_price_threshold: self.gas_price_threshold,
-        })
-    }
-
-    fn is_default(&self) -> bool {
-        self.priority_queue.is_none()
-            && self.pending_queue.is_none()
-            && self.gas_price_threshold.is_none()
     }
 }

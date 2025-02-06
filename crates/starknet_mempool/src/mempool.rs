@@ -15,6 +15,10 @@ use starknet_mempool_types::mempool_types::{
 use tracing::{debug, info, instrument};
 
 use crate::transaction_pool::TransactionPool;
+#[cfg(test)]
+use crate::transaction_pool::TransactionPoolContent;
+#[cfg(test)]
+use crate::transaction_queue::transaction_queue_test_utils::TransactionQueueContent;
 use crate::transaction_queue::TransactionQueue;
 use crate::utils::try_increment_nonce;
 
@@ -22,7 +26,7 @@ use crate::utils::try_increment_nonce;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MempoolConfig {
     enable_fee_escalation: bool,
     // TODO(AlonH): consider adding validations; should be bounded?
@@ -41,7 +45,7 @@ type AddressToNonce = HashMap<ContractAddress, Nonce>;
 /// Represents the state tracked by the mempool.
 /// It is partitioned into categories, each serving a distinct role in the lifecycle of transaction
 /// management.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MempoolState {
     /// Finalized nonces committed in blocks.
     committed: AddressToNonce,
@@ -382,6 +386,21 @@ impl Mempool {
 
         incoming_value >= escalation_qualified_value
     }
+
+    #[cfg(test)]
+    pub fn content(&self) -> MempoolContent {
+        MempoolContent {
+            tx_pool_content: self.tx_pool.content(),
+            tx_queue_content: self.tx_queue.content(),
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct MempoolContent {
+    pub tx_pool_content: TransactionPoolContent,
+    pub tx_queue_content: TransactionQueueContent,
 }
 
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding

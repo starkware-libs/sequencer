@@ -15,7 +15,7 @@ type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 /// Invariant: both data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashToTransaction,
@@ -119,6 +119,17 @@ impl TransactionPool {
     pub fn _contains_account(&self, address: ContractAddress) -> bool {
         self.txs_by_account._contains(address)
     }
+
+    #[cfg(test)]
+    pub fn content(&self) -> TransactionPoolContent {
+        TransactionPoolContent { tx_pool: self.tx_pool.clone() }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct TransactionPoolContent {
+    pub tx_pool: HashMap<TransactionHash, InternalRpcTransaction>,
 }
 
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -180,7 +191,7 @@ impl AccountTransactionIndex {
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct PoolCapacity {
     n_txs: usize,
     // TODO(Ayelet): Add size tracking.
