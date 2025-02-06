@@ -9,12 +9,8 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedClass;
 use blockifier::state::state_api::{StateReader, StateResult};
-<<<<<<< HEAD
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-||||||| 91889fd5e
-=======
 use log;
->>>>>>> origin/main-v0.13.4
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
@@ -171,7 +167,7 @@ impl StateReader for PapyrusReader {
         // Access the cache again in case the class was compiled.
         Ok(self.contract_class_manager.get_runnable(&class_hash).unwrap_or_else(|| {
             // Edge case that should not be happen if the cache size is big enough.
-            // TODO(Yoni) consider having an atomic set-and-get.
+            // TODO(Yoni): consider having an atomic set-and-get.
             log::error!("Class is missing immediately after being cached.");
             cached_class.to_runnable()
         }))

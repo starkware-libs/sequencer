@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use starknet_api::class_cache::GlobalContractCache;
-use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 
 use crate::execution::contract_class::{CompiledClassV0, CompiledClassV1, RunnableCompiledClass};

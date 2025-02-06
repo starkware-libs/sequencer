@@ -170,7 +170,7 @@ fn test_get_compiled_class_without_native_in_cache(
 
     match cairo_version {
         CairoVersion::Cairo1(_) => {
-            // TODO: Test that a compilation request was sent.
+            // TODO(Meshi): Test that a compilation request was sent.
             if wait_on_native_compilation {
                 #[cfg(feature = "cairo_native")]
                 assert_matches!(
