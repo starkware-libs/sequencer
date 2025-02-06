@@ -6,7 +6,9 @@ use rand::prelude::IteratorRandom;
 use rand::Rng;
 use rand_distr::num_traits::ToPrimitive;
 use rand_distr::{Distribution, Geometric};
-use starknet_committer::block_committer::input::{ContractAddress, StarknetStorageValue};
+use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND};
+use starknet_api::felt;
+use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::{
@@ -183,7 +185,12 @@ random_filled_node!(ContractState);
 
 impl RandomValue for ContractAddress {
     fn random<R: Rng>(rng: &mut R, max: Option<U256>) -> Self {
-        ContractAddress(Felt::random(rng, max))
+        let address_max = u256_from_felt(&felt!(PATRICIA_KEY_UPPER_BOUND));
+        let max = match max {
+            None => address_max,
+            Some(caller_max) => min(address_max, caller_max),
+        };
+        ContractAddress::try_from(Felt::random(rng, Some(max))).unwrap()
     }
 }
 
