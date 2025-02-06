@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
@@ -33,7 +33,7 @@ use crate::block_committer::input::{
 };
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{CompiledClassHash, Nonce};
 
 macro_rules! compare_skeleton_tree {
     ($actual_skeleton:expr, $expected_skeleton:expr, $expected_indices:expr) => {{

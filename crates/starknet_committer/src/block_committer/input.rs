@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -9,7 +9,11 @@ use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
-use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{
+    from_class_hash_for_node_index,
+    CompiledClassHash,
+    Nonce,
+};
 
 #[cfg(test)]
 #[path = "input_test.rs"]
@@ -134,7 +138,10 @@ impl StateDiff {
         self.class_hash_to_compiled_class_hash
             .iter()
             .map(|(class_hash, compiled_class_hash)| {
-                (class_hash.into(), SkeletonLeaf::from(compiled_class_hash.0))
+                (
+                    from_class_hash_for_node_index(class_hash),
+                    SkeletonLeaf::from(compiled_class_hash.0),
+                )
             })
             .collect()
     }
@@ -159,7 +166,9 @@ impl StateDiff {
     pub(crate) fn actual_classes_updates(&self) -> LeafModifications<CompiledClassHash> {
         self.class_hash_to_compiled_class_hash
             .iter()
-            .map(|(class_hash, compiled_class_hash)| (class_hash.into(), *compiled_class_hash))
+            .map(|(class_hash, compiled_class_hash)| {
+                (from_class_hash_for_node_index(class_hash), *compiled_class_hash)
+            })
             .collect()
     }
 }
