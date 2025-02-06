@@ -11,7 +11,11 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::core::ChainId;
-use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcInvokeTransaction,
+};
 use starknet_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
@@ -32,10 +36,16 @@ async fn process_handle_add_tx() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
     let BroadcastNetworkMock { mut messages_to_broadcast_receiver, .. } = mock_network;
-    let internal_tx = InternalRpcTransaction::get_test_instance(&mut get_rng());
+    // TODO(alonl): use a random rpc transaction instead of specifying invoke once declare is fixed
+    let chain_id = ChainId::create_for_testing();
+    let internal_tx_without_hash = InternalRpcTransactionWithoutTxHash::Invoke(
+        RpcInvokeTransaction::get_test_instance(&mut get_rng()),
+    );
+    let tx_hash = internal_tx_without_hash.calculate_transaction_hash(&chain_id).unwrap();
+    let internal_tx = InternalRpcTransaction { tx: internal_tx_without_hash, tx_hash };
     // TODO(noamsp): use MockTransactionConverterTrait
     let transaction_converter =
-        TransactionConverter::new(Arc::new(EmptyClassManagerClient), ChainId::create_for_testing());
+        TransactionConverter::new(Arc::new(EmptyClassManagerClient), chain_id);
     let rpc_transaction =
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx.clone()).await.unwrap();
     let mut mempool_p2p_propagator =
