@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
+use starknet_api::core::ContractAddress;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -14,32 +15,24 @@ use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 #[path = "input_test.rs"]
 pub mod input_test;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-// TODO(Nimrod, 1/6/2025): Use the ContractAddress defined in starknet-types-core when available.
-pub struct ContractAddress(pub Felt);
-
-impl TryFrom<&NodeIndex> for ContractAddress {
-    type Error = String;
-
-    fn try_from(node_index: &NodeIndex) -> Result<ContractAddress, Self::Error> {
-        if !node_index.is_leaf() {
-            return Err("NodeIndex is not a leaf.".to_string());
-        }
-        let result = Felt::try_from(*node_index - NodeIndex::FIRST_LEAF);
-        match result {
-            Ok(felt) => Ok(ContractAddress(felt)),
-            Err(error) => Err(format!(
-                "Tried to convert node index to felt and got the following error: {:?}",
-                error.to_string()
-            )),
-        }
+pub fn try_node_index_into_contract_address(
+    node_index: &NodeIndex,
+) -> Result<ContractAddress, String> {
+    if !node_index.is_leaf() {
+        return Err("NodeIndex is not a leaf.".to_string());
+    }
+    let result = Felt::try_from(*node_index - NodeIndex::FIRST_LEAF);
+    match result {
+        Ok(felt) => Ok(ContractAddress::try_from(felt).map_err(|error| error.to_string())?),
+        Err(error) => Err(format!(
+            "Tried to convert node index to felt and got the following error: {:?}",
+            error.to_string()
+        )),
     }
 }
 
-impl From<&ContractAddress> for NodeIndex {
-    fn from(address: &ContractAddress) -> NodeIndex {
-        NodeIndex::from_leaf_felt(&address.0)
-    }
+pub fn contract_address_into_node_index(address: &ContractAddress) -> NodeIndex {
+    NodeIndex::from_leaf_felt(&address.0)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
