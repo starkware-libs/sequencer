@@ -206,7 +206,7 @@ impl FlowSequencerSetup {
             add_tx_http_client,
             batcher_storage_file_handle: batcher_storage_handle,
             state_sync_storage_file_handle: state_sync_storage_handle,
-            class_manager_storage_file_handles: class_manager_storage_handles,
+            class_manager_storage_file_handles: class_manager_storage_handles.unwrap(),
             node_config,
             monitoring_client,
             _clients,

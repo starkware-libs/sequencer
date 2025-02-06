@@ -6,6 +6,7 @@ use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager::test_utils::FileHandles;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
@@ -20,7 +21,7 @@ use tempfile::{tempdir, TempDir};
 use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
-use crate::state_reader::{StorageTestSetup, TempDirHandlePair};
+use crate::state_reader::StorageTestSetup;
 use crate::utils::{create_node_config, spawn_local_success_recorder};
 
 #[derive(Debug, Copy, Clone)]
@@ -81,7 +82,7 @@ pub struct ExecutableSetup {
     #[allow(dead_code)]
     state_sync_storage_handle: Option<TempDir>,
     #[allow(dead_code)]
-    class_manager_storage_handles: TempDirHandlePair,
+    class_manager_storage_handles: Option<FileHandles>,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
