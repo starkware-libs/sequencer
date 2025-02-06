@@ -1,4 +1,3 @@
-use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -7,6 +6,7 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
+use starknet_types_core::felt::Felt;
 
 use super::leaf_serde::CommitterLeafPrefix;
 use crate::block_committer::input::StarknetStorageValue;
