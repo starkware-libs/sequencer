@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
@@ -10,10 +11,10 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
-use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
@@ -276,9 +277,9 @@ fn test_input_parsing_with_mapping_key_duplicate() {
 
 "#;
     let expected_error =
-        "address to class hash: ContractAddress(6646139978924584093298644040422522880)";
-    assert!(matches!(
+        "address to class hash: ContractAddress(0x5000000000001005900000000000000)";
+    assert_matches!(
         parse_input(input).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key ==  expected_error
-    ));
+    );
 }

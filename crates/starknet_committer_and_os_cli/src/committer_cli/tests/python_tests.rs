@@ -14,7 +14,6 @@ use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
-use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
@@ -30,6 +29,7 @@ use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
+use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 use tracing::{debug, error, info, warn};
@@ -237,7 +237,7 @@ pub(crate) fn test_hash_function(hash_input: HashMap<String, u128>) -> String {
     let y_felt = Felt::from(*y);
 
     // Compute the hash.
-    let hash_result = Pedersen::hash(&x_felt.into(), &y_felt.into());
+    let hash_result = Pedersen::hash(&x_felt, &y_felt);
 
     // Serialize the hash result.
     serde_json::to_string(&hash_result)

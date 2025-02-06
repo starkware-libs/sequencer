@@ -1,4 +1,5 @@
-use crate::felt::Felt;
+use starknet_types_core::felt::Felt;
+
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
