@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -26,4 +28,6 @@ pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
     _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
+    _deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    _compiled_classes: HashMap<ClassHash, CasmContractClass>,
 }
