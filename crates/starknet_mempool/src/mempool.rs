@@ -22,7 +22,7 @@ use crate::utils::try_increment_nonce;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MempoolConfig {
     enable_fee_escalation: bool,
     // TODO(AlonH): consider adding validations; should be bounded?
@@ -41,7 +41,7 @@ type AddressToNonce = HashMap<ContractAddress, Nonce>;
 /// Represents the state tracked by the mempool.
 /// It is partitioned into categories, each serving a distinct role in the lifecycle of transaction
 /// management.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct MempoolState {
     /// Finalized nonces committed in blocks.
     committed: AddressToNonce,
@@ -382,6 +382,23 @@ impl Mempool {
 
         incoming_value >= escalation_qualified_value
     }
+
+    #[cfg(test)]
+    pub fn content(&self) -> MempoolContent {
+        MempoolContent {
+            tx_pool: self.tx_pool.tx_pool(),
+            priority_txs: self.tx_queue.iter_over_ready_txs().cloned().collect(),
+            pending_txs: self.tx_queue.pending_txs(),
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct MempoolContent {
+    pub tx_pool: HashMap<TransactionHash, InternalRpcTransaction>,
+    pub priority_txs: Vec<TransactionReference>,
+    pub pending_txs: Vec<TransactionReference>,
 }
 
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
