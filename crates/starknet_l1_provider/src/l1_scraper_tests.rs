@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use alloy_node_bindings::AnvilInstance;
-use alloy_primitives::U256;
+use alloy::node_bindings::AnvilInstance;
+use alloy::primitives::U256;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,

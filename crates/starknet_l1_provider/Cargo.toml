@@ -26,8 +26,7 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-alloy-node-bindings.workspace = true
-alloy-primitives.workspace = true
+alloy.workspace = true
 assert_matches.workspace = true
 itertools.workspace = true
 papyrus_base_layer = { path = "../papyrus_base_layer", features = ["testing"] }

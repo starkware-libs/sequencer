@@ -2,20 +2,21 @@ use std::collections::BTreeMap;
 use std::future::IntoFuture;
 use std::ops::RangeInclusive;
 
-use alloy_dyn_abi::SolType;
-use alloy_json_rpc::RpcError;
-use alloy_primitives::Address as EthereumContractAddress;
-use alloy_provider::network::Ethereum;
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
-use alloy_rpc_types_eth::{
+use alloy::dyn_abi::SolType;
+use alloy::primitives::Address as EthereumContractAddress;
+use alloy::providers::network::Ethereum;
+use alloy::providers::{Provider, ProviderBuilder, RootProvider};
+use alloy::rpc::json_rpc::RpcError;
+use alloy::rpc::types::eth::{
     BlockId,
     BlockNumberOrTag,
     BlockTransactionsKind,
     Filter as EthEventFilter,
 };
-use alloy_sol_types::{sol, sol_data};
-use alloy_transport::TransportErrorKind;
-use alloy_transport_http::{Client, Http};
+use alloy::sol;
+use alloy::sol_types::sol_data;
+use alloy::transports::http::{Client, Http};
+use alloy::transports::TransportErrorKind;
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
@@ -167,17 +168,17 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 #[derive(thiserror::Error, Debug)]
 pub enum EthereumBaseLayerError {
     #[error(transparent)]
-    Contract(#[from] alloy_contract::Error),
+    Contract(#[from] alloy::contract::Error),
     #[error("{0}")]
-    FeeOutOfRange(alloy_primitives::ruint::FromUintError<u128>),
+    FeeOutOfRange(alloy::primitives::ruint::FromUintError<u128>),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error("{0}")]
     StarknetApiParsingError(StarknetApiError),
     #[error(transparent)]
-    TypeError(#[from] alloy_sol_types::Error),
+    TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
-    UnhandledL1Event(alloy_primitives::Log),
+    UnhandledL1Event(alloy::primitives::Log),
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
