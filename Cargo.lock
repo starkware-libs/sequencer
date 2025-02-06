@@ -10974,6 +10974,7 @@ dependencies = [
  "rstest",
  "serde_json",
  "starknet-types-core",
+ "starknet_api",
  "starknet_patricia",
  "starknet_patricia_storage",
  "thiserror 1.0.69",
@@ -11466,6 +11467,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet-types-core",
+ "starknet_api",
  "thiserror 1.0.69",
 ]
 
