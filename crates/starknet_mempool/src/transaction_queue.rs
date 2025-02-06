@@ -15,7 +15,7 @@ pub mod transaction_queue_test_utils;
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default)]
 pub struct TransactionQueue {
     gas_price_threshold: NonzeroGasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
