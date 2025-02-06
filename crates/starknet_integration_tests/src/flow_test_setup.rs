@@ -33,7 +33,7 @@ use tempfile::TempDir;
 use tracing::{debug, instrument};
 
 use crate::integration_test_setup::NodeExecutionId;
-use crate::state_reader::{StorageTestSetup, TempDirHandlePair};
+use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -124,7 +124,7 @@ pub struct FlowSequencerSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: Option<TempDir>,
     pub state_sync_storage_file_handle: Option<TempDir>,
-    pub class_manager_storage_file_handles: TempDirHandlePair,
+    pub class_manager_storage_file_handles: Option<starknet_class_manager::test_utils::FileHandles>,
 
     // Node configuration.
     pub node_config: SequencerNodeConfig,
@@ -206,7 +206,7 @@ impl FlowSequencerSetup {
             add_tx_http_client,
             batcher_storage_file_handle: batcher_storage_handle,
             state_sync_storage_file_handle: state_sync_storage_handle,
-            class_manager_storage_file_handles: class_manager_storage_handles.unwrap(),
+            class_manager_storage_file_handles: class_manager_storage_handles,
             node_config,
             monitoring_client,
             _clients,
