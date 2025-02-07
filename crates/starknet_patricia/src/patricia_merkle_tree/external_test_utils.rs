@@ -4,6 +4,7 @@ use ethnum::U256;
 use rand::Rng;
 use serde_json::json;
 
+use super::filled_tree::node_serde::PatriciaPrefix;
 use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use super::node_data::inner_node::{EdgePathLength, PathToBottom};
 use super::node_data::leaf::{Leaf, LeafModifications, SkeletonLeaf};
@@ -17,7 +18,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::storage::map_storage::MapStorage;
-use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
+use crate::storage::storage_trait::{create_db_key, StorageKey, StorageValue};
 
 impl TryFrom<&U256> for Felt {
     type Error = TypesError<U256>;
@@ -139,7 +140,7 @@ pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
 }
 
 fn create_patricia_key(val: u128) -> StorageKey {
-    create_db_key(StarknetPrefix::InnerNode.to_storage_prefix(), &U256::from(val).to_be_bytes())
+    create_db_key(PatriciaPrefix::InnerNode.into(), &U256::from(val).to_be_bytes())
 }
 
 fn create_binary_val(left: u128, right: u128) -> StorageValue {
@@ -200,10 +201,7 @@ pub fn create_root_edge_entry(
     // Assumes path is 0.
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
-    let key = create_db_key(
-        StarknetPrefix::InnerNode.to_storage_prefix(),
-        &Felt::from(new_root).to_bytes_be(),
-    );
+    let key = create_db_key(PatriciaPrefix::InnerNode.into(), &Felt::from(new_root).to_bytes_be());
     let value = StorageValue(
         Felt::from(old_root)
             .to_bytes_be()
