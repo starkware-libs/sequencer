@@ -143,8 +143,10 @@ impl<L: Leaf> FilledNode<L> {
                                 .expect("Slice with incorrect length."),
                         )
                         .into(),
-                        EdgePathLength::new(value.0[EDGE_BYTES - 1])?,
-                    )?,
+                        EdgePathLength::new(value.0[EDGE_BYTES - 1])
+                            .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
+                    )
+                    .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
                 }),
             })
         }
