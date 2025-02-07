@@ -5,7 +5,9 @@ use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, Leaf
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia::storage::storage_trait::StoragePrefix;
 
+use super::leaf_serde::CommitterLeafPrefix;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
@@ -21,6 +23,10 @@ impl Leaf for StarknetStorageValue {
     type Input = Self;
     type Output = ();
 
+    fn storage_prefix() -> StoragePrefix {
+        CommitterLeafPrefix::StorageLeaf.into()
+    }
+
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
@@ -34,6 +40,10 @@ impl Leaf for CompiledClassHash {
     type Input = Self;
     type Output = ();
 
+    fn storage_prefix() -> StoragePrefix {
+        CommitterLeafPrefix::CompiledClassLeaf.into()
+    }
+
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
@@ -46,6 +56,10 @@ impl Leaf for CompiledClassHash {
 impl Leaf for ContractState {
     type Input = ContractStateInput;
     type Output = FilledTreeImpl<StarknetStorageValue>;
+
+    fn storage_prefix() -> StoragePrefix {
+        CommitterLeafPrefix::StateTreeLeaf.into()
+    }
 
     fn is_empty(&self) -> bool {
         self.nonce.0 == Felt::ZERO

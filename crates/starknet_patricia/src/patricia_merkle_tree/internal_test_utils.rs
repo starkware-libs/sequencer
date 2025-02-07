@@ -20,7 +20,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 use crate::storage::db_object::{DBObject, Deserializable};
-use crate::storage::storage_trait::StorageValue;
+use crate::storage::storage_trait::{StoragePrefix, StorageValue};
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub(crate) Felt);
@@ -30,8 +30,8 @@ impl DBObject for MockLeaf {
         StorageValue(self.0.to_bytes_be().to_vec())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        vec![0]
+    fn get_prefix(&self) -> StoragePrefix {
+        Self::storage_prefix()
     }
 }
 
@@ -41,15 +41,15 @@ impl Deserializable for MockLeaf {
     ) -> Result<Self, crate::storage::errors::DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
-
-    fn prefix() -> Vec<u8> {
-        vec![0]
-    }
 }
 
 impl Leaf for MockLeaf {
     type Input = Felt;
     type Output = String;
+
+    fn storage_prefix() -> StoragePrefix {
+        StoragePrefix::new(&[0])
+    }
 
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO

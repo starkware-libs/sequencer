@@ -6,6 +6,7 @@ use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
+use crate::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
 use crate::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -22,7 +23,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::storage::errors::StorageError;
-use crate::storage::storage_trait::{create_db_key, StarknetPrefix, Storage, StorageKey};
+use crate::storage::storage_trait::{create_db_key, Storage, StorageKey};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
@@ -222,9 +223,9 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             .map(|subtree| {
                 create_db_key(
                     if subtree.is_leaf() {
-                        L::prefix()
+                        PatriciaPrefix::Leaf(L::storage_prefix()).into()
                     } else {
-                        StarknetPrefix::InnerNode.to_storage_prefix()
+                        PatriciaPrefix::InnerNode.into()
                     },
                     &subtree.root_hash.0.to_bytes_be(),
                 )
