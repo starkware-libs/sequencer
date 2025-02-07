@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Serialize, Serializer};
-
-use crate::felt::Felt;
+use starknet_types_core::felt::Felt;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -78,6 +77,6 @@ impl Serialize for StorageKey {
 }
 
 /// Returns a `StorageKey` from a prefix and a suffix.
-pub(crate) fn create_db_key(prefix: Vec<u8>, suffix: &[u8]) -> StorageKey {
+pub fn create_db_key(prefix: Vec<u8>, suffix: &[u8]) -> StorageKey {
     StorageKey([prefix, b":".to_vec(), suffix.to_vec()].concat())
 }

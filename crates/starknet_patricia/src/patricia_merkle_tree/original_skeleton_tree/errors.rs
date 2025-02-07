@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
+use starknet_patricia_storage::errors::{DeserializationError, StorageError};
 use thiserror::Error;
 
 use crate::patricia_merkle_tree::types::NodeIndex;
-use crate::storage::errors::{DeserializationError, StorageError};
 
 #[derive(Debug, Error)]
 pub enum OriginalSkeletonTreeError {

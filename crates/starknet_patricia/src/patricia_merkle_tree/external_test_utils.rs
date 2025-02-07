@@ -3,6 +3,13 @@ use std::collections::HashMap;
 use ethnum::U256;
 use rand::Rng;
 use serde_json::json;
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{
+    create_db_key,
+    StarknetPrefix,
+    StorageKey,
+    StorageValue,
+};
 
 use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use super::node_data::inner_node::{EdgePathLength, PathToBottom};
@@ -16,8 +23,6 @@ use super::updated_skeleton_tree::tree::{UpdatedSkeletonTree, UpdatedSkeletonTre
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
-use crate::storage::map_storage::MapStorage;
-use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
 
 impl TryFrom<&U256> for Felt {
     type Error = TypesError<U256>;

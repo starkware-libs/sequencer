@@ -2,6 +2,13 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use starknet_patricia_storage::errors::{DeserializationError, StorageError};
+use starknet_patricia_storage::storage_trait::{
+    create_db_key,
+    StarknetPrefix,
+    Storage,
+    StorageKey,
+};
 use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
@@ -21,8 +28,6 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use crate::storage::errors::StorageError;
-use crate::storage::storage_trait::{create_db_key, StarknetPrefix, Storage, StorageKey};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]
@@ -236,7 +241,10 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             subtrees.iter().zip(db_vals.iter()).zip(db_keys.into_iter())
         {
             let val = optional_val.ok_or(StorageError::MissingKey(db_key))?;
-            subtrees_roots.push(FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())?)
+            subtrees_roots.push(
+                FilledNode::deserialize(subtree.root_hash, val, subtree.is_leaf())
+                    .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
+            )
         }
         Ok(subtrees_roots)
     }
