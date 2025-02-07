@@ -46,7 +46,7 @@ pub(crate) enum PackageEntryValue {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct CrateCargoToml {
     pub(crate) package: HashMap<String, PackageEntryValue>,
-    dependencies: Option<HashMap<String, DependencyValue>>,
+    pub(crate) dependencies: Option<HashMap<String, DependencyValue>>,
     #[serde(rename = "dev-dependencies")]
     pub(crate) dev_dependencies: Option<HashMap<String, DependencyValue>>,
     pub(crate) lints: Option<HashMap<String, LintValue>>,
