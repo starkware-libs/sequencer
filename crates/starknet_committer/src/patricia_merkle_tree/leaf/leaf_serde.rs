@@ -3,14 +3,32 @@ use std::collections::HashMap;
 use serde_json::Value;
 use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia::storage::db_object::{DBObject, Deserializable};
 use starknet_patricia::storage::errors::DeserializationError;
-use starknet_patricia::storage::storage_trait::{StarknetPrefix, StorageValue};
+use starknet_patricia::storage::storage_trait::{StoragePrefix, StorageValue};
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+
+#[derive(Clone, Debug)]
+pub enum CommitterLeafPrefix {
+    StorageLeaf,
+    StateTreeLeaf,
+    CompiledClassLeaf,
+}
+
+impl From<CommitterLeafPrefix> for StoragePrefix {
+    fn from(value: CommitterLeafPrefix) -> Self {
+        match value {
+            CommitterLeafPrefix::StorageLeaf => Self::new(b"starknet_storage_leaf"),
+            CommitterLeafPrefix::StateTreeLeaf => Self::new(b"contract_state"),
+            CommitterLeafPrefix::CompiledClassLeaf => Self::new(b"contract_class_leaf"),
+        }
+    }
+}
 
 impl DBObject for StarknetStorageValue {
     /// Serializes the value into a 32-byte vector.
@@ -18,8 +36,8 @@ impl DBObject for StarknetStorageValue {
         StorageValue(self.0.to_bytes_be().to_vec())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::StorageLeaf.to_storage_prefix()
+    fn get_prefix(&self) -> StoragePrefix {
+        Self::storage_prefix()
     }
 }
 
@@ -30,8 +48,8 @@ impl DBObject for CompiledClassHash {
         StorageValue(json_string.into_bytes())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
+    fn get_prefix(&self) -> StoragePrefix {
+        Self::storage_prefix()
     }
 }
 
@@ -48,18 +66,14 @@ impl DBObject for ContractState {
         StorageValue(json_string.into_bytes())
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
-        StarknetPrefix::StateTreeLeaf.to_storage_prefix()
+    fn get_prefix(&self) -> StoragePrefix {
+        Self::storage_prefix()
     }
 }
 
 impl Deserializable for StarknetStorageValue {
     fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
-    }
-
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::StorageLeaf.to_storage_prefix()
     }
 }
 
@@ -71,10 +85,6 @@ impl Deserializable for CompiledClassHash {
             .get("compiled_class_hash")
             .ok_or(DeserializationError::NonExistingKey("compiled_class_hash".to_string()))?;
         Ok(Self::from_hex(hash_as_hex)?)
-    }
-
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::CompiledClassLeaf.to_storage_prefix()
     }
 }
 
@@ -101,10 +111,6 @@ impl Deserializable for ContractState {
             storage_root_hash: HashOutput::from_hex(&root_hash_as_hex)?,
             class_hash: ClassHash::from_hex(&class_hash_as_hex)?,
         })
-    }
-
-    fn prefix() -> Vec<u8> {
-        StarknetPrefix::StateTreeLeaf.to_storage_prefix()
     }
 }
 

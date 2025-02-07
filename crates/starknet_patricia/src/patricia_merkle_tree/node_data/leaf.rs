@@ -8,6 +8,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeleto
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::storage::db_object::{DBObject, Deserializable};
+use crate::storage::storage_trait::StoragePrefix;
 
 pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
     // TODO(Amos, 1/1/2025): When default values for associated types are stable - use them, and
@@ -15,6 +16,8 @@ pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debu
     // [Issue](https://github.com/rust-lang/rust/issues/29661).
     type Input: Send + Sync + 'static;
     type Output: Send + Debug + 'static;
+
+    fn storage_prefix() -> StoragePrefix;
 
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
