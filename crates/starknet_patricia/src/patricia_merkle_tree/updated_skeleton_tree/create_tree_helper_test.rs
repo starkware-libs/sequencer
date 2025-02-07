@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ethnum::{uint, U256};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_patricia_storage::map_storage::MapStorage;
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
@@ -33,7 +34,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
-use crate::storage::map_storage::MapStorage;
 
 #[fixture]
 fn initial_updated_skeleton(

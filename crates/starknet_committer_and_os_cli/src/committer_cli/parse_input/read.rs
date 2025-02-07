@@ -1,4 +1,4 @@
-use starknet_patricia::storage::errors::DeserializationError;
+use starknet_patricia_storage::errors::DeserializationError;
 
 use crate::committer_cli::parse_input::cast::InputImpl;
 use crate::committer_cli::parse_input::raw_input::RawInput;
