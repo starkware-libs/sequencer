@@ -1,6 +1,6 @@
 use serde::Serialize;
 use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_patricia::storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::MapStorage;
 
 pub struct SerializedForest(pub FilledForest);
 

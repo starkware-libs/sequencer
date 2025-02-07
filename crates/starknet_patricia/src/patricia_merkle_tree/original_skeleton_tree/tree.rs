@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
+use starknet_patricia_storage::storage_trait::Storage;
+
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use crate::storage::storage_trait::Storage;
 
 pub type OriginalSkeletonNodeMap = HashMap<NodeIndex, OriginalSkeletonNode>;
 pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
