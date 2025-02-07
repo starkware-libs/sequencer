@@ -53,6 +53,7 @@ members = [
   "crates/starknet_monitoring_endpoint",
   "crates/starknet_os",
   "crates/starknet_patricia",
+  "crates/starknet_patricia_storage",
   "crates/starknet_sequencer_infra",
   "crates/starknet_sequencer_metrics",
   "crates/starknet_sequencer_node",
@@ -247,6 +248,7 @@ starknet_mempool_types = { path = "crates/starknet_mempool_types", version = "0.
 starknet_monitoring_endpoint = { path = "crates/starknet_monitoring_endpoint", version = "0.0.0" }
 starknet_os = { path = "crates/starknet_os", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
+starknet_patricia_storage = { path = "crates/starknet_patricia_storage", version = "0.0.0" }
 starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
 starknet_sequencer_metrics = { path = "crates/starknet_sequencer_metrics", version = "0.0.0" }
 starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.0.0" }

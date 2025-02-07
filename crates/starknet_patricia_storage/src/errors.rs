@@ -2,7 +2,7 @@ use serde_json;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
-use crate::storage::storage_trait::StorageKey;
+use crate::storage_trait::StorageKey;
 
 #[derive(Debug, Error)]
 pub enum StorageError {

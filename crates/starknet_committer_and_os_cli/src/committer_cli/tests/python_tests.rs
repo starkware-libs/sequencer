@@ -26,10 +26,10 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
-use starknet_patricia::storage::db_object::DBObject;
-use starknet_patricia::storage::errors::DeserializationError;
-use starknet_patricia::storage::map_storage::MapStorage;
-use starknet_patricia::storage::storage_trait::{Storage, StorageKey, StorageValue};
+use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{Storage, StorageKey, StorageValue};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 use tracing::{debug, error, info, warn};

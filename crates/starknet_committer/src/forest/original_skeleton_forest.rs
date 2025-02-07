@@ -7,7 +7,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia::storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{Config, ContractAddress, StarknetStorageValue};
 use crate::forest::forest_errors::{ForestError, ForestResult};

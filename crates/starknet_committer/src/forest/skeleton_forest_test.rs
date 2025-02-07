@@ -16,9 +16,9 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use starknet_patricia::storage::db_object::DBObject;
-use starknet_patricia::storage::map_storage::MapStorage;
-use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
 use tracing::level_filters::LevelFilter;
 
 use crate::block_committer::commit::get_all_modified_indices;
