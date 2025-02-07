@@ -14,7 +14,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::storage::db_object::DBObject;
 use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StarknetPrefix, StorageKey, StorageValue};
+use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
 
 // Const describe the size of the serialized node.
 pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
@@ -24,6 +24,21 @@ pub(crate) const EDGE_PATH_BYTES: usize = 32;
 pub(crate) const EDGE_BYTES: usize = SERIALIZE_HASH_BYTES + EDGE_PATH_BYTES + EDGE_LENGTH_BYTES;
 #[allow(dead_code)]
 pub(crate) const STORAGE_LEAF_SIZE: usize = SERIALIZE_HASH_BYTES;
+
+#[derive(Clone, Debug)]
+pub enum PatriciaPrefix<P: StoragePrefix> {
+    InnerNode,
+    Leaf(P),
+}
+
+impl<L: StoragePrefix> StoragePrefix for PatriciaPrefix<L> {
+    fn to_bytes(&self) -> &'static [u8] {
+        match self {
+            PatriciaPrefix::InnerNode => b"patricia_node",
+            PatriciaPrefix::Leaf(prefix) => prefix.to_bytes(),
+        }
+    }
+}
 
 /// Temporary struct to serialize the leaf CompiledClass.
 /// Required to comply to existing storage layout.
@@ -75,12 +90,10 @@ impl<L: Leaf> DBObject for FilledNode<L> {
         }
     }
 
-    fn get_prefix(&self) -> Vec<u8> {
+    fn get_prefix(&self) -> impl StoragePrefix {
         match &self.data {
-            NodeData::Binary(_) | NodeData::Edge(_) => {
-                StarknetPrefix::InnerNode.to_storage_prefix()
-            }
-            NodeData::Leaf(leaf_data) => leaf_data.get_prefix(),
+            NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
+            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::storage_prefix()),
         }
     }
 }

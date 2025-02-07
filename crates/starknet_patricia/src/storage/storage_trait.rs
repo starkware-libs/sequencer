@@ -31,30 +31,8 @@ pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
     fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
 }
 
-// TODO(Aviv, 17/07/2024): Split between Storage prefix representation (trait) and node
-// specific implementation (enum).
-#[derive(Clone, Debug)]
-pub enum StarknetPrefix {
-    InnerNode,
-    StorageLeaf,
-    StateTreeLeaf,
-    CompiledClassLeaf,
-}
-
-/// Describes a storage prefix as used in Aerospike DB.
-impl StarknetPrefix {
-    pub fn to_bytes(&self) -> &'static [u8] {
-        match self {
-            Self::InnerNode => b"patricia_node",
-            Self::StorageLeaf => b"starknet_storage_leaf",
-            Self::StateTreeLeaf => b"contract_state",
-            Self::CompiledClassLeaf => b"contract_class_leaf",
-        }
-    }
-
-    pub fn to_storage_prefix(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
-    }
+pub trait StoragePrefix {
+    fn to_bytes(&self) -> &'static [u8];
 }
 
 impl From<Felt> for StorageKey {
@@ -78,6 +56,6 @@ impl Serialize for StorageKey {
 }
 
 /// Returns a `StorageKey` from a prefix and a suffix.
-pub(crate) fn create_db_key(prefix: Vec<u8>, suffix: &[u8]) -> StorageKey {
-    StorageKey([prefix, b":".to_vec(), suffix.to_vec()].concat())
+pub fn create_db_key(prefix: impl StoragePrefix, suffix: &[u8]) -> StorageKey {
+    StorageKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
 }
