@@ -2,6 +2,8 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use starknet_patricia_storage::errors::StorageError;
+use starknet_patricia_storage::storage_trait::{create_db_key, Storage, StorageKey};
 use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
@@ -22,8 +24,6 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
-use crate::storage::errors::StorageError;
-use crate::storage::storage_trait::{create_db_key, Storage, StorageKey};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]

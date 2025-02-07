@@ -1,6 +1,9 @@
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
+use starknet_patricia_storage::db_object::{DBObject, Deserializable};
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::storage_trait::{StoragePrefix, StorageValue};
 
 use crate::felt::Felt;
 use crate::generate_trie_config;
@@ -19,8 +22,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use crate::storage::db_object::{DBObject, Deserializable};
-use crate::storage::storage_trait::{StoragePrefix, StorageValue};
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub(crate) Felt);
@@ -36,9 +37,7 @@ impl DBObject for MockLeaf {
 }
 
 impl Deserializable for MockLeaf {
-    fn deserialize(
-        value: &StorageValue,
-    ) -> Result<Self, crate::storage::errors::DeserializationError> {
+    fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 }

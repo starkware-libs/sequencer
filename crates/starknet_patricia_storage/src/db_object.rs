@@ -1,5 +1,5 @@
-use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
+use crate::errors::DeserializationError;
+use crate::storage_trait::{create_db_key, StorageKey, StoragePrefix, StorageValue};
 
 pub trait DBObject {
     /// Serializes the given value.

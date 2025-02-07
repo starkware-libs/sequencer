@@ -1,0 +1,20 @@
+[package]
+name = "starknet_patricia_storage"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Library for storage traits and serde for patricia commitment types."
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+hex.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::storage::storage_trait::{Storage, StorageKey, StorageValue};
+use crate::storage_trait::{Storage, StorageKey, StorageValue};
 
 #[derive(Serialize, Debug, Default)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
