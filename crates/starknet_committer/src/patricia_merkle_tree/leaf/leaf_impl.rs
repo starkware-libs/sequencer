@@ -5,7 +5,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, Leaf
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use starknet_patricia::storage::storage_trait::StoragePrefix;
+use starknet_patricia_storage::storage_trait::StoragePrefix;
 
 use super::leaf_serde::CommitterLeafPrefix;
 use crate::block_committer::input::StarknetStorageValue;
