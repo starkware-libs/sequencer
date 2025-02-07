@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use starknet_patricia_storage::map_storage::MapStorage;
+
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
@@ -27,7 +29,6 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
-use crate::storage::map_storage::MapStorage;
 
 #[tokio::test(flavor = "multi_thread")]
 /// This test is a sanity test for computing the root hash of the patricia merkle tree with a single

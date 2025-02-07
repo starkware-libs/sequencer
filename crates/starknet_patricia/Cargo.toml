@@ -22,11 +22,11 @@ rstest.workspace = true
 async-recursion.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
-hex.workspace = true
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
+starknet_patricia_storage.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
