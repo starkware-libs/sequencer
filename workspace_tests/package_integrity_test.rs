@@ -2,6 +2,18 @@ use std::path::PathBuf;
 
 use crate::toml_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, MEMBER_TOMLS};
 
+static CRATES_ALLOWED_TO_USE_TEST_CODE: [&str; 6] = [
+    "starknet_integration_tests",
+    "papyrus_test_utils",
+    "blockifier_test_utils",
+    "papyrus_load_test",
+    "mempool_test_utils",
+    // The CLI crate exposes tests that require test utils in dependencies.
+    // TODO(Dori): Consider splitting the build of the CLI crate to a test build and a production
+    //   build.
+    "starknet_committer_and_os_cli",
+];
+
 #[test]
 fn test_package_names_match_directory() {
     let mismatched_packages: Vec<_> = MEMBER_TOMLS
@@ -21,6 +33,54 @@ fn test_package_names_match_directory() {
         mismatched_packages.is_empty(),
         "The following crates have package names that do not match their directory names, or are \
          missing a name field: {mismatched_packages:?}."
+    );
+}
+
+/// Tests that no dependency activates the "testing" feature (dev-dependencies may).
+#[test]
+fn test_no_testing_feature_in_business_logic() {
+    let mut testing_feature_deps: Vec<_> = MEMBER_TOMLS
+        .iter()
+        // Ignore test-specific crates.
+        .filter_map(|(package_name, toml)| {
+            if CRATES_ALLOWED_TO_USE_TEST_CODE.contains(&package_name.as_str()) {
+                None
+            } else {
+                Some((package_name, toml))
+            }
+        })
+        // Ignore crates without dependencies.
+        .filter_map(|(package_name, toml)| {
+            toml.dependencies.as_ref().map(|dependencies| (package_name, dependencies))
+        })
+        .filter_map(|(package_name, dependencies)| {
+            let testing_feature_deps = dependencies
+                .iter()
+                .filter_map(|(name, value)| {
+                    if let DependencyValue::Object { features: Some(features), .. } = value {
+                        if features.contains(&"testing".to_string()) {
+                            Some(name.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<String>>();
+            if testing_feature_deps.is_empty() {
+                None
+            } else {
+                Some((package_name.clone(), testing_feature_deps))
+            }
+        })
+        .collect();
+    testing_feature_deps.sort();
+    assert!(
+        testing_feature_deps.is_empty(),
+        "The following crates have (non-testing) dependencies with the 'testing' feature \
+         activated. If the crate is a test crate, add it to {}.\n{testing_feature_deps:#?}",
+        stringify!(CRATES_ALLOWED_TO_USE_TEST_CODE)
     );
 }
 

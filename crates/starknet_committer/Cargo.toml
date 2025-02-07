@@ -12,10 +12,13 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
-starknet_patricia = { workspace = true, features = ["testing"] }
+starknet_patricia.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
+
+[dev-dependencies]
+starknet_patricia = { path = "../starknet_patricia", features = ["testing"] }
 
 [lints]
 workspace = true

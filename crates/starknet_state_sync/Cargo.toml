@@ -19,7 +19,7 @@ papyrus_storage.workspace = true
 papyrus_sync.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
 starknet_client.workspace = true
 starknet_sequencer_infra.workspace = true
