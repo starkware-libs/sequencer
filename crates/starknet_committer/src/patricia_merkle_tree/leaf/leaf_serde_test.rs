@@ -5,7 +5,7 @@ use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia_storage::db_object::Deserializable;
-use starknet_patricia_storage::storage_trait::StorageValue;
+use starknet_patricia_storage::storage_trait::DbValue;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -45,7 +45,7 @@ fn test_default_is_empty<L: Leaf>(#[case] leaf: L) {
 #[rstest]
 fn test_deserialize_contract_state_without_nonce() {
     // Simulate a serialized JSON without the "nonce" field.
-    let serialized = StorageValue(
+    let serialized = DbValue(
         r#"
         {
             "contract_hash": "0x1234abcd",

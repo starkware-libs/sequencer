@@ -4,7 +4,7 @@ use ethnum::U256;
 use rand::Rng;
 use serde_json::json;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{create_db_key, StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
 
 use super::filled_tree::node_serde::PatriciaPrefix;
 use super::filled_tree::tree::{FilledTree, FilledTreeImpl};
@@ -139,18 +139,16 @@ pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
     U256::from(simple_val).to_be_bytes()
 }
 
-fn create_patricia_key(val: u128) -> StorageKey {
+fn create_patricia_key(val: u128) -> DbKey {
     create_db_key(PatriciaPrefix::InnerNode.into(), &U256::from(val).to_be_bytes())
 }
 
-fn create_binary_val(left: u128, right: u128) -> StorageValue {
-    StorageValue(
-        (create_32_bytes_entry(left).into_iter().chain(create_32_bytes_entry(right))).collect(),
-    )
+fn create_binary_val(left: u128, right: u128) -> DbValue {
+    DbValue((create_32_bytes_entry(left).into_iter().chain(create_32_bytes_entry(right))).collect())
 }
 
-fn create_edge_val(hash: u128, path: u128, length: u8) -> StorageValue {
-    StorageValue(
+fn create_edge_val(hash: u128, path: u128, length: u8) -> DbValue {
+    DbValue(
         create_32_bytes_entry(hash)
             .into_iter()
             .chain(create_32_bytes_entry(path))
@@ -159,11 +157,11 @@ fn create_edge_val(hash: u128, path: u128, length: u8) -> StorageValue {
     )
 }
 
-pub fn create_binary_entry(left: u128, right: u128) -> (StorageKey, StorageValue) {
+pub fn create_binary_entry(left: u128, right: u128) -> (DbKey, DbValue) {
     (create_patricia_key(left + right), create_binary_val(left, right))
 }
 
-pub fn create_edge_entry(hash: u128, path: u128, length: u8) -> (StorageKey, StorageValue) {
+pub fn create_edge_entry(hash: u128, path: u128, length: u8) -> (DbKey, DbValue) {
     (create_patricia_key(hash + path + u128::from(length)), create_edge_val(hash, path, length))
 }
 
@@ -194,15 +192,12 @@ pub fn create_unmodified_subtree_skeleton_node(
     )
 }
 
-pub fn create_root_edge_entry(
-    old_root: u128,
-    subtree_height: SubTreeHeight,
-) -> (StorageKey, StorageValue) {
+pub fn create_root_edge_entry(old_root: u128, subtree_height: SubTreeHeight) -> (DbKey, DbValue) {
     // Assumes path is 0.
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
     let key = create_db_key(PatriciaPrefix::InnerNode.into(), &Felt::from(new_root).to_bytes_be());
-    let value = StorageValue(
+    let value = DbValue(
         Felt::from(old_root)
             .to_bytes_be()
             .into_iter()
