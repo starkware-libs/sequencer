@@ -2,12 +2,12 @@ use serde_json;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
-use crate::storage_trait::StorageKey;
+use crate::storage_trait::DbKey;
 
 #[derive(Debug, Error)]
 pub enum StorageError {
     #[error("The key {0:?} does not exist in storage.")]
-    MissingKey(StorageKey),
+    MissingKey(DbKey),
 }
 
 #[derive(thiserror::Error, Debug)]

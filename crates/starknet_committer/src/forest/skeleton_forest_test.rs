@@ -18,7 +18,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::Origi
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use tracing::level_filters::LevelFilter;
 
 use crate::block_committer::commit::get_all_modified_indices;
@@ -44,17 +44,17 @@ macro_rules! compare_skeleton_tree {
     }};
 }
 
-pub(crate) fn create_storage_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+pub(crate) fn create_storage_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = StarknetStorageValue(Felt::from(val));
     (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
 }
 
-pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+pub(crate) fn create_compiled_class_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let leaf = CompiledClassHash(Felt::from(val));
     (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
 }
 
-pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
     let felt = Felt::from(val);
     let leaf = ContractState {
         nonce: Nonce(felt),
