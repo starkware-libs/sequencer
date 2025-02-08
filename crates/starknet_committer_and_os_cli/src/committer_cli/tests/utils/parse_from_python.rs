@@ -8,7 +8,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbStorageKey, DbStorageValue};
 
 use crate::committer_cli::parse_input::cast::add_unique;
 use crate::committer_cli::parse_input::raw_input::RawStorageEntry;
@@ -53,7 +53,7 @@ pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>
 
     let mut storage = HashMap::new();
     for entry in raw_storage {
-        add_unique(&mut storage, "storage", StorageKey(entry.key), StorageValue(entry.value))
+        add_unique(&mut storage, "storage", DbStorageKey(entry.key), DbStorageValue(entry.value))
             .unwrap();
     }
 

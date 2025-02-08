@@ -2,7 +2,7 @@ use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbStorageKey, DbStorageValue, StoragePrefix};
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
@@ -52,7 +52,7 @@ impl<L: Leaf> FilledNode<L> {
         self.hash.0.to_bytes_be()
     }
 
-    pub fn db_key(&self) -> StorageKey {
+    pub fn db_key(&self) -> DbStorageKey {
         self.get_db_key(&self.suffix())
     }
 }
@@ -62,7 +62,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
     /// - For binary nodes: Concatenates left and right hashes.
     /// - For edge nodes: Concatenates bottom hash, path, and path length.
     /// - For leaf nodes: use leaf.serialize() method.
-    fn serialize(&self) -> StorageValue {
+    fn serialize(&self) -> DbStorageValue {
         match &self.data {
             NodeData::Binary(BinaryData { left_hash, right_hash }) => {
                 // Serialize left and right hashes to byte arrays.
@@ -71,7 +71,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
 
                 // Concatenate left and right hashes.
                 let serialized = [left, right].concat();
-                StorageValue(serialized)
+                DbStorageValue(serialized)
             }
 
             NodeData::Edge(EdgeData { bottom_hash, path_to_bottom }) => {
@@ -83,7 +83,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
 
                 // Concatenate bottom hash, path, and path length.
                 let serialized = [bottom.to_vec(), path.to_vec(), length.to_vec()].concat();
-                StorageValue(serialized)
+                DbStorageValue(serialized)
             }
 
             NodeData::Leaf(leaf_data) => leaf_data.serialize(),
@@ -103,7 +103,7 @@ impl<L: Leaf> FilledNode<L> {
     /// Deserializes filled nodes.
     pub(crate) fn deserialize(
         node_hash: HashOutput,
-        value: &StorageValue,
+        value: &DbStorageValue,
         is_leaf: bool,
     ) -> Result<Self, DeserializationError> {
         if is_leaf {

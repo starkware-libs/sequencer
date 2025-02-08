@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbStorageKey, DbStorageValue};
 
 use super::OriginalSkeletonTreeImpl;
 use crate::felt::Felt;
@@ -411,7 +411,7 @@ fn test_get_bottom_subtree(
     assert_eq!(subtree, expected_subtree);
 }
 
-pub(crate) fn create_mock_leaf_entry(val: u128) -> (StorageKey, StorageValue) {
+pub(crate) fn create_mock_leaf_entry(val: u128) -> (DbStorageKey, DbStorageValue) {
     let leaf = MockLeaf(Felt::from(val));
     (leaf.get_db_key(&leaf.0.to_bytes_be()), leaf.serialize())
 }

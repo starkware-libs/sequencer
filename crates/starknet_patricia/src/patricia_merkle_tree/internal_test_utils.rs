@@ -3,7 +3,7 @@ use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
 use starknet_patricia_storage::db_object::{DBObject, Deserializable};
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::storage_trait::{StoragePrefix, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbStorageValue, StoragePrefix};
 
 use crate::felt::Felt;
 use crate::generate_trie_config;
@@ -27,8 +27,8 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 pub struct MockLeaf(pub(crate) Felt);
 
 impl DBObject for MockLeaf {
-    fn serialize(&self) -> StorageValue {
-        StorageValue(self.0.to_bytes_be().to_vec())
+    fn serialize(&self) -> DbStorageValue {
+        DbStorageValue(self.0.to_bytes_be().to_vec())
     }
 
     fn get_prefix(&self) -> StoragePrefix {
@@ -37,7 +37,7 @@ impl DBObject for MockLeaf {
 }
 
 impl Deserializable for MockLeaf {
-    fn deserialize(value: &StorageValue) -> Result<Self, DeserializationError> {
+    fn deserialize(value: &DbStorageValue) -> Result<Self, DeserializationError> {
         Ok(Self(Felt::from_bytes_be_slice(&value.0)))
     }
 }

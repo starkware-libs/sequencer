@@ -12,7 +12,7 @@ use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHa
 use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbStorageKey, DbStorageValue};
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
@@ -23,7 +23,12 @@ impl TryFrom<RawInput> for InputImpl {
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = HashMap::new();
         for entry in raw_input.storage {
-            add_unique(&mut storage, "storage", StorageKey(entry.key), StorageValue(entry.value))?;
+            add_unique(
+                &mut storage,
+                "storage",
+                DbStorageKey(entry.key),
+                DbStorageValue(entry.value),
+            )?;
         }
 
         let mut address_to_class_hash = HashMap::new();

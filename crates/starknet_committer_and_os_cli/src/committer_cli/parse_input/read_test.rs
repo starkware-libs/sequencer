@@ -13,7 +13,7 @@ use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHa
 use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbStorageKey, DbStorageValue};
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
@@ -88,8 +88,8 @@ fn test_simple_input_parsing() {
 
 "#;
     let expected_storage = HashMap::from([
-        (StorageKey([14, 6, 78, 90].to_vec()), StorageValue([245, 90, 0, 0, 1].to_vec())),
-        (StorageKey([14, 6, 43, 90].to_vec()), StorageValue([9, 0, 0, 0, 1].to_vec())),
+        (DbStorageKey([14, 6, 78, 90].to_vec()), DbStorageValue([245, 90, 0, 0, 1].to_vec())),
+        (DbStorageKey([14, 6, 43, 90].to_vec()), DbStorageValue([9, 0, 0, 0, 1].to_vec())),
     ]);
 
     let expected_address_to_class_hash = HashMap::from([
@@ -233,7 +233,7 @@ fn test_input_parsing_with_storage_key_duplicate() {
 ]
 
 "#;
-    let expected_error = "storage: StorageKey([14, 6, 78, 90])";
+    let expected_error = "storage: DbStorageKey([14, 6, 78, 90])";
     assert!(matches!(
         parse_input(input).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key == expected_error

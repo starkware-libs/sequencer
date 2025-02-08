@@ -5,29 +5,29 @@ use starknet_types_core::felt::Felt;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-pub struct StorageKey(pub Vec<u8>);
+pub struct DbStorageKey(pub Vec<u8>);
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-pub struct StorageValue(pub Vec<u8>);
+pub struct DbStorageValue(pub Vec<u8>);
 
-pub trait Storage: From<HashMap<StorageKey, StorageValue>> {
+pub trait Storage: From<HashMap<DbStorageKey, DbStorageValue>> {
     /// Returns value from storage, if it exists.
-    fn get(&self, key: &StorageKey) -> Option<&StorageValue>;
+    fn get(&self, key: &DbStorageKey) -> Option<&DbStorageValue>;
 
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
-    fn set(&mut self, key: StorageKey, value: StorageValue) -> Option<StorageValue>;
+    fn set(&mut self, key: DbStorageKey, value: DbStorageValue) -> Option<DbStorageValue>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
-    fn mget(&self, keys: &[StorageKey]) -> Vec<Option<&StorageValue>>;
+    fn mget(&self, keys: &[DbStorageKey]) -> Vec<Option<&DbStorageValue>>;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: HashMap<StorageKey, StorageValue>);
+    fn mset(&mut self, key_to_value: HashMap<DbStorageKey, DbStorageValue>);
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
-    fn delete(&mut self, key: &StorageKey) -> Option<StorageValue>;
+    fn delete(&mut self, key: &DbStorageKey) -> Option<DbStorageValue>;
 }
 
 #[derive(Debug)]
@@ -43,14 +43,14 @@ impl StoragePrefix {
     }
 }
 
-impl From<Felt> for StorageKey {
+impl From<Felt> for DbStorageKey {
     fn from(value: Felt) -> Self {
-        StorageKey(value.to_bytes_be().to_vec())
+        DbStorageKey(value.to_bytes_be().to_vec())
     }
 }
 
 /// To send storage to Python storage, it is necessary to serialize it.
-impl Serialize for StorageKey {
+impl Serialize for DbStorageKey {
     /// Serializes `StorageKey` to hexadecimal string representation.
     /// Needed since serde's Serialize derive attribute only works on
     /// HashMaps with String keys.
@@ -63,7 +63,7 @@ impl Serialize for StorageKey {
     }
 }
 
-/// Returns a `StorageKey` from a prefix and a suffix.
-pub fn create_db_key(prefix: StoragePrefix, suffix: &[u8]) -> StorageKey {
-    StorageKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
+/// Returns a `DbStorageKey` from a prefix and a suffix.
+pub fn create_db_key(prefix: StoragePrefix, suffix: &[u8]) -> DbStorageKey {
+    DbStorageKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
 }
