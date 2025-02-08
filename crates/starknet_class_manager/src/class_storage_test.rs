@@ -4,6 +4,7 @@ use starknet_api::state::SierraContractClass;
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
 
 use crate::class_storage::{
+    create_tmp_dir,
     ClassHashStorage,
     ClassHashStorageConfig,
     ClassHashStorageError,
@@ -14,30 +15,33 @@ use crate::class_storage::{
 
 #[cfg(test)]
 impl ClassHashStorage {
-    pub fn new_for_testing() -> Self {
+    pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
         let config = ClassHashStorageConfig {
-            path_prefix: tempfile::tempdir().unwrap().path().to_path_buf(),
+            path_prefix: path_prefix.path().to_path_buf(),
             enforce_file_exists: false,
             max_size: 1 << 20, // 1MB.
         };
-
         Self::new(config).unwrap()
     }
 }
 
 #[cfg(test)]
 impl FsClassStorage {
-    pub fn new_for_testing() -> Self {
-        let test_persistent_root = tempfile::tempdir().unwrap().path().to_path_buf();
-        let class_hash_storage = ClassHashStorage::new_for_testing();
-
-        Self { persistent_root: test_persistent_root, class_hash_storage }
+    pub fn new_for_testing(
+        persistent_root: &tempfile::TempDir,
+        class_hash_storage_path_prefix: &tempfile::TempDir,
+    ) -> Self {
+        let class_hash_storage = ClassHashStorage::new_for_testing(class_hash_storage_path_prefix);
+        Self { persistent_root: persistent_root.path().to_path_buf(), class_hash_storage }
     }
 }
 
 #[test]
 fn fs_storage() {
-    let mut storage = FsClassStorage::new_for_testing();
+    let persistent_root = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let mut storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
     // Non-existent class.
     let class_id = ClassHash(felt!("0x1234"));
@@ -68,3 +72,6 @@ fn fs_storage() {
         .set_class(class_id, class.clone(), executable_class_hash, executable_class.clone())
         .unwrap();
 }
+
+// TODO(Elin): check a nonexistent persistent root (should be created).
+// TODO(Elin): add unimplemented skeletons for test above and rest of missing tests.
