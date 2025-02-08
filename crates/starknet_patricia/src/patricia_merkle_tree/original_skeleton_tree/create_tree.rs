@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{create_db_key, Storage, StorageKey};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
 use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
@@ -218,7 +218,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         storage: &impl Storage,
     ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
         let mut subtrees_roots = vec![];
-        let db_keys: Vec<StorageKey> = subtrees
+        let db_keys: Vec<DbKey> = subtrees
             .iter()
             .map(|subtree| {
                 create_db_key(
