@@ -55,6 +55,7 @@ pub struct ClassHashes {
 pub trait ClassManagerClient: Send + Sync {
     async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes>;
 
+    // TODO(Elin): separate V0 and V1 APIs; remove Sierra version.
     async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass>;
 
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Class>;
@@ -75,6 +76,7 @@ pub enum CachedClassStorageError<E: Error> {
     Storage(#[from] E),
 }
 
+// TODO(Elin): express class not found, either as `Option`, or as a dedicated error variant.
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ClassManagerError {
     #[error("Internal client error: {0}")]
