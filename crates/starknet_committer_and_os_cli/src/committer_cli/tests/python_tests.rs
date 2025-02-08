@@ -29,7 +29,7 @@ use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{Storage, StorageKey, StorageValue};
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use thiserror;
 use tracing::{debug, error, info, warn};
@@ -386,7 +386,7 @@ generate_storage_map_xor_hasher!(
 generate_storage_map_xor_hasher!(hash_address_to_class_hash, ContractAddress, ClassHash);
 generate_storage_map_xor_hasher!(hash_address_to_nonce, ContractAddress, Nonce);
 
-fn hash_storage(storage: &HashMap<StorageKey, StorageValue>) -> (Vec<u8>, Vec<u8>) {
+fn hash_storage(storage: &HashMap<DbKey, DbValue>) -> (Vec<u8>, Vec<u8>) {
     let mut keys_hash = vec![0; 32];
     let mut values_hash = vec![0; 32];
     for (key, value) in storage {
@@ -458,15 +458,15 @@ pub(crate) fn test_node_db_key() -> String {
         .unwrap_or_else(|error| panic!("Failed to serialize storage prefix: {}", error))
 }
 
-/// This function storage_serialize_test generates a MapStorage containing StorageKey and
-/// StorageValue pairs for u128 values in the range 0..=1000,
+/// This function storage_serialize_test generates a MapStorage containing DbKey and
+/// DbValue pairs for u128 values in the range 0..=1000,
 /// serializes it to a JSON string using Serde,
 /// and returns the serialized JSON string or panics with an error message if serialization fails.
 pub(crate) fn storage_serialize_test() -> Result<String, CommitterPythonTestError> {
     let mut storage = MapStorage { storage: HashMap::new() };
     for i in 0..=99_u128 {
-        let key = StorageKey(Felt::from(i).to_bytes_be().to_vec());
-        let value = StorageValue(Felt::from(i).to_bytes_be().to_vec());
+        let key = DbKey(Felt::from(i).to_bytes_be().to_vec());
+        let value = DbValue(Felt::from(i).to_bytes_be().to_vec());
         storage.set(key, value);
     }
 
