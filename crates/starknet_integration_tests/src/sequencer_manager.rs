@@ -17,7 +17,6 @@ use starknet_infra_utils::test_utils::{
     MAX_NUMBER_OF_INSTANCES_PER_TEST,
 };
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
-use starknet_sequencer_metrics::metric_definitions;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -28,7 +27,7 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
-use crate::monitoring_utils::await_execution;
+use crate::monitoring_utils;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -308,23 +307,19 @@ impl IntegrationTestManager {
     async fn await_execution(&self, expected_block_number: BlockNumber) {
         let running_node =
             self.running_nodes.iter().next().expect("At least one node should be running").1;
-        await_execution(&running_node.node_setup, expected_block_number).await;
+        monitoring_utils::await_execution(&running_node.node_setup, expected_block_number).await;
     }
 
     async fn verify_txs_accepted(&self, sender_account: AccountId) {
         let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_batched_txs = nonce_to_usize(account.get_nonce());
-        info!("Verifying that sequencer {sequencer_idx} got {expected_n_batched_txs} batched txs.");
-        let n_batched_txs = monitoring_client
-            .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
-            .await
-            .expect("Failed to get batched txs metric.");
-        assert_eq!(
-            n_batched_txs, expected_n_batched_txs,
-            "Sequencer {sequencer_idx} got an unexpected number of batched txs. Expected \
-             {expected_n_batched_txs} got {n_batched_txs}"
-        );
+        monitoring_utils::verify_txs_accepted(
+            monitoring_client,
+            sequencer_idx,
+            expected_n_batched_txs,
+        )
+        .await;
     }
 }
 
