@@ -1,4 +1,5 @@
 use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
 use rstest::rstest;
 use starknet_api::block::FeeType;
@@ -26,7 +27,7 @@ use crate::fee::fee_utils::GasVectorToL1GasForFee;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};

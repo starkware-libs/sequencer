@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use blockifier_test_utils::cairo_versions::CairoVersion;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
@@ -41,7 +42,6 @@ use crate::test_utils::{
     calldata_for_deploy_test,
     get_syscall_resources,
     trivial_external_entry_point_new,
-    CairoVersion,
 };
 use crate::transaction::objects::{
     CommonAccountFields,

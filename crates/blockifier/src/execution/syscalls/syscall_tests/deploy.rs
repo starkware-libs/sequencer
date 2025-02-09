@@ -1,4 +1,4 @@
-use blockifier_test_utils::cairo_versions::RunnableCairo1;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::calculate_contract_address;
@@ -13,7 +13,7 @@ use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new, CairoVersion};
+use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new};
 
 #[test_case(RunnableCairo1::Casm;"VM")]
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
