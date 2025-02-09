@@ -57,3 +57,20 @@ pub async fn await_execution(node: &NodeSetup, expected_block_number: BlockNumbe
         .await
         .expect("Block number should have been reached.");
 }
+
+pub async fn verify_txs_accepted(
+    monitoring_client: &MonitoringClient,
+    sequencer_idx: usize,
+    expected_n_batched_txs: usize,
+) {
+    info!("Verifying that sequencer {sequencer_idx} got {expected_n_batched_txs} batched txs.");
+    let n_batched_txs = monitoring_client
+        .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
+        .await
+        .expect("Failed to get batched txs metric.");
+    assert_eq!(
+        n_batched_txs, expected_n_batched_txs,
+        "Sequencer {sequencer_idx} got an unexpected number of batched txs. Expected \
+         {expected_n_batched_txs} got {n_batched_txs}"
+    );
+}
