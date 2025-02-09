@@ -5,5 +5,6 @@ pub mod integration_test_utils;
 pub mod monitoring_utils;
 pub mod node_setup;
 pub mod sequencer_manager;
+pub mod sequencer_simulator_utils;
 pub mod state_reader;
 pub mod utils;
