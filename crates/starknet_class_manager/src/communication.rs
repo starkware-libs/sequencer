@@ -25,11 +25,17 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
                 )
             }
             ClassManagerRequest::GetExecutable(class_id) => {
-                let result = self.0.get_executable(class_id).map(|class| class.try_into().unwrap());
+                let result = self
+                    .0
+                    .get_executable(class_id)
+                    .map(|optional_class| optional_class.map(|class| class.try_into().unwrap()));
                 ClassManagerResponse::GetExecutable(result)
             }
             ClassManagerRequest::GetSierra(class_id) => {
-                let result = self.0.get_sierra(class_id).map(|class| class.try_into().unwrap());
+                let result = self
+                    .0
+                    .get_sierra(class_id)
+                    .map(|optional_class| optional_class.map(|class| class.try_into().unwrap()));
                 ClassManagerResponse::GetSierra(result)
             }
         }

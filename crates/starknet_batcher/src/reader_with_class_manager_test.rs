@@ -108,6 +108,7 @@ async fn test_inner_state_reader_negative_flow() {
     assert_matches!(result, StateError::StateReadError(_));
 }
 
+// TODO(NoamS): test undeclared class flow (when class manager client returns None).
 #[tokio::test]
 async fn test_get_compiled_class() {
     let mock_inner_state_reader = MockStateReader::new();
@@ -129,7 +130,7 @@ async fn test_get_compiled_class() {
         .times(1)
         .with(predicate::eq(class_hash))
         .returning(move |_| {
-            Ok(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default())))
+            Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
         });
 
     let state_reader =
