@@ -753,10 +753,6 @@ auto_impl_get_test_instance! {
         L1Gas = 0,
         L2Gas = 1,
     }
-    pub struct ResourceBounds {
-        pub max_amount: GasAmount,
-        pub max_price_per_unit: GasPrice,
-    }
     pub struct InternalRpcTransaction {
         pub tx: InternalRpcTransactionWithoutTxHash,
         pub tx_hash: TransactionHash,
@@ -1193,5 +1189,16 @@ impl GetTestInstance for NonZeroU32 {
 impl GetTestInstance for NonZeroU64 {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
         max(1, rng.next_u64()).try_into().expect("Failed to convert a non-zero u64 to NonZeroU64")
+    }
+}
+
+impl GetTestInstance for ResourceBounds {
+    // The default value is invalid in some cases, so we need to override it.
+    fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
+        Self {
+            max_amount: GasAmount(rng.next_u64()),
+            // TODO(alonl): change GasPrice generation to use u128 directly
+            max_price_per_unit: GasPrice(rng.next_u64().into()),
+        }
     }
 }
