@@ -7,7 +7,7 @@ use starknet_types_core::felt::Felt;
 use crate::types::u64_from_usize;
 
 /// Creates the calldata for the "__execute__" entry point in the featured contracts
-/// (FeatureContract) AccountWithLongValidate and AccountWithoutValidations. The format of
+/// ([`crate::contracts::FeatureContract`]) AccountWithLongValidate and AccountWithoutValidations. The format of
 /// the returned calldata is:
 /// [
 ///     contract_address,
@@ -18,7 +18,6 @@ use crate::types::u64_from_usize;
 /// The contract_address is the address of the called contract, the entry_point_name is the
 /// name of the called entry point in said contract, and the calldata is the calldata for the
 /// called entry point.
-// TODO(Rotem): Refer FeatureContract to the object (add backticks and brackets).
 pub fn create_calldata(
     contract_address: ContractAddress,
     entry_point_name: &str,
@@ -38,12 +37,11 @@ pub fn create_calldata(
     )
 }
 
-/// Calldata for a trivial entry point in the FeatureContract TestContract. The calldata is
+/// Calldata for a trivial entry point in the [`crate::contracts::FeatureContract`] TestContract. The calldata is
 /// formatted for using the featured contracts AccountWithLongValidate or
 /// AccountWithoutValidations as account contract.
 /// The contract_address is the address of the called contract, an instance address of
 /// TestContract.
-// TODO(Rotem): Refer FeatureContract to the object (add backticks and brackets).
 pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Calldata {
     create_calldata(
         test_contract_address,

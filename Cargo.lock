@@ -1791,10 +1791,15 @@ name = "blockifier_test_utils"
 version = "0.0.0"
 dependencies = [
  "cached",
+ "cairo-lang-starknet-classes",
+ "itertools 0.12.1",
  "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_infra_utils",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "tempfile",
  "toml",
 ]

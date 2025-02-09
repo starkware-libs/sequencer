@@ -1,4 +1,5 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use itertools::concat;
 #[cfg(feature = "cairo_native")]
 use pretty_assertions::assert_eq;
@@ -15,7 +16,6 @@ use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
-use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 

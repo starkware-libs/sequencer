@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
+use blockifier_test_utils::contracts::FeatureContract;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::FeeType;
@@ -31,7 +32,6 @@ use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{get_syscall_resources, get_tx_resources, BALANCE};
