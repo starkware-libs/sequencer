@@ -1,6 +1,6 @@
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
-use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::db_object::{DBObject, HasDynamicPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, StoragePrefix};
 
@@ -57,6 +57,16 @@ impl<L: Leaf> FilledNode<L> {
     }
 }
 
+impl<L: Leaf> HasDynamicPrefix for FilledNode<L> {
+    fn get_prefix(&self) -> StoragePrefix {
+        match &self.data {
+            NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
+            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::get_static_prefix()),
+        }
+        .into()
+    }
+}
+
 impl<L: Leaf> DBObject for FilledNode<L> {
     /// This method serializes the filled node into a byte vector, where:
     /// - For binary nodes: Concatenates left and right hashes.
@@ -88,14 +98,6 @@ impl<L: Leaf> DBObject for FilledNode<L> {
 
             NodeData::Leaf(leaf_data) => leaf_data.serialize(),
         }
-    }
-
-    fn get_prefix(&self) -> StoragePrefix {
-        match &self.data {
-            NodeData::Binary(_) | NodeData::Edge(_) => PatriciaPrefix::InnerNode,
-            NodeData::Leaf(_) => PatriciaPrefix::Leaf(L::storage_prefix()),
-        }
-        .into()
     }
 }
 

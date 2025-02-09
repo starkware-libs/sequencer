@@ -223,7 +223,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
             .map(|subtree| {
                 create_db_key(
                     if subtree.is_leaf() {
-                        PatriciaPrefix::Leaf(L::storage_prefix()).into()
+                        PatriciaPrefix::Leaf(L::get_static_prefix()).into()
                     } else {
                         PatriciaPrefix::InnerNode.into()
                     },

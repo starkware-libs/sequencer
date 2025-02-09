@@ -5,6 +5,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, Leaf
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::StoragePrefix;
 
 use super::leaf_serde::CommitterLeafPrefix;
@@ -19,13 +20,15 @@ pub struct ContractState {
     pub class_hash: ClassHash,
 }
 
+impl HasStaticPrefix for StarknetStorageValue {
+    fn get_static_prefix() -> StoragePrefix {
+        CommitterLeafPrefix::StorageLeaf.into()
+    }
+}
+
 impl Leaf for StarknetStorageValue {
     type Input = Self;
     type Output = ();
-
-    fn storage_prefix() -> StoragePrefix {
-        CommitterLeafPrefix::StorageLeaf.into()
-    }
 
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
@@ -33,6 +36,12 @@ impl Leaf for StarknetStorageValue {
 
     async fn create(input: Self::Input) -> LeafResult<(Self, Self::Output)> {
         Ok((input, ()))
+    }
+}
+
+impl HasStaticPrefix for CompiledClassHash {
+    fn get_static_prefix() -> StoragePrefix {
+        CommitterLeafPrefix::CompiledClassLeaf.into()
     }
 }
 
@@ -40,10 +49,6 @@ impl Leaf for CompiledClassHash {
     type Input = Self;
     type Output = ();
 
-    fn storage_prefix() -> StoragePrefix {
-        CommitterLeafPrefix::CompiledClassLeaf.into()
-    }
-
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
     }
@@ -53,13 +58,15 @@ impl Leaf for CompiledClassHash {
     }
 }
 
+impl HasStaticPrefix for ContractState {
+    fn get_static_prefix() -> StoragePrefix {
+        CommitterLeafPrefix::StateTreeLeaf.into()
+    }
+}
+
 impl Leaf for ContractState {
     type Input = ContractStateInput;
     type Output = FilledTreeImpl<StarknetStorageValue>;
-
-    fn storage_prefix() -> StoragePrefix {
-        CommitterLeafPrefix::StateTreeLeaf.into()
-    }
 
     fn is_empty(&self) -> bool {
         self.nonce.0 == Felt::ZERO
