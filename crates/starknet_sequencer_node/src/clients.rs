@@ -21,6 +21,8 @@ use starknet_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
+use starknet_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
+use starknet_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
 use starknet_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
 use starknet_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
 use starknet_mempool_p2p_types::communication::{
@@ -62,6 +64,7 @@ pub struct SequencerNodeClients {
     class_manager_client: Client<ClassManagerRequest, ClassManagerResponse>,
     gateway_client: Client<GatewayRequest, GatewayResponse>,
     l1_provider_client: Client<L1ProviderRequest, L1ProviderResponse>,
+    l1_gas_price_client: Client<L1GasPriceRequest, L1GasPriceResponse>,
     mempool_client: Client<MempoolRequest, MempoolResponse>,
     mempool_p2p_propagator_client:
         Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
@@ -148,8 +151,18 @@ impl SequencerNodeClients {
         self.l1_provider_client.get_local_client()
     }
 
+    pub fn get_l1_gas_price_provider_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<L1GasPriceRequest, L1GasPriceResponse>> {
+        self.l1_gas_price_client.get_local_client()
+    }
+
     pub fn get_l1_provider_shared_client(&self) -> Option<SharedL1ProviderClient> {
         get_shared_client!(self, l1_provider_client)
+    }
+
+    pub fn get_l1_gas_price_shared_client(&self) -> Option<SharedL1GasPriceClient> {
+        get_shared_client!(self, l1_gas_price_client)
     }
 
     pub fn get_mempool_local_client(
@@ -299,6 +312,16 @@ pub fn create_node_clients(
         config.components.l1_provider.port
     );
 
+    let l1_gas_price_client = create_client!(
+        &config.components.l1_gas_price_provider.execution_mode,
+        LocalL1GasPriceClient,
+        RemoteL1GasPriceClient,
+        channels.take_l1_gas_price_tx(),
+        &config.components.l1_gas_price_provider.remote_client_config,
+        &config.components.l1_gas_price_provider.url,
+        config.components.l1_gas_price_provider.port
+    );
+
     let mempool_client = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
@@ -344,6 +367,7 @@ pub fn create_node_clients(
         class_manager_client,
         gateway_client,
         l1_provider_client,
+        l1_gas_price_client,
         mempool_client,
         mempool_p2p_propagator_client,
         sierra_compiler_client,
