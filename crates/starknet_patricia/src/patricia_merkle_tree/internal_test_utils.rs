@@ -1,7 +1,7 @@
 use ethnum::U256;
 use rand::rngs::ThreadRng;
 use rstest::{fixture, rstest};
-use starknet_patricia_storage::db_object::{DBObject, Deserializable};
+use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
 use starknet_patricia_storage::errors::DeserializationError;
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 
@@ -26,13 +26,15 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTre
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub(crate) Felt);
 
+impl HasStaticPrefix for MockLeaf {
+    fn get_static_prefix() -> DbKeyPrefix {
+        DbKeyPrefix::new(&[0])
+    }
+}
+
 impl DBObject for MockLeaf {
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
-    }
-
-    fn get_prefix(&self) -> DbKeyPrefix {
-        Self::storage_prefix()
     }
 }
 
@@ -45,10 +47,6 @@ impl Deserializable for MockLeaf {
 impl Leaf for MockLeaf {
     type Input = Felt;
     type Output = String;
-
-    fn storage_prefix() -> DbKeyPrefix {
-        DbKeyPrefix::new(&[0])
-    }
 
     fn is_empty(&self) -> bool {
         self.0 == Felt::ZERO
