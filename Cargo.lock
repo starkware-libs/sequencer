@@ -11678,6 +11678,7 @@ dependencies = [
  "starknet_http_server",
  "starknet_infra_utils",
  "starknet_l1_gas_price",
+ "starknet_l1_gas_price_types",
  "starknet_l1_provider",
  "starknet_l1_provider_types",
  "starknet_mempool",
