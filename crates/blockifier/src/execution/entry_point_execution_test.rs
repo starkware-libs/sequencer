@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -11,7 +12,6 @@ use crate::context::ChainInfo;
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};

@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
 use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
@@ -40,7 +41,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;

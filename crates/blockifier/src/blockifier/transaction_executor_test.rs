@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::test_utils::declare::executable_declare_tx;
@@ -22,7 +23,7 @@ use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{maybe_dummy_block_hash_and_number, BALANCE};
