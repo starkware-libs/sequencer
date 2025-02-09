@@ -468,6 +468,7 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
     }
 }
 
+// TODO(shahak): test undeclared class flow (when class manager client returns None).
 fn create_mock_class_manager_with_blocks_up_to(
     storage_writer: &mut StorageWriter,
 ) -> SharedClassManagerClient {
@@ -483,7 +484,7 @@ fn create_mock_class_manager_with_blocks_up_to(
             class_manager_client
                 .expect_get_sierra()
                 .with(eq(class_hash))
-                .returning(|_| Ok(contract_class.clone()));
+                .returning(|_| Ok(Some(contract_class.clone())));
         }
 
         let deprecated_classes_with_hashes = DEPRECATED_CLASSES_WITH_HASHES[i]
@@ -496,7 +497,7 @@ fn create_mock_class_manager_with_blocks_up_to(
             class_manager_client
                 .expect_get_executable()
                 .with(eq(class_hash))
-                .returning(|_| Ok(ContractClass::V0(contract_class.clone())));
+                .returning(|_| Ok(Some(ContractClass::V0(contract_class.clone()))));
         }
 
         storage_writer

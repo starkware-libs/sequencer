@@ -56,9 +56,12 @@ pub trait ClassManagerClient: Send + Sync {
     async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes>;
 
     // TODO(Elin): separate V0 and V1 APIs; remove Sierra version.
-    async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass>;
+    async fn get_executable(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClass>>;
 
-    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Class>;
+    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>>;
 
     async fn add_deprecated_class(
         &self,
@@ -69,8 +72,6 @@ pub trait ClassManagerClient: Send + Sync {
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
 pub enum CachedClassStorageError<E: Error> {
-    #[error("Class of hash: {class_id} not found")]
-    ClassNotFound { class_id: ClassId },
     // TODO(Elin): remove from, it's too permissive.
     #[error(transparent)]
     Storage(#[from] E),
@@ -134,8 +135,8 @@ pub enum ClassManagerRequest {
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ClassHashes>),
     AddDeprecatedClass(ClassManagerResult<()>),
-    GetExecutable(ClassManagerResult<ExecutableClass>),
-    GetSierra(ClassManagerResult<Class>),
+    GetExecutable(ClassManagerResult<Option<ExecutableClass>>),
+    GetSierra(ClassManagerResult<Option<Class>>),
 }
 
 #[async_trait]
@@ -169,7 +170,10 @@ where
         )
     }
 
-    async fn get_executable(&self, class_id: ClassId) -> ClassManagerClientResult<ExecutableClass> {
+    async fn get_executable(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClass>> {
         let request = ClassManagerRequest::GetExecutable(class_id);
         handle_all_response_variants!(
             ClassManagerResponse,
@@ -180,7 +184,7 @@ where
         )
     }
 
-    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Class> {
+    async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
         let request = ClassManagerRequest::GetSierra(class_id);
         handle_all_response_variants!(
             ClassManagerResponse,
@@ -211,11 +215,11 @@ impl ClassManagerClient for EmptyClassManagerClient {
     async fn get_executable(
         &self,
         _class_id: ClassId,
-    ) -> ClassManagerClientResult<ExecutableClass> {
-        Ok(ExecutableClass::V0(Default::default()))
+    ) -> ClassManagerClientResult<Option<ExecutableClass>> {
+        Ok(Some(ExecutableClass::V0(Default::default())))
     }
 
-    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Class> {
-        Ok(Default::default())
+    async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
+        Ok(Some(Default::default()))
     }
 }

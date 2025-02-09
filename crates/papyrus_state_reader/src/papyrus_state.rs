@@ -110,13 +110,15 @@ impl PapyrusReader {
         };
 
         let casm = block_on(class_reader.get_executable(class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            .map_err(|e| StateError::StateReadError(e.to_string()))
+            .and_then(|opt| opt.ok_or(StateError::UndeclaredClassHash(class_hash)))?;
         let ContractClass::V1((casm, _sierra_version)) = casm else {
             panic!("Class hash {class_hash} originated from a Cairo 1 contract.");
         };
         // TODO(Elin): consider not reading Sierra if compilation is disabled.
         let sierra = block_on(class_reader.get_sierra(class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            .map_err(|err| StateError::StateReadError(err.to_string()))
+            .and_then(|opt| opt.ok_or(StateError::UndeclaredClassHash(class_hash)))?;
 
         Ok((casm, sierra))
     }
@@ -134,7 +136,8 @@ impl PapyrusReader {
         };
 
         let casm = block_on(class_reader.get_executable(class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            .map_err(|err| StateError::StateReadError(err.to_string()))
+            .and_then(|opt| opt.ok_or(StateError::UndeclaredClassHash(class_hash)))?;
         let ContractClass::V0(casm) = casm else {
             panic!("Class hash {class_hash} originated from a Cairo 0 contract.");
         };
