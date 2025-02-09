@@ -24,6 +24,13 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
                     self.0.add_deprecated_class(class_id, class.try_into().unwrap()),
                 )
             }
+            ClassManagerRequest::GetDeprecatedExecutable(class_id) => {
+                let result = self
+                    .0
+                    .get_deprecated_executable(class_id)
+                    .map(|class| class.try_into().unwrap());
+                ClassManagerResponse::GetDeprecatedExecutable(result)
+            }
             ClassManagerRequest::GetExecutable(class_id) => {
                 let result = self.0.get_executable(class_id).map(|class| class.try_into().unwrap());
                 ClassManagerResponse::GetExecutable(result)

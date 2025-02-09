@@ -10769,6 +10769,7 @@ name = "starknet_class_manager_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "cairo-lang-starknet-classes",
  "mockall",
  "papyrus_proc_macros",
  "serde",
@@ -11401,6 +11402,7 @@ name = "starknet_sierra_multicompile_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "cairo-lang-starknet-classes",
  "mockall",
  "papyrus_proc_macros",
  "serde",

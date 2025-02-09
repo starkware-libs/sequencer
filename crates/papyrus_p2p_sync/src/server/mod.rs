@@ -314,11 +314,8 @@ impl FetchBlockData for (ApiContractClass, ClassHash) {
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
         for class_hash in deprecated_declared_classes {
-            let ContractClass::V0(deprecated_contract_class) =
-                class_manager_client.get_executable(class_hash).await?
-            else {
-                panic!("Received a cairo1 contract, expected cairo0");
-            };
+            let deprecated_contract_class =
+                class_manager_client.get_deprecated_executable(class_id).await?;
             result.push((
                 ApiContractClass::DeprecatedContractClass(deprecated_contract_class),
                 class_hash,

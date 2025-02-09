@@ -111,9 +111,6 @@ impl PapyrusReader {
 
         let casm = block_on(class_reader.get_executable(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
-        let ContractClass::V1((casm, _sierra_version)) = casm else {
-            panic!("Class hash {class_hash} originated from a Cairo 1 contract.");
-        };
         // TODO(Elin): consider not reading Sierra if compilation is disabled.
         let sierra = block_on(class_reader.get_sierra(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
@@ -133,11 +130,8 @@ impl PapyrusReader {
             return Ok(option_casm);
         };
 
-        let casm = block_on(class_reader.get_executable(class_hash))
+        let casm = block_on(class_reader.get_deprecated_executable(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
-        let ContractClass::V0(casm) = casm else {
-            panic!("Class hash {class_hash} originated from a Cairo 0 contract.");
-        };
 
         Ok(Some(casm))
     }

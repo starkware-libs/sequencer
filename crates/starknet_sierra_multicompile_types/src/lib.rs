@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
@@ -58,15 +58,15 @@ impl TryFrom<RawClass> for SierraContractClass {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RawExecutableClass(pub serde_json::Value);
 
-impl TryFrom<ContractClass> for RawExecutableClass {
+impl TryFrom<CasmContractClass> for RawExecutableClass {
     type Error = serde_json::Error;
 
-    fn try_from(class: ContractClass) -> Result<Self, Self::Error> {
+    fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
         Ok(Self(serde_json::to_value(class)?))
     }
 }
 
-impl TryFrom<RawExecutableClass> for ContractClass {
+impl TryFrom<RawExecutableClass> for CasmContractClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
