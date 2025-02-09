@@ -10,7 +10,11 @@ use starknet_api::transaction::fields::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::converters::common::{enum_int_to_volition_domain, volition_domain_to_enum_int};
+use crate::converters::common::{
+    enum_int_to_volition_domain,
+    missing,
+    volition_domain_to_enum_int,
+};
 use crate::converters::ProtobufConversionError;
 use crate::protobuf;
 
@@ -31,50 +35,32 @@ pub(crate) struct DeclareTransactionV3Common {
 impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::DeclareV3Common) -> Result<Self, Self::Error> {
-        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "DeclareV3Common::resource_bounds",
-            },
-        )?)?;
+        let resource_bounds = ValidResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("DeclareV3Common::resource_bounds"))?,
+        )?;
 
         let tip = Tip(value.tip);
 
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV3Common::signature",
-                })?
+                .ok_or(missing("DeclareV3Common::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV3Common::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("DeclareV3Common::nonce"))?.try_into()?);
 
         let compiled_class_hash = CompiledClassHash(
             value
                 .compiled_class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV3Common::compiled_class_hash",
-                })?
+                .ok_or(missing("DeclareV3Common::compiled_class_hash"))?
                 .try_into()?,
         );
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV3Common::sender",
-            })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("DeclareV3Common::sender"))?.try_into()?;
 
         let nonce_data_availability_mode =
             enum_int_to_volition_domain(value.nonce_data_availability_mode)?;

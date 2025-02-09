@@ -11,6 +11,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 
+use super::common::missing;
 use super::ProtobufConversionError;
 use crate::auto_impl_into_and_try_from_vec_u8;
 use crate::mempool::RpcTransactionWrapper;
@@ -32,9 +33,7 @@ impl From<RpcTransactionWrapper> for protobuf::MempoolTransaction {
 impl TryFrom<protobuf::MempoolTransaction> for RpcTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::MempoolTransaction) -> Result<Self, Self::Error> {
-        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
-            field_description: "RpcTransaction::txn",
-        })?;
+        let txn = value.txn.ok_or(missing("RpcTransaction::txn"))?;
         Ok(match txn {
             protobuf::mempool_transaction::Txn::DeclareV3(txn) => {
                 RpcTransaction::Declare(RpcDeclareTransaction::V3(txn.try_into()?))
@@ -81,23 +80,11 @@ impl TryFrom<protobuf::ResourceBounds> for AllResourceBounds {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
         Ok(Self {
-            l1_gas: value
-                .l1_gas
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "ResourceBounds::l1_gas",
-                })?
-                .try_into()?,
-            l2_gas: value
-                .l2_gas
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "ResourceBounds::l2_gas",
-                })?
-                .try_into()?,
+            l1_gas: value.l1_gas.ok_or(missing("ResourceBounds::l1_gas"))?.try_into()?,
+            l2_gas: value.l2_gas.ok_or(missing("ResourceBounds::l2_gas"))?.try_into()?,
             l1_data_gas: value
                 .l1_data_gas
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "ResourceBounds::l1_data_gas",
-                })?
+                .ok_or(missing("ResourceBounds::l1_data_gas"))?
                 .try_into()?,
         })
     }

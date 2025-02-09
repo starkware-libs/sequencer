@@ -23,7 +23,11 @@ use starknet_api::core::{
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::PoseidonHash;
 
-use super::common::{enum_int_to_l1_data_availability_mode, l1_data_availability_mode_to_enum_int};
+use super::common::{
+    enum_int_to_l1_data_availability_mode,
+    l1_data_availability_mode_to_enum_int,
+    missing,
+};
 use super::ProtobufConversionError;
 use crate::sync::{DataOrFin, HeaderQuery, Query, SignedBlockHeader};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
@@ -43,9 +47,7 @@ impl TryFrom<protobuf::BlockHeadersResponse> for Option<SignedBlockHeader> {
                 Ok(Some(header.try_into()?))
             }
             Some(protobuf::block_headers_response::HeaderMessage::Fin(_)) => Ok(None),
-            None => Err(ProtobufConversionError::MissingField {
-                field_description: "BlockHeadersResponse::header_message",
-            }),
+            None => Err(missing("BlockHeadersResponse::header_message")),
         }
     }
 }
@@ -55,17 +57,13 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
     fn try_from(value: protobuf::SignedBlockHeader) -> Result<Self, Self::Error> {
         let block_hash = value
             .block_hash
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::block_hash",
-            })?
+            .ok_or(missing("SignedBlockHeader::block_hash"))?
             .try_into()
             .map(BlockHash)?;
 
         let parent_hash = value
             .parent_hash
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::parent_hash",
-            })?
+            .ok_or(missing("SignedBlockHeader::parent_hash"))?
             .try_into()
             .map(BlockHash)?;
 
@@ -73,35 +71,27 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
 
         let sequencer = value
             .sequencer_address
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::sequencer_address",
-            })?
+            .ok_or(missing("SignedBlockHeader::sequencer_address"))?
             .try_into()
             .map(SequencerContractAddress)?;
 
         let state_root = value
             .state_root
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::state_root",
-            })?
+            .ok_or(missing("SignedBlockHeader::state_root"))?
             .try_into()
             .map(GlobalRoot)?;
 
         let n_transactions = value
             .transactions
             .as_ref()
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::transactions",
-            })?
+            .ok_or(missing("SignedBlockHeader::transactions"))?
             .n_leaves
             .try_into()
             .expect("Failed converting u64 to usize");
 
         let transaction_commitment = value
             .transactions
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::transactions",
-            })?
+            .ok_or(missing("SignedBlockHeader::transactions"))?
             .root
             .map(|root| root.try_into())
             .transpose()?
@@ -110,18 +100,14 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         let n_events = value
             .events
             .as_ref()
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::events",
-            })?
+            .ok_or(missing("SignedBlockHeader::events"))?
             .n_leaves
             .try_into()
             .expect("Failed converting u64 to usize");
 
         let event_commitment = value
             .events
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::events",
-            })?
+            .ok_or(missing("SignedBlockHeader::events"))?
             .root
             .map(|root| root.try_into())
             .transpose()?
@@ -147,48 +133,40 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         };
 
         let l1_gas_price = GasPricePerToken {
-            price_in_fri: u128::from(value.l1_gas_price_fri.ok_or(
-                ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::gas_price_fri",
-                },
-            )?)
+            price_in_fri: u128::from(
+                value.l1_gas_price_fri.ok_or(missing("SignedBlockHeader::gas_price_fri"))?,
+            )
             .into(),
 
-            price_in_wei: u128::from(value.l1_gas_price_wei.ok_or(
-                ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::gas_price_wei",
-                },
-            )?)
+            price_in_wei: u128::from(
+                value.l1_gas_price_wei.ok_or(missing("SignedBlockHeader::gas_price_wei"))?,
+            )
             .into(),
         };
 
         let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: u128::from(value.l1_data_gas_price_fri.ok_or(
-                ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::data_gas_price_fri",
-                },
-            )?)
+            price_in_fri: u128::from(
+                value
+                    .l1_data_gas_price_fri
+                    .ok_or(missing("SignedBlockHeader::data_gas_price_fri"))?,
+            )
             .into(),
-            price_in_wei: u128::from(value.l1_data_gas_price_wei.ok_or(
-                ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::data_gas_price_wei",
-                },
-            )?)
+            price_in_wei: u128::from(
+                value
+                    .l1_data_gas_price_wei
+                    .ok_or(missing("SignedBlockHeader::data_gas_price_wei"))?,
+            )
             .into(),
         };
         let l2_gas_price = GasPricePerToken {
-            price_in_fri: u128::from(value.l2_gas_price_fri.ok_or(
-                ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::l2_gas_price_fri",
-                },
-            )?)
+            price_in_fri: u128::from(
+                value.l2_gas_price_fri.ok_or(missing("SignedBlockHeader::l2_gas_price_fri"))?,
+            )
             .into(),
 
-            price_in_wei: u128::from(value.l2_gas_price_wei.ok_or(
-                ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::l2_gas_price_wei",
-                },
-            )?)
+            price_in_wei: u128::from(
+                value.l2_gas_price_wei.ok_or(missing("SignedBlockHeader::l2_gas_price_wei"))?,
+            )
             .into(),
         };
 
@@ -199,9 +177,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
 
         let state_diff_commitment = value
             .state_diff_commitment
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "SignedBlockHeader::state_diff_commitment",
-            })?
+            .ok_or(missing("SignedBlockHeader::state_diff_commitment"))?
             .root
             .map(|root| root.try_into())
             .transpose()?
@@ -309,18 +285,8 @@ impl TryFrom<protobuf::ConsensusSignature> for starknet_api::block::BlockSignatu
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ConsensusSignature) -> Result<Self, Self::Error> {
         Ok(Self(Signature {
-            r: value
-                .r
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::r",
-                })?
-                .try_into()?,
-            s: value
-                .s
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "SignedBlockHeader::s",
-                })?
-                .try_into()?,
+            r: value.r.ok_or(missing("SignedBlockHeader::r"))?.try_into()?,
+            s: value.s.ok_or(missing("SignedBlockHeader::s"))?.try_into()?,
         }))
     }
 }
@@ -364,12 +330,7 @@ impl TryFrom<protobuf::BlockHeadersRequest> for HeaderQuery {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::BlockHeadersRequest) -> Result<Self, Self::Error> {
         Ok(HeaderQuery(
-            value
-                .iteration
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "BlockHeadersRequest::iteration",
-                })?
-                .try_into()?,
+            value.iteration.ok_or(missing("BlockHeadersRequest::iteration"))?.try_into()?,
         ))
     }
 }

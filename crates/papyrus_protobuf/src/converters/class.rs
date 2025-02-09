@@ -17,7 +17,7 @@ use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::{deprecated_contract_class, state};
 use starknet_types_core::felt::Felt;
 
-use super::common::volition_domain_to_enum_int;
+use super::common::{missing, volition_domain_to_enum_int};
 use super::ProtobufConversionError;
 use crate::sync::{ClassQuery, DataOrFin, Query};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
@@ -32,9 +32,7 @@ impl TryFrom<protobuf::ClassesResponse> for DataOrFin<(ApiContractClass, ClassHa
                 Ok(Self(Some(class.try_into()?)))
             }
             Some(protobuf::classes_response::ClassMessage::Fin(_)) => Ok(Self(None)),
-            None => Err(ProtobufConversionError::MissingField {
-                field_description: "ClassesResponse::class_message",
-            }),
+            None => Err(missing("ClassesResponse::class_message")),
         }
     }
 }
@@ -71,18 +69,11 @@ impl TryFrom<protobuf::Class> for (ApiContractClass, ClassHash) {
                 ApiContractClass::ContractClass(state::SierraContractClass::try_from(class)?)
             }
             None => {
-                return Err(ProtobufConversionError::MissingField {
-                    field_description: "Class::class",
-                });
+                return Err(missing("Class::class"));
             }
         };
-        let class_hash = value
-            .class_hash
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "Class::class_hash",
-            })?
-            .try_into()
-            .map(ClassHash)?;
+        let class_hash =
+            value.class_hash.ok_or(missing("Class::class_hash"))?.try_into().map(ClassHash)?;
         Ok((class, class_hash))
     }
 }
@@ -212,9 +203,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
 
         let mut entry_points_by_type = HashMap::new();
         let entry_points =
-            value.entry_points.clone().ok_or(ProtobufConversionError::MissingField {
-                field_description: "Cairo1Class::entry_points",
-            })?;
+            value.entry_points.clone().ok_or(missing("Cairo1Class::entry_points"))?;
         if !entry_points.constructors.is_empty() {
             entry_points_by_type.insert(
                 EntryPointType::Constructor,
@@ -304,10 +293,7 @@ impl From<state::SierraContractClass> for protobuf::Cairo1Class {
 impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPointV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::EntryPoint) -> Result<Self, Self::Error> {
-        let selector_felt =
-            Felt::try_from(value.selector.ok_or(ProtobufConversionError::MissingField {
-                field_description: "EntryPoint::selector",
-            })?)?;
+        let selector_felt = Felt::try_from(value.selector.ok_or(missing("EntryPoint::selector"))?)?;
         let selector = EntryPointSelector(selector_felt);
 
         let offset = deprecated_contract_class::EntryPointOffset(
@@ -331,9 +317,7 @@ impl TryFrom<protobuf::SierraEntryPoint> for state::EntryPoint {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::SierraEntryPoint) -> Result<Self, Self::Error> {
         let selector_felt =
-            Felt::try_from(value.selector.ok_or(ProtobufConversionError::MissingField {
-                field_description: "SierraEntryPoint::selector",
-            })?)?;
+            Felt::try_from(value.selector.ok_or(missing("SierraEntryPoint::selector"))?)?;
         let selector = EntryPointSelector(selector_felt);
 
         let function_idx =
@@ -362,14 +346,7 @@ impl TryFrom<protobuf::ClassesRequest> for Query {
 impl TryFrom<protobuf::ClassesRequest> for ClassQuery {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ClassesRequest) -> Result<Self, Self::Error> {
-        Ok(ClassQuery(
-            value
-                .iteration
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "ClassesRequest::iteration",
-                })?
-                .try_into()?,
-        ))
+        Ok(ClassQuery(value.iteration.ok_or(missing("ClassesRequest::iteration"))?.try_into()?))
     }
 }
 
