@@ -279,7 +279,7 @@ expression: dumped_default_config
   "network.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "value": {
-      "$serde_json::private::Number": "31536000"
+      "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
