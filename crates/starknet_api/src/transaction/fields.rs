@@ -245,6 +245,54 @@ where
     ))
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct NewResourceBounds {
+    /// Specifies the maximum amount of each resource allowed for usage during execution.
+    #[serde(serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
+    pub max_amount: GasAmount,
+
+    /// Specifies the maximum price the user is willing to pay for each resource unit.
+    #[serde(
+        serialize_with = "nonzero_gas_price_to_hex",
+        deserialize_with = "hex_to_nonzero_gas_price"
+    )]
+    pub max_price_per_unit: NonzeroGasPrice,
+}
+
+impl std::fmt::Display for NewResourceBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{ max_amount: {}, max_price_per_unit: {} }}",
+            self.max_amount, self.max_price_per_unit
+        )
+    }
+}
+
+impl NewResourceBounds {
+    /// Returns true iff both the max amount and the max price per unit are at their minimum values.
+    pub fn is_minimum(&self) -> bool {
+        self.max_amount == GasAmount(0) && self.max_price_per_unit == NonzeroGasPrice::MIN
+    }
+}
+
+fn nonzero_gas_price_to_hex<S>(value: &NonzeroGasPrice, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&format!("0x{:x}", value.get().0))
+}
+
+fn hex_to_nonzero_gas_price<'de, D>(deserializer: D) -> Result<NonzeroGasPrice, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    let price =
+        u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)?;
+    NonzeroGasPrice::new(GasPrice(price)).map_err(serde::de::Error::custom)
+}
+
 #[derive(Debug, PartialEq)]
 pub enum GasVectorComputationMode {
     All,

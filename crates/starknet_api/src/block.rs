@@ -379,7 +379,17 @@ impl GasPrice {
 /// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
 /// taking a fee amount and dividing by the gas price.
 #[derive(
-    Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize, PartialOrd, Ord, derive_more::Display,
+    Copy,
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+    PartialOrd,
+    Ord,
+    derive_more::Display,
 )]
 pub struct NonzeroGasPrice(GasPrice);
 
