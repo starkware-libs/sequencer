@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -19,7 +20,7 @@ use starknet_api::{
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;

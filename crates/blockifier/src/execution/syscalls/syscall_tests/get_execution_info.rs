@@ -1,4 +1,5 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
@@ -30,7 +31,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::test_state_ex;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
 use crate::transaction::objects::{

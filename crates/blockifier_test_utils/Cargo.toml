@@ -11,10 +11,15 @@ cairo_native = []
 
 [dependencies]
 cached.workspace = true
+cairo-lang-starknet-classes.workspace = true
+itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_infra_utils.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 tempfile.workspace = true
 toml.workspace = true
 
