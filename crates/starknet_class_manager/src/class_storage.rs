@@ -385,7 +385,7 @@ impl ClassStorage for FsClassStorage {
         }
 
         // Write classes to a temporary directory.
-        let tmp_dir = tempfile::tempdir()?;
+        let tmp_dir = create_tmp_dir()?;
         let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
         self.write_file(concat_sierra_filename(&tmp_dir), class.0)?;
         self.write_file(concat_executable_filename(&tmp_dir), executable_class.0)?;
@@ -471,4 +471,10 @@ fn concat_sierra_filename(path: &Path) -> PathBuf {
 
 fn concat_executable_filename(path: &Path) -> PathBuf {
     path.join("casm")
+}
+
+// Creates a tmp directory and returns a owned representation of it.
+// As long as the returned directory object is lived, the directory is not deleted.
+pub(crate) fn create_tmp_dir() -> FsClassStorageResult<tempfile::TempDir> {
+    Ok(tempfile::tempdir()?)
 }

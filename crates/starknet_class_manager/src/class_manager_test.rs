@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use mockall::predicate::eq;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::felt;
@@ -6,19 +8,25 @@ use starknet_class_manager_types::{CachedClassStorageError, ClassHashes, ClassMa
 use starknet_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 
 use crate::class_manager::ClassManager;
-use crate::class_storage::{CachedClassStorageConfig, FsClassStorage, FsClassStorageError};
+use crate::class_storage::{
+    create_tmp_dir,
+    CachedClassStorageConfig,
+    FsClassStorage,
+    FsClassStorageError,
+};
 use crate::config::ClassManagerConfig;
 
 impl ClassManager<FsClassStorage> {
-    fn new_for_testing(compiler: MockSierraCompilerClient) -> Self {
-        use std::sync::Arc;
-
-        use crate::class_storage::FsClassStorage;
-
+    fn new_for_testing(
+        compiler: MockSierraCompilerClient,
+        persistent_root: &tempfile::TempDir,
+        class_hash_storage_path_prefix: &tempfile::TempDir,
+    ) -> Self {
         let cached_class_storage_config =
             CachedClassStorageConfig { class_cache_size: 10, deprecated_class_cache_size: 10 };
         let config = ClassManagerConfig { cached_class_storage_config };
-        let storage = FsClassStorage::new_for_testing();
+        let storage =
+            FsClassStorage::new_for_testing(persistent_root, class_hash_storage_path_prefix);
 
         ClassManager::new(config, Arc::new(compiler), storage)
     }
@@ -39,7 +47,10 @@ async fn class_manager() {
     });
 
     // Prepare class manager.
-    let mut class_manager = ClassManager::new_for_testing(compiler);
+    let persistent_root = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let mut class_manager =
+        ClassManager::new_for_testing(compiler, &persistent_root, &class_hash_storage_path_prefix);
 
     // Test.
 
