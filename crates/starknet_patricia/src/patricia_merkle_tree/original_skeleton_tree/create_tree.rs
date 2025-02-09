@@ -58,7 +58,7 @@ impl<'a> SubTree<'a> {
 
     pub(crate) fn get_root_prefix<L: Leaf>(&self) -> PatriciaPrefix {
         if self.is_leaf() {
-            PatriciaPrefix::Leaf(L::storage_prefix())
+            PatriciaPrefix::Leaf(L::get_static_prefix())
         } else {
             PatriciaPrefix::InnerNode
         }

@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
 
-use starknet_patricia_storage::db_object::{DBObject, Deserializable};
-use starknet_patricia_storage::storage_trait::StoragePrefix;
+use starknet_patricia_storage::db_object::{DBObject, Deserializable, HasStaticPrefix};
 
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -11,14 +10,14 @@ use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeleto
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeResult;
 use crate::patricia_merkle_tree::types::NodeIndex;
 
-pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debug + Eq {
+pub trait Leaf:
+    Clone + Sync + Send + HasStaticPrefix + DBObject + Deserializable + Default + Debug + Eq
+{
     // TODO(Amos, 1/1/2025): When default values for associated types are stable - use them, and
     // add a default implementation for `create`.
     // [Issue](https://github.com/rust-lang/rust/issues/29661).
     type Input: Send + Sync + 'static;
     type Output: Send + Debug + 'static;
-
-    fn storage_prefix() -> StoragePrefix;
 
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;

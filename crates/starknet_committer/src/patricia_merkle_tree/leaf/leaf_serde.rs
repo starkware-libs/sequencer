@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use serde_json::Value;
 use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, Deserializable};
 use starknet_patricia_storage::errors::DeserializationError;
@@ -35,10 +34,6 @@ impl DBObject for StarknetStorageValue {
     fn serialize(&self) -> DbValue {
         DbValue(self.0.to_bytes_be().to_vec())
     }
-
-    fn get_prefix(&self) -> StoragePrefix {
-        Self::storage_prefix()
-    }
 }
 
 impl DBObject for CompiledClassHash {
@@ -46,10 +41,6 @@ impl DBObject for CompiledClassHash {
     fn serialize(&self) -> DbValue {
         let json_string = format!(r#"{{"compiled_class_hash": "{}"}}"#, self.0.to_hex());
         DbValue(json_string.into_bytes())
-    }
-
-    fn get_prefix(&self) -> StoragePrefix {
-        Self::storage_prefix()
     }
 }
 
@@ -64,10 +55,6 @@ impl DBObject for ContractState {
             self.nonce.0.to_hex(),
         );
         DbValue(json_string.into_bytes())
-    }
-
-    fn get_prefix(&self) -> StoragePrefix {
-        Self::storage_prefix()
     }
 }
 
