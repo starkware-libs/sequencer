@@ -49,6 +49,8 @@ pub trait ClassStorage: Send + Sync {
         class_id: ClassId,
         class: RawExecutableClass,
     ) -> Result<(), Self::Error>;
+
+    fn get_deprecated_class(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error>;
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -157,12 +159,12 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
-        if let Some(class) = self.deprecated_classes.get(&class_id) {
+        if let Some(class) = self.executable_classes.get(&class_id) {
             return Ok(class);
         }
 
         let class = self.storage.get_executable(class_id)?;
-        self.deprecated_classes.set(class_id, class.clone());
+        self.executable_classes.set(class_id, class.clone());
 
         Ok(class)
     }
@@ -194,6 +196,17 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         self.deprecated_classes.set(class_id, class);
 
         Ok(())
+    }
+
+    fn get_deprecated_class(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
+        if let Some(class) = self.deprecated_classes.get(&class_id) {
+            return Ok(class);
+        }
+
+        let class = self.storage.get_deprecated_class(class_id)?;
+        self.deprecated_classes.set(class_id, class.clone());
+
+        Ok(class)
     }
 }
 
@@ -446,6 +459,16 @@ impl ClassStorage for FsClassStorage {
         std::fs::rename(tmp_dir, persistent_dir)?;
 
         Ok(())
+    }
+
+    fn get_deprecated_class(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
+        if !self.contains_deprecated_class(class_id) {
+            return Err(FsClassStorageError::ClassNotFound { class_id });
+        }
+
+        let path = self.get_executable_path(class_id);
+        let raw_class = self.read_file(path)?;
+        Ok(RawExecutableClass(raw_class))
     }
 }
 
