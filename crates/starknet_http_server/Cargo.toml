@@ -6,7 +6,7 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-testing = ["reqwest", "starknet_api/testing"]
+testing = ["reqwest", "starknet_api/testing", "starknet_gateway_types/testing"]
 
 [lints]
 workspace = true
@@ -20,7 +20,7 @@ reqwest = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
-starknet_gateway_types = { workspace = true, features = ["testing"] }
+starknet_gateway_types.workspace = true
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true
@@ -38,4 +38,5 @@ metrics-exporter-prometheus.workspace = true
 reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
+starknet_gateway_types = { path = "../starknet_gateway_types", features = ["testing"] }
 tracing-test.workspace = true
