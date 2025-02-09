@@ -422,11 +422,6 @@ pub trait GetTestInstance: Sized {
 
 auto_impl_get_test_instance! {
     pub struct AccountDeploymentData(pub Vec<Felt>);
-    pub struct AllResourceBounds {
-        pub l1_gas: ResourceBounds,
-        pub l2_gas: ResourceBounds,
-        pub l1_data_gas: ResourceBounds,
-    }
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
@@ -752,10 +747,6 @@ auto_impl_get_test_instance! {
     pub enum Resource {
         L1Gas = 0,
         L2Gas = 1,
-    }
-    pub struct ResourceBounds {
-        pub max_amount: GasAmount,
-        pub max_price_per_unit: GasPrice,
     }
     pub struct InternalRpcTransaction {
         pub tx: InternalRpcTransactionWithoutTxHash,
@@ -1193,5 +1184,25 @@ impl GetTestInstance for NonZeroU32 {
 impl GetTestInstance for NonZeroU64 {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
         max(1, rng.next_u64()).try_into().expect("Failed to convert a non-zero u64 to NonZeroU64")
+    }
+}
+
+impl GetTestInstance for ResourceBounds {
+    fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
+        Self {
+            max_amount: GasAmount(rng.next_u64()),
+            // TODO(alonl): change GasPrice generation to use u128 directly
+            max_price_per_unit: GasPrice(rng.next_u64().into()),
+        }
+    }
+}
+
+impl GetTestInstance for AllResourceBounds {
+    fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
+        Self {
+            l1_gas: ResourceBounds::get_test_instance(rng),
+            l2_gas: ResourceBounds::get_test_instance(rng),
+            l1_data_gas: ResourceBounds::get_test_instance(rng),
+        }
     }
 }
