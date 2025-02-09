@@ -186,7 +186,13 @@ impl Batcher {
         self.l1_provider_client
             .start_block(SessionState::Propose, propose_block_input.block_info.block_number)
             .await
-            .expect("FIXME: handle errors");
+            .map_err(|err| {
+                error!(
+                    "L1 provider is not ready to start proposing block {}: {}. ",
+                    propose_block_input.block_info.block_number, err
+                );
+                BatcherError::InternalError
+            })?;
 
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
@@ -244,7 +250,13 @@ impl Batcher {
         self.l1_provider_client
             .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
             .await
-            .expect("FIXME: handle errors");
+            .map_err(|err| {
+                error!(
+                    "L1 provider is not ready to start validating block {}: {}. ",
+                    validate_block_input.block_info.block_number, err
+                );
+                BatcherError::InternalError
+            })?;
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
