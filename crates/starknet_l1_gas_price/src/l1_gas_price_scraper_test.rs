@@ -12,8 +12,8 @@ use papyrus_base_layer::{
 };
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp};
 
-use crate::l1_gas_price_provider::{L1GasPriceProviderClient, L1GasPriceProviderError};
 use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};
+use crate::{L1GasPriceProviderClient, L1GasPriceProviderClientResult, L1GasPriceProviderError};
 
 const BLOCK_TIME: u64 = 2;
 const GAS_PRICE: u128 = 42;
@@ -106,20 +106,21 @@ struct FakeL1GasPriceProvider {
     data: Arc<Mutex<Vec<(BlockNumber, PriceSample)>>>,
 }
 
+#[async_trait]
 impl L1GasPriceProviderClient for FakeL1GasPriceProvider {
-    fn add_price_info(
+    async fn add_price_info(
         &self,
         height: BlockNumber,
         sample: PriceSample,
-    ) -> Result<(), L1GasPriceProviderError> {
+    ) -> L1GasPriceProviderClientResult<()> {
         self.data.lock().unwrap().push((height, sample));
         Ok(())
     }
 
-    fn get_price_info(
+    async fn get_price_info(
         &self,
         timestamp: BlockTimestamp,
-    ) -> Result<(u128, u128), L1GasPriceProviderError> {
+    ) -> L1GasPriceProviderClientResult<(u128, u128)> {
         let vector = self.data.lock().unwrap();
         let index = vector.iter().position(|(_, sample)| sample.timestamp >= timestamp.0).unwrap();
         Ok((vector[index].1.base_fee_per_gas, vector[index].1.blob_fee))

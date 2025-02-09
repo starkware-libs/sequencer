@@ -11113,6 +11113,7 @@ dependencies = [
  "async-trait",
  "papyrus_base_layer",
  "papyrus_config",
+ "papyrus_proc_macros",
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",

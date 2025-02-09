@@ -153,7 +153,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(Some((latest_l1_block, events)))
     }
 
-    // FIXME: doesn't work in integration tests, remove the error suopression once Anvil is
+    // FIXME: doesn't work in integration tests, remove the error suppression once Anvil is
     // integrated.
     #[instrument(skip(self), err)]
     async fn run(&mut self) -> L1ScraperResult<(), B> {

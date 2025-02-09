@@ -49,6 +49,7 @@ struct LocalServers {
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
+    pub(crate) l1_gas_price: Option<Box<LocalL1GasPriceProviderServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
     pub(crate) sierra_compiler: Option<Box<LocalSierraCompilerServer>>,
@@ -60,6 +61,8 @@ struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
+    pub(crate) l1_gas_price_scraper_server:
+        Option<Box<L1GasPriceScraperServer<EthereumBaseLayerContract>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
     pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
@@ -287,6 +290,13 @@ fn create_local_servers(
         config.components.l1_provider.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
+    let l1_gas_price_server = create_local_server!(
+        &config.components.l1_gas_price.execution_mode,
+        &mut components.l1_gas_price,
+        communication.take_l1_gas_price_rx(),
+        config.components.l1_gas_price.max_concurrency,
+        REGULAR_LOCAL_SERVER
+    );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
         &mut components.mempool,
@@ -321,6 +331,7 @@ fn create_local_servers(
         class_manager: class_manager_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
+        l1_gas_price: l1_gas_price_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
         sierra_compiler: sierra_compiler_server,

@@ -9,6 +9,7 @@ license.workspace = true
 async-trait.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
+papyrus_proc_macros.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true

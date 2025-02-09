@@ -1,7 +1,9 @@
+use std::any::type_name;
 use std::cmp::max;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use papyrus_base_layer::BaseLayerContract;
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
 use papyrus_config::validators::validate_ascii;
@@ -9,11 +11,13 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_sequencer_infra::component_client::ClientError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::errors::ComponentError;
 use thiserror::Error;
-use tracing::error;
+use tracing::{error, info};
 use validator::Validate;
 
-use crate::l1_gas_price_provider::{L1GasPriceProviderClient, L1GasPriceProviderError};
+use crate::{L1GasPriceClientError, L1GasPriceProviderClient};
 
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
@@ -68,8 +72,6 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         }
     }
 
-    // TODO(guyn): dead code can be removed when adding the component starter in the next PR.
-    #[allow(dead_code)]
     async fn run(&mut self) -> L1GasPriceScraperResult<(), B> {
         loop {
             self.update_prices().await?;
@@ -110,7 +112,8 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
             {
                 self.l1_gas_price_provider
                     .add_price_info(BlockNumber(block_number), sample)
-                    .map_err(L1GasPriceScraperError::GasPriceProviderError)?;
+                    .await
+                    .map_err(L1GasPriceScraperError::GasPriceClientError)?;
 
                 self.next_block_number_to_fetch = block_number + 1;
             }
@@ -120,12 +123,20 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     }
 }
 
+#[async_trait]
+impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1GasPriceScraper<B> {
+    async fn start(&mut self) -> Result<(), ComponentError> {
+        info!("Starting component {}.", type_name::<Self>());
+        self.run().await.map_err(|_| ComponentError::InternalComponentError)
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
     BaseLayerError(T::Error),
     #[error("Could not update gas price provider: {0}")]
-    GasPriceProviderError(L1GasPriceProviderError),
+    GasPriceClientError(L1GasPriceClientError),
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
