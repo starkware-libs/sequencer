@@ -28,6 +28,8 @@ pub enum BatcherError {
     MissingRetrospectiveBlockHash,
     #[error("Attempt to start proposal with no active height.")]
     NoActiveHeight,
+    #[error("Not ready to begin work on proposal.")]
+    NotReady,
     #[error("Proposal aborted.")]
     ProposalAborted,
     #[error("Proposal with ID {proposal_id} already exists.")]

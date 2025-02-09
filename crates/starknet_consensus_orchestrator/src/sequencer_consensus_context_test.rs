@@ -3,6 +3,7 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use std::vec;
 
+use futures::channel::oneshot::Canceled;
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::pending;
@@ -24,6 +25,7 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
+use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
@@ -43,14 +45,15 @@ use starknet_batcher_types::batcher_types::{
     SendProposalContentResponse,
     ValidateBlockInput,
 };
-use starknet_batcher_types::communication::MockBatcherClient;
+use starknet_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::stream_handler::StreamHandler;
-use starknet_consensus::types::{ConsensusContext, ContextConfig};
+use starknet_consensus::types::{ConsensusContext, ContextConfig, Round};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
@@ -502,4 +505,28 @@ async fn build_proposal_cende_incomplete() {
     let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
 
     assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+}
+
+#[rstest]
+#[case::proposer(true)]
+#[case::validator(false)]
+#[tokio::test]
+async fn batcher_not_ready(#[case] proposer: bool) {
+    let mut batcher = MockBatcherClient::new();
+    batcher.expect_start_height().return_once(|_| Ok(()));
+    batcher
+        .expect_validate_block()
+        .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    context.set_height_and_round(BlockNumber::default(), Round::default()).await;
+
+    if proposer {
+        let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+        assert_eq!(fin_receiver.await, Err(Canceled));
+    } else {
+        let fin_receiver = context
+            .validate_proposal(ProposalInit::default(), TIMEOUT, mpsc::channel(CHANNEL_SIZE).1)
+            .await;
+        assert_eq!(fin_receiver.await, Err(Canceled));
+    }
 }

@@ -35,6 +35,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
 use starknet_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
@@ -370,6 +371,34 @@ async fn no_active_height() {
 
     let result = batcher.validate_block(validate_block_input(PROPOSAL_ID)).await;
     assert_eq!(result, Err(BatcherError::NoActiveHeight));
+}
+
+#[rstest]
+#[case::proposer(true)]
+#[case::validator(false)]
+#[tokio::test]
+async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
+    let mut deps = MockDependencies::default();
+    deps.l1_provider_client.expect_start_block().returning(|_, _| {
+        // The heights are not important for the test.
+        let err =
+            L1ProviderError::UnexpectedHeight { expected: INITIAL_HEIGHT, got: INITIAL_HEIGHT };
+        Err(err.into())
+    });
+    let mut batcher = create_batcher(deps).await;
+    assert_eq!(batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await, Ok(()));
+
+    if proposer {
+        assert_eq!(
+            batcher.propose_block(propose_block_input(PROPOSAL_ID)).await,
+            Err(BatcherError::NotReady)
+        );
+    } else {
+        assert_eq!(
+            batcher.validate_block(validate_block_input(PROPOSAL_ID)).await,
+            Err(BatcherError::NotReady)
+        );
+    }
 }
 
 #[rstest]

@@ -52,7 +52,7 @@ use starknet_batcher_types::batcher_types::{
     StartHeightInput,
     ValidateBlockInput,
 };
-use starknet_batcher_types::communication::BatcherClient;
+use starknet_batcher_types::communication::{BatcherClient, BatcherClientResult};
 use starknet_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
@@ -585,7 +585,7 @@ async fn build_proposal(
     gas_prices: GasPrices,
     transaction_converter: TransactionConverter,
 ) {
-    let block_info = initialize_build(
+    let block_info = initiate_build(
         proposal_id,
         &proposal_init,
         l1_da_mode,
@@ -594,6 +594,13 @@ async fn build_proposal(
         gas_prices,
     )
     .await;
+    let block_info = match block_info {
+        Ok(info) => info,
+        Err(e) => {
+            error!("Failed to initiate proposal build. {e:?}");
+            return;
+        }
+    };
     proposal_sender
         .send(ProposalPart::Init(proposal_init))
         .await
@@ -628,14 +635,14 @@ async fn build_proposal(
     }
 }
 
-async fn initialize_build(
+async fn initiate_build(
     proposal_id: ProposalId,
     proposal_init: &ProposalInit,
     l1_da_mode: L1DataAvailabilityMode,
     timeout: Duration,
     batcher: &dyn BatcherClient,
     gas_prices: GasPrices,
-) -> ConsensusBlockInfo {
+) -> BatcherClientResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
@@ -670,8 +677,8 @@ async fn initialize_build(
     // I think this implies defining an error type in this crate and moving the trait definition
     // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");
-    batcher.propose_block(build_proposal_input).await.expect("Failed to initiate proposal build");
-    block_info
+    batcher.propose_block(build_proposal_input).await?;
+    Ok(block_info)
 }
 
 // 1. Receive chunks of content from the batcher.
@@ -777,7 +784,10 @@ async fn validate_proposal(
         warn!("Invalid BlockInfo.");
         return;
     }
-    initiate_validation(batcher, block_info, proposal_id, timeout).await;
+    if let Err(e) = initiate_validation(batcher, block_info, proposal_id, timeout).await {
+        error!("Failed to initiate proposal validation. {e:?}");
+        return;
+    }
 
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
@@ -894,7 +904,7 @@ async fn initiate_validation(
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout: Duration,
-) {
+) -> BatcherClientResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout + VALIDATE_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
@@ -929,7 +939,7 @@ async fn initiate_validation(
         },
     };
     debug!("Initiating validate proposal: input={input:?}");
-    batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
+    batcher.validate_block(input).await
 }
 
 // Handles receiving a proposal from another node without blocking consensus:
