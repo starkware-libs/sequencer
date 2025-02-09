@@ -21,3 +21,6 @@ impl Clone for FsClassManager {
 }
 
 pub use FsClassManager as ClassManager;
+
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
