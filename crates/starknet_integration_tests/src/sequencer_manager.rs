@@ -307,7 +307,14 @@ impl IntegrationTestManager {
     async fn await_execution(&self, expected_block_number: BlockNumber) {
         let running_node =
             self.running_nodes.iter().next().expect("At least one node should be running").1;
-        await_execution(&running_node.node_setup, expected_block_number).await;
+        let running_node_setup = &running_node.node_setup;
+        await_execution(
+            running_node_setup.batcher_monitoring_client(),
+            expected_block_number,
+            running_node_setup.get_node_index().unwrap(),
+            running_node_setup.get_batcher_index(),
+        )
+        .await;
     }
 
     async fn verify_txs_accepted(&self, sender_account: AccountId) {
