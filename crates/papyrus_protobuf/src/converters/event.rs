@@ -6,6 +6,7 @@ use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
 use starknet_types_core::felt::Felt;
 
+use super::common::missing;
 use super::ProtobufConversionError;
 use crate::sync::{DataOrFin, EventQuery, Query};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
@@ -18,9 +19,7 @@ impl TryFrom<protobuf::EventsResponse> for DataOrFin<(Event, TransactionHash)> {
                 Ok(Self(Some(event.try_into()?)))
             }
             Some(protobuf::events_response::EventMessage::Fin(_)) => Ok(Self(None)),
-            None => Err(ProtobufConversionError::MissingField {
-                field_description: "EventsResponse::event_message",
-            }),
+            None => Err(missing("EventsResponse::event_message")),
         }
     }
 }
@@ -45,18 +44,11 @@ impl TryFrom<protobuf::Event> for (Event, TransactionHash) {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Event) -> Result<Self, Self::Error> {
         let transaction_hash = TransactionHash(
-            value
-                .transaction_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "Event::transaction_hash",
-                })?
-                .try_into()?,
+            value.transaction_hash.ok_or(missing("Event::transaction_hash"))?.try_into()?,
         );
 
         let from_address_felt =
-            Felt::try_from(value.from_address.ok_or(ProtobufConversionError::MissingField {
-                field_description: "Event::from_address",
-            })?)?;
+            Felt::try_from(value.from_address.ok_or(missing("Event::from_address"))?)?;
         let from_address =
             ContractAddress(PatriciaKey::try_from(from_address_felt).map_err(|_| {
                 ProtobufConversionError::OutOfRangeValue {
@@ -103,14 +95,7 @@ impl TryFrom<protobuf::EventsRequest> for Query {
 impl TryFrom<protobuf::EventsRequest> for EventQuery {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::EventsRequest) -> Result<Self, Self::Error> {
-        Ok(EventQuery(
-            value
-                .iteration
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "EventsRequest::iteration",
-                })?
-                .try_into()?,
-        ))
+        Ok(EventQuery(value.iteration.ok_or(missing("EventsRequest::iteration"))?.try_into()?))
     }
 }
 

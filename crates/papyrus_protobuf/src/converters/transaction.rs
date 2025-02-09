@@ -54,6 +54,7 @@ use starknet_types_core::felt::Felt;
 
 use super::common::{
     enum_int_to_volition_domain,
+    missing,
     try_from_starkfelt_to_u128,
     try_from_starkfelt_to_u32,
     volition_domain_to_enum_int,
@@ -67,9 +68,7 @@ impl TryFrom<protobuf::TransactionsResponse> for DataOrFin<FullTransaction> {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionsResponse) -> Result<Self, Self::Error> {
         let Some(transaction_message) = value.transaction_message else {
-            return Err(ProtobufConversionError::MissingField {
-                field_description: "TransactionsResponse::transaction_message",
-            });
+            return Err(missing("TransactionsResponse::transaction_message"));
         };
 
         match transaction_message {
@@ -114,16 +113,12 @@ impl TryFrom<protobuf::TransactionWithReceipt> for FullTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionWithReceipt) -> Result<Self, Self::Error> {
         let (transaction, transaction_hash) = <(Transaction, TransactionHash)>::try_from(
-            value.transaction.ok_or(ProtobufConversionError::MissingField {
-                field_description: "TransactionWithReceipt::transaction",
-            })?,
+            value.transaction.ok_or(missing("TransactionWithReceipt::transaction"))?,
         )?;
 
-        let transaction_output = TransactionOutput::try_from(value.receipt.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "TransactionWithReceipt::output",
-            },
-        )?)?;
+        let transaction_output = TransactionOutput::try_from(
+            value.receipt.ok_or(missing("TransactionWithReceipt::output"))?,
+        )?;
         Ok(FullTransaction { transaction, transaction_output, transaction_hash })
     }
 }
@@ -145,14 +140,10 @@ impl TryFrom<protobuf::TransactionInBlock> for (Transaction, TransactionHash) {
         let tx_hash = value
             .transaction_hash
             .clone()
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "Transaction::transaction_hash",
-            })?
+            .ok_or(missing("Transaction::transaction_hash"))?
             .try_into()
             .map(TransactionHash)?;
-        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
-            field_description: "Transaction::txn",
-        })?;
+        let txn = value.txn.ok_or(missing("Transaction::txn"))?;
         let transaction: Transaction = match txn {
             protobuf::transaction_in_block::Txn::DeclareV0(declare_v0) => Transaction::Declare(
                 DeclareTransaction::V0(DeclareTransactionV0V1::try_from(declare_v0)?),
@@ -270,9 +261,7 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
         value: protobuf::transaction_in_block::DeployAccountV1,
     ) -> Result<Self, Self::Error> {
         let max_fee_felt =
-            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeployAccountV1::max_fee",
-            })?)?;
+            Felt::try_from(value.max_fee.ok_or(missing("DeployAccountV1::max_fee"))?)?;
         let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
             ProtobufConversionError::OutOfRangeValue {
                 type_description: "u128",
@@ -283,40 +272,20 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV1::signature",
-                })?
+                .ok_or(missing("DeployAccountV1::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV1::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV1::nonce"))?.try_into()?);
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV1::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeployAccountV1::class_hash"))?.try_into()?);
 
         let contract_address_salt = ContractAddressSalt(
-            value
-                .address_salt
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV1::address_salt",
-                })?
-                .try_into()?,
+            value.address_salt.ok_or(missing("DeployAccountV1::address_salt"))?.try_into()?,
         );
 
         let constructor_calldata =
@@ -358,51 +327,29 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction_in_block::Deploy
 impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::DeployAccountV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "DeployAccountV3::resource_bounds",
-            },
-        )?)?;
+        let resource_bounds = ValidResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("DeployAccountV3::resource_bounds"))?,
+        )?;
 
         let tip = Tip(value.tip);
 
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::signature",
-                })?
+                .ok_or(missing("DeployAccountV3::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV3::nonce"))?.try_into()?);
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeployAccountV3::class_hash"))?.try_into()?);
 
         let contract_address_salt = ContractAddressSalt(
-            value
-                .address_salt
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::address_salt",
-                })?
-                .try_into()?,
+            value.address_salt.ok_or(missing("DeployAccountV3::address_salt"))?.try_into()?,
         );
 
         let constructor_calldata =
@@ -438,51 +385,29 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
 impl TryFrom<protobuf::DeployAccountV3> for RpcDeployAccountTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::DeployAccountV3) -> Result<Self, Self::Error> {
-        let resource_bounds = AllResourceBounds::try_from(value.resource_bounds.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "DeployAccountV3::resource_bounds",
-            },
-        )?)?;
+        let resource_bounds = AllResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("DeployAccountV3::resource_bounds"))?,
+        )?;
 
         let tip = Tip(value.tip);
 
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::signature",
-                })?
+                .ok_or(missing("DeployAccountV3::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV3::nonce"))?.try_into()?);
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeployAccountV3::class_hash"))?.try_into()?);
 
         let contract_address_salt = ContractAddressSalt(
-            value
-                .address_salt
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeployAccountV3::address_salt",
-                })?
-                .try_into()?,
+            value.address_salt.ok_or(missing("DeployAccountV3::address_salt"))?.try_into()?,
         );
 
         let constructor_calldata =
@@ -585,14 +510,10 @@ impl TryFrom<protobuf::ResourceBounds> for ValidResourceBounds {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceBounds) -> Result<Self, Self::Error> {
         let Some(l1_gas) = value.l1_gas else {
-            return Err(ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::l1_gas",
-            });
+            return Err(missing("ResourceBounds::l1_gas"));
         };
         let Some(l2_gas) = value.l2_gas else {
-            return Err(ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::l2_gas",
-            });
+            return Err(missing("ResourceBounds::l2_gas"));
         };
         // TODO(Shahak): Assert data gas is not none once we remove support for 0.13.2.
         let l1_data_gas = value.l1_data_gas.unwrap_or_default();
@@ -611,11 +532,11 @@ impl TryFrom<protobuf::ResourceLimits> for ResourceBounds {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ResourceLimits) -> Result<Self, Self::Error> {
         let max_amount = value.max_amount;
-        let max_price_per_unit_felt = Felt::try_from(value.max_price_per_unit.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "ResourceBounds::ResourceLimits::max_price_per_unit",
-            },
-        )?)?;
+        let max_price_per_unit_felt = Felt::try_from(
+            value
+                .max_price_per_unit
+                .ok_or(missing("ResourceBounds::ResourceLimits::max_price_per_unit"))?,
+        )?;
         let max_price_per_unit =
             try_from_starkfelt_to_u128(max_price_per_unit_felt).map_err(|_| {
                 ProtobufConversionError::OutOfRangeValue {
@@ -663,10 +584,7 @@ impl From<ValidResourceBounds> for protobuf::ResourceBounds {
 impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction_in_block::InvokeV0) -> Result<Self, Self::Error> {
-        let max_fee_felt =
-            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
-                field_description: "InvokeV0::max_fee",
-            })?)?;
+        let max_fee_felt = Felt::try_from(value.max_fee.ok_or(missing("InvokeV0::max_fee"))?)?;
         let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
             ProtobufConversionError::OutOfRangeValue {
                 type_description: "u128",
@@ -677,27 +595,18 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV0::signature",
-                })?
+                .ok_or(missing("InvokeV0::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let contract_address = value
-            .address
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "InvokeV0::address",
-            })?
-            .try_into()?;
+        let contract_address = value.address.ok_or(missing("InvokeV0::address"))?.try_into()?;
 
-        let entry_point_selector_felt = Felt::try_from(value.entry_point_selector.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "InvokeV0::entry_point_selector",
-            },
-        )?)?;
+        let entry_point_selector_felt = Felt::try_from(
+            value.entry_point_selector.ok_or(missing("InvokeV0::entry_point_selector"))?,
+        )?;
         let entry_point_selector = EntryPointSelector(entry_point_selector_felt);
 
         let calldata =
@@ -726,10 +635,7 @@ impl From<InvokeTransactionV0> for protobuf::transaction_in_block::InvokeV0 {
 impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction_in_block::InvokeV1) -> Result<Self, Self::Error> {
-        let max_fee_felt =
-            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
-                field_description: "InvokeV1::max_fee",
-            })?)?;
+        let max_fee_felt = Felt::try_from(value.max_fee.ok_or(missing("InvokeV1::max_fee"))?)?;
         let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
             ProtobufConversionError::OutOfRangeValue {
                 type_description: "u128",
@@ -740,28 +646,16 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV1::signature",
-                })?
+                .ok_or(missing("InvokeV1::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField { field_description: "InvokeV1::sender" })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("InvokeV1::sender"))?.try_into()?;
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV1::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("InvokeV1::nonce"))?.try_into()?);
 
         let calldata =
             value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
@@ -789,39 +683,25 @@ impl From<InvokeTransactionV1> for protobuf::transaction_in_block::InvokeV1 {
 impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = ValidResourceBounds::try_from(value.resource_bounds.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "InvokeV3::resource_bounds",
-            },
-        )?)?;
+        let resource_bounds = ValidResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("InvokeV3::resource_bounds"))?,
+        )?;
 
         let tip = Tip(value.tip);
 
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV3::signature",
-                })?
+                .ok_or(missing("InvokeV3::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV3::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3::nonce"))?.try_into()?);
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField { field_description: "InvokeV3::sender" })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("InvokeV3::sender"))?.try_into()?;
 
         let calldata =
             value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
@@ -864,39 +744,25 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
 impl TryFrom<protobuf::InvokeV3> for RpcInvokeTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::InvokeV3) -> Result<Self, Self::Error> {
-        let resource_bounds = AllResourceBounds::try_from(value.resource_bounds.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "InvokeV3::resource_bounds",
-            },
-        )?)?;
+        let resource_bounds = AllResourceBounds::try_from(
+            value.resource_bounds.ok_or(missing("InvokeV3::resource_bounds"))?,
+        )?;
 
         let tip = Tip(value.tip);
 
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV3::signature",
-                })?
+                .ok_or(missing("InvokeV3::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "InvokeV3::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3::nonce"))?.try_into()?);
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField { field_description: "InvokeV3::sender" })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("InvokeV3::sender"))?.try_into()?;
 
         let calldata =
             value.calldata.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
@@ -1007,10 +873,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
     fn try_from(
         value: protobuf::transaction_in_block::DeclareV0WithoutClass,
     ) -> Result<Self, Self::Error> {
-        let max_fee_felt =
-            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV0::max_fee",
-            })?)?;
+        let max_fee_felt = Felt::try_from(value.max_fee.ok_or(missing("DeclareV0::max_fee"))?)?;
         let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
             ProtobufConversionError::OutOfRangeValue {
                 type_description: "u128",
@@ -1021,9 +884,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV0::signature",
-                })?
+                .ok_or(missing("DeclareV0::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
@@ -1033,21 +894,10 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
         // V0 transactions don't have a nonce, but the StarkNet API adds one to them
         let nonce = Nonce::default();
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV0::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeclareV0::class_hash"))?.try_into()?);
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV0::sender",
-            })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("DeclareV0::sender"))?.try_into()?;
 
         Ok(Self { max_fee, signature, nonce, class_hash, sender_address })
     }
@@ -1071,10 +921,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
     fn try_from(
         value: protobuf::transaction_in_block::DeclareV1WithoutClass,
     ) -> Result<Self, Self::Error> {
-        let max_fee_felt =
-            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV1::max_fee",
-            })?)?;
+        let max_fee_felt = Felt::try_from(value.max_fee.ok_or(missing("DeclareV1::max_fee"))?)?;
         let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
             ProtobufConversionError::OutOfRangeValue {
                 type_description: "u128",
@@ -1085,39 +932,19 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV1::signature",
-                })?
+                .ok_or(missing("DeclareV1::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV1::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("DeclareV1::nonce"))?.try_into()?);
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV1::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeclareV1::class_hash"))?.try_into()?);
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV1::sender",
-            })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("DeclareV1::sender"))?.try_into()?;
 
         Ok(Self { max_fee, signature, nonce, class_hash, sender_address })
     }
@@ -1142,10 +969,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
     fn try_from(
         value: protobuf::transaction_in_block::DeclareV2WithoutClass,
     ) -> Result<Self, Self::Error> {
-        let max_fee_felt =
-            Felt::try_from(value.max_fee.ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV2::max_fee",
-            })?)?;
+        let max_fee_felt = Felt::try_from(value.max_fee.ok_or(missing("DeclareV2::max_fee"))?)?;
         let max_fee = Fee(try_from_starkfelt_to_u128(max_fee_felt).map_err(|_| {
             ProtobufConversionError::OutOfRangeValue {
                 type_description: "u128",
@@ -1156,48 +980,26 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
         let signature = TransactionSignature(
             value
                 .signature
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV2::signature",
-                })?
+                .ok_or(missing("DeclareV2::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
         );
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV2::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("DeclareV2::nonce"))?.try_into()?);
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV2::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("DeclareV2::class_hash"))?.try_into()?);
 
         let compiled_class_hash = CompiledClassHash(
             value
                 .compiled_class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV2::compiled_class_hash",
-                })?
+                .ok_or(missing("DeclareV2::compiled_class_hash"))?
                 .try_into()?,
         );
 
-        let sender_address = value
-            .sender
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "DeclareV2::sender",
-            })?
-            .try_into()?;
+        let sender_address = value.sender.ok_or(missing("DeclareV2::sender"))?.try_into()?;
 
         Ok(Self { max_fee, signature, nonce, class_hash, compiled_class_hash, sender_address })
     }
@@ -1223,18 +1025,11 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV3WithoutClass> for DeclareT
     fn try_from(
         value: protobuf::transaction_in_block::DeclareV3WithoutClass,
     ) -> Result<Self, Self::Error> {
-        let common = DeclareTransactionV3Common::try_from(value.common.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "DeclareV3WithoutClass::common",
-            },
-        )?)?;
+        let common = DeclareTransactionV3Common::try_from(
+            value.common.ok_or(missing("DeclareV3WithoutClass::common"))?,
+        )?;
         let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "DeclareV3WithoutClass::class_hash",
-                })?
-                .try_into()?,
+            value.class_hash.ok_or(missing("DeclareV3WithoutClass::class_hash"))?.try_into()?,
         );
 
         Ok(Self {
@@ -1290,16 +1085,12 @@ impl From<DeclareTransactionV3> for protobuf::transaction_in_block::DeclareV3Wit
 impl TryFrom<protobuf::DeclareV3WithClass> for RpcDeclareTransactionV3 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::DeclareV3WithClass) -> Result<Self, Self::Error> {
-        let common = DeclareTransactionV3Common::try_from(value.common.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "DeclareV3WithClass::common",
-            },
-        )?)?;
-        let class: SierraContractClass = SierraContractClass::try_from(value.class.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "DeclareV3WithClass::class",
-            },
-        )?)?;
+        let common = DeclareTransactionV3Common::try_from(
+            value.common.ok_or(missing("DeclareV3WithClass::common"))?,
+        )?;
+        let class: SierraContractClass = SierraContractClass::try_from(
+            value.class.ok_or(missing("DeclareV3WithClass::class"))?,
+        )?;
         if let ValidResourceBounds::AllResources(resource_bounds) = common.resource_bounds {
             Ok(Self {
                 sender_address: common.sender_address,
@@ -1358,22 +1149,11 @@ impl TryFrom<protobuf::transaction_in_block::Deploy> for DeployTransaction {
     fn try_from(value: protobuf::transaction_in_block::Deploy) -> Result<Self, Self::Error> {
         let version = TransactionVersion(Felt::from(value.version));
 
-        let class_hash = ClassHash(
-            value
-                .class_hash
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "Deploy::class_hash",
-                })?
-                .try_into()?,
-        );
+        let class_hash =
+            ClassHash(value.class_hash.ok_or(missing("Deploy::class_hash"))?.try_into()?);
 
         let contract_address_salt = ContractAddressSalt(
-            value
-                .address_salt
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "Deploy::address_salt",
-                })?
-                .try_into()?,
+            value.address_salt.ok_or(missing("Deploy::address_salt"))?.try_into()?,
         );
 
         let constructor_calldata =
@@ -1406,27 +1186,13 @@ impl TryFrom<protobuf::L1HandlerV0> for L1HandlerTransaction {
     fn try_from(value: protobuf::L1HandlerV0) -> Result<Self, Self::Error> {
         let version = L1HandlerTransaction::VERSION;
 
-        let nonce = Nonce(
-            value
-                .nonce
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "L1HandlerV0::nonce",
-                })?
-                .try_into()?,
-        );
+        let nonce = Nonce(value.nonce.ok_or(missing("L1HandlerV0::nonce"))?.try_into()?);
 
-        let contract_address = value
-            .address
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "L1HandlerV0::address",
-            })?
-            .try_into()?;
+        let contract_address = value.address.ok_or(missing("L1HandlerV0::address"))?.try_into()?;
 
-        let entry_point_selector_felt = Felt::try_from(value.entry_point_selector.ok_or(
-            ProtobufConversionError::MissingField {
-                field_description: "L1HandlerV0::entry_point_selector",
-            },
-        )?)?;
+        let entry_point_selector_felt = Felt::try_from(
+            value.entry_point_selector.ok_or(missing("L1HandlerV0::entry_point_selector"))?,
+        )?;
         let entry_point_selector = EntryPointSelector(entry_point_selector_felt);
 
         let calldata =
@@ -1481,9 +1247,7 @@ impl From<ConsensusTransaction> for protobuf::ConsensusTransaction {
 impl TryFrom<protobuf::ConsensusTransaction> for ConsensusTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ConsensusTransaction) -> Result<Self, Self::Error> {
-        let txn = value.txn.ok_or(ProtobufConversionError::MissingField {
-            field_description: "ConsensusTransaction::txn",
-        })?;
+        let txn = value.txn.ok_or(missing("ConsensusTransaction::txn"))?;
         let txn = match txn {
             protobuf::consensus_transaction::Txn::DeclareV3(txn) => {
                 ConsensusTransaction::RpcTransaction(RpcTransaction::Declare(
@@ -1519,12 +1283,7 @@ impl TryFrom<protobuf::TransactionsRequest> for TransactionQuery {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionsRequest) -> Result<Self, Self::Error> {
         Ok(TransactionQuery(
-            value
-                .iteration
-                .ok_or(ProtobufConversionError::MissingField {
-                    field_description: "TransactionsRequest::iteration",
-                })?
-                .try_into()?,
+            value.iteration.ok_or(missing("TransactionsRequest::iteration"))?.try_into()?,
         ))
     }
 }

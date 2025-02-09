@@ -214,9 +214,7 @@ impl TryFrom<protobuf::Iteration> for Query {
     type Error = ProtobufConversionError;
 
     fn try_from(value: protobuf::Iteration) -> Result<Self, Self::Error> {
-        let start = value.start.ok_or(ProtobufConversionError::MissingField {
-            field_description: "Iteration::start",
-        })?;
+        let start = value.start.ok_or(missing("Iteration::start"))?;
         let start_block = match start {
             protobuf::iteration::Start::BlockNumber(block_number) => {
                 BlockHashOrNumber::Number(BlockNumber(block_number))
@@ -299,4 +297,8 @@ pub(super) fn try_from_starkfelt_to_u32(
     };
 
     Ok(u32::from_be_bytes(bytes))
+}
+
+pub fn missing(field_description: &'static str) -> ProtobufConversionError {
+    ProtobufConversionError::MissingField { field_description }
 }

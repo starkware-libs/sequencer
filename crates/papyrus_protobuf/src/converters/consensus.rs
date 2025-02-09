@@ -9,7 +9,11 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
-use super::common::{enum_int_to_l1_data_availability_mode, l1_data_availability_mode_to_enum_int};
+use super::common::{
+    enum_int_to_l1_data_availability_mode,
+    l1_data_availability_mode_to_enum_int,
+    missing,
+};
 use crate::consensus::{
     BlockInfo,
     IntoFromProto,
@@ -55,10 +59,7 @@ impl TryFrom<protobuf::Vote> for Vote {
         let round = value.round;
         let block_hash: Option<BlockHash> =
             value.block_hash.map(|block_hash| block_hash.try_into()).transpose()?.map(BlockHash);
-        let voter = value
-            .voter
-            .ok_or(ProtobufConversionError::MissingField { field_description: "voter" })?
-            .try_into()?;
+        let voter = value.voter.ok_or(missing("voter"))?.try_into()?;
 
         Ok(Vote { vote_type, height, round, block_hash, voter })
     }
@@ -171,10 +172,7 @@ impl TryFrom<protobuf::ProposalInit> for ProposalInit {
         let height = value.height;
         let round = value.round;
         let valid_round = value.valid_round;
-        let proposer = value
-            .proposer
-            .ok_or(ProtobufConversionError::MissingField { field_description: "proposer" })?
-            .try_into()?;
+        let proposer = value.proposer.ok_or(missing("proposer"))?.try_into()?;
         Ok(ProposalInit { height: BlockNumber(height), round, valid_round, proposer })
     }
 }
@@ -197,25 +195,12 @@ impl TryFrom<protobuf::BlockInfo> for BlockInfo {
     fn try_from(value: protobuf::BlockInfo) -> Result<Self, Self::Error> {
         let height = value.height;
         let timestamp = value.timestamp;
-        let builder = value
-            .builder
-            .ok_or(ProtobufConversionError::MissingField { field_description: "builder" })?
-            .try_into()?;
+        let builder = value.builder.ok_or(missing("builder"))?.try_into()?;
         let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_da_mode)?;
-        let l2_gas_price_fri = value
-            .l2_gas_price_fri
-            .ok_or(ProtobufConversionError::MissingField { field_description: "l2_gas_price_fri" })?
-            .into();
-        let l1_gas_price_wei = value
-            .l1_gas_price_wei
-            .ok_or(ProtobufConversionError::MissingField { field_description: "l1_gas_price_wei" })?
-            .into();
-        let l1_data_gas_price_wei = value
-            .l1_data_gas_price_wei
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "l1_data_gas_price_wei",
-            })?
-            .into();
+        let l2_gas_price_fri = value.l2_gas_price_fri.ok_or(missing("l2_gas_price_fri"))?.into();
+        let l1_gas_price_wei = value.l1_gas_price_wei.ok_or(missing("l1_gas_price_wei"))?.into();
+        let l1_data_gas_price_wei =
+            value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into();
         let eth_to_strk_rate = value.eth_to_strk_rate;
         Ok(BlockInfo {
             height: BlockNumber(height),
@@ -271,12 +256,8 @@ auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch
 impl TryFrom<protobuf::ProposalFin> for ProposalFin {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalFin) -> Result<Self, Self::Error> {
-        let proposal_commitment: StarkHash = value
-            .proposal_commitment
-            .ok_or(ProtobufConversionError::MissingField {
-                field_description: "proposal_commitment",
-            })?
-            .try_into()?;
+        let proposal_commitment: StarkHash =
+            value.proposal_commitment.ok_or(missing("proposal_commitment"))?.try_into()?;
         let proposal_commitment = BlockHash(proposal_commitment);
         Ok(ProposalFin { proposal_commitment })
     }
@@ -296,7 +277,7 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
         use protobuf::proposal_part::Message;
 
         let Some(part) = value.message else {
-            return Err(ProtobufConversionError::MissingField { field_description: "part" });
+            return Err(missing("part"));
         };
 
         match part {
