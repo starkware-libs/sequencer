@@ -281,7 +281,8 @@ fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
-    sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
+    // TODO(guyn): return max_attempts from 3 to 50
+    sequencer.monitoring_client.await_alive(5000, 3).await.expect("Node should be alive.");
 }
 
 async fn listen_to_broadcasted_messages(

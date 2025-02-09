@@ -1,6 +1,7 @@
 use starknet_batcher_types::communication::BatcherRequestAndResponseSender;
 use starknet_class_manager_types::ClassManagerRequestAndResponseSender;
 use starknet_gateway_types::communication::GatewayRequestAndResponseSender;
+use starknet_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
 use starknet_l1_provider::communication::L1ProviderRequestAndResponseSender;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
 use starknet_mempool_types::communication::MempoolRequestAndResponseSender;
@@ -14,6 +15,7 @@ pub struct SequencerNodeCommunication {
     class_manager_channel: ComponentCommunication<ClassManagerRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
     l1_provider_channel: ComponentCommunication<L1ProviderRequestAndResponseSender>,
+    l1_gas_price_channel: ComponentCommunication<L1GasPriceRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     mempool_p2p_propagator_channel:
         ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
@@ -52,6 +54,13 @@ impl SequencerNodeCommunication {
 
     pub fn take_l1_provider_rx(&mut self) -> Receiver<L1ProviderRequestAndResponseSender> {
         self.l1_provider_channel.take_rx()
+    }
+
+    pub fn take_l1_gas_price_tx(&mut self) -> Sender<L1GasPriceRequestAndResponseSender> {
+        self.l1_gas_price_channel.take_tx()
+    }
+    pub fn take_l1_gas_price_rx(&mut self) -> Receiver<L1GasPriceRequestAndResponseSender> {
+        self.l1_gas_price_channel.take_rx()
     }
 
     pub fn take_mempool_p2p_propagator_tx(
@@ -104,6 +113,9 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     let (tx_l1_provider, rx_l1_provider) =
         channel::<L1ProviderRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
+    let (tx_l1_gas_price, rx_l1_gas_price) =
+        channel::<L1GasPriceRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+
     let (tx_mempool, rx_mempool) =
         channel::<MempoolRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
@@ -126,6 +138,10 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
         l1_provider_channel: ComponentCommunication::new(
             Some(tx_l1_provider),
             Some(rx_l1_provider),
+        ),
+        l1_gas_price_channel: ComponentCommunication::new(
+            Some(tx_l1_gas_price),
+            Some(rx_l1_gas_price),
         ),
         mempool_channel: ComponentCommunication::new(Some(tx_mempool), Some(rx_mempool)),
         mempool_p2p_propagator_channel: ComponentCommunication::new(
