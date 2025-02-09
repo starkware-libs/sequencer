@@ -352,6 +352,7 @@ impl<'de> Deserialize<'de> for VersionedConstants {
                     .get_syscall_gas_cost(&SyscallSelector::GetExecutionInfo),
                 library_call: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::LibraryCall),
+                meta_tx_v0: versioned_constants.get_syscall_gas_cost(&SyscallSelector::MetaTxV0),
                 replace_class: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::ReplaceClass),
                 storage_read: versioned_constants
@@ -634,6 +635,7 @@ pub struct SyscallGasCosts {
     pub get_block_hash: u64,
     pub get_execution_info: u64,
     pub library_call: u64,
+    pub meta_tx_v0: u64,
     pub replace_class: u64,
     pub storage_read: u64,
     pub storage_write: u64,
@@ -668,6 +670,7 @@ impl SyscallGasCosts {
             SyscallSelector::Keccak => self.keccak,
             SyscallSelector::Sha256ProcessBlock => self.sha256_process_block,
             SyscallSelector::LibraryCall => self.library_call,
+            SyscallSelector::MetaTxV0 => self.meta_tx_v0,
             SyscallSelector::ReplaceClass => self.replace_class,
             SyscallSelector::Secp256k1Add => self.secp256k1_add,
             SyscallSelector::Secp256k1GetPointFromX => self.secp256k1_get_point_from_x,
