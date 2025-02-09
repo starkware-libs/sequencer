@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
@@ -432,6 +434,71 @@ pub fn library_call(
         })?;
 
     Ok(LibraryCallResponse { segment: retdata_segment })
+}
+
+// MetaTxV0 syscall.
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct MetaTxV0Request {
+    pub contract_address: ContractAddress,
+    pub entry_point_selector: EntryPointSelector,
+    pub calldata: Calldata,
+    pub signature: Arc<Vec<Felt>>,
+}
+
+impl SyscallRequest for MetaTxV0Request {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<MetaTxV0Request> {
+        let contract_address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
+        let (entry_point_selector, calldata) = read_call_params(vm, ptr)?;
+        let signature = read_felt_array::<SyscallExecutionError>(vm, ptr)?.into();
+
+        Ok(MetaTxV0Request { contract_address, entry_point_selector, calldata, signature })
+    }
+}
+
+type MetaTxV0Response = CallContractResponse;
+
+pub(crate) fn meta_tx_v0(
+    request: MetaTxV0Request,
+    vm: &mut VirtualMachine,
+    syscall_handler: &mut SyscallHintProcessor<'_>,
+    remaining_gas: &mut u64,
+) -> SyscallResult<MetaTxV0Response> {
+    if syscall_handler.is_validate_mode() {
+        return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+            syscall_name: "meta_tx_v0".to_string(),
+            execution_mode: syscall_handler.execution_mode(),
+        });
+    }
+
+    // TODO(lior): Current implementation is identical to call_contract. Replace it with the
+    //   real meta-tx implementation.
+    let storage_address = request.contract_address;
+    let selector = request.entry_point_selector;
+    let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
+    let entry_point = CallEntryPoint {
+        class_hash: None,
+        code_address: Some(storage_address),
+        entry_point_type: EntryPointType::External,
+        entry_point_selector: selector,
+        calldata: request.calldata,
+        storage_address,
+        caller_address: syscall_handler.storage_address(),
+        call_type: CallType::Call,
+        // NOTE: this value might be overridden later on.
+        initial_gas: *remaining_gas,
+    };
+
+    let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
+        .map_err(|error| match error {
+            SyscallExecutionError::Revert { .. } => error,
+            _ => {
+                // TODO(lior): Change to meta-tx specific error.
+                error.as_call_contract_execution_error(class_hash, storage_address, selector)
+            }
+        })?;
+
+    Ok(MetaTxV0Response { segment: retdata_segment })
 }
 
 // ReplaceClass syscall.

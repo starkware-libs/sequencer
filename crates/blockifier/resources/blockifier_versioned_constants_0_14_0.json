@@ -246,6 +246,13 @@
                 },
                 "n_memory_holes": 0
             },
+            "MetaTxV0": {
+                "n_steps": 100,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 0
+                },
+                "n_memory_holes": 0
+            },
             "ReplaceClass": {
                 "n_steps": 104,
                 "builtin_instance_counter": {

@@ -133,6 +133,10 @@
                 "syscall_base_gas_cost": 1,
                 "step_gas_cost": 510
             },
+            "meta_tx_v0": {
+                "syscall_base_gas_cost": 0,
+                "step_gas_cost": 0
+            },
             "replace_class": {
                 "syscall_base_gas_cost": 1,
                 "step_gas_cost": 50
@@ -326,6 +330,13 @@
                 },
                 "n_memory_holes": 0,
                 "n_steps": 659
+            },
+            "MetaTxV0": {
+                "n_steps": 0,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 0
+                },
+                "n_memory_holes": 0
             },
             "ReplaceClass": {
                 "builtin_instance_counter": {},
