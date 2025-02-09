@@ -1,3 +1,9 @@
+use std::process::exit;
+
+use papyrus_config::validators::config_validate;
+use papyrus_config::ConfigError;
+use tracing::{error, info};
+
 use crate::clients::{create_node_clients, SequencerNodeClients};
 use crate::communication::create_node_channels;
 use crate::components::create_node_components;
@@ -13,4 +19,22 @@ pub async fn create_node_modules(
     let servers = create_node_servers(config, &mut channels, components, &clients);
 
     (clients, servers)
+}
+
+pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
+    let config = SequencerNodeConfig::load_and_process(args);
+    if let Err(ConfigError::CommandInput(clap_err)) = &config {
+        error!("Failed loading configuration: {}", clap_err);
+        clap_err.exit();
+    }
+    info!("Finished loading configuration.");
+
+    let config = config?;
+    if let Err(error) = config_validate(&config) {
+        error!("{}", error);
+        exit(1);
+    }
+    info!("Finished validating configuration.");
+
+    Ok(config)
 }
