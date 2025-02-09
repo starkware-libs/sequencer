@@ -73,5 +73,29 @@ fn fs_storage() {
         .unwrap();
 }
 
+#[test]
+fn fs_storage_deprecated_class_api() {
+    let persistent_root = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let mut storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    // Non-existent class.
+    let class_id = ClassHash(felt!("0x1234"));
+    let class_not_found_error = FsClassStorageError::ClassNotFound { class_id };
+    assert_eq!(storage.get_deprecated_class(class_id).unwrap_err(), class_not_found_error);
+
+    // Add new class.
+    // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
+    let executable_class = RawExecutableClass(vec![4, 5, 6].into());
+    storage.set_deprecated_class(class_id, executable_class.clone()).unwrap();
+
+    // Get class.
+    assert_eq!(storage.get_deprecated_class(class_id).unwrap(), executable_class);
+
+    // Add existing class.
+    storage.set_deprecated_class(class_id, executable_class).unwrap();
+}
+
 // TODO(Elin): check a nonexistent persistent root (should be created).
 // TODO(Elin): add unimplemented skeletons for test above and rest of missing tests.
