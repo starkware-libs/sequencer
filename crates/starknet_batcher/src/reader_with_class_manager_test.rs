@@ -129,7 +129,7 @@ async fn test_get_compiled_class() {
         .times(1)
         .with(predicate::eq(class_hash))
         .returning(move |_| {
-            Ok(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default())))
+            Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
         });
 
     let state_reader =
