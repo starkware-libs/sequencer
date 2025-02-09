@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use rstest::rstest;
 use rstest_reuse::apply;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -11,7 +12,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::test_templates::runnable_version;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
 const TESTED_BUILTIN_GAS_COST: u64 = u64::pow(10, 7);
 

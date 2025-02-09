@@ -15,7 +15,6 @@ testing = []
 async-trait.workspace = true
 axum.workspace = true
 blockifier.workspace = true
-blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true
@@ -40,6 +39,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+blockifier_test_utils.path = "../blockifier_test_utils"
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
 mockall.workspace = true
