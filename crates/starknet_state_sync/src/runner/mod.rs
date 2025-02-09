@@ -9,12 +9,11 @@ use futures::future::{self, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_network::network_manager::{
-    self,
-    network_manager_metrics,
-    NetworkError,
-    NetworkManager,
+use papyrus_network::network_manager::network_manager_metrics::{
+    NetworkManagerMetrics,
+    SqmrNetworkMetrics,
 };
+use papyrus_network::network_manager::{self, NetworkError, NetworkManager};
 use papyrus_p2p_sync::client::{
     P2pSyncClient,
     P2pSyncClientChannels,
@@ -95,10 +94,12 @@ impl StateSyncRunner {
             network_config,
         } = config;
 
-        let network_manager_metrics = Some(network_manager_metrics::NetworkManagerMetrics {
+        let network_manager_metrics = Some(NetworkManagerMetrics {
             num_connected_peers: STATE_SYNC_NUM_CONNECTED_PEERS,
             num_active_inbound_sessions: STATE_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
             num_active_outbound_sessions: STATE_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
+            broadcast_metrics: None,
+            sqmr_metrics: Some(SqmrNetworkMetrics {}),
         });
         let mut network_manager = network_manager::NetworkManager::new(
             network_config,
