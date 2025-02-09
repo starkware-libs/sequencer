@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
+use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
@@ -24,7 +25,7 @@ use crate::fee::gas_usage::{
 };
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
 use crate::transaction::objects::HasRelatedFeeType;

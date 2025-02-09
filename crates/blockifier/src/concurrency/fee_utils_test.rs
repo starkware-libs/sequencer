@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
 use num_bigint::BigUint;
 use rstest::rstest;
 use starknet_api::block::FeeType;
@@ -12,7 +13,6 @@ use crate::concurrency::test_utils::create_fee_transfer_call_info;
 use crate::context::BlockContext;
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::test_utils::BALANCE;
 use crate::transaction::test_utils::{

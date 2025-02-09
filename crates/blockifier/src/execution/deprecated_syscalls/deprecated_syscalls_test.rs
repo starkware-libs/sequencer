@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
@@ -36,7 +37,7 @@ use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::{test_state, test_state_ex};
 use crate::test_utils::{
     calldata_for_deploy_test,

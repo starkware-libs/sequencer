@@ -1,4 +1,5 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::calculate_contract_address;
@@ -11,7 +12,6 @@ use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new};
 

@@ -11,9 +11,10 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(feature = "cairo_native")]
 use blockifier::state::global_cache::{CachedCairoNative, CachedClass};
 use blockifier::state::state_api::StateReader;
-use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::trivial_external_entry_point_new;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
