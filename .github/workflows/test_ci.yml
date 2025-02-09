@@ -48,6 +48,9 @@ jobs:
       # anvil, remove.
       - run: npm install -g ganache@7.4.3
 
+      - run: mkdir data # For papyrus_node compilation.
+      - run: cargo build -p blockifier -p papyrus_node
+
       - run: cargo test -p workspace_tests -p blockifier
       - run: >
           cargo test
@@ -61,8 +64,6 @@ jobs:
           cargo test -p papyrus_node --no-default-features
         env:
           SEED: 0
-      - run: mkdir data # For papyrus_node compilation.
-      - run: cargo build -p blockifier -p papyrus_node
 
       # Perhaps we need a new data directory for this compilation
       - name: Build node - no rpc

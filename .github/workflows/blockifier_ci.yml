@@ -4,13 +4,6 @@ name: Blockifier-CI
 # branches.
 on:
   push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    # TODO(Dori, 1/9/2024): Decide when exactly native-blockifier artifacts will be built. Until
-    #   then, keep the 'paths' key empty and build on every push to a release branch / tag.
 
   pull_request:
     types:

@@ -1,6 +1,7 @@
 name: Sequencer-Integration-Tests-CI-Flow
 
 on:
+  push:
   pull_request:
     types:
       - opened
@@ -28,7 +29,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: |
-          cargo build --bin starknet_sequencer_node
-          cargo build --bin sequencer_node_end_to_end_integration_test
+          cargo build --bin starknet_sequencer_node --bin sequencer_node_end_to_end_integration_test
           target/debug/sequencer_node_end_to_end_integration_test
 
