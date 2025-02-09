@@ -195,7 +195,97 @@ use crate::{define_hint_enum, define_hint_extension_enum};
 pub mod test;
 
 define_hint_enum!(
-    Hint,
+    Syscall,
+    (
+        CallContract,
+        call_contract,
+        "syscall_handler.call_contract(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        DelegateCall,
+        delegate_call,
+        "syscall_handler.delegate_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        DelegateL1Handler,
+        delegate_l1_handler,
+        "syscall_handler.delegate_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (Deploy, deploy, "syscall_handler.deploy(segments=segments, syscall_ptr=ids.syscall_ptr)"),
+    (
+        EmitEvent,
+        emit_event,
+        "syscall_handler.emit_event(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetBlockNumber,
+        get_block_number,
+        "syscall_handler.get_block_number(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetBlockTimestamp,
+        get_block_timestamp,
+        "syscall_handler.get_block_timestamp(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetCallerAddress,
+        get_caller_address,
+        "syscall_handler.get_caller_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetContractAddress,
+        get_contract_address,
+        "syscall_handler.get_contract_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetSequencerAddress,
+        get_sequencer_address,
+        "syscall_handler.get_sequencer_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetTxInfo,
+        get_tx_info,
+        "syscall_handler.get_tx_info(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        GetTxSignature,
+        get_tx_signature,
+        "syscall_handler.get_tx_signature(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        LibraryCall,
+        library_call,
+        "syscall_handler.library_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        LibraryCallL1Handler,
+        library_call_l1_handler,
+        "syscall_handler.library_call_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        ReplaceClass,
+        replace_class,
+        "syscall_handler.replace_class(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        SendMessageToL1,
+        send_message_to_l1,
+        "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        StorageRead,
+        storage_read,
+        "syscall_handler.storage_read(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+    (
+        StorageWrite,
+        storage_write,
+        "syscall_handler.storage_write(segments=segments, syscall_ptr=ids.syscall_ptr)"
+    ),
+);
+
+define_hint_enum!(
+    OsHint,
     (
         LoadClassFacts,
         load_class_facts,
@@ -1329,92 +1419,6 @@ memory[ap] = 1 if case != 'both' else 0"#
 
     segments.write_arg(ids.res.address_, split(ids.value))"#
         }
-    ),
-    (
-        CallContract,
-        call_contract,
-        "syscall_handler.call_contract(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        DelegateCall,
-        delegate_call,
-        "syscall_handler.delegate_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        DelegateL1Handler,
-        delegate_l1_handler,
-        "syscall_handler.delegate_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (Deploy, deploy, "syscall_handler.deploy(segments=segments, syscall_ptr=ids.syscall_ptr)"),
-    (
-        EmitEvent,
-        emit_event,
-        "syscall_handler.emit_event(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetBlockNumber,
-        get_block_number,
-        "syscall_handler.get_block_number(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetBlockTimestamp,
-        get_block_timestamp,
-        "syscall_handler.get_block_timestamp(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetCallerAddress,
-        get_caller_address,
-        "syscall_handler.get_caller_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetContractAddress,
-        get_contract_address,
-        "syscall_handler.get_contract_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetSequencerAddress,
-        get_sequencer_address,
-        "syscall_handler.get_sequencer_address(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetTxInfo,
-        get_tx_info,
-        "syscall_handler.get_tx_info(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        GetTxSignature,
-        get_tx_signature,
-        "syscall_handler.get_tx_signature(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        LibraryCall,
-        library_call,
-        "syscall_handler.library_call(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        LibraryCallL1Handler,
-        library_call_l1_handler,
-        "syscall_handler.library_call_l1_handler(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        ReplaceClass,
-        replace_class,
-        "syscall_handler.replace_class(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        SendMessageToL1,
-        send_message_to_l1,
-        "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        StorageRead,
-        storage_read,
-        "syscall_handler.storage_read(segments=segments, syscall_ptr=ids.syscall_ptr)"
-    ),
-    (
-        StorageWrite,
-        storage_write,
-        "syscall_handler.storage_write(segments=segments, syscall_ptr=ids.syscall_ptr)"
     ),
     (
         SetSyscallPtr,
