@@ -314,8 +314,10 @@ impl FetchBlockData for (ApiContractClass, ClassHash) {
         let deprecated_declared_classes = thin_state_diff.deprecated_declared_classes;
         let mut result = Vec::new();
         for class_hash in deprecated_declared_classes {
-            let ContractClass::V0(deprecated_contract_class) =
-                class_manager_client.get_executable(class_hash).await?
+            let ContractClass::V0(deprecated_contract_class) = class_manager_client
+                .get_executable(class_hash)
+                .await?
+                .ok_or(P2pSyncServerError::ClassNotFound { class_hash })?
             else {
                 panic!("Received a cairo1 contract, expected cairo0");
             };
@@ -326,11 +328,13 @@ impl FetchBlockData for (ApiContractClass, ClassHash) {
         }
 
         for (class_hash, _) in declared_classes {
-            result.push((
-                ApiContractClass::ContractClass(class_manager_client.get_sierra(class_hash).await?),
-                class_hash,
-            ));
+            let sierra = class_manager_client
+                .get_sierra(class_hash)
+                .await?
+                .ok_or(P2pSyncServerError::ClassNotFound { class_hash })?;
+            result.push((ApiContractClass::ContractClass(sierra), class_hash));
         }
+
         Ok(result)
     }
 }

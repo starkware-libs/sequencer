@@ -7,10 +7,8 @@ use crate::class_storage::{
     create_tmp_dir,
     ClassHashStorage,
     ClassHashStorageConfig,
-    ClassHashStorageError,
     ClassStorage,
     FsClassStorage,
-    FsClassStorageError,
 };
 
 #[cfg(test)]
@@ -45,13 +43,9 @@ fn fs_storage() {
 
     // Non-existent class.
     let class_id = ClassHash(felt!("0x1234"));
-    let class_not_found_error = FsClassStorageError::ClassNotFound { class_id };
-    assert_eq!(storage.get_sierra(class_id).unwrap_err(), class_not_found_error);
-    assert_eq!(storage.get_executable(class_id).unwrap_err(), class_not_found_error);
-
-    let class_not_found_error =
-        FsClassStorageError::ClassHashStorage(ClassHashStorageError::ClassNotFound { class_id });
-    assert_eq!(storage.get_executable_class_hash(class_id).unwrap_err(), class_not_found_error);
+    assert_eq!(storage.get_sierra(class_id), Ok(None));
+    assert_eq!(storage.get_executable(class_id), Ok(None));
+    assert_eq!(storage.get_executable_class_hash(class_id), Ok(None));
 
     // Add new class.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
@@ -63,9 +57,9 @@ fn fs_storage() {
         .unwrap();
 
     // Get class.
-    assert_eq!(storage.get_sierra(class_id).unwrap(), class);
-    assert_eq!(storage.get_executable(class_id).unwrap(), executable_class);
-    assert_eq!(storage.get_executable_class_hash(class_id).unwrap(), executable_class_hash);
+    assert_eq!(storage.get_sierra(class_id).unwrap(), Some(class.clone()));
+    assert_eq!(storage.get_executable(class_id).unwrap(), Some(executable_class.clone()));
+    assert_eq!(storage.get_executable_class_hash(class_id).unwrap(), Some(executable_class_hash));
 
     // Add existing class.
     storage
