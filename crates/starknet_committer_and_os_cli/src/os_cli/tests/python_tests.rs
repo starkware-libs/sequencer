@@ -239,19 +239,37 @@ impl PythonTestRunner for OsPythonTestRunner {
 }
 
 async fn test_os_hints_are_equal(input: &str) -> OsPythonTestResult {
-    let unfiltered_python_hints: HashSet<&str> = serde_json::from_str(input)?;
-    let python_os_hints: HashSet<&str> =
-        unfiltered_python_hints.into_iter().filter(|hint| vm_hints().contains(hint)).collect();
-    let rust_os_hints: HashSet<&str> = Hint::iter()
-        .map(|hint| hint.to_str())
-        .chain(HintExtension::iter().map(|hint| hint.to_str()))
+    let unfiltered_python_hints: HashSet<String> = serde_json::from_str(input)?;
+    println!("len unfiltered_python_hints: {}", unfiltered_python_hints.len());
+    let vm_hints = vm_hints();
+    let python_os_hints: HashSet<String> = unfiltered_python_hints
+        .into_iter()
+        .filter(|hint| !vm_hints.contains(hint.as_str()))
+        .collect();
+    let rust_os_hints: HashSet<String> = Hint::iter()
+        .map(|hint| hint.to_str().to_string())
+        .chain(HintExtension::iter().map(|hint| hint.to_str().to_string()))
         .collect();
 
     if rust_os_hints != python_os_hints {
-        let only_in_python: HashSet<&str> =
-            python_os_hints.difference(&rust_os_hints).copied().collect();
-        let only_in_rust: HashSet<&str> =
-            rust_os_hints.difference(&python_os_hints).copied().collect();
+        let only_in_python: HashSet<String> =
+            python_os_hints.difference(&rust_os_hints).cloned().collect();
+        let only_in_rust: HashSet<String> =
+            rust_os_hints.difference(&python_os_hints).cloned().collect();
+        println!("len python_os_hints: {}", python_os_hints.len());
+        println!("len rust_os_hints: {}", rust_os_hints.len());
+        println!("len only_in_python: {}", only_in_python.len());
+        println!("len only_in_rust: {}", only_in_rust.len());
+        println!("---------------- Only in Python ----------------");
+        for hint in only_in_python.iter() {
+            println!("{}", hint);
+            println!();
+        }
+        println!("---------------- Only in Rust ----------------");
+        for hint in only_in_rust.iter() {
+            println!("{}", hint);
+            println!();
+        }
         return Ok(serde_json::to_string(&(only_in_python, only_in_rust))?);
     }
     Ok(serde_json::to_string(SUCCESS_RESULT)?)
