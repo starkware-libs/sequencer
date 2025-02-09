@@ -36,10 +36,12 @@ async fn main() {
 pub fn get_base_db_path(args: Vec<String>) -> PathBuf {
     let arg_name = "--base_db_path_dir";
     match args.as_slice() {
-        [] => PathBuf::from("./data"),
         [arg, path] if arg == arg_name => PathBuf::from(path),
         _ => {
-            eprintln!("Error: Bad argument. The only allowed argument is '{}'.", arg_name);
+            eprintln!(
+                "Error: Missing or incorrect argument. The only allowed argument is '{}'.",
+                arg_name
+            );
             std::process::exit(1);
         }
     }
