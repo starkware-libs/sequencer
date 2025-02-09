@@ -1,14 +1,10 @@
 use std::env::args;
-use std::process::exit;
 
-use papyrus_config::validators::config_validate;
-use papyrus_config::ConfigError;
 use starknet_infra_utils::set_global_allocator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
-use starknet_sequencer_node::utils::create_node_modules;
-use tracing::{error, info};
+use starknet_sequencer_node::utils::{create_node_modules, load_and_validate_config};
+use tracing::info;
 
 set_global_allocator!();
 
@@ -16,19 +12,8 @@ set_global_allocator!();
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
 
-    let config = SequencerNodeConfig::load_and_process(args().collect());
-    if let Err(ConfigError::CommandInput(clap_err)) = config {
-        error!("Failed loading configuration: {}", clap_err);
-        clap_err.exit();
-    }
-    info!("Finished loading configuration.");
-
-    let config = config?;
-    if let Err(error) = config_validate(&config) {
-        error!("{}", error);
-        exit(1);
-    }
-    info!("Finished validating configuration.");
+    let config =
+        load_and_validate_config(args().collect()).expect("Failed to load and validate config");
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config).await;
