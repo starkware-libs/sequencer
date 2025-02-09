@@ -39,7 +39,8 @@ impl<S: StateReader> StateReader for ReaderWithClassManager<S> {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let contract_class = block_on(self.class_manager_client.get_executable(class_hash))
-            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+            .map_err(|e| StateError::StateReadError(e.to_string()))?
+            .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
         match contract_class {
             // TODO(noamsp): Remove this once class manager component is implemented.

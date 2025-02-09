@@ -35,14 +35,14 @@ pub trait ClassStorage: Send + Sync {
         executable_class: RawExecutableClass,
     ) -> Result<(), Self::Error>;
 
-    fn get_sierra(&self, class_id: ClassId) -> Result<RawClass, Self::Error>;
+    fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error>;
 
-    fn get_executable(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error>;
+    fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error>;
 
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
-    ) -> Result<ExecutableClassHash, Self::Error>;
+    ) -> Result<Option<ExecutableClassHash>, Self::Error>;
 
     fn set_deprecated_class(
         &mut self,
@@ -50,7 +50,10 @@ pub trait ClassStorage: Send + Sync {
         class: RawExecutableClass,
     ) -> Result<(), Self::Error>;
 
-    fn get_deprecated_class(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error>;
+    fn get_deprecated_class(
+        &self,
+        class_id: ClassId,
+    ) -> Result<Option<RawExecutableClass>, Self::Error>;
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -147,40 +150,46 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(())
     }
 
-    fn get_sierra(&self, class_id: ClassId) -> Result<RawClass, Self::Error> {
+    fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
         if let Some(class) = self.classes.get(&class_id) {
-            return Ok(class);
+            return Ok(Some(class));
         }
 
-        let class = self.storage.get_sierra(class_id)?;
-        self.classes.set(class_id, class.clone());
+        let Some(class) = self.storage.get_sierra(class_id)? else {
+            return Ok(None);
+        };
 
-        Ok(class)
+        self.classes.set(class_id, class.clone());
+        Ok(Some(class))
     }
 
-    fn get_executable(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
+    fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
         if let Some(class) = self.executable_classes.get(&class_id) {
-            return Ok(class);
+            return Ok(Some(class));
         }
 
-        let class = self.storage.get_executable(class_id)?;
-        self.executable_classes.set(class_id, class.clone());
+        let Some(class) = self.storage.get_executable(class_id)? else {
+            return Ok(None);
+        };
 
-        Ok(class)
+        self.executable_classes.set(class_id, class.clone());
+        Ok(Some(class))
     }
 
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
-    ) -> Result<ExecutableClassHash, Self::Error> {
+    ) -> Result<Option<ExecutableClassHash>, Self::Error> {
         if let Some(class_hash) = self.executable_class_hashes.get(&class_id) {
-            return Ok(class_hash);
+            return Ok(Some(class_hash));
         }
 
-        let class_hash = self.storage.get_executable_class_hash(class_id)?;
-        self.executable_class_hashes.set(class_id, class_hash);
+        let Some(class_hash) = self.storage.get_executable_class_hash(class_id)? else {
+            return Ok(None);
+        };
 
-        Ok(class_hash)
+        self.executable_class_hashes.set(class_id, class_hash);
+        Ok(Some(class_hash))
     }
 
     fn set_deprecated_class(
@@ -198,15 +207,20 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(())
     }
 
-    fn get_deprecated_class(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
+    fn get_deprecated_class(
+        &self,
+        class_id: ClassId,
+    ) -> Result<Option<RawExecutableClass>, Self::Error> {
         if let Some(class) = self.deprecated_classes.get(&class_id) {
-            return Ok(class);
+            return Ok(Some(class));
         }
 
-        let class = self.storage.get_deprecated_class(class_id)?;
-        self.deprecated_classes.set(class_id, class.clone());
+        let Some(class) = self.storage.get_deprecated_class(class_id)? else {
+            return Ok(None);
+        };
 
-        Ok(class)
+        self.deprecated_classes.set(class_id, class.clone());
+        Ok(Some(class))
     }
 }
 
@@ -224,8 +238,6 @@ impl Clone for CachedClassStorage<FsClassStorage> {
 
 #[derive(Debug, Error)]
 pub enum ClassHashStorageError {
-    #[error("Class of hash: {class_id} not found")]
-    ClassNotFound { class_id: ClassId },
     #[error(transparent)]
     Storage(#[from] papyrus_storage::StorageError),
 }
@@ -269,11 +281,8 @@ impl ClassHashStorage {
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
-    ) -> ClassHashStorageResult<ExecutableClassHash> {
-        self.reader
-            .begin_ro_txn()?
-            .get_executable_class_hash(&class_id)?
-            .ok_or(ClassHashStorageError::ClassNotFound { class_id })
+    ) -> ClassHashStorageResult<Option<ExecutableClassHash>> {
+        Ok(self.reader.begin_ro_txn()?.get_executable_class_hash(&class_id)?)
     }
 
     fn set_executable_class_hash(
@@ -302,8 +311,6 @@ pub struct FsClassStorage {
 pub enum FsClassStorageError {
     #[error(transparent)]
     ClassHashStorage(#[from] ClassHashStorageError),
-    #[error("Class of hash: {class_id} not found")]
-    ClassNotFound { class_id: ClassId },
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
@@ -316,10 +323,12 @@ impl FsClassStorage {
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
 
-    fn contains_class(&self, class_id: ClassId) -> bool {
-        self.get_executable_class_hash(class_id).is_ok()
+    fn contains_class(&self, class_id: ClassId) -> FsClassStorageResult<bool> {
+        Ok(self.get_executable_class_hash(class_id)?.is_some())
     }
 
+    // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
+    // it can be deleted.
     fn contains_deprecated_class(&self, class_id: ClassId) -> bool {
         self.get_executable_path(class_id).exists()
     }
@@ -355,10 +364,18 @@ impl FsClassStorage {
         concat_executable_filename(&self.get_persistent_dir(class_id))
     }
 
-    fn read_file(&self, path: PathBuf) -> FsClassStorageResult<serde_json::Value> {
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        Ok(serde_json::from_reader(reader)?)
+    fn read_file(&self, path: PathBuf) -> FsClassStorageResult<Option<serde_json::Value>> {
+        let file = match File::open(&path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+
+        match serde_json::from_reader(BufReader::new(file)) {
+            Ok(value) => Ok(value),
+            Err(e) if e.is_io() && e.to_string().contains("No such file or directory") => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 
     fn write_file(&self, path: PathBuf, data: serde_json::Value) -> FsClassStorageResult<()> {
@@ -393,7 +410,7 @@ impl ClassStorage for FsClassStorage {
         executable_class_hash: ExecutableClassHash,
         executable_class: RawExecutableClass,
     ) -> Result<(), Self::Error> {
-        if self.contains_class(class_id) {
+        if self.contains_class(class_id)? {
             return Ok(());
         }
 
@@ -413,30 +430,28 @@ impl ClassStorage for FsClassStorage {
         Ok(())
     }
 
-    fn get_sierra(&self, class_id: ClassId) -> Result<RawClass, Self::Error> {
-        if !self.contains_class(class_id) {
-            return Err(FsClassStorageError::ClassNotFound { class_id });
+    fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
+        if !self.contains_class(class_id)? {
+            return Ok(None);
         }
 
         let path = self.get_sierra_path(class_id);
-        let raw_class = self.read_file(path)?;
-        Ok(RawClass(raw_class))
+        Ok(self.read_file(path)?.map(RawClass))
     }
 
-    fn get_executable(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
-        if !self.contains_class(class_id) {
-            return Err(FsClassStorageError::ClassNotFound { class_id });
+    fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
+        if !self.contains_class(class_id)? {
+            return Ok(None);
         }
 
         let path = self.get_executable_path(class_id);
-        let raw_class = self.read_file(path)?;
-        Ok(RawExecutableClass(raw_class))
+        Ok(self.read_file(path)?.map(RawExecutableClass))
     }
 
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
-    ) -> Result<ExecutableClassHash, Self::Error> {
+    ) -> Result<Option<ExecutableClassHash>, Self::Error> {
         Ok(self.class_hash_storage.get_executable_class_hash(class_id)?)
     }
 
@@ -461,28 +476,23 @@ impl ClassStorage for FsClassStorage {
         Ok(())
     }
 
-    fn get_deprecated_class(&self, class_id: ClassId) -> Result<RawExecutableClass, Self::Error> {
+    fn get_deprecated_class(
+        &self,
+        class_id: ClassId,
+    ) -> Result<Option<RawExecutableClass>, Self::Error> {
         if !self.contains_deprecated_class(class_id) {
-            return Err(FsClassStorageError::ClassNotFound { class_id });
+            return Ok(None);
         }
 
         let path = self.get_executable_path(class_id);
-        let raw_class = self.read_file(path)?;
-        Ok(RawExecutableClass(raw_class))
+        Ok(self.read_file(path)?.map(RawExecutableClass))
     }
 }
 
 impl PartialEq for FsClassStorageError {
     fn eq(&self, other: &Self) -> bool {
-        use FsClassStorageError::*;
-
-        match (self, other) {
-            (ClassNotFound { class_id }, ClassNotFound { class_id: other_class_id }) => {
-                class_id == other_class_id
-            }
-            // Only compare enum variants; no need to compare the error values.
-            _ => mem::discriminant(self) == mem::discriminant(other),
-        }
+        // Only compare enum variants; no need to compare the error values.
+        mem::discriminant(self) == mem::discriminant(other)
     }
 }
 
