@@ -3,7 +3,10 @@ on:
   push:
 
 env:
+  CI: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 jobs:
   build-and-test:
@@ -78,31 +81,31 @@ jobs:
       # - run: >
       #   cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
+      # TODO: Move the following to test part
+      - name: "Run tests pull request"
+        # if: github.event_name == 'pull_request'
+        # TODO: switch back to pr event.
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.push.before }}
+        env:
+          SEED: 0
 
-      # - name: "Run tests pull request"
-      #   # if: github.event_name == 'pull_request'
-      #   run: |
-      #     python3 -m venv ci
-      #     ci/bin/pip install -r scripts/requirements.txt
-      #     # TODO: switch back to pr event.
-      #     ci/bin/python scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.push.before }}
-      #   env:
-      #     SEED: 0
+      - name: "Run clippy pull request"
+        # if: github.event_name == 'pull_request'
+        # TODO: switch back to pr event
+        run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.push.before }}
+      - name: "Run cargo doc pull request"
+        # TODO: switch back to pr event
+        # if: github.event_name == 'pull_request'
+        run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.push.before }}
 
-      # - name: "Run clippy pull request"
-      #   # if: github.event_name == 'pull_request'
-      #   # TODO: switch back to pr event
-      #   run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.push.before }}
-      # - name: "Run cargo doc pull request"
-      #   # TODO: switch back to pr event
-      #   # if: github.event_name == 'pull_request'
-      #   run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.push.before }}
-
-      # # Run code style on push.
-      # - name: "Run rustfmt"
-      #   # The nightly here is coupled with the one in install_rust/action.yml.
-      #   # If we move the install here we can use a const.
-      #   run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+      # Run code style on push.
+      - name: "Run rustfmt"
+        # The nightly here is coupled with the one in install_rust/action.yml.
+        # If we move the install here we can use a const.
+        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
 
 
 
