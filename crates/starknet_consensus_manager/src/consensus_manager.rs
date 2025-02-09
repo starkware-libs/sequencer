@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::metrics::NetworkMetrics;
+use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
@@ -24,6 +24,8 @@ use starknet_sequencer_metrics::metric_definitions::{
     CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
     CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_NUM_SENT_MESSAGES,
 };
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info};
@@ -60,6 +62,11 @@ impl ConsensusManager {
             num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
             num_active_inbound_sessions: CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
             num_active_outbound_sessions: CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
+            broadcast_metrics: Some(BroadcastNetworkMetrics {
+                num_sent_broadcast_messages: CONSENSUS_NUM_SENT_MESSAGES,
+                num_received_broadcast_messages: CONSENSUS_NUM_RECEIVED_MESSAGES,
+            }),
+            sqmr_metrics: None,
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
