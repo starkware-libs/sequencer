@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::contract_class::{ClassInfo, SierraVersion};
-use starknet_api::core::ChainId;
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
+use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -18,6 +18,7 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcTransaction,
 };
+use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{CalculateContractAddress, TransactionHasher, TransactionVersion};
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
@@ -29,6 +30,8 @@ use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
 pub enum TransactionConverterError {
     #[error(transparent)]
     ClassManagerClientError(#[from] ClassManagerClientError),
+    #[error("Class of hash: {class_hash} not found")]
+    ClassNotFound { class_hash: ClassHash },
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
 }
@@ -78,6 +81,26 @@ impl TransactionConverter {
     pub fn new(class_manager_client: SharedClassManagerClient, chain_id: ChainId) -> Self {
         Self { class_manager_client, chain_id }
     }
+
+    async fn get_sierra(
+        &self,
+        class_hash: ClassHash,
+    ) -> TransactionConverterResult<SierraContractClass> {
+        self.class_manager_client
+            .get_sierra(class_hash)
+            .await?
+            .ok_or(TransactionConverterError::ClassNotFound { class_hash })
+    }
+
+    async fn get_executable(
+        &self,
+        class_hash: ClassHash,
+    ) -> TransactionConverterResult<ContractClass> {
+        self.class_manager_client
+            .get_executable(class_hash)
+            .await?
+            .ok_or(TransactionConverterError::ClassNotFound { class_hash })
+    }
 }
 
 #[async_trait]
@@ -119,14 +142,12 @@ impl TransactionConverterTrait for TransactionConverter {
         match tx.tx {
             InternalRpcTransactionWithoutTxHash::Invoke(tx) => Ok(RpcTransaction::Invoke(tx)),
             InternalRpcTransactionWithoutTxHash::Declare(tx) => {
-                let contract_class = self.class_manager_client.get_sierra(tx.class_hash).await?;
-
                 Ok(RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
                     sender_address: tx.sender_address,
                     compiled_class_hash: tx.compiled_class_hash,
                     signature: tx.signature,
                     nonce: tx.nonce,
-                    contract_class,
+                    contract_class: self.get_sierra(tx.class_hash).await?,
                     resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     paymaster_data: tx.paymaster_data,
@@ -191,9 +212,9 @@ impl TransactionConverterTrait for TransactionConverter {
                 }))
             }
             InternalRpcTransactionWithoutTxHash::Declare(tx) => {
-                let sierra = self.class_manager_client.get_sierra(tx.class_hash).await?;
+                let sierra = self.get_sierra(tx.class_hash).await?;
                 let class_info = ClassInfo {
-                    contract_class: self.class_manager_client.get_executable(tx.class_hash).await?,
+                    contract_class: self.get_executable(tx.class_hash).await?,
                     sierra_program_length: sierra.sierra_program.len(),
                     abi_length: sierra.abi.len(),
                     sierra_version: SierraVersion::from_str(&sierra.contract_class_version)?,

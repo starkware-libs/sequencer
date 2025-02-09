@@ -508,13 +508,22 @@ async fn get_contract_classes_if_declare(
 
     let class_hash = declare_tx.class_hash;
 
-    let ContractClass::V1(casm) = class_manager.get_executable(class_hash).await? else {
+    let ContractClass::V1(casm) = class_manager
+        .get_executable(class_hash)
+        .await?
+        .ok_or(CendeAmbassadorError::ClassNotFound { class_hash })?
+    else {
         panic!("Only V1 contract classes are supported");
     };
 
-    let casm = (declare_tx.compiled_class_hash, casm_contract_class_central_format(casm.0));
-    let sierra = (class_hash, class_manager.get_sierra(class_hash).await?);
-    Ok(Some((sierra, casm)))
+    let hashed_casm = (declare_tx.compiled_class_hash, casm_contract_class_central_format(casm.0));
+    let sierra = class_manager
+        .get_sierra(class_hash)
+        .await?
+        .ok_or(CendeAmbassadorError::ClassNotFound { class_hash })?;
+    let hashed_sierra = (class_hash, sierra);
+
+    Ok(Some((hashed_sierra, hashed_casm)))
 }
 
 pub(crate) async fn process_transactions(

@@ -170,6 +170,7 @@ async fn test_get_class_hash_at() {
     assert_eq!(result, expected_result);
 }
 
+// TODO(NoamS): test undeclared class flow (when class manager client returns None).
 #[tokio::test]
 async fn test_get_compiled_class() {
     let mock_state_sync_client = MockStateSyncClient::new();
@@ -192,7 +193,7 @@ async fn test_get_compiled_class() {
         .times(1)
         .with(predicate::eq(class_hash))
         .returning(move |_| {
-            Ok(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default())))
+            Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
         });
 
     let state_sync_reader = SyncStateReader::from_number(

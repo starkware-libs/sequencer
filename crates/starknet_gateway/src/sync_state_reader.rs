@@ -103,7 +103,8 @@ impl BlockifierStateReader for SyncStateReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let contract_class = block_on(self.class_manager_client.get_executable(class_hash))
-            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+            .map_err(|e| StateError::StateReadError(e.to_string()))?
+            .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
         // TODO(noamsp): Remove this once class manager component is implemented.
         let contract_class = match contract_class {
