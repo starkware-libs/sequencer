@@ -5,8 +5,6 @@ use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_metrics::metric_definitions;
 use tracing::info;
 
-use crate::sequencer_manager::NodeSetup;
-
 /// Gets the latest block number from the batcher's metrics.
 pub async fn get_batcher_latest_block_number(
     batcher_monitoring_client: &MonitoringClient,
@@ -27,19 +25,20 @@ pub async fn await_batcher_block(
     interval: u64,
     target_block_number: BlockNumber,
     max_attempts: usize,
-    node: &NodeSetup,
+    batcher_monitoring_client: &MonitoringClient,
+    node_index: usize,
+    batcher_index: usize,
 ) -> Result<BlockNumber, ()> {
     let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
     let get_latest_block_number_closure =
-        || get_batcher_latest_block_number(node.batcher_monitoring_client());
+        || get_batcher_latest_block_number(batcher_monitoring_client);
 
     let logger = CustomLogger::new(
         TraceLevel::Info,
         Some(format!(
             "Waiting for batcher height metric to reach block {target_block_number} in sequencer \
              {} executable {}.",
-            node.get_node_index().unwrap(),
-            node.get_batcher_index()
+            node_index, batcher_index
         )),
     );
 
@@ -48,14 +47,26 @@ pub async fn await_batcher_block(
         .ok_or(())
 }
 
-pub async fn await_execution(node: &NodeSetup, expected_block_number: BlockNumber) {
+pub async fn await_execution(
+    monitoring_client: &MonitoringClient,
+    expected_block_number: BlockNumber,
+    node_index: usize,
+    batcher_index: usize,
+) {
     info!(
         "Awaiting until {expected_block_number} blocks have been created in sequencer {}.",
-        node.get_node_index().unwrap()
+        node_index
     );
-    await_batcher_block(5000, expected_block_number, 50, node)
-        .await
-        .expect("Block number should have been reached.");
+    await_batcher_block(
+        5000,
+        expected_block_number,
+        50,
+        monitoring_client,
+        node_index,
+        batcher_index,
+    )
+    .await
+    .expect("Block number should have been reached.");
 }
 
 pub async fn verify_txs_accepted(
