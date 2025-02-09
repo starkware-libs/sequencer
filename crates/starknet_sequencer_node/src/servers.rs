@@ -8,6 +8,11 @@ use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClass
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
+use starknet_l1_gas_price::communication::{
+    L1GasPriceScraperServer,
+    LocalL1GasPriceServer,
+    RemoteL1GasPriceServer,
+};
 use starknet_l1_provider::communication::{
     L1ScraperServer,
     LocalL1ProviderServer,
@@ -38,6 +43,9 @@ use starknet_sequencer_metrics::metric_definitions::{
     GATEWAY_MSGS_PROCESSED,
     GATEWAY_MSGS_RECEIVED,
     GATEWAY_QUEUE_DEPTH,
+    L1_GAS_PRICE_PROVIDER_MSGS_PROCESSED,
+    L1_GAS_PRICE_PROVIDER_MSGS_RECEIVED,
+    L1_GAS_PRICE_PROVIDER_QUEUE_DEPTH,
     L1_PROVIDER_MSGS_PROCESSED,
     L1_PROVIDER_MSGS_RECEIVED,
     L1_PROVIDER_QUEUE_DEPTH,
@@ -75,6 +83,7 @@ struct LocalServers {
     pub(crate) class_manager: Option<Box<LocalClassManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
+    pub(crate) l1_gas_price_provider: Option<Box<LocalL1GasPriceServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
     pub(crate) sierra_compiler: Option<Box<LocalSierraCompilerServer>>,
@@ -86,6 +95,8 @@ struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
+    pub(crate) l1_gas_price_scraper_server:
+        Option<Box<L1GasPriceScraperServer<EthereumBaseLayerContract>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
     pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
@@ -98,6 +109,7 @@ pub struct RemoteServers {
     pub class_manager: Option<Box<RemoteClassManagerServer>>,
     pub gateway: Option<Box<RemoteGatewayServer>>,
     pub l1_provider: Option<Box<RemoteL1ProviderServer>>,
+    pub l1_gas_price_provider: Option<Box<RemoteL1GasPriceServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
     pub state_sync: Option<Box<RemoteStateSyncServer>>,
@@ -342,7 +354,19 @@ fn create_local_servers(
         l1_provider_metrics,
         REGULAR_LOCAL_SERVER
     );
-
+    let l1_gas_price_provider_metrics = LocalServerMetrics::new(
+        &L1_GAS_PRICE_PROVIDER_MSGS_RECEIVED,
+        &L1_GAS_PRICE_PROVIDER_MSGS_PROCESSED,
+        &L1_GAS_PRICE_PROVIDER_QUEUE_DEPTH,
+    );
+    let l1_gas_price_provider_server = create_local_server!(
+        &config.components.l1_gas_price_provider.execution_mode,
+        &mut components.l1_gas_price_provider,
+        communication.take_l1_gas_price_rx(),
+        config.components.l1_gas_price_provider.max_concurrency,
+        l1_gas_price_provider_metrics,
+        REGULAR_LOCAL_SERVER
+    );
     let mempool_metrics = LocalServerMetrics::new(
         &MEMPOOL_MSGS_RECEIVED,
         &MEMPOOL_MSGS_PROCESSED,
@@ -404,6 +428,7 @@ fn create_local_servers(
         class_manager: class_manager_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
+        l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
         sierra_compiler: sierra_compiler_server,
@@ -433,6 +458,7 @@ impl LocalServers {
             server_future_and_label(self.class_manager, "Local Class Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
             server_future_and_label(self.l1_provider, "Local L1 Provider"),
+            server_future_and_label(self.l1_gas_price_provider, "Local L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
             server_future_and_label(self.sierra_compiler, "Concurrent Local Sierra Compiler"),
@@ -478,6 +504,14 @@ pub fn create_remote_servers(
         config.components.l1_provider.max_concurrency
     );
 
+    let l1_gas_price_provider_server = create_remote_server!(
+        &config.components.l1_gas_price_provider.execution_mode,
+        || { clients.get_l1_gas_price_provider_local_client() },
+        config.components.l1_gas_price_provider.ip,
+        config.components.l1_gas_price_provider.port,
+        config.components.l1_gas_price_provider.max_concurrency
+    );
+
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
@@ -507,6 +541,7 @@ pub fn create_remote_servers(
         class_manager: class_manager_server,
         gateway: gateway_server,
         l1_provider: l1_provider_server,
+        l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
         state_sync: state_sync_server,
@@ -520,6 +555,7 @@ impl RemoteServers {
             server_future_and_label(self.class_manager, "Remote Class Manager"),
             server_future_and_label(self.gateway, "Remote Gateway"),
             server_future_and_label(self.l1_provider, "Remote L1 Provider"),
+            server_future_and_label(self.l1_gas_price_provider, "Remote L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Remote Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2p Propagator"),
             server_future_and_label(self.state_sync, "Remote State Sync"),
@@ -545,6 +581,11 @@ fn create_wrapper_servers(
     let l1_scraper_server =
         create_wrapper_server!(&config.components.l1_scraper.execution_mode, components.l1_scraper);
 
+    let l1_gas_price_scraper_server = create_wrapper_server!(
+        &config.components.l1_gas_price_scraper.execution_mode,
+        components.l1_gas_price_scraper
+    );
+
     let monitoring_endpoint_server = create_wrapper_server!(
         &config.components.monitoring_endpoint.execution_mode,
         components.monitoring_endpoint
@@ -563,6 +604,7 @@ fn create_wrapper_servers(
         consensus_manager: consensus_manager_server,
         http_server,
         l1_scraper_server,
+        l1_gas_price_scraper_server,
         monitoring_endpoint: monitoring_endpoint_server,
         mempool_p2p_runner: mempool_p2p_runner_server,
         state_sync_runner: state_sync_runner_server,
@@ -575,6 +617,7 @@ impl WrapperServers {
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
             server_future_and_label(self.l1_scraper_server, "L1 Scraper"),
+            server_future_and_label(self.l1_gas_price_scraper_server, "L1 Gas Price Scraper"),
             server_future_and_label(self.monitoring_endpoint, "Monitoring Endpoint"),
             server_future_and_label(self.mempool_p2p_runner, "Mempool P2p Runner"),
             server_future_and_label(self.state_sync_runner, "State Sync Runner"),
