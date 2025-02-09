@@ -361,7 +361,8 @@ where
     Fut: Future<Output = TransactionHash> + 'a,
 {
     let mut tx_hashes = vec![];
-    for rpc_tx in rpc_txs {
+    for (i, rpc_tx) in rpc_txs.into_iter().enumerate() {
+        println!("Sending tx: {}", i);
         tokio::time::sleep(Duration::from_millis(1000 / TPS)).await;
         tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
     }

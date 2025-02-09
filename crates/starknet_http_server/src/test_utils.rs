@@ -25,10 +25,12 @@ impl HttpTestClient {
     }
 
     pub async fn assert_add_tx_success(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+        let copy = rpc_tx.clone();
         let response = self.add_tx(rpc_tx).await;
         assert!(response.status().is_success());
         let text = response.text().await.unwrap();
-        serde_json::from_str(&text).unwrap_or_else(|_| panic!("Gateway responded with: {}", text))
+        serde_json::from_str(&text)
+            .unwrap_or_else(|_| panic!("Gateway responded with: {}. Tx: {:?}", text, copy))
     }
 
     // TODO(Tsabary): implement when usage eventually arises.
