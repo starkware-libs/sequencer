@@ -1094,7 +1094,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         f'Invalid value for n_elms. Got: {n_elms}.'
     if '__find_element_max_size' in globals():
         assert n_elms <= __find_element_max_size, \
-        f'find_element() can only be used with n_elms<={__find_element_max_size}. ' \
+            f'find_element() can only be used with n_elms<={__find_element_max_size}. ' \
             f'Got: n_elms={n_elms}.'
 
     for i in range(n_elms):
