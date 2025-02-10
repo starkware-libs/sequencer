@@ -1,29 +1,11 @@
 use starknet_api::block::BlockNumber;
-use starknet_integration_tests::integration_test_utils::{
-    set_ephemeral_port_range,
-    set_panic_hook,
-};
+use starknet_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
-use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
-use tracing::{info, warn};
+use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    configure_tracing().await;
-    info!("Running positive flow integration test setup.");
-    set_ephemeral_port_range();
-    set_panic_hook();
-
-    let sequencer_path = get_node_executable_path();
-    warn!(
-        "This test uses a compiled sequencer node binary located at {}. Make sure to pre-compile \
-         the binary before running this test. Alternatively, you can compile the binary and run \
-         this test with './scripts/sequencer_integration_test.sh'",
-        sequencer_path
-    );
-
-    // Run end to end integration test.
+    integration_test_setup("positive_flow", "End to end positive flow integration").await;
     end_to_end_positive_flow_integration().await;
 }
 
