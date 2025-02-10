@@ -5,11 +5,7 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    integration_test_setup("positive_flow", "End to end positive flow integration").await;
-    end_to_end_positive_flow_integration().await;
-}
-
-pub async fn end_to_end_positive_flow_integration() {
+    integration_test_setup("positive").await;
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
     const N_TXS: usize = 50;
     /// The number of consolidated local sequencers that participate in the test.

@@ -83,9 +83,9 @@ fn set_ephemeral_port_range() {
     }
 }
 
-pub async fn integration_test_setup(test_specifier: &str, description: &str) {
+pub async fn integration_test_setup(test_specifier: &str) {
     configure_tracing().await;
-    info!("Running {description} test setup.");
+    info!("Running sequencer node end to end {test_specifier} flow integration test setup.");
     set_ephemeral_port_range();
     set_panic_hook();
 
