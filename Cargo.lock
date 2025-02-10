@@ -11478,6 +11478,7 @@ name = "starknet_sequencer_metrics"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "lazy_static",
  "metrics 0.24.1",
  "num-traits",
  "regex",
