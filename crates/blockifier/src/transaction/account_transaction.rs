@@ -351,7 +351,9 @@ impl AccountTransaction {
                 let min_fee =
                     get_fee_by_gas_vector(block_info, minimal_gas_amount_vector, fee_type);
                 if max_fee < min_fee {
-                    return Err(TransactionFeeError::MaxFeeTooLow { min_fee, max_fee })?;
+                    return Err(TransactionPreValidationError::TransactionFeeError(
+                        TransactionFeeError::MaxFeeTooLow { min_fee, max_fee },
+                    ));
                 }
             }
         };
