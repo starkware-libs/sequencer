@@ -1,6 +1,7 @@
 use std::process::Command;
 
-use starknet_integration_tests::end_to_end_integration::end_to_end_integration;
+use starknet_api::block::BlockNumber;
+use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::{error, info, warn};
@@ -69,7 +70,7 @@ async fn main() {
     );
 
     // Run end to end integration test.
-    end_to_end_integration().await;
+    end_to_end_positive_flow_integration().await;
 }
 
 /// Adjusts the system's ephemeral port range to ensure predictable port allocation during tests.
@@ -99,4 +100,33 @@ fn set_ephemeral_port_range() {
             eprintln!("Error executing sysctl command: {}", e);
         }
     }
+}
+
+pub async fn end_to_end_positive_flow_integration() {
+    const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
+    const N_TXS: usize = 50;
+    /// The number of consolidated local sequencers that participate in the test.
+    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+    /// The number of distributed remote sequencers that participate in the test.
+    const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+
+    // Get the sequencer configurations.
+    let mut integration_test_manager =
+        IntegrationTestManager::new(N_CONSOLIDATED_SEQUENCERS, N_DISTRIBUTED_SEQUENCERS, None)
+            .await;
+
+    let node_indices = integration_test_manager.get_node_indices();
+    // Run the nodes.
+    integration_test_manager.run_nodes(node_indices.clone()).await;
+
+    // Run the first block scenario to bootstrap the accounts.
+    integration_test_manager.send_bootstrap_txs_and_verify().await;
+
+    // Run the test.
+    integration_test_manager.send_invoke_txs_and_verify(N_TXS, BLOCK_TO_WAIT_FOR).await;
+
+    info!("Shutting down nodes.");
+    integration_test_manager.shutdown_nodes(node_indices);
+
+    info!("Positive flow integration test completed successfully!");
 }
