@@ -1,6 +1,10 @@
 name: Upload-Artifacts
 
 on:
+  workflow_run:
+    workflows: [Trigger-Workflow]
+    types: [completed]
+    
   push:
     branches:
       - main
