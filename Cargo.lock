@@ -11217,6 +11217,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
+ "clap",
  "futures",
  "indexmap 2.7.0",
  "itertools 0.12.1",
