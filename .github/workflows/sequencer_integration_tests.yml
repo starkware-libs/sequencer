@@ -29,6 +29,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - run: |
           cargo build --bin starknet_sequencer_node
-          cargo build --bin sequencer_node_end_to_end_integration_test
-          target/debug/sequencer_node_end_to_end_integration_test
+          cargo build --bin sequencer_node_end_to_end_positive_flow_integration_test
+          target/debug/sequencer_node_end_to_end_positive_flow_integration_test
 
