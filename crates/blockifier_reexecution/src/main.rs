@@ -13,10 +13,10 @@ use blockifier_reexecution::state_reader::utils::{
 use clap::{Args, Parser, Subcommand};
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
-use google_cloud_storage::http::objects::get::GetObjectRequest;
+use google_cloud_gstorage::http::objects::get::GetObjectRequest;
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
+use starknet_api::coreg:ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
 
 const BUCKET: &str = "reexecution_artifacts";
