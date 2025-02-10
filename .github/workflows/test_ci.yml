@@ -48,8 +48,8 @@ jobs:
       # anvil, remove.
       - run: npm install -g ganache@7.4.3
 
-      - run: mkdir data # For papyrus_node compilation.
-      - run: cargo build -p blockifier -p papyrus_node
+      - run: |
+          cargo build --bin starknet_sequencer_node --bin sequencer_node_end_to_end_integration_test
 
       - run: cargo test -p workspace_tests -p blockifier
       - run: >
@@ -65,14 +65,15 @@ jobs:
         env:
           SEED: 0
 
+      - run: mkdir data # For papyrus_node compilation.
+      - run: cargo build -p blockifier -p papyrus_node
+
       # Perhaps we need a new data directory for this compilation
       - name: Build node - no rpc
         run: |
           cargo build -p papyrus_node --no-default-features
       - run: cargo build -p blockifier --features transaction_serde
       - run: cargo build -p blockifier --features cairo_native
-      - run: |
-          cargo build --bin starknet_sequencer_node --bin sequencer_node_end_to_end_integration_test
 
       # - run: |
       #   # TODO: this may need to run in a different job. Also, if we only cache dependencies (this depends on our caching solution), then I'm not sure it makes sense to build the test in this job (unless upload-artifacts is fast..).
@@ -152,8 +153,8 @@ jobs:
       # anvil, remove.
       - run: npm install -g ganache@7.4.3
 
-      - run: mkdir data # For papyrus_node compilation.
-      - run: cargo build -p blockifier -p papyrus_node
+      - run: |
+          cargo build --bin starknet_sequencer_node --bin sequencer_node_end_to_end_integration_test
 
       - run: cargo test -p workspace_tests -p blockifier
       - run: >
@@ -162,8 +163,9 @@ jobs:
           --test gateway_integration_test
           --test feeder_gateway_integration_test
           -- --include-ignored --skip test_gw_integration_testnet;
-      - run: |
-          cargo build --bin starknet_sequencer_node --bin sequencer_node_end_to_end_integration_test
+
+      - run: mkdir data # For papyrus_node compilation.
+      - run: cargo build -p blockifier -p papyrus_node
 
       # - run: |
       #   # TODO: this may need to run in a different job. Also, if we only cache dependencies (this depends on our caching solution), then I'm not sure it makes sense to build the test in this job (unless upload-artifacts is fast..).
