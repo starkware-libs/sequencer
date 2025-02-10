@@ -523,6 +523,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: gossipsub_impl::ExternalEvent,
     ) -> Result<(), NetworkError> {
+        if let Some(metrics) = self.metrics.as_ref() {
+            if let Some(broadcast_metrics) = metrics.broadcast_metrics.as_ref() {
+                broadcast_metrics.num_received_broadcast_messages.increment(1);
+            }
+        }
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
@@ -596,6 +601,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+        if let Some(metrics) = self.metrics.as_ref() {
+            if let Some(broadcast_metrics) = metrics.broadcast_metrics.as_ref() {
+                broadcast_metrics.num_sent_broadcast_messages.increment(1);
+            }
+        }
         self.swarm.broadcast_message(message, topic_hash);
     }
 
