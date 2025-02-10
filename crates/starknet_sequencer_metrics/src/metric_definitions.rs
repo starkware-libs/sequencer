@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use lazy_static::lazy_static;
+
 use crate::metrics::{MetricCounter, MetricGauge, MetricScope};
 
 #[cfg(test)]
@@ -36,6 +40,18 @@ macro_rules! define_counter_metrics {
                 $($name),*
             ),*
         ];
+
+        lazy_static! {
+            pub static ref METRIC_COUNTERS_MAP: HashMap<&'static str, &'static MetricCounter> = {
+                let mut map = HashMap::new();
+                $(
+                    $(
+                        map.insert($key, &$name);
+                    )*
+                )*
+                map
+            };
+        }
     };
 }
 
@@ -70,6 +86,18 @@ macro_rules! define_gauge_metrics {
                 $($name),*
             ),*
         ];
+
+        lazy_static! {
+            pub static ref METRIC_GAUGES_MAP: HashMap<&'static str, &'static MetricGauge> = {
+                let mut map = HashMap::new();
+                $(
+                    $(
+                        map.insert($key, &$name);
+                    )*
+                )*
+                map
+            };
+        }
     };
 }
 
@@ -108,6 +136,24 @@ define_counter_metrics!(
         { ADDED_TRANSACTIONS_TOTAL, "ADDED_TRANSACTIONS_TOTAL", "Total number of transactions added", 0 },
         { ADDED_TRANSACTIONS_SUCCESS, "ADDED_TRANSACTIONS_SUCCESS", "Number of successfully added transactions", 0 },
         { ADDED_TRANSACTIONS_FAILURE, "ADDED_TRANSACTIONS_FAILURE", "Number of faulty added transactions", 0 }
+    },
+    MetricScope::Infra => {
+        { BATCHER_MSGS_RECEIVED, "batcher_msgs_received", "Counter of messages received by batcher component", 0 },
+        { BATCHER_MSGS_PROCESSED, "batcher_msgs_processed", "Counter of messages  processed by batcher component", 0 },
+        { CLASS_MANAGER_MSGS_RECEIVED, "fs_class_manager_msgs_received", "Counter of messages received by class manager component", 0 },
+        { CLASS_MANAGER_MSGS_PROCESSED, "fs_class_manager_msgs_processed", "Counter of messages processed by class manager component", 0 },
+        { GATEWAY_MSGS_RECEIVED, "gateway_msgs_received", "Counter of messages received by gateway component", 0 },
+        { GATEWAY_MSGS_PROCESSED, "gateway_msgs_processed", "Counter of messages processed by gateway component", 0 },
+        { L1_PROVIDER_MSGS_RECEIVED, "l1_provider_msgs_received", "Counter of messages received by L1 provider component", 0 },
+        { L1_PROVIDER_MSGS_PROCESSED, "l1_provider_msgs_processed", "Counter of messages processed by L1 provider component", 0 },
+        { MEMPOOL_MSGS_RECEIVED, "mempool_communication_wrapper_msgs_received", "Counter of messages received by mempool component", 0 },
+        { MEMPOOL_MSGS_PROCESSED, "mempool_communication_wrapper_msgs_processed", "Counter of messages processed by mempool component", 0 },
+        { MEMPOOL_P2P_MSGS_RECEIVED, "mempool_p2p_propagator_msgs_received", "Counter of messages received by mempool p2p component", 0 },
+        { MEMPOOL_P2P_MSGS_PROCESSED, "mempool_p2p_propagator_msgs_processed", "Counter of messages processed by mempool p2p component", 0 },
+        { SIERRA_COMPILER_MSGS_RECEIVED, "sierra_compiler_msgs_received", "Counter of messages received by sierra compiler component", 0 },
+        { SIERRA_COMPILER_MSGS_PROCESSED, "sierra_compiler_msgs_processed", "Counter of messages processed by sierra compiler component", 0 },
+        { STATE_SYNC_MSGS_RECEIVED, "state_sync_msgs_received", "Counter of messages received by state sync component", 0 },
+        { STATE_SYNC_MSGS_PROCESSED, "state_sync_msgs_processed", "Counter of messages processed by state sync component", 0 },
     },
     MetricScope::Network => {
         { MEMPOOL_P2P_NUM_SENT_MESSAGES, "apollo_mempool_num_sent_messages", "The number of messages sent by the mempool p2p component", 0 },
