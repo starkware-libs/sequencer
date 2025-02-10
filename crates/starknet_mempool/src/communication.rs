@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::block::NonzeroGasPrice;
@@ -15,6 +17,7 @@ use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, C
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::mempool::Mempool;
+use crate::utils::InstantClock;
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
@@ -23,7 +26,10 @@ pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResp
 pub fn create_mempool(
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> MempoolCommunicationWrapper {
-    MempoolCommunicationWrapper::new(Mempool::default(), mempool_p2p_propagator_client)
+    MempoolCommunicationWrapper::new(
+        Mempool::new(Arc::new(InstantClock)),
+        mempool_p2p_propagator_client,
+    )
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.

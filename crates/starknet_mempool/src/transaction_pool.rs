@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{hash_map, BTreeMap, HashMap};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use starknet_api::core::{ContractAddress, Nonce};
@@ -9,7 +10,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
-use crate::utils::try_increment_nonce;
+use crate::utils::{try_increment_nonce, Clock};
 
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 
@@ -17,7 +18,6 @@ type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 /// Invariant: both data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
-#[derive(Debug, Default)]
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
     tx_pool: HashToTransaction,
@@ -30,6 +30,15 @@ pub struct TransactionPool {
 }
 
 impl TransactionPool {
+    pub fn new(clock: Arc<dyn Clock>) -> Self {
+        TransactionPool {
+            tx_pool: HashMap::new(),
+            txs_by_account: AccountTransactionIndex::default(),
+            txs_by_submission_time: TimedTransactionMap::new(clock),
+            capacity: PoolCapacity::default(),
+        }
+    }
+
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
@@ -283,18 +292,26 @@ impl PartialOrd for SubmissionID {
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
 struct TimedTransactionMap {
     txs_by_submission_time: BTreeMap<SubmissionID, TransactionReference>,
     hash_to_submission_id: HashMap<TransactionHash, SubmissionID>,
+
+    clock: Arc<dyn Clock>,
 }
 
 impl TimedTransactionMap {
+    fn new(clock: Arc<dyn Clock>) -> Self {
+        TimedTransactionMap {
+            txs_by_submission_time: BTreeMap::new(),
+            hash_to_submission_id: HashMap::new(),
+            clock,
+        }
+    }
+
     /// If the transaction with the same transaction hash already exists in the mapping, the old
     /// submission ID is returned.
     fn insert(&mut self, tx: TransactionReference) -> Option<SubmissionID> {
-        // TODO(dafna, 1/3/2025): Use a Clock trait instead of Instant.
-        let submission_id = SubmissionID { submission_time: Instant::now(), tx_hash: tx.tx_hash };
+        let submission_id = SubmissionID { submission_time: self.clock.now(), tx_hash: tx.tx_hash };
         self.txs_by_submission_time.insert(submission_id.clone(), tx);
         self.hash_to_submission_id.insert(tx.tx_hash, submission_id)
     }
@@ -310,7 +327,7 @@ impl TimedTransactionMap {
     #[allow(dead_code)]
     pub fn remove_txs_older_than(&mut self, duration: Duration) -> Vec<TransactionReference> {
         let split_off_value = SubmissionID {
-            submission_time: Instant::now() - duration,
+            submission_time: self.clock.now() - duration,
             tx_hash: Default::default(),
         };
         let removed_txs: Vec<_> =

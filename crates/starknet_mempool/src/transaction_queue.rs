@@ -81,6 +81,18 @@ impl TransactionQueue {
             || self.pending_queue.remove(&tx_reference.into())
     }
 
+    /// Removes the transaction of the given address and hash from the queue.
+    /// Returns true if the transaction was in the queue, and false otherwise.
+    pub fn remove_by_hash(&mut self, address: ContractAddress, tx_hash: TransactionHash) -> bool {
+        if let Some(tx_reference) = self.address_to_tx.get(&address) {
+            if tx_reference.tx_hash == tx_hash {
+                return self.remove(address);
+            }
+        };
+
+        false
+    }
+
     pub fn has_ready_txs(&self) -> bool {
         !self.priority_queue.is_empty()
     }
