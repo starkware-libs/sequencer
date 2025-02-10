@@ -1,5 +1,6 @@
 use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
+// TODO(alonl): consider splitting the metrics by topic
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
     pub num_received_broadcast_messages: MetricCounter,
