@@ -9,6 +9,24 @@ pub fn short_type_name<T: ?Sized>() -> String {
     truncate_type(full_name)
 }
 
+/// Converts camel case string to a snake case string.
+pub fn camel_to_snake_case(input: &str) -> String {
+    let mut snake_case = String::new();
+
+    for (i, c) in input.chars().enumerate() {
+        if c.is_uppercase() {
+            if i != 0 {
+                snake_case.push('_');
+            }
+            snake_case.push(c.to_ascii_lowercase());
+        } else {
+            snake_case.push(c);
+        }
+    }
+
+    snake_case
+}
+
 /// Truncates a fully qualified Rust type name by removing module paths, leaving only the type
 /// name and its generic parameters.
 ///
