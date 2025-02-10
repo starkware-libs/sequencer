@@ -130,9 +130,6 @@ pub struct CendeConfig {
 impl Default for CendeConfig {
     fn default() -> Self {
         CendeConfig {
-            // TODO(dvir): change this default value to "https://<recorder_url>". The reason for the
-            // current value is to make the `end_to_end_flow_test` to pass (it creates the default
-            // config).
             recorder_url: "https://recorder_url"
                 .parse()
                 .expect("recorder_url must be a valid Recorder URL"),

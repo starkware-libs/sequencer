@@ -652,14 +652,8 @@ async fn test_transactions_conversion() {
         .with(eq(declare_class_hash()))
         .times(2)
         .returning(|_| Ok(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0)))));
-    let cende_ambassador = CendeAmbassador::new(
-        CendeConfig {
-            recorder_url: "http://parsable_url".parse().unwrap(),
-            skip_write_height: None,
-            ..Default::default()
-        },
-        Arc::new(mock_class_manager),
-    );
+    let cende_ambassador =
+        CendeAmbassador::new(CendeConfig::default(), Arc::new(mock_class_manager));
 
     let transactions = input_txs();
     let blob_parameters =
