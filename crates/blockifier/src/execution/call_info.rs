@@ -5,8 +5,9 @@ use std::ops::{Add, AddAssign};
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
@@ -71,6 +72,25 @@ pub struct EventSummary {
     pub total_event_data_size: u64,
 }
 
+impl EventSummary {
+    pub fn to_gas_vector(
+        &self,
+        versioned_constants: &VersionedConstants,
+        mode: &GasVectorComputationMode,
+    ) -> GasVector {
+        let archival_gas_costs = versioned_constants.get_archival_data_gas_costs(mode);
+        let gas_amount: GasAmount = (archival_gas_costs.gas_per_data_felt
+            * (archival_gas_costs.event_key_factor * self.total_event_keys
+                + self.total_event_data_size))
+            .to_integer()
+            .into();
+        match mode {
+            GasVectorComputationMode::All => GasVector::from_l2_gas(gas_amount),
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(gas_amount),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
@@ -96,6 +116,44 @@ impl Add for ExecutionSummary {
 impl Sum for ExecutionSummary {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(ExecutionSummary::default(), |acc, x| acc + x)
+    }
+}
+
+impl ExecutionSummary {
+    /// Returns the a gas cost _estimation_ for the execution summary.
+    ///
+    /// In particular, this calculation ignores state changes, cost of declared classes, L1 handler
+    /// payload length, plus Starknet OS overhead. These costs are only accounted for on a
+    /// transaction level and cannot be computed based on a single execution summary.
+    #[cfg(feature = "node_api")]
+    pub fn to_partial_gas_vector(
+        self,
+        versioned_constants: &VersionedConstants,
+        mode: &GasVectorComputationMode,
+    ) -> GasVector {
+        use crate::fee::resources::{ComputationResources, MessageResources};
+
+        let computation_resources = ComputationResources {
+            vm_resources: self.charged_resources.vm_resources,
+            n_reverted_steps: 0,
+            sierra_gas: self.charged_resources.gas_consumed,
+            reverted_sierra_gas: 0u64.into(),
+        };
+
+        [
+            computation_resources.to_gas_vector(versioned_constants, mode),
+            self.event_summary.to_gas_vector(versioned_constants, mode),
+            MessageResources::new(self.l2_to_l1_payload_lengths, None).to_gas_vector(),
+        ]
+        .iter()
+        .fold(GasVector::ZERO, |accumulator, cost| {
+            accumulator.checked_add(*cost).unwrap_or_else(|| {
+                panic!(
+                    "Execution summary to gas vector overflowed: tried to add {cost:?} to \
+                     {accumulator:?}"
+                );
+            })
+        })
     }
 }
 
