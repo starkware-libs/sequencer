@@ -2,7 +2,7 @@ name: Upload-Artifacts
 
 on:
   workflow_run:
-    workflows: [Trigger-Workflow]
+    workflows: [Blockifier-CI]
     types: [completed]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
