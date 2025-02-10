@@ -36,9 +36,13 @@ pub async fn end_to_end_positive_flow_integration() {
     const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
     // Get the sequencer configurations.
-    let mut integration_test_manager =
-        IntegrationTestManager::new(N_CONSOLIDATED_SEQUENCERS, N_DISTRIBUTED_SEQUENCERS, None)
-            .await;
+    let mut integration_test_manager = IntegrationTestManager::new(
+        N_CONSOLIDATED_SEQUENCERS,
+        N_DISTRIBUTED_SEQUENCERS,
+        None,
+        None,
+    )
+    .await;
 
     let node_indices = integration_test_manager.get_node_indices();
     // Run the nodes.
