@@ -76,7 +76,7 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 
 use crate::cende::{BlobParameters, CendeContext};
 use crate::fee_market::calculate_next_base_gas_price;
-use crate::versioned_constants::VersionedConstants;
+use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
 #[derive(Clone)]

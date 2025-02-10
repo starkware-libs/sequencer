@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use crate::versioned_constants;
+use crate::orchestrator_versioned_constants;
 
 #[cfg(test)]
 mod test;
@@ -12,7 +12,8 @@ mod test;
 /// - `gas_used`: The total gas used in the current block.
 /// - `gas_target`: The target gas usage per block (usually half of a block's gas limit).
 pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64) -> u64 {
-    let versioned_constants = versioned_constants::VersionedConstants::latest_constants();
+    let versioned_constants =
+        orchestrator_versioned_constants::VersionedConstants::latest_constants();
     // Setting the target at 50% of the max block size balances the rate of gas price changes,
     // helping to prevent sudden spikes, particularly during increases, for a better user
     // experience.
