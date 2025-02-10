@@ -9,6 +9,7 @@ use regex::{escape, Regex};
 pub enum MetricScope {
     Batcher,
     HttpServer,
+    Infra,
     Network,
     PapyrusSync,
 }
