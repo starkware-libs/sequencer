@@ -42,6 +42,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::indexmap;
+use mockall::predicate::eq;
 use num_bigint::BigUint;
 use rstest::rstest;
 use serde_json::Value;
@@ -56,19 +57,23 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType, SierraVersion};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{
-    AccountTransaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    L1HandlerTransaction,
-    Transaction,
-};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::rpc_transaction::EntryPointByType;
+use starknet_api::rpc_transaction::{
+    EntryPointByType,
+    InternalRpcDeclareTransactionV3,
+    InternalRpcDeployAccountTransaction,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+};
 use starknet_api::state::{
     EntryPoint,
     FunctionIndex,
@@ -88,20 +93,17 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionSignature,
-    ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    DeclareTransactionV3,
-    DeployAccountTransactionV3,
     EventContent,
     EventData,
     EventKey,
-    InvokeTransactionV3,
     L2ToL1Payload,
     TransactionHash,
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
+use starknet_class_manager_types::MockClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 use super::{
@@ -115,7 +117,7 @@ use super::{
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::casm_contract_class_central_format;
-use crate::cende::get_compiled_contract_classes;
+use crate::cende::{BlobParameters, CendeAmbassador, CendeConfig, CendeContext};
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -130,16 +132,20 @@ pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
 pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
     "central_transaction_execution_info.json";
 
-fn resource_bounds() -> ValidResourceBounds {
-    ValidResourceBounds::AllResources(AllResourceBounds {
+fn resource_bounds() -> AllResourceBounds {
+    AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) },
         l2_gas: ResourceBounds { max_amount: GasAmount(2), max_price_per_unit: GasPrice(2) },
         l1_data_gas: ResourceBounds { max_amount: GasAmount(3), max_price_per_unit: GasPrice(3) },
-    })
+    }
 }
 
 fn felt_vector() -> Vec<Felt> {
     vec![felt!(0_u8), felt!(1_u8), felt!(2_u8)]
+}
+
+fn declare_class_hash() -> ClassHash {
+    ClassHash(felt!("0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"))
 }
 
 fn declare_compiled_class_hash() -> CompiledClassHash {
@@ -213,42 +219,39 @@ fn central_compressed_state_diff_json() -> Value {
     serde_json::to_value(central_state_diff).unwrap()
 }
 
-fn invoke_transaction() -> InvokeTransaction {
-    InvokeTransaction {
-        tx: starknet_api::transaction::InvokeTransaction::V3(InvokeTransactionV3 {
-            resource_bounds: resource_bounds(),
-            tip: Tip(1),
-            signature: TransactionSignature(felt_vector()),
-            nonce: nonce!(1),
-            sender_address: contract_address!(
-                "0x14abfd58671a1a9b30de2fcd2a42e8bff2ce1096a7c70bc7995904965f277e"
-            ),
-            calldata: Calldata(Arc::new(vec![felt!(0_u8), felt!(1_u8)])),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData(vec![]),
-            account_deployment_data: AccountDeploymentData(vec![]),
-        }),
-        tx_hash: TransactionHash(felt!(
-            "0x6efd067c859e6469d0f6d158e9ae408a9552eb8cc11f618ab3aef3e52450666"
-        )),
-    }
+fn invoke_transaction() -> RpcInvokeTransaction {
+    RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+        resource_bounds: resource_bounds(),
+        tip: Tip(1),
+        signature: TransactionSignature(felt_vector()),
+        nonce: nonce!(1),
+        sender_address: contract_address!(
+            "0x14abfd58671a1a9b30de2fcd2a42e8bff2ce1096a7c70bc7995904965f277e"
+        ),
+        calldata: Calldata(Arc::new(vec![felt!(0_u8), felt!(1_u8)])),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData(vec![]),
+        account_deployment_data: AccountDeploymentData(vec![]),
+    })
 }
 
 fn central_invoke_tx_json() -> Value {
     let invoke_tx = invoke_transaction();
+    let tx_hash =
+        TransactionHash(felt!("0x6efd067c859e6469d0f6d158e9ae408a9552eb8cc11f618ab3aef3e52450666"));
 
     let central_transaction_written = CentralTransactionWritten {
-        tx: CentralTransaction::Invoke(CentralInvokeTransaction::V3(invoke_tx.into())),
+        tx: CentralTransaction::Invoke(CentralInvokeTransaction::V3((invoke_tx, tx_hash).into())),
         time_created: 1734601615,
     };
 
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
-fn central_deploy_account_tx_json() -> Value {
-    let deploy_account_tx = DeployAccountTransaction {
-        tx: starknet_api::transaction::DeployAccountTransaction::V3(DeployAccountTransactionV3 {
+fn deploy_account_tx() -> InternalRpcDeployAccountTransaction {
+    InternalRpcDeployAccountTransaction {
+        tx: RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
             resource_bounds: resource_bounds(),
             tip: Tip(1),
             signature: TransactionSignature(felt_vector()),
@@ -265,14 +268,18 @@ fn central_deploy_account_tx_json() -> Value {
         contract_address: contract_address!(
             "0x4c2e031b0ddaa38e06fd9b1bf32bff739965f9d64833006204c67cbc879a57c"
         ),
-        tx_hash: TransactionHash(felt!(
-            "0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"
-        )),
-    };
+    }
+}
+
+fn central_deploy_account_tx_json() -> Value {
+    let deploy_account_tx = deploy_account_tx();
+
+    let tx_hash =
+        TransactionHash(felt!("0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"));
 
     let central_transaction_written = CentralTransactionWritten {
         tx: CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
-            deploy_account_tx.into(),
+            (deploy_account_tx, tx_hash).into(),
         )),
         time_created: 1734601616,
     };
@@ -280,47 +287,38 @@ fn central_deploy_account_tx_json() -> Value {
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
-fn declare_transaction() -> DeclareTransaction {
-    DeclareTransaction {
-        tx: starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
-            resource_bounds: resource_bounds(),
-            tip: Tip(1),
-            signature: TransactionSignature(felt_vector()),
-            nonce: nonce!(1),
-            class_hash: ClassHash(felt!(
-                "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056"
-            )),
-            compiled_class_hash: declare_compiled_class_hash(),
-            sender_address: contract_address!("0x12fd537"),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData(vec![]),
-            account_deployment_data: AccountDeploymentData(vec![]),
-        }),
-        class_info: ClassInfo {
-            contract_class: ContractClass::V1((casm_contract_class(), SierraVersion::LATEST)),
-            sierra_program_length: 8844,
-            abi_length: 11237,
-            sierra_version: SierraVersion::new(1, 6, 0),
-        },
-        tx_hash: TransactionHash(felt!(
-            "0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"
-        )),
+fn declare_transaction() -> InternalRpcDeclareTransactionV3 {
+    InternalRpcDeclareTransactionV3 {
+        resource_bounds: resource_bounds(),
+        tip: Tip(1),
+        signature: TransactionSignature(felt_vector()),
+        nonce: nonce!(1),
+        class_hash: declare_class_hash(),
+        compiled_class_hash: declare_compiled_class_hash(),
+        sender_address: contract_address!("0x12fd537"),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: PaymasterData(vec![]),
+        account_deployment_data: AccountDeploymentData(vec![]),
     }
 }
 
 fn central_declare_tx_json() -> Value {
+    let tx_hash =
+        TransactionHash(felt!("0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"));
     let declare_tx = declare_transaction();
     let central_transaction_written = CentralTransactionWritten {
-        tx: CentralTransaction::Declare(CentralDeclareTransaction::V3(declare_tx.into())),
+        tx: CentralTransaction::Declare(CentralDeclareTransaction::V3(
+            (declare_tx, &sierra_contract_class(), tx_hash).try_into().unwrap(),
+        )),
         time_created: 1734601649,
     };
 
     serde_json::to_value(central_transaction_written).unwrap()
 }
 
-fn central_l1_handler_tx_json() -> Value {
-    let l1_handler_tx = L1HandlerTransaction {
+fn l1_handler_tx() -> L1HandlerTransaction {
+    L1HandlerTransaction {
         tx: starknet_api::transaction::L1HandlerTransaction {
             version: TransactionVersion::ZERO,
             nonce: nonce!(1),
@@ -334,7 +332,11 @@ fn central_l1_handler_tx_json() -> Value {
             "0xc947753befd252ca08042000cd6d783162ee2f5df87b519ddf3081b9b4b997"
         )),
         paid_fee_on_l1: Fee(1),
-    };
+    }
+}
+
+fn central_l1_handler_tx_json() -> Value {
+    let l1_handler_tx = l1_handler_tx();
     let central_transaction_written = CentralTransactionWritten {
         tx: CentralTransaction::L1Handler(l1_handler_tx.into()),
         time_created: 1734601657,
@@ -372,17 +374,21 @@ fn entry_point(idx: usize, selector: u8) -> EntryPoint {
     EntryPoint { function_idx: FunctionIndex(idx), selector: EntryPointSelector(felt!(selector)) }
 }
 
-fn central_sierra_contract_class_json() -> Value {
-    let sierra_contract_class = SierraContractClass {
+fn sierra_contract_class() -> SierraContractClass {
+    SierraContractClass {
         sierra_program: felt_vector(),
-        contract_class_version: "dummy version".to_string(),
+        contract_class_version: "0.1.0".to_string(),
         entry_points_by_type: EntryPointByType {
             constructor: vec![entry_point(1, 2)],
             external: vec![entry_point(3, 4)],
             l1handler: vec![entry_point(5, 6)],
         },
         abi: "dummy abi".to_string(),
-    };
+    }
+}
+
+fn central_sierra_contract_class_json() -> Value {
+    let sierra_contract_class = sierra_contract_class();
     serde_json::to_value(sierra_contract_class).unwrap()
 }
 
@@ -593,18 +599,86 @@ fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path:
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
 }
 
-#[test]
-fn test_get_compiled_contract_classes() {
-    let transactions = vec![
-        Transaction::Account(AccountTransaction::Declare(declare_transaction())),
-        Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
-        Transaction::Account(AccountTransaction::Declare(declare_transaction())),
-        Transaction::Account(AccountTransaction::Invoke(invoke_transaction())),
-    ];
+fn input_txs() -> Vec<InternalConsensusTransaction> {
+    let declares: Vec<InternalConsensusTransaction> = (0u8..2)
+        .map(|i| {
+            InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+                tx: InternalRpcTransactionWithoutTxHash::Declare(declare_transaction()),
+                tx_hash: TransactionHash(felt!(i)),
+            })
+        })
+        .collect();
+    let invoke = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::Invoke(invoke_transaction()),
+        tx_hash: TransactionHash(Felt::TWO),
+    });
+    let deploy_account = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_account_tx()),
+        tx_hash: TransactionHash(Felt::THREE),
+    });
+    let l1_handler = InternalConsensusTransaction::L1Handler(l1_handler_tx());
 
-    let compiled_contract_classes = get_compiled_contract_classes(&transactions);
+    let mut transactions = declares;
+    transactions.extend(vec![invoke, deploy_account, l1_handler]);
+    transactions
+}
+
+// Verifies that the length and order of transactions in the list is kept after the conversion to
+// an aerospike blob.
+fn verify_aerospike_blob_txs(
+    input_txs: Vec<InternalConsensusTransaction>,
+    aerospike_txs: &[CentralTransactionWritten],
+) {
+    assert_eq!(input_txs.len(), aerospike_txs.len());
+    for (input_tx, aerospike_tx) in input_txs.into_iter().zip(aerospike_txs) {
+        let central_input_tx =
+            CentralTransactionWritten::try_from((input_tx, Some(&sierra_contract_class()), 0))
+                .unwrap();
+        assert_eq!(*aerospike_tx, central_input_tx);
+    }
+}
+
+#[tokio::test]
+async fn test_transactions_conversion() {
+    // Prepare the mock class manager.
+    let mut mock_class_manager = MockClassManagerClient::new();
+    mock_class_manager
+        .expect_get_sierra()
+        .with(eq(declare_class_hash()))
+        .times(2)
+        .returning(|_| Ok(sierra_contract_class()));
+    mock_class_manager
+        .expect_get_executable()
+        .with(eq(declare_class_hash()))
+        .times(2)
+        .returning(|_| Ok(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0)))));
+    let cende_ambassador = CendeAmbassador::new(
+        CendeConfig {
+            recorder_url: "http://parsable_url".parse().unwrap(),
+            skip_write_height: None,
+            ..Default::default()
+        },
+        Arc::new(mock_class_manager),
+    );
+
+    let transactions = input_txs();
+    let blob_parameters =
+        BlobParameters { transactions: transactions.clone(), ..Default::default() };
+
+    // Run the test: prepare_blob_for_next_height should convert the transactions to sierra and
+    // casm mappings.
+    cende_ambassador.prepare_blob_for_next_height(blob_parameters).await.unwrap();
+
+    // Verify the results.
+    let locked_aerospike_blob = cende_ambassador.prev_height_blob.lock().await;
+    let aerospike_blob = locked_aerospike_blob.as_ref().unwrap();
+
+    verify_aerospike_blob_txs(transactions, &aerospike_blob.transactions);
+
+    let expected_sierra_contract_classes = vec![(declare_class_hash(), sierra_contract_class()); 2];
+    assert_eq!(aerospike_blob.contract_classes, expected_sierra_contract_classes);
 
     let expected_compiled_contract_classes =
         vec![(declare_compiled_class_hash(), casm_contract_class()); 2];
-    assert_eq!(compiled_contract_classes, expected_compiled_contract_classes);
+    assert_eq!(aerospike_blob.compiled_classes, expected_compiled_contract_classes);
 }

@@ -10,7 +10,6 @@ description = "Implements the consensus context and orchestrates the node's comp
 deserialize = ["blockifier/transaction_serde"]
 
 [dependencies]
-assert_matches.workspace = true
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
 blockifier.workspace = true
@@ -51,6 +50,7 @@ papyrus_test_utils.path = "../papyrus_test_utils"
 rstest.workspace = true
 serde_json.workspace = true
 starknet_batcher_types = { path = "../starknet_batcher_types", features = ["testing"] }
+starknet_class_manager_types = { path = "../starknet_class_manager_types", features = ["testing"] }
 starknet_infra_utils.path = "../starknet_infra_utils"
 starknet_state_sync_types = { path = "../starknet_state_sync_types", features = ["testing"] }
 test-case.workspace = true
