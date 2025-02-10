@@ -4,39 +4,6 @@ on:
   workflow_run:
     workflows: [Trigger-Workflow]
     types: [completed]
-    
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - auto_merge_enabled
-      - edited
-    paths:
-      # Other than code-related changes, all changes related to the native-blockifier build-and-push
-      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
-      - '.github/workflows/blockifier_ci.yml'
-      - '.github/workflows/upload_artifacts_workflow.yml'
-      - 'build_native_in_docker.sh'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
-      - 'crates/blockifier/**'
-      - 'crates/native_blockifier/**'
-      - 'crates/papyrus_state_reader/**'
-      - 'crates/papyrus_storage/**'
-      - 'crates/starknet_api/**'
-      - 'crates/starknet_sierra_multicompile/**'
-      - 'scripts/build_native_blockifier.sh'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'scripts/sequencer-ci.Dockerfile'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
