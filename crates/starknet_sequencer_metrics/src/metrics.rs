@@ -96,6 +96,10 @@ impl MetricGauge {
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name())
     }
+
+    pub fn set<T: IntoF64>(&self, value: T) {
+        gauge!(self.name).set(value.into_f64());
+    }
 }
 
 /// Parses a specific numeric metric value from a metrics string.
