@@ -21,6 +21,7 @@ pub async fn node_setup(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         Some(base_db_path_dir),
+        None,
     )
     .await;
 
