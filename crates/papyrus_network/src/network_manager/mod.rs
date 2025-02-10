@@ -1,4 +1,4 @@
-pub mod network_manager_metrics;
+pub mod metrics;
 mod swarm_trait;
 #[cfg(test)]
 mod test;
@@ -21,8 +21,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
-use metrics::gauge;
-use network_manager_metrics::NetworkManagerMetrics;
+use metrics::NetworkMetrics;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
@@ -65,9 +64,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     reported_peers_sender: Sender<PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
-    // Defining the metrics kept for the network manager. Allowing None for tests and for Papyrus
-    // node run, where we don't care about the metrics.
-    metrics: Option<NetworkManagerMetrics>,
+    metrics: Option<NetworkMetrics>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -101,7 +98,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub(crate) fn generic_new(
         mut swarm: SwarmT,
         advertised_multiaddr: Option<Multiaddr>,
-        metrics: Option<NetworkManagerMetrics>,
+        metrics: Option<NetworkMetrics>,
     ) -> Self {
         if let Some(metrics) = metrics.as_ref() {
             metrics.register();
@@ -271,14 +268,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: SwarmEvent<mixed_behaviour::Event>,
     ) -> Result<(), NetworkError> {
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
-                // maybe we can just increase by one instead of setting from swarm
                 if let Some(metrics) = self.metrics.as_ref() {
-                    gauge!(metrics.num_connected_peers.get_name())
-                        .set(self.swarm.num_connected_peers() as f64);
+                    metrics.num_connected_peers.increment(1);
                 }
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
@@ -289,8 +283,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     None => debug!("Connection to {peer_id:?} closed."),
                 }
                 if let Some(metrics) = self.metrics.as_ref() {
-                    gauge!(metrics.num_connected_peers.get_name())
-                        .set(self.swarm.num_connected_peers() as f64);
+                    metrics.num_connected_peers.decrement(1);
                 }
             }
             SwarmEvent::Behaviour(event) => {
@@ -404,7 +397,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn handle_sqmr_event_new_inbound_session(
         &mut self,
         peer_id: PeerId,
@@ -586,7 +578,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         let outbound_session_id = self.swarm.send_query(query, protocol.clone());
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         if let Some(metrics) = self.metrics.as_ref() {
             metrics.num_active_outbound_sessions.increment(1);
         }
@@ -600,7 +591,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match session_id {
             SessionId::InboundSessionId(_) => {
                 if let Some(metrics) = self.metrics.as_ref() {
@@ -652,7 +642,7 @@ impl NetworkManager {
     pub fn new(
         config: NetworkConfig,
         node_version: Option<String>,
-        metrics: Option<NetworkManagerMetrics>,
+        metrics: Option<NetworkMetrics>,
     ) -> Self {
         let NetworkConfig {
             tcp_port,

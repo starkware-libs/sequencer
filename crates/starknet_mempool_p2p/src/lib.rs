@@ -4,15 +4,15 @@ pub mod runner;
 
 use futures::FutureExt;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::network_manager_metrics::NetworkManagerMetrics;
+use papyrus_network::network_manager::metrics::NetworkMetrics;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_sequencer_metrics::metric_definitions::{
-    MEMPOOL_NUM_ACTIVE_INBOUND_SESSIONS,
-    MEMPOOL_NUM_ACTIVE_OUTBOUND_SESSIONS,
-    MEMPOOL_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+    MEMPOOL_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    MEMPOOL_P2P_NUM_CONNECTED_PEERS,
 };
 
 use crate::config::MempoolP2pConfig;
@@ -30,10 +30,10 @@ pub fn create_p2p_propagator_and_runner(
         class_manager_client.clone(),
         mempool_p2p_config.network_config.chain_id.clone(),
     );
-    let network_manager_metrics = Some(NetworkManagerMetrics {
-        num_connected_peers: MEMPOOL_NUM_CONNECTED_PEERS,
-        num_active_inbound_sessions: MEMPOOL_NUM_ACTIVE_INBOUND_SESSIONS,
-        num_active_outbound_sessions: MEMPOOL_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    let network_manager_metrics = Some(NetworkMetrics {
+        num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+        num_active_inbound_sessions: MEMPOOL_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+        num_active_outbound_sessions: MEMPOOL_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,

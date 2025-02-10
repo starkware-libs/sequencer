@@ -147,9 +147,7 @@ impl SwarmTrait for MockSwarm {
     fn dial(&mut self, _peer: Multiaddr) -> Result<(), libp2p::swarm::DialError> {
         Ok(())
     }
-    fn num_connected_peers(&self) -> usize {
-        0
-    }
+
     fn close_inbound_session(
         &mut self,
         inbound_session_id: InboundSessionId,

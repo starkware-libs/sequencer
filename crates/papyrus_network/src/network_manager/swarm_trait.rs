@@ -25,8 +25,6 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn dial(&mut self, peer_multiaddr: Multiaddr) -> Result<(), DialError>;
 
-    fn num_connected_peers(&self) -> usize;
-
     fn close_inbound_session(
         &mut self,
         session_id: InboundSessionId,
@@ -70,9 +68,6 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         self.dial(DialOpts::from(peer_multiaddr))
     }
 
-    fn num_connected_peers(&self) -> usize {
-        self.network_info().num_peers()
-    }
     fn close_inbound_session(
         &mut self,
         session_id: InboundSessionId,

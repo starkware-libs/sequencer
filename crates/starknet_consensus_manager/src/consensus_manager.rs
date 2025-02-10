@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::network_manager_metrics::NetworkManagerMetrics;
+use papyrus_network::network_manager::metrics::NetworkMetrics;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
@@ -56,7 +56,7 @@ impl ConsensusManager {
             return std::future::pending().await;
         }
 
-        let network_manager_metrics = Some(NetworkManagerMetrics {
+        let network_manager_metrics = Some(NetworkMetrics {
             num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
             num_active_inbound_sessions: CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
             num_active_outbound_sessions: CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,

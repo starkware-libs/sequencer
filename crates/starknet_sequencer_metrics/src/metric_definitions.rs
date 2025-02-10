@@ -78,9 +78,9 @@ define_gauge_metrics!(
         { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" }
     },
     MetricScope::Network => {
-        { MEMPOOL_NUM_CONNECTED_PEERS, "apollo_mempool_num_connected_peers", "The number of connected peers to the mempool p2p component" },
-        { MEMPOOL_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_mempool_num_active_inbound_sessions", "The number of inbound sessions to the mempool p2p component" },
-        { MEMPOOL_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_mempool_num_active_outbound_sessions", "The number of outbound sessions to the mempool p2p component" },
+        { MEMPOOL_P2P_NUM_CONNECTED_PEERS, "apollo_mempool_p2p_num_connected_peers", "The number of connected peers to the mempool p2p component" },
+        { MEMPOOL_P2P_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_mempool_p2p_num_active_inbound_sessions", "The number of inbound sessions to the mempool p2p component" },
+        { MEMPOOL_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_mempool_p2p_num_active_outbound_sessions", "The number of outbound sessions to the mempool p2p component" },
         { CONSENSUS_NUM_CONNECTED_PEERS, "apollo_consensus_num_connected_peers", "The number of connected peers to the consensus p2p component" },
         { CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_consensus_num_active_inbound_sessions", "The number of inbound sessions to the consensus p2p component" },
         { CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_consensus_num_active_outbound_sessions", "The number of outbound sessions to the consensus p2p component" },
