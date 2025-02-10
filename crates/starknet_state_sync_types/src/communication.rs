@@ -29,7 +29,7 @@ use crate::state_sync_types::{StateSyncResult, SyncBlock};
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
     /// Returns None if the block doesn't exist or the sync hasn't downloaded it yet.
-    async fn get_block(
+    async fn get_block(k
         &self,
         block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>>;
