@@ -169,7 +169,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         // For now, assert only that any amount of fee was paid.
         // The error message still indicates the required fee.
         if paid_fee == Fee(0) {
-            return Err(TransactionFeeError::InsufficientFee { paid_fee, actual_fee })?;
+            Err(TransactionFeeError::InsufficientFee { paid_fee, actual_fee })?;
         }
 
         Ok(TransactionExecutionInfo {

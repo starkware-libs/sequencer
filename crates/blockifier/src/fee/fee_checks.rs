@@ -150,7 +150,7 @@ impl FeeCheckReport {
                 // Check max fee.
                 let max_fee = context.max_fee;
                 if fee > &max_fee {
-                    return Err(FeeCheckError::MaxFeeExceeded { max_fee, actual_fee: *fee })?;
+                    Err(FeeCheckError::MaxFeeExceeded { max_fee, actual_fee: *fee })?;
                 }
                 Ok(())
             }
