@@ -43,14 +43,6 @@ pub fn get_block_mapping(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintR
     todo!()
 }
 
-pub fn elements_ge_10(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub fn elements_ge_2(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
 pub fn is_leaf(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
