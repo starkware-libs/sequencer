@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::Duration;
 
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -16,7 +18,7 @@ use tracing::{debug, info, instrument};
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
-use crate::utils::try_increment_nonce;
+use crate::utils::{try_increment_nonce, Clock};
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -28,11 +30,18 @@ pub struct MempoolConfig {
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
     fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+    // Time-to-live for transactions in the mempool, in seconds.
+    // Transactions older than this value will be removed.
+    transaction_ttl: Duration,
 }
 
 impl Default for MempoolConfig {
     fn default() -> Self {
-        MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage: 10 }
+        MempoolConfig {
+            enable_fee_escalation: true,
+            fee_escalation_percentage: 10,
+            transaction_ttl: Duration::from_secs(60), // 1 minute.
+        }
     }
 }
 
@@ -134,7 +143,6 @@ impl MempoolState {
     }
 }
 
-#[derive(Debug, Default)]
 pub struct Mempool {
     config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
@@ -146,6 +154,15 @@ pub struct Mempool {
 }
 
 impl Mempool {
+    pub fn new(clock: Arc<dyn Clock>) -> Self {
+        Mempool {
+            config: MempoolConfig::default(),
+            tx_pool: TransactionPool::new(clock),
+            tx_queue: TransactionQueue::default(),
+            state: MempoolState::default(),
+        }
+    }
+
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
@@ -202,6 +219,12 @@ impl Mempool {
         err
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
+        // First remove old transactions from the pool.
+        let removed_txs = self.tx_pool.remove_txs_older_than(self.config.transaction_ttl);
+        for tx in removed_txs {
+            self.tx_queue.remove_by_hash(tx.address, tx.tx_hash);
+        }
+
         let AddTransactionArgs { tx, account_state } = args;
         debug!("Adding transaction to mempool: {tx:#?}.");
         let tx_reference = TransactionReference::new(&tx);
