@@ -33,7 +33,7 @@ async fn main() {
 }
 
 // TODO(Nadin): Improve the argument parsing.
-pub fn get_base_db_path(args: Vec<String>) -> PathBuf {
+fn get_base_db_path(args: Vec<String>) -> PathBuf {
     let arg_name = "--base_db_path_dir";
     match args.as_slice() {
         [arg, path] if arg == arg_name => PathBuf::from(path),
