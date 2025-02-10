@@ -112,3 +112,89 @@ jobs:
 
 
       # - run: cargo test -p committer_cli --release -- --include-ignored test_regression
+
+  build-and-test-without-features:
+  # On PR events, cancel existing CI runs on this same PR for this job.
+  # Also, create different concurrency groups for different pushed commits, on push events.
+  # concurrency:
+  #   group: >
+  #     ${{ github.workflow }}-
+  #     ${{ github.job }}-
+  #     ${{ github.ref }}-
+  #     ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  #   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+    runs-on: starkware-ubuntu-latest-medium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
+      - uses: ./.github/actions/bootstrap
+
+      # Check Cargo.lock is up to date.
+      - name: "Check Cargo.lock"
+        run: |
+          cargo update -w --locked
+          git diff --exit-code Cargo.lock
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
+      # anvil, remove.
+      - run: npm install -g ganache@7.4.3
+
+      - run: mkdir data # For papyrus_node compilation.
+      - run: cargo build -p blockifier -p papyrus_node
+
+      - run: cargo test -p workspace_tests -p blockifier
+      - run: >
+          cargo test
+          --test latency_histogram
+          --test gateway_integration_test
+          --test feeder_gateway_integration_test
+          -- --include-ignored --skip test_gw_integration_testnet;
+      - run: |
+          cargo build --bin starknet_sequencer_node --bin sequencer_node_end_to_end_integration_test
+
+      # - run: |
+      #   # TODO: this may need to run in a different job. Also, if we only cache dependencies (this depends on our caching solution), then I'm not sure it makes sense to build the test in this job (unless upload-artifacts is fast..).
+      #   target/debug/sequencer_node_end_to_end_integration_test
+
+
+      # - run: >
+      #   cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
+
+      # TODO: Move the following to test part
+      - name: "Run tests pull request"
+        # if: github.event_name == 'pull_request'
+        # TODO: switch back to pr event.
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.push.before }}
+        env:
+          SEED: 0
+
+      - name: "Run clippy pull request"
+        # if: github.event_name == 'pull_request'
+        # TODO: switch back to pr event
+        run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.push.before }}
+      - name: "Run cargo doc pull request"
+        # TODO: switch back to pr event
+        # if: github.event_name == 'pull_request'
+        run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.push.before }}
+
+      # Run code style on push.
+      - name: "Run rustfmt"
+        # The nightly here is coupled with the one in install_rust/action.yml.
+        # If we move the install here we can use a const.
+        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
