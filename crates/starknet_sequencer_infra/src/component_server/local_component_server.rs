@@ -15,6 +15,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::{ComponentReplacer, ComponentServerStarter};
 use crate::errors::{ComponentServerError, ReplaceComponentError};
+use crate::metrics::InfraMetrics;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -222,14 +223,21 @@ async fn request_response_loop<Request, Response, Component>(
     Request: Send + Debug,
     Response: Send + Debug,
 {
-    info!("Starting server for component {}", short_type_name::<Component>());
+    let component_name = short_type_name::<Component>();
+    info!("Starting server for component {}", component_name);
+
+    let metrics = InfraMetrics::new(&component_name);
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
+        metrics.increment_received();
+
         process_request(component, request, tx).await;
+
+        metrics.increment_processed();
     }
 
     error!("Stopping server for component {}", short_type_name::<Component>());
@@ -245,20 +253,29 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
     Request: Send + Debug + 'static,
     Response: Send + Debug + 'static,
 {
-    info!("Starting concurrent server for component {}", short_type_name::<Component>());
+    let component_name = short_type_name::<Component>();
+    info!("Starting concurrent server for component {}", component_name);
+
     let task_limiter = Arc::new(Semaphore::new(max_concurrency));
+    let metrics = Arc::new(InfraMetrics::new(&component_name));
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
+        metrics.increment_received();
+
         // Acquire a permit to run the task.
         let permit = task_limiter.clone().acquire_owned().await.unwrap();
 
         let mut cloned_component = component.clone();
+        let cloned_metrics = metrics.clone();
         tokio::spawn(async move {
             process_request(&mut cloned_component, request, tx).await;
+
+            cloned_metrics.increment_processed();
+
             // Drop the permit to allow more tasks to be created.
             drop(permit);
         });
