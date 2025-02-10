@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use mockall::predicate;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -18,7 +19,13 @@ use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
-use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
+use crate::test_utils::{
+    add_tx,
+    add_tx_expect_error,
+    commit_block,
+    get_txs_and_assert_expected,
+    FakeClock,
+};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 use crate::{add_tx_input, tx};
@@ -104,7 +111,11 @@ impl MempoolTestContentBuilder {
     }
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
-        self.config = MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage };
+        self.config = MempoolConfig {
+            enable_fee_escalation: true,
+            fee_escalation_percentage,
+            ..Default::default()
+        };
         self
     }
 
@@ -128,7 +139,7 @@ impl MempoolTestContentBuilder {
 
 impl FromIterator<InternalRpcTransaction> for TransactionPool {
     fn from_iter<T: IntoIterator<Item = InternalRpcTransaction>>(txs: T) -> Self {
-        let mut pool = Self::default();
+        let mut pool = Self::new(Arc::new(FakeClock::default()));
         for tx in txs {
             pool.insert(tx).unwrap();
         }
@@ -909,4 +920,37 @@ fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: 
     let mempool = MempoolTestContentBuilder::new().with_state(state).build_full_mempool();
 
     assert_eq!(mempool.contains_tx_from(deployer_address()), expected_result);
+}
+
+#[rstest]
+fn add_tx_old_transactions_cleanup() {
+    // Create a mempool with a fake clock.
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(fake_clock.clone());
+
+    // Add a new transaction to the mempool.
+    let first_tx =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &first_tx);
+
+    // Verify that the transaction was added to the mempool.
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_pool([first_tx.tx.clone()])
+        .with_priority_queue([TransactionReference::new(&first_tx.tx)])
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
+
+    // Advance the clock and add a new transaction.
+    fake_clock.advance(mempool.config.transaction_ttl + Duration::from_secs(5));
+
+    let second_tx =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &second_tx);
+
+    // The first transaction should be removed from the mempool.
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_pool([second_tx.tx.clone()])
+        .with_priority_queue([TransactionReference::new(&second_tx.tx)])
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
 }
