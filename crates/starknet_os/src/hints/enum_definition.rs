@@ -11,7 +11,6 @@ use crate::hints::hint_implementation::block_context::{
     get_block_mapping,
     is_leaf,
     load_class,
-    load_class_facts,
     load_class_inner,
     sequencer_address,
     write_use_kzg_da_to_memory,
@@ -299,17 +298,6 @@ define_hint_enum!(
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
     ),
     (
-        LoadClassFacts,
-        load_class_facts,
-        indoc! {r#"
-    ids.compiled_class_facts = segments.add()
-    ids.n_compiled_class_facts = len(os_input.compiled_classes)
-    vm_enter_scope({
-        'compiled_class_facts': iter(os_input.compiled_classes.items()),
-        'compiled_class_visited_pcs': os_input.compiled_class_visited_pcs,
-    })"#}
-    ),
-    (
         LoadClassInner,
         load_class_inner,
         indoc! {r#"
@@ -318,27 +306,42 @@ define_hint_enum!(
         get_compiled_class_struct,
     )
 
-    compiled_class_hash, compiled_class = next(compiled_class_facts)
+    ids.n_compiled_class_facts = len(os_input.compiled_classes)
+    ids.compiled_class_facts = (compiled_class_facts_end := segments.add())
+    for i, (compiled_class_hash, compiled_class) in enumerate(
+        os_input.compiled_classes.items()
+    ):
+        # Load the compiled class.
+        cairo_contract = get_compiled_class_struct(
+            identifiers=ids._context.identifiers,
+            compiled_class=compiled_class,
+            # Load the entire bytecode - the unaccessed segments will be overriden and skipped
+            # after the execution, in `validate_compiled_class_facts_post_execution`.
+            bytecode=compiled_class.bytecode,
+        )
+        segments.load_data(
+            ptr=ids.compiled_class_facts[i].address_,
+            data=(compiled_class_hash, segments.gen_arg(cairo_contract))
+        )
 
-    bytecode_segment_structure = create_bytecode_segment_structure(
-        bytecode=compiled_class.bytecode,
-        bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-        visited_pcs=compiled_class_visited_pcs[compiled_class_hash],
-    )
+        bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
+        # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
+        # the builtin costs.
+        segments.load_data(
+            ptr=bytecode_ptr + cairo_contract.bytecode_length,
+            data=[0x208b7fff7fff7ffe, ids.builtin_costs]
+        )
 
-    cairo_contract = get_compiled_class_struct(
-        identifiers=ids._context.identifiers,
-        compiled_class=compiled_class,
-        bytecode=bytecode_segment_structure.bytecode_with_skipped_segments()
-    )
-    ids.compiled_class = segments.gen_arg(cairo_contract)"#}
+        # Load hints and debug info.
+        vm_load_program(
+            compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)"#}
     ),
     (
         BytecodeSegmentStructure,
         bytecode_segment_structure,
         indoc! {r#"
     vm_enter_scope({
-        "bytecode_segment_structure": bytecode_segment_structure
+        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash]
     })"#}
     ),
     (
@@ -1545,16 +1548,13 @@ define_hint_extension_enum!(
         LoadClass,
         load_class,
         indoc! {r#"
-    computed_hash = ids.compiled_class_fact.hash
-    expected_hash = compiled_class_hash
+    vm_exit_scope()
+
+    computed_hash = ids.hash
+    expected_hash = ids.compiled_class_fact.hash
     assert computed_hash == expected_hash, (
         "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
-        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")
-
-    vm_load_program(
-        compiled_class.get_runnable_program(entrypoint_builtins=[]),
-        ids.compiled_class.bytecode_ptr
-    )"#
+        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
         }
     ),
     (
