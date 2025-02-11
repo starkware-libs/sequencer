@@ -93,7 +93,6 @@ use crate::hints::hint_implementation::execution::{
     log_enter_syscall,
     os_context_segments,
     prepare_constructor_execution,
-    resource_bounds,
     set_ap_to_tx_nonce,
     set_fp_plus_4_to_tx_nonce,
     set_state_entry_to_account_contract_address,
@@ -111,7 +110,6 @@ use crate::hints::hint_implementation::execution::{
     tx_nonce_data_availability_mode,
     tx_paymaster_data,
     tx_paymaster_data_len,
-    tx_resource_bounds_len,
     tx_tip,
     write_old_block_to_storage,
     write_syscall_result,
@@ -150,6 +148,11 @@ use crate::hints::hint_implementation::patricia::{
     set_siblings,
     split_descend,
     write_case_not_left_to_ap,
+};
+use crate::hints::hint_implementation::resources::{
+    debug_expected_initial_gas,
+    is_sierra_gas_mode,
+    remaining_gas_gt_max,
 };
 use crate::hints::hint_implementation::secp::{is_on_curve, read_ec_point_from_address};
 use crate::hints::hint_implementation::state::{
@@ -754,26 +757,37 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         LoadNextTx,
         load_next_tx,
         indoc! {r#"
-        tx = next(transactions)
-        assert tx.tx_type.name in ('INVOKE_FUNCTION', 'L1_HANDLER', 'DEPLOY_ACCOUNT', 'DECLARE'), (
-            f"Unexpected transaction type: {tx.type.name}."
-        )
+    from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
+        create_resource_bounds_list,
+    )
+    tx = next(transactions)
+    assert tx.tx_type.name in ('INVOKE_FUNCTION', 'L1_HANDLER', 'DEPLOY_ACCOUNT', 'DECLARE'), (
+        f"Unexpected transaction type: {tx.type.name}."
+    )
 
-        tx_type_bytes = tx.tx_type.name.encode("ascii")
-        ids.tx_type = int.from_bytes(tx_type_bytes, "big")
-        execution_helper.os_logger.enter_tx(
-            tx=tx,
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            range_check_ptr=ids.range_check_ptr,
-        )
+    tx_type_bytes = tx.tx_type.name.encode("ascii")
+    ids.tx_type = int.from_bytes(tx_type_bytes, "big")
+    execution_helper.os_logger.enter_tx(
+        tx=tx,
+        n_steps=current_step,
+        builtin_ptrs=ids.builtin_ptrs,
+        range_check_ptr=ids.range_check_ptr,
+    )
 
-        # Prepare a short callable to save code duplication.
-        exit_tx = lambda: execution_helper.os_logger.exit_tx(
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            range_check_ptr=ids.range_check_ptr,
-        )"#
+    # Prepare a short callable to save code duplication.
+    exit_tx = lambda: execution_helper.os_logger.exit_tx(
+        n_steps=current_step,
+        builtin_ptrs=ids.builtin_ptrs,
+        range_check_ptr=ids.range_check_ptr,
+    )
+
+    # Guess the resource bounds.
+    if tx.tx_type.name == 'L1_HANDLER' or tx.version < 3:
+        ids.resource_bounds = 0
+        ids.n_resource_bounds = 0
+    else:
+        ids.resource_bounds = segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))
+        ids.n_resource_bounds = len(tx.resource_bounds)"#
         }
     ),
     (ExitTx, exit_tx, "exit_tx()"),
@@ -912,32 +926,12 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         "memory[ap] = to_felt_or_relocatable(tx.entry_point_selector)"
     ),
     (
-        ResourceBounds,
-        resource_bounds,
-        indoc! {r#"
-    from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
-        create_resource_bounds_list,
-    )
-
-    ids.resource_bounds = (
-        0
-        if tx.version < 3
-        else segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))
-    )"#
-        }
-    ),
-    (
         TxMaxFee,
         tx_max_fee,
         "memory[ap] = to_felt_or_relocatable(tx.max_fee if tx.version < 3 else 0)"
     ),
     (TxNonce, tx_nonce, "memory[ap] = to_felt_or_relocatable(0 if tx.nonce is None else tx.nonce)"),
     (TxTip, tx_tip, "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else tx.tip)"),
-    (
-        TxResourceBoundsLen,
-        tx_resource_bounds_len,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else len(tx.resource_bounds))"
-    ),
     (
         TxPaymasterDataLen,
         tx_paymaster_data_len,
@@ -1466,6 +1460,28 @@ else:
 	    __patricia_skip_validation_runner=__patricia_skip_validation_runner)
 	common_args['common_args'] = common_args"#
         }
+    ),
+    (
+        RemainingGasGtMax,
+        remaining_gas_gt_max,
+        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
+    ),
+    (
+        DebugExpectedInitialGas,
+        debug_expected_initial_gas,
+        indoc! {r#"
+    if execution_helper.debug_mode:
+        expected_initial_gas = execution_helper.call_info.call.initial_gas
+        call_initial_gas = ids.remaining_gas
+        assert expected_initial_gas == call_initial_gas, (
+            f"Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}.\n"
+            f"{execution_helper.call_info=}"
+        )"#}
+    ),
+    (
+        IsSierraGasMode,
+        is_sierra_gas_mode,
+        "ids.is_sierra_gas_mode = execution_helper.call_info.tracked_resource.is_sierra_gas()"
     ),
     (
         ReadEcPointFromAddress,
