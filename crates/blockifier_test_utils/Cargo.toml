@@ -13,6 +13,8 @@ cairo_native = []
 cached.workspace = true
 cairo-lang-starknet-classes.workspace = true
 itertools.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
@@ -21,7 +23,14 @@ starknet_infra_utils.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 tempfile.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 toml.workspace = true
+tracing.workspace = true
+tracing-test.workspace = true
 
 [lints]
 workspace = true
+
+[[test]]
+name = "feature_contracts_compatibility_test"
+path = "tests/feature_contracts_compatibility_test.rs"

@@ -1793,6 +1793,8 @@ dependencies = [
  "cached",
  "cairo-lang-starknet-classes",
  "itertools 0.12.1",
+ "pretty_assertions",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
@@ -1801,7 +1803,10 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
+ "tokio",
  "toml",
+ "tracing",
+ "tracing-test",
 ]
 
 [[package]]
