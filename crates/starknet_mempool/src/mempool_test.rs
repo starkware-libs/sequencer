@@ -680,17 +680,17 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
 }
 
 #[rstest]
-#[ignore = "Reenable when overflow bug fixed"]
 fn test_fee_escalation_valid_replacement_maximum_values() {
     // Setup.
-    let tx = tx!(tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1);
+    let tx = tx!(tip: u64::MAX / 100, max_l2_gas_price: u128::MAX / 100 );
     let mempool = MempoolTestContentBuilder::new()
         .with_pool([tx])
         .with_fee_escalation_percentage(100)
         .build_full_mempool();
 
     // Test and assert: replacement with maximum values.
-    let valid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
+    let valid_replacement_input =
+        add_tx_input!(tip: u64::MAX / 50 , max_l2_gas_price: u128::MAX / 50);
     add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
