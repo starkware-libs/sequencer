@@ -33,12 +33,19 @@ use crate::hints::hint_implementation::deprecated_compiled_class::{
     load_deprecated_class_facts,
     load_deprecated_class_inner,
 };
+use crate::hints::hint_implementation::execute_syscalls::is_block_number_in_block_hash_buffer;
 use crate::hints::hint_implementation::execute_transactions::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
+    os_input_transactions,
+    segments_add,
+    segments_add_temp,
+    set_ap_to_actual_fee,
     set_component_hashes,
     set_sha256_segment_in_syscall_handler,
     sha2_finalize,
+    skip_tx,
+    start_tx_short,
     start_tx_validate_declare_execution_context,
 };
 use crate::hints::hint_implementation::execution::{
@@ -83,7 +90,8 @@ use crate::hints::hint_implementation::execution::{
     set_ap_to_tx_nonce,
     set_fp_plus_4_to_tx_nonce,
     set_state_entry_to_account_contract_address,
-    start_tx,
+    skip_call,
+    start_tx_long,
     transaction_version,
     tx_account_deployment_data,
     tx_account_deployment_data_len,
@@ -283,6 +291,13 @@ define_hint_enum!(
 
 define_hint_enum!(
     OsHint,
+    (
+        IsBlockNumberInBlockHashBuffer,
+        is_block_number_in_block_hash_buffer,
+        // CHANGED: whitespaces.
+        r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
+           ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
+    ),
     (
         LoadClassFacts,
         load_class_facts,
@@ -527,6 +542,43 @@ define_hint_enum!(
     execution_helper.start_tx(
         tx_info_ptr=ids.validate_declare_execution_context.deprecated_tx_info.address_
     )"#
+        }
+    ),
+    (
+        SegmentsAddTemp,
+        segments_add_temp,
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        }
+    ),
+    (
+        StartTxShort,
+        start_tx_short,
+        indoc! {r#"execution_helper.start_tx(tx_info_ptr=ids.deprecated_tx_info.address_)"#
+        }
+    ),
+    (
+        OsInputTransactions,
+        os_input_transactions,
+        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(os_input.transactions))"#
+        }
+    ),
+    (
+        SegmentsAdd,
+        segments_add,
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
+        }
+    ),
+    (
+        SetApToActualFee,
+        set_ap_to_actual_fee,
+        indoc! {
+            r#"memory[ap] = to_felt_or_relocatable(execution_helper.tx_execution_info.actual_fee)"#
+        }
+    ),
+    (
+        SkipTx,
+        skip_tx,
+        indoc! {r#"execution_helper.skip_tx()"#
         }
     ),
     (
@@ -816,8 +868,8 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (
-        StartTx,
-        start_tx,
+        StartTxLong,
+        start_tx_long,
         indoc! {r#"
     tx_info_ptr = ids.tx_execution_context.deprecated_tx_info.address_
     execution_helper.start_tx(tx_info_ptr=tx_info_ptr)"#
@@ -1030,6 +1082,12 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"
 	storage = execution_helper.storage_by_address[ids.BLOCK_HASH_CONTRACT_ADDRESS]
 	storage.write(key=ids.old_block_number, value=ids.old_block_hash)"#
+        }
+    ),
+    (
+        SkipCall,
+        skip_call,
+        indoc! {r#"execution_helper.skip_call()"#
         }
     ),
     (
