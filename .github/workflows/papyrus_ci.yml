@@ -118,7 +118,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      # run this job only if the path 'crates/papyrus_storage/src/db/**' is changed, because it takes around 2 minutes.
+      # run this job only if the path  'crates/papyrus_storage/src/db/**' is changed, because it takes around 2 minutes.
       - uses: dorny/paths-filter@v3
         id: changes
         with:

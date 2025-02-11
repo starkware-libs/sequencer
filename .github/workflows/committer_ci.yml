@@ -51,7 +51,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
-      # Checkout the base branch to get the old code.
+      # Checkout the base branch  to get the old code.
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}

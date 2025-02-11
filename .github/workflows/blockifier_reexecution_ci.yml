@@ -9,7 +9,7 @@ on:
       - auto_merge_enabled
       - edited
     paths:
-      # Other than code-related changes, all changes related to the blockifier should trigger the build.
+      # Other than code-related  changes, all changes related to the blockifier should trigger the build.
       - '.github/workflows/blockifier_reexecution_ci.yml'
       - 'Cargo.lock'
       - 'Cargo.toml'
