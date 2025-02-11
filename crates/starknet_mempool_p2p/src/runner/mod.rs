@@ -51,6 +51,8 @@ impl ComponentStarter for MempoolP2pRunner {
                     match result {
                         Ok(_) => {}
                         Err(gateway_client_error) => {
+                            // TODO(shahak): Analyze the error to see if it's the tx's fault or an
+                            // internal error. Widen GatewayError's variants if necessary.
                             if let GatewayClientError::GatewayError(
                                 GatewayError::GatewaySpecError{p2p_message_metadata: Some(p2p_message_metadata), ..}
                             ) = gateway_client_error {
