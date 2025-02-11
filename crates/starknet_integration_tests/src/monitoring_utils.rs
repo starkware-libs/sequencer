@@ -24,12 +24,12 @@ pub async fn get_batcher_latest_block_number(
 pub async fn await_batcher_block(
     interval: u64,
     target_block_number: BlockNumber,
+    condition: impl Fn(&BlockNumber) -> bool + Send + Sync,
     max_attempts: usize,
     batcher_monitoring_client: &MonitoringClient,
     node_index: usize,
     batcher_index: usize,
 ) -> Result<BlockNumber, ()> {
-    let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
     let get_latest_block_number_closure =
         || get_batcher_latest_block_number(batcher_monitoring_client);
 
@@ -57,9 +57,12 @@ pub async fn await_execution(
         "Awaiting until {expected_block_number} blocks have been created in sequencer {}.",
         node_index
     );
+    let condition =
+        |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
     await_batcher_block(
         5000,
         expected_block_number,
+        condition,
         50,
         monitoring_client,
         node_index,
