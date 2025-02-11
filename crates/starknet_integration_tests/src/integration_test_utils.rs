@@ -1,9 +1,17 @@
 use std::process::Command;
 
-use starknet_integration_tests::end_to_end_integration::end_to_end_integration;
-use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
-use tracing::{error, info, warn};
+use tracing::{error, info};
+
+// TODO(Tsabary): remove the hook definition once we transition to proper usage of task
+// spawning.
+pub fn set_panic_hook() {
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        log_susceptible_ports();
+        default_panic(info);
+        std::process::exit(1);
+    }));
+}
 
 // Logs the processes that are using the susceptible ports, for debugging purposes in case of port
 // binding conflicts.
@@ -44,41 +52,13 @@ fn log_susceptible_ports() {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    configure_tracing().await;
-    info!("Running integration test setup.");
-
-    set_ephemeral_port_range();
-
-    // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
-    // spawning.
-    let default_panic = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        log_susceptible_ports();
-        default_panic(info);
-        std::process::exit(1);
-    }));
-
-    let sequencer_path = get_node_executable_path();
-    warn!(
-        "This test uses a compiled sequencer node binary located at {}. Make sure to pre-compile \
-         the binary before running this test. Alternatively, you can compile the binary and run \
-         this test with './scripts/sequencer_integration_test.sh'",
-        sequencer_path
-    );
-
-    // Run end to end integration test.
-    end_to_end_integration().await;
-}
-
 /// Adjusts the system's ephemeral port range to ensure predictable port allocation during tests.
 ///
 /// By default, the operating system dynamically assigns ephemeral ports from a wide range,
 /// which can lead to unpredictable port collisions in integration tests that rely on fixed port
 /// usage. This function sets a narrower range (40000-40200) to limit port allocation to a small,
 /// controlled set of ports, reducing the likelihood of conflicts.
-fn set_ephemeral_port_range() {
+pub fn set_ephemeral_port_range() {
     let output = Command::new("sudo")
         .arg("sysctl")
         .arg("-w")
