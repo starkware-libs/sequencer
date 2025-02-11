@@ -4,6 +4,8 @@ use clap::Args;
 
 use crate::shared_utils::read::{read_input, write_to_file};
 
+pub(crate) type PythonTestResult<E> = Result<String, PythonTestError<E>>;
+
 #[derive(Debug, Args)]
 pub(crate) struct IoArgs {
     /// File path to input.
@@ -49,10 +51,7 @@ pub(crate) trait PythonTestRunner: TryFrom<String> {
         input.ok_or(PythonTestError::NoneInputError)
     }
 
-    async fn run(
-        &self,
-        input: Option<&str>,
-    ) -> Result<String, PythonTestError<Self::SpecificError>>;
+    async fn run(&self, input: Option<&str>) -> PythonTestResult<Self::SpecificError>;
 }
 
 pub(crate) async fn run_python_test<PT: PythonTestRunner>(python_test_arg: PythonTestArg)
