@@ -169,8 +169,9 @@ fn test_all_jsons_in_enum() {
     // Check that all JSON files are in the enum and can be loaded.
     for file in all_jsons {
         let filename = file.file_stem().unwrap().to_str().unwrap().to_string();
-        assert!(filename.starts_with("versioned_constants_"));
-        let version_str = filename.trim_start_matches("versioned_constants_").replace("_", ".");
+        assert!(filename.starts_with("blockifier_versioned_constants_"));
+        let version_str =
+            filename.trim_start_matches("blockifier_versioned_constants_").replace("_", ".");
         let version = StarknetVersion::try_from(version_str).unwrap();
         assert!(VersionedConstants::get(&version).is_ok());
     }
