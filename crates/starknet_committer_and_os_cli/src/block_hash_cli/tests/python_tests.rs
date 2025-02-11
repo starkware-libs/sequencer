@@ -10,9 +10,10 @@ use crate::block_hash_cli::tests::objects::{
     get_transaction_output_for_hash,
     get_tx_data,
 };
-use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
+use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 
 pub type BlockHashPythonTestError = PythonTestError<()>;
+pub type BlockHashPythonTestResult = PythonTestResult<()>;
 
 // Enum representing different Python tests.
 pub enum BlockHashPythonTestRunner {
@@ -38,7 +39,7 @@ impl TryFrom<String> for BlockHashPythonTestRunner {
 impl PythonTestRunner for BlockHashPythonTestRunner {
     type SpecificError = ();
     /// Runs the test with the given arguments.
-    async fn run(&self, input: Option<&str>) -> Result<String, BlockHashPythonTestError> {
+    async fn run(&self, input: Option<&str>) -> BlockHashPythonTestResult {
         match self {
             Self::ParseTxOutput => {
                 let tx_output: TransactionOutputForHash =
