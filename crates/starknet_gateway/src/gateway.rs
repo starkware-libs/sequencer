@@ -17,7 +17,7 @@ use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMem
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{debug, error, instrument, Span};
+use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
@@ -122,22 +122,25 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
+        // TODO(shahak): Either don't return error if tx came from p2p, or inside MempoolP2pRunner
+        // analyze the error and don't report peer if it's a TransactionConverterError
+        // All of this should only happen if the error is a client error and not business logic.
         let internal_tx =
             block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
                 .map_err(|err| {
-                    error!(
-                        "Failed to convert RPC transaction to internal RPC transaction: {}",
-                        err
-                    );
+                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", err);
                     GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
                 })?;
 
+        // TODO(shahak): Either don't return error if tx came from p2p, or inside MempoolP2pRunner
+        // analyze the error and don't report peer if it's a TransactionConverterError
+        // All of this should only happen if the error is a client error and not business logic.
         let executable_tx = block_on(
             self.transaction_converter
                 .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
         )
         .map_err(|err| {
-            error!("Failed to convert internal RPC transaction to executable transaction: {}", err);
+            warn!("Failed to convert internal RPC transaction to executable transaction: {}", err);
             GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
         })?;
 
