@@ -1381,7 +1381,7 @@ else:
     (
         SetNUpdatesSmall,
         set_n_updates_small,
-        indoc! {r#"ids.is_n_updates_small = ids.n_actual_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
+        indoc! {r#"ids.is_n_updates_small = ids.n_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
     ),
     (SetSiblings, set_siblings, "memory[ids.siblings], ids.word = descend"),
     (IsCaseRight, is_case_right, "memory[ap] = int(case == 'right') ^ ids.bit"),
