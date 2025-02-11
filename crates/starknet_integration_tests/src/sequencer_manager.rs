@@ -42,7 +42,7 @@ use crate::utils::{
     TestScenario,
 };
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
+pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
