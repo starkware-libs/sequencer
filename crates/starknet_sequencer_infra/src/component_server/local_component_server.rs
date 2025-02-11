@@ -234,6 +234,7 @@ async fn request_response_loop<Request, Response, Component>(
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
         metrics.increment_received();
+        metrics.set_queue_depth(rx.len());
 
         process_request(component, request, tx).await;
 
@@ -265,6 +266,7 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
         metrics.increment_received();
+        metrics.set_queue_depth(rx.len());
 
         // Acquire a permit to run the task.
         let permit = task_limiter.clone().acquire_owned().await.unwrap();
