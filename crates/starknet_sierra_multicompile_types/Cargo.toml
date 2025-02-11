@@ -20,3 +20,6 @@ serde_json.workspace = true
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
