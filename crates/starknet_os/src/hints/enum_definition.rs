@@ -33,6 +33,7 @@ use crate::hints::hint_implementation::compiled_class::{
     delete_memory_data,
     iter_current_segment_info,
     set_ap_to_segment_hash,
+    validate_compiled_class_facts_post_execution,
 };
 use crate::hints::hint_implementation::deprecated_compiled_class::{
     load_deprecated_class,
@@ -532,6 +533,50 @@ define_hint_enum!(
         indoc! {r#"
             memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash())"#
         }
+    ),
+    (
+        ValidateCompiledClassFactsPostExecution,
+        validate_compiled_class_facts_post_execution,
+        indoc! {r#"
+    from starkware.cairo.lang.vm.relocatable import RelocatableValue
+
+    bytecode_segment_to_length = {}
+    compiled_hash_to_bytecode_segment = {}
+    for i in range(ids.n_compiled_class_facts):
+        fact = ids.compiled_class_facts[i]
+        bytecode_segment = fact.compiled_class.bytecode_ptr.segment_index
+        bytecode_segment_to_length[bytecode_segment] = fact.compiled_class.bytecode_length
+        compiled_hash_to_bytecode_segment[fact.hash] = bytecode_segment
+
+    bytecode_segment_to_visited_pcs = {
+        bytecode_segment: [] for bytecode_segment in bytecode_segment_to_length
+    }
+    for addr in iter_accessed_addresses():
+        if (
+            isinstance(addr, RelocatableValue)
+            and addr.segment_index in bytecode_segment_to_visited_pcs
+        ):
+            bytecode_segment_to_visited_pcs[addr.segment_index].append(addr.offset)
+
+    # Sort and remove the program extra data, which is not part of the hash.
+    for bytecode_segment, visited_pcs in bytecode_segment_to_visited_pcs.items():
+        visited_pcs.sort()
+        while (
+            len(visited_pcs) > 0
+            and visited_pcs[-1] >= bytecode_segment_to_length[bytecode_segment]
+        ):
+            visited_pcs.pop()
+
+    # Build the bytecode segment structures based on the execution info.
+    bytecode_segment_structures = {
+        compiled_hash: create_bytecode_segment_structure(
+            bytecode=compiled_class.bytecode,
+            bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
+            visited_pcs=bytecode_segment_to_visited_pcs[
+                compiled_hash_to_bytecode_segment[compiled_hash]
+            ],
+        ) for compiled_hash, compiled_class in os_input.compiled_classes.items()
+    }"#}
     ),
     (
         EnterScopeWithAliases,
