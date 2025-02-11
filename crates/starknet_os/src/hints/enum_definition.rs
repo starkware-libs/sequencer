@@ -24,6 +24,7 @@ use crate::hints::hint_implementation::builtins::{
 use crate::hints::hint_implementation::compiled_class::{
     assert_end_of_bytecode_segments,
     assign_bytecode_segments,
+    delete_memory_data,
     iter_current_segment_info,
     set_ap_to_segment_hash,
 };
@@ -458,6 +459,7 @@ define_hint_enum!(
             assert next(bytecode_segments, None) is None"#
         }
     ),
+    (DeleteMemoryData, delete_memory_data, "del memory.data[ids.data_ptr]"),
     (
         IterCurrentSegmentInfo,
         iter_current_segment_info,
