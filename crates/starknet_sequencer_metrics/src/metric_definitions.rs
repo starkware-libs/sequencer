@@ -105,13 +105,23 @@ define_gauge_metrics!(
     MetricScope::Batcher => {
         { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" }
     },
+    MetricScope::Infra => {
+        { BATCHER_QUEUE_DEPTH, "batcher_queue_depth", "The depth of the batcher's message queue" },
+        { CLASS_MANAGER_QUEUE_DEPTH, "fs_class_manager_queue_depth", "The depth of the class manager's message queue" },
+        { GATEWAY_QUEUE_DEPTH, "gateway_queue_depth", "The depth of the gateway's message queue" },
+        { L1_PROVIDER_QUEUE_DEPTH, "l1_provider_queue_depth", "The depth of the L1 provider's message queue" },
+        { MEMPOOL_QUEUE_DEPTH, "mempool_communication_wrapper_queue_depth", "The depth of the mempool's message queue" },
+        { MEMPOOL_P2P_QUEUE_DEPTH, "mempool_p2p_propagator_queue_depth", "The depth of the mempool p2p's message queue" },
+        { SIERRA_COMPILER_QUEUE_DEPTH, "sierra_compiler_queue_depth", "The depth of the sierra compiler's message queue" },
+        { STATE_SYNC_QUEUE_DEPTH, "state_sync_queue_depth", "The depth of the state sync's message queue" },
+    },
     MetricScope::Network => {
         { MEMPOOL_P2P_NUM_CONNECTED_PEERS, "apollo_mempool_p2p_num_connected_peers", "The number of connected peers to the mempool p2p component" },
         { CONSENSUS_NUM_CONNECTED_PEERS, "apollo_consensus_num_connected_peers", "The number of connected peers to the consensus p2p component" },
         { STATE_SYNC_P2P_NUM_CONNECTED_PEERS, "apollo_sync_num_connected_peers", "The number of connected peers to the state sync p2p component" },
         { STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_sync_num_active_inbound_sessions", "The number of inbound sessions to the state sync p2p component" },
         { STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_sync_num_active_outbound_sessions", "The number of outbound sessions to the state sync p2p component" },
-    }
+    },
 );
 
 define_counter_metrics!(
@@ -151,5 +161,5 @@ define_counter_metrics!(
         { MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, "apollo_mempool_num_received_messages", "The number of messages received by the mempool p2p component", 0 },
         { CONSENSUS_NUM_SENT_MESSAGES, "apollo_consensus_num_sent_messages", "The number of messages sent by the consensus p2p component", 0 },
         { CONSENSUS_NUM_RECEIVED_MESSAGES, "apollo_consensus_num_received_messages", "The number of messages received by the consensus p2p component", 0 },
-    }
+    },
 );
