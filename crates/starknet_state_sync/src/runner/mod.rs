@@ -9,7 +9,7 @@ use futures::future::{self, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_network::network_manager::{self, NetworkError, NetworkManager};
+use papyrus_network::network_manager::{self, metrics, NetworkError, NetworkManager};
 use papyrus_p2p_sync::client::{
     P2pSyncClient,
     P2pSyncClientChannels,
@@ -34,6 +34,11 @@ use starknet_client::reader::PendingData;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
 use starknet_sequencer_infra::errors::ComponentError;
+use starknet_sequencer_metrics::metric_definitions::{
+    STATE_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
+    STATE_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    STATE_SYNC_NUM_CONNECTED_PEERS,
+};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::RwLock;
 
@@ -85,8 +90,16 @@ impl StateSyncRunner {
             network_config,
         } = config;
 
-        let mut network_manager =
-            network_manager::NetworkManager::new(network_config, Some(VERSION_FULL.to_string()));
+        let network_manager_metrics = Some(metrics::NetworkMetrics {
+            num_connected_peers: STATE_SYNC_NUM_CONNECTED_PEERS,
+            num_active_inbound_sessions: STATE_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
+            num_active_outbound_sessions: STATE_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
+        });
+        let mut network_manager = network_manager::NetworkManager::new(
+            network_config,
+            Some(VERSION_FULL.to_string()),
+            network_manager_metrics,
+        );
 
         let (storage_reader, storage_writer) =
             open_storage(storage_config).expect("StateSyncRunner failed opening storage");

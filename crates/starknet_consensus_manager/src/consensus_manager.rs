@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use papyrus_network::gossipsub_impl::Topic;
+use papyrus_network::network_manager::metrics::NetworkMetrics;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
@@ -19,6 +20,11 @@ use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConse
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
+use starknet_sequencer_metrics::metric_definitions::{
+    CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
+    CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    CONSENSUS_NUM_CONNECTED_PEERS,
+};
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info};
 
@@ -50,7 +56,13 @@ impl ConsensusManager {
             return std::future::pending().await;
         }
 
-        let mut network_manager = NetworkManager::new(self.config.network_config.clone(), None);
+        let network_manager_metrics = Some(NetworkMetrics {
+            num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
+            num_active_inbound_sessions: CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
+            num_active_outbound_sessions: CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
+        });
+        let mut network_manager =
+            NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
 
         let proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<StreamMessage<ProposalPart, HeightAndRound>>(

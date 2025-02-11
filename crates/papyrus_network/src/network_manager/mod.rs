@@ -1,4 +1,4 @@
-mod network_manager_metrics;
+pub mod metrics;
 mod swarm_trait;
 #[cfg(test)]
 mod test;
@@ -21,7 +21,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
-use metrics::gauge;
+use metrics::NetworkMetrics;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
@@ -64,9 +64,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     reported_peers_sender: Sender<PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
-    // Fields for metrics
-    num_active_inbound_sessions: usize,
-    num_active_outbound_sessions: usize,
+    metrics: Option<NetworkMetrics>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -97,8 +95,14 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
     // TODO(shahak): remove the advertised_multiaddr arg once we manage external addresses
     // in a behaviour.
-    pub(crate) fn generic_new(mut swarm: SwarmT, advertised_multiaddr: Option<Multiaddr>) -> Self {
-        gauge!(network_manager_metrics::PAPYRUS_NUM_CONNECTED_PEERS).set(0f64);
+    pub(crate) fn generic_new(
+        mut swarm: SwarmT,
+        advertised_multiaddr: Option<Multiaddr>,
+        metrics: Option<NetworkMetrics>,
+    ) -> Self {
+        if let Some(metrics) = metrics.as_ref() {
+            metrics.register();
+        }
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
         if let Some(address) = advertised_multiaddr.clone() {
@@ -124,8 +128,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             reported_peers_sender,
             continue_propagation_sender,
             continue_propagation_receiver,
-            num_active_inbound_sessions: 0,
-            num_active_outbound_sessions: 0,
+            metrics,
         }
     }
 
@@ -265,12 +268,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: SwarmEvent<mixed_behaviour::Event>,
     ) -> Result<(), NetworkError> {
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
-                gauge!(network_manager_metrics::PAPYRUS_NUM_CONNECTED_PEERS)
-                    .set(self.swarm.num_connected_peers() as f64);
+                if let Some(metrics) = self.metrics.as_ref() {
+                    metrics.num_connected_peers.increment(1);
+                }
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
                 match cause {
@@ -279,8 +282,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     }
                     None => debug!("Connection to {peer_id:?} closed."),
                 }
-                gauge!(network_manager_metrics::PAPYRUS_NUM_CONNECTED_PEERS)
-                    .set(self.swarm.num_connected_peers() as f64);
+                if let Some(metrics) = self.metrics.as_ref() {
+                    metrics.num_connected_peers.decrement(1);
+                }
             }
             SwarmEvent::Behaviour(event) => {
                 self.handle_behaviour_event(event)?;
@@ -393,7 +397,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn handle_sqmr_event_new_inbound_session(
         &mut self,
         peer_id: PeerId,
@@ -414,9 +417,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             );
             return;
         };
-        self.num_active_inbound_sessions += 1;
-        gauge!(network_manager_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
-            .set(self.num_active_inbound_sessions as f64);
+        if let Some(metrics) = self.metrics.as_ref() {
+            metrics.num_active_inbound_sessions.increment(1);
+        }
         let (responses_sender, responses_receiver) = futures::channel::mpsc::channel(
             *self
                 .inbound_protocol_to_buffer_size
@@ -575,10 +578,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         let outbound_session_id = self.swarm.send_query(query, protocol.clone());
-        self.num_active_outbound_sessions += 1;
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-        gauge!(network_manager_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
-            .set(self.num_active_outbound_sessions as f64);
+        if let Some(metrics) = self.metrics.as_ref() {
+            metrics.num_active_outbound_sessions.increment(1);
+        }
         self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
         self.sqmr_outbound_report_receivers_awaiting_assignment
             .insert(outbound_session_id, report_receiver);
@@ -589,17 +591,16 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match session_id {
             SessionId::InboundSessionId(_) => {
-                self.num_active_inbound_sessions -= 1;
-                gauge!(network_manager_metrics::PAPYRUS_NUM_ACTIVE_INBOUND_SESSIONS)
-                    .set(self.num_active_inbound_sessions as f64);
+                if let Some(metrics) = self.metrics.as_ref() {
+                    metrics.num_active_inbound_sessions.decrement(1);
+                }
             }
             SessionId::OutboundSessionId(_) => {
-                self.num_active_outbound_sessions += 1;
-                gauge!(network_manager_metrics::PAPYRUS_NUM_ACTIVE_OUTBOUND_SESSIONS)
-                    .set(self.num_active_outbound_sessions as f64);
+                if let Some(metrics) = self.metrics.as_ref() {
+                    metrics.num_active_outbound_sessions.decrement(1);
+                }
             }
         }
     }
@@ -638,7 +639,11 @@ fn send_now<Item>(
 pub type NetworkManager = GenericNetworkManager<Swarm<mixed_behaviour::MixedBehaviour>>;
 
 impl NetworkManager {
-    pub fn new(config: NetworkConfig, node_version: Option<String>) -> Self {
+    pub fn new(
+        config: NetworkConfig,
+        node_version: Option<String>,
+        metrics: Option<NetworkMetrics>,
+    ) -> Self {
         let NetworkConfig {
             tcp_port,
             session_timeout,
@@ -693,7 +698,7 @@ impl NetworkManager {
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });
-        Self::generic_new(swarm, advertised_multiaddr)
+        Self::generic_new(swarm, advertised_multiaddr, metrics)
     }
 
     pub fn get_local_peer_id(&self) -> String {

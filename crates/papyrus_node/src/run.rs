@@ -118,6 +118,7 @@ fn build_network_manager(
     let network_manager = network_manager::NetworkManager::new(
         network_config.clone(),
         Some(VERSION_FULL.to_string()),
+        None,
     );
     let local_peer_id = network_manager.get_local_peer_id();
 
