@@ -286,23 +286,27 @@ async fn test_os_hints_are_equal(input: &str) -> OsPythonTestResult {
     rust_os_hints.remove("exit_syscall()");
 
     if rust_os_hints != python_os_hints {
-        let only_in_python: HashSet<String> =
+        let mut only_in_python: Vec<String> =
             python_os_hints.difference(&rust_os_hints).cloned().collect();
-        let only_in_rust: HashSet<String> =
+        only_in_python.sort();
+        let mut only_in_rust: Vec<String> =
             rust_os_hints.difference(&python_os_hints).cloned().collect();
+        only_in_rust.sort();
         println!("len python_os_hints: {}", python_os_hints.len());
         println!("len rust_os_hints: {}", rust_os_hints.len());
         println!("len only_in_python: {}", only_in_python.len());
         println!("len only_in_rust: {}", only_in_rust.len());
         println!("---------------- Only in Python ----------------");
         for (i, hint) in only_in_python.iter().enumerate() {
-            println!("only in Python: #{}\n", i);
+            // println!("only in Python: #{}\n", i);
+            println!("#{}\n", i);
             println!("{}", hint);
             println!("---------");
         }
         println!("---------------- Only in Rust ----------------");
         for (i, hint) in only_in_rust.iter().enumerate() {
-            println!("only in Rust: #{}\n", i);
+            // println!("only in Rust: #{}\n", i);
+            println!("#{}\n", i);
             println!("{}", hint);
             println!("---------");
         }
