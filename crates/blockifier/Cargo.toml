@@ -17,16 +17,7 @@ cairo_native = [
 ]
 native_blockifier = []
 reexecution = ["transaction_serde"]
-testing = [
-  "blockifier_test_utils",
-  "rand",
-  "rstest",
-  "rstest_reuse",
-  "starknet_api/testing",
-  "tokio",
-  "tracing",
-  "tracing-test",
-]
+testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -71,9 +62,6 @@ starknet_sierra_multicompile.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread"] }
-tracing = { workspace = true, optional = true }
-tracing-test = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches.workspace = true
@@ -97,11 +85,6 @@ starknet_infra_utils.workspace = true
 harness = false
 name = "blockifier_bench"
 path = "bench/blockifier_bench.rs"
-required-features = ["testing"]
-
-[[test]]
-name = "feature_contracts_compatibility_test"
-path = "tests/feature_contracts_compatibility_test.rs"
 required-features = ["testing"]
 
 [package.metadata.cargo-machete]
