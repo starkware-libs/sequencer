@@ -60,7 +60,7 @@ class ServiceApp(Construct):
                             k8s.Container(
                                 name=self.node.id,
                                 image=self.service_topology.images.get("sequencer"),
-                                image_pull_policy="IfNotPresent",
+                                image_pull_policy="Always",
                                 # command=["sleep", "infinity"],
                                 args=const.CONTAINER_ARGS,
                                 ports=self._get_container_ports(),
@@ -90,7 +90,6 @@ class ServiceApp(Construct):
                 },
             ),
             spec=k8s.IngressSpec(
-                ingress_class_name="premium-rwo",
                 tls=self._get_ingress_tls(),
                 rules=self._get_ingress_rules()
             ),
@@ -124,7 +123,7 @@ class ServiceApp(Construct):
             ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
         ]
 
-    def _get_container_resources(self): # TODO(Idan): implement method to calc resources based on config
+    def _get_container_resources(self): # TODO(IdanS): implement method to calc resources based on config
         pass
 
     def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
@@ -143,7 +142,7 @@ class ServiceApp(Construct):
             timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
     ) -> k8s.Probe:
         path = "/monitoring/alive"
-        # path = self.node_config['monitoring_path'].get("value") # TODO add monitoring path in node_config
+        # path = self.node_config['monitoring_path'].get("value") # TODO(IdanS): add monitoring path in node_config
         port = self.node_config.get('monitoring_endpoint_config.port').get("value")
 
         return k8s.Probe(

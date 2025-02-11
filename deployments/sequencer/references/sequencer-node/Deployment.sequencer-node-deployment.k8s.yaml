@@ -17,8 +17,8 @@ spec:
         - args:
             - --config_file
             - /config/sequencer/presets/config
-          image: us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.11
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/starkware-libs/sequencer/sequencer:dev
+          imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 5
             httpGet:
