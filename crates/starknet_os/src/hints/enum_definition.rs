@@ -888,9 +888,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         EnterCall,
         enter_call,
-        indoc! {r#"
-    execution_helper.enter_call(
-        cairo_execution_info=ids.execution_context.execution_info)"#}
+        "execution_helper.enter_call(cairo_execution_info=ids.execution_context.execution_info)"
     ),
     (ExitCall, exit_call, "execution_helper.exit_call()"),
     (
