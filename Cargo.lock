@@ -11096,7 +11096,6 @@ dependencies = [
  "starknet_consensus",
  "starknet_infra_utils",
  "starknet_state_sync_types",
- "test-case",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
