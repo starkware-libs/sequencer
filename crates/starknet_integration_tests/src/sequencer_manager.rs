@@ -43,7 +43,7 @@ const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
-struct NodeComponentConfigs {
+pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
@@ -341,7 +341,7 @@ fn nonce_to_usize(nonce: Nonce) -> usize {
 pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     num_of_consolidated_nodes: usize,
-    num_of_distributed_nodes: usize,
+    _num_of_distributed_nodes: usize,
     path_to_db_base_dir: Option<PathBuf>,
     path_to_config_base_dir: Option<PathBuf>,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
@@ -355,13 +355,29 @@ pub async fn get_sequencer_setup_configs(
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
-        combined.extend(create_distributed_node_configs(
-            &mut available_ports,
-            num_of_distributed_nodes,
-        ));
+        combined.extend(create_distributed_node_configs_2(&mut available_ports));
         combined
     };
 
+    get_sequencer_setup_from_component_configs(
+        tx_generator,
+        path_to_db_base_dir,
+        path_to_config_base_dir,
+        node_component_configs,
+        test_unique_id,
+    )
+    .await
+}
+
+pub async fn get_sequencer_setup_from_component_configs(
+    tx_generator: &MultiAccountTransactionGenerator,
+    path_to_db_base_dir: Option<PathBuf>,
+    path_to_config_base_dir: Option<PathBuf>,
+    node_component_configs: Vec<NodeComponentConfigs>,
+    test_unique_id: TestIdentifier,
+) -> (Vec<NodeSetup>, HashSet<usize>) {
+    let mut available_ports =
+        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
     info!("Creating node configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
@@ -551,6 +567,200 @@ fn get_non_http_container_config(
         ),
         ..ComponentConfig::default()
     }
+}
+
+fn get_http_component_config() -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.http_server = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_gw_component_config(
+    gateway_socket: SocketAddr,
+    mempool_socket: SocketAddr,
+    sierra_compiler_socket: SocketAddr,
+    state_sync_socket: SocketAddr,
+) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
+    let mut config = ComponentConfig::disabled();
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        gateway_socket.ip(),
+        gateway_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+
+    // Remote clients
+    config.mempool = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        mempool_socket.ip(),
+        mempool_socket.port(),
+    );
+    config.sierra_compiler = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        sierra_compiler_socket.ip(),
+        sierra_compiler_socket.port(),
+    );
+    config.state_sync = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        state_sync_socket.ip(),
+        state_sync_socket.port(),
+    );
+    config
+}
+
+fn get_mempool_component_config(
+    mempool_socket: SocketAddr,
+    mempool_p2p_socket: SocketAddr,
+) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
+    let mut config = ComponentConfig::disabled();
+    config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        mempool_p2p_socket.ip(),
+        mempool_p2p_socket.port(),
+    );
+    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        mempool_socket.ip(),
+        mempool_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_sync_component_config(state_sync_socket: SocketAddr) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
+    let mut config = ComponentConfig::disabled();
+    config.state_sync = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        state_sync_socket.ip(),
+        state_sync_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_cm_compiler_component_configs(
+    class_manager_socket: SocketAddr,
+    sierra_compiler_socket: SocketAddr,
+) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
+    let mut config = ComponentConfig::disabled();
+    config.class_manager = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        class_manager_socket.ip(),
+        class_manager_socket.port(),
+    );
+    config.sierra_compiler = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        sierra_compiler_socket.ip(),
+        sierra_compiler_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_batcher_l1_provided_component_configs(
+    l1_provider_socket: SocketAddr,
+    batcher_socket: SocketAddr,
+    class_manager_socket: SocketAddr,
+) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
+    let mut config = ComponentConfig::disabled();
+    config.l1_provider = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        l1_provider_socket.ip(),
+        l1_provider_socket.port(),
+    );
+    config.batcher = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        batcher_socket.ip(),
+        batcher_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+
+    // Remote clients
+    config.class_manager = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        class_manager_socket.ip(),
+        class_manager_socket.port(),
+    );
+
+    config
+}
+
+fn get_consensus_component_configs(
+    state_sync_socket: SocketAddr,
+    class_manager_socket: SocketAddr,
+    batcher_socket: SocketAddr,
+) -> ComponentConfig {
+    let local_url = "127.0.0.1".to_string();
+    let mut config = ComponentConfig::disabled();
+    config.consensus_manager = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+
+    // Remote clients
+    config.state_sync = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        state_sync_socket.ip(),
+        state_sync_socket.port(),
+    );
+    config.class_manager = ReactiveComponentExecutionConfig::remote(
+        local_url.clone(),
+        class_manager_socket.ip(),
+        class_manager_socket.port(),
+    );
+    config.batcher = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        local_url.clone(),
+        batcher_socket.ip(),
+        batcher_socket.port(),
+    );
+
+    config
+}
+
+pub fn create_distributed_node_configs_2(
+    available_ports: &mut AvailablePorts,
+) -> Vec<NodeComponentConfigs> {
+    let batcher_socket = available_ports.get_next_local_host_socket();
+    let gateway_socket = available_ports.get_next_local_host_socket();
+    let mempool_socket = available_ports.get_next_local_host_socket();
+    let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+    let state_sync_socket = available_ports.get_next_local_host_socket();
+    let class_manager_socket = available_ports.get_next_local_host_socket();
+    let l1_provider_socket = available_ports.get_next_local_host_socket();
+    let sierra_compiler_socket = available_ports.get_next_local_host_socket();
+    let node_config = NodeComponentConfigs::new(
+        vec![
+            get_http_component_config(),
+            get_gw_component_config(
+                gateway_socket,
+                mempool_socket,
+                sierra_compiler_socket,
+                state_sync_socket,
+            ),
+            get_mempool_component_config(mempool_socket, mempool_p2p_socket),
+            get_sync_component_config(state_sync_socket),
+            get_cm_compiler_component_configs(class_manager_socket, sierra_compiler_socket),
+            get_batcher_l1_provided_component_configs(
+                l1_provider_socket,
+                batcher_socket,
+                class_manager_socket,
+            ),
+            get_consensus_component_configs(
+                state_sync_socket,
+                class_manager_socket,
+                batcher_socket,
+            ),
+        ],
+        // batcher is in executable index 1.
+        5,
+        // http server is in executable index 0.
+        0,
+    );
+    vec![node_config]
 }
 
 fn create_map<T, K, F>(items: Vec<T>, key_extractor: F) -> HashMap<K, T>
