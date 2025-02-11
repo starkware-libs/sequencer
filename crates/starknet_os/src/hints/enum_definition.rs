@@ -87,6 +87,7 @@ use crate::hints::hint_implementation::execution::{
     get_old_block_number_and_hash,
     initial_ge_required_gas,
     is_deprecated,
+    is_remaining_gas_lt_initial_budget,
     is_reverted,
     load_next_tx,
     log_enter_syscall,
@@ -997,26 +998,20 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         CheckExecution,
         check_execution,
         indoc! {r#"
-    return_values = ids.entry_point_return_values
-    if return_values.failure_flag != 0:
-        # Fetch the error, up to 100 elements.
-        retdata_size = return_values.retdata_end - return_values.retdata_start
-        error = memory.get_range(return_values.retdata_start, max(0, min(100, retdata_size)))
-
-        print("Invalid return value in execute_entry_point:")
-        print(f"  Class hash: {hex(ids.execution_context.class_hash)}")
-        print(f"  Selector: {hex(ids.execution_context.execution_info.selector)}")
-        print(f"  Size: {retdata_size}")
-        print(f"  Error (at most 100 elements): {error}")
-
     if execution_helper.debug_mode:
         # Validate the predicted gas cost.
+        # TODO(Yoni, 1/1/2025): remove this check once Cairo 0 is not supported.
         actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
         predicted = execution_helper.call_info.gas_consumed
-        assert actual == predicted, (
-            "Predicted gas costs are inconsistent with the actual execution; "
-            f"{predicted=}, {actual=}."
-        )
+        if execution_helper.call_info.tracked_resource.is_sierra_gas():
+            predicted = predicted - ids.ENTRY_POINT_INITIAL_BUDGET
+            assert actual == predicted, (
+                "Predicted gas costs are inconsistent with the actual execution; "
+                f"{predicted=}, {actual=}."
+            )
+        else:
+            assert predicted == 0, "Predicted gas cost must be zero in CairoSteps mode."
+
 
     # Exit call.
     syscall_handler.validate_and_discard_syscall_ptr(
@@ -1024,6 +1019,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     )
     execution_helper.exit_call()"#
         }
+    ),
+    (
+        IsRemainingGasLtInitialBudget,
+        is_remaining_gas_lt_initial_budget,
+        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET)"
     ),
     (
         CheckSyscallResponse,
