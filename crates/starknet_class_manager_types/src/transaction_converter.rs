@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
 use async_trait::async_trait;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash};
@@ -38,8 +40,9 @@ pub enum TransactionConverterError {
 
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
 
+#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
-pub trait TransactionConverterTrait {
+pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_internal_consensus_tx_to_consensus_tx(
         &self,
         tx: InternalConsensusTransaction,
