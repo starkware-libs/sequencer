@@ -1229,15 +1229,18 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         GetOldBlockNumberAndHash,
         get_old_block_number_and_hash,
         indoc! {r#"
-	(
-	    old_block_number, old_block_hash
-	) = execution_helper.get_old_block_number_and_hash()
-	assert old_block_number == ids.old_block_number,(
-	    "Inconsistent block number. "
-	    "The constant STORED_BLOCK_HASH_BUFFER is probably out of sync."
-	)
-	ids.old_block_hash = old_block_hash"#
-        }
+        old_block_number_and_hash = program_input['old_block_number_and_hash']
+        assert (
+            old_block_number_and_hash is not None
+        ), f"Block number is probably < {ids.STORED_BLOCK_HASH_BUFFER}."
+        (
+            old_block_number, old_block_hash
+        ) = old_block_number_and_hash
+        assert old_block_number == ids.old_block_number,(
+            "Inconsistent block number. "
+            "The constant STORED_BLOCK_HASH_BUFFER is probably out of sync."
+        )
+        ids.old_block_hash = old_block_hash"#}
     ),
     (
         FetchResult,
