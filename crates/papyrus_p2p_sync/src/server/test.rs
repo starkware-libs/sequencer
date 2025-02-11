@@ -503,7 +503,7 @@ fn create_mock_class_manager_with_blocks_up_to(
         storage_writer
             .begin_rw_txn()
             .unwrap()
-            .update_class_manager_block_marker(&block_number)
+            .update_class_manager_block_marker(&block_number.unchecked_next())
             .unwrap()
             .commit()
             .unwrap();

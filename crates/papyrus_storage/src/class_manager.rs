@@ -1,5 +1,6 @@
 //! Interface for handling data related to the class manager.
 // TODO(noamsp): Add Documentation
+
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
@@ -40,11 +41,7 @@ impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
 impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        markers_table.upsert(
-            &self.txn,
-            &MarkerKind::ClassManagerBlock,
-            &block_number.unchecked_next(),
-        )?;
+        markers_table.upsert(&self.txn, &MarkerKind::ClassManagerBlock, block_number)?;
         Ok(self)
     }
 

@@ -63,7 +63,10 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
                 }
             }
 
-            storage_writer.begin_rw_txn()?.update_class_manager_block_marker(&self.2)?.commit()?;
+            storage_writer
+                .begin_rw_txn()?
+                .update_class_manager_block_marker(&self.2.unchecked_next())?
+                .commit()?;
             Ok(())
         }
         .boxed()
