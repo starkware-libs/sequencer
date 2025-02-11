@@ -149,7 +149,7 @@ pub fn gen_signature_arg(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintR
     todo!()
 }
 
-pub fn start_tx(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+pub fn start_tx_long(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
 
@@ -252,5 +252,9 @@ pub fn get_old_block_number_and_hash(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '
 }
 
 pub fn fetch_result(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+    todo!()
+}
+
+pub fn skip_call(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
