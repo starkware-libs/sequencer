@@ -18,6 +18,7 @@ futures.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
+papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
