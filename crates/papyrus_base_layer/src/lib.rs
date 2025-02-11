@@ -71,6 +71,7 @@ pub trait BaseLayerContract {
 #[derive(Clone, Debug)]
 pub struct PriceSample {
     pub timestamp: u64,
+    // Fee is stored as u128 for compatibility with any base layer.
     pub base_fee_per_gas: u128,
     pub blob_fee: u128,
 }
