@@ -21,6 +21,12 @@ use crate::hints::hint_implementation::builtins::{
     selected_builtins,
     update_builtin_ptrs,
 };
+use crate::hints::hint_implementation::cairo1_revert::{
+    generate_dummy_os_output_segment,
+    prepare_state_entry_for_revert,
+    read_storage_key_for_revert,
+    write_storage_key_for_revert,
+};
 use crate::hints::hint_implementation::compiled_class::{
     assert_end_of_bytecode_segments,
     assign_bytecode_segments,
@@ -457,6 +463,31 @@ define_hint_enum!(
             ),
         )"#
         }
+    ),
+    (
+        PrepareStateEntryForRevert,
+        prepare_state_entry_for_revert,
+        indoc! {r#"# Fetch a state_entry in this hint and validate it in the update that comes next.
+        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
+        ids.new_state_entry = segments.add()
+
+        # Fetch the relevant storage.
+        storage = execution_helper.storage_by_address[ids.contract_address]"#}
+    ),
+    (
+        ReadStorageKeyForRevert,
+        read_storage_key_for_revert,
+        "memory[ap] = to_felt_or_relocatable(storage.read(key=ids.storage_key))"
+    ),
+    (
+        WriteStorageKeyForRevert,
+        write_storage_key_for_revert,
+        "storage.write(key=ids.storage_key, value=ids.value)"
+    ),
+    (
+        GenerateDummyOsOutputSegment,
+        generate_dummy_os_output_segment,
+        "memory[ap] = to_felt_or_relocatable(segments.gen_arg([[], 0]))"
     ),
     (
         AssignBytecodeSegments,

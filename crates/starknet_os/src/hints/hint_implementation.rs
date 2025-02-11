@@ -1,6 +1,7 @@
 pub mod block_context;
 pub mod bls_field;
 pub mod builtins;
+pub mod cairo1_revert;
 pub mod compiled_class;
 pub mod deprecated_compiled_class;
 pub mod execute_syscalls;
