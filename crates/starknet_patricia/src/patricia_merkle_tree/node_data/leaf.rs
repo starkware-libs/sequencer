@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::future::Future;
 
 use starknet_patricia_storage::db_object::{DBObject, Deserializable};
-use starknet_patricia_storage::storage_trait::StoragePrefix;
+use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
@@ -18,7 +18,7 @@ pub trait Leaf: Clone + Sync + Send + DBObject + Deserializable + Default + Debu
     type Input: Send + Sync + 'static;
     type Output: Send + Debug + 'static;
 
-    fn storage_prefix() -> StoragePrefix;
+    fn storage_prefix() -> DbKeyPrefix;
 
     /// Returns true if leaf is empty.
     fn is_empty(&self) -> bool;
