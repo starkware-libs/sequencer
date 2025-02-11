@@ -104,12 +104,15 @@ const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
     },
 };
 
-// {height: {proposal_id: (content, [proposal_ids])}}
+// {height: {proposal_commitment: (block_info, content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
 // store one of them.
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
-    HashMap<ProposalCommitment, (Vec<InternalConsensusTransaction>, ProposalId)>,
+    HashMap<
+        ProposalCommitment,
+        (ConsensusBlockInfo, Vec<InternalConsensusTransaction>, ProposalId),
+    >,
 >;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
@@ -334,7 +337,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
         info!(?id, ?init, "Reproposing.");
         let height = init.height;
-        let (_transactions, _) = self
+        let (_, _transactions, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
@@ -375,12 +378,13 @@ impl ConsensusContext for SequencerConsensusContext {
         self.interrupt_active_proposal().await;
         let proposal_id;
         let transactions;
+        let block_info;
         {
             let mut proposals = self
                 .valid_proposals
                 .lock()
                 .expect("Lock on active proposals was poisoned due to a previous panic");
-            (transactions, proposal_id) =
+            (block_info, transactions, proposal_id) =
                 proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().clone();
 
             proposals.retain(|&h, _| h > BlockNumber(height));
@@ -426,11 +430,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let _ = self
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
-                // TODO(dvir): use the real `BlockInfo` when consensus will save it.
-                block_info: starknet_api::block::BlockInfo {
-                    block_number: BlockNumber(height),
-                    ..Default::default()
-                },
+                block_info: convert_to_sn_api_block_info(block_info),
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions,
@@ -606,7 +606,7 @@ async fn build_proposal(
         .await
         .expect("Failed to send proposal init");
     proposal_sender
-        .send(ProposalPart::BlockInfo(block_info))
+        .send(ProposalPart::BlockInfo(block_info.clone()))
         .await
         .expect("Failed to send block info");
 
@@ -628,7 +628,7 @@ async fn build_proposal(
     valid_proposals
         .entry(proposal_init.height)
         .or_default()
-        .insert(proposal_commitment, (content, proposal_id));
+        .insert(proposal_commitment, (block_info, content, proposal_id));
     if fin_sender.send(proposal_commitment).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
@@ -784,7 +784,7 @@ async fn validate_proposal(
         warn!("Invalid BlockInfo.");
         return;
     }
-    if let Err(e) = initiate_validation(batcher, block_info, proposal_id, timeout).await {
+    if let Err(e) = initiate_validation(batcher, block_info.clone(), proposal_id, timeout).await {
         error!("Failed to initiate proposal validation. {e:?}");
         return;
     }
@@ -836,7 +836,7 @@ async fn validate_proposal(
     valid_proposals
         .entry(block_info_validation.height)
         .or_default()
-        .insert(built_block, (content, proposal_id));
+        .insert(built_block, (block_info, content, proposal_id));
     if fin_sender.send((built_block, received_fin)).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content ids");
@@ -908,20 +908,6 @@ async fn initiate_validation(
     let chrono_timeout = chrono::Duration::from_std(timeout + VALIDATE_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
-    let gas_prices = GasPrices {
-        strk_gas_prices: GasPriceVector {
-            l1_gas_price: NonzeroGasPrice::new(GasPrice(
-                block_info.l1_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
-            ))
-            .unwrap(),
-            l1_data_gas_price: NonzeroGasPrice::new(GasPrice(
-                block_info.l1_data_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
-            ))
-            .unwrap(),
-            l2_gas_price: NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap(),
-        },
-        ..TEMPORARY_GAS_PRICES
-    };
     let input = ValidateBlockInput {
         proposal_id,
         deadline: now + chrono_timeout,
@@ -930,13 +916,7 @@ async fn initiate_validation(
             number: BlockNumber::default(),
             hash: BlockHash::default(),
         }),
-        block_info: starknet_api::block::BlockInfo {
-            block_number: block_info.height,
-            block_timestamp: BlockTimestamp(block_info.timestamp),
-            sequencer_address: block_info.builder,
-            gas_prices,
-            use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
-        },
+        block_info: convert_to_sn_api_block_info(block_info),
     };
     debug!("Initiating validate proposal: input={input:?}");
     batcher.validate_block(input).await
@@ -1012,4 +992,27 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
         .send_proposal_content(input)
         .await
         .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
+}
+
+fn convert_to_sn_api_block_info(block_info: ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
+    let l1_gas_price = NonzeroGasPrice::new(GasPrice(
+        block_info.l1_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
+    ))
+    .unwrap();
+    let l1_data_gas_price = NonzeroGasPrice::new(GasPrice(
+        block_info.l1_data_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
+    ))
+    .unwrap();
+    let l2_gas_price = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
+
+    starknet_api::block::BlockInfo {
+        block_number: block_info.height,
+        block_timestamp: BlockTimestamp(block_info.timestamp),
+        sequencer_address: block_info.builder,
+        gas_prices: GasPrices {
+            strk_gas_prices: GasPriceVector { l1_gas_price, l1_data_gas_price, l2_gas_price },
+            ..TEMPORARY_GAS_PRICES
+        },
+        use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
+    }
 }
