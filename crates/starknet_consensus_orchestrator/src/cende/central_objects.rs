@@ -63,29 +63,29 @@ use super::{CendeAmbassadorError, CendeAmbassadorResult};
 #[path = "central_objects_test.rs"]
 mod central_objects_test;
 
-pub type CentralBouncerWeights = BouncerWeights;
-pub type CentralCompressedStateDiff = CentralStateDiff;
-pub type CentralSierraContractClass = SierraContractClass;
-pub type CentralCasmContractClass = CasmContractClass;
-pub type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
-pub type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
+pub(crate) type CentralBouncerWeights = BouncerWeights;
+pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
+pub(crate) type CentralSierraContractClass = SierraContractClass;
+pub(crate) type CentralCasmContractClass = CasmContractClass;
+pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
+pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct CentralResourcePrice {
-    pub price_in_wei: NonzeroGasPrice,
-    pub price_in_fri: NonzeroGasPrice,
+struct CentralResourcePrice {
+    price_in_wei: NonzeroGasPrice,
+    price_in_fri: NonzeroGasPrice,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct CentralBlockInfo {
-    pub block_number: BlockNumber,
-    pub block_timestamp: BlockTimestamp,
-    pub sequencer_address: ContractAddress,
-    pub l1_gas_price: CentralResourcePrice,
-    pub l1_data_gas_price: CentralResourcePrice,
-    pub l2_gas_price: CentralResourcePrice,
-    pub use_kzg_da: bool,
-    pub starknet_version: Option<StarknetVersion>,
+pub(crate) struct CentralBlockInfo {
+    block_number: BlockNumber,
+    block_timestamp: BlockTimestamp,
+    sequencer_address: ContractAddress,
+    l1_gas_price: CentralResourcePrice,
+    l1_data_gas_price: CentralResourcePrice,
+    l2_gas_price: CentralResourcePrice,
+    use_kzg_da: bool,
+    starknet_version: Option<StarknetVersion>,
 }
 
 impl From<(BlockInfo, StarknetVersion)> for CentralBlockInfo {
@@ -113,13 +113,13 @@ impl From<(BlockInfo, StarknetVersion)> for CentralBlockInfo {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralStateDiff {
-    pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
-    pub nonces: IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, Nonce>>,
-    pub storage_updates:
+pub(crate) struct CentralStateDiff {
+    address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
+    nonces: IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, Nonce>>,
+    storage_updates:
         IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>>,
-    pub declared_classes: IndexMap<ClassHash, CompiledClassHash>,
-    pub block_info: CentralBlockInfo,
+    declared_classes: IndexMap<ClassHash, CompiledClassHash>,
+    block_info: CentralBlockInfo,
 }
 
 // We convert to CentralStateDiff from ThinStateDiff since this object is already sent to consensus
@@ -158,13 +158,13 @@ impl From<(CommitmentStateDiff, CentralBlockInfo)> for CentralStateDiff {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralResourceBounds {
+struct CentralResourceBounds {
     #[serde(rename = "L1_GAS")]
-    pub l1_gas: ResourceBounds,
+    l1_gas: ResourceBounds,
     #[serde(rename = "L2_GAS")]
-    pub l2_gas: ResourceBounds,
+    l2_gas: ResourceBounds,
     #[serde(rename = "L1_DATA_GAS")]
-    pub l1_data_gas: ResourceBounds,
+    l1_data_gas: ResourceBounds,
 }
 
 impl From<AllResourceBounds> for CentralResourceBounds {
@@ -178,18 +178,18 @@ impl From<AllResourceBounds> for CentralResourceBounds {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralInvokeTransactionV3 {
-    pub resource_bounds: CentralResourceBounds,
-    pub tip: Tip,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub sender_address: ContractAddress,
-    pub calldata: Calldata,
-    pub nonce_data_availability_mode: u32,
-    pub fee_data_availability_mode: u32,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub hash_value: TransactionHash,
+struct CentralInvokeTransactionV3 {
+    resource_bounds: CentralResourceBounds,
+    tip: Tip,
+    signature: TransactionSignature,
+    nonce: Nonce,
+    sender_address: ContractAddress,
+    calldata: Calldata,
+    nonce_data_availability_mode: u32,
+    fee_data_availability_mode: u32,
+    paymaster_data: PaymasterData,
+    account_deployment_data: AccountDeploymentData,
+    hash_value: TransactionHash,
 }
 
 impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV3 {
@@ -215,25 +215,25 @@ impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
-pub enum CentralInvokeTransaction {
+enum CentralInvokeTransaction {
     #[serde(rename = "0x3")]
     V3(CentralInvokeTransactionV3),
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralDeployAccountTransactionV3 {
-    pub resource_bounds: CentralResourceBounds,
-    pub tip: Tip,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub class_hash: ClassHash,
-    pub contract_address_salt: ContractAddressSalt,
-    pub sender_address: ContractAddress,
-    pub constructor_calldata: Calldata,
-    pub nonce_data_availability_mode: u32,
-    pub fee_data_availability_mode: u32,
-    pub paymaster_data: PaymasterData,
-    pub hash_value: TransactionHash,
+struct CentralDeployAccountTransactionV3 {
+    resource_bounds: CentralResourceBounds,
+    tip: Tip,
+    signature: TransactionSignature,
+    nonce: Nonce,
+    class_hash: ClassHash,
+    contract_address_salt: ContractAddressSalt,
+    sender_address: ContractAddress,
+    constructor_calldata: Calldata,
+    nonce_data_availability_mode: u32,
+    fee_data_availability_mode: u32,
+    paymaster_data: PaymasterData,
+    hash_value: TransactionHash,
 }
 
 impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
@@ -264,7 +264,7 @@ impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
-pub enum CentralDeployAccountTransaction {
+enum CentralDeployAccountTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeployAccountTransactionV3),
 }
@@ -274,22 +274,22 @@ fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralDeclareTransactionV3 {
-    pub resource_bounds: CentralResourceBounds,
-    pub tip: Tip,
-    pub signature: TransactionSignature,
-    pub nonce: Nonce,
-    pub class_hash: ClassHash,
-    pub compiled_class_hash: CompiledClassHash,
-    pub sender_address: ContractAddress,
-    pub nonce_data_availability_mode: u32,
-    pub fee_data_availability_mode: u32,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub sierra_program_size: usize,
-    pub abi_size: usize,
-    pub sierra_version: (String, String, String),
-    pub hash_value: TransactionHash,
+struct CentralDeclareTransactionV3 {
+    resource_bounds: CentralResourceBounds,
+    tip: Tip,
+    signature: TransactionSignature,
+    nonce: Nonce,
+    class_hash: ClassHash,
+    compiled_class_hash: CompiledClassHash,
+    sender_address: ContractAddress,
+    nonce_data_availability_mode: u32,
+    fee_data_availability_mode: u32,
+    paymaster_data: PaymasterData,
+    account_deployment_data: AccountDeploymentData,
+    sierra_program_size: usize,
+    abi_size: usize,
+    sierra_version: (String, String, String),
+    hash_value: TransactionHash,
 }
 
 impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, TransactionHash)>
@@ -328,19 +328,19 @@ impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, Transaction
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "version")]
-pub enum CentralDeclareTransaction {
+enum CentralDeclareTransaction {
     #[serde(rename = "0x3")]
     V3(CentralDeclareTransactionV3),
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralL1HandlerTransaction {
-    pub contract_address: ContractAddress,
-    pub entry_point_selector: EntryPointSelector,
-    pub calldata: Calldata,
-    pub nonce: Nonce,
-    pub paid_fee_on_l1: Fee,
-    pub hash_value: TransactionHash,
+struct CentralL1HandlerTransaction {
+    contract_address: ContractAddress,
+    entry_point_selector: EntryPointSelector,
+    calldata: Calldata,
+    nonce: Nonce,
+    paid_fee_on_l1: Fee,
+    hash_value: TransactionHash,
 }
 
 impl From<L1HandlerTransaction> for CentralL1HandlerTransaction {
@@ -358,7 +358,7 @@ impl From<L1HandlerTransaction> for CentralL1HandlerTransaction {
 
 #[derive(Debug, PartialEq, Serialize)]
 #[serde(tag = "type")]
-pub enum CentralTransaction {
+enum CentralTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
     Invoke(CentralInvokeTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
@@ -405,10 +405,10 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>)> for C
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-pub struct CentralTransactionWritten {
-    pub tx: CentralTransaction,
+pub(crate) struct CentralTransactionWritten {
+    tx: CentralTransaction,
     // The timestamp is required for monitoring data, we use the block timestamp for this.
-    pub time_created: u64,
+    time_created: u64,
 }
 
 // This function gets SierraContractClass only for declare_tx, otherwise use None.
@@ -428,7 +428,7 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>, u64)>
 }
 
 // Converts the CasmContractClass into a format that serializes into the python object.
-pub fn casm_contract_class_central_format(
+pub(crate) fn casm_contract_class_central_format(
     compiled_class_hash: CasmContractClass,
 ) -> CentralCasmContractClass {
     CentralCasmContractClass {
@@ -444,7 +444,7 @@ pub fn casm_contract_class_central_format(
 /// A mapping from a transaction execution resource to its actual usage.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Debug, Eq, PartialEq, Serialize)]
-pub struct ResourcesMapping(pub HashMap<String, usize>);
+struct ResourcesMapping(pub HashMap<String, usize>);
 
 impl From<TransactionReceipt> for ResourcesMapping {
     fn from(receipt: TransactionReceipt) -> ResourcesMapping {
@@ -467,14 +467,14 @@ impl From<TransactionReceipt> for ResourcesMapping {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Debug, Serialize)]
 pub struct CentralTransactionExecutionInfo {
-    pub validate_call_info: Option<CallInfo>,
-    pub execute_call_info: Option<CallInfo>,
-    pub fee_transfer_call_info: Option<CallInfo>,
-    pub actual_fee: Fee,
-    pub da_gas: GasVector,
-    pub actual_resources: ResourcesMapping,
-    pub revert_error: Option<String>,
-    pub total_gas: GasVector,
+    validate_call_info: Option<CallInfo>,
+    execute_call_info: Option<CallInfo>,
+    fee_transfer_call_info: Option<CallInfo>,
+    actual_fee: Fee,
+    da_gas: GasVector,
+    actual_resources: ResourcesMapping,
+    revert_error: Option<String>,
+    total_gas: GasVector,
 }
 
 impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {

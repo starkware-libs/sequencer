@@ -7,14 +7,11 @@ use starknet_class_manager_types::MockClassManagerClient;
 use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
 
-const HEIGHT_TO_WRITE: u64 = 10;
+const HEIGHT_TO_WRITE: BlockNumber = BlockNumber(10);
 
 impl BlobParameters {
-    fn with_block_number(block_number: u64) -> Self {
-        Self {
-            block_info: BlockInfo { block_number: BlockNumber(block_number), ..Default::default() },
-            ..Default::default()
-        }
+    fn with_block_number(block_number: BlockNumber) -> Self {
+        Self { block_info: BlockInfo { block_number, ..Default::default() }, ..Default::default() }
     }
 }
 
@@ -41,12 +38,14 @@ async fn write_prev_height_blob(
 
     if let Some(prev_block) = prev_block {
         cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters::with_block_number(prev_block))
+            .prepare_blob_for_next_height(BlobParameters::with_block_number(BlockNumber(
+                prev_block,
+            )))
             .await
             .unwrap();
     }
 
-    let receiver = cende_ambassador.write_prev_height_blob(BlockNumber(HEIGHT_TO_WRITE));
+    let receiver = cende_ambassador.write_prev_height_blob(HEIGHT_TO_WRITE);
 
     assert_eq!(receiver.await.unwrap(), expected_result);
     mock.expect(expected_calls).assert();
@@ -54,37 +53,31 @@ async fn write_prev_height_blob(
 
 #[tokio::test]
 async fn prepare_blob_for_next_height() {
-    let cende_ambassador = CendeAmbassador::new(
-        CendeConfig { recorder_url: "http://parsable_url".parse().unwrap(), ..Default::default() },
-        Arc::new(MockClassManagerClient::new()),
-    );
+    let cende_ambassador =
+        CendeAmbassador::new(CendeConfig::default(), Arc::new(MockClassManagerClient::new()));
 
     cende_ambassador
         .prepare_blob_for_next_height(BlobParameters::with_block_number(HEIGHT_TO_WRITE))
         .await
         .unwrap();
     assert_eq!(
-        cende_ambassador.prev_height_blob.lock().await.as_ref().unwrap().block_number.0,
+        cende_ambassador.prev_height_blob.lock().await.as_ref().unwrap().block_number,
         HEIGHT_TO_WRITE
     );
 }
 
 #[tokio::test]
 async fn no_write_at_skipped_height() {
-    const SKIP_WRITE_HEIGHT: u64 = HEIGHT_TO_WRITE;
+    const SKIP_WRITE_HEIGHT: BlockNumber = HEIGHT_TO_WRITE;
     let cende_ambassador = CendeAmbassador::new(
-        CendeConfig {
-            recorder_url: "http://parsable_url".parse().unwrap(),
-            skip_write_height: Some(BlockNumber(SKIP_WRITE_HEIGHT)),
-            ..Default::default()
-        },
+        CendeConfig { skip_write_height: Some(SKIP_WRITE_HEIGHT), ..Default::default() },
         Arc::new(MockClassManagerClient::new()),
     );
 
     // Returns false since the blob is missing and the height is different than skip_write_height.
     assert!(
-        !cende_ambassador.write_prev_height_blob(BlockNumber(HEIGHT_TO_WRITE + 1)).await.unwrap()
+        !cende_ambassador.write_prev_height_blob(HEIGHT_TO_WRITE.unchecked_next()).await.unwrap()
     );
 
-    assert!(cende_ambassador.write_prev_height_blob(BlockNumber(HEIGHT_TO_WRITE)).await.unwrap());
+    assert!(cende_ambassador.write_prev_height_blob(HEIGHT_TO_WRITE).await.unwrap());
 }
