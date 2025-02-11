@@ -14,6 +14,7 @@ function install_essential_deps_linux() {
             jq \
             libssl-dev \
             lsb-release \
+            parallel \
             pkg-config \
             ripgrep \
             software-properties-common \
