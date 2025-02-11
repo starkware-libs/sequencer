@@ -9,6 +9,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+apollo_reverts.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true

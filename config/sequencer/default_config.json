@@ -889,15 +889,15 @@
     "privacy": "Public",
     "value": "consensus_proposals"
   },
-  "consensus_manager_config.revert_up_to_and_including": {
-    "description": "The batcher will revert blocks up to this block number (including). Use this configurations carefully to prevent significant revert operations and data loss.",
-    "privacy": "Private",
-    "value": 18446744073709551615
+  "consensus_manager_config.revert_config.revert_up_to_and_including": {
+    "description": "The component will revert blocks up to this block number (including).",
+    "pointer_target": "revert_config.revert_up_to_and_including",
+    "privacy": "Public"
   },
-  "consensus_manager_config.revert_up_to_and_including.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+  "consensus_manager_config.revert_config.should_revert": {
+    "description": "If set true, the component would revert blocks and do nothing else.",
+    "pointer_target": "revert_config.should_revert",
+    "privacy": "Public"
   },
   "consensus_manager_config.votes_topic": {
     "description": "The topic for consensus votes.",
@@ -1148,6 +1148,16 @@
     "description": "A required param! The URL of the Pythonic cende_recorder",
     "param_type": "String",
     "privacy": "TemporaryValue"
+  },
+  "revert_config.revert_up_to_and_including": {
+    "description": "The component will revert blocks up to this block number (including).",
+    "privacy": "TemporaryValue",
+    "value": 18446744073709551615
+  },
+  "revert_config.should_revert": {
+    "description": "If set true, the component would revert blocks and do nothing else.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "state_sync_config.central_sync_client_config.#is_none": {
     "description": "Flag for an optional field.",
