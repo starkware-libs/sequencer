@@ -361,7 +361,8 @@ where
     Fut: Future<Output = TransactionHash> + 'a,
 {
     let mut tx_hashes = vec![];
-    for rpc_tx in rpc_txs {
+    for (i, rpc_tx) in rpc_txs.into_iter().enumerate() {
+        println!("Sending tx: {}", i);
         tokio::time::sleep(Duration::from_millis(1000 / TPS)).await;
         tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
     }
@@ -443,7 +444,7 @@ pub fn create_batcher_config(
     chain_info: ChainInfo,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    let concurrency_enabled = true;
+    let concurrency_enabled = false;
     BatcherConfig {
         storage: batcher_storage_config,
         block_builder_config: BlockBuilderConfig {

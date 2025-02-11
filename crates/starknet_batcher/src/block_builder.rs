@@ -212,7 +212,9 @@ impl BlockBuilderTrait for BlockBuilder {
             }
 
             let mut executor_input_chunk = vec![];
+            let mut i = 0;
             for tx in &next_tx_chunk {
+                println!("{i}: converting tx to executable tx");
                 // TODO(yair): Avoid this clone.
                 let executable_tx = match tx {
                     InternalConsensusTransaction::RpcTransaction(tx) => Transaction::Account(
@@ -224,10 +226,15 @@ impl BlockBuilderTrait for BlockBuilder {
                         Transaction::L1Handler(tx.clone())
                     }
                 };
+                println!("{i}: converted tx to executable tx, calling new_for_sequencing");
                 let executable_tx = BlockifierTransaction::new_for_sequencing(executable_tx);
+                println!("{i}: called new_for_sequencing, pushing to executor_input_chunk");
+                i += 1;
                 executor_input_chunk.push(executable_tx);
             }
+            println!("calling add_txs_to_block");
             let results = self.executor.add_txs_to_block(&executor_input_chunk);
+            println!("called add_txs_to_block, collecting execution results");
             trace!("Transaction execution results: {:?}", results);
             block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
@@ -239,6 +246,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 self.execution_params.fail_on_err,
             )
             .await?;
+            println!("collected execution results");
         }
         let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
             self.executor.close_block()?;

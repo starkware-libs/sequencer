@@ -106,15 +106,18 @@ impl<S: StateReader> TransactionExecutor<S> {
         &mut self,
         tx: &Transaction,
     ) -> TransactionExecutorResult<TransactionExecutionOutput> {
+        println!("Inside execute, creating transactional state");
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
 
         // Executing a single transaction cannot be done in a concurrent mode.
         let concurrency_mode = false;
+        println!("Inside execute, calling execute_raw");
         let tx_execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
-        match tx_execution_result {
+        println!("Inside execute, executed, matching result");
+        let r = match tx_execution_result {
             Ok(tx_execution_info) => {
                 let state_diff = transactional_state.to_state_diff()?.state_maps;
                 let tx_state_changes_keys = state_diff.keys();
@@ -132,22 +135,35 @@ impl<S: StateReader> TransactionExecutor<S> {
                 transactional_state.abort();
                 Err(TransactionExecutorError::TransactionExecutionError(error))
             }
-        }
+        };
+        println!("Inside execute, returning result");
+        r
     }
 
     fn execute_txs_sequentially_inner(
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        println!("Inside execute_txs_sequentially_inner, executing transactions");
         let mut results = Vec::new();
+        let mut i = 0;
         for tx in txs {
+            println!("{i}: calling execute");
             match self.execute(tx) {
                 Ok((tx_execution_info, state_diff)) => {
+                    println!("{i}: executed, pushing to results");
                     results.push(Ok((tx_execution_info, state_diff)))
                 }
-                Err(TransactionExecutorError::BlockFull) => break,
-                Err(error) => results.push(Err(error)),
+                Err(TransactionExecutorError::BlockFull) => {
+                    println!("{i}: block full, breaking");
+                    break
+                },
+                Err(error) => {
+                    println!("{i}: error, pushing to results");
+                    results.push(Err(error))
+                }
             }
+            i += 1;
         }
         results
     }
@@ -199,9 +215,11 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         if !self.config.concurrency_config.enabled {
+            println!("Inside execute_txs, executing transactions sequentially");
             log::debug!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs)
         } else {
+            println!("Inside execute_txs, executing transactions concurrently");
             log::debug!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
             let n_workers = self.config.concurrency_config.n_workers;
@@ -219,7 +237,9 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             );
             txs.chunks(chunk_size)
                 .fold_while(Vec::new(), |mut results, chunk| {
+                    println!("Inside execute_txs, executing chunk");
                     let chunk_results = self.execute_chunk(chunk);
+                    println!("Inside execute_txs, executed chunk, extending results");
                     if chunk_results.len() < chunk.len() {
                         // Block is full.
                         results.extend(chunk_results);

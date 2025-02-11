@@ -165,6 +165,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        println!("Inside get_compiled_class");
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
@@ -173,6 +174,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
         {
             match self.state.get_compiled_class(class_hash) {
                 Err(StateError::UndeclaredClassHash(class_hash)) => {
+                    println!("")
                     cache.set_declared_contract_initial_value(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
                         class_hash,

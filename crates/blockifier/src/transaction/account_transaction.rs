@@ -393,16 +393,22 @@ impl AccountTransaction {
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
+        println!("Inside handle_validate_tx 111");
         if self.execution_flags.validate {
+            println!("Inside handle_validate_tx 222");
             let limit_steps_by_resources = self.execution_flags.charge_fee;
             let remaining_validation_gas = &mut remaining_gas.limit_usage(
                 tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
             );
-            Ok(self
-                .validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?
-                .inspect(|call_info| {
-                    remaining_gas.subtract_used_gas(call_info);
-                }))
+            println!("Inside handle_validate_tx 333");
+            let x = self.validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?;
+            println!("Inside handle_validate_tx 444");
+            let y = x.inspect(|call_info| {
+                remaining_gas.subtract_used_gas(call_info);
+            });
+            println!("Inside handle_validate_tx 555");
+
+            Ok(y)
         } else {
             Ok(None)
         }
@@ -634,9 +640,11 @@ impl AccountTransaction {
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
+        println!("Inside run_revertible 111");
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info =
             self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+        println!("Inside run_revertible 222");
 
         let mut execution_context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
@@ -651,26 +659,32 @@ impl AccountTransaction {
                 ),
             )),
         );
+        println!("Inside run_revertible 333");
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
             &validate_call_info,
             &self.tx_type(),
             self.calldata_length(),
         );
+        println!("Inside run_revertible 444");
 
         // Save the state changes resulting from running `validate_tx`, to be used later for
         // resource and fee calculation.
         let validate_state_cache = state.borrow_updated_state_cache()?.clone();
+        println!("Inside run_revertible 555");
 
         // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
         let mut execution_state = TransactionalState::create_transactional(state);
+        println!("Inside run_revertible 666");
 
         let execution_result =
             self.run_execute(&mut execution_state, &mut execution_context, remaining_gas);
+        println!("Inside run_revertible 777");
 
         // Pre-compute cost in case of revert.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
+        println!("Inside run_revertible 888");
         // Get the receipt only in case of revert.
         let get_revert_receipt = || {
             TransactionReceipt::from_account_tx(
@@ -685,9 +699,11 @@ impl AccountTransaction {
                 execution_context.sierra_gas_revert_tracker.get_gas_consumed(),
             )
         };
+        println!("Inside run_revertible 999");
 
         match execution_result {
             Ok(execute_call_info) => {
+                println!("Inside run_revertible 101010");
                 // When execution succeeded, calculate the actual required fee before committing the
                 // transactional state. If max_fee is insufficient, revert the `run_execute` part.
                 let tx_receipt = TransactionReceipt::from_account_tx(
@@ -707,6 +723,7 @@ impl AccountTransaction {
                     0,
                     GasAmount(0),
                 );
+                println!("Inside run_revertible 111111");
                 // Post-execution checks.
                 let post_execution_report = PostExecutionReport::new(
                     &mut execution_state,
@@ -714,6 +731,7 @@ impl AccountTransaction {
                     &tx_receipt,
                     self.execution_flags.charge_fee,
                 )?;
+                println!("Inside run_revertible 121212");
                 match post_execution_report.error() {
                     Some(post_execution_error) => {
                         // Post-execution check failed. Revert the execution, compute the final fee
@@ -743,6 +761,7 @@ impl AccountTransaction {
                 }
             }
             Err(execution_error) => {
+                println!("Inside run_revertible 131313");
                 let revert_receipt = get_revert_receipt();
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
@@ -752,6 +771,7 @@ impl AccountTransaction {
                     &revert_receipt,
                     self.execution_flags.charge_fee,
                 )?;
+                println!("Inside run_revertible 141414");
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
                     gen_tx_execution_error_trace(&execution_error).into(),
@@ -790,11 +810,18 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
         tx_context: Arc<TransactionContext>,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
+        println!("Inside AccountTransaction::run_or_revert, 111");
         if self.is_non_revertible(&tx_context.tx_info) {
-            return self.run_non_revertible(state, tx_context, remaining_gas);
+            println!("Inside AccountTransaction::run_or_revert, 222");
+            let x = self.run_non_revertible(state, tx_context, remaining_gas);
+            println!("Inside AccountTransaction::run_or_revert, 333");
+            return x;
         }
 
-        self.run_revertible(state, tx_context, remaining_gas)
+        println!("Inside AccountTransaction::run_or_revert, 444");
+        let x = self.run_revertible(state, tx_context, remaining_gas);
+        println!("Inside AccountTransaction::run_or_revert, 555");
+        x
     }
 }
 
@@ -805,15 +832,20 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         block_context: &BlockContext,
         concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
+        println!("Inside AccountTransaction::execute_raw, 111");
         let tx_context = Arc::new(block_context.to_tx_context(self));
+        println!("Inside AccountTransaction::execute_raw, 222");
         self.verify_tx_version(tx_context.tx_info.version())?;
+        println!("Inside AccountTransaction::execute_raw, 333");
 
         // Nonce and fee check should be done before running user code.
         let strict_nonce_check = true;
         self.perform_pre_validation_stage(state, &tx_context, strict_nonce_check)?;
+        println!("Inside AccountTransaction::execute_raw, 444");
 
         // Run validation and execution.
         let initial_gas = tx_context.initial_sierra_gas();
+        println!("Inside AccountTransaction::execute_raw, 555");
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
@@ -826,6 +858,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                     gas: total_gas,
                 },
         } = self.run_or_revert(state, &mut GasCounter::new(initial_gas), tx_context.clone())?;
+        println!("Inside AccountTransaction::execute_raw, 666");
         let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,
@@ -833,6 +866,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             self.execution_flags.charge_fee,
             concurrency_mode,
         )?;
+        println!("Inside AccountTransaction::execute_raw, 777");
 
         let tx_execution_info = TransactionExecutionInfo {
             validate_call_info,
@@ -846,6 +880,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             },
             revert_error,
         };
+        println!("Inside AccountTransaction::execute_raw, 888");
         Ok(tx_execution_info)
     }
 }

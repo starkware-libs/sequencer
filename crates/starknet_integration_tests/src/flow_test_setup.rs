@@ -30,7 +30,7 @@ use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, Instrument};
 
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
@@ -139,7 +139,13 @@ pub struct FlowSequencerSetup {
 }
 
 impl FlowSequencerSetup {
-    #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
+    #[instrument(skip(
+        accounts,
+        chain_info,
+        consensus_manager_config,
+        mempool_p2p_config,
+        state_sync_config
+    ))]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
         node_index: usize,
@@ -199,7 +205,7 @@ impl FlowSequencerSetup {
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Run the sequencer node.
-        tokio::spawn(run_component_servers(servers));
+        tokio::spawn(run_component_servers(servers).in_current_span());
 
         Self {
             node_index,

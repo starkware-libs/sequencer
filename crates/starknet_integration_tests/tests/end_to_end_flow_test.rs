@@ -75,6 +75,10 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // Build multiple heights to ensure heights are committed.
     for (height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id) in create_test_blocks()
     {
+        println!(
+            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! height={}",
+            height
+        );
         debug!("Starting height {}.", height);
         // Create and send transactions.
         let expected_batched_tx_hashes = run_test_scenario(

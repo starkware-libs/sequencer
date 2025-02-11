@@ -8,6 +8,7 @@ use starknet_api::test_utils::rpc_tx_to_json;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::MockGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
+use tracing::Instrument;
 
 use crate::config::HttpServerConfig;
 use crate::http_server::HttpServer;
@@ -25,10 +26,12 @@ impl HttpTestClient {
     }
 
     pub async fn assert_add_tx_success(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+        let copy = rpc_tx.clone();
         let response = self.add_tx(rpc_tx).await;
         assert!(response.status().is_success());
         let text = response.text().await.unwrap();
-        serde_json::from_str(&text).unwrap_or_else(|_| panic!("Gateway responded with: {}", text))
+        serde_json::from_str(&text)
+            .unwrap_or_else(|_| panic!("Gateway responded with: {}. Tx: {:?}", text, copy))
     }
 
     // TODO(Tsabary): implement when usage eventually arises.
@@ -76,7 +79,7 @@ pub async fn http_client_server_setup(
     // Create and run the server.
     let mut http_server =
         HttpServer::new(http_server_config.clone(), Arc::new(mock_gateway_client));
-    tokio::spawn(async move { http_server.run().await });
+    tokio::spawn(async move { http_server.run().in_current_span().await }.in_current_span());
 
     let HttpServerConfig { ip, port } = http_server_config;
     let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));

@@ -190,7 +190,9 @@ impl CallEntryPoint {
         }
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
+        println!("calling state.get_compiled_class with class_hash: {:?}", class_hash);
         let compiled_class = state.get_compiled_class(class_hash)?;
+        println!("got compiled class");
 
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,

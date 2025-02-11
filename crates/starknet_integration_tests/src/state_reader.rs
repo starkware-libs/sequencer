@@ -188,9 +188,12 @@ fn initialize_class_manager_test_state(
     let TestClasses { cairo0_contract_classes, cairo1_contract_classes } = classes;
 
     for (class_hash, casm) in cairo0_contract_classes {
-        class_manager_storage.set_deprecated_class(class_hash, casm.try_into().unwrap()).unwrap();
+        println!("deprecated class: {}", class_hash.0.to_hex_string());
+        let x = starknet_api::contract_class::ContractClass::V0(casm);
+        class_manager_storage.set_deprecated_class(class_hash, x.try_into().unwrap()).unwrap();
     }
     for (class_hash, (sierra, casm)) in cairo1_contract_classes {
+        println!("class: {}", class_hash.0.to_hex_string());
         let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
         let class = ContractClass::V1((casm, sierra_version));
         let compiled_class_hash = class.compiled_class_hash();
