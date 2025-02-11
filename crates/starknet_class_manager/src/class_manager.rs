@@ -73,6 +73,13 @@ impl<S: ClassStorage> ClassManager<S> {
         self.classes.set_deprecated_class(class_id, class)?;
         Ok(())
     }
+
+    pub fn get_deprecated_executable(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerResult<RawExecutableClass> {
+        Ok(self.classes.get_deprecated_class(class_id)?)
+    }
 }
 
 pub fn create_class_manager(

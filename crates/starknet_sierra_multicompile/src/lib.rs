@@ -81,15 +81,12 @@ impl SierraCompiler {
     // TODO(Elin): move (de)serialization to infra. layer.
     pub fn compile(&self, class: RawClass) -> SierraCompilerResult<RawExecutableHashedClass> {
         let class = SierraContractClass::try_from(class)?;
-        let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
-            .map_err(SierraCompilerError::SierraVersionFormat)?;
         let class = into_contract_class_for_compilation(&class);
 
         // TODO(Elin): handle resources (whether here or an infra. layer load-balancing).
         let executable_class = self.compiler.compile(class)?;
         // TODO(Elin): consider spawning a worker for hash calculation.
         let executable_class_hash = CompiledClassHash(executable_class.compiled_class_hash());
-        let executable_class = ContractClass::V1((executable_class, sierra_version));
         let executable_class = RawExecutableClass::try_from(executable_class)?;
 
         Ok((executable_class, executable_class_hash))

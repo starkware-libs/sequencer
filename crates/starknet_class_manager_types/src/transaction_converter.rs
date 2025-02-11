@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::contract_class::{ClassInfo, SierraVersion};
+use starknet_api::contract_class::{self, ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
     AccountTransaction,
@@ -192,11 +192,14 @@ impl TransactionConverterTrait for TransactionConverter {
             }
             InternalRpcTransactionWithoutTxHash::Declare(tx) => {
                 let sierra = self.class_manager_client.get_sierra(tx.class_hash).await?;
+                let sierra_version = SierraVersion::from_str(&sierra.contract_class_version)?;
+                let contract_class =
+                    self.class_manager_client.get_executable(tx.class_hash).await?;
                 let class_info = ClassInfo {
-                    contract_class: self.class_manager_client.get_executable(tx.class_hash).await?,
+                    contract_class: ContractClass::V1((contract_class, sierra_version.clone())),
                     sierra_program_length: sierra.sierra_program.len(),
                     abi_length: sierra.abi.len(),
-                    sierra_version: SierraVersion::from_str(&sierra.contract_class_version)?,
+                    sierra_version,
                 };
 
                 Ok(AccountTransaction::Declare(executable_transaction::DeclareTransaction {

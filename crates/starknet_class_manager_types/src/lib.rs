@@ -4,11 +4,11 @@ use std::error::Error;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "testing")]
 use mockall::automock;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
@@ -38,7 +38,7 @@ pub type ClassManagerRequestAndResponseSender =
 // TODO(Elin): export.
 pub type ClassId = ClassHash;
 pub type Class = SierraContractClass;
-pub type ExecutableClass = ContractClass;
+pub type ExecutableClass = CasmContractClass;
 pub type ExecutableClassHash = CompiledClassHash;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,6 +65,11 @@ pub trait ClassManagerClient: Send + Sync {
         class_id: ClassId,
         class: DeprecatedClass,
     ) -> ClassManagerClientResult<()>;
+
+    async fn get_deprecated_executable(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerClientResult<DeprecatedClass>;
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
@@ -126,6 +131,7 @@ pub enum ClassManagerClientError {
 pub enum ClassManagerRequest {
     AddClass(Class),
     AddDeprecatedClass(ClassId, DeprecatedClass),
+    GetDeprecatedExecutable(ClassId),
     GetExecutable(ClassId),
     GetSierra(ClassId),
 }
@@ -134,6 +140,7 @@ pub enum ClassManagerRequest {
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ClassHashes>),
     AddDeprecatedClass(ClassManagerResult<()>),
+    GetDeprecatedExecutable(ClassManagerResult<DeprecatedClass>),
     GetExecutable(ClassManagerResult<ExecutableClass>),
     GetSierra(ClassManagerResult<Class>),
 }
@@ -190,6 +197,20 @@ where
             Direct
         )
     }
+
+    async fn get_deprecated_executable(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerClientResult<DeprecatedClass> {
+        let request = ClassManagerRequest::GetDeprecatedExecutable(class_id);
+        handle_all_response_variants!(
+            ClassManagerResponse,
+            GetDeprecatedExecutable,
+            ClassManagerClientError,
+            ClassManagerError,
+            Direct
+        )
+    }
 }
 
 pub struct EmptyClassManagerClient;
@@ -212,10 +233,26 @@ impl ClassManagerClient for EmptyClassManagerClient {
         &self,
         _class_id: ClassId,
     ) -> ClassManagerClientResult<ExecutableClass> {
-        Ok(ExecutableClass::V0(Default::default()))
+        let empty_casm = CasmContractClass {
+            compiler_version: "0.1.0".to_string(),
+            prime: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        };
+        Ok(empty_casm)
     }
 
     async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Class> {
+        Ok(Default::default())
+    }
+
+    async fn get_deprecated_executable(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<DeprecatedClass> {
         Ok(Default::default())
     }
 }
