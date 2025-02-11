@@ -15,6 +15,7 @@ pub mod output;
 pub mod patricia;
 pub mod secp;
 pub mod state;
+pub mod stateful_compression;
 pub mod stateless_compression;
 pub mod syscalls;
 pub mod transaction_hash;
