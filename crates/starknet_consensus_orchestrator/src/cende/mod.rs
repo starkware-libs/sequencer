@@ -30,6 +30,7 @@ use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use tokio::sync::Mutex;
@@ -41,6 +42,8 @@ use url::Url;
 pub enum CendeAmbassadorError {
     #[error(transparent)]
     ClassManagerError(#[from] ClassManagerClientError),
+    #[error("Class of hash: {class_hash} not found")]
+    ClassNotFound { class_hash: ClassHash },
     #[error(transparent)]
     StarknetApiError(#[from] starknet_api::StarknetApiError),
 }

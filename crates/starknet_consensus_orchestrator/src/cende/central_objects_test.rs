@@ -646,12 +646,10 @@ async fn test_transactions_conversion() {
         .expect_get_sierra()
         .with(eq(declare_class_hash()))
         .times(2)
-        .returning(|_| Ok(sierra_contract_class()));
-    mock_class_manager
-        .expect_get_executable()
-        .with(eq(declare_class_hash()))
-        .times(2)
-        .returning(|_| Ok(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0)))));
+        .returning(|_| Ok(Some(sierra_contract_class())));
+    mock_class_manager.expect_get_executable().with(eq(declare_class_hash())).times(2).returning(
+        |_| Ok(Some(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0))))),
+    );
     let cende_ambassador =
         CendeAmbassador::new(CendeConfig::default(), Arc::new(mock_class_manager));
 

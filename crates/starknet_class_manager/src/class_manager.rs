@@ -42,7 +42,8 @@ impl<S: ClassStorage> ClassManager<S> {
         let sierra_class =
             SierraContractClass::try_from(class.clone()).map_err(ClassManagerError::from)?;
         let class_hash = sierra_class.calculate_class_hash();
-        if let Ok(executable_class_hash) = self.classes.get_executable_class_hash(class_hash) {
+        if let Ok(Some(executable_class_hash)) = self.classes.get_executable_class_hash(class_hash)
+        {
             // Class already exists.
             let class_hashes = ClassHashes { class_hash, executable_class_hash };
             return Ok(class_hashes);
@@ -57,11 +58,14 @@ impl<S: ClassStorage> ClassManager<S> {
         Ok(class_hashes)
     }
 
-    pub fn get_executable(&self, class_id: ClassId) -> ClassManagerResult<RawExecutableClass> {
+    pub fn get_executable(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerResult<Option<RawExecutableClass>> {
         Ok(self.classes.get_executable(class_id)?)
     }
 
-    pub fn get_sierra(&self, class_id: ClassId) -> ClassManagerResult<RawClass> {
+    pub fn get_sierra(&self, class_id: ClassId) -> ClassManagerResult<Option<RawClass>> {
         Ok(self.classes.get_sierra(class_id)?)
     }
 
