@@ -970,11 +970,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     )
 
     # Prepare a short callable to save code duplication.
-    exit_syscall = lambda selector: execution_helper.os_logger.exit_syscall(
+    exit_syscall = lambda: execution_helper.os_logger.exit_syscall(
         n_steps=current_step,
         builtin_ptrs=ids.builtin_ptrs,
         range_check_ptr=ids.range_check_ptr,
-        selector=selector,
+        selector=ids.selector,
     )"#
         }
     ),
@@ -1488,11 +1488,11 @@ memory[ap] = 1 if case != 'both' else 0"#
     )
 
     # Prepare a short callable to save code duplication.
-    exit_syscall = lambda selector: execution_helper.os_logger.exit_syscall(
+    exit_syscall = lambda: execution_helper.os_logger.exit_syscall(
         n_steps=current_step,
         builtin_ptrs=ids.builtin_ptrs,
         range_check_ptr=ids.range_check_ptr,
-        selector=selector,
+        selector=ids.selector,
     )"#
         }
     ),
