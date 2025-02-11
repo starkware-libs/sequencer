@@ -21,8 +21,6 @@ use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use starknet_sequencer_metrics::metric_definitions::{
-    CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
-    CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_NUM_SENT_MESSAGES,
@@ -60,8 +58,6 @@ impl ConsensusManager {
 
         let network_manager_metrics = Some(NetworkMetrics {
             num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
-            num_active_inbound_sessions: CONSENSUS_NUM_ACTIVE_INBOUND_SESSIONS,
-            num_active_outbound_sessions: CONSENSUS_NUM_ACTIVE_OUTBOUND_SESSIONS,
             broadcast_metrics: Some(BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_NUM_RECEIVED_MESSAGES,

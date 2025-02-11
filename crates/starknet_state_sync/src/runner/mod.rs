@@ -93,10 +93,11 @@ impl StateSyncRunner {
 
         let network_manager_metrics = Some(NetworkMetrics {
             num_connected_peers: STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-            num_active_inbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
-            num_active_outbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
             broadcast_metrics: None,
-            sqmr_metrics: Some(SqmrNetworkMetrics {}),
+            sqmr_metrics: Some(SqmrNetworkMetrics {
+                num_active_inbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+                num_active_outbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+            }),
         });
         let mut network_manager = network_manager::NetworkManager::new(
             network_config,
