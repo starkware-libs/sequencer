@@ -1,8 +1,8 @@
 use rstest::rstest;
 use rstest_reuse::{apply, template};
 
-#[cfg(test)]
 use crate::test_utils::{CairoVersion, RunnableCairo1};
+
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
@@ -25,7 +25,6 @@ fn cairo_version(
 ) {
 }
 
-#[cfg(test)]
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
