@@ -161,6 +161,12 @@ pub fn check_execution(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintRes
     todo!()
 }
 
+pub fn is_remaining_gas_lt_initial_budget(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>,
+) -> HintResult {
+    todo!()
+}
+
 pub fn check_syscall_response(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
