@@ -12,12 +12,10 @@ use rstest::rstest;
 use tracing::info;
 use tracing_test::traced_test;
 
-const CAIRO0_FEATURE_CONTRACTS_DIR: &str =
-    "../blockifier_test_utils/resources/feature_contracts/cairo0";
+const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
-const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
-                           feature_contracts_compatibility_test --features testing -- \
-                           --include-ignored";
+const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier_test_utils --test \
+                           feature_contracts_compatibility_test -- --include-ignored";
 
 pub enum FeatureContractMetadata {
     Cairo0(Cairo0FeatureContractMetadata),

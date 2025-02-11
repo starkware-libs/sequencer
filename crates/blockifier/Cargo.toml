@@ -99,11 +99,6 @@ name = "blockifier_bench"
 path = "bench/blockifier_bench.rs"
 required-features = ["testing"]
 
-[[test]]
-name = "feature_contracts_compatibility_test"
-path = "tests/feature_contracts_compatibility_test.rs"
-required-features = ["testing"]
-
 [package.metadata.cargo-machete]
 # `paste` is used in the `define_versioned_constants!` macro but may be falsely detected as unused.
 ignored = ["paste"]
