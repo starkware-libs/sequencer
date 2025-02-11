@@ -19,7 +19,6 @@ use chrono::{TimeZone, Utc};
 use futures::stream;
 use futures_util::{pin_mut, select, Stream, StreamExt};
 use indexmap::IndexMap;
-use papyrus_common::metrics as papyrus_metrics;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -42,6 +41,15 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{StateDiff, ThinStateDiff};
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use starknet_client::reader::PendingData;
+use starknet_sequencer_metrics::metric_definitions::{
+    PAPYRUS_BASE_LAYER_MARKER,
+    PAPYRUS_BODY_MARKER,
+    PAPYRUS_CENTRAL_BLOCK_MARKER,
+    PAPYRUS_COMPILED_CLASS_MARKER,
+    PAPYRUS_HEADER_LATENCY_SEC,
+    PAPYRUS_HEADER_MARKER,
+    PAPYRUS_STATE_MARKER,
+};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, trace, warn};
 
@@ -438,10 +446,9 @@ impl<
             .append_block_signature(block_number, signature)?
             .append_body(block_number, block.body)?
             .commit()?;
-        metrics::gauge!(papyrus_metrics::PAPYRUS_HEADER_MARKER)
+        metrics::gauge!(PAPYRUS_HEADER_MARKER.get_name())
             .set(block_number.unchecked_next().0 as f64);
-        metrics::gauge!(papyrus_metrics::PAPYRUS_BODY_MARKER)
-            .set(block_number.unchecked_next().0 as f64);
+        metrics::gauge!(PAPYRUS_BODY_MARKER.get_name()).set(block_number.unchecked_next().0 as f64);
         let time_delta = Utc::now()
             - Utc
                 .timestamp_opt(block.header.block_header_without_hash.timestamp.0 as i64, 0)
@@ -450,7 +457,7 @@ impl<
         let header_latency = time_delta.num_seconds();
         debug!("Header latency: {}.", header_latency);
         if header_latency >= 0 {
-            metrics::gauge!(papyrus_metrics::PAPYRUS_HEADER_LATENCY_SEC).set(header_latency as f64);
+            metrics::gauge!(PAPYRUS_HEADER_LATENCY_SEC.get_name()).set(header_latency as f64);
         }
         Ok(())
     }
@@ -504,10 +511,10 @@ impl<
                 .update_class_manager_block_marker(&block_number.unchecked_next())?
                 .commit()?;
         }
-        metrics::gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER)
+        metrics::gauge!(PAPYRUS_STATE_MARKER.get_name())
             .set(block_number.unchecked_next().0 as f64);
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-        metrics::gauge!(papyrus_metrics::PAPYRUS_COMPILED_CLASS_MARKER)
+        metrics::gauge!(PAPYRUS_COMPILED_CLASS_MARKER.get_name())
             .set(compiled_class_marker.0 as f64);
 
         // Info the user on syncing the block once all the data is stored.
@@ -532,7 +539,7 @@ impl<
                 txn.commit()?;
                 let compiled_class_marker =
                     self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-                metrics::gauge!(papyrus_metrics::PAPYRUS_COMPILED_CLASS_MARKER)
+                metrics::gauge!(PAPYRUS_COMPILED_CLASS_MARKER.get_name())
                     .set(compiled_class_marker.0 as f64);
                 debug!("Added compiled class.");
                 Ok(())
@@ -575,7 +582,7 @@ impl<
         if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
             info!("Verified block {block_number} hash against base layer.");
             txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
-            metrics::gauge!(papyrus_metrics::PAPYRUS_BASE_LAYER_MARKER)
+            metrics::gauge!(PAPYRUS_BASE_LAYER_MARKER.get_name())
                 .set(block_number.unchecked_next().0 as f64);
         }
         Ok(())
@@ -710,7 +717,7 @@ fn stream_new_blocks<
             let central_block_marker = latest_central_block.map_or(
                 BlockNumber::default(), |block_hash_and_number| block_hash_and_number.number.unchecked_next()
             );
-            metrics::gauge!(papyrus_metrics::PAPYRUS_CENTRAL_BLOCK_MARKER).set(central_block_marker.0 as f64);
+            metrics::gauge!(PAPYRUS_CENTRAL_BLOCK_MARKER.get_name()).set(central_block_marker.0 as f64);
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
                 if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{

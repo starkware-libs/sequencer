@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use metrics::gauge;
-use papyrus_common::metrics as papyrus_metrics;
 use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_proc_macros::latency_histogram;
 use papyrus_protobuf::sync::{DataOrFin, StateDiffChunk};
@@ -13,6 +12,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 use starknet_class_manager_types::SharedClassManagerClient;
+use starknet_sequencer_metrics::metric_definitions::PAPYRUS_STATE_MARKER;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::block_data_stream_builder::BadPeerError;
@@ -34,7 +34,8 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
             storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
-            gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER).set(self.1.unchecked_next().0 as f64);
+            // TODO(alonl): fix this metric
+            gauge!(PAPYRUS_STATE_MARKER.get_name()).set(self.1.unchecked_next().0 as f64);
             Ok(())
         }
         .boxed()
