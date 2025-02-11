@@ -4,10 +4,7 @@ mod test;
 use async_trait::async_trait;
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
-use starknet_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
-};
+use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
 use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorRequest,
     MempoolP2pPropagatorResponse,
@@ -19,13 +16,13 @@ use tracing::{debug, info, warn};
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
-    transaction_converter: TransactionConverter,
+    transaction_converter: Box<dyn TransactionConverterTrait>,
 }
 
 impl MempoolP2pPropagator {
     pub fn new(
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
-        transaction_converter: TransactionConverter,
+        transaction_converter: Box<dyn TransactionConverterTrait>,
     ) -> Self {
         Self { broadcast_topic_client, transaction_converter }
     }
