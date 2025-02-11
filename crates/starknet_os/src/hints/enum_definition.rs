@@ -7,8 +7,6 @@ use crate::hints::hint_implementation::block_context::{
     bytecode_segment_structure,
     chain_id,
     deprecated_fee_token_address,
-    elements_ge_10,
-    elements_ge_2,
     fee_token_address,
     get_block_mapping,
     is_leaf,
@@ -44,7 +42,6 @@ use crate::hints::hint_implementation::execute_transactions::{
     start_tx_validate_declare_execution_context,
 };
 use crate::hints::hint_implementation::execution::{
-    add_relocation_rule,
     assert_transaction_hash,
     cache_contract_storage_request_key,
     cache_contract_storage_syscall_request_address,
@@ -366,16 +363,6 @@ define_hint_enum!(
     ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
         ids.BLOCK_HASH_CONTRACT_ADDRESS
     ]"#}
-    ),
-    (
-        ElementsGe10,
-        elements_ge_10,
-        "memory[ap] = to_felt_or_relocatable(ids.elements_end - ids.elements >= 10)"
-    ),
-    (
-        ElementsGe2,
-        elements_ge_2,
-        "memory[ap] = to_felt_or_relocatable(ids.elements_end - ids.elements >= 2)"
     ),
     (
         IsLeaf,
@@ -938,11 +925,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         InitialGeRequiredGas,
         initial_ge_required_gas,
         "memory[ap] = to_felt_or_relocatable(ids.initial_gas >= ids.required_gas)"
-    ),
-    (
-        AddRelocationRule,
-        add_relocation_rule,
-        "memory.add_relocation_rule(src_ptr=ids.src_ptr, dest_ptr=ids.dest_ptr)"
     ),
     (SetApToTxNonce, set_ap_to_tx_nonce, "memory[ap] = to_felt_or_relocatable(tx.nonce)"),
     (

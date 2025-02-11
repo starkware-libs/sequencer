@@ -181,10 +181,6 @@ pub fn initial_ge_required_gas(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) ->
     todo!()
 }
 
-pub fn add_relocation_rule(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
 pub fn set_ap_to_tx_nonce(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
