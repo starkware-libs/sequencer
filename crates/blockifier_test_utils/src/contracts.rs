@@ -16,8 +16,7 @@ use strum_macros::EnumIter;
 use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 
-pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str =
-    "../blockifier_test_utils/resources/feature_contracts/cairo1";
+pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo1";
 pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in
@@ -254,7 +253,7 @@ impl FeatureContract {
             .into()
         } else {
             format!(
-                "../blockifier_test_utils/resources/feature_contracts/cairo{}/{}.cairo",
+                "resources/feature_contracts/cairo{}/{}.cairo",
                 match self.cairo_version() {
                     CairoVersion::Cairo0 => "0",
                     CairoVersion::Cairo1(_) => "1",
@@ -293,7 +292,7 @@ impl FeatureContract {
         } else {
             let cairo_version = self.cairo_version();
             format!(
-                "../blockifier_test_utils/resources/feature_contracts/cairo{}/{}{}.json",
+                "resources/feature_contracts/cairo{}/{}{}.json",
                 match cairo_version {
                     CairoVersion::Cairo0 => "0/compiled",
                     CairoVersion::Cairo1(RunnableCairo1::Casm) => "1/compiled",
