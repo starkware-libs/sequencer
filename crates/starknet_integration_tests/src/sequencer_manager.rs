@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use futures::future::join_all;
 use futures::TryFutureExt;
@@ -231,6 +232,17 @@ impl IntegrationTestManager {
                 executable.update_revert_config(value);
             });
         });
+    }
+
+    pub async fn await_reverted_block(&self, expected_block_number: BlockNumber) {
+        let await_reverted_tasks = self
+            .running_nodes
+            .values()
+            .map(|node| monitoring_utils::await_revert(&node.node_setup, expected_block_number));
+
+        tokio::time::timeout(Duration::from_secs(15), join_all(await_reverted_tasks))
+            .await
+            .expect("Nodes should be reverted.");
     }
 
     pub fn get_node_indices(&self) -> HashSet<usize> {
