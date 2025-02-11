@@ -43,6 +43,7 @@ pub struct TransfersGeneratorConfig {
 
 impl Default for TransfersGeneratorConfig {
     fn default() -> Self {
+        let concurrency_enabled = true;
         Self {
             n_accounts: N_ACCOUNTS,
             balance: Fee(BALANCE.0 * 1000),
@@ -52,7 +53,7 @@ impl Default for TransfersGeneratorConfig {
             cairo_version: CAIRO_VERSION,
             tx_version: TRANSACTION_VERSION,
             recipient_generator_type: RECIPIENT_GENERATOR_TYPE,
-            concurrency_config: ConcurrencyConfig::create_for_testing(false),
+            concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
             stack_size: DEFAULT_STACK_SIZE,
         }
     }
