@@ -23,4 +23,5 @@ starknet_sierra_multicompile_types.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+mockall.workspace = true
 starknet_api = { path = "../starknet_api", features = ["testing"] }
