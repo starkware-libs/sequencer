@@ -1,9 +1,12 @@
+use std::fs;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_storage::StorageConfig;
+use serde_json::Value;
+use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
@@ -167,5 +170,28 @@ impl ExecutableSetup {
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
+    }
+
+    // TODO(noamsp): Change this into change_config once we need to change other values in the
+    // config.
+    pub fn update_revert_config(&self, value: Option<BlockNumber>) {
+        let config_path = self.node_config_path.clone();
+        let config_path = config_path.to_str().unwrap();
+        let mut data = fs::read_to_string(config_path).unwrap();
+        let mut json_data: Value = serde_json::from_str(&data).unwrap();
+
+        match value {
+            Some(value) => {
+                json_data["revert_config.revert_up_to_and_including"] = Value::from(value.0);
+                json_data["revert_config.should_revert"] = Value::from(true);
+            }
+            // If should revert is false, the revert_up_to_and_including value is irrelevant.
+            None => {
+                json_data["revert_config.should_revert"] = Value::from(false);
+            }
+        }
+
+        data = serde_json::to_string_pretty(&json_data).unwrap();
+        fs::write(config_path, data).unwrap();
     }
 }
