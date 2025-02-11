@@ -54,7 +54,6 @@ starknet_batcher = { path = "../starknet_batcher" }
 starknet_class_manager_types = { path = "../starknet_class_manager_types", features = ["testing"] }
 starknet_infra_utils.path = "../starknet_infra_utils"
 starknet_state_sync_types = { path = "../starknet_state_sync_types", features = ["testing"] }
-test-case.workspace = true
 
 [lints]
 workspace = true
