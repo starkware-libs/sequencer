@@ -4,6 +4,8 @@ use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use async_recursion::async_recursion;
+use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
@@ -14,8 +16,6 @@ use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
-use crate::storage::db_object::DBObject;
-use crate::storage::storage_trait::{StorageKey, StorageValue};
 
 #[cfg(test)]
 #[path = "tree_test.rs"]

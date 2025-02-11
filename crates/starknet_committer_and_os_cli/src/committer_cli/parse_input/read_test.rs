@@ -12,8 +12,8 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::storage::errors::DeserializationError;
-use starknet_patricia::storage::storage_trait::{StorageKey, StorageValue};
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::storage_trait::{StorageKey, StorageValue};
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;

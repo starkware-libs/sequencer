@@ -1,5 +1,8 @@
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
+use starknet_patricia_storage::db_object::DBObject;
+use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
 
 use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
@@ -12,9 +15,6 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
-use crate::storage::db_object::DBObject;
-use crate::storage::errors::DeserializationError;
-use crate::storage::storage_trait::{StorageKey, StoragePrefix, StorageValue};
 
 // Const describe the size of the serialized node.
 pub(crate) const SERIALIZE_HASH_BYTES: usize = 32;
