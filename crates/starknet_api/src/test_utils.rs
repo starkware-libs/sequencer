@@ -72,7 +72,7 @@ pub struct TransactionTestData {
     pub block_number: BlockNumber,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct NonceManager {
     next_nonce: HashMap<ContractAddress, Felt>,
 }
