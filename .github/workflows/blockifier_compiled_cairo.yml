@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  verify_cairo_file_dependencies:
+  verify_cairo_file_dependencies0:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
@@ -64,10 +64,47 @@ jobs:
         with:
           toolchain: nightly-2023-07-05
 
-      - name: install toolchain for cairo steps test contract compilation (old compiler tag)
+      - name: Verify cairo contract recompilation (both cairo versions).
+        run:
+          cd sequencer &&
+          pip install -r crates/blockifier/tests/requirements.txt &&
+          cargo test -p blockifier --test feature_contracts_compatibility_test --features testing -- --include-ignored --nocapture
+
+  verify_cairo_file_dependencies1:
+    runs-on: starkware-ubuntu-20-04-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: 'pypy3.9'
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+
+      # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
+      - name: checkout sequencer into `sequencer` directory.
+        uses: actions/checkout@v4
+        with:
+          repository: 'starkware-libs/sequencer'
+          path: 'sequencer'
+
+      - name: checkout cairo1 repo in order to compile cairo1 contracts.
+        uses: actions/checkout@v4
+        with:
+          repository: 'starkware-libs/cairo'
+          fetch-depth: 0
+          fetch-tags: true
+          path: 'cairo'
+
+      - name: install toolchain for legacy contract compilation (old compiler tag)
         uses: actions-rs/toolchain@master
         with:
-          toolchain: nightly-2024-04-29
+          toolchain: nightly-2023-07-05
 
       - name: Verify cairo contract recompilation (both cairo versions).
         run:
