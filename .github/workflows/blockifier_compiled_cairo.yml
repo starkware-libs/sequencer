@@ -9,10 +9,10 @@ on:
     paths:
       - 'Cargo.toml'
       - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/blockifier/feature_contracts/**'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
       - 'crates/blockifier_test_utils/cairo_compile.rs'
+      - 'crates/blockifier_test_utils/resources/feature_contracts/**'
       - 'scripts/dependencies.sh'
 
 env:
