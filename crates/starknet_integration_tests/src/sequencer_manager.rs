@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use futures::future::join_all;
 use futures::TryFutureExt;
@@ -40,7 +41,7 @@ use crate::utils::{
     TestScenario,
 };
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
+pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
@@ -189,6 +190,7 @@ impl IntegrationTestManager {
         num_of_distributed_nodes: usize,
         path_to_db_base_dir: Option<PathBuf>,
         path_to_config_base_dir: Option<PathBuf>,
+        test_unique_id: TestIdentifier,
     ) -> Self {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
@@ -201,6 +203,7 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             path_to_db_base_dir,
             path_to_config_base_dir,
+            test_unique_id,
         )
         .await;
 
@@ -238,6 +241,41 @@ impl IntegrationTestManager {
                 executable.update_revert_config(value);
             });
         });
+    }
+
+    // TODO(noamsp): Add state sync component revert verification.
+    pub async fn await_revert_all_running_nodes(
+        &self,
+        expected_block_marker: BlockNumber,
+        timeout_duration: Duration,
+        interval_ms: u64,
+        max_attempts: usize,
+    ) {
+        info!("Waiting for all idle nodes to finish reverting.");
+        let condition =
+            |&latest_block_number: &BlockNumber| latest_block_number == expected_block_marker;
+
+        let await_batcher_reverted_tasks = self.running_nodes.values().map(|running_node| {
+            let running_node_setup = &running_node.node_setup;
+            monitoring_utils::await_batcher_block(
+                interval_ms,
+                expected_block_marker,
+                condition,
+                max_attempts,
+                running_node_setup.batcher_monitoring_client(),
+                running_node_setup.get_node_index().unwrap(),
+                running_node_setup.get_batcher_index(),
+            )
+        });
+
+        tokio::time::timeout(timeout_duration, join_all(await_batcher_reverted_tasks))
+            .await
+            .expect("Running Nodes should be reverted.");
+
+        info!(
+            "All running nodes have been reverted succesfully to block marker \
+             {expected_block_marker}."
+        );
     }
 
     pub fn get_node_indices(&self) -> HashSet<usize> {
@@ -366,9 +404,8 @@ pub async fn get_sequencer_setup_configs(
     num_of_distributed_nodes: usize,
     path_to_db_base_dir: Option<PathBuf>,
     path_to_config_base_dir: Option<PathBuf>,
+    test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
-    let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
-
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
