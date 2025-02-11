@@ -44,5 +44,9 @@ starknet_class_manager_types = { path = "../starknet_class_manager_types", featu
 starknet_client = { path = "../starknet_client", features = ["testing"] }
 tokio-stream.workspace = true
 
+[package.metadata.cargo-machete]
+# `metrics` is used in `latency_histogram` but is falsely detected as unused.
+ignored = ["metrics"]
+
 [lints]
 workspace = true

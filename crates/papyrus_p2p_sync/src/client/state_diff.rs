@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
-use metrics::gauge;
 use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_proc_macros::latency_histogram;
 use papyrus_protobuf::sync::{DataOrFin, StateDiffChunk};
@@ -34,8 +33,7 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
             storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
-            // TODO(alonl): fix this metric
-            gauge!(PAPYRUS_STATE_MARKER.get_name()).set(self.1.unchecked_next().0 as f64);
+            PAPYRUS_STATE_MARKER.set(self.1.unchecked_next().0 as f64);
             Ok(())
         }
         .boxed()

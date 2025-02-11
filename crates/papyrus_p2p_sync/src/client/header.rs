@@ -1,7 +1,6 @@
 use chrono::{TimeZone, Utc};
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
-use metrics::gauge;
 use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_protobuf::sync::{DataOrFin, SignedBlockHeader};
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
@@ -50,8 +49,7 @@ impl BlockData for SignedBlockHeader {
                     .expect("Vec::first should return a value on a vector of size 1"),
                 )?
                 .commit()?;
-            // TODO(alonl): fix this metric
-            gauge!(PAPYRUS_HEADER_MARKER.get_name()).set(
+            PAPYRUS_HEADER_MARKER.set(
                 self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64,
             );
             // TODO(shahak): Fix code dup with central sync
@@ -66,8 +64,7 @@ impl BlockData for SignedBlockHeader {
             let header_latency = time_delta.num_seconds();
             debug!("Header latency: {}.", header_latency);
             if header_latency >= 0 {
-                // TODO(alonl): fix this metric
-                gauge!(PAPYRUS_HEADER_LATENCY_SEC.get_name()).set(header_latency as f64);
+                PAPYRUS_HEADER_LATENCY_SEC.set(header_latency as f64);
             }
             Ok(())
         }
