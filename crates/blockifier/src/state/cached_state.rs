@@ -174,7 +174,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
         {
             match self.state.get_compiled_class(class_hash) {
                 Err(StateError::UndeclaredClassHash(class_hash)) => {
-                    println!("")
+                    println!("");
                     cache.set_declared_contract_initial_value(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
                         class_hash,

@@ -275,7 +275,9 @@ pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
 
     expanded = quote! {
         {
+            println!("Inside handle_all_response_variants, sending request");
             let response = self.send(request).await;
+            println!("Inside handle_all_response_variants, got response for request");
             match response? {
                 #response_enum::#request_response_enum_var(Ok(resp)) =>
                     #expanded

@@ -174,14 +174,17 @@ where
         &self,
         class_id: ClassId,
     ) -> ClassManagerClientResult<Option<ExecutableClass>> {
+        println!("Inside ClassManagerClient::get_executable, class_hsah: {:?}", class_id);
         let request = ClassManagerRequest::GetExecutable(class_id);
-        handle_all_response_variants!(
+        let response = handle_all_response_variants!(
             ClassManagerResponse,
             GetExecutable,
             ClassManagerClientError,
             ClassManagerError,
             Direct
-        )
+        );
+        println!("Inside ClassManagerClient::get_executable, for response");
+        response
     }
 
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {

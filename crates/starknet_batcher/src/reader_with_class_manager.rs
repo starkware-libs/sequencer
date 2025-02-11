@@ -9,18 +9,18 @@ use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 // TODO(Elin): remove once class manager is properly integrated into Papyrus reader.
-pub struct ReaderWithClassManager<S: StateReader> {
+pub struct ReaderWithClassManager<S: StateReader + Send + Sync> {
     state_reader: S,
     class_manager_client: SharedClassManagerClient,
 }
 
-impl<S: StateReader> ReaderWithClassManager<S> {
+impl<S: StateReader + Send + Sync> ReaderWithClassManager<S> {
     pub fn new(state_reader: S, class_manager_client: SharedClassManagerClient) -> Self {
         Self { state_reader, class_manager_client }
     }
 }
 
-impl<S: StateReader> StateReader for ReaderWithClassManager<S> {
+impl<S: StateReader + Send + Sync> StateReader for ReaderWithClassManager<S> {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -38,10 +38,15 @@ impl<S: StateReader> StateReader for ReaderWithClassManager<S> {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        println!("class_hash: {:?} inside ReaderWithClassManager::get_compiled_class", class_hash);
         let contract_class = block_on(self.class_manager_client.get_executable(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
+        println!(
+            "class_hash: {:?} inside ReaderWithClassManager::get_compiled_class 2",
+            class_hash
+        );
         match contract_class {
             // TODO(noamsp): Remove this once class manager component is implemented.
             ContractClass::V0(ref inner) if inner == &Default::default() => {

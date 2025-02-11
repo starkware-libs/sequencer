@@ -16,6 +16,7 @@ pub type RemoteClassManagerServer =
 #[async_trait]
 impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for ClassManager {
     async fn handle_request(&mut self, request: ClassManagerRequest) -> ClassManagerResponse {
+        println!("Inside ComponentRequestHandler::handle_request, request: {:?}", request);
         match request {
             ClassManagerRequest::AddClass(class) => {
                 ClassManagerResponse::AddClass(self.0.add_class(class.try_into().unwrap()).await)
@@ -41,6 +42,7 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
                         // })
                     })
                 });
+                println!("Inside ComponentRequestHandler::handle_request, got executable");
                 ClassManagerResponse::GetExecutable(result)
             }
             ClassManagerRequest::GetSierra(class_id) => {

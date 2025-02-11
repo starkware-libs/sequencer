@@ -71,6 +71,7 @@ impl PapyrusReader {
         let class_is_declared: bool = matches!(class_declaration_block_number,
                         Some(block_number) if block_number <= state_number.0);
 
+        println!("get_compiled_class_from_db: {:?}", class_hash);
         if class_is_declared {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
