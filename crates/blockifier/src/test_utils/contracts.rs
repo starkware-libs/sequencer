@@ -26,7 +26,8 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::test_utils::get_raw_contract_class;
 use crate::test_utils::struct_impls::LoadContractFromFile;
 
-pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
+pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str =
+    "../blockifier_test_utils/resources/feature_contracts/cairo1";
 pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in
@@ -76,13 +77,18 @@ const CAIRO_STEPS_TEST_CONTRACT_NAME: &str = "cairo_steps_test_contract";
 const EXECUTION_INFO_V1_CONTRACT_NAME: &str = "test_contract_execution_info_v1";
 
 // ERC20 contract is in a unique location.
-const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
-    "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
-const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
+const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str = "../blockifier_test_utils/resources/ERC20/\
+                                                 ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
+                                                 ERC20.cairo";
+const ERC20_CAIRO0_CONTRACT_PATH: &str = "../blockifier_test_utils/resources/ERC20/ERC20_Cairo0/\
+                                          ERC20_without_some_syscalls/ERC20/\
                                           erc20_contract_without_some_syscalls_compiled.json";
-const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cairo";
-const ERC20_SIERRA_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.sierra.json";
-const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
+const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str =
+    "../blockifier_test_utils/resources/ERC20/ERC20_Cairo1/ERC20.cairo";
+const ERC20_SIERRA_CONTRACT_PATH: &str =
+    "../blockifier_test_utils/resources/ERC20/ERC20_Cairo1/erc20.sierra.json";
+const ERC20_CAIRO1_CONTRACT_PATH: &str =
+    "../blockifier_test_utils/resources/ERC20/ERC20_Cairo1/erc20.casm.json";
 
 // The following contracts are compiled with a fixed version of the compiler. This compiler version
 // no longer compiles with stable rust, so the toolchain is also fixed.
@@ -289,7 +295,7 @@ impl FeatureContract {
             .into()
         } else {
             format!(
-                "feature_contracts/cairo{}/{}.cairo",
+                "../blockifier_test_utils/resources/feature_contracts/cairo{}/{}.cairo",
                 match self.cairo_version() {
                     CairoVersion::Cairo0 => "0",
                     CairoVersion::Cairo1(_) => "1",
@@ -328,7 +334,7 @@ impl FeatureContract {
         } else {
             let cairo_version = self.cairo_version();
             format!(
-                "feature_contracts/cairo{}/{}{}.json",
+                "../blockifier_test_utils/resources/feature_contracts/cairo{}/{}{}.json",
                 match cairo_version {
                     CairoVersion::Cairo0 => "0/compiled",
                     CairoVersion::Cairo1(RunnableCairo1::Casm) => "1/compiled",

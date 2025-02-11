@@ -266,7 +266,7 @@ mod ERC20 {
 
             let activation_time = get_block_timestamp() + self.get_upgrade_delay();
             let expiration_time = activation_time + IMPLEMENTATION_EXPIRATION;
-            // TODO -  add an assertion that the `implementation_data.impl_hash` is declared.
+            // TODO(Meshi):  add an assertion that the `implementation_data.impl_hash` is declared.
             self.set_impl_activation_time(:implementation_data, :activation_time);
             self.set_impl_expiration_time(:implementation_data, :expiration_time);
             self.emit(ImplementationAdded { implementation_data: implementation_data });
