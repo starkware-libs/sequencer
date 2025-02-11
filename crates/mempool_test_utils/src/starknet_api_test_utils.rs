@@ -209,6 +209,21 @@ impl MultiAccountTransactionGenerator {
         Self::default()
     }
 
+    pub fn snapshot(&self) -> Self {
+        let nonce_manager = Rc::new(RefCell::new((*self.nonce_manager.borrow()).clone()));
+        let account_tx_generators = self
+            .account_tx_generators
+            .iter()
+            .map(|tx_gen| AccountTransactionGenerator {
+                account: tx_gen.account,
+                nonce_manager: nonce_manager.clone(),
+                contract_address_salt: tx_gen.contract_address_salt,
+            })
+            .collect();
+
+        Self { account_tx_generators, nonce_manager }
+    }
+
     /// Registers a new account with the given contract, assuming it is already deployed.
     /// Note: the state should reflect that the account is already deployed.
     pub fn register_deployed_account(&mut self, account_contract: FeatureContract) -> AccountId {
