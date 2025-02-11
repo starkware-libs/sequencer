@@ -231,6 +231,15 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
+    pub fn update_revert_config_to_all_idle_nodes(&mut self, value: Option<BlockNumber>) {
+        info!("Updating revert config to all idle nodes.");
+        self.idle_nodes.values().for_each(|idle_node| {
+            idle_node.executables.iter().for_each(|executable| {
+                executable.update_revert_config(value);
+            });
+        });
+    }
+
     pub fn get_node_indices(&self) -> HashSet<usize> {
         self.node_indices.clone()
     }
