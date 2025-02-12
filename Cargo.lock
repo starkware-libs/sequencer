@@ -10754,6 +10754,7 @@ dependencies = [
  "mockall",
  "papyrus_config",
  "papyrus_storage",
+ "rstest",
  "serde",
  "serde_json",
  "starknet_api",
