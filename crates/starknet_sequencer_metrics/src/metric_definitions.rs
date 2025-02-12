@@ -92,7 +92,7 @@ define_counter_metrics!(
         { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", 0 },
         { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", 0 },
         { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", 0 },
-        { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions", 0 },
+        { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", 0 },
         { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 }
     },
     MetricScope::HttpServer => {
