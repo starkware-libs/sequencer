@@ -180,9 +180,27 @@ impl Mempool {
 
         while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
-            self.enqueue_next_eligible_txs(&chunk)?;
-            n_remaining_txs -= chunk.len();
-            eligible_tx_references.extend(chunk);
+
+            // Divide the chunk into transactions that are old and no longer valid and those that
+            // remain valid.
+            let (old_txs, valid_txs): (Vec<_>, Vec<_>) = chunk.into_iter().partition(|tx| {
+                self.tx_pool
+                    .get_submission_time(tx.tx_hash)
+                    .expect("Transaction hash from queue must appear in pool.")
+                    .elapsed()
+                    > self.config.transaction_ttl
+            });
+
+            // Remove old transactions from the pool.
+            for tx in old_txs {
+                self.tx_pool
+                    .remove(tx.tx_hash)
+                    .expect("Transaction hash from queue must appear in pool.");
+            }
+
+            self.enqueue_next_eligible_txs(&valid_txs)?;
+            n_remaining_txs -= valid_txs.len();
+            eligible_tx_references.extend(valid_txs);
         }
 
         // Update the mempool state with the given transactions' nonces.
