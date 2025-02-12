@@ -24,7 +24,7 @@ class ServiceApp(Construct):
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
         self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
         self.service_topology = service_topology
-        self.node_config = service_topology.config.get_merged_config()
+        self.node_config = service_topology.config.get_config()
 
         k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
 
@@ -110,17 +110,27 @@ class ServiceApp(Construct):
         )
 
 
-    def _get_config_attr(self, attribute) -> str | int:
-        config_attr = self.node_config.get(attribute).get('value')
-        assert config_attr is not None, f'Config attribute "{attribute}" is missing.'
+    def _get_config_attr(self, attr) -> str | int:
+        config_attr = self.node_config.get(attr)
+        assert config_attr is not None, f'Config attribute "{attr}" is missing.'
 
         return config_attr
+
+    def _get_ports_subset_from_config(self) -> typing.List[str]:
+        ports = []
+        for k, v in self.node_config.items():
+            if k.startswith("components."):
+                continue
+            if "port" in k:
+                ports.append(k)
+
+        return ports
 
     def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
         return [
             k8s.ContainerPort(
-                container_port=self._get_config_attr(port)
-            ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
+                container_port=self._get_config_attr(attr)
+            ) for attr in self._get_ports_subset_from_config()
         ]
 
     def _get_container_resources(self): # TODO(IdanS): implement method to calc resources based on config
@@ -132,7 +142,7 @@ class ServiceApp(Construct):
                 name=attr.split("_")[0],
                 port=self._get_config_attr(attr),
                 target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
-            ) for attr in ["http_server_config.port", "monitoring_endpoint_config.port"]
+            ) for attr in self._get_ports_subset_from_config()
         ]
 
     def _get_http_probe(
@@ -142,8 +152,8 @@ class ServiceApp(Construct):
             timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
     ) -> k8s.Probe:
         path = "/monitoring/alive"
-        # path = self.node_config['monitoring_path'].get("value") # TODO(IdanS): add monitoring path in node_config
-        port = self.node_config.get('monitoring_endpoint_config.port').get("value")
+        # path = self._get_config_attr("monitoring_endpoint_config.path") # TODO(IdanS): add monitoring path in node_config
+        port = self._get_config_attr("monitoring_endpoint_config.port")
 
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
@@ -215,4 +225,21 @@ class ServiceApp(Construct):
                 hosts=[self.host],
                 secret_name=f"{self.node.id}-tls"
             )
+        ]
+
+    @staticmethod
+    def _get_node_selector() -> typing.Dict[str, str]:
+        return {
+            "role": "sequencer"
+        }
+
+    @staticmethod
+    def _get_tolerations() -> typing.Sequence[k8s.Toleration]:
+        return [
+            k8s.Toleration(
+                key="role",
+                operator="Equal",
+                value="sequencer",
+                effect="NoSchedule"
+            ),
         ]

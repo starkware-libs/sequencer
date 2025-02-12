@@ -28,8 +28,11 @@ spec:
             timeoutSeconds: 5
           name: sequencer-node
           ports:
+            - containerPort: 55540
             - containerPort: 8080
+            - containerPort: 55542
             - containerPort: 8082
+            - containerPort: 55541
           readinessProbe:
             failureThreshold: 5
             httpGet:
