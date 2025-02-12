@@ -1,4 +1,5 @@
 use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::contracts::FeatureContract;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -15,7 +16,6 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::{TransactionExecutor, DEFAULT_STACK_SIZE};
 use crate::context::{BlockContext, ChainInfo};
-use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{BALANCE, MAX_FEE};

@@ -9,7 +9,7 @@ version.workspace = true
 workspace = true
 
 [features]
-testing = ["blockifier_test_utils"]
+testing = ["blockifier/testing", "blockifier_test_utils"]
 
 [dependencies]
 async-trait.workspace = true
@@ -40,6 +40,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+blockifier = { path = "../blockifier", features = ["testing"] }
 blockifier_test_utils.path = "../blockifier_test_utils"
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }

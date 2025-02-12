@@ -4,6 +4,7 @@ use std::sync::Arc;
 #[cfg(feature = "cairo_native")]
 use std::sync::{LazyLock, RwLock};
 
+use blockifier_test_utils::contracts::get_raw_contract_class;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
@@ -42,7 +43,7 @@ use crate::execution::entry_point::{
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_api::State;
-use crate::test_utils::{get_raw_contract_class, update_json_value};
+use crate::test_utils::update_json_value;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,

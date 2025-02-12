@@ -8,11 +8,10 @@ pub mod syscall;
 pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
 use std::slice::Iter;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -38,7 +37,6 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
 };
 use starknet_api::{contract_address, felt};
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
@@ -51,7 +49,6 @@ use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{StarknetResources, StateResources};
-use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u64_from_usize};
 // Class hashes.
@@ -147,11 +144,6 @@ impl SaltManager {
 pub fn pad_address_to_64(address: &str) -> String {
     let trimmed_address = address.strip_prefix("0x").unwrap_or(address);
     String::from("0x") + format!("{trimmed_address:0>64}").as_str()
-}
-
-pub fn get_raw_contract_class(contract_path: &str) -> String {
-    let path: PathBuf = [compile_time_cargo_manifest_dir!(), contract_path].iter().collect();
-    fs::read_to_string(path).unwrap()
 }
 
 pub fn trivial_external_entry_point_new(contract: FeatureContract) -> CallEntryPoint {
