@@ -155,6 +155,19 @@ use crate::hints::hint_implementation::state::{
     set_preimage_for_state_commitments,
     write_split_result,
 };
+use crate::hints::hint_implementation::stateful_compression::{
+    assert_key_big_enough_for_alias,
+    compute_commitments_on_finalized_state_with_aliases,
+    contract_address_le_max_for_compression,
+    enter_scope_with_aliases,
+    get_alias_entry_for_state_update,
+    initialize_alias_counter,
+    key_lt_min_alias_alloc_value,
+    read_alias_counter,
+    read_alias_from_key,
+    update_alias_counter,
+    write_next_alias_from_key,
+};
 use crate::hints::hint_implementation::stateless_compression::{
     compression_hint,
     dictionary_from_bucket,
@@ -484,6 +497,72 @@ define_hint_enum!(
         indoc! {r#"
             memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash())"#
         }
+    ),
+    (
+        EnterScopeWithAliases,
+        enter_scope_with_aliases,
+        indoc! {r#"from starkware.starknet.definitions.constants import ALIAS_CONTRACT_ADDRESS
+
+    # This hint shouldn't be whitelisted.
+    vm_enter_scope(dict(
+        aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
+        execution_helper=execution_helper,
+        __dict_manager=__dict_manager,
+        os_input=os_input,
+    ))"#}
+    ),
+    (
+        GetAliasEntryForStateUpdate,
+        get_alias_entry_for_state_update,
+        indoc! {r#"ids.aliases_entry = __dict_manager.get_dict(ids.os_state_update.contract_state_changes_end)[
+        ids.ALIAS_CONTRACT_ADDRESS
+    ]"#}
+    ),
+    (
+        KeyLtMinAliasAllocValue,
+        key_lt_min_alias_alloc_value,
+        "memory[ap] = to_felt_or_relocatable(ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC)"
+    ),
+    (
+        AssertKeyBigEnoughForAlias,
+        assert_key_big_enough_for_alias,
+        r#"assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small.""#
+    ),
+    (
+        ReadAliasFromKey,
+        read_alias_from_key,
+        "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
+    ),
+    (
+        WriteNextAliasFromKey,
+        write_next_alias_from_key,
+        "aliases.write(key=ids.key, value=ids.next_available_alias)"
+    ),
+    (
+        ReadAliasCounter,
+        read_alias_counter,
+        "memory[ap] = to_felt_or_relocatable(aliases.read(key=ids.ALIAS_COUNTER_STORAGE_KEY))"
+    ),
+    (
+        InitializeAliasCounter,
+        initialize_alias_counter,
+        "aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.INITIAL_AVAILABLE_ALIAS)"
+    ),
+    (
+        UpdateAliasCounter,
+        update_alias_counter,
+        "aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.next_available_alias)"
+    ),
+    (
+        ContractAddressLeMaxForCompression,
+        contract_address_le_max_for_compression,
+        "memory[ap] = to_felt_or_relocatable(ids.contract_address <= \
+         ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS)"
+    ),
+    (
+        ComputeCommitmentsOnFinalizedStateWithAliases,
+        compute_commitments_on_finalized_state_with_aliases,
+        "commitment_info_by_address=execution_helper.compute_storage_commitments()"
     ),
     (
         DictionaryFromBucket,
