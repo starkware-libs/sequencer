@@ -116,8 +116,6 @@ type HeightToIdToContent = BTreeMap<
 >;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
-const CHANNEL_SIZE: usize = 100;
-
 enum HandledProposalPart {
     Continue,
     Invalid,
@@ -140,6 +138,7 @@ pub struct SequencerConsensusContext {
     transaction_converter: TransactionConverter,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
+    batcher_proposal_buffer: usize,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
@@ -194,6 +193,7 @@ impl SequencerConsensusContext {
             ),
             state_sync_client,
             batcher,
+            batcher_proposal_buffer: config.batcher_proposal_buffer,
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
@@ -248,7 +248,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
-        let (proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let (proposal_sender, proposal_receiver) = mpsc::channel(self.batcher_proposal_buffer);
         let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         self.outbound_proposal_sender
@@ -356,7 +356,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(shahak): Don't panic here.
         .expect("Failed converting consensus transaction to external representation");
 
-        let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let (mut proposal_sender, proposal_receiver) = mpsc::channel(self.batcher_proposal_buffer);
         let stream_id = HeightAndRound(height.0, init.round);
         self.outbound_proposal_sender
             .send((stream_id, proposal_receiver))

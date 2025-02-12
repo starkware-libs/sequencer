@@ -129,8 +129,8 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "context.batcher_build_buffer": {
-    "description": "The buffer size for the batcher when building proposals.",
+  "context.batcher_proposal_buffer": {
+    "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
     "value": 100
   },

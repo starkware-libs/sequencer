@@ -35,7 +35,7 @@ pub type ProposalCommitment = BlockHash;
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
     /// The buffer size for streaming outbound proposals.
-    pub batcher_build_buffer: usize,
+    pub batcher_proposal_buffer: usize,
     /// The number of validators.
     pub num_validators: u64,
     /// The chain id of the Starknet chain.
@@ -50,9 +50,9 @@ impl SerializeConfig for ContextConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "batcher_build_buffer",
-                &self.batcher_build_buffer,
-                "The buffer size for the batcher when building proposals.",
+                "batcher_proposal_buffer",
+                &self.batcher_proposal_buffer,
+                "The buffer size for streaming outbound proposals.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -87,7 +87,7 @@ impl SerializeConfig for ContextConfig {
 impl Default for ContextConfig {
     fn default() -> Self {
         Self {
-            batcher_build_buffer: 100,
+            batcher_proposal_buffer: 100,
             num_validators: 1,
             chain_id: ChainId::Mainnet,
             block_timestamp_window: 1,

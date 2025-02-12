@@ -123,7 +123,12 @@ fn setup(
     let state_sync_client = MockStateSyncClient::new();
 
     let context = SequencerConsensusContext::new(
-        ContextConfig { num_validators: NUM_VALIDATORS, chain_id: CHAIN_ID, ..Default::default() },
+        ContextConfig {
+            batcher_proposal_buffer: CHANNEL_SIZE,
+            num_validators: NUM_VALIDATORS,
+            chain_id: CHAIN_ID,
+            ..Default::default()
+        },
         // TODO(shahak): Use MockTransactionConverter instead.
         Arc::new(EmptyClassManagerClient),
         Arc::new(state_sync_client),
@@ -227,7 +232,7 @@ async fn validate_proposal_success() {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
@@ -257,7 +262,7 @@ async fn dont_send_block_info() {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
-    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
@@ -296,7 +301,7 @@ async fn repropose() {
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     // Receive a valid proposal.
-    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch {
@@ -368,7 +373,7 @@ async fn proposals_from_different_rounds() {
     });
 
     // The proposal from the past round is ignored.
-    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
@@ -378,7 +383,7 @@ async fn proposals_from_different_rounds() {
     assert!(fin_receiver_past_round.await.is_err());
 
     // The proposal from the current round should be validated.
-    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
@@ -387,7 +392,7 @@ async fn proposals_from_different_rounds() {
     assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
-    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
@@ -445,11 +450,11 @@ async fn interrupt_active_proposal() {
 
     // Keep the sender open, as closing it or sending Fin would cause the validate to complete
     // without needing interrupt.
-    let (mut _content_sender_0, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut _content_sender_0, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     let fin_receiver_0 =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
 
-    let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut content_sender_1, content_receiver) = mpsc::channel(context.batcher_proposal_buffer);
     content_sender_1.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender_1
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
@@ -525,7 +530,11 @@ async fn batcher_not_ready(#[case] proposer: bool) {
         assert_eq!(fin_receiver.await, Err(Canceled));
     } else {
         let fin_receiver = context
-            .validate_proposal(ProposalInit::default(), TIMEOUT, mpsc::channel(CHANNEL_SIZE).1)
+            .validate_proposal(
+                ProposalInit::default(),
+                TIMEOUT,
+                mpsc::channel(context.batcher_proposal_buffer).1,
+            )
             .await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     }

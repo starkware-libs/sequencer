@@ -779,8 +779,8 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.context_config.batcher_build_buffer": {
-    "description": "The buffer size for the batcher when building proposals.",
+  "consensus_manager_config.context_config.batcher_proposal_buffer": {
+    "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
     "value": 100
   },
