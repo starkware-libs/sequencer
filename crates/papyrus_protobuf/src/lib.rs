@@ -6,3 +6,6 @@ pub mod mempool;
 pub mod protobuf;
 pub mod sync;
 mod transaction;
+
+#[cfg(test)]
+mod regression_test;
