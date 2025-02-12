@@ -145,6 +145,14 @@ impl TransactionPool {
         self.txs_by_account._contains(address)
     }
 
+    pub fn get_submission_time(&self, tx_hash: TransactionHash) -> MempoolResult<Instant> {
+        self.txs_by_submission_time
+            .hash_to_submission_id
+            .get(&tx_hash)
+            .map(|submission_id| submission_id.submission_time)
+            .ok_or(MempoolError::TransactionNotFound { tx_hash })
+    }
+
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
         for TransactionReference { tx_hash, .. } in removed_txs {
             self.tx_pool.remove(tx_hash).unwrap_or_else(|| {
