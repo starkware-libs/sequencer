@@ -11,7 +11,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_sequencer_metrics::metric_definitions::PAPYRUS_STATE_MARKER;
+use starknet_sequencer_metrics::metric_definitions::SYNC_STATE_MARKER;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::block_data_stream_builder::BadPeerError;
@@ -33,7 +33,7 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
             storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
-            PAPYRUS_STATE_MARKER.set(self.1.unchecked_next().0 as f64);
+            SYNC_STATE_MARKER.set(self.1.unchecked_next().0 as f64);
             Ok(())
         }
         .boxed()

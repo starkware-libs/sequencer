@@ -8,10 +8,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::hash::StarkHash;
 use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_sequencer_metrics::metric_definitions::{
-    PAPYRUS_HEADER_LATENCY_SEC,
-    PAPYRUS_HEADER_MARKER,
-};
+use starknet_sequencer_metrics::metric_definitions::{SYNC_HEADER_LATENCY_SEC, SYNC_HEADER_MARKER};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::debug;
 
@@ -49,7 +46,7 @@ impl BlockData for SignedBlockHeader {
                     .expect("Vec::first should return a value on a vector of size 1"),
                 )?
                 .commit()?;
-            PAPYRUS_HEADER_MARKER.set(
+            SYNC_HEADER_MARKER.set(
                 self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64,
             );
             // TODO(shahak): Fix code dup with central sync
@@ -64,7 +61,7 @@ impl BlockData for SignedBlockHeader {
             let header_latency = time_delta.num_seconds();
             debug!("Header latency: {}.", header_latency);
             if header_latency >= 0 {
-                PAPYRUS_HEADER_LATENCY_SEC.set(header_latency as f64);
+                SYNC_HEADER_LATENCY_SEC.set(header_latency as f64);
             }
             Ok(())
         }

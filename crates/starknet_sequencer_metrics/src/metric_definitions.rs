@@ -85,13 +85,13 @@ define_gauge_metrics!(
         { STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_sync_num_active_outbound_sessions", "The number of outbound sessions to the state sync p2p component" },
     },
     MetricScope::PapyrusSync => {
-        { PAPYRUS_HEADER_MARKER, "papyrus_header_marker", "The first block number for which the node does not have a header" },
-        { PAPYRUS_BODY_MARKER, "papyrus_body_marker", "The first block number for which the node does not have a body" },
-        { PAPYRUS_STATE_MARKER, "papyrus_state_marker", "The first block number for which the node does not have a state body" },
-        { PAPYRUS_COMPILED_CLASS_MARKER, "papyrus_compiled_class_marker", "The first block number for which the node does not have all of the corresponding compiled classes" },
-        { PAPYRUS_BASE_LAYER_MARKER, "papyrus_base_layer_marker", "The first block number for which the node does not guarantee L1 finality" },
-        { PAPYRUS_CENTRAL_BLOCK_MARKER, "papyrus_central_block_marker", "The first block number that doesn't exist yet" },
-        { PAPYRUS_HEADER_LATENCY_SEC, "papyrus_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time the node stores the header" },
+        { SYNC_HEADER_MARKER, "apollo_sync_header_marker", "The first block number for which sync does not have a header" },
+        { SYNC_BODY_MARKER, "apollo_sync_body_marker", "The first block number for which sync does not have a body" },
+        { SYNC_STATE_MARKER, "apollo_sync_state_marker", "The first block number for which sync does not have a state body" },
+        { SYNC_COMPILED_CLASS_MARKER, "apollo_sync_compiled_class_marker", "The first block number for which sync does not have all of the corresponding compiled classes" },
+        { SYNC_BASE_LAYER_MARKER, "apollo_sync_base_layer_marker", "The first block number for which sync does not guarantee L1 finality" },
+        { SYNC_CENTRAL_BLOCK_MARKER, "apollo_sync_central_block_marker", "The first block number that doesn't exist yet" },
+        { SYNC_HEADER_LATENCY_SEC, "apollo_sync_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time sync stores the header" },
     }
 );
 
