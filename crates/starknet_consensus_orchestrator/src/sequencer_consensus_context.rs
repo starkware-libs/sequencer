@@ -116,8 +116,6 @@ type HeightToIdToContent = BTreeMap<
 >;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
-const CHANNEL_SIZE: usize = 100;
-
 enum HandledProposalPart {
     Continue,
     Invalid,
@@ -140,6 +138,7 @@ pub struct SequencerConsensusContext {
     transaction_converter: TransactionConverter,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
+    proposal_buffer_size: usize,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
@@ -194,6 +193,7 @@ impl SequencerConsensusContext {
             ),
             state_sync_client,
             batcher,
+            proposal_buffer_size: config.proposal_buffer_size,
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
@@ -248,7 +248,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
-        let (proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let (proposal_sender, proposal_receiver) = mpsc::channel(self.proposal_buffer_size);
         let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         self.outbound_proposal_sender
@@ -349,6 +349,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let transaction_converter = self.transaction_converter.clone();
         let mut outbound_proposal_sender = self.outbound_proposal_sender.clone();
+        let channel_size = self.proposal_buffer_size;
         tokio::spawn(
             async move {
                 let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
@@ -359,7 +360,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .collect::<Result<Vec<_>, _>>()
                 .expect("Failed converting transaction during repropose");
                 // TODO(Asmaa): send by chunks.
-                let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+                let (mut proposal_sender, proposal_receiver) = mpsc::channel(channel_size);
                 let stream_id = HeightAndRound(height.0, init.round);
                 outbound_proposal_sender
                     .send((stream_id, proposal_receiver))

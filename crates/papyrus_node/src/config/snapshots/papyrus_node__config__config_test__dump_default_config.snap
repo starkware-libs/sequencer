@@ -155,13 +155,6 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "context.batcher_build_buffer": {
-    "description": "The buffer size for the batcher when building proposals.",
-    "value": {
-      "$serde_json::private::Number": "100"
-    },
-    "privacy": "Public"
-  },
   "context.block_timestamp_window": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "value": {
@@ -183,6 +176,13 @@ expression: dumped_default_config
     "description": "The number of validators.",
     "value": {
       "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
+  },
+  "context.proposal_buffer_size": {
+    "description": "The buffer size for streaming outbound proposals.",
+    "value": {
+      "$serde_json::private::Number": "100"
     },
     "privacy": "Public"
   },
