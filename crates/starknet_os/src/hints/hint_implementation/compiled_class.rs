@@ -11,6 +11,11 @@ pub fn assert_end_of_bytecode_segments(
     todo!()
 }
 
+pub fn delete_memory_data(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+    // TODO(Yoni): Assert that the address was not accessed before.
+    todo!()
+}
+
 pub fn iter_current_segment_info(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
