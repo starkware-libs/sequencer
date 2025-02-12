@@ -12,7 +12,8 @@ use rstest::rstest;
 use tracing::info;
 use tracing_test::traced_test;
 
-const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
+const CAIRO0_FEATURE_CONTRACTS_DIR: &str =
+    "../blockifier_test_utils/resources/feature_contracts/cairo0";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
 const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
                            feature_contracts_compatibility_test --features testing -- \
