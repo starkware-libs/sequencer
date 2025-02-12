@@ -501,7 +501,7 @@ impl<
             }
             self.writer
                 .begin_rw_txn()?
-                .update_class_manager_block_marker(&block_number)?
+                .update_class_manager_block_marker(&block_number.unchecked_next())?
                 .commit()?;
         }
         metrics::gauge!(papyrus_metrics::PAPYRUS_STATE_MARKER)
