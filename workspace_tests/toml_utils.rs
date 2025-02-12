@@ -133,8 +133,9 @@ impl CrateCargoToml {
 
 #[derive(Debug)]
 pub(crate) struct LocalCrate {
+    pub(crate) name: String,
     pub(crate) path: String,
-    pub(crate) version: String,
+    pub(crate) version: Option<String>,
 }
 
 pub(crate) static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
@@ -160,10 +161,13 @@ impl CargoToml {
     }
 
     pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
-        self.dependencies().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), version: Some(version), .. } = value
-            {
-                Some(LocalCrate { path: path.to_string(), version: version.to_string() })
+        self.dependencies().filter_map(|(name, value)| {
+            if let DependencyValue::Object { path: Some(path), version, .. } = value {
+                Some(LocalCrate {
+                    name: name.clone(),
+                    path: path.to_string(),
+                    version: version.clone(),
+                })
             } else {
                 None
             }

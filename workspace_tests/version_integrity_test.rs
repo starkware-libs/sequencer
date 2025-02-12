@@ -1,8 +1,99 @@
-use crate::toml_utils::{DependencyValue, LocalCrate, PackageEntryValue, MEMBER_TOMLS, ROOT_TOML};
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
+use crate::toml_utils::{
+    CrateCargoToml,
+    DependencyValue,
+    LocalCrate,
+    PackageEntryValue,
+    MEMBER_TOMLS,
+    ROOT_TOML,
+};
 
 const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");
 const MAIN_PARENT_BRANCH: &str = "main";
 const EXPECTED_MAIN_VERSION: &str = "0.0.0";
+
+static ROOT_CRATES_FOR_PUBLISH: LazyLock<HashSet<&str>> =
+    LazyLock::new(|| HashSet::from(["blockifier"]));
+static CRATES_FOR_PUBLISH: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    let publish_deps: HashSet<String> = ROOT_CRATES_FOR_PUBLISH
+        .iter()
+        .flat_map(|crate_name| {
+            // No requirement to publish dev dependencies.
+            CrateCargoToml::from_name(&crate_name.to_string())
+                .member_dependency_names_recursive(false)
+        })
+        .collect();
+    publish_deps
+        .union(&ROOT_CRATES_FOR_PUBLISH.iter().map(|s| s.to_string()).collect())
+        .cloned()
+        .collect()
+});
+
+/// All member crates listed in the root Cargo.toml should have a version field if and only if they
+/// are intended for publishing.
+/// To understand why the workspace benefits from this check, consider the following scenario:
+/// Say crates X, Y and Z are members of the workspace, and crates/X/Cargo.toml is:
+/// ```toml
+/// [package]
+/// name = "X"
+///
+/// [dependencies]
+/// Y.workspace = true
+///
+/// [dev-dependencies]
+/// Z.workspace = true
+/// ```
+/// Consider the (problematic) contents of the root Cargo.toml:
+/// ```toml
+/// X = { path = "crates/X", version = "1.2.3" }
+/// Y = { path = "crates/Y", version = "1.2.3" }
+/// Z = { path = "crates/Z", version = "1.2.3" }
+/// ```
+/// If X is intended for publishing, both X and Y must have a valid version field. Z is not required
+/// for publishing, because it is only a dev dependency. However, since it has a version field,
+/// `cargo publish -p X` will fail because Z is not published.
+/// If the root Cargo.toml is:
+/// ```toml
+/// X = { path = "crates/X", version = "1.2.3" }
+/// Y = { path = "crates/Y", version = "1.2.3" }
+/// Z.path = "crates/Z"
+/// ```
+/// then `cargo publish -p X` will succeed, because the command ignores path dependencies without
+/// version fallbacks.
+#[test]
+fn test_members_have_version_iff_they_are_for_publish() {
+    let members_with_version: HashSet<String> = ROOT_TOML
+        .path_dependencies()
+        .filter_map(
+            |LocalCrate { name, version, .. }| {
+                if version.is_some() { Some(name.clone()) } else { None }
+            },
+        )
+        .collect();
+    let members_without_version: HashSet<String> = ROOT_TOML
+        .path_dependencies()
+        .filter_map(
+            |LocalCrate { name, .. }| {
+                if !members_with_version.contains(&name) { Some(name) } else { None }
+            },
+        )
+        .collect();
+
+    let mut published_crates_without_version: Vec<String> =
+        members_without_version.intersection(&*CRATES_FOR_PUBLISH).cloned().collect();
+    let mut unpublished_crates_with_version: Vec<String> =
+        members_with_version.difference(&*CRATES_FOR_PUBLISH).cloned().collect();
+    published_crates_without_version.sort();
+    unpublished_crates_with_version.sort();
+    assert!(
+        published_crates_without_version.is_empty() && unpublished_crates_with_version.is_empty(),
+        "The following crates are missing a version field in the workspace Cargo.toml: \
+         {published_crates_without_version:#?}.\nThe following crates have a version field but \
+         are not intended for publishing: {unpublished_crates_with_version:#?}."
+    );
+}
 
 #[test]
 fn test_path_dependencies_are_members() {
@@ -22,7 +113,11 @@ fn test_version_alignment() {
     let workspace_version = ROOT_TOML.workspace_version();
     let crates_with_incorrect_version: Vec<_> = ROOT_TOML
         .path_dependencies()
-        .filter(|LocalCrate { version, .. }| version != workspace_version)
+        .filter(
+            |LocalCrate { version, .. }| {
+                if let Some(version) = version { version != workspace_version } else { false }
+            },
+        )
         .collect();
     assert!(
         crates_with_incorrect_version.is_empty(),
