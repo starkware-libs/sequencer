@@ -16,13 +16,13 @@ use tracing::{debug, info, warn};
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
-    transaction_converter: Box<dyn TransactionConverterTrait>,
+    transaction_converter: Box<dyn TransactionConverterTrait + Send>,
 }
 
 impl MempoolP2pPropagator {
     pub fn new(
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
-        transaction_converter: Box<dyn TransactionConverterTrait>,
+        transaction_converter: Box<dyn TransactionConverterTrait + Send>,
     ) -> Self {
         Self { broadcast_topic_client, transaction_converter }
     }

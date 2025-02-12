@@ -28,19 +28,20 @@ async fn process_handle_add_tx() {
     let BroadcastNetworkMock { mut messages_to_broadcast_receiver, .. } = mock_network;
     let internal_tx = InternalRpcTransaction::get_test_instance(&mut get_rng());
     let rpc_transaction = RpcTransaction::get_test_instance(&mut get_rng());
+    let cloned_rpc_transaction = rpc_transaction.clone();
     let mut transaction_converter = MockTransactionConverterTrait::new();
     transaction_converter
         .expect_convert_internal_rpc_tx_to_rpc_tx()
         .with(predicate::eq(internal_tx.clone()))
-        .return_const(Ok(rpc_transaction.clone()))
-        .times(1);
+        .times(1)
+        .return_once(move |_| Ok(rpc_transaction));
     let mut mempool_p2p_propagator =
         MempoolP2pPropagator::new(broadcast_topic_client, Box::new(transaction_converter));
     mempool_p2p_propagator
         .handle_request(MempoolP2pPropagatorRequest::AddTransaction(internal_tx))
         .await;
     let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
-    assert_eq!(message, RpcTransactionWrapper(rpc_transaction));
+    assert_eq!(message, RpcTransactionWrapper(cloned_rpc_transaction));
 }
 
 #[tokio::test]
