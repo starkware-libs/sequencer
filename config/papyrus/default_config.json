@@ -129,11 +129,6 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "context.batcher_build_buffer": {
-    "description": "The buffer size for the batcher when building proposals.",
-    "privacy": "Public",
-    "value": 100
-  },
   "context.block_timestamp_window": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
@@ -153,6 +148,11 @@
     "description": "The number of validators.",
     "privacy": "Public",
     "value": 1
+  },
+  "context.proposal_buffer_size": {
+    "description": "The buffer size for streaming outbound proposals.",
+    "privacy": "Public",
+    "value": 100
   },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
