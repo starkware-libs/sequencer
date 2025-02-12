@@ -1,0 +1,19 @@
+name: Cargo cache TBD
+description: TBD
+
+# TODO: We can add the project name as an input, for key computation.
+# TODO: Add venv cache.
+runs:
+  using: "composite"
+  steps:
+      - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          /home/runner/.cargo/registry
+          /home/runner/.cargo/git
+          sequencer/crates
+          sequencer/target
+        key: cargo-${{ hashFiles('sequencer/Cargo.lock') }}
+        restore-keys: |
+          cargo

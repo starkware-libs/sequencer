@@ -19,6 +19,7 @@ on:
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
+# TODO: Does it use the nightly toolchain? Anyway, handle caching.
 jobs:
   GW-integration-test-call:
     runs-on: ${{ inputs.os }}

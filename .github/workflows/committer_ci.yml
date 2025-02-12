@@ -32,6 +32,8 @@ concurrency:
 
 jobs:
   run-regression-tests:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
@@ -48,6 +50,8 @@ jobs:
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
   benchmarking:
+    container:
+      image: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     if: ${{ github.event_name == 'pull_request' }}
     steps:
