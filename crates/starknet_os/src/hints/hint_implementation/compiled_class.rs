@@ -23,3 +23,9 @@ pub fn iter_current_segment_info(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) 
 pub fn set_ap_to_segment_hash(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
+
+pub fn validate_compiled_class_facts_post_execution(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>,
+) -> HintResult {
+    todo!()
+}
