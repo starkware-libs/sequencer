@@ -14,6 +14,7 @@ pub mod os;
 pub mod os_logger;
 pub mod output;
 pub mod patricia;
+pub mod resources;
 pub mod secp;
 pub mod state;
 pub mod stateful_compression;

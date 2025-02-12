@@ -99,10 +99,6 @@ pub fn tx_entry_point_selector(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) ->
     todo!()
 }
 
-pub fn resource_bounds(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
 pub fn tx_max_fee(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
@@ -112,10 +108,6 @@ pub fn tx_nonce(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
 }
 
 pub fn tx_tip(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub fn tx_resource_bounds_len(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
 
