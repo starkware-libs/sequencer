@@ -417,8 +417,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             );
             return;
         };
-        if let Some(metrics) = self.metrics.as_ref() {
-            metrics.num_active_inbound_sessions.increment(1);
+        if let Some(sqmr_metrics) =
+            self.metrics.as_ref().and_then(|metrics| metrics.sqmr_metrics.as_ref())
+        {
+            sqmr_metrics.num_active_inbound_sessions.increment(1);
         }
         let (responses_sender, responses_receiver) = futures::channel::mpsc::channel(
             *self
@@ -515,8 +517,14 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: gossipsub_impl::ExternalEvent,
     ) -> Result<(), NetworkError> {
+        if let Some(broadcast_metrics) =
+            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics.as_ref())
+        {
+            broadcast_metrics.num_received_broadcast_messages.increment(1);
+        }
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
+        trace!("Received broadcast message with topic hash: {topic_hash:?}");
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
             encoded_message_length: message.len(),
@@ -578,8 +586,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         let outbound_session_id = self.swarm.send_query(query, protocol.clone());
-        if let Some(metrics) = self.metrics.as_ref() {
-            metrics.num_active_outbound_sessions.increment(1);
+        if let Some(sqmr_metrics) =
+            self.metrics.as_ref().and_then(|metrics| metrics.sqmr_metrics.as_ref())
+        {
+            sqmr_metrics.num_active_outbound_sessions.increment(1);
         }
         self.sqmr_outbound_response_senders.insert(outbound_session_id, responses_sender);
         self.sqmr_outbound_report_receivers_awaiting_assignment
@@ -587,19 +597,29 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+        if let Some(broadcast_metrics) =
+            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics.as_ref())
+        {
+            broadcast_metrics.num_sent_broadcast_messages.increment(1);
+        }
+        trace!("Sending broadcast message with topic hash: {topic_hash:?}");
         self.swarm.broadcast_message(message, topic_hash);
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
         match session_id {
             SessionId::InboundSessionId(_) => {
-                if let Some(metrics) = self.metrics.as_ref() {
-                    metrics.num_active_inbound_sessions.decrement(1);
+                if let Some(sqmr_metrics) =
+                    self.metrics.as_ref().and_then(|metrics| metrics.sqmr_metrics.as_ref())
+                {
+                    sqmr_metrics.num_active_inbound_sessions.decrement(1);
                 }
             }
             SessionId::OutboundSessionId(_) => {
-                if let Some(metrics) = self.metrics.as_ref() {
-                    metrics.num_active_outbound_sessions.decrement(1);
+                if let Some(sqmr_metrics) =
+                    self.metrics.as_ref().and_then(|metrics| metrics.sqmr_metrics.as_ref())
+                {
+                    sqmr_metrics.num_active_outbound_sessions.decrement(1);
                 }
             }
         }
