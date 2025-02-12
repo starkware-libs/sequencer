@@ -151,15 +151,17 @@ pub struct Mempool {
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
     state: MempoolState,
+    clock: Arc<dyn Clock>,
 }
 
 impl Mempool {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
         Mempool {
             config: MempoolConfig::default(),
-            tx_pool: TransactionPool::new(clock),
+            tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::default(),
+            clock,
         }
     }
 
@@ -180,9 +182,11 @@ impl Mempool {
 
         while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
-            self.enqueue_next_eligible_txs(&chunk)?;
-            n_remaining_txs -= chunk.len();
-            eligible_tx_references.extend(chunk);
+            let valid_txs = self.prune_expired_nonqueued_txs(chunk);
+
+            self.enqueue_next_eligible_txs(&valid_txs)?;
+            n_remaining_txs -= valid_txs.len();
+            eligible_tx_references.extend(valid_txs);
         }
 
         // Update the mempool state with the given transactions' nonces.
@@ -410,6 +414,33 @@ impl Mempool {
     fn remove_expired_txs(&mut self) {
         let removed_txs = self.tx_pool.remove_txs_older_than(self.config.transaction_ttl);
         self.tx_queue.remove_txs(&removed_txs);
+    }
+
+    /// Given a chunk of transactions, removes from the pool those that are old, and returns the
+    /// remaining valid ones.
+    /// Note: This function assumes that the given transactions were already removed from the queue.
+    fn prune_expired_nonqueued_txs(
+        &mut self,
+        txs: Vec<TransactionReference>,
+    ) -> Vec<TransactionReference> {
+        // Divide the chunk into transactions that are old and no longer valid and those that
+        // remain valid.
+        let (old_txs, valid_txs): (Vec<_>, Vec<_>) = txs.into_iter().partition(|tx| {
+            let tx_submission_time = self
+                .tx_pool
+                .get_submission_time(tx.tx_hash)
+                .expect("Transaction hash from queue must appear in pool.");
+            self.clock.now() - tx_submission_time > self.config.transaction_ttl
+        });
+
+        // Remove old transactions from the pool.
+        for tx in old_txs {
+            self.tx_pool
+                .remove(tx.tx_hash)
+                .expect("Transaction hash from queue must appear in pool.");
+        }
+
+        valid_txs
     }
 
     #[cfg(test)]
