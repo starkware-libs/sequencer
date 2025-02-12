@@ -1,3 +1,5 @@
 // TODO(Dan, Shahak): consider whether to enable clippy::large_enum_variant
 #![allow(clippy::large_enum_variant)]
-include!(concat!(env!("OUT_DIR"), "/_.rs"));
+pub mod protoc_output;
+
+pub use protoc_output::*;
