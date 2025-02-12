@@ -10,7 +10,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
-    BlockInfo,
+    ConsensusBlockInfo,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -45,7 +45,7 @@ auto_impl_get_test_instance! {
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,
     }
-    pub struct BlockInfo {
+    pub struct ConsensusBlockInfo {
         pub height: BlockNumber,
         pub timestamp: u64,
         pub builder: ContractAddress,
@@ -58,7 +58,7 @@ auto_impl_get_test_instance! {
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
         Fin(ProposalFin) = 1,
-        BlockInfo(BlockInfo) = 2,
+        BlockInfo(ConsensusBlockInfo) = 2,
         Transactions(TransactionBatch) = 3,
     }
 

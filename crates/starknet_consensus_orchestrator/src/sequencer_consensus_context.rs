@@ -14,7 +14,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
-    BlockInfo as ConsensusBlockInfo,
+    ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
     ProposalInit,

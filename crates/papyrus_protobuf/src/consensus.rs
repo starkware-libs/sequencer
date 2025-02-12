@@ -57,8 +57,12 @@ pub struct ProposalInit {
     pub proposer: ContractAddress,
 }
 
+/// This struct differs from `BlockInfo` in `starknet_api` because we send L1 gas prices in ETH and
+/// include the ETH to STRK conversion rate. This allows for more informative validations, as we can
+/// distinguish whether an issue comes from the L1 price reading or the conversion rate instead of
+/// comparing after multiplication.
 #[derive(Clone, Debug, PartialEq)]
-pub struct BlockInfo {
+pub struct ConsensusBlockInfo {
     pub height: BlockNumber,
     pub timestamp: u64,
     pub builder: ContractAddress,
@@ -107,7 +111,7 @@ pub enum ProposalPart {
     /// Identifies the content of the proposal; contains `id(v)` in Tendermint terms.
     Fin(ProposalFin),
     /// The block info part of the proposal.
-    BlockInfo(BlockInfo),
+    BlockInfo(ConsensusBlockInfo),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
 }
