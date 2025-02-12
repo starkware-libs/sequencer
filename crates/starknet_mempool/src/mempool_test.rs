@@ -962,3 +962,32 @@ fn add_tx_old_transactions_cleanup() {
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
 }
+
+#[rstest]
+fn get_txs_old_transactions_cleanup() {
+    // Create a mempool with a fake clock.
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(fake_clock.clone());
+
+    // Add a new transaction to the mempool.
+    let first_tx =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &first_tx);
+
+    // Advance the clock and add another transaction.
+    fake_clock.advance(mempool.config.transaction_ttl + Duration::from_secs(5));
+
+    let second_tx =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &second_tx);
+
+    // Only the second transaction should be returned from get_txs, and the first should be removed.
+    assert_eq!(mempool.get_txs(2).unwrap(), vec![second_tx.tx.clone()]);
+
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_pool([second_tx.tx.clone()])
+        .with_priority_queue([])
+        .with_pending_queue([])
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
+}
