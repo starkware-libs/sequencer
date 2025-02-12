@@ -231,6 +231,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 &tx_state_changes_keys,
                 &tx_execution_info.summarize(&self.block_context.versioned_constants),
                 &tx_execution_info.receipt.resources,
+                &self.block_context.versioned_constants,
             );
             if let Err(error) = bouncer_result {
                 match error {
