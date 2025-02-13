@@ -50,14 +50,14 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         env:
           COMMIT_SHA: ${{ github.event.pull_request.head.sha }}
-        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+        run: echo "SHORT_HASH=$(COMMIT_SHA:0:7)" >> $GITHUB_ENV
 
         # On push event (to main, for example) we should take the commit post-push.
       - name: Get commit hash prefix for merge
         if: ${{ github.event_name != 'pull_request' }}
         env:
           COMMIT_SHA: ${{ github.event.after }}
-        run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+        run: echo "SHORT_HASH=$(COMMIT_SHA:0:7)" >> $GITHUB_ENV
 
       - name: Build CLI binary
         run: ./build_native_in_docker.sh cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
