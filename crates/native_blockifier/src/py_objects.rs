@@ -9,28 +9,17 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
 };
-use blockifier::bouncer::{
-    builtins_to_sierra_gas,
-    BouncerConfig,
-    BouncerWeights,
-    BuiltinCounterMap,
-};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::utils::u64_from_usize;
-use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
-use cairo_vm::types::builtin_name::BuiltinName;
+use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
-use crate::errors::{
-    InvalidNativeBlockifierInputError,
-    NativeBlockifierError,
-    NativeBlockifierInputError,
-    NativeBlockifierResult,
-};
+use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 
 // From Rust to Python.
 
@@ -109,24 +98,6 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
     }
 }
 
-fn hash_map_into_builtin_count(
-    builtins: HashMap<String, usize>,
-) -> Result<BuiltinCounterMap, NativeBlockifierInputError> {
-    let mut builtin_count_map = BuiltinCounterMap::new();
-    for (builtin_name, count) in builtins.iter() {
-        if *count == 0 {
-            return Err(NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                InvalidNativeBlockifierInputError::InvalidBuiltinCounts(builtin_count_map.clone()),
-            ));
-        }
-        let builtin = BuiltinName::from_str_with_suffix(builtin_name)
-            .ok_or(NativeBlockifierInputError::UnknownBuiltin(builtin_name.clone()))?;
-        builtin_count_map.insert(builtin, *count);
-    }
-
-    Ok(builtin_count_map)
-}
-
 fn hash_map_into_bouncer_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BouncerWeights> {
@@ -138,17 +109,15 @@ fn hash_map_into_bouncer_weights(
     let state_diff_size =
         data.remove(constants::STATE_DIFF_SIZE).expect("state_diff_size must be present");
     let n_events = data.remove(constants::N_EVENTS).expect("n_events must be present");
+    let builtins_gas =
+        data.remove(constants::BUILTINS_GAS).expect("builtins_total_sierra_gas must be present");
     let sierra_gas = GasAmount(
         data.remove(constants::SIERRA_GAS)
             .expect("sierra_gas must be present")
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-    // TODO(AvivG): Implement logic to retrieve only the Sierra gas limit from Python without VM
-    // resources.
-    let builtins_count = hash_map_into_builtin_count(data)?;
-    let versioned_constants = VersionedConstants::latest_constants();
-    let builtins_gas = builtins_to_sierra_gas(&builtins_count, versioned_constants);
+    let builtins_gas = GasAmount(u64_from_usize(builtins_gas));
     let steps_gas = GasAmount(u64_from_usize(n_steps));
 
     let sierra_gas_w_vm = sierra_gas
@@ -156,9 +125,9 @@ fn hash_map_into_bouncer_weights(
         .and_then(|gas_with_builtins| gas_with_builtins.checked_add(steps_gas))
         .unwrap_or_else(|| {
             panic!(
-                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins: \
-                 {:?}\nSteps: {}\nInitial Sierra gas: {}",
-                builtins_count, n_steps, sierra_gas
+                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins \
+                 gas: {:?}\nSteps: {}\nInitial Sierra gas: {}",
+                builtins_gas, n_steps, sierra_gas
             )
         });
 
