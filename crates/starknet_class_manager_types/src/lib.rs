@@ -21,7 +21,12 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
-use starknet_sierra_multicompile_types::{SierraCompilerClientError, SierraCompilerError};
+use starknet_sierra_multicompile_types::{
+    RawClass,
+    RawExecutableClass,
+    SierraCompilerClientError,
+    SierraCompilerError,
+};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
@@ -121,12 +126,20 @@ pub enum ClassManagerClientError {
     ClientError(#[from] ClientError),
     #[error(transparent)]
     ClassManagerError(#[from] ClassManagerError),
+    #[error("Failed to serde class: {0}")]
+    ClassSerde(String),
+}
+
+impl From<serde_json::Error> for ClassManagerClientError {
+    fn from(error: serde_json::Error) -> Self {
+        ClassManagerClientError::ClassSerde(error.to_string())
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerRequest {
-    AddClass(Class),
-    AddDeprecatedClass(ClassId, DeprecatedClass),
+    AddClass(RawClass),
+    AddDeprecatedClass(ClassId, RawExecutableClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
 }
@@ -135,8 +148,8 @@ pub enum ClassManagerRequest {
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ClassHashes>),
     AddDeprecatedClass(ClassManagerResult<()>),
-    GetExecutable(ClassManagerResult<Option<ExecutableClass>>),
-    GetSierra(ClassManagerResult<Option<Class>>),
+    GetExecutable(ClassManagerResult<Option<RawExecutableClass>>),
+    GetSierra(ClassManagerResult<Option<RawClass>>),
 }
 
 #[async_trait]
@@ -145,7 +158,7 @@ where
     ComponentClientType: Send + Sync + ComponentClient<ClassManagerRequest, ClassManagerResponse>,
 {
     async fn add_class(&self, class: Class) -> ClassManagerClientResult<ClassHashes> {
-        let request = ClassManagerRequest::AddClass(class);
+        let request = ClassManagerRequest::AddClass(class.try_into()?);
         handle_all_response_variants!(
             ClassManagerResponse,
             AddClass,
@@ -160,7 +173,7 @@ where
         class_id: ClassId,
         class: DeprecatedClass,
     ) -> ClassManagerClientResult<()> {
-        let request = ClassManagerRequest::AddDeprecatedClass(class_id, class);
+        let request = ClassManagerRequest::AddDeprecatedClass(class_id, class.try_into()?);
         handle_all_response_variants!(
             ClassManagerResponse,
             AddDeprecatedClass,
@@ -175,24 +188,34 @@ where
         class_id: ClassId,
     ) -> ClassManagerClientResult<Option<ExecutableClass>> {
         let request = ClassManagerRequest::GetExecutable(class_id);
-        handle_all_response_variants!(
+        let response = handle_all_response_variants!(
             ClassManagerResponse,
             GetExecutable,
             ClassManagerClientError,
             ClassManagerError,
             Direct
-        )
+        );
+
+        let to_raw_class = |opt_cls: Option<RawExecutableClass>| {
+            opt_cls.map(|cls| cls.try_into().map_err(ClassManagerClientError::from)).transpose()
+        };
+        response.and_then(to_raw_class)
     }
 
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
         let request = ClassManagerRequest::GetSierra(class_id);
-        handle_all_response_variants!(
+        let response = handle_all_response_variants!(
             ClassManagerResponse,
             GetSierra,
             ClassManagerClientError,
             ClassManagerError,
             Direct
-        )
+        );
+
+        let to_raw_class = |opt_cls: Option<RawClass>| {
+            opt_cls.map(|cls| cls.try_into().map_err(ClassManagerClientError::from)).transpose()
+        };
+        response.and_then(to_raw_class)
     }
 }
 

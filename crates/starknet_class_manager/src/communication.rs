@@ -10,33 +10,23 @@ pub type LocalClassManagerServer =
 pub type RemoteClassManagerServer =
     RemoteComponentServer<ClassManagerRequest, ClassManagerResponse>;
 
-// TODO(Elin): change the request and response the server sees to raw types; remove conversions and
-// unwraps.
 #[async_trait]
 impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for ClassManager {
     async fn handle_request(&mut self, request: ClassManagerRequest) -> ClassManagerResponse {
         match request {
             ClassManagerRequest::AddClass(class) => {
-                ClassManagerResponse::AddClass(self.0.add_class(class.try_into().unwrap()).await)
+                ClassManagerResponse::AddClass(self.0.add_class(class).await)
             }
             ClassManagerRequest::AddDeprecatedClass(class_id, class) => {
                 ClassManagerResponse::AddDeprecatedClass(
-                    self.0.add_deprecated_class(class_id, class.try_into().unwrap()),
+                    self.0.add_deprecated_class(class_id, class),
                 )
             }
             ClassManagerRequest::GetExecutable(class_id) => {
-                let result = self
-                    .0
-                    .get_executable(class_id)
-                    .map(|optional_class| optional_class.map(|class| class.try_into().unwrap()));
-                ClassManagerResponse::GetExecutable(result)
+                ClassManagerResponse::GetExecutable(self.0.get_executable(class_id))
             }
             ClassManagerRequest::GetSierra(class_id) => {
-                let result = self
-                    .0
-                    .get_sierra(class_id)
-                    .map(|optional_class| optional_class.map(|class| class.try_into().unwrap()));
-                ClassManagerResponse::GetSierra(result)
+                ClassManagerResponse::GetSierra(self.0.get_sierra(class_id))
             }
         }
     }
