@@ -28,6 +28,33 @@ use starknet_sequencer_infra::component_server::{
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
+use starknet_sequencer_infra::metrics::create_shared_infra_metrics;
+use starknet_sequencer_metrics::metric_definitions::{
+    BATCHER_MSGS_PROCESSED,
+    BATCHER_MSGS_RECEIVED,
+    BATCHER_QUEUE_DEPTH,
+    CLASS_MANAGER_MSGS_PROCESSED,
+    CLASS_MANAGER_MSGS_RECEIVED,
+    CLASS_MANAGER_QUEUE_DEPTH,
+    GATEWAY_MSGS_PROCESSED,
+    GATEWAY_MSGS_RECEIVED,
+    GATEWAY_QUEUE_DEPTH,
+    L1_PROVIDER_MSGS_PROCESSED,
+    L1_PROVIDER_MSGS_RECEIVED,
+    L1_PROVIDER_QUEUE_DEPTH,
+    MEMPOOL_MSGS_PROCESSED,
+    MEMPOOL_MSGS_RECEIVED,
+    MEMPOOL_P2P_MSGS_PROCESSED,
+    MEMPOOL_P2P_MSGS_RECEIVED,
+    MEMPOOL_P2P_QUEUE_DEPTH,
+    MEMPOOL_QUEUE_DEPTH,
+    SIERRA_COMPILER_MSGS_PROCESSED,
+    SIERRA_COMPILER_MSGS_RECEIVED,
+    SIERRA_COMPILER_QUEUE_DEPTH,
+    STATE_SYNC_MSGS_PROCESSED,
+    STATE_SYNC_MSGS_RECEIVED,
+    STATE_SYNC_QUEUE_DEPTH,
+};
 use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
 use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
@@ -187,7 +214,7 @@ macro_rules! create_remote_server {
 /// }
 /// ```
 macro_rules! create_local_server {
-    ($execution_mode:expr, $component:expr, $receiver:expr, $max_concurrency:expr, $server_type:tt) => {
+    ($execution_mode:expr, $component:expr, $receiver:expr, $max_concurrency:expr, $server_metrics:expr, $server_type:tt) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -197,6 +224,7 @@ macro_rules! create_local_server {
                         .expect(concat!(stringify!($component), " is not initialized.")),
                     $receiver,
                     $max_concurrency,
+                    $server_metrics,
                 )))
             }
             ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -259,60 +287,115 @@ fn create_local_servers(
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
+    let batcher_metrics = create_shared_infra_metrics(
+        &BATCHER_MSGS_RECEIVED,
+        &BATCHER_MSGS_PROCESSED,
+        &BATCHER_QUEUE_DEPTH,
+    );
     let batcher_server = create_local_server!(
         &config.components.batcher.execution_mode,
         &mut components.batcher,
         communication.take_batcher_rx(),
         config.components.batcher.max_concurrency,
+        batcher_metrics,
         REGULAR_LOCAL_SERVER
+    );
+
+    let class_manager_metrics = create_shared_infra_metrics(
+        &CLASS_MANAGER_MSGS_RECEIVED,
+        &CLASS_MANAGER_MSGS_PROCESSED,
+        &CLASS_MANAGER_QUEUE_DEPTH,
     );
     let class_manager_server = create_local_server!(
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
         communication.take_class_manager_rx(),
         config.components.class_manager.max_concurrency,
+        class_manager_metrics,
         REGULAR_LOCAL_SERVER
+    );
+
+    let gateway_metrics = create_shared_infra_metrics(
+        &GATEWAY_MSGS_RECEIVED,
+        &GATEWAY_MSGS_PROCESSED,
+        &GATEWAY_QUEUE_DEPTH,
     );
     let gateway_server = create_local_server!(
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
         config.components.gateway.max_concurrency,
+        gateway_metrics,
         REGULAR_LOCAL_SERVER
+    );
+
+    let l1_provider_metrics = create_shared_infra_metrics(
+        &L1_PROVIDER_MSGS_RECEIVED,
+        &L1_PROVIDER_MSGS_PROCESSED,
+        &L1_PROVIDER_QUEUE_DEPTH,
     );
     let l1_provider_server = create_local_server!(
         &config.components.l1_provider.execution_mode,
         &mut components.l1_provider,
         communication.take_l1_provider_rx(),
         config.components.l1_provider.max_concurrency,
+        l1_provider_metrics,
         REGULAR_LOCAL_SERVER
+    );
+
+    let mempool_metrics = create_shared_infra_metrics(
+        &MEMPOOL_MSGS_RECEIVED,
+        &MEMPOOL_MSGS_PROCESSED,
+        &MEMPOOL_QUEUE_DEPTH,
     );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
         &mut components.mempool,
         communication.take_mempool_rx(),
         config.components.mempool.max_concurrency,
+        mempool_metrics,
         REGULAR_LOCAL_SERVER
+    );
+
+    let mempool_p2p_metrics = create_shared_infra_metrics(
+        &MEMPOOL_P2P_MSGS_RECEIVED,
+        &MEMPOOL_P2P_MSGS_PROCESSED,
+        &MEMPOOL_P2P_QUEUE_DEPTH,
     );
     let mempool_p2p_propagator_server = create_local_server!(
         &config.components.mempool_p2p.execution_mode,
         &mut components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx(),
         config.components.mempool_p2p.max_concurrency,
+        mempool_p2p_metrics,
         REGULAR_LOCAL_SERVER
+    );
+
+    let sierra_compiler_metrics = create_shared_infra_metrics(
+        &SIERRA_COMPILER_MSGS_RECEIVED,
+        &SIERRA_COMPILER_MSGS_PROCESSED,
+        &SIERRA_COMPILER_QUEUE_DEPTH,
     );
     let sierra_compiler_server = create_local_server!(
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
         config.components.sierra_compiler.max_concurrency,
+        sierra_compiler_metrics,
         CONCURRENT_LOCAL_SERVER
+    );
+
+    let state_sync_metrics = create_shared_infra_metrics(
+        &STATE_SYNC_MSGS_RECEIVED,
+        &STATE_SYNC_MSGS_PROCESSED,
+        &STATE_SYNC_QUEUE_DEPTH,
     );
     let state_sync_server = create_local_server!(
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
         config.components.state_sync.max_concurrency,
+        state_sync_metrics,
         REGULAR_LOCAL_SERVER
     );
 

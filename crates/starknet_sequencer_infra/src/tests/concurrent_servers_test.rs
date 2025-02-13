@@ -9,6 +9,7 @@ use tokio::sync::Semaphore;
 use tokio::task;
 use tokio::time::timeout;
 
+use super::mock_metrics::create_shared_mock_metrics;
 use crate::component_client::{ClientResult, LocalComponentClient, RemoteComponentClient};
 use crate::component_definitions::{
     ComponentClient,
@@ -118,8 +119,12 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     let local_client = LocalConcurrentComponentClient::new(tx_a);
 
     let max_concurrency = 10;
-    let mut concurrent_local_server =
-        ConcurrentLocalComponentServer::new(component, rx_a, max_concurrency);
+    let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
+        component,
+        rx_a,
+        max_concurrency,
+        create_shared_mock_metrics(),
+    );
     task::spawn(async move {
         let _ = concurrent_local_server.start().await;
     });
