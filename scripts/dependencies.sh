@@ -14,8 +14,11 @@ function install_essential_deps_linux() {
             jq \
             libssl-dev \
             lsb-release \
+            lsof \
             npm \
+            pip \
             pkg-config \
+            python3.10-venv \
             ripgrep \
             software-properties-common \
             zstd \
