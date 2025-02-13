@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   build-and-run-sequencer-integration-tests:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4

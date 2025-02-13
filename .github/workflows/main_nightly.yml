@@ -9,6 +9,7 @@ env:
 
 jobs:
   codecov:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +30,7 @@ jobs:
           verbose: true
 
   feature_combos:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4

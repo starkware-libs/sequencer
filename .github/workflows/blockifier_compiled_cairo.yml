@@ -29,6 +29,7 @@ concurrency:
 
 jobs:
   verify_cairo_file_dependencies:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
