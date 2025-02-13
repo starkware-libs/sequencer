@@ -1,3 +1,6 @@
+use std::fs::{File, OpenOptions};
+use std::io::{BufReader, BufWriter};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -7,7 +10,6 @@ use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
 use starknet_sequencer_infra::component_client::{
     ClientError,
@@ -36,14 +38,75 @@ pub type SierraCompilerRequestAndResponseSender =
 // TODO(Elin): change to a more efficient serde (bytes, or something similar).
 // A prerequisite for this is to solve serde-untagged lack of support.
 
+type RawClassResult<T> = Result<T, RawClassError>;
+pub type RawClass = SerializedClass<SierraContractClass>;
+pub type RawExecutableClass = SerializedClass<ContractClass>;
+
+#[derive(Debug, Error)]
+pub enum RawClassError {
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    WriteError(#[from] serde_json::Error),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RawClass(pub serde_json::Value);
+pub struct SerializedClass<T>(serde_json::Value, std::marker::PhantomData<T>);
+
+impl<T> SerializedClass<T> {
+    pub fn into_value(self) -> serde_json::Value {
+        self.0
+    }
+
+    fn new(value: serde_json::Value) -> Self {
+        Self(value, std::marker::PhantomData)
+    }
+
+    pub fn from_file(path: PathBuf) -> RawClassResult<Option<Self>> {
+        let file = match File::open(path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(e.into()),
+        };
+
+        match serde_json::from_reader(BufReader::new(file)) {
+            Ok(value) => Ok(Some(Self::new(value))),
+            // In case the file was deleted/tempered with until actual read is done.
+            Err(e) if e.is_io() && e.to_string().contains("No such file or directory") => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub fn write_to_file(self, path: PathBuf) -> RawClassResult<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
+        // Open a file for writing, deleting any existing content.
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .expect("Failing to open file with given options is impossible");
+
+        let writer = BufWriter::new(file);
+        serde_json::to_writer(writer, &self.into_value())?;
+
+        Ok(())
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn new_unchecked(value: serde_json::Value) -> Self {
+        Self::new(value)
+    }
+}
 
 impl TryFrom<SierraContractClass> for RawClass {
     type Error = serde_json::Error;
 
     fn try_from(class: SierraContractClass) -> Result<Self, Self::Error> {
-        Ok(Self(serde_json::to_value(class)?))
+        Ok(Self::new(serde_json::to_value(class)?))
     }
 }
 
@@ -55,36 +118,15 @@ impl TryFrom<RawClass> for SierraContractClass {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RawExecutableClass(pub serde_json::Value);
-
 impl TryFrom<ContractClass> for RawExecutableClass {
     type Error = serde_json::Error;
 
     fn try_from(class: ContractClass) -> Result<Self, Self::Error> {
-        Ok(Self(serde_json::to_value(class)?))
+        Ok(Self::new(serde_json::to_value(class)?))
     }
 }
 
 impl TryFrom<RawExecutableClass> for ContractClass {
-    type Error = serde_json::Error;
-
-    fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {
-        serde_json::from_value(class.0)
-    }
-}
-
-// TODO(Elin): consider separating to `RawDeprecatedExecutableClass` once class manager's deprecated
-// class API is stable.`
-impl TryFrom<DeprecatedClass> for RawExecutableClass {
-    type Error = serde_json::Error;
-
-    fn try_from(class: DeprecatedClass) -> Result<Self, Self::Error> {
-        Ok(Self(serde_json::to_value(class)?))
-    }
-}
-
-impl TryFrom<RawExecutableClass> for DeprecatedClass {
     type Error = serde_json::Error;
 
     fn try_from(class: RawExecutableClass) -> Result<Self, Self::Error> {

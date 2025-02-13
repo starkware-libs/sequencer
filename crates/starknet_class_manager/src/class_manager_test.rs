@@ -37,7 +37,7 @@ async fn class_manager() {
     // Prepare mock compiler.
     let mut compiler = MockSierraCompilerClient::new();
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let expected_executable_class = RawExecutableClass(vec![4, 5, 6].into());
+    let expected_executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     let expected_executable_class_for_closure = expected_executable_class.clone();
     let expected_executable_class_hash = CompiledClassHash(felt!("0x5678"));
     compiler.expect_compile().with(eq(class.clone())).times(1).return_once(move |_| {
@@ -85,7 +85,7 @@ async fn class_manager_get_executable() {
     // Prepare mock compiler.
     let mut compiler = MockSierraCompilerClient::new();
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let expected_executable_class = RawExecutableClass(vec![4, 5, 6].into());
+    let expected_executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     let expected_executable_class_for_closure = expected_executable_class.clone();
     let expected_executable_class_hash = CompiledClassHash(felt!("0x5678"));
     compiler.expect_compile().with(eq(class.clone())).times(1).return_once(move |_| {
@@ -105,7 +105,7 @@ async fn class_manager_get_executable() {
         class_manager.add_class(class.clone()).await.unwrap();
 
     let deprecated_class_hash = ClassHash(felt!("0x1806"));
-    let deprecated_executable_class = RawExecutableClass(vec![1, 2, 3].into());
+    let deprecated_executable_class = RawExecutableClass::new_unchecked(vec![1, 2, 3].into());
     class_manager
         .add_deprecated_class(deprecated_class_hash, deprecated_executable_class.clone())
         .unwrap();
