@@ -67,7 +67,7 @@ impl Default for StateSyncConfig {
         Self {
             storage_config: StorageConfig {
                 db_config: DbConfig {
-                    path_prefix: PathBuf::from("./sequencer_data"),
+                    path_prefix: PathBuf::from("/data/state_sync"),
                     ..Default::default()
                 },
                 ..Default::default()
