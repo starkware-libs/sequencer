@@ -533,5 +533,45 @@ nibbles = [(num >> i) & 0xf for i in range(0, 256, 4)]
 ids.first_nibble = nibbles.pop()
 ids.last_nibble = nibbles[0]"#,
         r#"value = new_y = (slope * (x - new_x) - y) % SECP256R1_P"#,
+        // This hint was modified to reflect changes in the Python crate.
+        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_ALPHA, SECP256R1_P
+from starkware.cairo.common.cairo_secp.secp_utils import pack
+from starkware.python.math_utils import ec_double_slope
+
+# Compute the slope.
+x = pack(ids.point.x, PRIME)
+y = pack(ids.point.y, PRIME)
+value = slope = ec_double_slope(point=(x, y), alpha=SECP256R1_ALPHA, p=SECP256R1_P)"#,
+        // This hint was modified to reflect changes in the Python crate.
+        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
+from starkware.cairo.common.cairo_secp.secp_utils import pack
+
+slope = pack(ids.slope, PRIME)
+x = pack(ids.point.x, PRIME)
+y = pack(ids.point.y, PRIME)
+
+value = new_x = (pow(slope, 2, SECP256R1_P) - 2 * x) % SECP256R1_P"#,
+        // This hint was modified to reflect changes in the Python crate.
+        r#"from starkware.cairo.common.cairo_secp.secp_utils import SECP256R1, pack
+from starkware.python.math_utils import y_squared_from_x
+
+y_square_int = y_squared_from_x(
+    x=pack(ids.x, PRIME),
+    alpha=SECP256R1.alpha,
+    beta=SECP256R1.beta,
+    field_prime=SECP256R1.prime,
+)
+
+# Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
+#   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
+#   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
+#   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
+y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
+
+# We need to decide whether to take y or prime - y.
+if ids.v % 2 == y % 2:
+    value = y
+else:
+    value = (-y) % SECP256R1.prime"#,
     ])
 }
