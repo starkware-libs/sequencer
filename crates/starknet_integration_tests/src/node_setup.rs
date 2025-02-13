@@ -16,7 +16,7 @@ pub async fn node_setup(
     info!("Node setup");
 
     // Get the sequencer configurations.
-    let (sequencers_setup, _node_indices) = get_sequencer_setup_configs(
+    let sequencers_setup = get_sequencer_setup_configs(
         tx_generator,
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
