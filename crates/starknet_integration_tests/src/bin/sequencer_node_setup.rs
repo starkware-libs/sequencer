@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::node_setup::node_setup;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -14,13 +15,7 @@ async fn main() {
     // Parse command line arguments.
     let args = Args::parse();
 
-    // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
-    // spawning.
-    let default_panic = std::panic::take_hook();
-    std::panic::set_hook(Box::new(move |info| {
-        default_panic(info);
-        std::process::exit(1);
-    }));
+    set_panic_hook();
 
     // Creates a multi-account transaction generator for integration test
     let mut tx_generator = create_integration_test_tx_generator();
