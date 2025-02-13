@@ -15,7 +15,10 @@ use starknet_sequencer_node::config::node_config::{
 
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".
 
+// TODO(Nadin): rename the file to node_config.json.
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
+pub const SINGLE_NODE_CONFIG_PATH: &str = "single_node_config.json";
+pub const SYSTEM_TEST_PRESETS_CONFIG_PATH: &str = "config/sequencer/presets/system_test_presets";
 
 /// Creates a config file for the sequencer node for an integration test.
 pub(crate) fn dump_config_file_changes(
