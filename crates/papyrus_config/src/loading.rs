@@ -127,6 +127,7 @@ pub(crate) fn update_config_map_by_custom_configs(
     custom_config_paths: Values<PathBuf>,
 ) -> Result<(), ConfigError> {
     for config_path in custom_config_paths {
+        info!("Loading custom config file: {:?}", config_path);
         validate_path_exists(&config_path)?;
         let file = std::fs::File::open(config_path)?;
         let custom_config: Map<String, Value> = serde_json::from_reader(file)?;
