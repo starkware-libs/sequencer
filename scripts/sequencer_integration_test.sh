@@ -28,7 +28,7 @@ TEST="${1:-positive}"
 echo "Running integration test alias: $TEST"
 
 # Stop any running instances of starknet_sequencer_node (ignore error if not found)
-killall starknet_sequencer_node 2>/dev/null
+sudo killall starknet_sequencer_node 2>/dev/null
 
 # Build the main node binary (if required)
 cargo build --bin starknet_sequencer_node
