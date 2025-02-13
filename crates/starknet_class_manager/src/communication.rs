@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use starknet_api::contract_class::ContractClass;
 use starknet_class_manager_types::{ClassManagerRequest, ClassManagerResponse};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
@@ -20,8 +21,9 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
                 ClassManagerResponse::AddClass(self.0.add_class(class.try_into().unwrap()).await)
             }
             ClassManagerRequest::AddDeprecatedClass(class_id, class) => {
+                let class = ContractClass::V0(class).try_into().unwrap();
                 ClassManagerResponse::AddDeprecatedClass(
-                    self.0.add_deprecated_class(class_id, class.try_into().unwrap()),
+                    self.0.add_deprecated_class(class_id, class),
                 )
             }
             ClassManagerRequest::GetExecutable(class_id) => {
