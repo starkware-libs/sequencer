@@ -10,6 +10,7 @@ pub enum MetricScope {
     Batcher,
     HttpServer,
     Network,
+    PapyrusSync,
 }
 
 pub struct MetricCounter {
