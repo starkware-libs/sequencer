@@ -330,7 +330,7 @@ impl IntegrationTestManager {
     }
 }
 
-fn nonce_to_usize(nonce: Nonce) -> usize {
+pub fn nonce_to_usize(nonce: Nonce) -> usize {
     let prefixed_hex = nonce.0.to_hex_string();
     let unprefixed_hex = prefixed_hex.split_once("0x").unwrap().1;
     usize::from_str_radix(unprefixed_hex, 16).unwrap()
