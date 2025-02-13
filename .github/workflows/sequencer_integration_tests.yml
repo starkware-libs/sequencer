@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   build-and-run-sequencer-positive_flow_integration-test:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +33,7 @@ jobs:
           cargo build --bin positive_flow_integration_test
           target/debug/positive_flow_integration_test
   build-and-run-sequencer-revert_flow_integration-test:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +43,7 @@ jobs:
           cargo build --bin revert_flow_integration_test
           target/debug/revert_flow_integration_test
   build-and-run-sequencer-restart_flow_integration-test:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4

@@ -29,20 +29,11 @@ concurrency:
 
 jobs:
   verify_cairo_file_dependencies:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-
-      # Setup pypy and link to the location expected by .cargo/config.toml.
-      - uses: actions/setup-python@v5
-        id: setup-pypy
-        with:
-          python-version: 'pypy3.9'
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
       - name: checkout sequencer into `sequencer` directory.

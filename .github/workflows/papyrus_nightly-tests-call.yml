@@ -21,6 +21,7 @@ env:
 
 jobs:
   GW-integration-test-call:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v4
