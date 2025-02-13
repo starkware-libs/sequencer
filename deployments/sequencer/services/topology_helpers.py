@@ -4,7 +4,7 @@ from services import objects, const
 from config.sequencer import SequencerDevConfig
 
 
-cluster_name = "gcp-integration"
+cluster_name = "sequencer-dev"
 replicas = 1
 
 def get_images() -> typing.Dict[str, str]:
