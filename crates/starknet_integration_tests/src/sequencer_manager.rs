@@ -284,9 +284,9 @@ impl IntegrationTestManager {
 
     /// Returns the sequencer index of the first running node and its monitoring client.
     fn running_batcher_monitoring_client(&self) -> (usize, &MonitoringClient) {
-        let (sequencer_idx, running_node) =
-            self.running_nodes.iter().next().expect("At least one node should be running.");
-        (*sequencer_idx, running_node.node_setup.batcher_monitoring_client())
+        let sequencer_idx = 0;
+        let node_0 = self.running_nodes.get(&sequencer_idx).expect("Node 0 should be running.");
+        (sequencer_idx, node_0.node_setup.batcher_monitoring_client())
     }
 
     async fn run_integration_test_simulator(
