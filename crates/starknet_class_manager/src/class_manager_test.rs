@@ -73,7 +73,7 @@ async fn class_manager() {
 }
 
 #[tokio::test]
-#[ignore = "Test deprecated class API"]
+#[ignore = "Test deprecated class API checking CI"]
 async fn class_manager_deprecated_class_api() {
     todo!("Test deprecated class API");
 }
