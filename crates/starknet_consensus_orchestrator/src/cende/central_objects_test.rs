@@ -131,6 +131,8 @@ pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
     "central_contract_class_default_optionals.casm.json";
 pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
     "central_transaction_execution_info.json";
+pub const CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH: &str =
+    "central_transaction_execution_info_reverted.json";
 
 fn resource_bounds() -> AllResourceBounds {
     AllResourceBounds {
@@ -507,8 +509,8 @@ fn call_info() -> CallInfo {
 // This object is very long , so in order to test all types of sub-structs and refrain from filling
 // the entire object, we fill only one CallInfo with non-default values and the other CallInfos are
 // None.
-fn central_transaction_execution_info() -> Value {
-    let transaction_execution_info = TransactionExecutionInfo {
+fn central_transaction_execution_info() -> TransactionExecutionInfo {
+    TransactionExecutionInfo {
         validate_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
         execute_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
         fee_transfer_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
@@ -561,7 +563,18 @@ fn central_transaction_execution_info() -> Value {
                 },
             },
         },
-    };
+    }
+}
+
+fn central_transaction_execution_info_json(reverted: bool) -> Value {
+    let mut transaction_execution_info = central_transaction_execution_info();
+    // The python side enforces that if the transaction is reverted, the execute_call_info is None.
+    // Since we are using the same json files for python tests, we apply these rules here as well.
+    if reverted {
+        transaction_execution_info.execute_call_info = None;
+    } else {
+        transaction_execution_info.revert_error = None;
+    }
 
     let central_transaction_execution_info: CentralTransactionExecutionInfo =
         transaction_execution_info.into();
@@ -590,8 +603,12 @@ fn central_transaction_execution_info() -> Value {
     CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH
 )]
 #[case::transaction_execution_info(
-    central_transaction_execution_info(),
+    central_transaction_execution_info_json(false),
     CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH
+)]
+#[case::transaction_execution_info_reverted(
+    central_transaction_execution_info_json(true),
+    CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH
 )]
 fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
