@@ -1,6 +1,6 @@
-use std::env::args;
 use std::path::PathBuf;
 
+use clap::Parser;
 use starknet_integration_tests::node_setup::node_setup;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -12,8 +12,7 @@ async fn main() {
     info!("Running system test setup.");
 
     // Parse command line arguments.
-    let args: Vec<String> = args().skip(1).collect();
-    let base_db_path = get_base_db_path(args);
+    let args = Args::parse();
 
     // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
     // spawning.
@@ -27,22 +26,14 @@ async fn main() {
     let mut tx_generator = create_integration_test_tx_generator();
 
     // Run node setup.
-    // Keep the sequenser_setups in a variable to avoid dropping it.
     let _sequencer_setups =
-        node_setup(&mut tx_generator, "./single_node_config.json", base_db_path).await;
+        node_setup(&mut tx_generator, "./single_node_config.json", PathBuf::from(args.db_dir))
+            .await;
 }
 
-// TODO(Nadin): Improve the argument parsing.
-pub fn get_base_db_path(args: Vec<String>) -> PathBuf {
-    let arg_name = "--base_db_path_dir";
-    match args.as_slice() {
-        [arg, path] if arg == arg_name => PathBuf::from(path),
-        _ => {
-            eprintln!(
-                "Error: Missing or incorrect argument. The only allowed argument is '{}'.",
-                arg_name
-            );
-            std::process::exit(1);
-        }
-    }
+#[derive(Parser, Debug)]
+#[command(name = "node_setup", about = "Generate sequencer db and config files.")]
+struct Args {
+    #[arg(long)]
+    db_dir: String,
 }
