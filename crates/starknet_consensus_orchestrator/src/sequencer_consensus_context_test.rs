@@ -16,7 +16,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    BlockInfo,
+    ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
     ProposalInit,
@@ -85,8 +85,8 @@ fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-fn block_info(height: BlockNumber) -> BlockInfo {
-    BlockInfo {
+fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
+    ConsensusBlockInfo {
         height,
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),

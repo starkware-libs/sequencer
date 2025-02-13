@@ -15,7 +15,7 @@ use super::common::{
     missing,
 };
 use crate::consensus::{
-    BlockInfo,
+    ConsensusBlockInfo,
     IntoFromProto,
     ProposalFin,
     ProposalInit,
@@ -190,7 +190,7 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
-impl TryFrom<protobuf::BlockInfo> for BlockInfo {
+impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::BlockInfo) -> Result<Self, Self::Error> {
         let height = value.height;
@@ -202,7 +202,7 @@ impl TryFrom<protobuf::BlockInfo> for BlockInfo {
         let l1_data_gas_price_wei =
             value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into();
         let eth_to_strk_rate = value.eth_to_strk_rate;
-        Ok(BlockInfo {
+        Ok(ConsensusBlockInfo {
             height: BlockNumber(height),
             timestamp,
             builder,
@@ -215,8 +215,8 @@ impl TryFrom<protobuf::BlockInfo> for BlockInfo {
     }
 }
 
-impl From<BlockInfo> for protobuf::BlockInfo {
-    fn from(value: BlockInfo) -> Self {
+impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
+    fn from(value: ConsensusBlockInfo) -> Self {
         protobuf::BlockInfo {
             height: value.height.0,
             timestamp: value.timestamp,
@@ -230,7 +230,7 @@ impl From<BlockInfo> for protobuf::BlockInfo {
     }
 }
 
-auto_impl_into_and_try_from_vec_u8!(BlockInfo, protobuf::BlockInfo);
+auto_impl_into_and_try_from_vec_u8!(ConsensusBlockInfo, protobuf::BlockInfo);
 
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
