@@ -80,7 +80,7 @@ use crate::fee_market::calculate_next_base_gas_price;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct BlockInfoValidation {
     height: BlockNumber,
     block_timestamp_window: u64,
@@ -321,6 +321,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
                 };
+                info!("validate_proposal");
                 self.validate_current_round_proposal(
                     block_info_validation,
                     proposal_init.proposer,
@@ -510,6 +511,7 @@ impl ConsensusContext for SequencerConsensusContext {
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
         };
+        info!("set_height_and_round");
         self.validate_current_round_proposal(
             block_info_validation,
             validator,
@@ -781,7 +783,11 @@ async fn validate_proposal(
         return;
     };
     if !valid_block_info(block_info_validation.clone(), block_info.clone()).await {
-        warn!("Invalid BlockInfo.");
+        error!(
+            "Invalid BlockInfo. block_info_validation={block_info_validation:?}, \
+             block_info={block_info:?}"
+        );
+        assert_eq!(1, 2);
         return;
     }
     if let Err(e) = initiate_validation(batcher, block_info.clone(), proposal_id, timeout).await {
@@ -849,6 +855,7 @@ async fn valid_block_info(
 ) -> bool {
     let now: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
+    info!("now: {now}");
     // TODO(Asmaa): Validate the rest of the block info.
     block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
