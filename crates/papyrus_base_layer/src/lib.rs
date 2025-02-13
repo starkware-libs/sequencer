@@ -3,11 +3,14 @@ use std::fmt::{Debug, Display};
 use std::ops::RangeInclusive;
 
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
+use thiserror::Error;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
@@ -22,7 +25,11 @@ mod base_layer_test;
 
 pub type L1BlockNumber = u64;
 
+#[derive(Debug, Error)]
+pub enum MockError {}
+
 /// Interface for getting data from the Starknet base contract.
+#[cfg_attr(test, automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
     type Error: Error + Display + Debug;
@@ -55,10 +62,10 @@ pub trait BaseLayerContract {
     ) -> Result<Option<L1BlockReference>, Self::Error>;
 
     /// Get specific events from the Starknet base contract between two L1 block numbers.
-    async fn events(
-        &self,
+    async fn events<'a>(
+        &'a self,
         block_range: RangeInclusive<L1BlockNumber>,
-        event_identifiers: &[&str],
+        event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error>;
 
     async fn get_price_sample(

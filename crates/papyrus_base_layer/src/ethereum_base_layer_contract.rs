@@ -91,10 +91,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         self.get_proved_block_at(ethereum_block_number).await.map(Some)
     }
 
-    async fn events(
-        &self,
+    async fn events<'a>(
+        &'a self,
         block_range: RangeInclusive<u64>,
-        events: &[&str],
+        events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
         let filter = EthEventFilter::new().select(block_range).events(events);
 
