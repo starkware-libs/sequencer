@@ -15,6 +15,10 @@
 #   crates/starknet_integration_tests/src/bin/sequencer_node_integration_tests/
 # with names such as positive_flow.rs, revert_flow.rs, restart_flow.rs.
 
+# The test requires sudo privileges for running certain commands.
+# Ensure sudo privileges are available before proceeding.
+sudo -v || { echo "Sudo authentication failed. Exiting."; exit 1; }
+
 # TODO(noamsp): find a way to get this mapping automatically instead of hardcoding
 declare -A TEST_ALIASES=(
   [positive]="positive_flow_integration_test"
@@ -27,11 +31,13 @@ TEST="${1:-positive}"
 
 echo "Running integration test alias: $TEST"
 
-# Stop any running instances of starknet_sequencer_node (ignore error if not found)
-killall starknet_sequencer_node 2>/dev/null
+SEQUENCER_BINARY="starknet_sequencer_node"
+
+# Stop any running instances of SEQUENCER_BINARY (ignore error if not found)
+killall "$SEQUENCER_BINARY" 2>/dev/null
 
 # Build the main node binary (if required)
-cargo build --bin starknet_sequencer_node
+cargo build --bin "$SEQUENCER_BINARY"
 
 # Helper function to run a test binary
 run_test() {
