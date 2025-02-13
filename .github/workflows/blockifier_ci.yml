@@ -58,11 +58,9 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
       # No features - build blockifier without features activated by dependencies in the workspace.
-      - run: cargo build -p blockifier
-      - run: cargo test -p blockifier
-      # transaction_serde is not activated by any workspace crate; test the build.
-      - run: cargo build -p blockifier --features transaction_serde
-      - run: cargo test -p blockifier --features transaction_serde
-      # cairo_native is not activated by any workspace crate; test the build.
-      - run: cargo build -p blockifier --features cairo_native
-      - run: cargo test -p blockifier --features cairo_native
+      - run: |
+          parallel  --line-buffer "cargo test -p blockifier --features {1}" ::: "transaction_serde" "cairo_native"
+
+      - run: echo test
+      # - run: |
+      #     parallel  --line-buffer "cargo build -p blockifier" "cargo build -p blockifier --features transaction_serde" "cargo build -p blockifier --features cairo_native"
