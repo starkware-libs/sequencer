@@ -45,6 +45,7 @@ use crate::metrics::InfraMetrics;
 /// use std::sync::mpsc::{channel, Receiver};
 ///
 /// use async_trait::async_trait;
+/// use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricScope};
 /// use tokio::task;
 ///
 /// use crate::starknet_sequencer_infra::component_definitions::{
@@ -57,6 +58,22 @@ use crate::metrics::InfraMetrics;
 ///     LocalComponentServer,
 /// };
 /// use crate::starknet_sequencer_infra::errors::ComponentServerError;
+/// use crate::starknet_sequencer_infra::metrics::create_shared_infra_metrics;
+///
+/// const MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
+///     MetricScope::Infra,
+///     "received_messages_counter",
+///     "Received messages counter",
+///     0,
+/// );
+/// const MESSAGES_PROCESSED: MetricCounter = MetricCounter::new(
+///     MetricScope::Infra,
+///     "processed_messages_counter",
+///     "Processed messages counter",
+///     0,
+/// );
+/// const QUEUE_DEPTH: MetricGauge =
+///     MetricGauge::new(MetricScope::Infra, "message_queue_gauge", "Message queue depth gauge");
 ///
 /// // Define your component
 /// struct MyComponent {}
@@ -94,7 +111,12 @@ use crate::metrics::InfraMetrics;
 ///
 ///     // Instantiate the server.
 ///     let max_concurrency = 1;
-///     let mut server = LocalComponentServer::new(component, rx, max_concurrency);
+///     let mut server = LocalComponentServer::new(
+///         component,
+///         rx,
+///         max_concurrency,
+///         create_shared_infra_metrics(&MESSAGES_RECEIVED, &MESSAGES_PROCESSED, &QUEUE_DEPTH),
+///     );
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -132,7 +154,7 @@ where
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
-        request_response_loop(&mut self.rx, &mut self.component).await;
+        request_response_loop(&mut self.rx, &mut self.component, self.metrics.clone()).await;
         error!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
         Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
@@ -154,8 +176,13 @@ where
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
-        concurrent_request_response_loop(&mut self.rx, &mut self.component, self.max_concurrency)
-            .await;
+        concurrent_request_response_loop(
+            &mut self.rx,
+            &mut self.component,
+            self.max_concurrency,
+            self.metrics.clone(),
+        )
+        .await;
         error!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
@@ -171,6 +198,7 @@ where
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     // TODO(Itay, Lev): find the way to provide max_concurrency only for non-blocking server.
     max_concurrency: usize,
+    metrics: Arc<InfraMetrics>,
     _local_server_type: PhantomData<LocalServerType>,
 }
 
@@ -185,8 +213,15 @@ where
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
         max_concurrency: usize,
+        metrics: Arc<InfraMetrics>,
     ) -> Self {
-        Self { component, rx, max_concurrency, _local_server_type: PhantomData }
+        Self {
+            component,
+            rx,
+            max_concurrency,
+            metrics: metrics.clone(),
+            _local_server_type: PhantomData,
+        }
     }
 }
 
@@ -218,6 +253,7 @@ where
 async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
+    metrics: Arc<InfraMetrics>,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
     Request: Send + Debug,
@@ -225,8 +261,6 @@ async fn request_response_loop<Request, Response, Component>(
 {
     let component_name = short_type_name::<Component>();
     info!("Starting server for component {}", component_name);
-
-    let metrics = InfraMetrics::new(&component_name);
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
@@ -249,6 +283,7 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
     max_concurrency: usize,
+    metrics: Arc<InfraMetrics>,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Clone + Send + 'static,
     Request: Send + Debug + 'static,
@@ -258,7 +293,6 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
     info!("Starting concurrent server for component {}", component_name);
 
     let task_limiter = Arc::new(Semaphore::new(max_concurrency));
-    let metrics = Arc::new(InfraMetrics::new(&component_name));
 
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
