@@ -97,7 +97,6 @@ use crate::hints::hint_implementation::execution::{
     set_ap_to_tx_nonce,
     set_fp_plus_4_to_tx_nonce,
     set_state_entry_to_account_contract_address,
-    skip_call,
     start_tx_long,
     transaction_version,
     tx_account_deployment_data,
@@ -158,7 +157,6 @@ use crate::hints::hint_implementation::resources::{
 use crate::hints::hint_implementation::secp::{is_on_curve, read_ec_point_from_address};
 use crate::hints::hint_implementation::state::{
     decode_node,
-    enter_scope_commitment_info_by_address,
     load_bottom,
     load_edge,
     set_preimage_for_class_commitments,
@@ -1237,12 +1235,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (
-        SkipCall,
-        skip_call,
-        indoc! {r#"execution_helper.skip_call()"#
-        }
-    ),
-    (
         CacheContractStorageRequestKey,
         cache_contract_storage_request_key,
         indoc! {r#"
@@ -1615,17 +1607,6 @@ else:
 from starkware.python.merkle_tree import decode_node
 left_child, right_child, case = decode_node(node)
 memory[ap] = 1 if case != 'both' else 0"#
-        }
-    ),
-    (
-        EnterScopeCommitmentInfoByAddress,
-        enter_scope_commitment_info_by_address,
-        indoc! {r#"
-	# This hint shouldn't be whitelisted.
-	vm_enter_scope(dict(
-	    commitment_info_by_address=execution_helper.compute_storage_commitments(),
-	    os_input=os_input,
-	))"#
         }
     ),
     (
