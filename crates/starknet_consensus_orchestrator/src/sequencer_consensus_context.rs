@@ -80,7 +80,7 @@ use crate::fee_market::calculate_next_base_gas_price;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct BlockInfoValidation {
     height: BlockNumber,
     block_timestamp_window: u64,
@@ -781,7 +781,10 @@ async fn validate_proposal(
         return;
     };
     if !valid_block_info(block_info_validation.clone(), block_info.clone()).await {
-        warn!("Invalid BlockInfo.");
+        warn!(
+            "Invalid BlockInfo. block_info_validation={block_info_validation:?}, \
+             block_info={block_info:?}"
+        );
         return;
     }
     if let Err(e) = initiate_validation(batcher, block_info.clone(), proposal_id, timeout).await {
