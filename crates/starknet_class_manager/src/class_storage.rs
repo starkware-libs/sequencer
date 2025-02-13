@@ -440,12 +440,16 @@ impl ClassStorage for FsClassStorage {
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        if !self.contains_class(class_id)? {
-            return Ok(None);
+        if self.contains_class(class_id)? {
+            let path = self.get_executable_path(class_id);
+            return Ok(self.read_file(path)?.map(RawExecutableClass));
         }
 
-        let path = self.get_executable_path(class_id);
-        Ok(self.read_file(path)?.map(RawExecutableClass))
+        if self.contains_deprecated_class(class_id) {
+            return self.get_deprecated_class(class_id);
+        }
+
+        Ok(None)
     }
 
     fn get_executable_class_hash(
