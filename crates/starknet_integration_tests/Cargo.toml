@@ -51,3 +51,15 @@ futures.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.path = "../starknet_sequencer_infra"
+
+[[bin]]
+name = "positive_flow_integration_test"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/positive_flow_integration_test.rs"
+
+[[bin]]
+name = "restart_flow_integration_test"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/restart_flow_integration_test.rs"
+
+[[bin]]
+name = "revert_flow_integration_test"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/revert_flow_integration_test.rs"
