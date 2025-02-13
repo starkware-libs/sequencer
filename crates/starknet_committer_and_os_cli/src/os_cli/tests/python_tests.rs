@@ -203,13 +203,12 @@ use thiserror;
 
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 
-const SUCCESS_RESULT: &str = "SUCCESS";
 pub type OsPythonTestError = PythonTestError<OsSpecificTestError>;
 type OsPythonTestResult = PythonTestResult<OsSpecificTestError>;
 
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
-    OsHintCompatibility,
+    CompareOsHints,
 }
 
 // Implements conversion from a string to the test runner.
@@ -218,7 +217,7 @@ impl TryFrom<String> for OsPythonTestRunner {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
-            "os_hint_compatibility_test" => Ok(Self::OsHintCompatibility),
+            "compare_os_hints" => Ok(Self::CompareOsHints),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -233,7 +232,7 @@ impl PythonTestRunner for OsPythonTestRunner {
     type SpecificError = OsSpecificTestError;
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
-            Self::OsHintCompatibility => test_os_hints_are_equal(Self::non_optional_input(input)?),
+            Self::CompareOsHints => test_os_hints_are_equal(Self::non_optional_input(input)?),
         }
     }
 }
@@ -254,16 +253,13 @@ fn test_os_hints_are_equal(input: &str) -> OsPythonTestResult {
         .chain(HintExtension::iter().map(|hint| hint.to_str().to_string()))
         .collect();
 
-    if rust_os_hints != python_os_hints {
-        let mut only_in_python: Vec<String> =
-            python_os_hints.difference(&rust_os_hints).cloned().collect();
-        only_in_python.sort();
-        let mut only_in_rust: Vec<String> =
-            rust_os_hints.difference(&python_os_hints).cloned().collect();
-        only_in_rust.sort();
-        return Ok(serde_json::to_string(&(only_in_python, only_in_rust))?);
-    }
-    Ok(serde_json::to_string(SUCCESS_RESULT)?)
+    let mut only_in_python: Vec<String> =
+        python_os_hints.difference(&rust_os_hints).cloned().collect();
+    only_in_python.sort();
+    let mut only_in_rust: Vec<String> =
+        rust_os_hints.difference(&python_os_hints).cloned().collect();
+    only_in_rust.sort();
+    Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
 }
 
 fn vm_hints() -> HashSet<&'static str> {
