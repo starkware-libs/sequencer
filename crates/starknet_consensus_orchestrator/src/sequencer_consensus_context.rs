@@ -731,23 +731,23 @@ async fn get_proposal_content(
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
-                match cende_write_success.now_or_never() {
-                    Some(Ok(true)) => {
-                        debug!("Writing blob to Aerospike completed.");
-                    }
-                    Some(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return None;
-                    }
-                    Some(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return None;
-                    }
-                    None => {
-                        warn!("Writing blob to Aerospike didn't return in time.");
-                        return None;
-                    }
-                }
+                // match cende_write_success.now_or_never() {
+                //     Some(Ok(true)) => {
+                //         debug!("Writing blob to Aerospike completed.");
+                //     }
+                //     Some(Ok(false)) => {
+                //         warn!("Writing blob to Aerospike failed.");
+                //         return None;
+                //     }
+                //     Some(Err(e)) => {
+                //         warn!("Writing blob to Aerospike failed. Error: {e:?}");
+                //         return None;
+                //     }
+                //     None => {
+                //         warn!("Writing blob to Aerospike didn't return in time.");
+                //         return None;
+                //     }
+                // }
 
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment }))

@@ -39,6 +39,105 @@ pub struct ConsensusManager {
     pub class_manager_client: SharedClassManagerClient,
 }
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use starknet_batcher_types::batcher_types::{
+    CentralObjects,
+    DecisionReachedInput,
+    DecisionReachedResponse,
+    GetHeightResponse,
+    GetProposalContent,
+    GetProposalContentInput,
+    GetProposalContentResponse,
+    ProposalStatus,
+    ProposeBlockInput,
+    SendProposalContent,
+    SendProposalContentInput,
+    SendProposalContentResponse,
+    StartHeightInput,
+    ValidateBlockInput,
+};
+use starknet_batcher_types::communication::{BatcherClient, BatcherClientResult};
+use starknet_state_sync_types::state_sync_types::SyncBlock;
+
+pub struct MockBatcherClient {
+    pub height: AtomicU64,
+}
+
+#[async_trait]
+impl BatcherClient for MockBatcherClient {
+    async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()> {
+        Ok(())
+    }
+
+    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse> {
+        Ok(GetHeightResponse { height: BlockNumber(self.height.load(Ordering::Relaxed)) })
+    }
+
+    async fn get_proposal_content(
+        &self,
+        input: GetProposalContentInput,
+    ) -> BatcherClientResult<GetProposalContentResponse> {
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        Ok(GetProposalContentResponse { content: GetProposalContent::Finished(Default::default()) })
+    }
+
+    async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()> {
+        Ok(())
+    }
+
+    async fn send_proposal_content(
+        &self,
+        input: SendProposalContentInput,
+    ) -> BatcherClientResult<SendProposalContentResponse> {
+        match input.content {
+            SendProposalContent::Txs(_) => {
+                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+            }
+            SendProposalContent::Finish => Ok(SendProposalContentResponse {
+                response: ProposalStatus::Finished(Default::default()),
+            }),
+            SendProposalContent::Abort => {
+                Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
+            }
+        }
+    }
+
+    async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
+        self.height.store(input.height.0, Ordering::Relaxed);
+        Ok(())
+    }
+
+    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
+        Ok(())
+    }
+
+    async fn decision_reached(
+        &self,
+        input: DecisionReachedInput,
+    ) -> BatcherClientResult<DecisionReachedResponse> {
+        Ok(DecisionReachedResponse {
+            state_diff: Default::default(),
+            l2_gas_used: Default::default(),
+            central_objects: CentralObjects {
+                execution_infos: Default::default(),
+                bouncer_weights: Default::default(),
+                compressed_state_diff: None,
+            },
+        })
+    }
+
+    async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()> {
+        self.height.compare_exchange(
+            input.height.0,
+            input.height.0 - 1,
+            Ordering::Relaxed,
+            Ordering::Relaxed,
+        );
+        Ok(())
+    }
+}
+
 impl ConsensusManager {
     pub fn new(
         config: ConsensusManagerConfig,
@@ -46,10 +145,17 @@ impl ConsensusManager {
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
     ) -> Self {
+        let batcher_client = Arc::new(MockBatcherClient { height: AtomicU64::new(0) });
         Self { config, batcher_client, state_sync_client, class_manager_client }
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        // Sleep to let sync advance and not reach a race condition where sync returns None to
+        // consensus even though the block exists in the network
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        let height =
+            self.state_sync_client.get_latest_block_number().await.unwrap().unwrap_or_default();
+        self.batcher_client.start_height(StartHeightInput { height }).await;
         if self.config.revert_config.should_revert {
             self.revert_batcher_blocks(self.config.revert_config.revert_up_to_and_including).await;
         }
