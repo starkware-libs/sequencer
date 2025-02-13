@@ -33,6 +33,7 @@ concurrency:
 
 jobs:
   blockifier_reexecution:
+    container: us-central1-docker.pkg.dev/starkware-thirdparties/sequencer/ci-image:ubuntu-22-04-toolchain-1-83
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
