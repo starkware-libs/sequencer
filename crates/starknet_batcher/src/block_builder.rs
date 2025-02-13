@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -40,6 +41,7 @@ use starknet_class_manager_types::transaction_converter::{
 };
 use starknet_class_manager_types::SharedClassManagerClient;
 use thiserror::Error;
+use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::reader_with_class_manager::ReaderWithClassManager;
@@ -141,7 +143,7 @@ pub struct BlockBuilderExecutionParams {
 
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
-    executor: Box<dyn TransactionExecutorTrait>,
+    executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
@@ -154,7 +156,7 @@ pub struct BlockBuilder {
 
 impl BlockBuilder {
     pub fn new(
-        executor: Box<dyn TransactionExecutorTrait>,
+        executor: impl TransactionExecutorTrait + 'static,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -164,6 +166,7 @@ impl BlockBuilder {
         tx_chunk_size: usize,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
+        let executor = Arc::new(Mutex::new(executor));
         Self {
             executor,
             tx_provider,
@@ -227,7 +230,17 @@ impl BlockBuilderTrait for BlockBuilder {
                 let executable_tx = BlockifierTransaction::new_for_sequencing(executable_tx);
                 executor_input_chunk.push(executable_tx);
             }
-            let results = self.executor.add_txs_to_block(&executor_input_chunk);
+            // Execute the transactions on a separate thread pool to avoid blocking the executor
+            // while waiting on `block_on` calls.
+            let executor = self.executor.clone();
+            let results = tokio::task::spawn_blocking(move || {
+                executor
+                    .try_lock() // Acquire the lock in a sync manner.
+                    .expect("Only a single task should use the executor.")
+                    .add_txs_to_block(&executor_input_chunk)
+            })
+            .await
+            .expect("Failed to spawn blocking executor task.");
             trace!("Transaction execution results: {:?}", results);
             block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
@@ -241,7 +254,7 @@ impl BlockBuilderTrait for BlockBuilder {
             .await?;
         }
         let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
-            self.executor.close_block()?;
+            self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
             rejected_tx_hashes,
@@ -435,7 +448,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             self.block_builder_config.chain_info.chain_id.clone(),
         );
         let block_builder = Box::new(BlockBuilder::new(
-            Box::new(executor),
+            executor,
             tx_provider,
             output_content_sender,
             abort_signal_receiver,

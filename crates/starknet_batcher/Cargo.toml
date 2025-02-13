@@ -35,7 +35,7 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-blockifier = { path = "../blockifier", features = ["testing"] }
+blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
 futures.workspace = true
