@@ -11261,11 +11261,19 @@ dependencies = [
  "papyrus_config",
  "serde",
  "starknet_api",
+ "starknet_l1_gas_price_types",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
  "validator",
+]
+
+[[package]]
+name = "starknet_l1_gas_price_types"
+version = "0.0.0"
+dependencies = [
+ "thiserror 1.0.69",
 ]
 
 [[package]]

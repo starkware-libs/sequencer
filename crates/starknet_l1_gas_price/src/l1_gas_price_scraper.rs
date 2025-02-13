@@ -7,12 +7,13 @@ use papyrus_config::validators::validate_ascii;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
+use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
 use starknet_sequencer_infra::component_client::ClientError;
 use thiserror::Error;
 use tracing::error;
 use validator::Validate;
 
-use crate::l1_gas_price_provider::{L1GasPriceProviderClient, L1GasPriceProviderError};
+use crate::l1_gas_price_provider::L1GasPriceProviderClient;
 
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
