@@ -4,13 +4,13 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use tokio::fs::rename;
 use tracing::info;
 
-use crate::sequencer_manager::{get_sequencer_setup_configs, NodeSetup};
+use crate::sequencer_manager::get_sequencer_setup_configs;
 
 pub async fn node_setup(
     tx_generator: &mut MultiAccountTransactionGenerator,
     config_path: &str,
     base_db_path_dir: PathBuf,
-) -> Vec<NodeSetup> {
+) {
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
     info!("Node setup");
@@ -31,5 +31,4 @@ pub async fn node_setup(
     // Move (rename) the file to the current directory with the new name
     rename(&original_config_path, &new_config_path).await.expect("Failed to move node config file");
     println!("Config file moved from {:?} to {:?}", original_config_path, new_config_path);
-    sequencers_setup
 }

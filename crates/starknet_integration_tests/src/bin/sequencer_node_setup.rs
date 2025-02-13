@@ -26,9 +26,7 @@ async fn main() {
     let mut tx_generator = create_integration_test_tx_generator();
 
     // Run node setup.
-    let _sequencer_setups =
-        node_setup(&mut tx_generator, "./single_node_config.json", PathBuf::from(args.db_dir))
-            .await;
+    node_setup(&mut tx_generator, "./single_node_config.json", PathBuf::from(args.db_dir)).await;
 }
 
 #[derive(Parser, Debug)]
