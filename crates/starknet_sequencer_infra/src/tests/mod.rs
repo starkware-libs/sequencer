@@ -1,6 +1,8 @@
 mod concurrent_servers_test;
 mod local_component_client_server_test;
+mod mock_metrics;
 mod remote_component_client_server_test;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
