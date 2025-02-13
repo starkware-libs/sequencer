@@ -10,6 +10,7 @@ testing = ["itertools", "pretty_assertions"]
 
 [dependencies]
 async-trait.workspace = true
+hex.workspace = true
 indexmap.workspace = true
 itertools = { workspace = true, optional = true }
 papyrus_base_layer.workspace = true

@@ -202,9 +202,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \
                      hash stored, {}",
-                    std::str::from_utf8(&last_block_processed_fresh.hash).unwrap(),
+                    hex::encode(last_block_processed_fresh.hash),
                     last_processed_l1_block_number,
-                    std::str::from_utf8(&self.last_l1_block_processed.hash).unwrap(),
+                    hex::encode(self.last_l1_block_processed.hash),
                 ),
             });
         }

@@ -11270,6 +11270,7 @@ dependencies = [
  "alloy",
  "assert_matches",
  "async-trait",
+ "hex",
  "indexmap 2.7.0",
  "itertools 0.12.1",
  "papyrus_base_layer",
