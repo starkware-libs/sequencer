@@ -50,7 +50,7 @@ fn fs_storage() {
     // Add new class.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
     // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
-    let executable_class = RawExecutableClass(vec![4, 5, 6].into());
+    let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     let executable_class_hash = CompiledClassHash(felt!("0x5678"));
     storage
         .set_class(class_id, class.clone(), executable_class_hash, executable_class.clone())
@@ -80,7 +80,7 @@ fn fs_storage_deprecated_class_api() {
 
     // Add new class.
     // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
-    let executable_class = RawExecutableClass(vec![4, 5, 6].into());
+    let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     storage.set_deprecated_class(class_id, executable_class.clone()).unwrap();
 
     // Get class.
