@@ -62,6 +62,7 @@ class ServiceApp(Construct):
                                 image=self.service_topology.images.get("sequencer"),
                                 image_pull_policy="Always",
                                 # command=["sleep", "infinity"],
+                                env=self._get_container_env(),
                                 args=const.CONTAINER_ARGS,
                                 ports=self._get_container_ports(),
                                 startup_probe=self._get_http_probe(),
@@ -110,27 +111,32 @@ class ServiceApp(Construct):
         )
 
 
-    def _get_config_attr(self, attr) -> str | int:
+    def _get_config_attr(self, attr: str) -> str | int:
         config_attr = self.node_config.get(attr)
         assert config_attr is not None, f'Config attribute "{attr}" is missing.'
 
         return config_attr
 
-    def _get_ports_subset_from_config(self) -> typing.List[str]:
+    def _get_ports_subset_keys_from_config(self) -> typing.List[typing.Tuple[str, str]]:
         ports = []
         for k, v in self.node_config.items():
-            if k.startswith("components."):
+            if k.endswith('.port') and v != 0:
+                if k.startswith('components.'):
+                    port_name = k.split('.')[1].replace('_', '-')
+                else:
+                    port_name = k.split('.')[0].replace('_', '-')
+            else:
                 continue
-            if "port" in k:
-                ports.append(k)
+
+            ports.append((port_name, k))
 
         return ports
 
     def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
         return [
             k8s.ContainerPort(
-                container_port=self._get_config_attr(attr)
-            ) for attr in self._get_ports_subset_from_config()
+                container_port=self._get_config_attr(attr[1])
+            ) for attr in self._get_ports_subset_keys_from_config()
         ]
 
     def _get_container_resources(self): # TODO(IdanS): implement method to calc resources based on config
@@ -139,10 +145,10 @@ class ServiceApp(Construct):
     def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
         return [
             k8s.ServicePort(
-                name=attr.split("_")[0],
-                port=self._get_config_attr(attr),
-                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
-            ) for attr in self._get_ports_subset_from_config()
+                name=attr[0],
+                port=self._get_config_attr(attr[1]),
+                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr[1]))
+            ) for attr in self._get_ports_subset_keys_from_config()
         ]
 
     def _get_http_probe(
@@ -225,6 +231,19 @@ class ServiceApp(Construct):
                 hosts=[self.host],
                 secret_name=f"{self.node.id}-tls"
             )
+        ]
+
+    @staticmethod
+    def _get_container_env() -> typing.List[k8s.EnvVar]:
+        return [
+            k8s.EnvVar(
+                name="RUST_LOG",
+                value="debug"
+            ),
+            k8s.EnvVar(
+                name="RUST_BACKTRACE",
+                value="full"
+            ),
         ]
 
     @staticmethod
