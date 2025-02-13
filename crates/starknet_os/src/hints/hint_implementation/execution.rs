@@ -252,7 +252,3 @@ pub fn get_old_block_number_and_hash(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '
 pub fn fetch_result(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
     todo!()
 }
-
-pub fn skip_call(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
