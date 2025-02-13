@@ -11,6 +11,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
@@ -164,7 +165,11 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        if let Some(class) = self.executable_classes.get(&class_id) {
+        if let Some(class) = self
+            .executable_classes
+            .get(&class_id)
+            .or_else(|| self.deprecated_classes.get(&class_id))
+        {
             return Ok(Some(class));
         }
 
@@ -172,7 +177,16 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             return Ok(None);
         };
 
-        self.executable_classes.set(class_id, class.clone());
+        // TODO(Elin): separate Cairo0<>1 getters to avoid deserializing here.
+        match ContractClass::try_from(class.clone()).unwrap() {
+            ContractClass::V0(_) => {
+                self.executable_classes.set(class_id, class.clone());
+            }
+            ContractClass::V1(_) => {
+                self.deprecated_classes.set(class_id, class.clone());
+            }
+        }
+
         Ok(Some(class))
     }
 
@@ -440,7 +454,9 @@ impl ClassStorage for FsClassStorage {
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        if !self.contains_class(class_id)? {
+        let contains_class =
+            self.contains_class(class_id)? || self.contains_deprecated_class(class_id);
+        if !contains_class {
             return Ok(None);
         }
 
