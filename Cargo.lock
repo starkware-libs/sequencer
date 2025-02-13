@@ -10894,7 +10894,6 @@ dependencies = [
  "papyrus_config",
  "papyrus_storage",
  "serde",
- "serde_json",
  "starknet_api",
  "starknet_class_manager_types",
  "starknet_sequencer_infra",
