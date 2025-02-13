@@ -1,9 +1,24 @@
 #[macro_export]
 macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
-        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[cfg_attr(any(test, feature = "testing"), derive(Default, strum_macros::EnumIter))]
         pub enum $enum_name {
+            // Make first variant the default variant for testing (iteration) purposes.
+            #[cfg_attr(any(test, feature = "testing"), default)]
             $($hint_name),+
+        }
+
+        #[cfg(any(test, feature = "testing"))]
+        impl $enum_name {
+            pub fn all_iter(&self) -> impl Iterator<Item = $enum_name> {
+                <Self as strum::IntoEnumIterator>::iter()
+            }
+        }
+
+        impl From<$enum_name> for AllHints {
+            fn from(hint: $enum_name) -> Self {
+                Self::$enum_name(hint)
+            }
         }
 
         impl HintEnum for $enum_name {
