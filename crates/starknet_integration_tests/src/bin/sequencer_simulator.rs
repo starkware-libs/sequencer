@@ -32,7 +32,8 @@ async fn main() -> anyhow::Result<()> {
 
     sequencer_simulator.await_execution(EXPECTED_BLOCK_NUMBER).await;
 
-    // TODO(Nadin): verfy txs are accepted.
+    // TODO(Nadin): pass node index as an argument.
+    sequencer_simulator.verify_txs_accepted(0, &mut tx_generator, ACCOUNT_ID_0).await;
 
     info!("Simulation completed successfully");
 

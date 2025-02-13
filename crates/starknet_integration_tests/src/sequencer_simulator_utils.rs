@@ -12,6 +12,7 @@ use starknet_sequencer_node::utils::load_and_validate_config;
 use tracing::info;
 
 use crate::monitoring_utils;
+use crate::sequencer_manager::nonce_to_usize;
 use crate::utils::{send_account_txs, TestScenario};
 
 pub struct SequencerSimulator {
@@ -55,8 +56,23 @@ impl SequencerSimulator {
             .await;
     }
 
-    // TODO(Nadin): Implement this function.
-    pub async fn verify_txs_accepted(&self) {
-        unimplemented!();
+    pub async fn verify_txs_accepted(
+        &self,
+        sequencer_idx: usize,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        sender_account: AccountId,
+    ) {
+        let account = tx_generator.account_with_id(sender_account);
+        let expected_n_batched_txs = nonce_to_usize(account.get_nonce());
+        info!(
+            "Verifying that sequencer {} got {} batched txs.",
+            sequencer_idx, expected_n_batched_txs
+        );
+        monitoring_utils::verify_txs_accepted(
+            &self.monitoring_client,
+            sequencer_idx,
+            expected_n_batched_txs,
+        )
+        .await;
     }
 }
