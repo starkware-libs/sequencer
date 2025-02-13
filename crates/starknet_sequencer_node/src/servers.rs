@@ -42,6 +42,7 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use crate::config::node_config::SequencerNodeConfig;
+use crate::metrics::{create_local_servers_metrics, LocalServersMetric};
 
 // Component servers that can run locally.
 struct LocalServers {
@@ -187,7 +188,7 @@ macro_rules! create_remote_server {
 /// }
 /// ```
 macro_rules! create_local_server {
-    ($execution_mode:expr, $component:expr, $receiver:expr, $max_concurrency:expr, $server_type:tt) => {
+    ($execution_mode:expr, $component:expr, $receiver:expr, $max_concurrency:expr, $server_metrics:expr, $server_type:tt) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -197,6 +198,7 @@ macro_rules! create_local_server {
                         .expect(concat!(stringify!($component), " is not initialized.")),
                     $receiver,
                     $max_concurrency,
+                    $server_metrics,
                 )))
             }
             ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -258,12 +260,14 @@ fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
+    metrics: &LocalServersMetric,
 ) -> LocalServers {
     let batcher_server = create_local_server!(
         &config.components.batcher.execution_mode,
         &mut components.batcher,
         communication.take_batcher_rx(),
         config.components.batcher.max_concurrency,
+        metrics.batcher_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
     let class_manager_server = create_local_server!(
@@ -271,6 +275,7 @@ fn create_local_servers(
         &mut components.class_manager,
         communication.take_class_manager_rx(),
         config.components.class_manager.max_concurrency,
+        metrics.class_manager_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
     let gateway_server = create_local_server!(
@@ -278,6 +283,7 @@ fn create_local_servers(
         &mut components.gateway,
         communication.take_gateway_rx(),
         config.components.gateway.max_concurrency,
+        metrics.gateway_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
     let l1_provider_server = create_local_server!(
@@ -285,6 +291,7 @@ fn create_local_servers(
         &mut components.l1_provider,
         communication.take_l1_provider_rx(),
         config.components.l1_provider.max_concurrency,
+        metrics.l1_provider_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
     let mempool_server = create_local_server!(
@@ -292,6 +299,7 @@ fn create_local_servers(
         &mut components.mempool,
         communication.take_mempool_rx(),
         config.components.mempool.max_concurrency,
+        metrics.mempool_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
     let mempool_p2p_propagator_server = create_local_server!(
@@ -299,6 +307,7 @@ fn create_local_servers(
         &mut components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx(),
         config.components.mempool_p2p.max_concurrency,
+        metrics.mempool_p2p_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
     let sierra_compiler_server = create_local_server!(
@@ -306,6 +315,7 @@ fn create_local_servers(
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
         config.components.sierra_compiler.max_concurrency,
+        metrics.sierra_compiler_metrics.clone(),
         CONCURRENT_LOCAL_SERVER
     );
     let state_sync_server = create_local_server!(
@@ -313,6 +323,7 @@ fn create_local_servers(
         &mut components.state_sync,
         communication.take_state_sync_rx(),
         config.components.state_sync.max_concurrency,
+        metrics.state_sync_metrics.clone(),
         REGULAR_LOCAL_SERVER
     );
 
@@ -507,7 +518,9 @@ pub fn create_node_servers(
     clients: &SequencerNodeClients,
 ) -> SequencerNodeServers {
     let mut components = components;
-    let local_servers = create_local_servers(config, communication, &mut components);
+    let local_servers_metric = create_local_servers_metrics();
+    let local_servers =
+        create_local_servers(config, communication, &mut components, &local_servers_metric);
     let remote_servers = create_remote_servers(config, clients);
     let wrapper_servers = create_wrapper_servers(config, &mut components);
 

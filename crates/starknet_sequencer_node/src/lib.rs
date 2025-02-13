@@ -2,6 +2,7 @@ pub mod clients;
 pub mod communication;
 pub mod components;
 pub mod config;
+pub mod metrics;
 pub mod servers;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
