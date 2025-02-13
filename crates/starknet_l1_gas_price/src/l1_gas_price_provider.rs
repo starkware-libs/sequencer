@@ -5,7 +5,7 @@ use mockall::automock;
 use papyrus_base_layer::PriceSample;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
-use thiserror::Error;
+use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
 use validator::Validate;
 
 #[cfg(test)]
@@ -26,14 +26,6 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         &self,
         timestamp: BlockTimestamp,
     ) -> Result<(u128, u128), L1GasPriceProviderError>;
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum L1GasPriceProviderError {
-    #[error("Failed to add price info: {0}")]
-    InvalidHeight(String),
-    #[error("Failed to calculate price info: {0}")]
-    MissingData(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
