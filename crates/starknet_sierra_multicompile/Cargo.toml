@@ -34,5 +34,9 @@ rstest.workspace = true
 starknet_infra_utils.path = "../starknet_infra_utils"
 
 [build-dependencies]
+# NOTE: This dependency is not necessary for the code to work. It is added to make the implicit
+# dependency from the build.rs appear in the dependency tree, which simplifies publishing the 
+# workspace
+starknet-native-compile.path = "../bin/starknet-native-compile"
 starknet_infra_utils.workspace = true
 tempfile.workspace = true
