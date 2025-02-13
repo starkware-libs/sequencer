@@ -423,7 +423,7 @@ async fn run_build_block(
         ChainId::create_for_testing(),
     );
     let mut block_builder = BlockBuilder::new(
-        Box::new(mock_transaction_executor),
+        mock_transaction_executor,
         Box::new(tx_provider),
         output_sender,
         abort_receiver,
