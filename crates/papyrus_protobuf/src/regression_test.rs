@@ -73,42 +73,56 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
 
 #[test]
 fn test_proto_regression() {
+    // if OUT_DIR is not set, we need to create a temp dir and set the env var
+    let out_dir = match env::var("OUT_DIR") {
+        Ok(dir) => &dir.clone(),
+        Err(_) => {
+            std::fs::create_dir_all(OUT_DIR).expect("Failed to create temp OUT_DIR");
+            env::set_var("OUT_DIR", OUT_DIR);
+            OUT_DIR
+        }
+    };
     // in test mode we need to set the OUT_DIR env var
-    if env::var("OUT_DIR").is_err() {
-        std::fs::create_dir_all(OUT_DIR).expect("Failed to create temp OUT_DIR");
-        env::set_var("OUT_DIR", OUT_DIR);
-    }
     let fix = env::var("PROTO_FIX").is_ok();
 
     // remove the temp dir if it exists (can happen if the test failed previously)
-    if Path::new(OUT_DIR).exists() {
-        fs::remove_dir_all(OUT_DIR).unwrap();
+    if Path::new(out_dir).exists() {
+        fs::remove_dir_all(out_dir).unwrap();
     }
-    fs::create_dir(OUT_DIR).unwrap();
+    fs::create_dir(out_dir).unwrap();
 
-    generate_protos(OUT_DIR.into(), PROTO_FILES).unwrap();
+    generate_protos(out_dir.into(), PROTO_FILES).unwrap();
 
-    let expected = fs::read_dir(PROTO_DIR)
-        .expect("Failed to read precompiled proto dir")
-        .next()
-        .expect("No files in precompiled proto dir")
-        .expect("Failed to read precompiled protos")
-        .path();
-    let generated = fs::read_dir(OUT_DIR)
-        .expect("Failed to read generated proto dir")
-        .next()
-        .expect("No files in generated proto dir")
-        .expect("Failed to read generated protos")
-        .path();
+    // let expected = fs::read_dir(PROTO_DIR)
+    //     .expect("Failed to read precompiled proto dir")
+    //     .next()
+    //     .expect("No files in precompiled proto dir")
+    //     .expect("Failed to read precompiled protos")
+    //     .path();
+    // let generated = fs::read_dir(out_dir)
+    //     .expect("Failed to read generated proto dir")
+    //     .next()
+    //     .expect("No files in generated proto dir")
+    //     .expect("Failed to read generated protos")
+    //     .path();
 
-    let expected_file = fs::read_to_string(expected).expect("Failed to read expected file");
-    let generated_file = fs::read_to_string(generated).expect("Failed to read generated file");
-    assert_eq!(expected_file, generated_file);
+    let generated_name = String::from(out_dir) + "/_.rs"; // "src/generated_test/_.rs";
+    let expected_name = String::from(PROTO_DIR) + "/_.rs"; // "src/protoc_output/_.rs";
 
-    if fix {
-        fs::copy(generated_file, expected_file).expect("Failed to fix the precompiled protos");
+    let expected_file = fs::read_to_string(expected_name.clone())
+        .unwrap_or_else(|_| panic!("Failed to read expected file at {:?}", expected_name));
+    let generated_file = fs::read_to_string(generated_name.clone())
+        .unwrap_or_else(|_| panic!("Failed to read generated file at {:?}", generated_name));
+    let equal = expected_file == generated_file;
+
+    if !equal {
+        if fix {
+            fs::copy(generated_name, expected_name).expect("Failed to fix the precompiled protos");
+        } else {
+            panic!("Generated protos are different from precompiled protos");
+        }
     }
 
     // remove the temp dir
-    fs::remove_dir_all(OUT_DIR).unwrap();
+    fs::remove_dir_all(out_dir).unwrap();
 }
