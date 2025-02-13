@@ -138,17 +138,15 @@ fn hash_map_into_bouncer_weights(
     let state_diff_size =
         data.remove(constants::STATE_DIFF_SIZE).expect("state_diff_size must be present");
     let n_events = data.remove(constants::N_EVENTS).expect("n_events must be present");
+    let builtins_gas =
+        data.remove(constants::BUILTINS_GAS).expect("builtins_total_sierra_gas must be present");
     let sierra_gas = GasAmount(
         data.remove(constants::SIERRA_GAS)
             .expect("sierra_gas must be present")
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-    // TODO(AvivG): Implement logic to retrieve only the Sierra gas limit from Python without VM
-    // resources.
-    let builtins_count = hash_map_into_builtin_count(data)?;
-    let versioned_constants = VersionedConstants::latest_constants();
-    let builtins_gas = builtins_to_sierra_gas(&builtins_count, versioned_constants);
+    let builtins_gas = GasAmount(u64_from_usize(builtins_gas));
     let steps_gas = GasAmount(u64_from_usize(n_steps));
 
     let sierra_gas_w_vm = sierra_gas
@@ -156,9 +154,9 @@ fn hash_map_into_bouncer_weights(
         .and_then(|gas_with_builtins| gas_with_builtins.checked_add(steps_gas))
         .unwrap_or_else(|| {
             panic!(
-                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins: \
+                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins gas: \
                  {:?}\nSteps: {}\nInitial Sierra gas: {}",
-                builtins_count, n_steps, sierra_gas
+                 builtins_gas, n_steps, sierra_gas
             )
         });
 
