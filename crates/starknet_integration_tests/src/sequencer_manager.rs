@@ -42,11 +42,18 @@ use crate::utils::{
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
+#[derive(Debug, Clone, Copy)]
+pub enum NodeType {
+    Consolidated,
+    Distributed,
+}
+
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
+    node_type: NodeType,
 }
 
 impl NodeComponentConfigs {
@@ -54,16 +61,13 @@ impl NodeComponentConfigs {
         component_configs: Vec<ComponentConfig>,
         batcher_index: usize,
         http_server_index: usize,
+        node_type: NodeType,
     ) -> Self {
-        Self { component_configs, batcher_index, http_server_index }
+        Self { component_configs, batcher_index, http_server_index, node_type }
     }
 
     fn into_iter(self) -> impl Iterator<Item = ComponentConfig> {
         self.component_configs.into_iter()
-    }
-
-    fn len(&self) -> usize {
-        self.component_configs.len()
     }
 
     fn get_batcher_index(&self) -> usize {
@@ -73,12 +77,16 @@ impl NodeComponentConfigs {
     fn get_http_server_index(&self) -> usize {
         self.http_server_index
     }
+    fn get_node_type(&self) -> NodeType {
+        self.node_type
+    }
 }
 
 pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
     batcher_index: usize,
     http_server_index: usize,
+    node_type: NodeType,
 }
 
 impl NodeSetup {
@@ -86,6 +94,7 @@ impl NodeSetup {
         executables: Vec<ExecutableSetup>,
         batcher_index: usize,
         http_server_index: usize,
+        node_type: NodeType,
     ) -> Self {
         let len = executables.len();
 
@@ -102,7 +111,7 @@ impl NodeSetup {
         validate_index(batcher_index, len, "Batcher");
         validate_index(http_server_index, len, "HTTP server");
 
-        Self { executables, batcher_index, http_server_index }
+        Self { executables, batcher_index, http_server_index, node_type }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -143,6 +152,10 @@ impl NodeSetup {
     pub fn get_node_index(&self) -> Option<usize> {
         self.executables.first().map(|executable| executable.node_execution_id.get_node_index())
     }
+
+    pub fn get_node_type(&self) -> NodeType {
+        self.node_type
+    }
 }
 
 pub struct RunningNode {
@@ -164,7 +177,7 @@ impl RunningNode {
 }
 
 pub struct IntegrationTestManager {
-    node_indices: HashSet<usize>,
+    node_indices_to_node_types: HashMap<usize, NodeType>,
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
@@ -181,7 +194,7 @@ impl IntegrationTestManager {
 
         let tx_generator = create_integration_test_tx_generator();
 
-        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
+        let sequencers_setup = get_sequencer_setup_configs(
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
@@ -189,10 +202,16 @@ impl IntegrationTestManager {
         )
         .await;
 
+        let mut node_indices_to_node_types = HashMap::new();
+        for sequencer_setup in sequencers_setup.iter() {
+            let node_index = sequencer_setup.get_node_index().expect("Node index should exist.");
+            let node_type = sequencer_setup.get_node_type();
+            node_indices_to_node_types.insert(node_index, node_type);
+        }
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator }
+        Self { node_indices_to_node_types, idle_nodes, running_nodes, tx_generator }
     }
 
     pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
@@ -216,8 +235,8 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
-    pub fn get_node_indices(&self) -> HashSet<usize> {
-        self.node_indices.clone()
+    pub fn get_node_indices_to_node_types(&self) -> HashMap<usize, NodeType> {
+        self.node_indices_to_node_types.clone()
     }
 
     pub fn shutdown_nodes(&mut self, nodes_to_shutdown: HashSet<usize>) {
@@ -334,7 +353,7 @@ pub(crate) async fn get_sequencer_setup_configs(
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
     path_to_base_dir: Option<PathBuf>,
-) -> (Vec<NodeSetup>, HashSet<usize>) {
+) -> Vec<NodeSetup> {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
@@ -355,30 +374,24 @@ pub(crate) async fn get_sequencer_setup_configs(
     info!("Creating node configurations.");
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let n_distributed_sequencers = node_component_configs
-        .iter()
-        .map(|node_component_config| node_component_config.len())
-        .sum();
 
     // TODO(Nadin): Refactor to avoid directly mutating vectors
 
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
-        create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
+        create_connected_network_configs(available_ports.get_next_ports(num_of_distributed_nodes)),
         node_component_configs.len(),
     );
-
-    let node_indices: HashSet<usize> = (0..node_component_configs.len()).collect();
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
     // the ExecutableSetup
     let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
-        available_ports.get_next_ports(n_distributed_sequencers),
+        available_ports.get_next_ports(num_of_distributed_nodes),
     );
 
     let mut mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
-        available_ports.get_next_ports(n_distributed_sequencers),
+        available_ports.get_next_ports(num_of_distributed_nodes),
     );
 
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
@@ -391,6 +404,7 @@ pub(crate) async fn get_sequencer_setup_configs(
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
+        let node_type = node_component_config.get_node_type();
 
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
@@ -418,10 +432,10 @@ pub(crate) async fn get_sequencer_setup_configs(
             );
             global_index += 1;
         }
-        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index));
+        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index, node_type));
     }
 
-    (nodes, node_indices)
+    nodes
 }
 
 /// Generates configurations for a specified number of distributed sequencer nodes,
@@ -456,6 +470,7 @@ fn create_distributed_node_configs(
             1,
             // http server is in executable index 0.
             0,
+            NodeType::Distributed,
         )
     })
     .take(distributed_sequencers_num)
@@ -466,9 +481,11 @@ fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<NodeComponentConfigs> {
     // Both batcher and http server are in executable index 0.
-    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0))
-        .take(num_of_consolidated_nodes)
-        .collect()
+    std::iter::repeat_with(|| {
+        NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0, NodeType::Consolidated)
+    })
+    .take(num_of_consolidated_nodes)
+    .collect()
 }
 
 // TODO(Nadin/Tsabary): find a better name for this function.
