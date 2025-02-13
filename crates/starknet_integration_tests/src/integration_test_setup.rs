@@ -18,6 +18,7 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
+use tokio::fs::create_dir_all;
 use tracing::instrument;
 
 use crate::config_utils::dump_config_file_changes;
@@ -78,7 +79,7 @@ pub struct ExecutableSetup {
     #[allow(dead_code)]
     batcher_storage_handle: Option<TempDir>,
     #[allow(dead_code)]
-    node_config_dir_handle: TempDir,
+    node_config_dir_handle: Option<TempDir>,
     #[allow(dead_code)]
     state_sync_storage_handle: Option<TempDir>,
     #[allow(dead_code)]
@@ -99,6 +100,7 @@ impl ExecutableSetup {
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
         db_path_dir: Option<PathBuf>,
+        config_path_dir: Option<PathBuf>,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
@@ -137,12 +139,17 @@ impl ExecutableSetup {
             component_config,
         );
 
-        let node_config_dir_handle = tempdir().unwrap();
-        let node_config_path = dump_config_file_changes(
-            &config,
-            required_params,
-            node_config_dir_handle.path().to_path_buf(),
-        );
+        let (node_config_dir, node_config_dir_handle) = match config_path_dir {
+            Some(config_path_dir) => {
+                create_dir_all(&config_path_dir).await.unwrap();
+                (config_path_dir, None)
+            }
+            None => {
+                let node_config_dir_handle = tempdir().unwrap();
+                (node_config_dir_handle.path().to_path_buf(), Some(node_config_dir_handle))
+            }
+        };
+        let node_config_path = dump_config_file_changes(&config, required_params, node_config_dir);
 
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
