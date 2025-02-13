@@ -35,6 +35,7 @@ use crate::component_server::{
 };
 use crate::serde_utils::SerdeWrapper;
 use crate::tests::{
+    create_shared_mock_metrics,
     test_a_b_functionality,
     ComponentA,
     ComponentAClientTrait,
@@ -169,9 +170,9 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
 
     let max_concurrency = 1;
     let mut component_a_local_server =
-        LocalComponentServer::new(component_a, rx_a, max_concurrency);
+        LocalComponentServer::new(component_a, rx_a, max_concurrency, create_shared_mock_metrics());
     let mut component_b_local_server =
-        LocalComponentServer::new(component_b, rx_b, max_concurrency);
+        LocalComponentServer::new(component_b, rx_b, max_concurrency, create_shared_mock_metrics());
 
     let max_concurrency = 10;
     let mut component_a_remote_server =

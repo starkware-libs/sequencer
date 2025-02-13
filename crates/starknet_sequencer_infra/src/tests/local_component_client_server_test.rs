@@ -7,6 +7,7 @@ use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 use crate::component_server::{ComponentServerStarter, LocalComponentServer};
 use crate::tests::{
+    create_shared_mock_metrics,
     test_a_b_functionality,
     ComponentA,
     ComponentAClientTrait,
@@ -75,8 +76,10 @@ async fn local_client_server() {
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
     let max_concurrency = 1;
-    let mut component_a_server = LocalComponentServer::new(component_a, rx_a, max_concurrency);
-    let mut component_b_server = LocalComponentServer::new(component_b, rx_b, max_concurrency);
+    let mut component_a_server =
+        LocalComponentServer::new(component_a, rx_a, max_concurrency, create_shared_mock_metrics());
+    let mut component_b_server =
+        LocalComponentServer::new(component_b, rx_b, max_concurrency, create_shared_mock_metrics());
 
     task::spawn(async move {
         let _ = component_a_server.start().await;
