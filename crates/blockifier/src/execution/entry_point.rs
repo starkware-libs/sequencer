@@ -385,7 +385,7 @@ impl EntryPointExecutionContext {
         limit_steps_by_resources: bool,
     ) -> usize {
         let TransactionContext { block_context, tx_info } = tx_context;
-        let BlockContext { block_info, versioned_constants, .. } = block_context;
+        let BlockContext { block_info, versioned_constants, .. } = block_context.as_ref();
         let block_upper_bound = match mode {
             ExecutionMode::Validate => versioned_constants.validate_max_n_steps,
             ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,

@@ -72,7 +72,7 @@ impl CallEntryPoint {
         // Do not limit steps by resources as we use default resources.
         let limit_steps_by_resources = false;
         let tx_context = TransactionContext {
-            block_context,
+            block_context: Arc::new(block_context),
             tx_info: TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
         };
 
@@ -93,8 +93,10 @@ impl CallEntryPoint {
         limit_steps_by_resources: bool,
         execution_mode: ExecutionMode,
     ) -> EntryPointExecutionResult<CallInfo> {
-        let tx_context =
-            TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
+        let tx_context = TransactionContext {
+            block_context: Arc::new(BlockContext::create_for_testing()),
+            tx_info,
+        };
         let mut context = EntryPointExecutionContext::new(
             Arc::new(tx_context),
             execution_mode,
