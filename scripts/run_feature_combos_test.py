@@ -34,7 +34,7 @@ def main():
         except Exception as e:
             feature_failures[package] = str(e)
     failures = {"featureless": featureless_failures, "featured": feature_failures}
-    assert failures == {"featureless": {}, "featured": {}}
+    assert failures == {"featureless": {}, "featured": {}}, f"{failures=}."
 
 
 if __name__ == "__main__":
