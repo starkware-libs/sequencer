@@ -2,7 +2,6 @@ use std::time::{Duration, Instant};
 
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
-use tracing::info;
 
 #[derive(Clone)]
 pub struct Peer {
@@ -26,11 +25,11 @@ impl Peer {
 
     pub fn blacklist_peer(&mut self, timeout_duration: Duration) {
         self.timed_out_until = get_instant_now() + timeout_duration;
-        info!(
-            "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
-            self.peer_id,
-            timeout_duration.as_secs_f64(),
-        );
+        // tracing::info!(
+        //     "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
+        //     self.peer_id,
+        //     timeout_duration.as_secs_f64(),
+        // );
     }
 
     pub fn peer_id(&self) -> PeerId {
