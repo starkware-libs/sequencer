@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 use std::error::Error;
-use std::fs::File;
-use std::io::{BufReader, BufWriter};
 use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -14,7 +12,7 @@ use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
-use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass};
+use starknet_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableClass};
 use thiserror::Error;
 
 use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
@@ -328,7 +326,7 @@ pub enum FsClassStorageError {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
-    WriteError(#[from] serde_json::Error),
+    RawClass(#[from] RawClassError),
 }
 
 impl FsClassStorage {
@@ -377,41 +375,6 @@ impl FsClassStorage {
     fn get_executable_path(&self, class_id: ClassId) -> PathBuf {
         concat_executable_filename(&self.get_persistent_dir(class_id))
     }
-
-    fn read_file(&self, path: PathBuf) -> FsClassStorageResult<Option<serde_json::Value>> {
-        let file = match File::open(&path) {
-            Ok(file) => file,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-            Err(e) => return Err(e.into()),
-        };
-
-        match serde_json::from_reader(BufReader::new(file)) {
-            Ok(value) => Ok(value),
-            Err(e) if e.is_io() && e.to_string().contains("No such file or directory") => Ok(None),
-            Err(e) => Err(e.into()),
-        }
-    }
-
-    fn write_file(&self, path: PathBuf, data: serde_json::Value) -> FsClassStorageResult<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        // Open a file for writing, delete content if exists
-        // (should not happen, since the file is a unique temporary file).
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(path)
-            .expect("Failing to open file with given options is impossible");
-
-        // Write to file.
-        let writer = BufWriter::new(file);
-        serde_json::to_writer(writer, &data)?;
-
-        Ok(())
-    }
 }
 
 impl ClassStorage for FsClassStorage {
@@ -431,8 +394,8 @@ impl ClassStorage for FsClassStorage {
         // Write classes to a temporary directory.
         let tmp_dir = create_tmp_dir()?;
         let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
-        self.write_file(concat_sierra_filename(&tmp_dir), class.0)?;
-        self.write_file(concat_executable_filename(&tmp_dir), executable_class.0)?;
+        class.write_to_file(concat_sierra_filename(&tmp_dir))?;
+        executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
         let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
@@ -450,7 +413,7 @@ impl ClassStorage for FsClassStorage {
         }
 
         let path = self.get_sierra_path(class_id);
-        Ok(self.read_file(path)?.map(RawClass))
+        Ok(RawClass::from_file(path)?)
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
@@ -461,7 +424,7 @@ impl ClassStorage for FsClassStorage {
         }
 
         let path = self.get_executable_path(class_id);
-        Ok(self.read_file(path)?.map(RawExecutableClass))
+        Ok(RawExecutableClass::from_file(path)?)
     }
 
     fn get_executable_class_hash(
@@ -483,7 +446,7 @@ impl ClassStorage for FsClassStorage {
         // Write class to a temporary directory.
         let tmp_dir = tempfile::tempdir()?.into_path();
         let tmp_dir = tmp_dir.join(self.get_class_dir(class_id));
-        self.write_file(concat_executable_filename(&tmp_dir), class.0)?;
+        class.write_to_file(concat_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
         let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
@@ -501,7 +464,7 @@ impl ClassStorage for FsClassStorage {
         }
 
         let path = self.get_executable_path(class_id);
-        Ok(self.read_file(path)?.map(RawExecutableClass))
+        Ok(RawExecutableClass::from_file(path)?)
     }
 }
 
