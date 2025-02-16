@@ -17,6 +17,7 @@ use central_objects::{
     CentralBouncerWeights,
     CentralCasmContractClassEntry,
     CentralCompressedStateDiff,
+    CentralFeeMarketInfo,
     CentralSierraContractClassEntry,
     CentralStateDiff,
     CentralTransactionExecutionInfo,
@@ -37,6 +38,8 @@ use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::debug;
 use url::Url;
+
+use crate::fee_market::FeeMarketInfo;
 
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {
@@ -60,6 +63,7 @@ pub(crate) struct AerospikeBlob {
     // configuration.
     compressed_state_diff: Option<CentralCompressedStateDiff>,
     bouncer_weights: CentralBouncerWeights,
+    fee_market_info: CentralFeeMarketInfo,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
@@ -247,6 +251,7 @@ impl CendeContext for CendeAmbassador {
             block_number,
             state_diff,
             compressed_state_diff,
+            fee_market_info: blob_parameters.fee_market_info,
             bouncer_weights: blob_parameters.bouncer_weights,
             transactions: central_transactions,
             execution_infos,
@@ -291,6 +296,7 @@ pub struct BlobParameters {
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
+    pub(crate) fee_market_info: FeeMarketInfo,
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
 }
