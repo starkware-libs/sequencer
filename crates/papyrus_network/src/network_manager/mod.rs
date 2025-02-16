@@ -289,11 +289,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             SwarmEvent::Behaviour(event) => {
                 self.handle_behaviour_event(event)?;
             }
-            SwarmEvent::OutgoingConnectionError { connection_id, peer_id, error } => {
-                warn!(
-                    "Outgoing connection error. connection id: {connection_id:?}, requested peer \
-                     id: {peer_id:?}, error: {error:?}"
-                );
+            SwarmEvent::OutgoingConnectionError {
+                connection_id: _connection_id,
+                peer_id: _peer_id,
+                error: _error,
+            } => {
+                // tracing::warn!(
+                //     "Outgoing connection error. connection id: {_connection_id:?}, requested peer
+                // \      id: {_peer_id:?}, error: {_error:?}"
+                // );
             }
             SwarmEvent::IncomingConnectionError {
                 connection_id,

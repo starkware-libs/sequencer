@@ -154,10 +154,10 @@ impl PeerManager {
             });
         self.last_peer_index = (self.last_peer_index + 1) % self.peers.len();
         if peer.is_none() {
-            info!(
-                "No unblocked peers. Waiting for a new peer to be connected or for a peer to \
-                 become unblocked for {outbound_session_id:?}"
-            );
+            // info!(
+            //     "No unblocked peers. Waiting for a new peer to be connected or for a peer to \
+            //      become unblocked for {outbound_session_id:?}"
+            // );
             self.sessions_received_when_no_peers.push(outbound_session_id);
             // Find the peer closest to becoming unblocked.
             let sleep_deadline = self
@@ -193,7 +193,7 @@ impl PeerManager {
                     self.peers_pending_dial_with_sessions
                         .insert(*peer_id, vec![outbound_session_id]);
                 }
-                info!("Dialing peer {:?} with multiaddr {:?}", peer_id, peer.multiaddr());
+                // info!("Dialing peer {:?} with multiaddr {:?}", peer_id, peer.multiaddr());
                 self.pending_events.push(ToSwarm::Dial {
                     opts: DialOpts::peer_id(*peer_id)
                         .addresses(vec![peer.multiaddr()])
