@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
+use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::contract_class::EntryPointType;
 use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -47,7 +48,12 @@ use crate::{impl_deploy_transaction_trait, StarknetApiError};
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
+#[strum_discriminants(
+    name(TxTypeLabelValue),
+    derive(IntoStaticStr, EnumIter),
+    strum(serialize_all = "snake_case")
+)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum RpcTransaction {
