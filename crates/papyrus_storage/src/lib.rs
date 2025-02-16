@@ -165,6 +165,7 @@ pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 4, minor: 0 };
 pub fn open_storage(
     storage_config: StorageConfig,
 ) -> StorageResult<(StorageReader, StorageWriter)> {
+    info!("Opening storage: {}", storage_config.db_config.path_prefix.display());
     if !storage_config.db_config.path_prefix.exists()
         && !storage_config.db_config.enforce_file_exists
     {
