@@ -1,8 +1,10 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
+use futures::future::BoxFuture;
 use futures::never::Never;
-use futures::StreamExt;
+use futures::stream::FuturesUnordered;
+use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -32,7 +34,8 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
-use tracing::{debug, error, info};
+use tokio::task::JoinError;
+use tracing::{debug, error, info, warn};
 
 #[cfg(test)]
 mod test;
@@ -109,50 +112,57 @@ impl P2pSyncServerChannels {
 /// A P2pSyncServer receives inbound queries and returns their corresponding data.
 pub struct P2pSyncServer {
     storage_reader: StorageReader,
-    p2p_sync_channels: P2pSyncServerChannels,
+    p2p_sync_channels: Option<P2pSyncServerChannels>,
     class_manager_client: SharedClassManagerClient,
+    query_tasks: FuturesUnordered<BoxFuture<'static, Result<(), JoinError>>>,
 }
 
 impl P2pSyncServer {
-    pub async fn run(self) -> Never {
+    pub async fn run(mut self) -> Never {
         let P2pSyncServerChannels {
             mut header_receiver,
             mut state_diff_receiver,
             mut transaction_receiver,
             mut class_receiver,
             mut event_receiver,
-        } = self.p2p_sync_channels;
+        } = self.p2p_sync_channels.take().expect("p2p_sync_channels taken twice");
         loop {
             tokio::select! {
                 maybe_server_query_manager = header_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Header queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "header");
+                    self.create_task_for_query(server_query_manager, "header");
                 }
                 maybe_server_query_manager = state_diff_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "State diff queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "state diff");
+                    self.create_task_for_query(server_query_manager, "state diff");
                 }
                 maybe_server_query_manager = transaction_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Transaction queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "transaction");
+                    self.create_task_for_query(server_query_manager, "transaction");
                 }
                 maybe_server_query_manager = class_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Class queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "class");
+                    self.create_task_for_query(server_query_manager, "class");
                 }
                 maybe_server_query_manager = event_receiver.next() => {
                     let server_query_manager = maybe_server_query_manager.expect(
                         "Event queries sender was unexpectedly dropped."
                     );
-                    register_query(self.storage_reader.clone(), server_query_manager, self.class_manager_client.clone(), "event");
+                    self.create_task_for_query(server_query_manager, "event");
+                }
+                result_opt = self.query_tasks.next() => {
+                    match result_opt {
+                        Some(result) => result.expect("Task for inbound query panicked."),
+                        None => self.query_tasks = Default::default(),
+                    }
                 }
             };
         }
@@ -163,45 +173,51 @@ impl P2pSyncServer {
         p2p_sync_channels: P2pSyncServerChannels,
         class_manager_client: SharedClassManagerClient,
     ) -> Self {
-        Self { storage_reader, p2p_sync_channels, class_manager_client }
-    }
-}
-fn register_query<Data, TQuery>(
-    storage_reader: StorageReader,
-    server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
-    class_manager_client: SharedClassManagerClient,
-    protocol_decription: &str,
-) where
-    Data: FetchBlockData + Send + 'static,
-    TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send + Clone + Debug + 'static,
-    Query: From<TQuery>,
-{
-    let protocol_decription = protocol_decription.to_owned();
-    let query = server_query_manager.query().clone();
-    match query {
-        Ok(query) => {
-            debug!("Sync server received a new inbound query {query:?}");
-            tokio::task::spawn(async move {
-                let result = send_data_for_query(
-                    storage_reader,
-                    server_query_manager,
-                    class_manager_client,
-                    protocol_decription.as_str(),
-                )
-                .await;
-                if let Err(error) = result {
-                    if error.should_log_in_error_level() {
-                        error!("Running inbound query {query:?} failed on {error:?}");
-                    }
-                    Err(error)
-                } else {
-                    Ok(())
-                }
-            });
+        Self {
+            storage_reader,
+            p2p_sync_channels: Some(p2p_sync_channels),
+            class_manager_client,
+            query_tasks: Default::default(),
         }
-        Err(error) => {
-            error!("Failed to parse inbound query: {error:?}");
-            server_query_manager.report_peer()
+    }
+
+    fn create_task_for_query<Data, TQuery>(
+        &mut self,
+        server_query_manager: ServerQueryManager<TQuery, DataOrFin<Data>>,
+        protocol_decription: &str,
+    ) where
+        Data: FetchBlockData + Send + 'static,
+        TQuery: TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send + Clone + Debug + 'static,
+        Query: From<TQuery>,
+    {
+        let protocol_decription = protocol_decription.to_owned();
+        let storage_reader = self.storage_reader.clone();
+        let query = server_query_manager.query().clone();
+        match query {
+            Ok(query) => {
+                info!("Sync server received a new inbound query {query:?}");
+                self.query_tasks.push(
+                    tokio::task::spawn(async move {
+                        let result = send_data_for_query(
+                            storage_reader,
+                            server_query_manager.class_manager_client,
+                            protocol_decription.as_str(),
+                        )
+                        .await;
+                        let Err(error) = result else {
+                            return ();
+                        };
+                        if error.should_log_in_error_level() {
+                            error!("Running inbound query {query:?} failed on {error:?}");
+                        }
+                    })
+                    .boxed(),
+                );
+            }
+            Err(error) => {
+                warn!("Failed to parse inbound query: {error:?}. Reporting peer");
+                server_query_manager.report_peer()
+            }
         }
     }
 }

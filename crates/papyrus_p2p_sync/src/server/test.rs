@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use futures::channel::mpsc::Sender;
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::ApiContractClass;
@@ -55,7 +55,7 @@ use starknet_api::transaction::{
 use starknet_class_manager_types::{MockClassManagerClient, SharedClassManagerClient};
 
 use super::{split_thin_state_diff, FetchBlockData, P2pSyncServer, P2pSyncServerChannels};
-use crate::server::register_query;
+
 const BUFFER_SIZE: usize = 10;
 const NUM_OF_BLOCKS: usize = 10;
 const NUM_TXS_PER_BLOCK: usize = 5;
@@ -67,7 +67,6 @@ enum StartBlockType {
     Number,
 }
 
-// TODO(shahak): Change tests to use channels and not register_query
 #[tokio::test]
 async fn header_query_positive_flow() {
     let assert_signed_block_header = |data: Vec<SignedBlockHeader>| {
@@ -361,13 +360,7 @@ async fn run_test<T, F, TQuery>(
     let query = TQuery::from(query);
     let (server_query_manager, _report_sender, response_reciever) =
         create_test_server_query_manager(query);
-
-    register_query::<T, TQuery>(
-        storage_reader,
-        server_query_manager,
-        p2p_sync_server.class_manager_client.clone(),
-        "test",
-    );
+    query_sender.send(server_query_manager).await.unwrap();
 
     // run p2p_sync_server and collect query results.
     tokio::select! {
