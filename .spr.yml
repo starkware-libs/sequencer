@@ -1,0 +1,12 @@
+githubRepoOwner: starkware-libs
+githubRepoName: sequencer
+githubHost: github.com
+githubRemote: origin
+githubBranch: main
+requireChecks: true
+requireApproval: true
+mergeMethod: rebase
+mergeQueue: true
+forceFetchTags: false
+showPrTitlesInStack: false
+branchPushIndividually: false

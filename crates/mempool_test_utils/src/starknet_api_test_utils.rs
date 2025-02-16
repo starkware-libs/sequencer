@@ -230,6 +230,7 @@ impl MultiAccountTransactionGenerator {
         account_contract: FeatureContract,
         contract_address_salt: ContractAddressSalt,
     ) -> AccountId {
+        println!("registering undeployed account");
         let new_account_id = self.account_tx_generators.len();
         let (account_tx_generator, _default_deploy_account_tx) = AccountTransactionGenerator::new(
             account_contract,
@@ -303,6 +304,11 @@ pub struct AccountTransactionGenerator {
 
 impl AccountTransactionGenerator {
     pub fn is_deployed(&self) -> bool {
+        println!("!!!!!!!!!");
+        println!(
+            "Checking if account {:?} is deployed",
+            self.account.sender_address
+        );
         self.nonce_manager.borrow().get(self.sender_address()) != nonce!(0)
     }
 
@@ -421,6 +427,7 @@ impl AccountTransactionGenerator {
         contract_address_salt: ContractAddressSalt,
         is_deployed: bool,
     ) -> (Self, RpcTransaction) {
+        println!("In NEWWWWW");
         // A deploy account transaction must be created now in order to affix an address to it.
         // If this doesn't happen now it'll be difficult to fund the account during test setup.
         let default_deploy_account_tx =

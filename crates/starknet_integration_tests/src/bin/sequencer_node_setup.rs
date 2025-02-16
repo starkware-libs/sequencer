@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use starknet_integration_tests::node_setup::node_setup;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use starknet_sequencer_metrics::metric_definitions;
 use tracing::info;
 
 #[tokio::main]
@@ -28,8 +29,18 @@ async fn main() {
 
     // Run node setup.
     // Keep the sequenser_setups in a variable to avoid dropping it.
-    let _sequencer_setups =
+    let sequencer_setups =
         node_setup(&mut tx_generator, "./single_node_config.json", base_db_path).await;
+    loop {
+        info!("***************");
+        tokio::time::sleep(std::time::Duration::from_secs(20)).await; // Keeps program running
+        let monitoring_client = sequencer_setups[0].batcher_monitoring_client();
+        let n_batched_txs = monitoring_client
+            .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
+            .await
+            .expect("Failed to get batched txs metric.");
+        info!("Batched transactions: {}", n_batched_txs);
+    }
 }
 
 // TODO(Nadin): Improve the argument parsing.

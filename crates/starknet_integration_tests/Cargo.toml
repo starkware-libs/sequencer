@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
