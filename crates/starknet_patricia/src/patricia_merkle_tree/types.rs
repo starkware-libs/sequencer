@@ -1,4 +1,5 @@
 use ethnum::U256;
+use starknet_types_core::felt::Felt;
 
 use crate::felt::Felt;
 use crate::patricia_merkle_tree::errors::TypesError;
@@ -26,6 +27,12 @@ impl SubTreeHeight {
 impl From<SubTreeHeight> for u8 {
     fn from(value: SubTreeHeight) -> Self {
         value.0
+    }
+}
+
+impl From<SubTreeHeight> for Felt {
+    fn from(value: SubTreeHeight) -> Self {
+        Self::from(value.0)
     }
 }
 
