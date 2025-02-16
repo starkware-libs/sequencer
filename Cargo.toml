@@ -57,8 +57,6 @@ members = [
   "workspace_tests",
 ]
 
-exclude = ["crates/bin/starknet-native-compile"]
-
 [workspace.package]
 version = "0.14.0-rc.0"
 edition = "2021"
