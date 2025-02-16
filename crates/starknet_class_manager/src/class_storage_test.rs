@@ -11,6 +11,8 @@ use crate::class_storage::{
     FsClassStorage,
 };
 
+// TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
+
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
@@ -49,7 +51,6 @@ fn fs_storage() {
 
     // Add new class.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
     let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     let executable_class_hash = CompiledClassHash(felt!("0x5678"));
     storage
@@ -79,7 +80,6 @@ fn fs_storage_deprecated_class_api() {
     assert_eq!(storage.get_deprecated_class(class_id), Ok(None));
 
     // Add new class.
-    // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
     let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     storage.set_deprecated_class(class_id, executable_class.clone()).unwrap();
 
@@ -92,3 +92,22 @@ fn fs_storage_deprecated_class_api() {
 
 // TODO(Elin): check a nonexistent persistent root (should be created).
 // TODO(Elin): add unimplemented skeletons for test above and rest of missing tests.
+
+#[test]
+fn fs_storage_partial_write_no_atomic_marker() {
+    // Class files written, no atomic marker entry.
+    let persistent_root = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    // Fully write class files, without atomic marker.
+    let class_id = ClassHash(felt!("0x1234"));
+    let class = RawClass::try_from(SierraContractClass::default()).unwrap();
+    let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
+    storage.write_class_atomically(class_id, class, executable_class).unwrap();
+
+    // Query class, should be considered non-existent.
+    assert_eq!(storage.get_sierra(class_id), Ok(None));
+    assert_eq!(storage.get_executable(class_id), Ok(None));
+}
