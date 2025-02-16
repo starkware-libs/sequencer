@@ -48,7 +48,7 @@ macro_rules! define_hint_extension_enum {
         impl HintExtensionImplementation for $enum_name {
             fn execute_hint_extensive(
                 &self,
-                hint_extension_args: HintExtensionArgs<'_, '_, '_, '_, '_>,
+                hint_extension_args: HintArgs<'_, '_, '_, '_, '_>,
             ) -> HintExtensionResult {
                 match self {
                     $(Self::$hint_name => $implementation(hint_extension_args),)+

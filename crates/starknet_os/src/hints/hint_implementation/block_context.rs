@@ -1,5 +1,5 @@
 use crate::hints::error::{HintExtensionResult, HintResult};
-use crate::hints::types::{HintArgs, HintExtensionArgs};
+use crate::hints::types::HintArgs;
 
 // Hint implementations.
 
@@ -55,8 +55,6 @@ pub(crate) fn write_use_kzg_da_to_memory(
 
 // Hint extension implementations.
 
-pub(crate) fn load_class(
-    HintExtensionArgs { .. }: HintExtensionArgs<'_, '_, '_, '_, '_>,
-) -> HintExtensionResult {
+pub(crate) fn load_class(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintExtensionResult {
     todo!()
 }

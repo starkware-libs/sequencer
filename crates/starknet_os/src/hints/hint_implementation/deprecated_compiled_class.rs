@@ -1,5 +1,5 @@
 use crate::hints::error::{HintExtensionResult, HintResult};
-use crate::hints::types::{HintArgs, HintExtensionArgs};
+use crate::hints::types::HintArgs;
 
 pub(crate) fn load_deprecated_class_facts(
     HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>,
@@ -14,7 +14,7 @@ pub(crate) fn load_deprecated_class_inner(
 }
 
 pub(crate) fn load_deprecated_class(
-    HintExtensionArgs { .. }: HintExtensionArgs<'_, '_, '_, '_, '_>,
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>,
 ) -> HintExtensionResult {
     todo!()
 }
