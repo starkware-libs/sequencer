@@ -82,7 +82,7 @@ fn test_proto_regression() {
             OUT_DIR
         }
     };
-    // in test mode we need to set the OUT_DIR env var
+
     let fix = env::var("PROTO_FIX").is_ok();
 
     // remove the temp dir if it exists (can happen if the test failed previously)
@@ -93,19 +93,7 @@ fn test_proto_regression() {
 
     generate_protos(out_dir.into(), PROTO_FILES).unwrap();
 
-    // let expected = fs::read_dir(PROTO_DIR)
-    //     .expect("Failed to read precompiled proto dir")
-    //     .next()
-    //     .expect("No files in precompiled proto dir")
-    //     .expect("Failed to read precompiled protos")
-    //     .path();
-    // let generated = fs::read_dir(out_dir)
-    //     .expect("Failed to read generated proto dir")
-    //     .next()
-    //     .expect("No files in generated proto dir")
-    //     .expect("Failed to read generated protos")
-    //     .path();
-
+    // TODO(alonl): replace hard coded strings with constants
     let generated_name = String::from(out_dir) + "/_.rs"; // "src/generated_test/_.rs";
     let expected_name = String::from(PROTO_DIR) + "/_.rs"; // "src/protoc_output/_.rs";
 
@@ -113,9 +101,8 @@ fn test_proto_regression() {
         .unwrap_or_else(|_| panic!("Failed to read expected file at {:?}", expected_name));
     let generated_file = fs::read_to_string(generated_name.clone())
         .unwrap_or_else(|_| panic!("Failed to read generated file at {:?}", generated_name));
-    let equal = expected_file == generated_file;
 
-    if !equal {
+    if expected_file != generated_file {
         if fix {
             fs::copy(generated_name, expected_name).expect("Failed to fix the precompiled protos");
         } else {
