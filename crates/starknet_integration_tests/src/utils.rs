@@ -462,7 +462,10 @@ pub fn create_batcher_config(
         block_builder_config: BlockBuilderConfig {
             chain_info,
             bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights { n_steps: 75000, ..Default::default() },
+                block_max_capacity: BouncerWeights {
+                    n_steps: 150000, // 136000
+                    ..Default::default()
+                },
             },
             execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
             ..Default::default()
