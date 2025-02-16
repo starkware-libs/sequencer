@@ -19,6 +19,7 @@ blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true
+metrics.workspace = true
 papyrus_config.workspace = true
 papyrus_network_types.workspace = true
 papyrus_rpc.workspace = true
@@ -31,8 +32,11 @@ starknet_class_manager_types.workspace = true
 starknet_gateway_types.workspace = true
 starknet_mempool_types.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_sequencer_metrics.workspace = true
 starknet_sierra_multicompile.workspace = true
 starknet_state_sync_types.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -44,6 +48,7 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
+metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true

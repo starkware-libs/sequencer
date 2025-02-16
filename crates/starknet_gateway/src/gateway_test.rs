@@ -4,6 +4,7 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
@@ -14,6 +15,7 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
+    TxTypeLabelValue,
 };
 use starknet_api::transaction::{
     InvokeTransaction,
@@ -32,6 +34,12 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_sequencer_metrics::metric_definitions::{
+    TRANSACTIONS_FAILED,
+    TRANSACTIONS_RECEIVED,
+    TRANSACTIONS_SENT_TO_MEMPOOL,
+};
+use strum::IntoEnumIterator;
 
 use crate::config::{
     GatewayConfig,
@@ -39,6 +47,13 @@ use crate::config::{
     StatelessTransactionValidatorConfig,
 };
 use crate::gateway::Gateway;
+use crate::metrics::{
+    register_metrics,
+    GatewayMetricHandle,
+    SourceLabelValue,
+    LABEL_NAME_SOURCE,
+    LABEL_NAME_TX_TYPE,
+};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 
 #[fixture]
@@ -75,6 +90,7 @@ struct MockDependencies {
 
 impl MockDependencies {
     fn gateway(self) -> Gateway {
+        register_metrics();
         let chain_id = self.config.chain_info.chain_id.clone();
         Gateway::new(
             self.config,
@@ -129,6 +145,9 @@ async fn test_add_tx(
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
     let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
@@ -161,11 +180,21 @@ async fn test_add_tx(
 
     let gateway = mock_dependencies.gateway();
 
+    let metric_counters = GatewayMetricHandle::new(&rpc_tx, &p2p_message_metadata);
+
     let result = gateway.add_tx(rpc_tx, p2p_message_metadata).await;
 
+    let metrics = recorder.handle().render();
+    assert_eq!(metric_counters.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
     match expected_error {
-        Some(expected_err) => assert_eq!(result.unwrap_err(), expected_err),
-        None => assert_eq!(result.unwrap(), tx_hash),
+        Some(expected_err) => {
+            assert_eq!(metric_counters.get_metric_value(TRANSACTIONS_FAILED, &metrics), 1);
+            assert_eq!(result.unwrap_err(), expected_err);
+        }
+        None => {
+            assert_eq!(metric_counters.get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics), 1);
+            assert_eq!(result.unwrap(), tx_hash);
+        }
     }
 }
 
@@ -189,4 +218,43 @@ async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) 
 
     let err = gateway.add_tx(tx, None).await.unwrap_err();
     assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
+}
+
+#[test]
+fn test_register_metrics() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+    let metrics = recorder.handle().render();
+    for tx_type in TxTypeLabelValue::iter() {
+        for source in SourceLabelValue::iter() {
+            assert_eq!(
+                TRANSACTIONS_RECEIVED
+                    .parse_numeric_metric::<u64>(
+                        &metrics,
+                        &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
+                    )
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                TRANSACTIONS_FAILED
+                    .parse_numeric_metric::<u64>(
+                        &metrics,
+                        &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
+                    )
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                TRANSACTIONS_SENT_TO_MEMPOOL
+                    .parse_numeric_metric::<u64>(
+                        &metrics,
+                        &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
+                    )
+                    .unwrap(),
+                0
+            );
+        }
+    }
 }
