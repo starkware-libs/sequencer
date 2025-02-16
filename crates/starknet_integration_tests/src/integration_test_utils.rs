@@ -6,7 +6,7 @@ use tracing::{error, info, warn};
 
 // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
 // spawning.
-fn set_panic_hook() {
+pub fn set_panic_hook() {
     let default_panic = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         log_susceptible_ports();
