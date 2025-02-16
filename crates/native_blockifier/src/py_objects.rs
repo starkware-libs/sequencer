@@ -102,34 +102,29 @@ fn hash_map_into_bouncer_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BouncerWeights> {
     let l1_gas = data.remove(constants::L1_GAS_USAGE).expect("gas_weight must be present");
-    let n_steps = data.remove(constants::N_STEPS_RESOURCE).expect("n_steps must be present");
     let message_segment_length = data
         .remove(constants::MESSAGE_SEGMENT_LENGTH)
         .expect("message_segment_length must be present");
     let state_diff_size =
         data.remove(constants::STATE_DIFF_SIZE).expect("state_diff_size must be present");
     let n_events = data.remove(constants::N_EVENTS).expect("n_events must be present");
-    let builtins_gas =
-        data.remove(constants::BUILTINS_GAS).expect("builtins_total_sierra_gas must be present");
+    let vm_resources_gas =
+        data.remove(constants::VM_RESOURCES_GAS).expect("vm_resources_sierra_gas must be present");
     let sierra_gas = GasAmount(
         data.remove(constants::SIERRA_GAS)
             .expect("sierra_gas must be present")
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-    let builtins_gas = GasAmount(u64_from_usize(builtins_gas));
-    let steps_gas = GasAmount(u64_from_usize(n_steps));
+    let vm_resources_gas = GasAmount(u64_from_usize(vm_resources_gas));
 
-    let sierra_gas_w_vm = sierra_gas
-        .checked_add(builtins_gas)
-        .and_then(|gas_with_builtins| gas_with_builtins.checked_add(steps_gas))
-        .unwrap_or_else(|| {
-            panic!(
-                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins \
-                 gas: {:?}\nSteps: {}\nInitial Sierra gas: {}",
-                builtins_gas, n_steps, sierra_gas
-            )
-        });
+    let sierra_gas_w_vm = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
+        panic!(
+            "Gas overflow: failed to add vm resources gas to Sierra gas. VM gas: {:?} Initial \
+             Sierra gas: {}",
+            vm_resources_gas, sierra_gas
+        )
+    });
 
     Ok(BouncerWeights {
         l1_gas,
