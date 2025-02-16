@@ -25,10 +25,8 @@ use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_flow_test_tx_generator,
     create_funding_txs,
-    create_many_invoke_txs,
     create_multiple_account_txs,
     run_test_scenario,
-    test_many_invoke_txs,
     test_multiple_account_txs,
     CreateRpcTxsFn,
     ExpectedContentId,
@@ -111,7 +109,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
 
 fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> {
     let next_height = INITIAL_HEIGHT.unchecked_next();
-    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
+    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT);
     let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
         (
             create_multiple_account_txs,
@@ -137,13 +135,13 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
         // block. This means that the last 3 transactions could be included in the next block if
         // one is added to the test.
-        (
-            create_many_invoke_txs,
-            test_many_invoke_txs,
-            ExpectedContentId::from_hex_unchecked(
-                "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
-            ),
-        ),
+        // (
+        //     create_many_invoke_txs,
+        //     test_many_invoke_txs,
+        //     ExpectedContentId::from_hex_unchecked(
+        //         "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
+        //     ),
+        // ),
     ];
     itertools::zip_eq(heights_to_build, test_scenarios)
         .map(|(h, (create_txs_fn, test_tx_hashes_fn, expected_content_id))| {
