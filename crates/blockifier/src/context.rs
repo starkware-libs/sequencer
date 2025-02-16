@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -24,7 +25,7 @@ use crate::transaction::objects::{
 
 #[derive(Clone, Debug)]
 pub struct TransactionContext {
-    pub block_context: BlockContext,
+    pub block_context: Arc<BlockContext>,
     pub tx_info: TransactionInfo,
 }
 
@@ -123,7 +124,7 @@ impl BlockContext {
         tx_info_creator: &impl TransactionInfoCreator,
     ) -> TransactionContext {
         TransactionContext {
-            block_context: self.clone(),
+            block_context: Arc::new(self.clone()),
             tx_info: tx_info_creator.create_tx_info(),
         }
     }

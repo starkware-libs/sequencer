@@ -565,7 +565,7 @@ fn test_max_fee_limit_validate(
                     // not include DA. To cover minimal cost with only an L1 gas bound, need to
                     // convert the L1 data gas to L1 gas.
                     let tx_context = TransactionContext {
-                        block_context: block_context.clone(),
+                        block_context: Arc::new(block_context.clone()),
                         tx_info: account_tx.create_tx_info(),
                     };
                     let gas_prices = tx_context.get_gas_prices();

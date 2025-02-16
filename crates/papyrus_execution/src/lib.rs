@@ -274,7 +274,7 @@ pub fn execute_call(
     let limit_steps_by_resources = false; // Default resource bounds.
 
     let mut context = EntryPointExecutionContext::new_invoke(
-        Arc::new(TransactionContext { block_context, tx_info }),
+        Arc::new(TransactionContext { block_context: Arc::new(block_context), tx_info }),
         limit_steps_by_resources,
         SierraGasRevertTracker::new(GasAmount(remaining_gas)),
     );
