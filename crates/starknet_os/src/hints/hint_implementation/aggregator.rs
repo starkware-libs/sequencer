@@ -7,7 +7,9 @@ pub(crate) fn allocate_segments_for_messages(
     todo!()
 }
 
-pub(crate) fn disable_page_creation(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>) -> HintResult {
+pub(crate) fn disable_da_page_creation(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_>,
+) -> HintResult {
     todo!()
 }
 

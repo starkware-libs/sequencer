@@ -3,7 +3,7 @@ use indoc::indoc;
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
-    disable_page_creation,
+    disable_da_page_creation,
     get_aggregator_output,
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
@@ -1716,8 +1716,8 @@ ids.initial_carried_outputs = segments.gen_arg(
 )"#
     ),
     (
-        DisablePageCreation,
-        disable_page_creation,
+        DisableDaPageCreation,
+        disable_da_page_creation,
         r#"# Note that `serialize_os_output` splits its output to memory pages
 # (see OutputBuiltinRunner.add_page).
 # Since this output is only used internally and will not be used in the final fact,
