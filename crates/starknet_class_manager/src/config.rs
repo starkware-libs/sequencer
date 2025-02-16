@@ -18,7 +18,7 @@ pub struct ClassHashStorageConfig {
 impl Default for ClassHashStorageConfig {
     fn default() -> Self {
         Self {
-            path_prefix: "/data".into(),
+            path_prefix: "/data/persistent_root".into(),
             enforce_file_exists: false,
             max_size: 1 << 20, // 1MB.
         }
@@ -58,7 +58,10 @@ pub struct FsClassStorageConfig {
 
 impl Default for FsClassStorageConfig {
     fn default() -> Self {
-        Self { persistent_root: "/classes".into(), class_hash_storage_config: Default::default() }
+        Self {
+            persistent_root: "/data/classes".into(),
+            class_hash_storage_config: Default::default(),
+        }
     }
 }
 

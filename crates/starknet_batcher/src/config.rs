@@ -62,7 +62,7 @@ impl Default for BatcherConfig {
         Self {
             storage: papyrus_storage::StorageConfig {
                 db_config: papyrus_storage::db::DbConfig {
-                    path_prefix: "/data".into(),
+                    path_prefix: "/data/batcher".into(),
                     enforce_file_exists: false,
                     ..Default::default()
                 },
