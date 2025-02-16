@@ -74,17 +74,11 @@ pub struct ExecutableSetup {
     pub batcher_storage_config: StorageConfig,
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
-    // Handlers for the storage and config files, maintained so the files are not deleted. Since
-    // these are only maintained to avoid dropping the handlers, private visibility suffices, and
-    // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
-    #[allow(dead_code)]
-    batcher_storage_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    node_config_dir_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    state_sync_storage_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    class_manager_storage_handles: Option<FileHandles>,
+    // Handles for resource that are deleted when their handle is dropped.
+    pub batcher_storage_handle: Option<TempDir>,
+    pub node_config_dir_handle: Option<TempDir>,
+    pub state_sync_storage_handle: Option<TempDir>,
+    pub class_manager_storage_handles: Option<FileHandles>,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
