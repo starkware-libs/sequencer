@@ -379,6 +379,14 @@ impl FsClassStorage {
     fn get_deprecated_executable_path(&self, class_id: ClassId) -> PathBuf {
         concat_deprecated_executable_filename(&self.get_persistent_dir(class_id))
     }
+
+    fn mark_class_id_as_existent(
+        &mut self,
+        class_id: ClassId,
+        executable_class_hash: ExecutableClassHash,
+    ) -> FsClassStorageResult<()> {
+        Ok(self.class_hash_storage.set_executable_class_hash(class_id, executable_class_hash)?)
+    }
 }
 
 impl ClassStorage for FsClassStorage {
@@ -405,8 +413,7 @@ impl ClassStorage for FsClassStorage {
         let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
         std::fs::rename(tmp_dir, persistent_dir)?;
 
-        // Mark class as existent.
-        self.class_hash_storage.set_executable_class_hash(class_id, executable_class_hash)?;
+        self.mark_class_id_as_existent(class_id, executable_class_hash)?;
 
         Ok(())
     }

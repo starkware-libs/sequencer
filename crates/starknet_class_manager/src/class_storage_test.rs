@@ -92,3 +92,20 @@ fn fs_storage_deprecated_class_api() {
 
 // TODO(Elin): check a nonexistent persistent root (should be created).
 // TODO(Elin): add unimplemented skeletons for test above and rest of missing tests.
+
+#[test]
+fn fs_storage_partial_write_only_atomic_marker() {
+    let persistent_root = create_tmp_dir().unwrap();
+    let class_hash_storage_path_prefix = create_tmp_dir().unwrap();
+    let mut storage =
+        FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+
+    // Write only atomic marker, no class files.
+    let class_id = ClassHash(felt!("0x1234"));
+    let executable_class_hash = CompiledClassHash(felt!("0x5678"));
+    storage.mark_class_id_as_existent(class_id, executable_class_hash).unwrap();
+
+    // Query class, should be considered non-existent.
+    assert_eq!(storage.get_sierra(class_id), Ok(None));
+    assert_eq!(storage.get_executable(class_id), Ok(None));
+}
