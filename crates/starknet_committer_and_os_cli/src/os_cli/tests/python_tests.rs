@@ -195,7 +195,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
-use starknet_os::hints::enum_definition::{HintExtension, OsHint};
+use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
@@ -251,6 +251,7 @@ fn test_os_hints_are_equal(input: &str) -> OsPythonTestResult {
     let rust_os_hints: HashSet<String> = OsHint::iter()
         .map(|hint| hint.to_str().to_string())
         .chain(HintExtension::iter().map(|hint| hint.to_str().to_string()))
+        .chain(AggregatorHint::iter().map(|hint| hint.to_str().to_string()))
         .collect();
 
     let mut only_in_python: Vec<String> =
