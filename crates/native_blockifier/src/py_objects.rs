@@ -12,7 +12,6 @@ use blockifier::blockifier::config::{
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
-use blockifier::utils::u64_from_usize;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
@@ -108,30 +107,21 @@ fn hash_map_into_bouncer_weights(
     let state_diff_size =
         data.remove(constants::STATE_DIFF_SIZE).expect("state_diff_size must be present");
     let n_events = data.remove(constants::N_EVENTS).expect("n_events must be present");
-    let vm_resources_gas =
-        data.remove(constants::VM_RESOURCES_GAS).expect("vm_resources_sierra_gas must be present");
-    let sierra_gas = GasAmount(
-        data.remove(constants::SIERRA_GAS)
-            .expect("sierra_gas must be present")
+    let sierra_gas_vm_included = GasAmount(
+        data.remove(constants::SIERRA_GAS_TOTAL)
+            .expect("sierra_gas_vm_included must be present")
             .try_into()
-            .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
+            .unwrap_or_else(|err| {
+                panic!("Failed to convert 'sierra_gas_vm_included' into GasAmount: {err}.")
+            }),
     );
-    let vm_resources_gas = GasAmount(u64_from_usize(vm_resources_gas));
-
-    let sierra_gas_w_vm = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
-        panic!(
-            "Gas overflow: failed to add vm resources gas to Sierra gas. VM gas: {:?} Initial \
-             Sierra gas: {}",
-            vm_resources_gas, sierra_gas
-        )
-    });
 
     Ok(BouncerWeights {
         l1_gas,
         message_segment_length,
         state_diff_size,
         n_events,
-        sierra_gas: sierra_gas_w_vm,
+        sierra_gas: sierra_gas_vm_included,
     })
 }
 
