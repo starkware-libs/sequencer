@@ -21,7 +21,7 @@ COPY config/sequencer/ /app/config/sequencer/
 
 # Create a new user "sequencer".
 RUN set -ex; \
-    mkdir -p /data/batcher /data/classes /data/persistent_root /data/state_sync; \
+    mkdir /data; \
     groupadd --gid ${ID} sequencer; \
     useradd --gid ${ID} --uid ${ID} --comment "" --create-home --home-dir /app sequencer; \
     chown -R sequencer:sequencer /app /data
