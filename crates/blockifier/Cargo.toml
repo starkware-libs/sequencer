@@ -83,8 +83,8 @@ starknet_infra_utils.workspace = true
 
 [[bench]]
 harness = false
-name = "blockifier_bench"
-path = "bench/blockifier_bench.rs"
+name = "blockifier"
+path = "bench/main.rs"
 required-features = ["testing"]
 
 [package.metadata.cargo-machete]
