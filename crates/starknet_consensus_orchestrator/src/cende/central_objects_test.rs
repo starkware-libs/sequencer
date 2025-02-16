@@ -118,6 +118,7 @@ use super::{
 };
 use crate::cende::central_objects::casm_contract_class_central_format;
 use crate::cende::{BlobParameters, CendeAmbassador, CendeConfig, CendeContext};
+use crate::fee_market::FeeMarketInfo;
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -125,6 +126,7 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
+pub const CENTRAL_FEE_MARKET_INFO_JSON_PATH: &str = "central_fee_market_info.json";
 pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.casm.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
@@ -372,6 +374,11 @@ fn central_bouncer_weights_json() -> Value {
     serde_json::to_value(bouncer_weights).unwrap()
 }
 
+fn central_fee_market_info_json() -> Value {
+    let fee_market_info = FeeMarketInfo { l2_gas_consumed: 150000, next_l2_gas_price: 100000 };
+    serde_json::to_value(fee_market_info).unwrap()
+}
+
 fn entry_point(idx: usize, selector: u8) -> EntryPoint {
     EntryPoint { function_idx: FunctionIndex(idx), selector: EntryPointSelector(felt!(selector)) }
 }
@@ -590,6 +597,7 @@ fn central_transaction_execution_info_json(reverted: bool) -> Value {
 #[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
 #[case::l1_handler_tx(central_l1_handler_tx_json(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
 #[case::bouncer_weights(central_bouncer_weights_json(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
+#[case::fee_market_info(central_fee_market_info_json(), CENTRAL_FEE_MARKET_INFO_JSON_PATH)]
 #[case::sierra_contract_class(
     central_sierra_contract_class_json(),
     CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH
