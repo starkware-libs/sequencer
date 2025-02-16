@@ -84,7 +84,7 @@ use crate::orchestrator_versioned_constants::VersionedConstants;
 struct BlockInfoValidation {
     height: BlockNumber,
     block_timestamp_window: u64,
-    _last_block_timestamp: Option<u64>,
+    last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
 }
 
@@ -318,7 +318,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 let block_info_validation = BlockInfoValidation {
                     height: proposal_init.height,
                     block_timestamp_window: self.block_timestamp_window,
-                    _last_block_timestamp: self.last_block_timestamp,
+                    last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
                 };
                 self.validate_current_round_proposal(
@@ -427,6 +427,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
+        self.last_block_timestamp = Some(block_info.timestamp);
         let _ = self
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
@@ -446,9 +447,6 @@ impl ConsensusContext for SequencerConsensusContext {
             self.l2_gas_price,
             l2_gas_used.0,
             VersionedConstants::latest_constants().max_block_size / 2,
-        );
-        self.last_block_timestamp = Some(
-            chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64"),
         );
 
         Ok(())
@@ -507,7 +505,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let block_info_validation = BlockInfoValidation {
             height,
             block_timestamp_window: self.block_timestamp_window,
-            _last_block_timestamp: self.last_block_timestamp,
+            last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
         };
         self.validate_current_round_proposal(
@@ -780,11 +778,13 @@ async fn validate_proposal(
     else {
         return;
     };
-    if !valid_block_info(block_info_validation.clone(), block_info.clone()).await {
+    if !is_block_info_valid(block_info_validation.clone(), block_info.clone()).await {
         warn!(
             "Invalid BlockInfo. block_info_validation={block_info_validation:?}, \
              block_info={block_info:?}"
         );
+        // TODO(Asmaa): Remove this before production.
+        panic!("Invalid BlockInfo");
         return;
     }
     if let Err(e) = initiate_validation(batcher, block_info.clone(), proposal_id, timeout).await {
@@ -846,7 +846,7 @@ async fn validate_proposal(
     }
 }
 
-async fn valid_block_info(
+async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
 ) -> bool {
@@ -854,8 +854,7 @@ async fn valid_block_info(
         chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
     // TODO(Asmaa): Validate the rest of the block info.
     block_info.height == block_info_validation.height
-    // TODO(Asmaa): Investigate why this can fail and fix it.
-    // && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
+        && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window
         && block_info.l1_da_mode == block_info_validation.l1_da_mode
 }
