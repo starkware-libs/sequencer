@@ -310,7 +310,7 @@ fn entry_points_hash(
 
 // Python code masks with (2**250 - 1) which starts 0x03 and is followed by 31 0xff in be.
 // Truncation is needed not to overflow the field element.
-fn truncated_keccak(mut plain: [u8; 32]) -> Felt {
+pub fn truncated_keccak(mut plain: [u8; 32]) -> Felt {
     plain[0] &= 0x03;
     Felt::from_bytes_be(&plain)
 }
