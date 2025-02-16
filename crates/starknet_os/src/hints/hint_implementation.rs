@@ -1,3 +1,4 @@
+pub(crate) mod aggregator;
 pub(crate) mod block_context;
 pub(crate) mod bls_field;
 pub(crate) mod builtins;

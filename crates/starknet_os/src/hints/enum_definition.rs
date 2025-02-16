@@ -1,6 +1,15 @@
 use indoc::indoc;
 
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
+use crate::hints::hint_implementation::aggregator::{
+    allocate_segments_for_messages,
+    disable_page_creation,
+    get_aggregator_output,
+    get_full_output_from_input,
+    get_os_output_for_inner_blocks,
+    get_use_kzg_da_from_input,
+    write_da_segment,
+};
 use crate::hints::hint_implementation::block_context::{
     block_number,
     block_timestamp,
@@ -1693,6 +1702,79 @@ memory[ap] = 1 if case != 'both' else 0"#
         InitializeClassHashes,
         initialize_class_hashes,
         "initial_dict = os_input.class_hash_to_compiled_class_hash"
+    )
+);
+
+define_hint_enum!(
+    AggregatorHint,
+    (
+        AllocateSegmentsForMessages,
+        allocate_segments_for_messages,
+        r#"# Allocate segments for the messages.
+ids.initial_carried_outputs = segments.gen_arg(
+    [segments.add_temp_segment(), segments.add_temp_segment()]
+)"#
+    ),
+    (
+        DisablePageCreation,
+        disable_page_creation,
+        r#"# Note that `serialize_os_output` splits its output to memory pages
+# (see OutputBuiltinRunner.add_page).
+# Since this output is only used internally and will not be used in the final fact,
+# we need to disable page creation.
+__serialize_data_availability_create_pages__ = False"#
+    ),
+    (
+        GetOsOuputForInnerBlocks,
+        get_os_output_for_inner_blocks,
+        r#"from starkware.starknet.core.aggregator.output_parser import parse_bootloader_output
+from starkware.starknet.core.aggregator.utils import OsOutputToCairo
+
+tasks = parse_bootloader_output(program_input["bootloader_output"])
+assert len(tasks) > 0, "No tasks found in the bootloader output."
+ids.os_program_hash = tasks[0].program_hash
+ids.n_tasks = len(tasks)
+os_output_to_cairo = OsOutputToCairo(segments)
+for i, task in enumerate(tasks):
+    os_output_to_cairo.process_os_output(
+        segments=segments,
+        dst_ptr=ids.os_outputs[i].address_,
+        os_output=task.os_output,
+    )"#
+    ),
+    (
+        GetAggregatorOutput,
+        get_aggregator_output,
+        r#"from starkware.starknet.core.os.kzg_manager import KzgManager
+
+__serialize_data_availability_create_pages__ = True
+if "polynomial_coefficients_to_kzg_commitment_callback" not in globals():
+    from services.utils import kzg_utils
+    polynomial_coefficients_to_kzg_commitment_callback = (
+        kzg_utils.polynomial_coefficients_to_kzg_commitment
+    )
+kzg_manager = KzgManager(polynomial_coefficients_to_kzg_commitment_callback)"#
+    ),
+    (
+        WriteDaSegment,
+        write_da_segment,
+        r#"import json
+
+da_path = program_input.get("da_path")
+if da_path is not None:
+    da_segment = kzg_manager.da_segment if program_input["use_kzg_da"] else None
+    with open(da_path, "w") as da_file:
+        json.dump(da_segment, da_file)"#
+    ),
+    (
+        GetFullOutputFromInput,
+        get_full_output_from_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["full_output"])"#
+    ),
+    (
+        GetUseKzgDaFromInput,
+        get_use_kzg_da_from_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
     )
 );
 
