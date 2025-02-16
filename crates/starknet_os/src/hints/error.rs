@@ -1,3 +1,5 @@
+use std::string::FromUtf8Error;
+
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::serde::deserialize_program::Identifier;
@@ -28,6 +30,8 @@ pub enum OsHintError {
     ExecutionScopes(#[from] ExecScopeError),
     #[error("{id:?} value {felt} is not a bit.")]
     ExpectedBit { id: Ids, felt: Felt },
+    #[error(transparent)]
+    FromUtf8(#[from] FromUtf8Error),
     #[error("The identifier {0:?} has no full name.")]
     IdentifierHasNoFullName(Box<Identifier>),
     #[error("The identifier {0:?} has no members.")]
@@ -48,7 +52,9 @@ pub enum OsHintError {
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
     #[error("{error:?} for json value {value}.")]
-    SerdeJson { error: serde_json::Error, value: serde_json::value::Value },
+    SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
