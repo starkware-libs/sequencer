@@ -3,7 +3,7 @@
 import argparse
 from enum import Enum
 import subprocess
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Dict
 from tests_utils import (
     get_workspace_tree,
     get_local_changes,
@@ -14,26 +14,35 @@ from tests_utils import (
 # Set of files which - if changed - should trigger tests for all packages.
 ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
 
+# Set of crates which have benchmarks. Benchmark names should be the same as the crate names.
+BENCHMARKS: Set[str] = {"blockifier", "starknet_gateway", "starknet_committer_and_os_cli"}
 
 # Enum of base commands.
 class BaseCommand(Enum):
     TEST = "test"
     CLIPPY = "clippy"
     DOC = "doc"
+    COMPILE_BENCH = "compile_bench"
 
     def cmd(self, crates: Set[str]) -> List[str]:
-        package_args = []
-        for package in crates:
-            package_args.extend(["--package", package])
+        target_args = []
+        for target in crates:
+            if self == BaseCommand.COMPILE_BENCH:
+                if target in BENCHMARKS:
+                    target_args.extend(["--bench", target])
+            else:
+                target_args.extend(["--package", target])
 
         if self == BaseCommand.TEST:
-            return ["cargo", "test"] + package_args
+            return ["cargo", "test"] + target_args
         elif self == BaseCommand.CLIPPY:
-            clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
+            clippy_args = target_args if len(target_args) > 0 else ["--workspace"]
             return ["cargo", "clippy"] + clippy_args + ["--all-targets"]
         elif self == BaseCommand.DOC:
-            doc_args = package_args if len(package_args) > 0 else ["--workspace"]
+            doc_args = target_args if len(target_args) > 0 else ["--workspace"]
             return ["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args
+        elif self == BaseCommand.COMPILE_BENCH:
+            return ["cargo", "bench"] + target_args + ["--no-run"]
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
@@ -49,10 +58,6 @@ def test_crates(crates: Set[str], base_command: BaseCommand):
     Runs tests for the given crates.
     If no crates provided, runs tests for all crates.
     """
-    args = []
-    for package in crates:
-        args.extend(["--package", package])
-
     # If crates is empty (i.e. changes_only is False), all packages will be tested (no args).
     cmd = base_command.cmd(crates=crates)
 

@@ -83,6 +83,9 @@ jobs:
       - name: "Run cargo doc pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+      - name: "Run cargo bench pull request"
+        if: github.event_name == 'pull_request'
+        run: ci/bin/python scripts/run_tests.py --command compile_bench --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
 
       # Run code style on push.
       - name: "Run rustfmt"
@@ -96,6 +99,9 @@ jobs:
       - name: "Run cargo doc on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command doc
+      - name: "Run cargo bench on push"
+        if: github.event_name == 'push'
+        run: ci/bin/python scripts/run_tests.py --command compile_bench
 
       - name: "Run taplo"
         run: scripts/taplo.sh

@@ -59,6 +59,6 @@ tracing-test.workspace = true
 
 [[bench]]
 harness = false
-name = "gateway_bench"
+name = "starknet_gateway"
 path = "bench/main.rs"
 required-features = ["testing"]
