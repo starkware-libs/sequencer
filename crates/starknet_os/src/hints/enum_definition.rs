@@ -1037,7 +1037,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"
     if execution_helper.debug_mode:
         # Validate the predicted gas cost.
-        # TODO(Yoni, 1/1/2025): remove this check once Cairo 0 is not supported.
         actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
         predicted = execution_helper.call_info.gas_consumed
         if execution_helper.call_info.tracked_resource.is_sierra_gas():
