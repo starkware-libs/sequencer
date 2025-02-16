@@ -665,7 +665,7 @@ impl NetworkManager {
         metrics: Option<NetworkMetrics>,
     ) -> Self {
         let NetworkConfig {
-            tcp_port,
+            port,
             session_timeout,
             idle_connection_timeout,
             bootstrap_peer_multiaddr,
@@ -677,7 +677,7 @@ impl NetworkManager {
         } = config;
 
         // TODO(shahak): Add quic transport.
-        let listen_address_str = format!("/ip4/0.0.0.0/tcp/{tcp_port}");
+        let listen_address_str = format!("/ip4/0.0.0.0/tcp/{port}");
         let listen_address = Multiaddr::from_str(&listen_address_str)
             .unwrap_or_else(|_| panic!("Unable to parse address {}", listen_address_str));
         debug!("Creating swarm with listen address: {:?}", listen_address);

@@ -82,7 +82,7 @@ impl TestConfig {
 
         let _ = TestConfig {
             network_config: NetworkConfig {
-                tcp_port: 10000,
+                port: 10000,
                 secret_key: Some(secret_key),
                 ..Default::default()
             },
@@ -91,7 +91,7 @@ impl TestConfig {
         .dump_to_file(&vec![], &HashSet::new(), BOOTSTRAP_CONFIG_FILE_PATH);
         let _ = TestConfig {
             network_config: NetworkConfig {
-                tcp_port: 10002,
+                port: 10002,
                 bootstrap_peer_multiaddr: Some(
                     Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/10000/p2p/{}", peer_id))
                         .unwrap(),

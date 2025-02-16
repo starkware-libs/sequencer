@@ -274,7 +274,7 @@ async fn run_simulation(
 
 async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &PapyrusArgs) -> Node {
     let is_bootstrap = i == 1;
-    let tcp_port = if is_bootstrap { *BOOTNODE_TCP_PORT } else { find_free_port() };
+    let port = if is_bootstrap { *BOOTNODE_TCP_PORT } else { find_free_port() };
     let monitoring_gateway_server_port = find_free_port();
     let data_dir = format!("{}/data{}", data_dir, i);
     let validator_id = i + usize::try_from(DEFAULT_VALIDATOR_ID).expect("Conversion failed");
@@ -283,13 +283,13 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
         "RUST_LOG=starknet_consensus=debug,papyrus=info target/release/run_consensus \
          --network.#is_none false --base_layer.node_url {} --storage.db_config.path_prefix {} \
          --consensus.#is_none false --consensus.validator_id 0x{:x} --consensus.num_validators {} \
-         --network.tcp_port {} --rpc.server_address 127.0.0.1:{} \
-         --monitoring_gateway.server_address 127.0.0.1:{} --collect_metrics true ",
+         --network.port {} --rpc.server_address 127.0.0.1:{} --monitoring_gateway.server_address \
+         127.0.0.1:{} --collect_metrics true ",
         papyrus_args.base_layer_node_url,
         data_dir,
         validator_id,
         papyrus_args.num_validators,
-        tcp_port,
+        port,
         find_free_port(),
         monitoring_gateway_server_port
     );

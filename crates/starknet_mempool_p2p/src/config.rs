@@ -18,7 +18,7 @@ pub struct MempoolP2pConfig {
 impl Default for MempoolP2pConfig {
     fn default() -> Self {
         Self {
-            network_config: NetworkConfig { tcp_port: MEMPOOL_TCP_PORT, ..Default::default() },
+            network_config: NetworkConfig { port: MEMPOOL_TCP_PORT, ..Default::default() },
             network_buffer_size: 10000,
         }
     }

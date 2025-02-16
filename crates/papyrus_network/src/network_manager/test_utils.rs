@@ -158,16 +158,13 @@ pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfi
     let secret_key0 = [1u8; 32];
     let public_key0 = Keypair::ed25519_from_bytes(secret_key0).unwrap().public();
 
-    let config0 = NetworkConfig {
-        tcp_port: port0,
-        secret_key: Some(secret_key0.to_vec()),
-        ..Default::default()
-    };
+    let config0 =
+        NetworkConfig { port: port0, secret_key: Some(secret_key0.to_vec()), ..Default::default() };
     let mut configs = Vec::with_capacity(number_of_configs);
     configs.push(config0);
     for port in ports.iter() {
         configs.push(NetworkConfig {
-            tcp_port: *port,
+            port: *port,
             bootstrap_peer_multiaddr: Some(
                 Multiaddr::empty()
                     .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
