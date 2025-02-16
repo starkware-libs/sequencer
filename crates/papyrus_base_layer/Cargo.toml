@@ -16,6 +16,7 @@ alloy = { workspace = true, features = ["contract", "json-rpc", "rpc-types"] }
 async-trait.workspace = true
 colored = { workspace = true, optional = true }
 ethers.workspace = true
+mockall.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
