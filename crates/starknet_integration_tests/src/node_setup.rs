@@ -34,16 +34,3 @@ pub async fn node_setup(
     println!("Config file moved from {:?} to {:?}", original_config_path, new_config_path);
     sequencers_setup
 }
-
-// TODO(Nadin): Improve the argument parsing.
-pub fn get_base_db_path(args: Vec<String>) -> PathBuf {
-    let arg_name = "--base_db_path_dir";
-    match args.as_slice() {
-        [] => PathBuf::from("./data"),
-        [arg, path] if arg == arg_name => PathBuf::from(path),
-        _ => {
-            eprintln!("Error: Bad argument. The only allowed argument is '{}'.", arg_name);
-            std::process::exit(1);
-        }
-    }
-}
