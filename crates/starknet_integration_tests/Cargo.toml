@@ -50,7 +50,7 @@ url.workspace = true
 futures.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
-starknet_sequencer_infra.path = "../starknet_sequencer_infra"
+starknet_sequencer_infra.workspace = true
 
 [[bin]]
 name = "positive_flow_integration_test"

@@ -44,16 +44,16 @@ lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
-papyrus_network = { path = "../papyrus_network", features = ["testing"] }
-papyrus_storage = { path = "../papyrus_storage", features = ["testing"] }
-papyrus_test_utils.path = "../papyrus_test_utils"
+papyrus_network = { workspace = true, features = ["testing"] }
+papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
-starknet_batcher_types = { path = "../starknet_batcher_types", features = ["testing"] }
-starknet_batcher = { path = "../starknet_batcher" }
-starknet_class_manager_types = { path = "../starknet_class_manager_types", features = ["testing"] }
-starknet_infra_utils.path = "../starknet_infra_utils"
-starknet_state_sync_types = { path = "../starknet_state_sync_types", features = ["testing"] }
+starknet_batcher_types = { workspace = true, features = ["testing"] }
+starknet_batcher.workspace = true
+starknet_class_manager_types = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true
+starknet_state_sync_types = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
