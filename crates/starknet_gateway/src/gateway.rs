@@ -21,6 +21,7 @@ use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
+use crate::metrics::{register_metrics, GatewayMetricCounters};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
@@ -69,6 +70,10 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
         debug!("Processing tx: {:?}", tx);
+
+        let metric_counters = GatewayMetricCounters::new(&tx, &p2p_message_metadata);
+        metric_counters.count_transaction_received();
+
         let blocking_task = ProcessTxBlockingTask::new(self, tx);
         // Run the blocking task in the current span.
         let curr_span = Span::current();
@@ -77,13 +82,23 @@ impl Gateway {
                 .await
                 .map_err(|join_err| {
                     error!("Failed to process tx: {}", join_err);
+                    metric_counters.count_transaction_failed();
                     GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-                })??;
+                })?
+                .inspect_err(|_| {
+                    metric_counters.count_transaction_failed();
+                })?;
 
         let tx_hash = add_tx_args.tx.tx_hash();
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
+        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)
+            .inspect_err(|_| {
+                metric_counters.count_transaction_failed();
+            })?;
+
+        metric_counters.count_transaction_sent_to_mempool();
+
         // TODO(AlonH): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
         Ok(tx_hash)
     }
@@ -172,6 +187,7 @@ pub fn create_gateway(
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
 ) -> Gateway {
+    register_metrics();
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
         shared_state_sync_client,
         class_manager_client: class_manager_client.clone(),
