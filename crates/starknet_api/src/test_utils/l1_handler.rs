@@ -30,18 +30,24 @@ macro_rules! l1_handler_tx_args {
     };
 }
 
+pub fn l1_handler_tx(l1_handler_tx_args: L1HandlerTxArgs) -> L1HandlerTransaction {
+    L1HandlerTransaction {
+        version: L1HandlerTransaction::VERSION,
+        nonce: l1_handler_tx_args.nonce,
+        contract_address: l1_handler_tx_args.contract_address,
+        entry_point_selector: l1_handler_tx_args.entry_point_selector,
+        calldata: l1_handler_tx_args.calldata,
+    }
+}
+
 pub fn executable_l1_handler_tx(
     l1_handler_tx_args: L1HandlerTxArgs,
 ) -> ExecutableL1HandlerTransaction {
+    let paid_fee_on_l1 = l1_handler_tx_args.paid_fee_on_l1;
+    let tx_hash = l1_handler_tx_args.tx_hash;
     ExecutableL1HandlerTransaction {
-        tx: L1HandlerTransaction {
-            version: L1HandlerTransaction::VERSION,
-            nonce: l1_handler_tx_args.nonce,
-            contract_address: l1_handler_tx_args.contract_address,
-            entry_point_selector: l1_handler_tx_args.entry_point_selector,
-            calldata: l1_handler_tx_args.calldata,
-        },
-        tx_hash: l1_handler_tx_args.tx_hash,
-        paid_fee_on_l1: l1_handler_tx_args.paid_fee_on_l1,
+        tx: l1_handler_tx(l1_handler_tx_args),
+        tx_hash,
+        paid_fee_on_l1,
     }
 }
