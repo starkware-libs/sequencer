@@ -342,7 +342,7 @@ impl FsClassStorage {
     // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
     // it can be deleted.
     fn contains_deprecated_class(&self, class_id: ClassId) -> bool {
-        self.get_executable_path(class_id).exists()
+        self.get_deprecated_executable_path(class_id).exists()
     }
 
     /// Returns the directory that will hold classes related to the given class ID.
@@ -374,6 +374,10 @@ impl FsClassStorage {
 
     fn get_executable_path(&self, class_id: ClassId) -> PathBuf {
         concat_executable_filename(&self.get_persistent_dir(class_id))
+    }
+
+    fn get_deprecated_executable_path(&self, class_id: ClassId) -> PathBuf {
+        concat_deprecated_executable_filename(&self.get_persistent_dir(class_id))
     }
 }
 
@@ -417,14 +421,18 @@ impl ClassStorage for FsClassStorage {
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        let contains_class =
-            self.contains_class(class_id)? || self.contains_deprecated_class(class_id);
-        if !contains_class {
-            return Ok(None);
+        if self.contains_class(class_id)? {
+            let path = self.get_executable_path(class_id);
+            return Ok(RawExecutableClass::from_file(path)?);
+        };
+
+        if self.contains_deprecated_class(class_id) {
+            let path = self.get_deprecated_executable_path(class_id);
+            return Ok(RawExecutableClass::from_file(path)?);
         }
 
-        let path = self.get_executable_path(class_id);
-        Ok(RawExecutableClass::from_file(path)?)
+        // Class does not exist in storage.
+        Ok(None)
     }
 
     fn get_executable_class_hash(
@@ -446,7 +454,7 @@ impl ClassStorage for FsClassStorage {
         // Write class to a temporary directory.
         let tmp_dir = tempfile::tempdir()?.into_path();
         let tmp_dir = tmp_dir.join(self.get_class_dir(class_id));
-        class.write_to_file(concat_executable_filename(&tmp_dir))?;
+        class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
 
         // Atomically rename directory to persistent one.
         let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
@@ -463,7 +471,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(None);
         }
 
-        let path = self.get_executable_path(class_id);
+        let path = self.get_deprecated_executable_path(class_id);
         Ok(RawExecutableClass::from_file(path)?)
     }
 }
@@ -483,6 +491,10 @@ fn concat_sierra_filename(path: &Path) -> PathBuf {
 
 fn concat_executable_filename(path: &Path) -> PathBuf {
     path.join("casm")
+}
+
+fn concat_deprecated_executable_filename(path: &Path) -> PathBuf {
+    path.join("deprecated_casm")
 }
 
 // Creates a tmp directory and returns a owned representation of it.
