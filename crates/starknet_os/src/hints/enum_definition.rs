@@ -217,13 +217,7 @@ use crate::hints::hint_implementation::transaction_hash::{
     additional_data_new_segment,
     data_to_hash_new_segment,
 };
-use crate::hints::types::{
-    HintArgs,
-    HintEnum,
-    HintExtensionArgs,
-    HintExtensionImplementation,
-    HintImplementation,
-};
+use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
 #[cfg(test)]
