@@ -81,6 +81,17 @@ impl TransactionQueue {
             || self.pending_queue.remove(&tx_reference.into())
     }
 
+    /// Removes the given transactions from the queue.
+    /// If a transaction is not found, it is ignored.
+    pub fn remove_txs(&mut self, txs: &Vec<TransactionReference>) {
+        for tx in txs {
+            let queued_tx = self.address_to_tx.get(&tx.address);
+            if queued_tx.is_some_and(|queued_tx| queued_tx.tx_hash == tx.tx_hash) {
+                self.remove(tx.address);
+            };
+        }
+    }
+
     pub fn has_ready_txs(&self) -> bool {
         !self.priority_queue.is_empty()
     }
