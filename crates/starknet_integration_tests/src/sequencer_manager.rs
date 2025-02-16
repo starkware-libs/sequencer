@@ -218,8 +218,8 @@ impl IntegrationTestManager {
 
     pub fn update_revert_config_to_all_idle_nodes(&mut self, value: Option<BlockNumber>) {
         info!("Updating revert config to all idle nodes.");
-        self.idle_nodes.values().for_each(|idle_node| {
-            idle_node.executables.iter().for_each(|executable| {
+        self.idle_nodes.values_mut().for_each(|idle_node| {
+            idle_node.executables.iter_mut().for_each(|executable| {
                 executable.update_revert_config(value);
             });
         });
