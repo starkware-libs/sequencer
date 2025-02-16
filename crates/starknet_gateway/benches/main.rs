@@ -7,7 +7,7 @@
 //! types. Each of the functions measure the performance of the gateway handling randomly created
 //! txs of the respective type.
 //!
-//! Run the benchmarks using `cargo bench --bench gateway_bench`.
+//! Run the benchmarks using `cargo bench --bench starknet_gateway`.
 
 // import the Gateway test utilities.
 mod utils;
@@ -17,7 +17,7 @@ use utils::{BenchTestSetup, BenchTestSetupConfig};
 
 fn invoke_benchmark(criterion: &mut Criterion) {
     let tx_generator_config = BenchTestSetupConfig::default();
-    let n_txs = tx_generator_config.n_txs;
+    let n_txs = tx_generator_config.n_txs
 
     let test_setup = BenchTestSetup::new(tx_generator_config);
     criterion.bench_with_input(

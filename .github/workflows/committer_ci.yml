@@ -97,11 +97,11 @@ jobs:
       # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
       - run: bash ./crates/starknet_committer_and_os_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
 
-      - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
+      - run: echo BENCH_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
 
       # Post comment in case of performance regression or improvement.
       - run: npm install fs
-      - if: contains(env.BENCHES_RESULT, 'regressed') || contains(env.BENCHES_RESULT, 'improved')
+      - if: contains(env.BENCH_RESULT, 'regressed') || contains(env.BENCH_RESULT, 'improved')
         uses: actions/github-script@v6
         with:
           script: |
