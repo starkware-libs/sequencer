@@ -75,3 +75,29 @@ fn change_builtins_gas_cost(block_context: &mut BlockContext, selector_name: &st
         _ => panic!("Unknown selector name: {}", selector_name),
     }
 }
+
+#[cfg(feature = "cairo_native")]
+#[test]
+fn test_circuit() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let native_test_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+    let mut native_state = test_state(chain_info, BALANCE, &[(native_test_contract, 1)]);
+
+    let calldata = calldata![];
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_circuit"),
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let execution_result = entry_point_call.clone().execute_directly(&mut state).unwrap();
+    let native_execution_result = entry_point_call.execute_directly(&mut native_state).unwrap();
+    println!("casm gas consumed: {}", execution_result.execution.gas_consumed);
+    println!("native gas consumed: {}", native_execution_result.execution.gas_consumed);
+    assert!(
+        execution_result.execution.gas_consumed == native_execution_result.execution.gas_consumed
+    );
+}
