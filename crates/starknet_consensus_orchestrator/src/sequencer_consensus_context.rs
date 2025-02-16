@@ -76,7 +76,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
-use crate::fee_market::calculate_next_base_gas_price;
+use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
@@ -479,6 +479,13 @@ impl ConsensusContext for SequencerConsensusContext {
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
+        self.l2_gas_price = calculate_next_base_gas_price(
+            self.l2_gas_price,
+            l2_gas_used.0,
+            VersionedConstants::latest_constants().max_block_size / 2,
+        );
+
+        // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.last_block_timestamp = Some(block_info.timestamp);
@@ -491,17 +498,15 @@ impl ConsensusContext for SequencerConsensusContext {
                 transactions,
                 execution_infos: central_objects.execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
+                fee_market_info: FeeMarketInfo {
+                    l2_gas_consumed: l2_gas_used.0,
+                    next_l2_gas_price: self.l2_gas_price,
+                },
             })
             .await
             .inspect_err(|e| {
                 error!("Failed to prepare blob for next height: {e:?}");
             });
-
-        self.l2_gas_price = calculate_next_base_gas_price(
-            self.l2_gas_price,
-            l2_gas_used.0,
-            VersionedConstants::latest_constants().max_block_size / 2,
-        );
 
         Ok(())
     }
