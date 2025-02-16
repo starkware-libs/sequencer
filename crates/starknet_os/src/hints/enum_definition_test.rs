@@ -49,5 +49,10 @@ fn test_syscall_compatibility_with_blockifier() {
     let syscall_hint_strings =
         SyscallHint::iter().map(|hint| hint.to_str()).collect::<HashSet<_>>();
     let blockifier_syscall_strings: HashSet<_> = SYSCALL_HINTS.iter().cloned().collect();
-    assert_eq!(blockifier_syscall_strings, syscall_hint_strings);
+    assert_eq!(
+        blockifier_syscall_strings, syscall_hint_strings,
+        "The syscall hints in the 'blockifier' do not match the syscall hints in 'starknet_os'.
+        If this is intentional, please update the 'starknet_os' hints and add a todo to update 
+        the implementation."
+    );
 }
