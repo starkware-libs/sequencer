@@ -28,7 +28,6 @@ pub mod l1_scraper_tests;
 
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
-const ONE_HOUR_IN_SECS: u16 = 3600;
 // Sensible lower bound.
 const L1_BLOCK_TIME: u64 = 10;
 
@@ -230,17 +229,6 @@ pub struct L1ScraperConfig {
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
-}
-
-impl L1ScraperConfig {
-    pub fn new() -> Self {
-        Self {
-            startup_rewind_time: Duration::from_secs(ONE_HOUR_IN_SECS.into()),
-            chain_id: ChainId::Other("0x0".to_string()),
-            finality: 3,
-            polling_interval: Duration::from_secs(1),
-        }
-    }
 }
 
 impl Default for L1ScraperConfig {
