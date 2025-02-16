@@ -379,6 +379,42 @@ impl FsClassStorage {
     fn get_deprecated_executable_path(&self, class_id: ClassId) -> PathBuf {
         concat_deprecated_executable_filename(&self.get_persistent_dir(class_id))
     }
+
+    fn write_class_atomically(
+        &self,
+        class_id: ClassId,
+        class: RawClass,
+        executable_class: RawExecutableClass,
+    ) -> FsClassStorageResult<()> {
+        // Write classes to a temporary directory.
+        let tmp_dir = create_tmp_dir()?;
+        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        class.write_to_file(concat_sierra_filename(&tmp_dir))?;
+        executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
+
+        // Atomically rename directory to persistent one.
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        std::fs::rename(tmp_dir, persistent_dir)?;
+
+        Ok(())
+    }
+
+    fn write_deprecated_class_atomically(
+        &self,
+        class_id: ClassId,
+        class: RawExecutableClass,
+    ) -> FsClassStorageResult<()> {
+        // Write class to a temporary directory.
+        let tmp_dir = create_tmp_dir()?;
+        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
+        class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
+
+        // Atomically rename directory to persistent one.
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        std::fs::rename(tmp_dir, persistent_dir)?;
+
+        Ok(())
+    }
 }
 
 impl ClassStorage for FsClassStorage {
@@ -395,15 +431,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        // Write classes to a temporary directory.
-        let tmp_dir = create_tmp_dir()?;
-        let tmp_dir = tmp_dir.path().join(self.get_class_dir(class_id));
-        class.write_to_file(concat_sierra_filename(&tmp_dir))?;
-        executable_class.write_to_file(concat_executable_filename(&tmp_dir))?;
-
-        // Atomically rename directory to persistent one.
-        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
-        std::fs::rename(tmp_dir, persistent_dir)?;
+        self.write_class_atomically(class_id, class, executable_class)?;
 
         // Mark class as existent.
         self.class_hash_storage.set_executable_class_hash(class_id, executable_class_hash)?;
@@ -451,14 +479,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        // Write class to a temporary directory.
-        let tmp_dir = tempfile::tempdir()?.into_path();
-        let tmp_dir = tmp_dir.join(self.get_class_dir(class_id));
-        class.write_to_file(concat_deprecated_executable_filename(&tmp_dir))?;
-
-        // Atomically rename directory to persistent one.
-        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
-        std::fs::rename(tmp_dir, persistent_dir)?;
+        self.write_deprecated_class_atomically(class_id, class)?;
 
         Ok(())
     }
