@@ -4,6 +4,7 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
@@ -32,6 +33,11 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_sequencer_metrics::metric_definitions::{
+    TRANSACTIONS_FAILED,
+    TRANSACTIONS_RECEIVED,
+    TRANSACTIONS_SENT_TO_MEMPOOL,
+};
 
 use crate::config::{
     GatewayConfig,
@@ -39,6 +45,7 @@ use crate::config::{
     StatelessTransactionValidatorConfig,
 };
 use crate::gateway::Gateway;
+use crate::metrics::{register_metrics, GatewayMetricHandle};
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 
 #[fixture]
@@ -129,6 +136,10 @@ async fn test_add_tx(
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
     let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
@@ -161,11 +172,21 @@ async fn test_add_tx(
 
     let gateway = mock_dependencies.gateway();
 
+    let metric_counters = GatewayMetricHandle::new(&rpc_tx, &p2p_message_metadata);
+
     let result = gateway.add_tx(rpc_tx, p2p_message_metadata).await;
 
+    let metrics = recorder.handle().render();
+    assert_eq!(metric_counters.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
     match expected_error {
-        Some(expected_err) => assert_eq!(result.unwrap_err(), expected_err),
-        None => assert_eq!(result.unwrap(), tx_hash),
+        Some(expected_err) => {
+            assert_eq!(metric_counters.get_metric_value(TRANSACTIONS_FAILED, &metrics), 1);
+            assert_eq!(result.unwrap_err(), expected_err);
+        }
+        None => {
+            assert_eq!(metric_counters.get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics), 1);
+            assert_eq!(result.unwrap(), tx_hash);
+        }
     }
 }
 
