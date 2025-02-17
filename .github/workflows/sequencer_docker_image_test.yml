@@ -1,0 +1,21 @@
+name: Sequencer Docker Image Deploy Test
+
+permissions:
+  contents: read
+  packages: read
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Sequencer-Docker-Publish"]
+    types:
+      - completed
+
+jobs:
+  run_sequencer_test:
+    runs-on: ubuntu-latest
+    # Ensure that the first workflow was successful, on the main branch and trigger was `push` event.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.event_name == 'push' }}
+    steps:
+      - name: test condition
+        run: echo "Test"
