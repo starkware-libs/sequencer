@@ -12,7 +12,6 @@ runs:
     - uses: moonrepo/setup-rust@v1
       name: Install Rust toolchain and binaries
       with:
-        cache-base: main(-v[0-9].*)?
         inherit-toolchain: true
         bins: taplo-cli@0.9.3, cargo-machete
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
