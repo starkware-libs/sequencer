@@ -28,6 +28,33 @@ use starknet_sequencer_infra::component_server::{
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
+use starknet_sequencer_infra::metrics::LocalServerMetrics;
+use starknet_sequencer_metrics::metric_definitions::{
+    BATCHER_MSGS_PROCESSED,
+    BATCHER_MSGS_RECEIVED,
+    BATCHER_QUEUE_DEPTH,
+    CLASS_MANAGER_MSGS_PROCESSED,
+    CLASS_MANAGER_MSGS_RECEIVED,
+    CLASS_MANAGER_QUEUE_DEPTH,
+    GATEWAY_MSGS_PROCESSED,
+    GATEWAY_MSGS_RECEIVED,
+    GATEWAY_QUEUE_DEPTH,
+    L1_PROVIDER_MSGS_PROCESSED,
+    L1_PROVIDER_MSGS_RECEIVED,
+    L1_PROVIDER_QUEUE_DEPTH,
+    MEMPOOL_MSGS_PROCESSED,
+    MEMPOOL_MSGS_RECEIVED,
+    MEMPOOL_P2P_MSGS_PROCESSED,
+    MEMPOOL_P2P_MSGS_RECEIVED,
+    MEMPOOL_P2P_QUEUE_DEPTH,
+    MEMPOOL_QUEUE_DEPTH,
+    SIERRA_COMPILER_MSGS_PROCESSED,
+    SIERRA_COMPILER_MSGS_RECEIVED,
+    SIERRA_COMPILER_QUEUE_DEPTH,
+    STATE_SYNC_MSGS_PROCESSED,
+    STATE_SYNC_MSGS_RECEIVED,
+    STATE_SYNC_QUEUE_DEPTH,
+};
 use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
 use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
@@ -259,12 +286,23 @@ fn create_local_servers(
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
+    let _batcher_metrics = LocalServerMetrics::new(
+        &BATCHER_MSGS_RECEIVED,
+        &BATCHER_MSGS_PROCESSED,
+        &BATCHER_QUEUE_DEPTH,
+    );
     let batcher_server = create_local_server!(
         &config.components.batcher.execution_mode,
         &mut components.batcher,
         communication.take_batcher_rx(),
         config.components.batcher.max_concurrency,
         REGULAR_LOCAL_SERVER
+    );
+
+    let _class_manager_metrics = LocalServerMetrics::new(
+        &CLASS_MANAGER_MSGS_RECEIVED,
+        &CLASS_MANAGER_MSGS_PROCESSED,
+        &CLASS_MANAGER_QUEUE_DEPTH,
     );
     let class_manager_server = create_local_server!(
         &config.components.class_manager.execution_mode,
@@ -273,12 +311,24 @@ fn create_local_servers(
         config.components.class_manager.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
+
+    let _gateway_metrics = LocalServerMetrics::new(
+        &GATEWAY_MSGS_RECEIVED,
+        &GATEWAY_MSGS_PROCESSED,
+        &GATEWAY_QUEUE_DEPTH,
+    );
     let gateway_server = create_local_server!(
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
         config.components.gateway.max_concurrency,
         REGULAR_LOCAL_SERVER
+    );
+
+    let _l1_provider_metrics = LocalServerMetrics::new(
+        &L1_PROVIDER_MSGS_RECEIVED,
+        &L1_PROVIDER_MSGS_PROCESSED,
+        &L1_PROVIDER_QUEUE_DEPTH,
     );
     let l1_provider_server = create_local_server!(
         &config.components.l1_provider.execution_mode,
@@ -287,12 +337,24 @@ fn create_local_servers(
         config.components.l1_provider.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
+
+    let _mempool_metrics = LocalServerMetrics::new(
+        &MEMPOOL_MSGS_RECEIVED,
+        &MEMPOOL_MSGS_PROCESSED,
+        &MEMPOOL_QUEUE_DEPTH,
+    );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
         &mut components.mempool,
         communication.take_mempool_rx(),
         config.components.mempool.max_concurrency,
         REGULAR_LOCAL_SERVER
+    );
+
+    let _mempool_p2p_metrics = LocalServerMetrics::new(
+        &MEMPOOL_P2P_MSGS_RECEIVED,
+        &MEMPOOL_P2P_MSGS_PROCESSED,
+        &MEMPOOL_P2P_QUEUE_DEPTH,
     );
     let mempool_p2p_propagator_server = create_local_server!(
         &config.components.mempool_p2p.execution_mode,
@@ -301,12 +363,24 @@ fn create_local_servers(
         config.components.mempool_p2p.max_concurrency,
         REGULAR_LOCAL_SERVER
     );
+
+    let _sierra_compiler_metrics = LocalServerMetrics::new(
+        &SIERRA_COMPILER_MSGS_RECEIVED,
+        &SIERRA_COMPILER_MSGS_PROCESSED,
+        &SIERRA_COMPILER_QUEUE_DEPTH,
+    );
     let sierra_compiler_server = create_local_server!(
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
         config.components.sierra_compiler.max_concurrency,
         CONCURRENT_LOCAL_SERVER
+    );
+
+    let _state_sync_metrics = LocalServerMetrics::new(
+        &STATE_SYNC_MSGS_RECEIVED,
+        &STATE_SYNC_MSGS_PROCESSED,
+        &STATE_SYNC_QUEUE_DEPTH,
     );
     let state_sync_server = create_local_server!(
         &config.components.state_sync.execution_mode,
