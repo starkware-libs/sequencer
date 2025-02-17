@@ -342,6 +342,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
 
@@ -399,6 +400,7 @@ impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
+        runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<TransactionExecutor<ReaderWithClassManager<PapyrusReader>>> {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
@@ -417,8 +419,11 @@ impl BlockBuilderFactory {
             height,
             self.contract_class_manager.clone(),
         );
-        let state_reader =
-            ReaderWithClassManager::new(papyrus_state_reader, self.class_manager_client.clone());
+        let state_reader = ReaderWithClassManager::new(
+            papyrus_state_reader,
+            self.class_manager_client.clone(),
+            runtime,
+        );
 
         let executor = TransactionExecutor::pre_process_and_create(
             state_reader,
@@ -440,8 +445,9 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
-        let executor = self.preprocess_and_create_transaction_executor(block_metadata)?;
+        let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let transaction_converter = TransactionConverter::new(
             self.class_manager_client.clone(),

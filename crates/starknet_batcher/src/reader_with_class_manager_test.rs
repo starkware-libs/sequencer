@@ -47,8 +47,11 @@ async fn test_inner_state_reader_happy_flow() {
         .with(predicate::eq(class_hash))
         .returning(move |_| Ok(expected_get_compiled_class_hash_result));
 
-    let state_reader =
-        ReaderWithClassManager::new(mock_inner_state_reader, Arc::new(mock_class_manager_client));
+    let state_reader = ReaderWithClassManager::new(
+        mock_inner_state_reader,
+        Arc::new(mock_class_manager_client),
+        tokio::runtime::Handle::current(),
+    );
 
     let result = state_reader.get_storage_at(contract_address, storage_key).unwrap();
     assert_eq!(result, expected_get_storage_at_result);
@@ -93,8 +96,11 @@ async fn test_inner_state_reader_negative_flow() {
         .with(predicate::eq(class_hash))
         .returning(move |_| Err(StateError::StateReadError(expected_err_result_str.to_string())));
 
-    let state_reader =
-        ReaderWithClassManager::new(mock_inner_state_reader, Arc::new(mock_class_manager_client));
+    let state_reader = ReaderWithClassManager::new(
+        mock_inner_state_reader,
+        Arc::new(mock_class_manager_client),
+        tokio::runtime::Handle::current(),
+    );
 
     let expect_err_str = "Expected Err(_), received Ok(_)";
     let result =
@@ -133,10 +139,16 @@ async fn test_get_compiled_class() {
             Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
         });
 
-    let state_reader =
-        ReaderWithClassManager::new(mock_inner_state_reader, Arc::new(mock_class_manager_client));
+    let state_reader = ReaderWithClassManager::new(
+        mock_inner_state_reader,
+        Arc::new(mock_class_manager_client),
+        tokio::runtime::Handle::current(),
+    );
 
-    let result = state_reader.get_compiled_class(class_hash).unwrap();
+    let result = tokio::task::spawn_blocking(move || state_reader.get_compiled_class(class_hash))
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(
         result,
         RunnableCompiledClass::V1((expected_result, SierraVersion::default()).try_into().unwrap())

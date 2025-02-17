@@ -165,7 +165,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, tx_provider, _| {
+        |_, _, tx_provider, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -181,7 +181,7 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, output_content_sender| {
+        move |_, _, _, output_content_sender, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
