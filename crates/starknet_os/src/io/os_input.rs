@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use blockifier::context::ChainInfo;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
@@ -12,6 +12,7 @@ use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Debug)]
 pub struct CommitmentInfo {
     _previous_root: HashOutput,
     _updated_root: HashOutput,
@@ -25,6 +26,7 @@ pub struct CommitmentInfo {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Debug)]
 pub struct ContractClassComponentHashes {
     _contract_class_version: Felt,
     _external_functions_hash: HashOutput,
@@ -38,6 +40,7 @@ pub struct ContractClassComponentHashes {
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Debug)]
 pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
     _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
@@ -49,6 +52,7 @@ pub struct StarknetOsInput {
     _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
     _declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
+    pub block_info: BlockInfo,
     _prev_block_hash: BlockHash,
     _new_block_hash: BlockHash,
     // The block number and block hash of the (current_block_number - buffer) block, where
