@@ -26,7 +26,7 @@ use central_objects::{
 use mockall::automock;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
+use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder, Response};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -35,8 +35,10 @@ use starknet_api::state::ThinStateDiff;
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
-use tracing::debug;
+use tracing::{debug, error, info, warn, Instrument};
 use url::Url;
+
+// TODO(dvir): add metrics when the infra side will be completed.
 
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {
@@ -173,9 +175,11 @@ impl SerializeConfig for CendeConfig {
 #[async_trait]
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
+        debug!("Start writing to Aerospike previous height blob for height {current_height}.");
+
         // TODO(dvir): consider returning a future that will be spawned in the context instead.
         if self.skip_write_height == Some(current_height) {
-            debug!(
+            info!(
                 "Height {current_height} is configured as the `skip_write_height`, meaning \
                  consensus can send a proposal without writing to Aerospike. The blob that should \
                  have been written here in a normal flow, should already be written to Aerospike. \
@@ -187,31 +191,41 @@ impl CendeContext for CendeAmbassador {
         let prev_height_blob = self.prev_height_blob.clone();
         let request_builder = self.client.post(self.url.clone());
 
-        task::spawn(async move {
-            // TODO(dvir): consider extracting the "should write blob" logic to a function.
-            let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
-                // This case happens when restarting the node, `prev_height_blob` intial value is
-                // `None`.
-                debug!("No blob to write to Aerospike.");
-                return false;
-            };
+        task::spawn(
+            async move {
+                // TODO(dvir): consider extracting the "should write blob" logic to a function.
+                let Some(ref blob): Option<AerospikeBlob> = *prev_height_blob.lock().await else {
+                    // This case happens when restarting the node, `prev_height_blob` initial value
+                    // is `None`.
+                    warn!("No blob to write to Aerospike.");
+                    return false;
+                };
 
-            // Can happen in case the consensus got a block from the state sync and due to that did
-            // not update the cende ambassador in `decision_reached` function.
-            // TODO(dvir): what to do in the case of the `blob.block_number.0 >= height.0`? this
-            // means a bug.
-            if blob.block_number.0 + 1 != current_height.0 {
-                debug!(
-                    "Mismatch blob block number and height, can't write blob to Aerospike. Blob \
-                     block number {}, height {}",
-                    blob.block_number, current_height
-                );
-                return false;
+                // Can happen in case the consensus got a block from the state sync and due to that
+                // did not update the cende ambassador in `decision_reached` function.
+                if blob.block_number.0 + 1 != current_height.0 {
+                    warn!(
+                        "Mismatch blob block number and height, can't write blob to Aerospike. \
+                         Blob block number {}, height {current_height}",
+                        blob.block_number
+                    );
+
+                    if blob.block_number.0 >= current_height.0 {
+                        error!(
+                            "Blob block number is greater than or equal to the current height. \
+                             That means cende has a blob of height that hasn't reached a \
+                             consensus. This is probably a bug!!!. Not panicking to not stop the \
+                             node."
+                        )
+                    }
+                    return false;
+                }
+
+                debug!("Writing blob to Aerospike.");
+                return send_write_blob(request_builder, blob).await;
             }
-
-            debug!("Writing blob to Aerospike.");
-            return send_write_blob(request_builder, blob).await;
-        })
+            .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
+        )
     }
 
     async fn prepare_blob_for_next_height(
@@ -255,31 +269,48 @@ impl CendeContext for CendeAmbassador {
         };
 
         *self.prev_height_blob.lock().await = Some(aerospike_blob);
+
+        debug!("Blob for block number {block_number} is ready.");
         Ok(())
     }
 }
 
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
-    // TODO(dvir): consider set `prev_height_blob` to `None` after writing to AS.
     match request_builder.json(blob).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                debug!("Blob written to Aerospike successfully.");
+                debug!(
+                    "Blob with block number {} was written to Aerospike successfully.",
+                    blob.block_number
+                );
+                print_write_blob_response(response).await;
+
                 true
             } else {
-                debug!(
-                    "The recorder failed to write blob.\nStatus code: {}\nMessage: {}",
+                warn!(
+                    "The recorder failed to write blob with block number {}. Status code: {}",
+                    blob.block_number,
                     response.status(),
-                    response.text().await.unwrap_or_default()
                 );
+                print_write_blob_response(response).await;
+
                 false
             }
         }
         Err(err) => {
             // TODO(dvir): try to test this case.
-            debug!("Failed to send a request to the recorder. Error: {}", err);
+            warn!("Failed to send a request to the recorder. Error: {err}");
             false
         }
+    }
+}
+
+async fn print_write_blob_response(response: Response) {
+    debug!("write blob response status code: {}", response.status());
+    if let Ok(text) = response.text().await {
+        debug!("write blob response text: {text}");
+    } else {
+        debug!("Failed to get response text.");
     }
 }
 
