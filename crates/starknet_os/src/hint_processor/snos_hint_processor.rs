@@ -13,7 +13,7 @@ use crate::hints::error::{HintExtensionResult, HintResult};
 
 // TODO(Nimrod): Make it generic with S: StateReader.
 pub struct SnosHintProcessor {
-    _execution_helper: OsExecutionHelper<CachedState<PanickingStateReader>>,
+    pub execution_helper: OsExecutionHelper<CachedState<PanickingStateReader>>,
 }
 
 impl HintProcessorLogic for SnosHintProcessor {
