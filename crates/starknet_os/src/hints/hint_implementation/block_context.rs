@@ -99,5 +99,5 @@ pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
         && !hint_processor.execution_helper.os_input.full_output;
 
     let use_kzg_da_felt = Felt::from(use_kzg_da);
-    Ok(vm.insert_value((vm.get_fp() + 24)?, use_kzg_da_felt)?)
+    Ok(vm.insert_value((vm.get_fp() + 15)?, use_kzg_da_felt)?)
 }
