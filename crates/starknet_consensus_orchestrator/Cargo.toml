@@ -16,8 +16,11 @@ blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+metrics.workspace = true
 papyrus_config.workspace = true
+papyrus_common.workspace = true
 papyrus_network.workspace = true
+papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
