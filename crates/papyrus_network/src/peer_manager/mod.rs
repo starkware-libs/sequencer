@@ -213,18 +213,22 @@ impl PeerManager {
         peer_id: PeerId,
         reason: ReputationModifier,
     ) -> Result<(), PeerManagerError> {
-        self.pending_events
-            .push(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id }));
         if let Some(peer) = self.peers.get_mut(&peer_id) {
             match reason {
                 ReputationModifier::Misconduct { misconduct_score } => {
                     peer.report(misconduct_score);
                     if peer.is_malicious() {
+                        self.pending_events.push(ToSwarm::GenerateEvent(
+                            ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
+                        ));
                         peer.blacklist_peer(self.config.malicious_timeout_seconds);
                         peer.reset_misconduct_score();
                     }
                 }
                 ReputationModifier::Unstable => {
+                    self.pending_events.push(ToSwarm::GenerateEvent(
+                        ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
+                    ));
                     peer.blacklist_peer(self.config.unstable_timeout_millis);
                 }
             }
