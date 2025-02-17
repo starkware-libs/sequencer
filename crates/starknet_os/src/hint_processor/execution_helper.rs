@@ -1,3 +1,4 @@
+use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
 
@@ -5,12 +6,16 @@ use crate::io::os_input::StarknetOsInput;
 
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<S: StateReader> {
+    _block_context: BlockContext,
     _cached_state: CachedState<S>,
 }
 
 impl<S: StateReader> OsExecutionHelper<S> {
-    pub fn new(os_input: &StarknetOsInput) -> Self {
-        Self { _cached_state: Self::initialize_cached_state(os_input) }
+    pub fn new(os_input: &StarknetOsInput, block_context: BlockContext) -> Self {
+        Self {
+            _block_context: block_context,
+            _cached_state: Self::initialize_cached_state(os_input),
+        }
     }
 
     // TODO(Dori): Create a cached state with all initial read values from the OS input.
