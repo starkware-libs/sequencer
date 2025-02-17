@@ -89,4 +89,27 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          load: true # Loads the build result to docker images. Required for "Run docker test" step to work.
           no-cache: true
+
+      - name: Run docker test
+        if: github.event_name == 'pull_request'
+        env:
+          timeout_duration: "30s"
+          sequencer_config_path: "./config/sequencer/presets/system_test_presets/single_node_config.json"
+        run: |
+          tags="${{ steps.meta.outputs.tags }}"
+          tags_array=($tags)
+          tag=${tags_array[0]}
+          
+          set +e
+          timeout ${{ env.timeout_duration }} docker run "$tag" --config_file ${{ env.sequencer_config_path }}
+          exit_code="$?"
+          
+          if (( $exit_code == 124 )); then
+            echo "Docker ran successfully for 30s!"
+            exit 0
+          else
+            echo "Docker failed or exited prematurely with exit code $exit_code."
+            exit 1
+          fi
