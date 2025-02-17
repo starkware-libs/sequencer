@@ -1,5 +1,6 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
@@ -20,8 +21,11 @@ pub(crate) fn block_number<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> 
     todo!()
 }
 
-pub(crate) fn block_timestamp<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn block_timestamp<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let block_timestamp = hint_processor.execution_helper.os_input.block_info.block_timestamp;
+    Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
 pub(crate) fn chain_id<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
