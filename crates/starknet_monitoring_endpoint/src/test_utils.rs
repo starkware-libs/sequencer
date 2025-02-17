@@ -62,6 +62,7 @@ impl MonitoringClient {
             .map(|_| ())
     }
 
+    // TODO(Yael/Itay): add labels support
     pub async fn get_metric<T: Num + FromStr>(
         &self,
         metric_name: &str,
@@ -87,7 +88,7 @@ impl MonitoringClient {
         let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
 
         // Extract and return the metric value, or a suitable error.
-        parse_numeric_metric::<T>(&body_string, metric_name)
+        parse_numeric_metric::<T>(&body_string, metric_name, None)
             .ok_or(MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() })
     }
 }
