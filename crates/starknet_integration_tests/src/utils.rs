@@ -2,6 +2,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use alloy::primitives::U256;
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::Router;
@@ -25,7 +26,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_class_manager::class_storage::CachedClassStorageConfig;
@@ -387,14 +388,31 @@ where
 pub async fn run_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     create_rpc_txs_fn: CreateRpcTxsFn,
+    l1_handler_txs: Vec<L1HandlerTransaction>,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
     test_tx_hashes_fn: TestTxHashesFn,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
+    let mut tx_hashes = vec![];
+    for l1_handler in l1_handler_txs {
+        let tx_hash = l1_handler
+            .calculate_transaction_hash(
+                &papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS,
+                &L1HandlerTransaction::VERSION,
+            )
+            .unwrap();
+        tracing::info!(
+            "Hashing L1 handler transaction: {:?}, tx_hash is: {}",
+            l1_handler,
+            tx_hash.0.to_hex_string()
+        );
+        tx_hashes.push(tx_hash);
+    }
+
     let rpc_txs = create_rpc_txs_fn(tx_generator);
-    let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    tx_hashes.extend(send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
     test_tx_hashes_fn(&tx_hashes)
 }
 
@@ -507,4 +525,33 @@ pub fn create_state_sync_configs(
             ..Default::default()
         })
         .collect()
+}
+
+pub struct SendMessageToL2Args {
+    pub contract_address: U256,
+    pub entry_point: U256,
+    pub calldata: Vec<U256>,
+}
+
+impl From<L1HandlerTransaction> for SendMessageToL2Args {
+    fn from(l1_handler: L1HandlerTransaction) -> Self {
+        Self::from(&l1_handler)
+    }
+}
+
+impl From<&L1HandlerTransaction> for SendMessageToL2Args {
+    fn from(l1_handler: &L1HandlerTransaction) -> Self {
+        Self {
+            contract_address: l1_handler.contract_address.0.key().to_hex_string().parse().unwrap(),
+            entry_point: l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap(),
+            calldata: l1_handler
+                .calldata
+                .0
+                .get(1..)
+                .unwrap()
+                .iter()
+                .map(|x| x.to_hex_string().parse().unwrap())
+                .collect(),
+        }
+    }
 }

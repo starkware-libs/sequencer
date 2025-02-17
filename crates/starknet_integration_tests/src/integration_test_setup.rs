@@ -1,8 +1,10 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
+use papyrus_base_layer::test_utils::anvil;
 use papyrus_storage::StorageConfig;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -20,7 +22,6 @@ use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
-use url::Url;
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
@@ -79,6 +80,7 @@ pub struct ExecutableSetup {
     pub node_config_dir_handle: Option<TempDir>,
     pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_handles: Option<FileHandles>,
+    pub anvil_handle: AnvilInstance,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
@@ -118,8 +120,8 @@ impl ExecutableSetup {
             collect_metrics: true,
             ..Default::default()
         };
+        let anvil = anvil();
 
-        let l1_endpoint_url = Url::parse("https://node_url").expect("Should be a valid URL");
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
@@ -133,7 +135,7 @@ impl ExecutableSetup {
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
-            l1_endpoint_url,
+            anvil.endpoint_url(),
         );
 
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
@@ -166,6 +168,7 @@ impl ExecutableSetup {
             state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
             class_manager_storage_handles,
+            anvil_handle: anvil,
         }
     }
 
