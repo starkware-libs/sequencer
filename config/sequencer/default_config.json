@@ -869,6 +869,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "consensus_manager_config.network_config.port": {
+    "description": "The port that the node listens on for incoming tcp connections.",
+    "privacy": "Public",
+    "value": 10000
+  },
   "consensus_manager_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
     "privacy": "Private",
@@ -878,11 +883,6 @@
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
     "privacy": "Public",
     "value": 120
-  },
-  "consensus_manager_config.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 10000
   },
   "consensus_manager_config.proposals_topic": {
     "description": "The topic for consensus proposals.",
@@ -1114,6 +1114,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "mempool_p2p_config.network_config.port": {
+    "description": "The port that the node listens on for incoming tcp connections.",
+    "privacy": "Public",
+    "value": 11111
+  },
   "mempool_p2p_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
     "privacy": "Private",
@@ -1123,11 +1128,6 @@
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
     "privacy": "Public",
     "value": 120
-  },
-  "mempool_p2p_config.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 11111
   },
   "monitoring_endpoint_config.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring endpoint.",
@@ -1309,6 +1309,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "state_sync_config.network_config.port": {
+    "description": "The port that the node listens on for incoming tcp connections.",
+    "privacy": "Public",
+    "value": 12345
+  },
   "state_sync_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
     "privacy": "Private",
@@ -1318,11 +1323,6 @@
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
     "privacy": "Public",
     "value": 120
-  },
-  "state_sync_config.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 12345
   },
   "state_sync_config.p2p_sync_client_config.#is_none": {
     "description": "Flag for an optional field.",

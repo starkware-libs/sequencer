@@ -40,7 +40,7 @@ use validator::Validate;
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 pub struct NetworkConfig {
-    pub tcp_port: u16,
+    pub port: u16,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -59,8 +59,8 @@ impl SerializeConfig for NetworkConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
             ser_param(
-                "tcp_port",
-                &self.tcp_port,
+                "port",
+                &self.port,
                 "The port that the node listens on for incoming tcp connections.",
                 ParamPrivacyInput::Public,
             ),
@@ -117,7 +117,7 @@ impl SerializeConfig for NetworkConfig {
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            tcp_port: 10000,
+            port: 10000,
             session_timeout: Duration::from_secs(120),
             idle_connection_timeout: Duration::from_secs(120),
             bootstrap_peer_multiaddr: None,

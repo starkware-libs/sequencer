@@ -74,7 +74,7 @@ impl Default for StateSyncConfig {
             },
             p2p_sync_client_config: Some(P2pSyncClientConfig::default()),
             central_sync_client_config: None,
-            network_config: NetworkConfig { tcp_port: STATE_SYNC_TCP_PORT, ..Default::default() },
+            network_config: NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() },
             revert_config: RevertConfig::default(),
         }
     }
