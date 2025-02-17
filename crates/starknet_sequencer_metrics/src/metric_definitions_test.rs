@@ -1,6 +1,10 @@
 use std::collections::HashSet;
 
-use crate::metric_definitions::{ALL_METRIC_COUNTERS, ALL_METRIC_GAUGES};
+use crate::metric_definitions::{
+    ALL_LABELED_METRIC_COUNTERS,
+    ALL_METRIC_COUNTERS,
+    ALL_METRIC_GAUGES,
+};
 
 // Tests that the metric names are unique.
 #[test]
@@ -11,6 +15,13 @@ fn metric_names_no_duplications() {
             metric_names.insert(counter_metric.get_name()),
             "Duplicated metric name: {}",
             counter_metric.get_name()
+        );
+    }
+    for labeled_counter_metric in ALL_LABELED_METRIC_COUNTERS {
+        assert!(
+            metric_names.insert(labeled_counter_metric.get_name()),
+            "Duplicated metric name: {}",
+            labeled_counter_metric.get_name()
         );
     }
     for gauge_metric in ALL_METRIC_GAUGES {
