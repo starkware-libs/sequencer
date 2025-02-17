@@ -1,5 +1,7 @@
 use std::collections::VecDeque;
 
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_base_layer::PriceSample;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
@@ -12,6 +14,7 @@ pub mod l1_gas_price_provider_test;
 
 // TODO(guyn, Gilad): consider moving this to starknet_l1_provider_types/lib.rs?
 // This is an interface that allows sharing the provider with the scraper across threads.
+#[cfg_attr(any(feature = "testing", test), automock)]
 pub trait L1GasPriceProviderClient: Send + Sync {
     fn add_price_info(
         &self,
@@ -58,8 +61,6 @@ pub struct L1GasPriceProvider {
     data: VecDeque<(BlockNumber, PriceSample)>,
 }
 
-// TODO(guyn): remove the dead code attribute when we use this.
-#[allow(dead_code)]
 impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
         Self { config, data: VecDeque::new() }

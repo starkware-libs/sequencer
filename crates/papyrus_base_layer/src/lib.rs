@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::ops::RangeInclusive;
 
 use async_trait::async_trait;
-#[cfg(test)]
+#[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHashAndNumber;
@@ -29,7 +29,7 @@ pub type L1BlockNumber = u64;
 pub enum MockError {}
 
 /// Interface for getting data from the Starknet base contract.
-#[cfg_attr(test, automock(type Error = MockError;))]
+#[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
     type Error: Error + Display + Debug;
