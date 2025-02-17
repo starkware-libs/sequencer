@@ -15,6 +15,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::{ComponentReplacer, ComponentServerStarter};
 use crate::errors::{ComponentServerError, ReplaceComponentError};
+use crate::metrics::LocalServerMetrics;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -37,85 +38,6 @@ use crate::errors::{ComponentServerError, ReplaceComponentError};
 /// - `rx`: A receiver that receives incoming requests along with a sender to send back the
 ///   responses. This receiver is of type ` Receiver<ComponentRequestAndResponseSender<Request,
 ///   Response>>`.
-///
-/// # Example
-/// ```rust
-/// // Example usage of the LocalComponentServer
-/// use std::sync::mpsc::{channel, Receiver};
-///
-/// use async_trait::async_trait;
-/// use tokio::task;
-///
-/// use crate::starknet_sequencer_infra::component_definitions::{
-///     ComponentRequestAndResponseSender,
-///     ComponentRequestHandler,
-///     ComponentStarter,
-/// };
-/// use crate::starknet_sequencer_infra::component_server::{
-///     ComponentServerStarter,
-///     LocalComponentServer,
-/// };
-/// use crate::starknet_sequencer_infra::errors::ComponentServerError;
-///
-/// // Define your component
-/// struct MyComponent {}
-///
-/// impl ComponentStarter for MyComponent {}
-///
-/// // Define your request and response types
-/// #[derive(Debug)]
-/// struct MyRequest {
-///     pub content: String,
-/// }
-///
-/// #[derive(Debug)]
-/// struct MyResponse {
-///     pub content: String,
-/// }
-///
-/// // Define your request processing logic
-/// #[async_trait]
-/// impl ComponentRequestHandler<MyRequest, MyResponse> for MyComponent {
-///     async fn handle_request(&mut self, request: MyRequest) -> MyResponse {
-///         MyResponse { content: request.content + " processed" }
-///     }
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     // Create a channel for sending requests and receiving responses
-///     let (tx, rx) = tokio::sync::mpsc::channel::<
-///         ComponentRequestAndResponseSender<MyRequest, MyResponse>,
-///     >(100);
-///
-///     // Instantiate the component.
-///     let component = MyComponent {};
-///
-///     // Instantiate the server.
-///     let max_concurrency = 1;
-///     let mut server = LocalComponentServer::new(component, rx, max_concurrency);
-///
-///     // Start the server in a new task.
-///     task::spawn(async move {
-///         server.start().await;
-///     });
-///
-///     // Ensure the server starts running.
-///     task::yield_now().await;
-///
-///     // Create the request and the response channel.
-///     let (res_tx, mut res_rx) = tokio::sync::mpsc::channel::<MyResponse>(1);
-///     let request = MyRequest { content: "request example".to_string() };
-///     let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
-///
-///     // Send the request.
-///     tx.send(request_and_res_tx).await.unwrap();
-///
-///     // Receive the response.
-///     let response = res_rx.recv().await.unwrap();
-///     assert!(response.content == "request example processed".to_string(), "Unexpected response");
-/// }
-/// ```
 pub type LocalComponentServer<Component, Request, Response> =
     BaseLocalComponentServer<Component, Request, Response, BlockingLocalServerType>;
 pub struct BlockingLocalServerType {}
@@ -131,7 +53,7 @@ where
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
-        request_response_loop(&mut self.rx, &mut self.component).await;
+        request_response_loop(&mut self.rx, &mut self.component, self.metrics.clone()).await;
         error!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
         Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
@@ -153,8 +75,13 @@ where
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await?;
-        concurrent_request_response_loop(&mut self.rx, &mut self.component, self.max_concurrency)
-            .await;
+        concurrent_request_response_loop(
+            &mut self.rx,
+            &mut self.component,
+            self.max_concurrency,
+            self.metrics.clone(),
+        )
+        .await;
         error!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         Err(ComponentServerError::ServerUnexpectedlyStopped)
     }
@@ -170,6 +97,7 @@ where
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     // TODO(Itay, Lev): find the way to provide max_concurrency only for non-blocking server.
     max_concurrency: usize,
+    metrics: Arc<LocalServerMetrics>,
     _local_server_type: PhantomData<LocalServerType>,
 }
 
@@ -184,8 +112,16 @@ where
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
         max_concurrency: usize,
+        metrics: LocalServerMetrics,
     ) -> Self {
-        Self { component, rx, max_concurrency, _local_server_type: PhantomData }
+        metrics.register();
+        Self {
+            component,
+            rx,
+            max_concurrency,
+            metrics: Arc::new(metrics),
+            _local_server_type: PhantomData,
+        }
     }
 }
 
@@ -217,6 +153,7 @@ where
 async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
+    metrics: Arc<LocalServerMetrics>,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
     Request: Send + Debug,
@@ -229,7 +166,12 @@ async fn request_response_loop<Request, Response, Component>(
         let tx = request_and_res_tx.tx;
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
+        metrics.increment_received();
+        metrics.set_queue_depth(rx.len());
+
         process_request(component, request, tx).await;
+
+        metrics.increment_processed();
     }
 
     error!("Stopping server for component {}", short_type_name::<Component>());
@@ -240,12 +182,14 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
     max_concurrency: usize,
+    metrics: Arc<LocalServerMetrics>,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Clone + Send + 'static,
     Request: Send + Debug + 'static,
     Response: Send + Debug + 'static,
 {
     info!("Starting concurrent server for component {}", short_type_name::<Component>());
+
     let task_limiter = Arc::new(Semaphore::new(max_concurrency));
 
     while let Some(request_and_res_tx) = rx.recv().await {
@@ -253,12 +197,19 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
         let tx = request_and_res_tx.tx;
         debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
+        metrics.increment_received();
+        metrics.set_queue_depth(rx.len());
+
         // Acquire a permit to run the task.
         let permit = task_limiter.clone().acquire_owned().await.unwrap();
 
         let mut cloned_component = component.clone();
+        let cloned_metrics = metrics.clone();
         tokio::spawn(async move {
             process_request(&mut cloned_component, request, tx).await;
+
+            cloned_metrics.increment_processed();
+
             // Drop the permit to allow more tasks to be created.
             drop(permit);
         });
