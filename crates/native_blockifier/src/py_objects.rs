@@ -107,22 +107,14 @@ fn hash_map_into_bouncer_weights(
     let state_diff_size =
         data.remove(constants::STATE_DIFF_SIZE).expect("state_diff_size must be present");
     let n_events = data.remove(constants::N_EVENTS).expect("n_events must be present");
-    let sierra_gas_vm_included = GasAmount(
-        data.remove(constants::SIERRA_GAS_TOTAL)
-            .expect("sierra_gas_vm_included must be present")
+    let sierra_gas = GasAmount(
+        data.remove(constants::SIERRA_GAS)
+            .expect("sierra_gas must be present")
             .try_into()
-            .unwrap_or_else(|err| {
-                panic!("Failed to convert 'sierra_gas_vm_included' into GasAmount: {err}.")
-            }),
+            .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
 
-    Ok(BouncerWeights {
-        l1_gas,
-        message_segment_length,
-        state_diff_size,
-        n_events,
-        sierra_gas: sierra_gas_vm_included,
-    })
+    Ok(BouncerWeights { l1_gas, message_segment_length, state_diff_size, n_events, sierra_gas })
 }
 
 #[derive(Debug, Default, FromPyObject)]
