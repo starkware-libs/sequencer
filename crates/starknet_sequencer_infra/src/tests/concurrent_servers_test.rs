@@ -22,7 +22,7 @@ use crate::component_server::{
     ConcurrentLocalComponentServer,
     RemoteComponentServer,
 };
-use crate::tests::AVAILABLE_PORTS;
+use crate::tests::{AVAILABLE_PORTS, TEST_LOCAL_SERVER_METRICS};
 
 type TestResult = ClientResult<()>;
 
@@ -118,8 +118,12 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     let local_client = LocalConcurrentComponentClient::new(tx_a);
 
     let max_concurrency = 10;
-    let mut concurrent_local_server =
-        ConcurrentLocalComponentServer::new(component, rx_a, max_concurrency);
+    let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
+        component,
+        rx_a,
+        max_concurrency,
+        TEST_LOCAL_SERVER_METRICS,
+    );
     task::spawn(async move {
         let _ = concurrent_local_server.start().await;
     });

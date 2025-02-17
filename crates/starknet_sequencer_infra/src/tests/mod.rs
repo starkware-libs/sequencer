@@ -1,21 +1,46 @@
 mod concurrent_servers_test;
 mod local_component_client_server_test;
 mod remote_component_client_server_test;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
+use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricScope};
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use crate::metrics::LocalServerMetrics;
+
 pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
 pub(crate) type ResultA = ClientResult<ValueA>;
 pub(crate) type ResultB = ClientResult<ValueB>;
+
+// Define mock local server metrics.
+const TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
+    MetricScope::Infra,
+    "test_msgs_received",
+    "Test messages received counter",
+    0,
+);
+
+const TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
+    MetricScope::Infra,
+    "test_msgs_processed",
+    "Test messages processed counter",
+    0,
+);
+
+const TEST_QUEUE_DEPTH: MetricGauge =
+    MetricGauge::new(MetricScope::Infra, "queue_queue_depth", "Test channel queue depth gauge");
+
+pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics =
+    LocalServerMetrics::new(&TEST_MSGS_RECEIVED, &TEST_MSGS_PROCESSED, &TEST_QUEUE_DEPTH);
 
 // Define the shared fixture
 pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
