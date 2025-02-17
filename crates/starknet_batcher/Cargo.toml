@@ -13,7 +13,6 @@ apollo_reverts.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
-futures.workspace = true
 indexmap.workspace = true
 papyrus_config.workspace = true
 papyrus_state_reader.workspace = true
@@ -38,7 +37,6 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
-futures.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
