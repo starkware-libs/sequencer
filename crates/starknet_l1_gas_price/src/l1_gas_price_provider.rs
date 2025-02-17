@@ -1,6 +1,8 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
@@ -15,6 +17,8 @@ pub mod l1_gas_price_provider_test;
 pub struct L1GasPriceProviderConfig {
     // TODO(guyn): these two fields need to go into VersionedConstants.
     pub number_of_blocks_for_mean: u64,
+    // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
+    // Ethereum.
     pub lag_margin_seconds: u64,
     pub storage_limit: usize,
 }
@@ -27,6 +31,32 @@ impl Default for L1GasPriceProviderConfig {
             lag_margin_seconds: 60,
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
         }
+    }
+}
+
+impl SerializeConfig for L1GasPriceProviderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "number_of_blocks_for_mean",
+                &self.number_of_blocks_for_mean,
+                "Number of blocks to use for the mean gas price calculation",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "lag_margin_seconds",
+                &self.lag_margin_seconds,
+                "Difference between the time of the block from L1 used to calculate the gas price \
+                 and the time of the L2 block this price is used in",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "storage_limit",
+                &self.storage_limit,
+                "Maximum number of L1 blocks to keep cached",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
