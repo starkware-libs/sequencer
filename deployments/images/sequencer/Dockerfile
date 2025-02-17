@@ -17,13 +17,14 @@ COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/sta
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
-COPY config/sequencer/default_config.json /app/config/sequencer/
+COPY config config
 
 # Create a new user "sequencer".
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \
     useradd --gid ${ID} --uid ${ID} --comment "" --create-home --home-dir /app sequencer; \
-    chown -R sequencer:sequencer /app
+    mkdir /data; \
+    chown -R sequencer:sequencer /app /data
 
 # Expose RPC and monitoring ports.
 EXPOSE 8080 8081 8082
