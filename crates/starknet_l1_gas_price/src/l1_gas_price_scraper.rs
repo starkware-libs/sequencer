@@ -1,9 +1,12 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
@@ -59,6 +62,43 @@ impl Default for L1GasPriceScraperConfig {
             polling_interval: Duration::from_secs(1),
             number_of_blocks_for_mean: 300,
         }
+    }
+}
+
+impl SerializeConfig for L1GasPriceScraperConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "starting_block",
+                &self.starting_block,
+                "Starting block to scrape from",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "finality",
+                &self.finality,
+                "Number of blocks to wait for finality in L1",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "polling_interval",
+                &self.polling_interval.as_secs(),
+                "The duration (seconds) between each scraping attempt of L1",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "number_of_blocks_for_mean",
+                &self.number_of_blocks_for_mean,
+                "Number of blocks to use for the mean gas price calculation",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
