@@ -11203,6 +11203,7 @@ dependencies = [
 name = "starknet_integration_tests"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "assert_matches",
  "axum",
  "blockifier",
