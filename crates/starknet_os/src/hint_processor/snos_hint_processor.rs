@@ -1,4 +1,5 @@
 use blockifier::state::state_api::StateReader;
+#[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
@@ -6,6 +7,7 @@ use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
 use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
+#[cfg(any(feature = "testing", test))]
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
@@ -16,6 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+#[cfg(any(feature = "testing", test))]
 use crate::io::os_input::StarknetOsInput;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
