@@ -3,45 +3,23 @@ use std::collections::HashSet;
 use blockifier::execution::hint_code::SYSCALL_HINTS;
 use strum::IntoEnumIterator;
 
-use super::{HintExtension, OsHint, SyscallHint};
+use crate::hints::enum_definition::{AllHints, SyscallHint};
 use crate::hints::types::HintEnum;
 
 #[test]
 fn test_hint_strings_are_unique() {
-    let hint_strings = OsHint::iter().map(|hint| hint.to_str()).collect::<Vec<_>>();
-    let hint_extension_strings =
-        HintExtension::iter().map(|hint| hint.to_str()).collect::<Vec<_>>();
-    let syscall_hint_strings = SyscallHint::iter().map(|hint| hint.to_str()).collect::<Vec<_>>();
-    let hint_strings_set: HashSet<&&str> = HashSet::from_iter(hint_strings.iter());
-    let hint_extension_strings_set = HashSet::from_iter(hint_extension_strings.iter());
-    let syscall_hint_strings_set: HashSet<&&str> = HashSet::from_iter(syscall_hint_strings.iter());
-    assert_eq!(hint_strings.len(), hint_strings_set.len(), "Duplicate hint strings.");
-    assert_eq!(
-        hint_extension_strings.len(),
-        hint_extension_strings_set.len(),
-        "Duplicate hint extension strings."
-    );
-    assert_eq!(
-        syscall_hint_strings.len(),
-        syscall_hint_strings_set.len(),
-        "Duplicate syscall hint strings."
-    );
+    let all_hints = AllHints::all_iter().map(|hint| hint.to_str()).collect::<Vec<_>>();
+    let all_hints_set: HashSet<&&str> = HashSet::from_iter(all_hints.iter());
+    assert_eq!(all_hints.len(), all_hints_set.len(), "Duplicate hint strings.");
+}
 
-    assert!(
-        hint_strings_set.is_disjoint(&hint_extension_strings_set),
-        "{:?}",
-        hint_strings_set.intersection(&hint_extension_strings_set).collect::<Vec<_>>()
-    );
-    assert!(
-        hint_strings_set.is_disjoint(&syscall_hint_strings_set),
-        "{:?}",
-        hint_strings_set.intersection(&syscall_hint_strings_set).collect::<Vec<_>>()
-    );
-    assert!(
-        hint_extension_strings_set.is_disjoint(&syscall_hint_strings_set),
-        "{:?}",
-        hint_extension_strings_set.intersection(&syscall_hint_strings_set).collect::<Vec<_>>()
-    );
+#[test]
+fn test_from_str_for_all_hints() {
+    for hint in AllHints::all_iter() {
+        let hint_str = hint.to_str();
+        let parsed_hint = AllHints::from_str(hint_str).unwrap();
+        assert_eq!(hint, parsed_hint, "Failed to parse hint: {hint_str}.");
+    }
 }
 
 #[test]
