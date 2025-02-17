@@ -43,14 +43,14 @@ const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
-struct NodeComponentConfigs {
+pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
 }
 
 impl NodeComponentConfigs {
-    fn new(
+    pub fn new(
         component_configs: Vec<ComponentConfig>,
         batcher_index: usize,
         http_server_index: usize,
@@ -62,16 +62,29 @@ impl NodeComponentConfigs {
         self.component_configs.into_iter()
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.component_configs.len()
     }
 
-    fn get_batcher_index(&self) -> usize {
+    pub fn is_empty(&self) -> bool {
+        self.component_configs.is_empty()
+    }
+
+    pub fn get_batcher_index(&self) -> usize {
         self.batcher_index
     }
 
-    fn get_http_server_index(&self) -> usize {
+    pub fn get_http_server_index(&self) -> usize {
         self.http_server_index
+    }
+}
+
+impl IntoIterator for NodeComponentConfigs {
+    type Item = ComponentConfig;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.component_configs.into_iter()
     }
 }
 
