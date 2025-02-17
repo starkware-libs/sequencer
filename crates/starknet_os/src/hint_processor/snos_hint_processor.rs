@@ -12,7 +12,7 @@ use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hints::error::{HintExtensionResult, HintResult};
 
 pub struct SnosHintProcessor {
-    _execution_helper: OsExecutionHelper<CachedState<PanickingStateReader>>,
+    pub execution_helper: OsExecutionHelper<CachedState<PanickingStateReader>>,
 }
 
 impl HintProcessorLogic for SnosHintProcessor {
