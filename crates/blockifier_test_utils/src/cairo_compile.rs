@@ -69,7 +69,11 @@ pub fn cairo1_compiler_version() -> String {
 }
 
 pub fn cairo1_compiler_tag() -> String {
-    format!("v{}", cairo1_compiler_version())
+    // TODO(lior): Uncomment the following line it and remove the rest of the code, once the
+    //   Cairo compiler version is updated to 2.11.0 in the toml file.
+    // format!("v{}", cairo1_compiler_version())
+    assert!(cairo1_compiler_version() == "2.10.0-rc.1", "Unsupported compiler version.");
+    "v2.11.0-dev.1".into()
 }
 
 /// Returns the path to the local Cairo1 compiler repository.
