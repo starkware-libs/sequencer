@@ -12,6 +12,7 @@ use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Debug)]
 pub struct CommitmentInfo {
     _previous_root: HashOutput,
     _updated_root: HashOutput,
@@ -25,6 +26,7 @@ pub struct CommitmentInfo {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Debug)]
 pub struct ContractClassComponentHashes {
     _contract_class_version: Felt,
     _external_functions_hash: HashOutput,
@@ -38,6 +40,7 @@ pub struct ContractClassComponentHashes {
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Debug)]
 pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
     _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
