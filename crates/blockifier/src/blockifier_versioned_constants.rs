@@ -310,9 +310,10 @@ impl VersionedConstants {
             .execute_syscalls
             .get(syscall_selector)
             .expect("Fetching the execution resources of a syscall should not fail.");
-        let n_steps = u64_from_usize(execution_resources.n_steps);
-        let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
+        let n_steps = u64_from_usize(execution_resources.constant.n_steps);
+        let n_memory_holes = u64_from_usize(execution_resources.constant.n_memory_holes);
         let total_builtin_gas_cost: u64 = execution_resources
+            .constant
             .builtin_instance_counter
             .iter()
             .map(|(builtin, amount)| {
@@ -459,7 +460,7 @@ pub struct OsResources {
     // steps).
     // TODO(Arni, 14/6/2023): Update `GetBlockHash` values.
     // TODO(ilya): Consider moving the resources of a keccak round to a seperate dict.
-    execute_syscalls: HashMap<SyscallSelector, ExecutionResources>,
+    execute_syscalls: HashMap<SyscallSelector, ResourcesParams>,
     // Mapping from every transaction to its extra execution resources in the OS,
     // i.e., resources that don't count during the execution itself.
     // For each transaction the OS uses a constant amount of VM resources, and an
@@ -517,7 +518,7 @@ impl OsResources {
                     &resources_vector.deprecated_resources.calldata_factor,
                 ]
             })
-            .chain(self.execute_syscalls.values())
+            .chain(self.execute_syscalls.values().map(|syscall| &syscall.constant))
             .chain(std::iter::once(&self.compute_os_kzg_commitment_info));
         let builtin_names =
             execution_resources.flat_map(|resources| resources.builtin_instance_counter.keys());
@@ -564,7 +565,7 @@ impl OsResources {
                     self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                         panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                     });
-                os_additional_resources += keccak_base_resources;
+                os_additional_resources += &keccak_base_resources.constant;
             }
             let syscall_selector = if syscall_selector == &SyscallSelector::Keccak {
                 &SyscallSelector::KeccakRound
@@ -575,7 +576,7 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-            os_additional_resources += &(syscall_resources * *count);
+            os_additional_resources += &(&syscall_resources.constant * *count);
         }
 
         os_additional_resources
