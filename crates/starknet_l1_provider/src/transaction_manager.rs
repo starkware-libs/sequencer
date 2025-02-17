@@ -36,7 +36,7 @@ impl TransactionManager {
         if self.txs.soft_remove(tx_hash).is_some() {
             ValidationStatus::Validated
         } else if self.txs.is_staged(&tx_hash) {
-            ValidationStatus::AlreadyIncludedInPropsedBlock
+            ValidationStatus::AlreadyIncludedInProposedBlock
         } else {
             ValidationStatus::ConsumedOnL1OrUnknown
         }
