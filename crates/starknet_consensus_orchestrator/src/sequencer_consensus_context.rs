@@ -337,15 +337,55 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
         info!(?id, ?init, "Reproposing.");
         let height = init.height;
-        let (_, _transactions, _) = self
+        let (block_info, txs, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
             .get(&height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"))
             .get(&id)
-            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"));
-        // TODO(guyn): Stream the TXs to the network.
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"))
+            .clone();
+
+        let transaction_converter = self.transaction_converter.clone();
+        let mut outbound_proposal_sender = self.outbound_proposal_sender.clone();
+        tokio::spawn(
+            async move {
+                let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
+                    transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
+                }))
+                .await
+                .into_iter()
+                .collect::<Result<Vec<_>, _>>()
+                .expect("Failed converting transaction during repropose");
+                // TODO(Asmaa): send by chunks.
+                let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+                let stream_id = HeightAndRound(height.0, init.round);
+                outbound_proposal_sender
+                    .send((stream_id, proposal_receiver))
+                    .await
+                    .expect("Failed to send proposal receiver");
+                proposal_sender
+                    .send(ProposalPart::Init(init))
+                    .await
+                    .expect("Failed to send proposal init");
+                proposal_sender
+                    .send(ProposalPart::BlockInfo(block_info.clone()))
+                    .await
+                    .expect("Failed to send block info");
+                proposal_sender
+                    .send(ProposalPart::Transactions(TransactionBatch {
+                        transactions: transactions.clone(),
+                    }))
+                    .await
+                    .expect("Failed to broadcast proposal content");
+                proposal_sender
+                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
+                    .await
+                    .expect("Failed to broadcast proposal fin");
+            }
+            .instrument(error_span!("consensus_repropose", round = init.round)),
+        );
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
