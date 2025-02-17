@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+alloy.workspace = true
 anyhow.workspace = true
 assert_matches.workspace = true
 axum.workspace = true
@@ -17,6 +18,7 @@ blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 clap.workspace = true
 futures.workspace = true
+hex.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true

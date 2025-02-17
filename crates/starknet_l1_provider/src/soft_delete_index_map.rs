@@ -78,6 +78,7 @@ impl SoftDeleteIndexMap {
         // NOTE: this takes Theta(|self.txs|), see docstring.
         let (committed, not_committed): (Vec<_>, Vec<_>) =
             self.txs.drain(..).partition(|(hash, _)| tx_hashes.contains(hash));
+        tracing::info!("Extending the txs list with not committed txs: {}", not_committed.len());
         self.txs.extend(not_committed);
 
         committed.into_iter().map(|(_, entry)| entry.transaction).collect()

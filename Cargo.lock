@@ -11221,6 +11221,7 @@ dependencies = [
 name = "starknet_integration_tests"
 version = "0.0.0"
 dependencies = [
+ "alloy",
  "anyhow",
  "assert_matches",
  "axum",
@@ -11229,6 +11230,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "clap",
  "futures",
+ "hex",
  "indexmap 2.7.0",
  "itertools 0.12.1",
  "mempool_test_utils",
