@@ -1,3 +1,5 @@
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+
 use crate::hints::error::{HintExtensionResult, HintResult};
 use crate::hints::types::HintArgs;
 
@@ -35,8 +37,11 @@ pub(crate) fn deprecated_fee_token_address(
     todo!()
 }
 
-pub(crate) fn sequencer_address(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
+pub(crate) fn sequencer_address(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+) -> HintResult {
+    let address = hint_processor.execution_helper.block_info.sequencer_address;
+    insert_value_into_ap(vm, address.0.key())
 }
 
 pub(crate) fn get_block_mapping(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
