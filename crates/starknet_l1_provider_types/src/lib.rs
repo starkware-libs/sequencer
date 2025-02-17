@@ -21,6 +21,9 @@ pub type L1ProviderResult<T> = Result<T, L1ProviderError>;
 pub type L1ProviderClientResult<T> = Result<T, L1ProviderClientError>;
 pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 
+// TODO(Arni): Consider splitting this enum into valid and invalid status where the invalid status
+// holds the flavor of the invalidity. Propagate this change to
+// [TransactionProviderError::L1HandlerTransactionValidationFailed].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationStatus {
     AlreadyIncludedInProposedBlock,
