@@ -1,4 +1,3 @@
-use blockifier::context::BlockContext;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::types::layout_name::LayoutName;
@@ -79,8 +78,7 @@ pub fn run_os<S: StateReader>(
 pub fn run_os_stateless(
     compiled_os: &[u8],
     layout: LayoutName,
-    block_context: BlockContext,
     os_input: StarknetOsInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    run_os::<PanickingStateReader>(compiled_os, layout, block_context, os_input)
+    run_os::<PanickingStateReader>(compiled_os, layout, os_input)
 }

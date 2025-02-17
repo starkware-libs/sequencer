@@ -208,6 +208,7 @@ use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
 
+use crate::os_cli::commands::Input;
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 
 pub type OsPythonTestError = PythonTestError<OsSpecificTestError>;
@@ -216,6 +217,7 @@ type OsPythonTestResult = PythonTestResult<OsSpecificTestError>;
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
     CompareOsHints,
+    InputDeserialization,
     RunDummyFunction,
 }
 
@@ -227,6 +229,7 @@ impl TryFrom<String> for OsPythonTestRunner {
         match value.as_str() {
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "run_dummy_function" => Ok(Self::RunDummyFunction),
+            "input_deserialization" => Ok(Self::InputDeserialization),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -243,6 +246,7 @@ impl PythonTestRunner for OsPythonTestRunner {
         match self {
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
+            Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
         }
     }
 }
@@ -298,6 +302,12 @@ fn run_cairo_function(
 
 fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
     run_cairo_function(input, "dummy_function", &[], &retdata![1.into(), 2.into(), 3.into()])
+}
+
+/// Deserialize the input string into an `Input` struct.
+fn input_deserialization(input: &str) -> OsPythonTestResult {
+    let _: Input = serde_json::from_str(input)?;
+    Ok("Deserialization successful".to_string())
 }
 
 fn vm_hints() -> HashSet<&'static str> {

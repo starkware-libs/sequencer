@@ -18,7 +18,7 @@ pub fn load_input<T: for<'a> Deserialize<'a>>(input_path: String) -> T {
         .unwrap_or_else(|_| panic!("Failed to read from {input_path}"));
     info!("Done reading {} bytes from {input_path}. Deserializing...", input_bytes.len());
     let result = serde_json::from_slice::<T>(&input_bytes)
-        .unwrap_or_else(|_| panic!("Failed to deserialize data from {input_path}"));
+        .unwrap_or_else(|e| panic!("Failed to deserialize data from {input_path}. Error: {e:?}"));
     info!("Successfully deserialized data from {input_path}.");
     result
 }
