@@ -4,7 +4,7 @@ use tracing::info;
 
 use crate::component_definitions::ComponentStarter;
 use crate::component_server::{ComponentReplacer, ComponentServerStarter};
-use crate::errors::{ComponentServerError, ReplaceComponentError};
+use crate::errors::ReplaceComponentError;
 
 pub struct WrapperServer<Component> {
     component: Component,
@@ -18,9 +18,11 @@ impl<Component: Send> WrapperServer<Component> {
 
 #[async_trait]
 impl<Component: ComponentStarter + Send> ComponentServerStarter for WrapperServer<Component> {
-    async fn start(&mut self) -> Result<(), ComponentServerError> {
+    async fn start(&mut self) -> () {
         info!("Starting WrapperServer for {}.", short_type_name::<Component>());
-        let res = self.component.start().await.map_err(ComponentServerError::ComponentError);
+        let res = self.component.start().await.unwrap_or_else(|_| {
+            panic!("WrapperServer stopped for {}", short_type_name::<Component>())
+        });
         info!("Finished running WrapperServer for {}.", short_type_name::<Component>());
         res
     }
