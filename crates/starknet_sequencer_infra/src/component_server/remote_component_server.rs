@@ -178,7 +178,7 @@ where
     Request: Serialize + DeserializeOwned + Send + Debug + 'static,
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
-    async fn start(&mut self) -> () {
+    async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             let max_concurrency = self.max_concurrency;

@@ -127,7 +127,7 @@ where
     Request: Send + Debug,
     Response: Send + Debug,
 {
-    async fn start(&mut self) -> () {
+    async fn start(&mut self) {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await.unwrap_or_else(|_| {
             panic!("LocalComponentServer stopped for {}", short_type_name::<Component>())
@@ -150,7 +150,7 @@ where
     Request: Send + Debug + 'static,
     Response: Send + Debug + 'static,
 {
-    async fn start(&mut self) -> () {
+    async fn start(&mut self) {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await.unwrap_or_else(|_| {
             panic!("ConcurrentLocalComponentServer stopped for {}", short_type_name::<Component>())

@@ -18,13 +18,11 @@ impl<Component: Send> WrapperServer<Component> {
 
 #[async_trait]
 impl<Component: ComponentStarter + Send> ComponentServerStarter for WrapperServer<Component> {
-    async fn start(&mut self) -> () {
+    async fn start(&mut self) {
         info!("Starting WrapperServer for {}.", short_type_name::<Component>());
-        let res = self.component.start().await.unwrap_or_else(|_| {
+        self.component.start().await.unwrap_or_else(|_| {
             panic!("WrapperServer stopped for {}", short_type_name::<Component>())
         });
-        info!("Finished running WrapperServer for {}.", short_type_name::<Component>());
-        res
     }
 }
 
