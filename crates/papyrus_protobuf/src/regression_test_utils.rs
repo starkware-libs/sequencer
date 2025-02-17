@@ -17,6 +17,7 @@ pub const PROTO_FILES: &[&str] = &[
     "src/proto/p2p/proto/sync/transaction.proto",
     "src/proto/p2p/proto/transaction.proto",
 ];
+pub const PROTOC_OUTPUT: &str = "protoc_output.rs";
 
 /// Returns the version of the preinstalled protoc if it is valid (version 3.15.x or greater).
 /// Otherwise, returns None.
@@ -69,7 +70,22 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
         env::set_var("PROTOC", protoc_bin);
     }
 
-    prost_build::Config::new().out_dir(out_dir).compile_protos(proto_files, &["src/proto/"])?;
+    // Using absolute paths for consistency between test and bin
+    let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    prost_build::Config::new()
+        .protoc_arg(format!("--proto_path={}", project_root.display()))
+        .out_dir(&out_dir)
+        .compile_protos(
+            &proto_files
+                .iter()
+                .map(|p| project_root.join(p))
+                .collect::<Vec<_>>()
+                .iter()
+                .map(|p| p.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            &[project_root.join("src/proto").to_str().unwrap()],
+        )?;
 
     Ok(())
 }

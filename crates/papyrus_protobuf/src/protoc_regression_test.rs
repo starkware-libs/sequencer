@@ -1,8 +1,9 @@
 use std::fs;
+use std::path::PathBuf;
 
 use tempfile::tempdir;
 
-use crate::regression_test_utils::{generate_protos, PROTO_DIR, PROTO_FILES};
+use crate::regression_test_utils::{generate_protos, PROTOC_OUTPUT, PROTO_DIR, PROTO_FILES};
 
 #[test]
 fn test_proto_regression() {
@@ -10,26 +11,17 @@ fn test_proto_regression() {
 
     generate_protos(out_dir.path().to_path_buf(), PROTO_FILES).unwrap();
 
-    let generated_name = String::from(out_dir.path().to_str().unwrap()) + "/_.rs";
-    let expected_name = String::from(PROTO_DIR) + "/protoc_output.rs";
+    let generated_name = PathBuf::from(out_dir.path()).join("_.rs");
+    let expected_name = PathBuf::from(PROTO_DIR).join(PROTOC_OUTPUT);
 
-    let expected_file = fs::read_to_string(expected_name.clone())
+    let expected_file = fs::read_to_string(&expected_name)
         .unwrap_or_else(|_| panic!("Failed to read expected file at {:?}", expected_name));
-    let generated_file = fs::read_to_string(generated_name.clone())
+    let generated_file = fs::read_to_string(&generated_name)
         .unwrap_or_else(|_| panic!("Failed to read generated file at {:?}", generated_name));
 
-    assert_eq!(
-        expected_file, generated_file,
-        "Generated protos are different from precompiled protos."
+    assert!(
+        expected_file == generated_file,
+        "Generated protos are different from precompiled protos. Run 'cargo run --bin \
+         generate_protoc_output -q' to override precompiled protos with newly generated."
     );
-    // if expected_file != generated_file {
-    //     if fix {
-    //         fs::copy(generated_name, expected_name).expect("Failed to fix the precompiled
-    // protos");     } else {
-    //         panic!(
-    //             "Generated protos are different from precompiled protos. Run `PROTO_FIX=1 cargo \
-    //              test -p papyrus_protobuf test_proto_regression` to fix the precompiled protos."
-    //         );
-    //     }
-    // }
 }

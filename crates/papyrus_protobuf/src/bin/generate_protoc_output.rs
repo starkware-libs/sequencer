@@ -1,5 +1,29 @@
-use papyrus_protobuf::regression_test_utils::{generate_protos, PROTO_DIR, PROTO_FILES};
+use std::fs;
+use std::path::Path;
+
+use papyrus_protobuf::regression_test_utils::{
+    generate_protos,
+    PROTOC_OUTPUT,
+    PROTO_DIR,
+    PROTO_FILES,
+};
 
 fn main() {
-    generate_protos(PROTO_DIR.into(), PROTO_FILES).unwrap();
+    let out_dir = String::from("crates/papyrus_protobuf/") + PROTO_DIR;
+
+    generate_protos(out_dir.clone().into(), PROTO_FILES).unwrap();
+
+    fs::rename(Path::new(&out_dir).join("_.rs"), Path::new(&out_dir).join(PROTOC_OUTPUT)).unwrap();
+
+    for file in fs::read_dir(out_dir).unwrap() {
+        let file = file.unwrap();
+        let file_name = file.file_name().into_string().unwrap();
+        if file_name != PROTOC_OUTPUT {
+            if file.path().is_file() {
+                fs::remove_file(file.path()).unwrap();
+            } else {
+                fs::remove_dir_all(file.path()).unwrap();
+            }
+        }
+    }
 }
