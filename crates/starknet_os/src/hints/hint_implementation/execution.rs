@@ -83,12 +83,6 @@ pub(crate) fn is_deprecated<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn os_context_segments<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
-) -> HintResult {
-    todo!()
-}
-
 pub(crate) fn enter_syscall_scopes<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {

@@ -104,7 +104,6 @@ use crate::hints::hint_implementation::execution::{
     is_reverted,
     load_next_tx,
     log_enter_syscall,
-    os_context_segments,
     prepare_constructor_execution,
     set_ap_to_tx_nonce,
     set_fp_plus_4_to_tx_nonce,
@@ -215,10 +214,6 @@ use crate::hints::hint_implementation::syscalls::{
     set_syscall_ptr,
     storage_read,
     storage_write,
-};
-use crate::hints::hint_implementation::transaction_hash::{
-    additional_data_new_segment,
-    data_to_hash_new_segment,
 };
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::{define_hint_enum, define_hint_extension_enum};
@@ -525,7 +520,6 @@ define_hint_enum!(
         prepare_state_entry_for_revert,
         indoc! {r#"# Fetch a state_entry in this hint and validate it in the update that comes next.
         ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-        ids.new_state_entry = segments.add()
 
         # Fetch the relevant storage.
         storage = execution_helper.storage_by_address[ids.contract_address]"#}
@@ -728,7 +722,6 @@ define_hint_enum!(
         indoc! {r##"
     # Creates a set of deprecated class hashes to distinguish calls to deprecated entry points.
     __deprecated_class_hashes=set(os_input.deprecated_compiled_classes.keys())
-    ids.compiled_class_facts = segments.add()
     ids.n_compiled_class_facts = len(os_input.deprecated_compiled_classes)
     vm_enter_scope({
         'compiled_class_facts': iter(os_input.deprecated_compiled_classes.items()),
@@ -942,8 +935,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"
 	# Fetch a state_entry in this hint. Validate it in the update that comes next.
 	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-	    ids.BLOCK_HASH_CONTRACT_ADDRESS]
-	ids.new_state_entry = segments.add()"#
+	    ids.BLOCK_HASH_CONTRACT_ADDRESS]"#
         }
     ),
     (
@@ -951,8 +943,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         get_contract_address_state_entry_and_set_new_state_entry,
         indoc! {r#"
     # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    ids.new_state_entry = segments.add()"#
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
         }
     ),
     (
@@ -962,9 +953,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
 	# Fetch a state_entry in this hint and validate it in the update that comes next.
 	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
 	    ids.contract_address
-	]
-
-	ids.new_state_entry = segments.add()"#
+	]"#
         }
     ),
     (
@@ -973,14 +962,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         "is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0"
     ),
     (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
-    (
-        OsContextSegments,
-        os_context_segments,
-        indoc! {r#"
-    ids.os_context = segments.add()
-    ids.syscall_ptr = segments.add()"#
-        }
-    ),
     (
         EnterSyscallScopes,
         enter_syscall_scopes,
@@ -1241,9 +1222,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
 	storage.write(key=ids.syscall_ptr.address, value=ids.syscall_ptr.value)
 
 	# Fetch a state_entry in this hint and validate it in the update that comes next.
-	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-
-	ids.new_state_entry = segments.add()"#
+	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
         }
     ),
     (
@@ -1255,8 +1234,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     storage.write(key=ids.request.key, value=ids.request.value)
 
     # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    ids.new_state_entry = segments.add()"#
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
         }
     ),
     (
@@ -1674,10 +1652,7 @@ memory[ap] = 1 if case != 'both' else 0"#
         SetSyscallPtr,
         set_syscall_ptr,
         indoc! {r#"
-	ids.os_context = segments.add()
-	ids.syscall_ptr = segments.add()
-
-	syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr)"#
+        syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr)"#
         }
     ),
     (
@@ -1702,20 +1677,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         }
     ),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
-    (
-        AdditionalDataNewSegment,
-        additional_data_new_segment,
-        indoc! {r#"
-            ids.additional_data = segments.add()"#
-        }
-    ),
-    (
-        DataToHashNewSegment,
-        data_to_hash_new_segment,
-        indoc! {r#"
-        ids.data_to_hash = segments.add()"#
-        }
-    ),
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
     (
         StarknetOsInput,
