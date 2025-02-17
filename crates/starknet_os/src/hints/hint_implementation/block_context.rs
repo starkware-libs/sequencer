@@ -16,8 +16,11 @@ pub(crate) fn bytecode_segment_structure(
     todo!()
 }
 
-pub(crate) fn block_number(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
+pub(crate) fn block_number(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+) -> HintResult {
+    let block_number = hint_processor.execution_helper.block_info.block_number;
+    insert_value_into_ap(vm, Felt::from(block_number.0))
 }
 
 pub(crate) fn block_timestamp(
