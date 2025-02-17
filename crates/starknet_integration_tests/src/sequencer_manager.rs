@@ -388,6 +388,7 @@ pub async fn get_sequencer_setup_configs(
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
         node_component_configs.len(),
+        &chain_info.chain_id,
     );
 
     let node_indices: HashSet<usize> = (0..node_component_configs.len()).collect();
