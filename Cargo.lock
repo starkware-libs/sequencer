@@ -11465,6 +11465,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_infra_utils",
+ "starknet_sequencer_metrics",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
