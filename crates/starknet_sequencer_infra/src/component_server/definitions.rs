@@ -4,7 +4,7 @@ use crate::errors::ReplaceComponentError;
 
 #[async_trait]
 pub trait ComponentServerStarter {
-    async fn start(&mut self) -> ();
+    async fn start(&mut self);
 }
 
 pub trait ComponentReplacer<Component> {
