@@ -11,11 +11,11 @@ use papyrus_protobuf::consensus::{
     StreamMessage,
     StreamMessageBody,
 };
-use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
+use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
@@ -92,6 +92,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
             .consensus_config
             .validator_id;
         // TODO(Dan, Itay): Consider adding a utility function that waits for something to happen.
+        let chain_id = mock_running_system.chain_id().clone();
         tokio::time::timeout(
             LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
             listen_to_broadcasted_messages(
@@ -100,6 +101,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
                 height,
                 expected_content_id,
                 expected_validator_id,
+                &chain_id,
             ),
         )
         .await
@@ -162,8 +164,8 @@ async fn listen_to_broadcasted_messages(
     expected_height: BlockNumber,
     expected_content_id: ExpectedContentId,
     expected_proposer_id: ValidatorId,
+    chain_id: &ChainId,
 ) {
-    let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let broadcasted_messages_receiver =
         &mut consensus_proposals_channels.broadcasted_messages_receiver;
     // Collect messages in a map so that validations will use the ordering defined by `message_id`,
@@ -246,10 +248,10 @@ async fn listen_to_broadcasted_messages(
                     ConsensusTransaction::RpcTransaction(tx) => {
                         let starknet_api_tx =
                             starknet_api::transaction::Transaction::from(tx.clone());
-                        starknet_api_tx.calculate_transaction_hash(&chain_id).unwrap()
+                        starknet_api_tx.calculate_transaction_hash(chain_id).unwrap()
                     }
                     ConsensusTransaction::L1Handler(tx) => {
-                        tx.calculate_transaction_hash(&chain_id, &TransactionVersion::ZERO).unwrap()
+                        tx.calculate_transaction_hash(chain_id, &TransactionVersion::ZERO).unwrap()
                     }
                 }));
             }
