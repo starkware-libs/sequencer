@@ -21,4 +21,3 @@ pub(crate) mod state;
 pub(crate) mod stateful_compression;
 pub(crate) mod stateless_compression;
 pub(crate) mod syscalls;
-pub(crate) mod transaction_hash;
