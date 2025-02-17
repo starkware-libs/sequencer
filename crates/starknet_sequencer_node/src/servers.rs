@@ -27,7 +27,6 @@ use starknet_sequencer_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
-use starknet_sequencer_infra::errors::ComponentServerError;
 use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
 use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
@@ -344,7 +343,7 @@ async fn create_servers<ReturnType: Send + 'static>(
 }
 
 impl LocalServers {
-    async fn run(self) -> JoinSet<(Result<(), ComponentServerError>, String)> {
+    async fn run(self) -> JoinSet<((), String)> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
@@ -431,7 +430,7 @@ pub fn create_remote_servers(
 }
 
 impl RemoteServers {
-    async fn run(self) -> JoinSet<(Result<(), ComponentServerError>, String)> {
+    async fn run(self) -> JoinSet<((), String)> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Remote Batcher"),
             server_future_and_label(self.class_manager, "Remote Class Manager"),
@@ -487,7 +486,7 @@ fn create_wrapper_servers(
 }
 
 impl WrapperServers {
-    async fn run(self) -> JoinSet<(Result<(), ComponentServerError>, String)> {
+    async fn run(self) -> JoinSet<((), String)> {
         create_servers(vec![
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
@@ -516,14 +515,11 @@ pub fn create_node_servers(
 
 type JoinSetResult<T> = Option<Result<T, JoinError>>;
 
-fn get_server_error(
-    result: JoinSetResult<(Result<(), ComponentServerError>, String)>,
-) -> anyhow::Result<()> {
+fn get_server_error(result: JoinSetResult<((), String)>) -> anyhow::Result<()> {
     if let Some(result) = result {
         match result {
-            Ok((res, label)) => {
-                error!("{} Server stopped", label);
-                Ok(res?)
+            Ok((_, label)) => {
+                panic!("{} Server stopped", label);
             }
             Err(e) => {
                 error!("Error while waiting for the first task: {:?}", e);
@@ -563,7 +559,7 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     result
 }
 
-type ComponentServerFuture = Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>>;
+type ComponentServerFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 
 fn get_server_future(
     server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
