@@ -1,4 +1,4 @@
-use crate::metrics::{MetricCounter, MetricGauge, MetricScope};
+use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
 
 #[cfg(test)]
 #[path = "metric_definitions_test.rs"]
@@ -32,6 +32,41 @@ macro_rules! define_counter_metrics {
         )*
 
         pub const ALL_METRIC_COUNTERS: &[MetricCounter] = &[
+            $(
+                $($name),*
+            ),*
+        ];
+    };
+}
+
+/// Macro to define `LabeledMetricCounter` constants for specified scopes and store them in a
+/// collection. This generates:
+/// - Individual `LabeledMetricCounter` constants (e.g., `TRANSACTIONS_RECEIVED`).
+/// - A const array `ALL_METRIC_COUNTERS` containing all defined `LabeledMetricCounter` constants.
+macro_rules! define_labeled_counter_metrics {
+    (
+        $(
+            $scope:expr => {
+                $(
+                    { $name:ident, $key:expr, $desc:expr, $init:expr }
+                ),*
+                $(,)?
+            }
+        ),*
+        $(,)?
+    ) => {
+        $(
+            $(
+                pub const $name: LabeledMetricCounter = LabeledMetricCounter::new(
+                    $scope,
+                    $key,
+                    $desc,
+                    $init
+                );
+            )*
+        )*
+
+        pub const ALL_LABELED_METRIC_COUNTERS: &[LabeledMetricCounter] = &[
             $(
                 $($name),*
             ),*
@@ -144,3 +179,5 @@ define_counter_metrics!(
         { CONSENSUS_NUM_RECEIVED_MESSAGES, "apollo_consensus_num_received_messages", "The number of messages received by the consensus p2p component", 0 },
     },
 );
+
+define_labeled_counter_metrics!();
