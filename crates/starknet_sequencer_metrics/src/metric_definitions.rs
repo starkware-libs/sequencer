@@ -39,6 +39,43 @@ macro_rules! define_counter_metrics {
     };
 }
 
+/// Macro to define `LabeledMetricCounter` constants for specified scopes and store them in a
+/// collection. This generates:
+/// - Individual `LabeledMetricCounter` constants (e.g., `TRANSACTIONS_RECEIVED`).
+/// - A const array `ALL_METRIC_COUNTERS` containing all defined `LabeledMetricCounter` constants.
+// TODO(Yael): This this line once the macro is used
+#[allow(unused_macros)]
+macro_rules! define_labeled_counter_metrics {
+    (
+        $(
+            $scope:expr => {
+                $(
+                    { $name:ident, $key:expr, $desc:expr, $init:expr }
+                ),*
+                $(,)?
+            }
+        ),*
+        $(,)?
+    ) => {
+        $(
+            $(
+                pub const $name: LabeledMetricCounter = LabeledMetricCounter::new(
+                    $scope,
+                    $key,
+                    $desc,
+                    $init
+                );
+            )*
+        )*
+
+        pub const ALL_METRIC_LABELED_COUNTERS: &[LabeledMetricCounter] = &[
+            $(
+                $($name),*
+            ),*
+        ];
+    };
+}
+
 /// Macro to define `MetricGauge` constants for specified scopes and store them in a collection.
 /// This generates:
 /// - Individual `MetricGauge` constants (e.g., `STORAGE_HEIGHT`).
