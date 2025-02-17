@@ -218,6 +218,7 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
+                tokio::runtime::Handle::current(),
             )
             .map_err(|_| BatcherError::InternalError)?;
 
@@ -282,6 +283,7 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 None,
+                tokio::runtime::Handle::current(),
             )
             .map_err(|_| BatcherError::InternalError)?;
 

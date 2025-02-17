@@ -1,7 +1,6 @@
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
-use futures::executor::block_on;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -12,11 +11,17 @@ use starknet_types_core::felt::Felt;
 pub struct ReaderWithClassManager<S: StateReader> {
     state_reader: S,
     class_manager_client: SharedClassManagerClient,
+    // Need the rt in order to call async functions of class_manager_client.
+    tokio_rt: tokio::runtime::Handle,
 }
 
 impl<S: StateReader> ReaderWithClassManager<S> {
-    pub fn new(state_reader: S, class_manager_client: SharedClassManagerClient) -> Self {
-        Self { state_reader, class_manager_client }
+    pub fn new(
+        state_reader: S,
+        class_manager_client: SharedClassManagerClient,
+        tokio_rt: tokio::runtime::Handle,
+    ) -> Self {
+        Self { state_reader, class_manager_client, tokio_rt }
     }
 }
 
@@ -38,7 +43,9 @@ impl<S: StateReader> StateReader for ReaderWithClassManager<S> {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = block_on(self.class_manager_client.get_executable(class_hash))
+        let contract_class = self
+            .tokio_rt
+            .block_on(self.class_manager_client.get_executable(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
