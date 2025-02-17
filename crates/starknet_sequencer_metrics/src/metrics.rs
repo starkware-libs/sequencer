@@ -8,6 +8,7 @@ use regex::{escape, Regex};
 #[derive(Clone, Copy, Debug)]
 pub enum MetricScope {
     Batcher,
+    Gateway,
     HttpServer,
     Network,
     PapyrusSync,
@@ -51,8 +52,20 @@ impl MetricCounter {
         counter!(self.name).increment(value);
     }
 
+    pub fn incerement_with_labels(&self, value: u64, labels: &[(&'static str, &'static str)]) {
+        counter!(self.name, labels).increment(value);
+    }
+
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
+    }
+
+    pub fn parse_numeric_metric_with_labels<T: Num + FromStr>(
+        &self,
+        metrics_as_string: &str,
+        labels: &[(&'static str, &'static str)],
+    ) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name(), Some(labels))
     }
 }
 
@@ -96,7 +109,7 @@ impl MetricGauge {
     }
 
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
-        parse_numeric_metric::<T>(metrics_as_string, self.get_name())
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
     }
 
     pub fn set<T: IntoF64>(&self, value: T) {
@@ -124,9 +137,24 @@ impl MetricGauge {
 pub fn parse_numeric_metric<T: Num + FromStr>(
     metrics_as_string: &str,
     metric_name: &str,
+    labels: Option<&[(&'static str, &'static str)]>,
 ) -> Option<T> {
-    // Create a regex to match "metric_name <number>".
-    let pattern = format!(r"{}\s+(\d+)", escape(metric_name));
+    // Construct a regex pattern to match Prometheus-style metrics.
+    // - If there are no labels, it matches: "metric_name <number>" (e.g., `http_requests_total
+    //   123`).
+    // - If labels are present, it matches: "metric_name{label1="value1",label2="value2",...}
+    //   <number>" (e.g., `http_requests_total{method="POST",status="200"} 123`).
+    let mut labels_pattern = "".to_string();
+    if let Some(labels) = labels {
+        // Create a regex to match "{label1="value1",label2="value2",...}".
+        let inner_pattern = labels
+            .iter()
+            .map(|(k, v)| format!(r#"{}="{}""#, escape(k), escape(v)))
+            .collect::<Vec<_>>()
+            .join(r",");
+        labels_pattern = format!(r#"\{{{}\}}"#, inner_pattern)
+    };
+    let pattern = format!(r#"{}{}\s+(\d+)"#, escape(metric_name), labels_pattern);
     let re = Regex::new(&pattern).expect("Invalid regex");
 
     // Search for the pattern in the output.
