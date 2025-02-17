@@ -338,7 +338,7 @@ fn nonce_to_usize(nonce: Nonce) -> usize {
     usize::from_str_radix(unprefixed_hex, 16).unwrap()
 }
 
-pub(crate) async fn get_sequencer_setup_configs(
+pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
