@@ -417,11 +417,12 @@ define_hint_enum!(
     )
     ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
     ),
+    // TODO(Meshi): Add correct implementation.
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
         indoc! {r#"
-    memory[fp + 24] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
+    memory[fp + 17] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
         not os_input.full_output
     ))"#}
     ),
@@ -1341,10 +1342,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             ids.res = log2_ceil(ids.value)"#
         }
     ),
+    // TODO(Meshi): Add correct implementation.
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 25] = to_felt_or_relocatable(os_input.full_output)"#}
+        indoc! {r#"memory[fp + 18] = to_felt_or_relocatable(os_input.full_output)"#}
     ),
     (
         ConfigureKzgManager,
@@ -1666,17 +1668,15 @@ memory[ap] = 1 if case != 'both' else 0"#
         ids.data_to_hash = segments.add()"#
         }
     ),
+    // TODO(Meshi): Add the correct implementation.
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
     (
         StarknetOsInput,
         starknet_os_input,
         indoc! {r#"
-    from starkware.starknet.core.os.os_input import StarknetOsInput
+        from starkware.starknet.core.os.os_input import StarknetOsInput
 
-    os_input = StarknetOsInput.load(data=program_input)
-
-    ids.initial_carried_outputs.messages_to_l1 = segments.add_temp_segment()
-    ids.initial_carried_outputs.messages_to_l2 = segments.add_temp_segment()"#
+        os_input = StarknetOsInput.load(data=program_input)"#
         }
     ),
     (
