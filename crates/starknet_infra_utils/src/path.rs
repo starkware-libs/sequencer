@@ -43,7 +43,7 @@ pub fn project_path() -> Result<PathBuf, std::io::Error> {
     resolve_project_relative_path(".")
 }
 
-fn path_of_project_root() -> PathBuf {
+pub fn path_of_project_root() -> PathBuf {
     // Ascend two directories to get to the project root. This assumes that the project root is two
     // directories above the current file.
     PathBuf::from(compile_time_cargo_manifest_dir!())
