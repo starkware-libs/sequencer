@@ -69,10 +69,6 @@ pub(crate) fn is_deprecated(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -
     todo!()
 }
 
-pub(crate) fn os_context_segments(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
 pub(crate) fn enter_syscall_scopes(
     HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
 ) -> HintResult {
