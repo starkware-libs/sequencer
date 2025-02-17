@@ -1,4 +1,5 @@
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{HintExtensionResult, HintResult};
 use crate::hints::types::HintArgs;
@@ -19,8 +20,11 @@ pub(crate) fn block_number(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) ->
     todo!()
 }
 
-pub(crate) fn block_timestamp(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
+pub(crate) fn block_timestamp(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+) -> HintResult {
+    let block_timestamp = hint_processor.execution_helper.block_info.block_timestamp;
+    insert_value_into_ap(vm, Felt::from(block_timestamp.0))
 }
 
 pub(crate) fn chain_id(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
