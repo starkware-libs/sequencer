@@ -13,6 +13,7 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
+use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -69,6 +70,7 @@ impl FlowTestSetup {
         let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(
                 available_ports.get_next_ports(SEQUENCER_INDICES.len() + 1),
+                &chain_info.chain_id,
             );
         let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
             2] = consensus_manager_configs.try_into().unwrap();
@@ -111,6 +113,10 @@ impl FlowTestSetup {
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
         self.sequencer_0.add_tx_http_client.assert_add_tx_error(tx).await
+    }
+
+    pub fn chain_id(&self) -> &ChainId {
+        &self.sequencer_0.node_config.gateway_config.chain_info.chain_id
     }
 }
 
@@ -220,6 +226,7 @@ impl FlowSequencerSetup {
 
 pub fn create_consensus_manager_configs_and_channels(
     ports: Vec<u16>,
+    chain_id: &ChainId,
 ) -> (
     Vec<ConsensusManagerConfig>,
     BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
@@ -230,8 +237,11 @@ pub fn create_consensus_manager_configs_and_channels(
     let channels_network_config = network_configs.pop().unwrap();
 
     let n_network_configs = network_configs.len();
-    let consensus_manager_configs =
-        create_consensus_manager_configs_from_network_configs(network_configs, n_network_configs);
+    let consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
+        network_configs,
+        n_network_configs,
+        chain_id,
+    );
 
     let broadcast_channels = network_config_into_broadcast_channels(
         channels_network_config,
