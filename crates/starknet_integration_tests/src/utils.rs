@@ -189,6 +189,7 @@ pub fn create_node_config(
 pub(crate) fn create_consensus_manager_configs_from_network_configs(
     network_configs: Vec<NetworkConfig>,
     n_composed_nodes: usize,
+    chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
     // TODO(Matan, Dan): set reasonable default timeouts.
     let mut timeouts = TimeoutsConfig::default();
@@ -212,7 +213,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             },
             context_config: ContextConfig {
                 num_validators,
-                chain_id: papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS.clone(),
+                chain_id: chain_id.clone(),
                 ..Default::default()
             },
             cende_config: CendeConfig{
