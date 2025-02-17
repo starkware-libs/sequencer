@@ -18,8 +18,15 @@ type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
 pub enum TransactionProviderError {
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
-    #[error("L1Handler transaction validation failed for tx with hash {0}.")]
-    L1HandlerTransactionValidationFailed(TransactionHash),
+    #[error(
+        "L1Handler transaction validation failed for tx with hash {} status {:?}",
+        tx_hash.0.to_hex_string(),
+        validation_status
+    )]
+    L1HandlerTransactionValidationFailed {
+        tx_hash: TransactionHash,
+        validation_status: L1ValidationStatus,
+    },
     #[error(transparent)]
     L1ProviderError(#[from] L1ProviderClientError),
 }
@@ -150,10 +157,10 @@ impl TransactionProvider for ValidateTransactionProvider {
                 let l1_validation_status =
                     self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
                 if l1_validation_status != L1ValidationStatus::Validated {
-                    // TODO(AlonH): add the validation status into the error.
-                    return Err(TransactionProviderError::L1HandlerTransactionValidationFailed(
-                        tx.tx_hash,
-                    ));
+                    return Err(TransactionProviderError::L1HandlerTransactionValidationFailed {
+                        tx_hash: tx.tx_hash,
+                        validation_status: l1_validation_status,
+                    });
                 }
             }
         }

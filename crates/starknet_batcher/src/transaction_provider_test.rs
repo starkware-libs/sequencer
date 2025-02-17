@@ -218,6 +218,6 @@ async fn validate_fails(mut mock_dependencies: MockDependencies) {
     let result = validate_tx_provider.get_txs(MAX_TXS_PER_FETCH).await;
     assert_matches!(
         result,
-        Err(TransactionProviderError::L1HandlerTransactionValidationFailed(_tx_hash))
+        Err(TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
     );
 }
