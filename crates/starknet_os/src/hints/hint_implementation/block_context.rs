@@ -1,4 +1,5 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 
 use crate::hints::error::{HintExtensionResult, HintResult};
 use crate::hints::types::HintArgs;
@@ -37,8 +38,11 @@ pub(crate) fn deprecated_fee_token_address<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn sequencer_address<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
+pub(crate) fn sequencer_address<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+) -> HintResult {
+    let address = hint_processor._execution_helper._os_input.block_info.sequencer_address;
+    insert_value_into_ap(vm, address.0.key())
 }
 
 pub(crate) fn get_block_mapping<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
