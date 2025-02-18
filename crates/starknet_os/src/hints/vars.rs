@@ -49,6 +49,8 @@ pub enum Ids {
     Sha256Ptr,
     StateUpdatesStart,
     UseKzgDa,
+    AliasesEntry,
+    OsStateUpdate,
 }
 
 impl From<Ids> for &'static str {
@@ -58,12 +60,14 @@ impl From<Ids> for &'static str {
             Ids::CompressedStart => "compressed_start",
             Ids::DictPtr => "dict_ptr",
             Ids::FullOutput => "full_output",
+            Ids::OsStateUpdate => "os_state_update",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
             Ids::PrevOffset => "prev_offset",
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::UseKzgDa => "use_kzg_da",
+            Ids::AliasesEntry => "aliases_entry",
         }
     }
 }
@@ -121,12 +125,14 @@ impl Const {
 }
 pub enum CairoStruct {
     DictAccess,
+    OsStateUpdate,
 }
 
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
+            CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
         }
     }
 }
