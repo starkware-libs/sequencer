@@ -479,7 +479,6 @@ impl ConsensusContext for SequencerConsensusContext {
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
-        // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.last_block_timestamp = Some(block_info.timestamp);
@@ -774,7 +773,7 @@ async fn get_proposal_content(
                 // can't finish the proposal.
                 match cende_write_success.now_or_never() {
                     Some(Ok(true)) => {
-                        debug!("Writing blob to Aerospike completed.");
+                        debug!("Writing blob to Aerospike completed successfully.");
                     }
                     Some(Ok(false)) => {
                         warn!("Writing blob to Aerospike failed.");
