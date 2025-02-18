@@ -7,6 +7,7 @@ use starknet_types_core::felt::Felt;
 
 pub(crate) enum Scope {
     InitialDict,
+    DictManager,
     DictTracker,
 }
 
@@ -14,6 +15,7 @@ impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
             Scope::InitialDict => "initial_dict",
+            Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
         }
     }
