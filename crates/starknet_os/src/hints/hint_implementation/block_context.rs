@@ -1,60 +1,80 @@
+use blockifier::state::state_api::StateReader;
+
 use crate::hints::error::{HintExtensionResult, HintResult};
 use crate::hints::types::HintArgs;
 
 // Hint implementations.
 
-pub(crate) fn load_class_inner(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub(crate) fn bytecode_segment_structure(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+pub(crate) fn load_class_inner<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {
     todo!()
 }
 
-pub(crate) fn block_number(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub(crate) fn block_timestamp(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub(crate) fn chain_id(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub(crate) fn fee_token_address(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
-}
-
-pub(crate) fn deprecated_fee_token_address(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+pub(crate) fn bytecode_segment_structure<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {
     todo!()
 }
 
-pub(crate) fn sequencer_address(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
+pub(crate) fn block_number<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
     todo!()
 }
 
-pub(crate) fn get_block_mapping(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
+pub(crate) fn block_timestamp<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
     todo!()
 }
 
-pub(crate) fn is_leaf(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
+pub(crate) fn chain_id<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
     todo!()
 }
 
-pub(crate) fn write_use_kzg_da_to_memory(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+pub(crate) fn fee_token_address<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
+    todo!()
+}
+
+pub(crate) fn deprecated_fee_token_address<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
+    todo!()
+}
+
+pub(crate) fn sequencer_address<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
+    todo!()
+}
+
+pub(crate) fn get_block_mapping<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
+    todo!()
+}
+
+pub(crate) fn is_leaf<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
+    todo!()
+}
+
+pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {
     todo!()
 }
 
 // Hint extension implementations.
 
-pub(crate) fn load_class(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintExtensionResult {
+pub(crate) fn load_class<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintExtensionResult {
     todo!()
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
@@ -21,8 +22,16 @@ pub trait HintEnum {
 
 // TODO(Dori): After hints are implemented, try removing the different lifetime params - probably
 //   not all are needed (hopefully only one is needed).
-pub struct HintArgs<'processor, 'vm, 'exec_scopes, 'ids_data, 'ap_tracking, 'constants> {
-    pub hint_processor: &'processor mut SnosHintProcessor,
+pub struct HintArgs<
+    'processor,
+    'vm,
+    'exec_scopes,
+    'ids_data,
+    'ap_tracking,
+    'constants,
+    S: StateReader,
+> {
+    pub hint_processor: &'processor mut SnosHintProcessor<S>,
     pub vm: &'vm mut VirtualMachine,
     pub exec_scopes: &'exec_scopes mut ExecutionScopes,
     pub ids_data: &'ids_data HashMap<String, HintReference>,
@@ -32,15 +41,18 @@ pub struct HintArgs<'processor, 'vm, 'exec_scopes, 'ids_data, 'ap_tracking, 'con
 
 /// Executes the hint logic.
 pub trait HintImplementation {
-    fn execute_hint(&self, hint_args: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult;
+    fn execute_hint<S: StateReader>(
+        &self,
+        hint_args: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+    ) -> HintResult;
 }
 
 /// Hint extensions extend the current map of hints used by the VM.
 /// This behaviour achieves what the `vm_load_data` primitive does for cairo-lang and is needed to
 /// implement OS hints like `vm_load_program`.
 pub trait HintExtensionImplementation {
-    fn execute_hint_extensive(
+    fn execute_hint_extensive<S: StateReader>(
         &self,
-        hint_extension_args: HintArgs<'_, '_, '_, '_, '_, '_>,
+        hint_extension_args: HintArgs<'_, '_, '_, '_, '_, '_, S>,
     ) -> HintExtensionResult;
 }

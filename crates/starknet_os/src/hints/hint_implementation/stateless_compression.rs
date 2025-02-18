@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_maybe_relocatable_from_var_name,
     get_ptr_from_var_name,
@@ -17,8 +18,8 @@ const N_BITS_PER_BUCKET: [usize; 6] = [252, 125, 83, 62, 31, 15];
 /// Number of buckets, including the repeating values bucket.
 const TOTAL_N_BUCKETS: usize = N_BITS_PER_BUCKET.len() + 1;
 
-pub(crate) fn dictionary_from_bucket(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+pub(crate) fn dictionary_from_bucket<S: StateReader>(
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
@@ -27,8 +28,8 @@ pub(crate) fn dictionary_from_bucket(
     Ok(())
 }
 
-pub(crate) fn get_prev_offset(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+pub(crate) fn get_prev_offset<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {
     let dict_manager = exec_scopes.get_dict_manager()?;
 
@@ -43,12 +44,14 @@ pub(crate) fn get_prev_offset(
     insert_value_from_var_name(Ids::PrevOffset.into(), prev_offset, vm, ids_data, ap_tracking)
 }
 
-pub(crate) fn compression_hint(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
+pub(crate) fn compression_hint<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+) -> HintResult {
     todo!()
 }
 
-pub(crate) fn set_decompressed_dst(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+pub(crate) fn set_decompressed_dst<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
 ) -> HintResult {
     todo!()
 }
