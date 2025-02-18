@@ -1,6 +1,6 @@
 {
   "base_layer_config.node_url": "https://node_url/",
-  "chain_id": "SN_GOERLI",
+  "chain_id": "CHAIN_ID_SUBDIR",
   "eth_fee_token_address": "0x2",
   "recorder_url": "https://recorder_url/",
   "strk_fee_token_address": "0x3",
