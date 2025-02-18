@@ -17,9 +17,11 @@ deserialize = [
 testing = ["dep:strum", "dep:strum_macros"]
 
 [dependencies]
+bitvec.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
+indexmap.workspace = true
 indoc.workspace = true
 num-bigint.workspace = true
 num-traits.workspace = true

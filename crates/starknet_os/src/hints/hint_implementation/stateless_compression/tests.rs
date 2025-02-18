@@ -8,8 +8,10 @@ use starknet_types_core::felt::Felt;
 
 use super::utils::{pack_in_felts, SizedBitsVec};
 use crate::hints::hint_implementation::stateless_compression::utils::{
+    get_bucket_offsets,
     get_n_elms_per_felt,
     pack_usize_in_felts,
+    CompressionSet,
     UpperBound,
     MAX_N_BITS,
 };
@@ -90,4 +92,58 @@ fn test_usize_pack_and_unpack() {
     let packed = pack_usize_in_felts(&nums, elm_bound);
     let unpacked = unpack_felts_to_usize(packed.as_ref(), nums.len(), elm_bound);
     assert_eq!(nums.to_vec(), unpacked);
+}
+
+#[test]
+fn test_get_bucket_offsets() {
+    let lengths = vec![2, 3, 5];
+    let offsets = get_bucket_offsets(&lengths);
+    assert_eq!(offsets, [0, 2, 5]);
+}
+
+#[test]
+fn test_update_with_unique_values() {
+    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let values = vec![Felt::from(42), Felt::from(12833943439439439_u64), Felt::from(1283394343)];
+
+    compression_set.update(&values);
+
+    let unique_lengths = compression_set.get_unique_value_bucket_lengths();
+    assert_eq!(unique_lengths, vec![1, 0, 1]);
+}
+
+#[test]
+fn test_update_with_repeated_values() {
+    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let values = vec![Felt::from(42), Felt::from(42)];
+
+    compression_set.update(&values);
+
+    let unique_lengths = compression_set.get_unique_value_bucket_lengths();
+    assert_eq!(unique_lengths, vec![1, 0, 0]);
+    assert_eq!(compression_set.get_repeating_value_bucket_length(), 1);
+}
+
+#[test]
+fn test_get_repeating_value_pointers_with_repeated_values() {
+    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let values = vec![Felt::from(42), Felt::from(42)];
+
+    compression_set.update(&values);
+    compression_set.finalize();
+
+    let pointers = compression_set.get_repeating_value_pointers();
+    assert_eq!(pointers, [0]);
+}
+
+#[test]
+fn test_get_repeating_value_pointers_with_no_repeated_values() {
+    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let values = vec![Felt::from(42), Felt::from(128)];
+
+    compression_set.update(&values);
+    compression_set.finalize();
+
+    let pointers = compression_set.get_repeating_value_pointers();
+    assert!(pointers.is_empty());
 }

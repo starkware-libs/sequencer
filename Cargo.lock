@@ -11433,9 +11433,11 @@ dependencies = [
 name = "starknet_os"
 version = "0.0.0"
 dependencies = [
+ "bitvec",
  "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
+ "indexmap 2.7.0",
  "indoc 2.0.5",
  "num-bigint 0.4.6",
  "num-integer",
