@@ -8,7 +8,6 @@ use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{info, instrument};
 
 use crate::config::MonitoringEndpointConfig;
@@ -94,9 +93,9 @@ pub fn create_monitoring_endpoint(
 
 #[async_trait]
 impl ComponentStarter for MonitoringEndpoint {
-    async fn start(&mut self) -> Result<(), ComponentError> {
+    async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
-        self.run().await.map_err(|_| ComponentError::InternalComponentError)
+        self.run().await.unwrap_or_else(|e| panic!("Failed to start MointoringEndpoint: {:?}", e));
     }
 }
 

@@ -36,7 +36,6 @@ use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockO
 use starknet_client::reader::PendingData;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
-use starknet_sequencer_infra::errors::ComponentError;
 use starknet_sequencer_metrics::metric_definitions::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
@@ -58,19 +57,19 @@ pub struct StateSyncRunner {
 
 #[async_trait]
 impl ComponentStarter for StateSyncRunner {
-    async fn start(&mut self) -> Result<(), ComponentError> {
+    async fn start(&mut self) {
         tokio::select! {
-            result = &mut self.network_future => {
-                result.map_err(|_| ComponentError::InternalComponentError)
+            _ = &mut self.network_future => {
+                panic!("StateSyncRunner failed - network stopped unexpectedly");
             }
-            result = &mut self.p2p_sync_client_future => {
-                result.map_err(|_| ComponentError::InternalComponentError).map(|_never| ())
+            _ = &mut self.p2p_sync_client_future => {
+                panic!("StateSyncRunner failed - p2p sync client stopped unexpectedly");
             }
             _never = &mut self.p2p_sync_server_future => {
                 unreachable!("Return type Never should never be constructed")
             }
-            result = &mut self.central_sync_client_future => {
-                result.map_err(|_| ComponentError::InternalComponentError)
+            _ = &mut self.central_sync_client_future => {
+                panic!("StateSyncRunner failed - central sync client stopped unexpectedly");
             }
             _never = &mut self.new_block_dev_null_future => {
                 unreachable!("Return type Never should never be constructed")
