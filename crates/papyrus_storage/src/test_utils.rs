@@ -3,18 +3,14 @@
 
 use std::fs::create_dir_all;
 use std::path::PathBuf;
-use std::sync::LazyLock;
 
 use starknet_api::core::ChainId;
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use tempfile::{tempdir, TempDir};
 
 use crate::db::DbConfig;
 use crate::mmap_file::MmapFileConfig;
 use crate::{open_storage, StorageConfig, StorageReader, StorageScope, StorageWriter};
-
-/// A chain id for tests.
-pub static CHAIN_ID_FOR_TESTS: LazyLock<ChainId> =
-    LazyLock::new(|| ChainId::Other("CHAIN_ID_SUBDIR".to_owned()));
 
 fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> StorageConfig {
     StorageConfig {
