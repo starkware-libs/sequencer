@@ -1,6 +1,10 @@
 use num_bigint::BigUint;
-use num_traits::Zero;
+use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
+
+pub(crate) const COMPRESSION_VERSION: u8 = 0;
+pub(crate) const HEADER_ELM_N_BITS: usize = 20;
+pub(crate) const HEADER_ELM_BOUND: usize = 1 << HEADER_ELM_N_BITS;
 
 /// Number of bits encoding each element (per bucket).
 pub(crate) const N_BITS_PER_BUCKET: [usize; 6] = [252, 125, 83, 62, 31, 15];
@@ -238,6 +242,36 @@ impl CompressionSet {
     pub fn finalize(&mut self) {
         self.finalized = true;
     }
+}
+
+/// Compresses the data provided to output a Vec of compressed Felts.
+pub(crate) fn compress(data: &[Felt]) -> Vec<Felt> {
+    assert!(data.len() < HEADER_ELM_BOUND.to_usize().unwrap(), "Data is too long.");
+
+    let mut compression_set = CompressionSet::new(&N_BITS_PER_BUCKET);
+    compression_set.update(data);
+    compression_set.finalize();
+
+    let bucket_index_per_elm = compression_set.get_bucket_index_per_elm();
+    let unique_value_bucket_lengths = compression_set.get_unique_value_bucket_lengths();
+    let n_unique_values: usize = unique_value_bucket_lengths.iter().sum();
+
+    let mut header: Vec<usize> = vec![COMPRESSION_VERSION.into(), data.len()];
+    header.extend(unique_value_bucket_lengths);
+    header.push(compression_set.get_repeating_value_bucket_length());
+
+    let packed_header = pack_usize_in_felts(&header, HEADER_ELM_BOUND);
+    let packed_repeating_value_pointers =
+        pack_usize_in_felts(&compression_set.get_repeating_value_pointers(), n_unique_values);
+    let packed_bucket_index_per_elm = pack_usize_in_felts(&bucket_index_per_elm, TOTAL_N_BUCKETS);
+
+    let unique_values = compression_set.pack_unique_values();
+    let mut result = Vec::new();
+    result.extend(packed_header);
+    result.extend(unique_values);
+    result.extend(packed_repeating_value_pointers);
+    result.extend(packed_bucket_index_per_elm);
+    result
 }
 
 /// Computes the starting offsets for each bucket in a list of buckets, based on their lengths.
