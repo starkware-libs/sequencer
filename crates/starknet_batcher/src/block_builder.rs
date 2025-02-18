@@ -17,7 +17,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
@@ -185,7 +185,7 @@ impl BlockBuilderTrait for BlockBuilder {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         let mut l2_gas_used = GasAmount::ZERO;
-        let mut rejected_tx_hashes = HashSet::new();
+        let mut metadata = BlockExecutionMetadata::default();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
@@ -247,7 +247,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 results,
                 &mut l2_gas_used,
                 &mut execution_infos,
-                &mut rejected_tx_hashes,
+                &mut metadata,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
             )
@@ -257,7 +257,7 @@ impl BlockBuilderTrait for BlockBuilder {
             self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
-            metadata: BlockExecutionMetadata { rejected_tx_hashes },
+            metadata,
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
@@ -272,7 +272,7 @@ async fn collect_execution_results_and_stream_txs(
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     l2_gas_used: &mut GasAmount,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
-    rejected_tx_hashes: &mut HashSet<TransactionHash>,
+    metadata: &mut BlockExecutionMetadata,
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
@@ -300,7 +300,13 @@ async fn collect_execution_results_and_stream_txs(
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
-                execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
+
+                let tx_hash = input_tx.tx_hash();
+                execution_infos.insert(tx_hash, tx_execution_info);
+                if matches!(input_tx, InternalConsensusTransaction::L1Handler(_)) {
+                    metadata.accepted_l1_handler_tx_hashes.insert(tx_hash);
+                }
+
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;
                 }
@@ -314,7 +320,7 @@ async fn collect_execution_results_and_stream_txs(
                         FailOnErrorCause::TransactionFailed(err),
                     ));
                 }
-                rejected_tx_hashes.insert(input_tx.tx_hash());
+                metadata.rejected_tx_hashes.insert(input_tx.tx_hash());
             }
         }
     }
@@ -471,4 +477,5 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct BlockExecutionMetadata {
     pub rejected_tx_hashes: HashSet<TransactionHash>,
+    pub accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 }
