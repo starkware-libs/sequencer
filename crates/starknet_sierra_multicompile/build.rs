@@ -31,10 +31,10 @@ fn install_starknet_sierra_compile() {
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
-/// Installs the `starknet-native-compile` crate from the current repository and moves the binary
-/// to the shared executables folder. This crate includes the `starknet-native-compile` binary,
+/// Install the `starknet-native-compile` crate and moves the binary to the `target` directory
+/// (under shared executables folder). This crate includes the `starknet-native-compile` binary,
 /// which is used to compile Sierra to 0x86. The binary is executed as a subprocess whenever Sierra
-/// compilation is required.
+/// to native compilation is required.
 #[cfg(feature = "cairo_native")]
 fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
