@@ -102,3 +102,43 @@ pub fn pack_usize_in_felt(elms: &[usize], elm_bound: usize) -> Felt {
         })
         .into()
 }
+
+/// A set-like data structure that preserves the insertion order.
+/// Holds values of `n_bits` for bit length representation.
+#[derive(Default, Clone, Debug)]
+struct UniqueValueBucket {
+    n_bits: usize,
+    value_to_index: indexmap::IndexMap<SizedBitsVec, usize>,
+}
+
+impl UniqueValueBucket {
+    /// `n_bits` is an individual value associated with a specific bucket,
+    /// that specifies the maximum number of bits that values in that bucket can have.
+    fn new(n_bits: usize) -> Self {
+        Self { n_bits, value_to_index: Default::default() }
+    }
+
+    fn contains(&self, value: &SizedBitsVec) -> bool {
+        self.value_to_index.contains_key(value)
+    }
+
+    fn len(&self) -> usize {
+        self.value_to_index.len()
+    }
+
+    fn add(&mut self, value: SizedBitsVec) {
+        if !self.contains(&value) {
+            let next_index = self.value_to_index.len();
+            self.value_to_index.insert(value, next_index);
+        }
+    }
+
+    fn get_index(&self, value: &SizedBitsVec) -> usize {
+        *self.value_to_index.get(value).expect("The value provided is not in the index")
+    }
+
+    fn pack_in_felts(&self) -> Vec<Felt> {
+        let values = self.value_to_index.keys().cloned().collect::<Vec<_>>();
+        pack_in_felts(&values, self.n_bits)
+    }
+}
