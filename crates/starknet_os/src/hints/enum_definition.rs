@@ -1,3 +1,4 @@
+use blockifier::state::state_api::StateReader;
 use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
