@@ -44,8 +44,7 @@ mod MetaTxTestContract {
                 resource_bounds_len: tx_info.resource_bounds.len(),
                 nonce: tx_info.nonce,
             };
-            // TODO(lior, 01/03/2025): use push() once supported by the compiler.
-            self.call_data.append().write(call_data);
+            self.call_data.push(call_data);
         }
     }
 
