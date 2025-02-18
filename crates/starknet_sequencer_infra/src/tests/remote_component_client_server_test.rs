@@ -50,6 +50,7 @@ use crate::tests::{
     ValueB,
     AVAILABLE_PORTS,
     TEST_LOCAL_SERVER_METRICS,
+    TEST_REMOTE_SERVER_METRICS,
 };
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
@@ -175,10 +176,20 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
         LocalComponentServer::new(component_b, rx_b, max_concurrency, TEST_LOCAL_SERVER_METRICS);
 
     let max_concurrency = 10;
-    let mut component_a_remote_server =
-        RemoteComponentServer::new(a_local_client, a_socket.ip(), a_socket.port(), max_concurrency);
-    let mut component_b_remote_server =
-        RemoteComponentServer::new(b_local_client, b_socket.ip(), b_socket.port(), max_concurrency);
+    let mut component_a_remote_server = RemoteComponentServer::new(
+        a_local_client,
+        a_socket.ip(),
+        a_socket.port(),
+        max_concurrency,
+        TEST_REMOTE_SERVER_METRICS,
+    );
+    let mut component_b_remote_server = RemoteComponentServer::new(
+        b_local_client,
+        b_socket.ip(),
+        b_socket.port(),
+        max_concurrency,
+        TEST_REMOTE_SERVER_METRICS,
+    );
 
     task::spawn(async move {
         let _ = component_a_local_server.start().await;

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
@@ -16,6 +17,7 @@ use tracing::warn;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::component_server::ComponentServerStarter;
+use crate::metrics::RemoteServerMetrics;
 use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
@@ -43,6 +45,7 @@ use crate::serde_utils::SerdeWrapper;
 /// // Example usage of the RemoteComponentServer
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
+/// use starknet_sequencer_metrics::metrics::{MetricCounter, MetricScope};
 /// use tokio::task;
 ///
 /// use crate::starknet_sequencer_infra::component_client::LocalComponentClient;
@@ -54,6 +57,26 @@ use crate::serde_utils::SerdeWrapper;
 ///     ComponentServerStarter,
 ///     RemoteComponentServer,
 /// };
+/// use crate::starknet_sequencer_infra::metrics::RemoteServerMetrics;
+///
+/// const REMOTE_MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
+///     MetricScope::Infra,
+///     "remote_received_messages_counter",
+///     "Received remote messages counter",
+///     0,
+/// );
+/// const REMOTE_VALID_MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
+///     MetricScope::Infra,
+///     "remote_valid_received_messages_counter",
+///     "Received remote valid messages counter",
+///     0,
+/// );
+/// const REMOTE_MESSAGES_PROCESSED: MetricCounter = MetricCounter::new(
+///     MetricScope::Infra,
+///     "remote_processed_messages_counter",
+///     "Processed messages counter",
+///     0,
+/// );
 ///
 /// // Define your component
 /// struct MyComponent {}
@@ -96,6 +119,11 @@ use crate::serde_utils::SerdeWrapper;
 ///         ip_address,
 ///         port,
 ///         max_concurrency,
+///         RemoteServerMetrics::new(
+///             &REMOTE_MESSAGES_RECEIVED,
+///             &REMOTE_VALID_MESSAGES_RECEIVED,
+///             &REMOTE_MESSAGES_PROCESSED,
+///         ),
 ///     );
 ///
 ///     // Start the server in a new task.
@@ -112,6 +140,7 @@ where
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
     max_concurrency: usize,
+    metrics: Arc<RemoteServerMetrics>,
 }
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
@@ -124,21 +153,36 @@ where
         ip: IpAddr,
         port: u16,
         max_concurrency: usize,
+        metrics: RemoteServerMetrics,
     ) -> Self {
-        Self { local_client, socket: SocketAddr::new(ip, port), max_concurrency }
+        metrics.register();
+        Self {
+            local_client,
+            socket: SocketAddr::new(ip, port),
+            max_concurrency,
+            metrics: Arc::new(metrics),
+        }
     }
 
     async fn remote_component_server_handler(
         http_request: HyperRequest<Body>,
         local_client: LocalComponentClient<Request, Response>,
+        metrics: Arc<RemoteServerMetrics>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         let body_bytes = to_bytes(http_request.into_body()).await?;
+
+        metrics.increment_total_received();
 
         let http_response = match SerdeWrapper::<Request>::wrapper_deserialize(&body_bytes)
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
+                metrics.increment_valid_received();
+
                 let response = local_client.send(request).await;
+
+                metrics.increment_processed();
+
                 match response {
                     Ok(response) => HyperResponse::builder()
                         .status(StatusCode::OK)
@@ -181,9 +225,14 @@ where
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             let max_concurrency = self.max_concurrency;
+            let metrics = self.metrics.clone();
             async move {
                 let app_service = service_fn(move |req| {
-                    Self::remote_component_server_handler(req, local_client.clone())
+                    Self::remote_component_server_handler(
+                        req,
+                        local_client.clone(),
+                        metrics.clone(),
+                    )
                 });
 
                 // Apply the ConcurrencyLimitLayer middleware
