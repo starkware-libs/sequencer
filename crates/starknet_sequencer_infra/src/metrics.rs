@@ -8,19 +8,15 @@ pub struct LocalServerMetrics {
 }
 
 impl LocalServerMetrics {
-    pub fn new(
+    pub const fn new(
         received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
         queue_depth: &'static MetricGauge,
     ) -> Self {
-        let infra_metrics = Self { received_msgs, processed_msgs, queue_depth };
-
-        infra_metrics.register();
-
-        infra_metrics
+        Self { received_msgs, processed_msgs, queue_depth }
     }
 
-    fn register(&self) {
+    pub fn register(&self) {
         self.received_msgs.register();
         self.processed_msgs.register();
         let _ = self.queue_depth.register();
