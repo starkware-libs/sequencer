@@ -9,6 +9,7 @@ use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, St
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::Mutex;
+use tracing::info;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{
@@ -118,6 +119,7 @@ where
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
+        info!("Sending request to {:?}", self.uri);
         let http_response = self
             .client
             .request(http_request)
