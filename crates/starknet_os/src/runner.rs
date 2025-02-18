@@ -12,7 +12,7 @@ pub fn run_os<S: StateReader>(
     _compiled_os: &[u8],
     _layout: LayoutName,
     _block_context: BlockContext,
-    os_input: &StarknetOsInput,
+    os_input: StarknetOsInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     let _execution_helper = OsExecutionHelper::<S>::new(os_input);
     todo!()
@@ -24,7 +24,7 @@ pub fn run_os_stateless(
     compiled_os: &[u8],
     layout: LayoutName,
     block_context: BlockContext,
-    os_input: &StarknetOsInput,
+    os_input: StarknetOsInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     run_os::<PanickingStateReader>(compiled_os, layout, block_context, os_input)
 }
