@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_reverts::revert_block;
@@ -11,7 +11,6 @@ use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -60,6 +59,7 @@ use crate::block_builder::{
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
+    BlockExecutionMetadata,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
@@ -462,7 +462,8 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        self.commit_proposal_and_block(height, state_diff, address_to_nonce, [].into()).await
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, Default::default())
+            .await
     }
 
     #[instrument(skip(self), err)]
@@ -487,7 +488,7 @@ impl Batcher {
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.metadata.rejected_tx_hashes,
+            block_execution_artifacts.metadata,
         )
         .await?;
         let execution_infos: Vec<_> =
@@ -512,8 +513,9 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
-        rejected_tx_hashes: HashSet<TransactionHash>,
+        metadata: BlockExecutionMetadata,
     ) -> BatcherResult<()> {
+        let rejected_tx_hashes = metadata.rejected_tx_hashes;
         info!("Committing block at height {} and notifying mempool of the block.", height);
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
@@ -533,7 +535,10 @@ impl Batcher {
             // TODO(AlonH): Should we rollback the state diff and return an error?
         };
 
-        let l1_provider_result = self.l1_provider_client.commit_block(vec![], height).await;
+        let l1_provider_result = self
+            .l1_provider_client
+            .commit_block(metadata.accepted_l1_handler_tx_hashes.iter().copied().collect(), height)
+            .await;
         l1_provider_result.unwrap_or_else(|err| match err {
             L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
                 expected,
