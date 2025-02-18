@@ -16,7 +16,6 @@ use tracing::warn;
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::component_server::ComponentServerStarter;
-use crate::errors::ComponentServerError;
 use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
@@ -179,7 +178,7 @@ where
     Request: Serialize + DeserializeOwned + Send + Debug + 'static,
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
-    async fn start(&mut self) -> Result<(), ComponentServerError> {
+    async fn start(&mut self) {
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             let max_concurrency = self.max_concurrency;
@@ -200,8 +199,7 @@ where
         Server::bind(&self.socket)
             .serve(make_svc)
             .await
-            .map_err(|err| ComponentServerError::HttpServerStartError(err.to_string()))?;
-        Ok(())
+            .unwrap_or_else(|e| panic!("HttpServerStartError: {}", e));
     }
 }
 

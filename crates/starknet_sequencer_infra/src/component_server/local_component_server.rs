@@ -14,7 +14,7 @@ use crate::component_definitions::{
     ComponentStarter,
 };
 use crate::component_server::{ComponentReplacer, ComponentServerStarter};
-use crate::errors::{ComponentServerError, ReplaceComponentError};
+use crate::errors::ReplaceComponentError;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -55,7 +55,6 @@ use crate::errors::{ComponentServerError, ReplaceComponentError};
 ///     ComponentServerStarter,
 ///     LocalComponentServer,
 /// };
-/// use crate::starknet_sequencer_infra::errors::ComponentServerError;
 ///
 /// // Define your component
 /// struct MyComponent {}
@@ -128,12 +127,13 @@ where
     Request: Send + Debug,
     Response: Send + Debug,
 {
-    async fn start(&mut self) -> Result<(), ComponentServerError> {
+    async fn start(&mut self) {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
-        self.component.start().await?;
+        self.component.start().await.unwrap_or_else(|_| {
+            panic!("LocalComponentServer stopped for {}", short_type_name::<Component>())
+        });
         request_response_loop(&mut self.rx, &mut self.component).await;
-        error!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
-        Err(ComponentServerError::ServerUnexpectedlyStopped)
+        panic!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
     }
 }
 
@@ -150,13 +150,14 @@ where
     Request: Send + Debug + 'static,
     Response: Send + Debug + 'static,
 {
-    async fn start(&mut self) -> Result<(), ComponentServerError> {
+    async fn start(&mut self) {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
-        self.component.start().await?;
+        self.component.start().await.unwrap_or_else(|_| {
+            panic!("ConcurrentLocalComponentServer stopped for {}", short_type_name::<Component>())
+        });
         concurrent_request_response_loop(&mut self.rx, &mut self.component, self.max_concurrency)
             .await;
-        error!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
-        Err(ComponentServerError::ServerUnexpectedlyStopped)
+        panic!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
     }
 }
 
