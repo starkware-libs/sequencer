@@ -4,8 +4,9 @@ pub mod converters;
 pub mod consensus;
 pub mod mempool;
 pub mod protobuf;
+pub mod regression_test_utils;
 pub mod sync;
 mod transaction;
 
 #[cfg(test)]
-mod regression_test;
+mod protoc_regression_test;
