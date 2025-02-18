@@ -129,9 +129,7 @@ where
 {
     async fn start(&mut self) {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
-        self.component.start().await.unwrap_or_else(|_| {
-            panic!("LocalComponentServer stopped for {}", short_type_name::<Component>())
-        });
+        self.component.start().await;
         request_response_loop(&mut self.rx, &mut self.component).await;
         panic!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
     }
@@ -152,9 +150,7 @@ where
 {
     async fn start(&mut self) {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
-        self.component.start().await.unwrap_or_else(|_| {
-            panic!("ConcurrentLocalComponentServer stopped for {}", short_type_name::<Component>())
-        });
+        self.component.start().await;
         concurrent_request_response_loop(&mut self.rx, &mut self.component, self.max_concurrency)
             .await;
         panic!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());

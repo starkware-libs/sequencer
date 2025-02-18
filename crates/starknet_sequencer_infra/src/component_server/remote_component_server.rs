@@ -54,7 +54,6 @@ use crate::serde_utils::SerdeWrapper;
 ///     ComponentServerStarter,
 ///     RemoteComponentServer,
 /// };
-/// use crate::starknet_sequencer_infra::errors::ComponentError;
 ///
 /// // Define your component
 /// struct MyComponent {}
