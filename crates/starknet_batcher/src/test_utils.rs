@@ -116,6 +116,7 @@ impl BlockExecutionArtifacts {
             execution_infos: indexed_execution_infos(),
             metadata: BlockExecutionMetadata {
                 rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
+                accepted_l1_handler_tx_hashes: Default::default(),
             },
             commitment_state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
