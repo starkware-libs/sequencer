@@ -19,7 +19,7 @@ const N_BITS_PER_BUCKET: [usize; 6] = [252, 125, 83, 62, 31, 15];
 const TOTAL_N_BUCKETS: usize = N_BITS_PER_BUCKET.len() + 1;
 
 pub(crate) fn dictionary_from_bucket<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> HintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
@@ -29,7 +29,7 @@ pub(crate) fn dictionary_from_bucket<S: StateReader>(
 }
 
 pub(crate) fn get_prev_offset<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> HintResult {
     let dict_manager = exec_scopes.get_dict_manager()?;
 
@@ -44,14 +44,10 @@ pub(crate) fn get_prev_offset<S: StateReader>(
     insert_value_from_var_name(Ids::PrevOffset.into(), prev_offset, vm, ids_data, ap_tracking)
 }
 
-pub(crate) fn compression_hint<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
-) -> HintResult {
+pub(crate) fn compression_hint<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     todo!()
 }
 
-pub(crate) fn set_decompressed_dst<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
-) -> HintResult {
+pub(crate) fn set_decompressed_dst<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     todo!()
 }
