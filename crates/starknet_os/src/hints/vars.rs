@@ -21,6 +21,7 @@ pub(crate) enum Ids {
     BucketIndex,
     DictPtr,
     PrevOffset,
+    NextAvailableAlias,
 }
 
 impl From<Ids> for &str {
@@ -29,6 +30,7 @@ impl From<Ids> for &str {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
             Ids::PrevOffset => "prev_offset",
+            Ids::NextAvailableAlias => "next_available_alias",
         }
     }
 }
