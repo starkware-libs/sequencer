@@ -125,7 +125,14 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    todo!()
+    // TODO(Nimrod): Consider moving this hint to `state.rs`.
+    // TODO(Nimrod): Try to avoid this clone.
+    exec_scopes.insert_value(
+        Scope::CommitmentInfoByAddress.into(),
+        hint_processor.execution_helper.os_input.address_to_storage_commitment_info.clone(),
+    );
+
+    Ok(())
 }

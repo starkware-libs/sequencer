@@ -15,6 +15,7 @@ pub(crate) enum Scope {
     DictManager,
     DictTracker,
     UseKzgDa,
+    CommitmentInfoByAddress,
 }
 
 impl From<Scope> for &'static str {
@@ -25,6 +26,7 @@ impl From<Scope> for &'static str {
             Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
+            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
