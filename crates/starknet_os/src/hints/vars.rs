@@ -21,18 +21,20 @@ impl From<Scope> for &'static str {
 
 pub(crate) enum Ids {
     BucketIndex,
+    ContractStateChanges,
     DictPtr,
-    PrevOffset,
     NextAvailableAlias,
+    PrevOffset,
 }
 
 impl From<Ids> for &str {
     fn from(ids: Ids) -> &'static str {
         match ids {
-            Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
-            Ids::PrevOffset => "prev_offset",
+            Ids::ContractStateChanges => "contract_state_changes",
+            Ids::DictPtr => "dict_ptr",
             Ids::NextAvailableAlias => "next_available_alias",
+            Ids::PrevOffset => "prev_offset",
         }
     }
 }
