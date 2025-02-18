@@ -7,7 +7,7 @@ use crate::io::os_input::StarknetOsInput;
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<S: StateReader> {
     pub block_info: BlockInfo,
-    _cached_state: CachedState<S>,
+    pub cached_state: CachedState<S>,
     _os_input: StarknetOsInput,
 }
 
@@ -15,7 +15,7 @@ impl<S: StateReader> OsExecutionHelper<S> {
     pub fn new(os_input: StarknetOsInput, block_info: BlockInfo) -> Self {
         Self {
             block_info,
-            _cached_state: Self::initialize_cached_state(&os_input),
+            cached_state: Self::initialize_cached_state(&os_input),
             _os_input: os_input,
         }
     }
