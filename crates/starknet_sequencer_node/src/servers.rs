@@ -175,7 +175,8 @@ macro_rules! create_remote_server {
         $local_client_getter:expr,
         $url:expr,
         $port:expr,
-        $max_concurrency:expr
+        $max_concurrency:expr,
+        $metrics:expr
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -187,6 +188,7 @@ macro_rules! create_remote_server {
                     $url,
                     $port,
                     $max_concurrency,
+                    $metrics
                 )))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -467,7 +469,7 @@ pub fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
-    let _batcher_metrics = RemoteServerMetrics::new(
+    let batcher_metrics = RemoteServerMetrics::new(
         &BATCHER_REMOTE_MSGS_RECEIVED,
         &BATCHER_REMOTE_VALID_MSGS_RECEIVED,
         &BATCHER_REMOTE_MSGS_PROCESSED,
@@ -477,10 +479,11 @@ pub fn create_remote_servers(
         || { clients.get_batcher_local_client() },
         config.components.batcher.ip,
         config.components.batcher.port,
-        config.components.batcher.max_concurrency
+        config.components.batcher.max_concurrency,
+        batcher_metrics
     );
 
-    let _class_manager_metrics = RemoteServerMetrics::new(
+    let class_manager_metrics = RemoteServerMetrics::new(
         &CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
         &CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
         &CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
@@ -490,10 +493,11 @@ pub fn create_remote_servers(
         || { clients.get_class_manager_local_client() },
         config.components.class_manager.ip,
         config.components.class_manager.port,
-        config.components.class_manager.max_concurrency
+        config.components.class_manager.max_concurrency,
+        class_manager_metrics
     );
 
-    let _gateway_metrics = RemoteServerMetrics::new(
+    let gateway_metrics = RemoteServerMetrics::new(
         &GATEWAY_REMOTE_MSGS_RECEIVED,
         &GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
         &GATEWAY_REMOTE_MSGS_PROCESSED,
@@ -503,10 +507,11 @@ pub fn create_remote_servers(
         || { clients.get_gateway_local_client() },
         config.components.gateway.ip,
         config.components.gateway.port,
-        config.components.gateway.max_concurrency
+        config.components.gateway.max_concurrency,
+        gateway_metrics
     );
 
-    let _l1_provider_metrics = RemoteServerMetrics::new(
+    let l1_provider_metrics = RemoteServerMetrics::new(
         &L1_PROVIDER_REMOTE_MSGS_RECEIVED,
         &L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
         &L1_PROVIDER_REMOTE_MSGS_PROCESSED,
@@ -516,10 +521,11 @@ pub fn create_remote_servers(
         || { clients.get_l1_provider_local_client() },
         config.components.l1_provider.ip,
         config.components.l1_provider.port,
-        config.components.l1_provider.max_concurrency
+        config.components.l1_provider.max_concurrency,
+        l1_provider_metrics
     );
 
-    let _mempool_metrics = RemoteServerMetrics::new(
+    let mempool_metrics = RemoteServerMetrics::new(
         &MEMPOOL_REMOTE_MSGS_RECEIVED,
         &MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
         &MEMPOOL_REMOTE_MSGS_PROCESSED,
@@ -529,10 +535,11 @@ pub fn create_remote_servers(
         || { clients.get_mempool_local_client() },
         config.components.mempool.ip,
         config.components.mempool.port,
-        config.components.mempool.max_concurrency
+        config.components.mempool.max_concurrency,
+        mempool_metrics
     );
 
-    let _mempool_p2p_metrics = RemoteServerMetrics::new(
+    let mempool_p2p_metrics = RemoteServerMetrics::new(
         &MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
         &MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
         &MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
@@ -542,10 +549,11 @@ pub fn create_remote_servers(
         || { clients.get_mempool_p2p_propagator_local_client() },
         config.components.mempool_p2p.ip,
         config.components.mempool_p2p.port,
-        config.components.mempool_p2p.max_concurrency
+        config.components.mempool_p2p.max_concurrency,
+        mempool_p2p_metrics
     );
 
-    let _state_sync_metrics = RemoteServerMetrics::new(
+    let state_sync_metrics = RemoteServerMetrics::new(
         &STATE_SYNC_REMOTE_MSGS_RECEIVED,
         &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
         &STATE_SYNC_REMOTE_MSGS_PROCESSED,
@@ -555,7 +563,8 @@ pub fn create_remote_servers(
         || { clients.get_state_sync_local_client() },
         config.components.state_sync.ip,
         config.components.state_sync.port,
-        config.components.state_sync.max_concurrency
+        config.components.state_sync.max_concurrency,
+        state_sync_metrics
     );
 
     RemoteServers {

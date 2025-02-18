@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use crate::metrics::LocalServerMetrics;
+use crate::metrics::{LocalServerMetrics, RemoteServerMetrics};
 
 pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
@@ -41,6 +41,33 @@ const TEST_QUEUE_DEPTH: MetricGauge =
 
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics =
     LocalServerMetrics::new(&TEST_MSGS_RECEIVED, &TEST_MSGS_PROCESSED, &TEST_QUEUE_DEPTH);
+
+const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
+    MetricScope::Infra,
+    "remote_test_msgs_received",
+    "Remote test messages received counter",
+    0,
+);
+
+const REMOTE_VALID_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
+    MetricScope::Infra,
+    "remote_valid_test_msgs_received",
+    "Valid remote test messages received counter",
+    0,
+);
+
+const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
+    MetricScope::Infra,
+    "remote_test_msgs_processed",
+    "Remote test messages processed counter",
+    0,
+);
+
+pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerMetrics::new(
+    &REMOTE_TEST_MSGS_RECEIVED,
+    &REMOTE_VALID_TEST_MSGS_RECEIVED,
+    &REMOTE_TEST_MSGS_PROCESSED,
+);
 
 // Define the shared fixture
 pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
