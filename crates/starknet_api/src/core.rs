@@ -90,9 +90,7 @@ impl ChainId {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing() -> Self {
-        const CHAIN_ID_NAME: &str = "SN_GOERLI";
-
-        ChainId::Other(CHAIN_ID_NAME.to_string())
+        CHAIN_ID_FOR_TESTS.clone()
     }
 }
 
