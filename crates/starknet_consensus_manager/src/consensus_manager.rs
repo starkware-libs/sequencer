@@ -20,7 +20,6 @@ use starknet_consensus_orchestrator::cende::CendeAmbassador;
 use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_infra::errors::ComponentError;
 use starknet_sequencer_metrics::metric_definitions::{
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
@@ -183,11 +182,10 @@ pub fn create_consensus_manager(
 
 #[async_trait]
 impl ComponentStarter for ConsensusManager {
-    async fn start(&mut self) -> Result<(), ComponentError> {
+    async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
-        self.run().await.map_err(|e| {
-            error!("Error running component ConsensusManager: {:?}", e);
-            ComponentError::InternalComponentError
-        })
+        self.run()
+            .await
+            .unwrap_or_else(|e| panic!("Failed to start ConsensusManager component: {:?}", e))
     }
 }
