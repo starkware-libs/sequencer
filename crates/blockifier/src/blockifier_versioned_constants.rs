@@ -232,9 +232,10 @@ impl VersionedConstants {
 
     pub fn get_additional_os_syscall_resources(
         &self,
+        call_data_length: usize,
         syscall_counter: &SyscallCounter,
     ) -> ExecutionResources {
-        self.os_resources.get_additional_os_syscall_resources(syscall_counter)
+        self.os_resources.get_additional_os_syscall_resources(syscall_counter, call_data_length)
     }
 
     pub fn get_validate_block_number_rounding(&self) -> u64 {
@@ -557,6 +558,7 @@ impl OsResources {
     fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
+        call_data_length: usize
     ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
         for (syscall_selector, count) in syscall_counter {
@@ -576,7 +578,10 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
+            // Adding constant syscall resources.
             os_additional_resources += &(&syscall_resources.constant * *count);
+            // Adding call data factor resources
+            os_additional_resources += &(&(&syscall_resources.calldata_factor* call_data_length) * *count);
         }
 
         os_additional_resources

@@ -60,6 +60,9 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let tracked_resource =
         *context.tracked_resource_stack.last().expect("Unexpected empty tracked resource.");
+
+    let call_data_length = call.calldata.0.len();
+
     // Extract information from the context, as it will be passed as a mutable reference.
     let entry_point_initial_budget = context.gas_costs().base.entry_point_initial_budget;
     let VmExecutionContext {
@@ -89,6 +92,7 @@ pub fn execute_entry_point_call(
     Ok(finalize_execution(
         runner,
         syscall_handler,
+        call_data_length,
         n_total_args,
         program_extra_data_length,
         tracked_resource,
@@ -326,6 +330,7 @@ fn maybe_fill_holes(
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
+    call_data_length: usize,
     n_total_args: usize,
     program_extra_data_length: usize,
     tracked_resource: TrackedResource,
@@ -364,7 +369,7 @@ pub fn finalize_execution(
             }
             // Take into account the syscall resources of the current call.
             vm_resources_without_inner_calls += &versioned_constants
-                .get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+                .get_additional_os_syscall_resources(call_data_length, &syscall_handler.syscall_counter);
             vm_resources_without_inner_calls
         }
         TrackedResource::SierraGas => ExecutionResources::default(),
@@ -375,6 +380,7 @@ pub fn finalize_execution(
     let vm_resources = &vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
     let syscall_handler_base = syscall_handler.base;
+    println!("resources {:?}", vm_resources);
     Ok(CallInfo {
         call: syscall_handler_base.call.into(),
         execution: CallExecution {
