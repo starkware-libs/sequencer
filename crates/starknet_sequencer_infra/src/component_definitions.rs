@@ -13,7 +13,6 @@ use tracing::{error, info};
 use validator::Validate;
 
 use crate::component_client::ClientResult;
-use crate::errors::ComponentError;
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
@@ -35,17 +34,15 @@ where
     async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
-pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() -> Result<(), ComponentError>
-{
+pub async fn default_component_start_fn<T: ComponentStarter + ?Sized>() {
     info!("Starting component {} with the default starter.", short_type_name::<T>());
-    Ok(())
 }
 
 // TODO(Lev/Tsabary): Enforce metrics registration at the start of the component to avoid missing
 // metrics in the monitoring server.
 #[async_trait]
 pub trait ComponentStarter {
-    async fn start(&mut self) -> Result<(), ComponentError> {
+    async fn start(&mut self) {
         default_component_start_fn::<Self>().await
     }
 }

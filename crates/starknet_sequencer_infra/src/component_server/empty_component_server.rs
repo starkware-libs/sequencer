@@ -20,9 +20,8 @@ impl<Component: Send> WrapperServer<Component> {
 impl<Component: ComponentStarter + Send> ComponentServerStarter for WrapperServer<Component> {
     async fn start(&mut self) {
         info!("Starting WrapperServer for {}.", short_type_name::<Component>());
-        self.component.start().await.unwrap_or_else(|_| {
-            panic!("WrapperServer stopped for {}", short_type_name::<Component>())
-        });
+        self.component.start().await;
+        panic!("WrapperServer stopped for {}", short_type_name::<Component>())
     }
 }
 

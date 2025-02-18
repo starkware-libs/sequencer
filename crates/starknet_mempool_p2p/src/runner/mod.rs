@@ -17,7 +17,6 @@ use starknet_gateway_types::errors::GatewayError;
 use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
-use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{debug, info, warn};
 
 pub struct MempoolP2pRunner {
@@ -40,12 +39,12 @@ impl MempoolP2pRunner {
 
 #[async_trait]
 impl ComponentStarter for MempoolP2pRunner {
-    async fn start(&mut self) -> Result<(), ComponentError> {
+    async fn start(&mut self) {
         let mut gateway_futures = FuturesUnordered::new();
         loop {
             tokio::select! {
-                result = &mut self.network_future => {
-                    return result.map_err(|_| ComponentError::InternalComponentError);
+                _ = &mut self.network_future => {
+                    panic!("MempoolP2pRunner failed - network stopped unexpectedly");
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {

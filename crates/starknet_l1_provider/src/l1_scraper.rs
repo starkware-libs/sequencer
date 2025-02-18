@@ -17,7 +17,6 @@ use starknet_l1_provider_types::errors::L1ProviderClientError;
 use starknet_l1_provider_types::{Event, SharedL1ProviderClient};
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_infra::errors::ComponentError;
 use thiserror::Error;
 use tokio::time::sleep;
 use tracing::{error, info, instrument};
@@ -215,9 +214,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
 #[async_trait]
 impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
-    async fn start(&mut self) -> Result<(), ComponentError> {
+    async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
-        self.run().await.map_err(|_| ComponentError::InternalComponentError)
+        self.run().await.unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
     }
 }
 

@@ -40,20 +40,22 @@ fn setup(
 }
 
 #[test]
-fn run_returns_when_network_future_returns() {
+#[should_panic]
+fn run_panics_when_network_future_returns() {
     let network_future = ready(Ok(())).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
     let (mut mempool_p2p_runner, _) = setup(network_future, gateway_client);
-    mempool_p2p_runner.start().now_or_never().unwrap().unwrap();
+    mempool_p2p_runner.start().now_or_never().unwrap();
 }
 
 #[test]
-fn run_returns_error_when_network_future_returns_error() {
+#[should_panic]
+fn run_panics_when_network_future_returns_error() {
     let network_future =
         ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
     let (mut mempool_p2p_runner, _) = setup(network_future, gateway_client);
-    mempool_p2p_runner.start().now_or_never().unwrap().unwrap_err();
+    mempool_p2p_runner.start().now_or_never().unwrap();
 }
 
 #[tokio::test]
@@ -96,7 +98,7 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
         // if the runner fails, there was a network issue => panic.
         // if the runner returns successfully, we panic because the runner should never terminate.
         res = tokio::time::timeout(Duration::from_secs(5), mempool_p2p_runner.start()) => {
-            res.expect("Test timed out").expect("MempoolP2pRunner failed - network stopped unexpectedly");
+            res.expect("Test timed out");
             panic!("MempoolP2pRunner terminated");
         },
         // if a message was received on this oneshot channel, the gateway client received the tx and the test succeeded.
@@ -144,7 +146,7 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         // if the runner fails, there was a network issue => panic.
         // if the runner returns successfully, we panic because the runner should never terminate.
         res = tokio::time::timeout(Duration::from_secs(5), mempool_p2p_runner.start()) => {
-            res.expect("Test timed out (MempoolP2pRunner took too long to start)").expect("MempoolP2pRunner failed - network stopped unexpectedly");
+            res.expect("Test timed out (MempoolP2pRunner took too long to start)");
             panic!("MempoolP2pRunner terminated");
         },
         // if a message was received on this oneshot channel, the gateway client received the tx.

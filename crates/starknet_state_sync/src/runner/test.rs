@@ -7,7 +7,8 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use super::StateSyncRunner;
 
 #[test]
-fn run_returns_when_network_future_returns() {
+#[should_panic]
+fn run_panics_when_network_future_returns() {
     let network_future = ready(Ok(())).boxed();
     let p2p_sync_client_future = pending().boxed();
     let p2p_sync_server_future = pending().boxed();
@@ -20,11 +21,12 @@ fn run_returns_when_network_future_returns() {
         central_sync_client_future,
         new_block_dev_null_future,
     };
-    state_sync_runner.start().now_or_never().unwrap().unwrap();
+    state_sync_runner.start().now_or_never().unwrap();
 }
 
 #[test]
-fn run_returns_error_when_network_future_returns_error() {
+#[should_panic]
+fn run_panics_when_network_future_returns_error() {
     let network_future =
         ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();
     let p2p_sync_client_future = pending().boxed();
@@ -38,11 +40,12 @@ fn run_returns_error_when_network_future_returns_error() {
         central_sync_client_future,
         new_block_dev_null_future,
     };
-    state_sync_runner.start().now_or_never().unwrap().unwrap_err();
+    state_sync_runner.start().now_or_never().unwrap();
 }
 
 #[test]
-fn run_returns_error_when_sync_client_future_returns_error() {
+#[should_panic]
+fn run_panics_when_sync_client_future_returns_error() {
     let network_future = pending().boxed();
     let p2p_sync_client_future = ready(Err(P2pSyncClientError::TooManyResponses)).boxed();
     let p2p_sync_server_future = pending().boxed();
@@ -55,5 +58,5 @@ fn run_returns_error_when_sync_client_future_returns_error() {
         central_sync_client_future,
         new_block_dev_null_future,
     };
-    state_sync_runner.start().now_or_never().unwrap().unwrap_err();
+    state_sync_runner.start().now_or_never().unwrap();
 }
