@@ -39,6 +39,11 @@ pub enum ChainId {
     Other(String),
 }
 
+#[cfg(any(feature = "testing", test))]
+/// A chain id for tests.
+pub static CHAIN_ID_FOR_TESTS: LazyLock<ChainId> =
+    LazyLock::new(|| ChainId::Other("CHAIN_ID_SUBDIR".to_owned()));
+
 impl Serialize for ChainId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

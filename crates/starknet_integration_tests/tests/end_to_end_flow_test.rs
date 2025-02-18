@@ -11,11 +11,11 @@ use papyrus_protobuf::consensus::{
     StreamMessage,
     StreamMessageBody,
 };
-use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
+use starknet_api::core::CHAIN_ID_FOR_TESTS;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
