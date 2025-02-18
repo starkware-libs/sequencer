@@ -43,7 +43,6 @@ use starknet_sequencer_infra::component_definitions::{
     default_component_start_fn,
     ComponentStarter,
 };
-use starknet_sequencer_infra::errors::ComponentError;
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
     REJECTED_TRANSACTIONS,
@@ -755,13 +754,12 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
 
 #[async_trait]
 impl ComponentStarter for Batcher {
-    async fn start(&mut self) -> Result<(), ComponentError> {
-        default_component_start_fn::<Self>().await?;
+    async fn start(&mut self) {
+        default_component_start_fn::<Self>().await;
         let storage_height = self
             .storage_reader
             .height()
             .expect("Failed to get height from storage during batcher creation.");
         register_metrics(storage_height);
-        Ok(())
     }
 }
