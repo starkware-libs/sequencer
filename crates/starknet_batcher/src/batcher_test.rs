@@ -877,7 +877,7 @@ async fn decision_reached() {
         .times(1)
         .with(eq(CommitBlockArgs {
             address_to_nonce: expected_artifacts.address_to_nonce(),
-            rejected_tx_hashes: expected_artifacts.rejected_tx_hashes.clone(),
+            rejected_tx_hashes: expected_artifacts.rejected_tx_hashes().clone(),
         }))
         .returning(|_| Ok(()));
 
@@ -923,7 +923,7 @@ async fn decision_reached() {
     );
     assert_eq!(
         REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
-        Some(expected_artifacts.rejected_tx_hashes.len())
+        Some(expected_artifacts.rejected_tx_hashes().len())
     );
 }
 

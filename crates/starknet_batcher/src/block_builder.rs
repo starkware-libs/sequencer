@@ -86,7 +86,7 @@ pub struct BlockExecutionArtifacts {
     // Note: The execution_infos must be ordered to match the order of the transactions in the
     // block.
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
-    pub rejected_tx_hashes: HashSet<TransactionHash>,
+    pub metadata: BlockExecutionMetadata,
     pub commitment_state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
@@ -124,6 +124,10 @@ impl BlockExecutionArtifacts {
         ProposalCommitment {
             state_diff_commitment: calculate_state_diff_hash(&self.thin_state_diff()),
         }
+    }
+
+    pub fn rejected_tx_hashes(&self) -> HashSet<TransactionHash> {
+        self.metadata.rejected_tx_hashes.clone()
     }
 }
 
@@ -257,7 +261,7 @@ impl BlockBuilderTrait for BlockBuilder {
             self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
-            rejected_tx_hashes,
+            metadata: BlockExecutionMetadata { rejected_tx_hashes },
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
@@ -464,4 +468,11 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         ));
         Ok((block_builder, abort_signal_sender))
     }
+}
+
+/// Supplementary information for use by downstream services.
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct BlockExecutionMetadata {
+    pub rejected_tx_hashes: HashSet<TransactionHash>,
 }
