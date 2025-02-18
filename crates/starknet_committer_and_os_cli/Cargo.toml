@@ -44,8 +44,8 @@ tracing.workspace = true
 
 [[bench]]
 harness = false
-name = "committer_bench"
-path = "benches/committer_bench.rs"
+name = "starknet_committer_and_os_cli"
+path = "benches/main.rs"
 
 # Optional dependencies required for tests and the testing feature.
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
