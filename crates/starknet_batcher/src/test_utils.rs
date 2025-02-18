@@ -14,7 +14,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::block_builder::{BlockBuilderResult, BlockBuilderTrait, BlockExecutionArtifacts};
+use crate::block_builder::{
+    BlockBuilderResult,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+    BlockExecutionMetadata,
+};
 use crate::transaction_provider::{NextTxs, TransactionProvider};
 
 pub const EXECUTION_INFO_LEN: usize = 10;
@@ -109,7 +114,9 @@ impl BlockExecutionArtifacts {
         // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
         Self {
             execution_infos: indexed_execution_infos(),
-            rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
+            metadata: BlockExecutionMetadata {
+                rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
+            },
             commitment_state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
                     contract_address!("0x7"),
