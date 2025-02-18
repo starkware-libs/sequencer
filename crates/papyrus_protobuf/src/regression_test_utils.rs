@@ -1,10 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
-use std::{env, fs, io};
+use std::{env, io};
 
-const GENERATED_DIR: &str = "src/generated_test";
-const PROTO_DIR: &str = "src/protobuf";
-const PROTO_FILES: &[&str] = &[
+use tracing::info;
+
+pub const PROTO_DIR: &str = "src/protobuf";
+pub const PROTO_FILES: &[&str] = &[
     "src/proto/p2p/proto/class.proto",
     "src/proto/p2p/proto/consensus/consensus.proto",
     "src/proto/p2p/proto/mempool/transaction.proto",
@@ -16,6 +17,7 @@ const PROTO_FILES: &[&str] = &[
     "src/proto/p2p/proto/sync/transaction.proto",
     "src/proto/p2p/proto/transaction.proto",
 ];
+pub const PROTOC_OUTPUT: &str = "protoc_output.rs";
 
 /// Returns the version of the preinstalled protoc if it is valid (version 3.15.x or greater).
 /// Otherwise, returns None.
@@ -50,9 +52,13 @@ fn parse_protoc_version(protoc_version_str: &str) -> Option<(u32, u32)> {
 }
 
 pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io::Error> {
-    println!("Building protos");
+    info!("Building protos");
+
+    // OUT_DIR env variable is required by protoc_prebuilt
+    env::set_var("OUT_DIR", &out_dir);
+
     if get_valid_preinstalled_protoc_version().is_none() {
-        println!(
+        info!(
             "Protoc is not installed. Adding a prebuilt protoc binary via gh actions before \
              building."
         );
@@ -60,56 +66,26 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
         "Build failed due to Github's rate limit. Please run `gh auth login` to lift the rate limit and allow protoc compilation to proceed. \
         If this issue persists please download Protoc following the instructions at https://github.com/starkware-libs/sequencer/blob/main/docs/papyrus/README.adoc#prerequisites",
         );
-        println!("Prebuilt protoc added to the project.");
+        info!("Prebuilt protoc added to the project.");
         env::set_var("PROTOC", protoc_bin);
     }
-    let _ = std::fs::create_dir_all(&out_dir);
 
-    prost_build::Config::new().out_dir(out_dir).compile_protos(proto_files, &["src/proto/"])?;
+    // Using absolute paths for consistency between test and bin
+    let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+
+    prost_build::Config::new()
+        .protoc_arg(format!("--proto_path={}", project_root.display()))
+        .out_dir(&out_dir)
+        .compile_protos(
+            &proto_files
+                .iter()
+                .map(|p| project_root.join(p))
+                .collect::<Vec<_>>()
+                .iter()
+                .map(|p| p.to_str().unwrap())
+                .collect::<Vec<_>>(),
+            &[project_root.join("src/proto").to_str().unwrap()],
+        )?;
 
     Ok(())
-}
-
-#[test]
-fn test_proto_regression() {
-    // if OUT_DIR is not set, we need to create a temp dir and set the env var
-    let out_dir = match env::var("OUT_DIR") {
-        Ok(dir) => &dir.clone(),
-        Err(_) => {
-            std::fs::create_dir_all(GENERATED_DIR).expect("Failed to create temp GENERATED_DIR");
-            env::set_var("OUT_DIR", GENERATED_DIR);
-            GENERATED_DIR
-        }
-    };
-
-    let fix = env::var("PROTO_FIX").is_ok();
-
-    // remove the temp dir if it exists (can happen if the test failed previously)
-    if Path::new(out_dir).exists() {
-        fs::remove_dir_all(out_dir).unwrap();
-    }
-    fs::create_dir(out_dir).unwrap();
-
-    generate_protos(out_dir.into(), PROTO_FILES).unwrap();
-
-    let generated_name = String::from(out_dir) + "/_.rs";
-    let expected_name = String::from(PROTO_DIR) + "/protoc_output.rs";
-
-    let expected_file = fs::read_to_string(expected_name.clone())
-        .unwrap_or_else(|_| panic!("Failed to read expected file at {:?}", expected_name));
-    let generated_file = fs::read_to_string(generated_name.clone())
-        .unwrap_or_else(|_| panic!("Failed to read generated file at {:?}", generated_name));
-
-    if expected_file != generated_file {
-        if fix {
-            fs::copy(generated_name, expected_name).expect("Failed to fix the precompiled protos");
-        } else {
-            panic!(
-                "Generated protos are different from precompiled protos. Run `PROTO_FIX=1 cargo \
-                 test -p papyrus_protobuf test_proto_regression` to fix the precompiled protos."
-            );
-        }
-    }
-
-    fs::remove_dir_all(out_dir).unwrap();
 }
