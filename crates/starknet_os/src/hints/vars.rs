@@ -5,6 +5,7 @@ use starknet_types_core::felt::Felt;
 
 pub(crate) enum Scope {
     InitialDict,
+    DictManager,
     DictTracker,
 }
 
@@ -12,6 +13,7 @@ impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
             Scope::InitialDict => "initial_dict",
+            Scope::DictManager => "Dict_manager",
             Scope::DictTracker => "dict_tracker",
         }
     }
@@ -21,6 +23,7 @@ pub(crate) enum Ids {
     BucketIndex,
     DictPtr,
     PrevOffset,
+    NextAvailableAlias,
 }
 
 impl From<Ids> for &str {
@@ -29,6 +32,7 @@ impl From<Ids> for &str {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
             Ids::PrevOffset => "prev_offset",
+            Ids::NextAvailableAlias => "next_available_alias",
         }
     }
 }
@@ -50,18 +54,5 @@ impl Const {
     pub fn fetch(&self, constants: &HashMap<String, Felt>) -> Result<Felt, HintError> {
         let identifier = (*self).into();
         constants.get(identifier).copied().ok_or(HintError::MissingConstant(Box::new(identifier)))
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum Ids {
-    NextAvailableAlias,
-}
-
-impl From<Ids> for &'static str {
-    fn from(id: Ids) -> &'static str {
-        match id {
-            Ids::NextAvailableAlias => "next_available_alias",
-        }
     }
 }
