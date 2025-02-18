@@ -1,11 +1,16 @@
 use std::collections::HashMap;
 
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_maybe_relocatable_from_var_name,
+    get_ptr_from_var_name,
+    insert_value_from_var_name,
+};
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Scope;
+use crate::hints::vars::{Ids, Scope};
 
 /// Number of bits encoding each element (per bucket).
 const N_BITS_PER_BUCKET: [usize; 6] = [252, 125, 83, 62, 31, 15];
@@ -22,24 +27,20 @@ pub(crate) fn dictionary_from_bucket(
     Ok(())
 }
 
-pub(crate) fn get_prev_offset(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    let dict_ptr = get_ptr_from_var_name(vars::ids::DICT_PTR, vm, ids_data, ap_tracking)?;
+pub(crate) fn get_prev_offset(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+) -> HintResult {
+    let dict_manager = exec_scopes.get_dict_manager()?;
 
-    let dict_tracker = match exec_scopes.get_dict_manager()?.borrow().get_tracker(dict_ptr)?.data.clone() {
-        Dictionary::SimpleDictionary(hash_map) => hash_map,
-        Dictionary::DefaultDictionary { dict, .. } => dict,
-    };
+    let dict_ptr = get_ptr_from_var_name(Ids::DictPtr.into(), vm, ids_data, ap_tracking)?;
+    let dict_tracker = dict_manager.borrow().get_tracker(dict_ptr)?.get_dictionary_copy();
+    exec_scopes.insert_box(Scope::DictTracker.into(), Box::new(dict_tracker));
 
-    let bucket_index = get_maybe_relocatable_from_var_name(vars::ids::BUCKET_INDEX, vm, ids_data, ap_tracking)?;
-
-    let prev_offset = match dict_tracker.get(&bucket_index) {
-        Some(offset) => offset.clone(),
-        None => return Err(custom_hint_error("No prev_offset found for the given bucket_index")),
-    };
-
-    exec_scopes.insert_box(vars::scopes::DICT_TRACKER, Box::new(dict_tracker));
-    insert_value_from_var_name(vars::ids::PREV_OFFSET, prev_offset, vm, ids_data, ap_tracking)?;
-    Ok(())
+    let bucket_index =
+        get_maybe_relocatable_from_var_name(Ids::BucketIndex.into(), vm, ids_data, ap_tracking)?;
+    let prev_offset =
+        dict_manager.borrow_mut().get_tracker_mut(dict_ptr)?.get_value(&bucket_index)?.clone();
+    insert_value_from_var_name(Ids::PrevOffset.into(), prev_offset, vm, ids_data, ap_tracking)
 }
 
 pub(crate) fn compression_hint(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
