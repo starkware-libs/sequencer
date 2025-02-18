@@ -23,7 +23,23 @@ pub(crate) fn dictionary_from_bucket(
 }
 
 pub(crate) fn get_prev_offset(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
-    todo!()
+    let dict_ptr = get_ptr_from_var_name(vars::ids::DICT_PTR, vm, ids_data, ap_tracking)?;
+
+    let dict_tracker = match exec_scopes.get_dict_manager()?.borrow().get_tracker(dict_ptr)?.data.clone() {
+        Dictionary::SimpleDictionary(hash_map) => hash_map,
+        Dictionary::DefaultDictionary { dict, .. } => dict,
+    };
+
+    let bucket_index = get_maybe_relocatable_from_var_name(vars::ids::BUCKET_INDEX, vm, ids_data, ap_tracking)?;
+
+    let prev_offset = match dict_tracker.get(&bucket_index) {
+        Some(offset) => offset.clone(),
+        None => return Err(custom_hint_error("No prev_offset found for the given bucket_index")),
+    };
+
+    exec_scopes.insert_box(vars::scopes::DICT_TRACKER, Box::new(dict_tracker));
+    insert_value_from_var_name(vars::ids::PREV_OFFSET, prev_offset, vm, ids_data, ap_tracking)?;
+    Ok(())
 }
 
 pub(crate) fn compression_hint(HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>) -> HintResult {
