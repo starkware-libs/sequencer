@@ -7,7 +7,7 @@
 //! types. Each of the functions measure the performance of the gateway handling randomly created
 //! txs of the respective type.
 //!
-//! Run the benchmarks using `cargo bench --bench gateway_bench`.
+//! Run the benchmarks using `cargo bench --bench starknet_gateway`.
 
 // import the Gateway test utilities.
 mod utils;
