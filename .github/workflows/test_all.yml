@@ -1,0 +1,17 @@
+name: Test-All
+
+on:
+  push:
+
+env:
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+
+jobs:
+  test-all:
+    runs-on: starkware-ubuntu-latest-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+      - run: npm install -g ganache@7.4.3
+      - name: Cargo test
+        run: cargo test
