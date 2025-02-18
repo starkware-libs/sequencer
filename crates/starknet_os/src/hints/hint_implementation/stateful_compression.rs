@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use blockifier::state::state_api::StateReader;
+use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_api::core::ContractAddress;
@@ -67,9 +67,28 @@ pub(crate) fn read_alias_counter<S: StateReader>(
 }
 
 pub(crate) fn initialize_alias_counter<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, constants, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    todo!()
+    let aliases_contract_address = get_alias_contract_address(constants)?;
+    let alias_counter_storage_key = get_alias_counter_storage_key(constants)?;
+    let initial_available_alias = *Const::InitialAvailableAlias.fetch(constants)?;
+    hint_processor
+        .execution_helper
+        .cached_state
+        .set_storage_at(
+            aliases_contract_address,
+            alias_counter_storage_key,
+            initial_available_alias,
+        )
+        .map_err(|_| {
+            HintError::CustomHint(
+                format!(
+                    "Failed to write the initial counter {initial_available_alias:?} to the alias \
+                     contract {aliases_contract_address} storage."
+                )
+                .into(),
+            )
+        })
 }
 
 pub(crate) fn update_alias_counter<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
@@ -103,7 +122,7 @@ fn get_alias_contract_address(
 fn get_alias_counter_storage_key(
     constants: &HashMap<String, Felt>,
 ) -> Result<StorageKey, HintError> {
-    let alias_counter_storage_key = *Const::AliasContractAddress.fetch(constants)?;
+    let alias_counter_storage_key = *Const::AliasCounterStorageKey.fetch(constants)?;
     Ok(StorageKey::try_from(alias_counter_storage_key).unwrap_or_else(|_| {
         panic!(
             "Failed to convert the alias counter storage key {alias_counter_storage_key:?} to \

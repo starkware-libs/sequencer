@@ -36,12 +36,16 @@ impl From<Ids> for &str {
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Const {
     AliasContractAddress,
+    InitialAvailableAlias,
+    AliasCounterStorageKey,
 }
 
 impl From<Const> for &'static str {
     fn from(constant: Const) -> &'static str {
         match constant {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
+            Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
+            Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
         }
     }
 }
