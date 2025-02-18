@@ -1,12 +1,15 @@
 use blockifier::state::state_api::{State, StateReader};
 use blockifier::state::stateful_compression::{ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS};
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    insert_value_into_ap,
+};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_api::core::ContractAddress;
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Const;
+use crate::hints::vars::{Const, Ids};
 
 pub(crate) fn enter_scope_with_aliases(
     HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
@@ -74,9 +77,25 @@ pub(crate) fn initialize_alias_counter(
 }
 
 pub(crate) fn update_alias_counter(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+    HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<
+        '_,
+        '_,
+        '_,
+        '_,
+        '_,
+        '_,
+    >,
 ) -> HintResult {
-    todo!()
+    let aliases_contract_address_as_felt = Const::AliasContractAddress.fetch(constants)?;
+    let aliases_contract_address = ContractAddress::try_from(aliases_contract_address_as_felt)
+        .expect("Failed to convert the alias contract address 0x2 to contract address.");
+    let alias_counter =
+        get_integer_from_var_name(Ids::NextAvailableAlias.into(), vm, ids_data, ap_tracking)?;
+    hint_processor
+        .execution_helper
+        .cached_state
+        .set_storage_at(aliases_contract_address, ALIAS_COUNTER_STORAGE_KEY, alias_counter)
+        .map_err(|_| HintError::CustomHint("Failed to write to storage.".into()))
 }
 
 pub(crate) fn contract_address_le_max_for_compression(

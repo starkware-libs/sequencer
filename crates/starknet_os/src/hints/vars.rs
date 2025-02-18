@@ -52,3 +52,16 @@ impl Const {
         constants.get(identifier).copied().ok_or(HintError::MissingConstant(Box::new(identifier)))
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Ids {
+    NextAvailableAlias,
+}
+
+impl From<Ids> for &'static str {
+    fn from(id: Ids) -> &'static str {
+        match id {
+            Ids::NextAvailableAlias => "next_available_alias",
+        }
+    }
+}
