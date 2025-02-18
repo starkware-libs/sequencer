@@ -824,8 +824,7 @@ async fn validate_proposal(
             "Invalid BlockInfo. block_info_validation={block_info_validation:?}, \
              block_info={block_info:?}"
         );
-        // TODO(Asmaa): Remove this before production and just return.
-        panic!("Invalid BlockInfo");
+        return;
     }
     if let Err(e) = initiate_validation(batcher, block_info.clone(), proposal_id, timeout).await {
         error!("Failed to initiate proposal validation. {e:?}");
