@@ -1,10 +1,13 @@
 use blockifier::state::state_api::{State, StateReader};
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    insert_value_into_ap,
+};
 use cairo_vm::vm::errors::hint_errors::HintError;
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Const;
+use crate::hints::vars::{Const, Ids};
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
@@ -86,8 +89,26 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
         })
 }
 
-pub(crate) fn update_alias_counter<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
+pub(crate) fn update_alias_counter<S: StateReader>(
+    HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+) -> HintResult {
+    let aliases_contract_address = Const::get_alias_contract_address(constants)?;
+    let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
+    let next_available_alias =
+        get_integer_from_var_name(Ids::NextAvailableAlias.into(), vm, ids_data, ap_tracking)?;
+    hint_processor
+        .execution_helper
+        .cached_state
+        .set_storage_at(aliases_contract_address, alias_counter_storage_key, next_available_alias)
+        .map_err(|_| {
+            HintError::CustomHint(
+                format!(
+                    "Failed to write the next available alias {next_available_alias:?} to the \
+                     alias contract {aliases_contract_address} storage."
+                )
+                .into(),
+            )
+        })
 }
 
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
