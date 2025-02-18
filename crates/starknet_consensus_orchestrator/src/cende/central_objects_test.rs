@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec;
 
-use blockifier::bouncer::{BouncerWeights, BuiltinCount};
+use blockifier::bouncer::BuiltinCount;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -45,7 +45,7 @@ use indexmap::indexmap;
 use mockall::predicate::eq;
 use num_bigint::BigUint;
 use rstest::rstest;
-use serde_json::Value;
+use serde::Serialize;
 use starknet_api::block::{
     BlockHash,
     BlockInfo,
@@ -107,6 +107,7 @@ use starknet_class_manager_types::MockClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 use super::{
+    CentralBouncerWeights,
     CentralCompressedStateDiff,
     CentralDeclareTransaction,
     CentralDeployAccountTransaction,
@@ -189,14 +190,12 @@ fn block_info() -> BlockInfo {
     }
 }
 
-fn central_state_diff_json() -> Value {
+fn central_state_diff() -> CentralStateDiff {
     let state_diff = thin_state_diff();
     let block_info = block_info();
     let starknet_version = StarknetVersion::V0_14_0;
 
-    let central_state_diff: CentralStateDiff =
-        (state_diff, (block_info, starknet_version).into()).into();
-    serde_json::to_value(central_state_diff).unwrap()
+    (state_diff, (block_info, starknet_version).into()).into()
 }
 
 fn commitment_state_diff() -> CommitmentStateDiff {
@@ -211,14 +210,12 @@ fn commitment_state_diff() -> CommitmentStateDiff {
     }
 }
 
-fn central_compressed_state_diff_json() -> Value {
+fn central_compressed_state_diff() -> CentralCompressedStateDiff {
     let state_diff = commitment_state_diff();
     let block_info = block_info();
     let starknet_version = StarknetVersion::V0_14_0;
 
-    let central_state_diff: CentralCompressedStateDiff =
-        (state_diff, (block_info, starknet_version).into()).into();
-    serde_json::to_value(central_state_diff).unwrap()
+    (state_diff, (block_info, starknet_version).into()).into()
 }
 
 fn invoke_transaction() -> RpcInvokeTransaction {
@@ -238,17 +235,15 @@ fn invoke_transaction() -> RpcInvokeTransaction {
     })
 }
 
-fn central_invoke_tx_json() -> Value {
+fn central_invoke_tx() -> CentralTransactionWritten {
     let invoke_tx = invoke_transaction();
     let tx_hash =
         TransactionHash(felt!("0x6efd067c859e6469d0f6d158e9ae408a9552eb8cc11f618ab3aef3e52450666"));
 
-    let central_transaction_written = CentralTransactionWritten {
+    CentralTransactionWritten {
         tx: CentralTransaction::Invoke(CentralInvokeTransaction::V3((invoke_tx, tx_hash).into())),
         time_created: 1734601615,
-    };
-
-    serde_json::to_value(central_transaction_written).unwrap()
+    }
 }
 
 fn deploy_account_tx() -> InternalRpcDeployAccountTransaction {
@@ -273,20 +268,18 @@ fn deploy_account_tx() -> InternalRpcDeployAccountTransaction {
     }
 }
 
-fn central_deploy_account_tx_json() -> Value {
+fn central_deploy_account_tx() -> CentralTransactionWritten {
     let deploy_account_tx = deploy_account_tx();
 
     let tx_hash =
         TransactionHash(felt!("0x429cb4dc45610a80a96800ab350a11ff50e2d69e25c7723c002934e66b5a282"));
 
-    let central_transaction_written = CentralTransactionWritten {
+    CentralTransactionWritten {
         tx: CentralTransaction::DeployAccount(CentralDeployAccountTransaction::V3(
             (deploy_account_tx, tx_hash).into(),
         )),
         time_created: 1734601616,
-    };
-
-    serde_json::to_value(central_transaction_written).unwrap()
+    }
 }
 
 fn declare_transaction() -> InternalRpcDeclareTransactionV3 {
@@ -305,18 +298,17 @@ fn declare_transaction() -> InternalRpcDeclareTransactionV3 {
     }
 }
 
-fn central_declare_tx_json() -> Value {
+fn central_declare_tx() -> CentralTransactionWritten {
     let tx_hash =
         TransactionHash(felt!("0x41e7d973115400a98a7775190c27d4e3b1fcd8cd40b7d27464f6c3f10b8b706"));
     let declare_tx = declare_transaction();
-    let central_transaction_written = CentralTransactionWritten {
+
+    CentralTransactionWritten {
         tx: CentralTransaction::Declare(CentralDeclareTransaction::V3(
             (declare_tx, &sierra_contract_class(), tx_hash).try_into().unwrap(),
         )),
         time_created: 1734601649,
-    };
-
-    serde_json::to_value(central_transaction_written).unwrap()
+    }
 }
 
 fn l1_handler_tx() -> L1HandlerTransaction {
@@ -337,18 +329,17 @@ fn l1_handler_tx() -> L1HandlerTransaction {
     }
 }
 
-fn central_l1_handler_tx_json() -> Value {
+fn central_l1_handler_tx() -> CentralTransactionWritten {
     let l1_handler_tx = l1_handler_tx();
-    let central_transaction_written = CentralTransactionWritten {
+
+    CentralTransactionWritten {
         tx: CentralTransaction::L1Handler(l1_handler_tx.into()),
         time_created: 1734601657,
-    };
-
-    serde_json::to_value(central_transaction_written).unwrap()
+    }
 }
 
-fn central_bouncer_weights_json() -> Value {
-    let bouncer_weights = BouncerWeights {
+fn central_bouncer_weights() -> CentralBouncerWeights {
+    CentralBouncerWeights {
         builtin_count: BuiltinCount {
             add_mod: 1,
             bitwise: 2,
@@ -367,9 +358,7 @@ fn central_bouncer_weights_json() -> Value {
         n_steps: 121095,
         state_diff_size: 45,
         sierra_gas: GasAmount(10),
-    };
-
-    serde_json::to_value(bouncer_weights).unwrap()
+    }
 }
 
 fn entry_point(idx: usize, selector: u8) -> EntryPoint {
@@ -387,11 +376,6 @@ fn sierra_contract_class() -> SierraContractClass {
         },
         abi: "dummy abi".to_string(),
     }
-}
-
-fn central_sierra_contract_class_json() -> Value {
-    let sierra_contract_class = sierra_contract_class();
-    serde_json::to_value(sierra_contract_class).unwrap()
 }
 
 fn casm_contract_entry_points() -> Vec<CasmContractEntryPoint> {
@@ -426,20 +410,17 @@ fn casm_contract_class() -> CasmContractClass {
     }
 }
 
-fn central_casm_contract_class_json() -> Value {
-    let casm_contract_class = casm_contract_class();
-    let central_casm_contract_class = casm_contract_class_central_format(casm_contract_class);
-    serde_json::to_value(central_casm_contract_class).unwrap()
+fn central_casm_contract_class() -> CasmContractClass {
+    casm_contract_class_central_format(casm_contract_class())
 }
 
-fn central_casm_contract_class_default_optional_fields_json() -> Value {
+fn central_casm_contract_class_default_optional_fields() -> CasmContractClass {
     let casm_contract_class = CasmContractClass {
         bytecode_segment_lengths: None,
         pythonic_hints: None,
         ..casm_contract_class()
     };
-    let central_casm_contract_class = casm_contract_class_central_format(casm_contract_class);
-    serde_json::to_value(central_casm_contract_class).unwrap()
+    casm_contract_class_central_format(casm_contract_class)
 }
 
 fn execution_resources() -> ExecutionResources {
@@ -566,7 +547,9 @@ fn central_transaction_execution_info() -> TransactionExecutionInfo {
     }
 }
 
-fn central_transaction_execution_info_json(reverted: bool) -> Value {
+fn central_transaction_execution_info_with_reverted(
+    reverted: bool,
+) -> CentralTransactionExecutionInfo {
     let mut transaction_execution_info = central_transaction_execution_info();
     // The python side enforces that if the transaction is reverted, the execute_call_info is None.
     // Since we are using the same json files for python tests, we apply these rules here as well.
@@ -576,42 +559,34 @@ fn central_transaction_execution_info_json(reverted: bool) -> Value {
         transaction_execution_info.revert_error = None;
     }
 
-    let central_transaction_execution_info: CentralTransactionExecutionInfo =
-        transaction_execution_info.into();
-
-    serde_json::to_value(central_transaction_execution_info).unwrap()
+    transaction_execution_info.into()
 }
 
 #[rstest]
-#[case::compressed_state_diff(central_compressed_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
-#[case::state_diff(central_state_diff_json(), CENTRAL_STATE_DIFF_JSON_PATH)]
-#[case::invoke_tx(central_invoke_tx_json(), CENTRAL_INVOKE_TX_JSON_PATH)]
-#[case::deploy_account_tx(central_deploy_account_tx_json(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
-#[case::declare_tx(central_declare_tx_json(), CENTRAL_DECLARE_TX_JSON_PATH)]
-#[case::l1_handler_tx(central_l1_handler_tx_json(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
-#[case::bouncer_weights(central_bouncer_weights_json(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
-#[case::sierra_contract_class(
-    central_sierra_contract_class_json(),
-    CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH
-)]
-#[case::optionals_are_some(
-    central_casm_contract_class_json(),
-    CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH
-)]
+#[case::compressed_state_diff(central_compressed_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
+#[case::state_diff(central_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
+#[case::invoke_tx(central_invoke_tx(), CENTRAL_INVOKE_TX_JSON_PATH)]
+#[case::deploy_account_tx(central_deploy_account_tx(), CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH)]
+#[case::declare_tx(central_declare_tx(), CENTRAL_DECLARE_TX_JSON_PATH)]
+#[case::l1_handler_tx(central_l1_handler_tx(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
+#[case::bouncer_weights(central_bouncer_weights(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
+#[case::sierra_contract_class(sierra_contract_class(), CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH)]
+#[case::optionals_are_some(central_casm_contract_class(), CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH)]
 #[case::optionals_are_none(
-    central_casm_contract_class_default_optional_fields_json(),
+    central_casm_contract_class_default_optional_fields(),
     CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH
 )]
 #[case::transaction_execution_info(
-    central_transaction_execution_info_json(false),
+    central_transaction_execution_info_with_reverted(false),
     CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH
 )]
 #[case::transaction_execution_info_reverted(
-    central_transaction_execution_info_json(true),
+    central_transaction_execution_info_with_reverted(true),
     CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH
 )]
-fn serialize_central_objects(#[case] rust_json: Value, #[case] python_json_path: &str) {
+fn serialize_central_objects<T: Serialize>(#[case] rust_obj: T, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
+    let rust_json = serde_json::to_value(rust_obj).unwrap();
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
 }
