@@ -1,4 +1,8 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::{State, StateReader};
+use cairo_vm::any_box;
+use cairo_vm::hint_processor::builtin_hint_processor::dict_manager::DictManager;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_into_ap,
@@ -7,12 +11,18 @@ use cairo_vm::vm::errors::hint_errors::HintError;
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids};
+use crate::hints::vars::{Const, Ids, Scope};
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    todo!()
+    // Note that aliases, execution_helper and os_input do not enter the new scope as they are not
+    // needed.
+    let dict_manager_str: &str = Scope::DictManager.into();
+    let dict_manager: DictManager = exec_scopes.get(dict_manager_str)?;
+    let new_scope = HashMap::from([(dict_manager_str.to_string(), any_box!(dict_manager))]);
+    exec_scopes.enter_scope(new_scope);
+    Ok(())
 }
 
 pub(crate) fn get_alias_entry_for_state_update<S: StateReader>(
