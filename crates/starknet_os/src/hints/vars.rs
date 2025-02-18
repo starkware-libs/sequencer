@@ -1,3 +1,10 @@
+use std::collections::HashMap;
+
+use cairo_vm::vm::errors::hint_errors::HintError;
+use starknet_api::core::ContractAddress;
+use starknet_api::state::StorageKey;
+use starknet_types_core::felt::Felt;
+
 pub(crate) enum Scope {
     InitialDict,
     DictTracker,
@@ -18,12 +25,58 @@ pub(crate) enum Ids {
     PrevOffset,
 }
 
-impl From<Ids> for &str {
+impl From<Ids> for &'static str {
     fn from(ids: Ids) -> &'static str {
         match ids {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
             Ids::PrevOffset => "prev_offset",
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Const {
+    AliasContractAddress,
+    AliasCounterStorageKey,
+}
+
+impl From<Const> for &'static str {
+    fn from(constant: Const) -> &'static str {
+        match constant {
+            Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
+            Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
+        }
+    }
+}
+
+impl Const {
+    pub fn fetch<'a>(&self, constants: &'a HashMap<String, Felt>) -> Result<&'a Felt, HintError> {
+        let identifier = (*self).into();
+        constants.get(identifier).ok_or(HintError::MissingConstant(Box::new(identifier)))
+    }
+
+    pub fn get_alias_counter_storage_key(
+        constants: &HashMap<String, Felt>,
+    ) -> Result<StorageKey, HintError> {
+        let alias_counter_storage_key = *Self::AliasCounterStorageKey.fetch(constants)?;
+        Ok(StorageKey::try_from(alias_counter_storage_key).unwrap_or_else(|_| {
+            panic!(
+                "Failed to convert the alias counter storage key {alias_counter_storage_key:?} to \
+                 storage key."
+            )
+        }))
+    }
+
+    pub fn get_alias_contract_address(
+        constants: &HashMap<String, Felt>,
+    ) -> Result<ContractAddress, HintError> {
+        let alias_contract_address_as_felt = *Self::AliasContractAddress.fetch(constants)?;
+        Ok(ContractAddress::try_from(alias_contract_address_as_felt).unwrap_or_else(|_| {
+            panic!(
+                "Failed to convert the alias contract address {alias_contract_address_as_felt:?} \
+                 to contract address."
+            )
+        }))
     }
 }

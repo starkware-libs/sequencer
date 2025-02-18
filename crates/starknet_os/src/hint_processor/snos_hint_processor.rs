@@ -11,7 +11,7 @@ use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::error::{HintExtensionResult, HintResult};
 
 pub struct SnosHintProcessor<S: StateReader> {
-    _execution_helper: OsExecutionHelper<S>,
+    pub execution_helper: OsExecutionHelper<S>,
     _syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
 }
