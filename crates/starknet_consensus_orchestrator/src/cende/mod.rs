@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod cende_test;
-pub mod central_objects;
+mod central_objects;
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -19,7 +19,6 @@ use central_objects::{
     CentralCompressedStateDiff,
     CentralSierraContractClassEntry,
     CentralStateDiff,
-    CentralTransactionExecutionInfo,
     CentralTransactionWritten,
 };
 #[cfg(test)]
@@ -28,6 +27,7 @@ use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder};
 use serde::{Deserialize, Serialize};
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
