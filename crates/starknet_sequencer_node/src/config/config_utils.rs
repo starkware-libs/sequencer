@@ -68,8 +68,11 @@ impl SerializeConfig for RequiredParams {
 
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
+        const CHAIN_ID_NAME: &str = "SN_GOERLI";
+
         Self {
-            chain_id: ChainId::create_for_testing(),
+            // TODO(Arni): Use chain id for testing.
+            chain_id: ChainId::Other(CHAIN_ID_NAME.to_string()),
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
