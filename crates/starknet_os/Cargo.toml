@@ -9,6 +9,7 @@ description = "The Starknet OS."
 [features]
 deserialize = [
   "blockifier/transaction_serde",
+  "serde",
   "starknet-types-core/serde",
   "starknet_consensus_orchestrator/deserialize",
   "starknet_patricia/deserialize",
@@ -20,11 +21,8 @@ blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
 indoc.workspace = true
-papyrus_common.workspace = true
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["raw_value"] }
-sha3.workspace = true
-starknet-types-core = { workspace = true, features = ["hash"] }
+serde = { workspace = true, optional = true, features = ["derive"] }
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_consensus_orchestrator.workspace = true
 starknet_patricia.workspace = true
