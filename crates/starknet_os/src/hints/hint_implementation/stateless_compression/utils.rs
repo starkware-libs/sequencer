@@ -142,3 +142,16 @@ impl UniqueValueBucket {
         pack_in_felts(&values, self.n_bits)
     }
 }
+
+/// Computes the starting offsets for each bucket in a list of buckets, based on their lengths.
+pub(crate) fn get_bucket_offsets(bucket_lengths: &[usize]) -> Vec<usize> {
+    let mut offsets = Vec::with_capacity(bucket_lengths.len());
+    let mut current = 0;
+
+    for &length in bucket_lengths {
+        offsets.push(current);
+        current += length;
+    }
+
+    offsets
+}
