@@ -40,7 +40,7 @@ pub struct ContractClassComponentHashes {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
-    _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
+    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
     _deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,
