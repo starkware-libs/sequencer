@@ -17,8 +17,8 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::ChainId;
 use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -420,7 +420,7 @@ async fn run_build_block(
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(deadline_secs);
     let transaction_converter = TransactionConverter::new(
         Arc::new(MockClassManagerClient::new()),
-        ChainId::create_for_testing(),
+        CHAIN_ID_FOR_TESTS.clone(),
     );
     let mut block_builder = BlockBuilder::new(
         mock_transaction_executor,

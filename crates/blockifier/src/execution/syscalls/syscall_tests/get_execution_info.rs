@@ -2,10 +2,10 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
-use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{
+    CHAIN_ID_FOR_TESTS,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
@@ -304,14 +304,13 @@ fn test_get_execution_info(
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
         expected_tx_info = vec![
-            expected_version,                                /* Transaction
-                                                              * version. */
-            *sender_address.0.key(), // Account address.
-            felt!(max_fee.0),        // Max fee.
-            Felt::ZERO,              // Signature.
-            tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-            nonce.0,                 // Nonce.
+            expected_version,                     // Transaction version.
+            *sender_address.0.key(),              // Account address.
+            felt!(max_fee.0),                     // Max fee.
+            Felt::ZERO,                           // Signature.
+            tx_hash.0,                            // Transaction hash.
+            felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
+            nonce.0,                              // Nonce.
         ];
 
         tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
@@ -327,14 +326,13 @@ fn test_get_execution_info(
         });
     } else {
         expected_tx_info = vec![
-            expected_version,                                /* Transaction
-                                                              * version. */
-            *sender_address.0.key(), // Account address.
-            Felt::ZERO,              // Max fee.
-            Felt::ZERO,              // Signature.
-            tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-            nonce.0,                 // Nonce.
+            expected_version,                     // Transaction version.
+            *sender_address.0.key(),              // Account address.
+            Felt::ZERO,                           // Max fee.
+            Felt::ZERO,                           // Signature.
+            tx_hash.0,                            // Transaction hash.
+            felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
+            nonce.0,                              // Nonce.
         ];
 
         tx_info = TransactionInfo::Current(CurrentTransactionInfo {

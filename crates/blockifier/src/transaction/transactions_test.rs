@@ -19,7 +19,7 @@ use starknet_api::abi::abi_utils::{
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, EthAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
@@ -35,6 +35,7 @@ use starknet_api::test_utils::deploy_account::{
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
+    CHAIN_ID_FOR_TESTS,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
@@ -2371,13 +2372,13 @@ fn test_only_query_flag(
         version += *QUERY_VERSION_BASE;
     }
     let expected_tx_info = vec![
-        version,                                         // Transaction version.
-        *account_address.0.key(),                        // Account address.
-        Felt::ZERO,                                      // Max fee.
-        Felt::ZERO,                                      // Signature.
-        Felt::ZERO,                                      // Transaction hash.
-        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-        Felt::ZERO,                                      // Nonce.
+        version,                              // Transaction version.
+        *account_address.0.key(),             // Account address.
+        Felt::ZERO,                           // Max fee.
+        Felt::ZERO,                           // Signature.
+        Felt::ZERO,                           // Transaction hash.
+        felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
+        Felt::ZERO,                           // Nonce.
     ];
 
     let expected_resource_bounds = vec![
