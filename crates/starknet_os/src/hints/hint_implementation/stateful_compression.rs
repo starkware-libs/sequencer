@@ -133,7 +133,14 @@ pub(crate) fn contract_address_le_max_for_compression(
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, '_, '_, '_, '_>,
 ) -> HintResult {
-    todo!()
+    // TODO(Nimrod): Consider moving this hint to `state.rs`.
+    exec_scopes.insert_box(
+        Scope::CommitmentInfoByAddress.into(),
+        Box::new(std::mem::take(
+            &mut hint_processor.execution_helper.os_input.address_to_storage_commitment_info,
+        )),
+    );
+    Ok(())
 }
