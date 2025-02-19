@@ -13,7 +13,7 @@ workspace = true
 cairo_native = [
   "blockifier_test_utils/cairo_native",
   "dep:cairo-native",
-  "starknet_sierra_multicompile/cairo_native",
+  "dep:starknet_sierra_multicompile",
 ]
 native_blockifier = []
 reexecution = ["transaction_serde"]
@@ -58,7 +58,7 @@ sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_infra_utils.workspace = true
-starknet_sierra_multicompile.workspace = true
+starknet_sierra_multicompile = { workspace = true, optional = true}
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
