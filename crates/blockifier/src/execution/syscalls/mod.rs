@@ -253,6 +253,11 @@ pub fn deploy(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<DeployResponse> {
+    // Increment the Deploy syscall's linear cost counter by the number of elements in the
+    // constructor calldata.
+    syscall_handler
+        .increment_linear_factor_by(&SyscallSelector::Deploy, request.constructor_calldata.0.len());
+
     let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
         request.class_hash,
         request.contract_address_salt,
