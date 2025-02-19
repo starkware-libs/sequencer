@@ -46,7 +46,7 @@ impl SerializeConfig for MempoolConfig {
             ),
             ser_param(
                 "transaction_ttl",
-                &self.transaction_ttl,
+                &self.transaction_ttl.as_secs(),
                 "Time-to-live for transactions in the mempool, in seconds.",
                 ParamPrivacyInput::Public,
             ),
