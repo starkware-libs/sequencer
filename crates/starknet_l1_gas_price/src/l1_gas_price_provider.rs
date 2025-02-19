@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
 use starknet_l1_gas_price_types::L1GasPriceProviderResult;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use validator::Validate;
 
 #[cfg(test)]
@@ -134,3 +135,5 @@ impl L1GasPriceProvider {
         ))
     }
 }
+
+impl ComponentStarter for L1GasPriceProvider {}
