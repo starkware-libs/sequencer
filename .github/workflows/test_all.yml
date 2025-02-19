@@ -13,8 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: npm install -g ganache@7.4.3
-      - name: Cargo test
+      - name: Cargo test # Takes 11 minutes to compile when it's first!!!
         run: cargo test -- -Z unstable-options --report-time
-
       - name: Cargo build
         run: cargo build
