@@ -33,6 +33,7 @@ use crate::block_builder::{
     BlockBuilderResult,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
+    BlockExecutionMetadata,
     FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
@@ -64,7 +65,7 @@ fn block_execution_artifacts(
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_infos,
-        rejected_tx_hashes,
+        metadata: BlockExecutionMetadata { rejected_tx_hashes },
         commitment_state_diff: Default::default(),
         compressed_state_diff: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },

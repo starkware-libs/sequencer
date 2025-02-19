@@ -479,13 +479,14 @@ impl Batcher {
         let state_diff = block_execution_artifacts.thin_state_diff();
         let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
             .expect("Number of transactions should fit in u64");
-        let n_rejected_txs = u64::try_from(block_execution_artifacts.rejected_tx_hashes.len())
-            .expect("Number of rejected transactions should fit in u64");
+        let n_rejected_txs =
+            u64::try_from(block_execution_artifacts.metadata.rejected_tx_hashes.len())
+                .expect("Number of rejected transactions should fit in u64");
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.rejected_tx_hashes,
+            block_execution_artifacts.metadata.rejected_tx_hashes,
         )
         .await?;
         let execution_infos: Vec<_> =
