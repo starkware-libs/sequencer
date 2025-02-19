@@ -1,32 +1,15 @@
 use std::collections::VecDeque;
 
-#[cfg(any(feature = "testing", test))]
-use mockall::automock;
 use papyrus_base_layer::PriceSample;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
+use starknet_l1_gas_price_types::L1GasPriceProviderResult;
 use validator::Validate;
 
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
 pub mod l1_gas_price_provider_test;
-
-// TODO(guyn, Gilad): consider moving this to starknet_l1_provider_types/lib.rs?
-// This is an interface that allows sharing the provider with the scraper across threads.
-#[cfg_attr(any(feature = "testing", test), automock)]
-pub trait L1GasPriceProviderClient: Send + Sync {
-    fn add_price_info(
-        &self,
-        height: BlockNumber,
-        sample: PriceSample,
-    ) -> Result<(), L1GasPriceProviderError>;
-
-    fn get_price_info(
-        &self,
-        timestamp: BlockTimestamp,
-    ) -> Result<(u128, u128), L1GasPriceProviderError>;
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceProviderConfig {
@@ -62,7 +45,7 @@ impl L1GasPriceProvider {
         &mut self,
         height: BlockNumber,
         sample: PriceSample,
-    ) -> Result<(), L1GasPriceProviderError> {
+    ) -> L1GasPriceProviderResult<()> {
         let last_plus_one = self.data.back().map(|(h, _)| h.0 + 1).unwrap_or(0);
         if height.0 != last_plus_one {
             return Err(L1GasPriceProviderError::InvalidHeight(format!(
@@ -80,7 +63,7 @@ impl L1GasPriceProvider {
     pub fn get_price_info(
         &self,
         timestamp: BlockTimestamp,
-    ) -> Result<(u128, u128), L1GasPriceProviderError> {
+    ) -> L1GasPriceProviderResult<(u128, u128)> {
         let mut gas_price = 0;
         let mut data_gas_price = 0;
 
