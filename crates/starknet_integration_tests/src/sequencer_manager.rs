@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use papyrus_base_layer::test_utils::anvil;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -20,6 +22,7 @@ use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::task::JoinHandle;
 use tracing::info;
+use url::Url;
 
 use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
@@ -134,6 +137,8 @@ pub struct IntegrationTestManager {
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
+    // Handle for L1 server: the server is dropped when handle is dropped.
+    pub l1_handle: AnvilInstance,
 }
 
 impl IntegrationTestManager {
@@ -147,6 +152,7 @@ impl IntegrationTestManager {
         get_node_executable_path();
 
         let tx_generator = create_integration_test_tx_generator();
+        let l1_handle = anvil();
 
         let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
@@ -154,13 +160,14 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             path_to_db_base_dir,
             path_to_config_base_dir,
+            l1_handle.endpoint_url(),
         )
         .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator }
+        Self { node_indices, idle_nodes, running_nodes, tx_generator, l1_handle }
     }
 
     pub fn tx_generator(&self) -> &MultiAccountTransactionGenerator {
@@ -335,6 +342,7 @@ pub async fn get_sequencer_setup_configs(
     num_of_distributed_nodes: usize,
     path_to_db_base_dir: Option<PathBuf>,
     path_to_config_base_dir: Option<PathBuf>,
+    l1_endpoint_url: Url,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
@@ -419,6 +427,7 @@ pub async fn get_sequencer_setup_configs(
                     executable_component_config.clone(),
                     exec_db_path,
                     exec_config_path,
+                    l1_endpoint_url.clone(),
                 )
                 .await,
             );
