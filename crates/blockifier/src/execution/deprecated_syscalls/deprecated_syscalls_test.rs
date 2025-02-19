@@ -38,7 +38,7 @@ use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
 use crate::test_utils::initial_test_state::{test_state, test_state_ex};
 use crate::test_utils::{
     calldata_for_deploy_test,
-    get_syscall_resources,
+    get_const_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
 };
@@ -160,12 +160,13 @@ fn test_nested_library_call() {
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
         ..Default::default()
     };
-    let mut library_call_resources = &get_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
-        + &ExecutionResources {
-            n_steps: 39,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
-        };
+    let mut library_call_resources =
+        &get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
+            + &ExecutionResources {
+                n_steps: 39,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
+            };
     library_call_resources += &storage_entry_point_resources;
     let library_call_info = CallInfo {
         call: library_entry_point,
@@ -184,12 +185,13 @@ fn test_nested_library_call() {
     };
 
     // Nested library call cost: library_call(inner) + library_call(library_call(inner)).
-    let mut main_call_resources = &get_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
-        + &ExecutionResources {
-            n_steps: 45,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::new(),
-        };
+    let mut main_call_resources =
+        &get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
+            + &ExecutionResources {
+                n_steps: 45,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::new(),
+            };
     main_call_resources += &(&library_call_resources * 2);
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
@@ -257,7 +259,7 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution,
-        resources: &get_syscall_resources(DeprecatedSyscallSelector::CallContract)
+        resources: &get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
             + &ExecutionResources {
                 n_steps: 261,
                 n_memory_holes: 0,

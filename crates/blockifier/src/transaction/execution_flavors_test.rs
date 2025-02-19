@@ -34,7 +34,7 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
-    get_syscall_resources,
+    get_const_syscall_resources,
     get_tx_resources,
     CairoVersion,
     BALANCE,
@@ -395,7 +395,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     assert!(
         base_gas
             > u64_from_usize(
-                get_syscall_resources(SyscallSelector::CallContract).n_steps
+                get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                     + get_tx_resources(TransactionType::InvokeFunction).n_steps
             )
             .into()
@@ -640,7 +640,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     let (limited_gas_used, limited_fee) = gas_and_fee(7763_u32.into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
+            get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 5730,
         )
@@ -785,7 +785,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     );
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
+            get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 5730,
         )
@@ -830,7 +830,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     // Execute a transfer, and make sure we get the expected result.
     let (success_actual_gas, actual_fee) = gas_and_fee(
         u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
+            get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 4260,
         )
