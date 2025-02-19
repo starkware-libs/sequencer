@@ -1,0 +1,95 @@
+{
+    "seq_daboard1": {
+        "Overview": [ 
+            { 
+                "title": "(starknet-mainnet)",
+                "description": "",
+                "type": "alertlist",
+                "expr": {
+                    "alerting": "false",
+                    "execution_error": "false",
+                    "no_data": "false",
+                    "ok": "false",
+                    "paused": "false",
+                    "pending": "false"
+                },
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            { 
+                "title": "Transactions Processing",
+                "description": "Total number of transactions received.",
+                "type": "stat",
+                "expr": "max(((max_over_time(starkware_max_received_tx{kubernetes_namespace=\"starknet-mainnet\", app=\"transaction-deduplicator\"}[1d])) > 0)) - max(starkware_onchain_tx_offset{kubernetes_namespace=\"starknet-mainnet\"}) + 1",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "Wallet Balance (ETH)",
+                "description": "Operator's wallet balance on Ethereum.",
+                "type": "stat",
+                "expr": "max(starkware_account_balance{kubernetes_namespace=\"starknet-mainnet\"}) * (10^(-18))",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "transaction backlog",
+                "description": "the amount of transaction backlog.",
+                "type": "graph",
+                "expr": "max(((max_over_time(starkware_max_received_tx{kubernetes_namespace=\"starknet-mainnet\", app=\"transaction-deduplicator\"}[1d])) > 0)) - ((max(starkware_tx_offset_in_last_batch{kubernetes_namespace=\"starknet-mainnet\"})) > 0)",
+                "position_priority": 1,
+                "extra_params": {}
+            }
+        ], 
+        "Transactions Flow": [ 
+            {  
+                "title": "Transaction request",
+                "description": "Current Transaction request offset.",
+                "type": "stat",
+                "expr": "max(starkware_stuff_offset{type=\"TransactionRequest\", kubernetes_namespace=\"starknet-mainnet\"})",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "Transaction request rate (per second)",
+                "description": "Current Transaction request handling rate.",
+                "type": "stat",
+                "expr": "deriv(max(starkware_stuff_offset{type=\"TransactionRequest\", kubernetes_namespace=\"starknet-mainnet\"})[20m:])*1",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "Transaction written",
+                "description": "Current Transaction written offset.",
+                "type": "stat",
+                "expr": "max(starkware_stuff_offset{type=\"TransactionWritten\", kubernetes_namespace=\"starknet-mainnet\"})",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "Transaction written rate (per second)",
+                "description": "Current Transaction written handling rate.",
+                "type": "stat",
+                "expr": "deriv(max(starkware_stuff_offset{type=\"TransactionWritten\", kubernetes_namespace=\"starknet-mainnet\"})[20m:])*1",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "Transactions in Batch",
+                "description": "Transaction ID of the last transaction in the last created batch.",
+                "type": "stat",
+                "expr": "((max(starkware_tx_offset_in_last_batch{kubernetes_namespace=\"starknet-mainnet\"})) > 0)",
+                "position_priority": 1,
+                "extra_params": {}
+            },
+            {  
+                "title": "Transaction in Batch rate (per second)",
+                "description": "Transaction ID of the last transaction in the last created batch over the last 20 minutes.",
+                "type": "stat",
+                "expr": "rate(max(starkware_tx_offset_in_last_batch{kubernetes_namespace=\"starknet-mainnet\"})[20m:]) * 1",
+                "position_priority": 1,
+                "extra_params": {}
+            }
+        ]
+    }
+}
