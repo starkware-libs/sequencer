@@ -11,6 +11,7 @@ use starknet_api::StarknetApiError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_multicompile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use thiserror::Error;
+use tracing::instrument;
 
 use crate::command_line_compiler::CommandLineCompiler;
 use crate::errors::CompilationUtilError;
@@ -79,6 +80,7 @@ impl SierraCompiler {
     }
 
     // TODO(Elin): move (de)serialization to infra. layer.
+    #[instrument(skip(self, class), err)]
     pub fn compile(&self, class: RawClass) -> SierraCompilerResult<RawExecutableHashedClass> {
         let class = SierraContractClass::try_from(class)?;
         let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)

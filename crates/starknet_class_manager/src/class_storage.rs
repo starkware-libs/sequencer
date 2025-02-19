@@ -14,6 +14,7 @@ use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use starknet_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableClass};
 use thiserror::Error;
+use tracing::instrument;
 
 use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
 
@@ -120,6 +121,7 @@ impl<S: ClassStorage> CachedClassStorage<S> {
 impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     type Error = CachedClassStorageError<S::Error>;
 
+    #[instrument(skip(self, class, executable_class), level = "debug", ret, err)]
     fn set_class(
         &mut self,
         class_id: ClassId,
@@ -149,6 +151,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
         if let Some(class) = self.classes.get(&class_id) {
             return Ok(Some(class));
@@ -162,6 +165,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(Some(class))
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
         if let Some(class) = self
             .executable_classes
@@ -188,6 +192,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(Some(class))
     }
 
+    #[instrument(skip(self), level = "debug", ret, err)]
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
@@ -204,6 +209,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(Some(class_hash))
     }
 
+    #[instrument(skip(self, class), level = "debug", ret, err)]
     fn set_deprecated_class(
         &mut self,
         class_id: ClassId,
@@ -219,6 +225,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_deprecated_class(
         &self,
         class_id: ClassId,
@@ -290,6 +297,7 @@ impl ClassHashStorage {
         Ok(self.writer.lock().expect("Writer is poisoned."))
     }
 
+    #[instrument(skip(self), level = "debug", ret, err)]
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
@@ -297,6 +305,7 @@ impl ClassHashStorage {
         Ok(self.reader.begin_ro_txn()?.get_executable_class_hash(&class_id)?)
     }
 
+    #[instrument(skip(self), level = "debug", ret, err)]
     fn set_executable_class_hash(
         &mut self,
         class_id: ClassId,
@@ -430,6 +439,7 @@ impl FsClassStorage {
 impl ClassStorage for FsClassStorage {
     type Error = FsClassStorageError;
 
+    #[instrument(skip(self, class, executable_class), level = "debug", ret, err)]
     fn set_class(
         &mut self,
         class_id: ClassId,
@@ -448,6 +458,7 @@ impl ClassStorage for FsClassStorage {
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
         if !self.contains_class(class_id)? {
             return Ok(None);
@@ -460,6 +471,7 @@ impl ClassStorage for FsClassStorage {
         Ok(Some(class))
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
         let path = if self.contains_class(class_id)? {
             self.get_executable_path(class_id)
@@ -475,6 +487,7 @@ impl ClassStorage for FsClassStorage {
         Ok(Some(class))
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_executable_class_hash(
         &self,
         class_id: ClassId,
@@ -482,6 +495,7 @@ impl ClassStorage for FsClassStorage {
         Ok(self.class_hash_storage.get_executable_class_hash(class_id)?)
     }
 
+    #[instrument(skip(self, class), level = "debug", ret, err)]
     fn set_deprecated_class(
         &mut self,
         class_id: ClassId,
@@ -496,6 +510,7 @@ impl ClassStorage for FsClassStorage {
         Ok(())
     }
 
+    #[instrument(skip(self), level = "debug", err)]
     fn get_deprecated_class(
         &self,
         class_id: ClassId,
