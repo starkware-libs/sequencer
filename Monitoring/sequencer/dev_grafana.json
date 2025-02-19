@@ -1,0 +1,126 @@
+{
+  "Sequencer Node Dashboard": {
+    "Batcher": [
+      {
+        "title": "batcher_proposal_started",
+        "description": "Counter of proposals started",
+        "type": "stat",
+        "expr": "batcher_proposal_started",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_proposal_succeeded",
+        "description": "Counter of successful proposals",
+        "type": "stat",
+        "expr": "batcher_proposal_succeeded",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_proposal_failed",
+        "description": "Counter of failed proposals",
+        "type": "stat",
+        "expr": "batcher_proposal_failed",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_batched_transactions",
+        "description": "Counter of batched transactions across all forks",
+        "type": "stat",
+        "expr": "batcher_batched_transactions",
+        "position_priority": 1,
+        "extra_params": {}
+      }
+    ],
+    "Http Server": [
+      {
+        "title": "ADDED_TRANSACTIONS_TOTAL",
+        "description": "Total number of transactions added",
+        "type": "stat",
+        "expr": "ADDED_TRANSACTIONS_TOTAL",
+        "position_priority": 1,
+        "extra_params": {}
+      }
+    ],
+    "StateSyncP2p": [
+      {
+        "title": "apollo_sync_num_connected_peers",
+        "description": "The number of connected peers to the state sync p2p component",
+        "type": "stat",
+        "expr": "apollo_sync_num_connected_peers",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_sync_num_active_inbound_sessions",
+        "description": "The number of inbound sessions to the state sync p2p component",
+        "type": "stat",
+        "expr": "apollo_sync_num_active_inbound_sessions",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_sync_num_active_outbound_sessions",
+        "description": "The number of outbound sessions to the state sync p2p component",
+        "type": "stat",
+        "expr": "apollo_sync_num_active_outbound_sessions",
+        "position_priority": 1,
+        "extra_params": {}
+      }
+    ],
+    "ConsensusP2p": [
+      {
+        "title": "apollo_consensus_num_connected_peers",
+        "description": "The number of connected peers to the consensus p2p component",
+        "type": "stat",
+        "expr": "apollo_consensus_num_connected_peers",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component",
+        "type": "stat",
+        "expr": "apollo_consensus_num_sent_messages",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component",
+        "type": "stat",
+        "expr": "apollo_consensus_num_received_messages",
+        "position_priority": 1,
+        "extra_params": {}
+      }
+    ],
+    "MempoolP2p": [
+      {
+        "title": "apollo_mempool_p2p_num_connected_peers",
+        "description": "The number of connected peers to the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_p2p_num_connected_peers",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_num_sent_messages",
+        "description": "The number of messages sent by the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_num_sent_messages",
+        "position_priority": 1,
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_num_received_messages",
+        "description": "The number of messages received by the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_num_received_messages",
+        "position_priority": 1,
+        "extra_params": {}
+      }
+    ]
+  }
+}
