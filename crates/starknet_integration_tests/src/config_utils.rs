@@ -17,32 +17,6 @@ use starknet_sequencer_node::config::node_config::{
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
-/// Creates a config file for the sequencer node for an integration test.
-pub(crate) fn dump_config_file_changes(
-    config: &SequencerNodeConfig,
-    required_params: RequiredParams,
-    dir: PathBuf,
-) -> PathBuf {
-    // Create the entire mapping of the config and the pointers, without the required params.
-    let config_as_map = combine_config_map_and_pointers(
-        config.dump(),
-        &CONFIG_POINTERS,
-        &CONFIG_NON_POINTERS_WHITELIST,
-    )
-    .unwrap();
-
-    // Extract only the required fields from the config map.
-    let mut preset = config_to_preset(&config_as_map);
-
-    // Add the required params to the preset.
-    add_required_params_to_preset(&mut preset, required_params.as_json());
-
-    // Dump the preset to a file, return its path.
-    let node_config_path = dump_json_data(preset, NODE_CONFIG_CHANGES_FILE_PATH, dir);
-    assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
-    node_config_path
-}
-
 /// Merges required parameters into an existing preset JSON object.
 ///
 /// # Parameters
