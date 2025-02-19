@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use papyrus_base_layer::test_utils::anvil;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::get_sequencer_setup_configs;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
@@ -19,6 +20,7 @@ async fn main() {
 
     // Creates a multi-account transaction generator for integration test
     let tx_generator = create_integration_test_tx_generator();
+    let l1_handle = anvil();
 
     info!("Generate config files under {:?}", args.configs_dir);
     // Run node setup.
@@ -28,6 +30,7 @@ async fn main() {
         args.n_distributed,
         Some(PathBuf::from(args.db_dir)),
         Some(PathBuf::from(args.configs_dir)),
+        l1_handle.endpoint_url(),
     )
     .await;
 
