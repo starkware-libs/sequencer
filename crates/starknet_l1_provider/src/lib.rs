@@ -20,7 +20,7 @@ use papyrus_base_layer::constants::{
     MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -88,46 +88,44 @@ impl std::fmt::Display for ProviderState {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1ProviderConfig {
-    pub provider_startup_height: BlockNumber,
-    pub bootstrap_catch_up_height: BlockNumber,
+    /// In most cases this can remain None: the provider defaults to using the
+    /// LastStateUpdate height at the L1 Height that the L1Scraper is initialized on.
+    /// **WARNING**: Take care when setting this value, it must be no higher than the
+    /// LastStateUpdate height at the L1 Height that the L1Scraper is initialized on.
+    pub provider_startup_height_override: Option<BlockNumber>,
+    /// In most cases this can remain None: the provider defaults to using the sync height at
+    /// startup.
+    pub bootstrap_catch_up_height_override: Option<BlockNumber>,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval: Duration,
 }
 
-impl Default for L1ProviderConfig {
-    fn default() -> Self {
-        Self {
-            provider_startup_height: BlockNumber(1),
-            bootstrap_catch_up_height: BlockNumber(0),
-            startup_sync_sleep_retry_interval: Duration::from_secs(0),
-        }
-    }
-}
-
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "provider_startup_height",
-                &self.provider_startup_height,
-                "Height at which the provider should start.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bootstrap_catch_up_height",
-                &self.bootstrap_catch_up_height,
-                "Height at which the provider should catch up to the bootstrapper.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "startup_sync_sleep_retry_interval",
-                &self.startup_sync_sleep_retry_interval.as_secs_f64(),
-                "Interval in seconds between each retry of syncing with L2 during startup.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        let mut dump = BTreeMap::from([ser_param(
+            "startup_sync_sleep_retry_interval",
+            &self.startup_sync_sleep_retry_interval.as_secs_f64(),
+            "Interval in seconds between each retry of syncing with L2 during startup.",
+            ParamPrivacyInput::Public,
+        )]);
+
+        dump.extend(ser_optional_param(
+            &self.provider_startup_height_override,
+            Default::default(),
+            "provider_startup_height_override",
+            "Override height at which the provider should start",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.bootstrap_catch_up_height_override,
+            Default::default(),
+            "bootstrap_catch_up_height_override",
+            "Override height at which the provider should catch up to the bootstrapper.",
+            ParamPrivacyInput::Public,
+        ));
+        dump
     }
 }
 
