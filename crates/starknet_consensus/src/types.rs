@@ -36,6 +36,8 @@ pub type ProposalCommitment = BlockHash;
 pub struct ContextConfig {
     /// The buffer size for streaming outbound proposals.
     pub proposal_buffer_size: usize,
+    /// The limit on the number of transactions in a batch.  
+    pub tx_batch_size: usize,
     /// The number of validators.
     pub num_validators: u64,
     /// The chain id of the Starknet chain.
@@ -53,6 +55,12 @@ impl SerializeConfig for ContextConfig {
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
                 "The buffer size for streaming outbound proposals.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "tx_batch_size",
+                &self.tx_batch_size,
+                "The limit on the number of transactions in a batch.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -88,6 +96,7 @@ impl Default for ContextConfig {
     fn default() -> Self {
         Self {
             proposal_buffer_size: 100,
+            tx_batch_size: 5,
             num_validators: 1,
             chain_id: ChainId::Mainnet,
             block_timestamp_window: 1,

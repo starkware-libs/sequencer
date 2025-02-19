@@ -186,6 +186,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.tx_batch_size": {
+    "description": "The limit on the number of transactions in a batch.",
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
+  },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
     "value": false,

@@ -804,6 +804,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "consensus_manager_config.context_config.tx_batch_size": {
+    "description": "The limit on the number of transactions in a batch.",
+    "privacy": "Public",
+    "value": 5
+  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
