@@ -46,12 +46,17 @@ async fn bootstrap_e2e() {
         .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
 
     let config = L1ProviderConfig {
-        provider_startup_height: startup_height,
-        bootstrap_catch_up_height: catch_up_height,
+        bootstrap_catch_up_height_override: Some(catch_up_height),
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        ..Default::default()
     };
-    let mut l1_provider =
-        create_l1_provider(config, l1_provider_client.clone(), Arc::new(sync_client));
+    let mut l1_provider = create_l1_provider(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(sync_client),
+        startup_height,
+    )
+    .await;
 
     // Test.
 

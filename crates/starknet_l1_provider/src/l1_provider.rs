@@ -193,13 +193,17 @@ impl L1Provider {
 
 impl ComponentStarter for L1Provider {}
 
-pub fn create_l1_provider(
+/// Initializes L1Provider at specified height (≤ scraper's last state update height).
+/// Bootstrap catch-up height defaults to current sync height.
+pub async fn create_l1_provider(
     config: L1ProviderConfig,
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
+    scraper_synced_startup_height: BlockNumber,
 ) -> L1Provider {
+    let sync_height = sync_client.get_latest_block_number().await.unwrap().unwrap_or_default();
     let bootstrapper = Bootstrapper {
-        catch_up_height: config.bootstrap_catch_up_height,
+        catch_up_height: config.bootstrap_catch_up_height_override.unwrap_or(sync_height),
         commit_block_backlog: Default::default(),
         l1_provider_client,
         sync_client,
@@ -207,8 +211,17 @@ pub fn create_l1_provider(
         sync_retry_interval: config.startup_sync_sleep_retry_interval,
     };
 
+    let startup_height =
+        config.provider_startup_height_override.unwrap_or(scraper_synced_startup_height);
+    // Require provider height ≤ scraper height to avoid inconsistent states during bootstrap
+    // (e.g., handling already-committed transactions).
+    assert!(
+        startup_height <= scraper_synced_startup_height,
+        "Inconsistent startup config: during startup, the l1 provider height should not exceed \
+         the scraper's last known LogStateUpdate"
+    );
     L1Provider {
-        current_height: config.provider_startup_height,
+        current_height: scraper_synced_startup_height,
         tx_manager: TransactionManager::default(),
         state: ProviderState::Bootstrap(bootstrapper),
     }
