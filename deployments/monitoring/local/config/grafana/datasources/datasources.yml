@@ -4,6 +4,7 @@ datasources:
   - name: Prometheus
     type: prometheus
     access: proxy
+    isDefault: true
     # Access mode - proxy (server in the UI) or direct (browser in the UI).
     url: http://prometheus:9090
     jsonData:

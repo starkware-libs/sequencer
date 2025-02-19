@@ -1,46 +1,15 @@
 {
-    "dashboards": [
+    "mock_dashboard1": {
+      "Overview": [
         {
-            "name": "dashboarad_example_1",
-            "description": "dashboarad_default_description_2",
-            "rows": [
-                {
-                    "name": "row_example_1",
-                    "description": "row_default_description_1",
-                    "panels": [
-                        {
-                            "name": "row_example_1",
-                            "description": "panel_default_description_1",
-                            "expr": "expr1",
-                            "panel_type": "Stat"
-                        },
-                        {
-                            "name": "row_example_2",
-                            "description": "panel_default_description_2",
-                            "expr": "expr2",
-                            "panel_type": "Stat"
-                        }
-                    ]
-                },
-                {
-                    "name": "row_example_2",
-                    "description": "row_default_description_2",
-                    "panels": [
-                        {
-                            "name": "row_example_3",
-                            "description": "panel_default_description_3",
-                            "expr": "expr3",
-                            "panel_type": "Stat"
-                        },
-                        {
-                            "name": "row_example_4",
-                            "description": "panel_default_description_4",
-                            "expr": "expr4",
-                            "panel_type": "Stat"
-                        }
-                    ]
-                }
-            ]
+          "title": "Incoming Bytes",
+          "description": "This is a description.",
+          "type": "timeseries",
+          "expr": "networking_googleapis_com:pod_flow_ingress_bytes_count{}",
+          "position_priority": 1,
+          "extra_params": {}
         }
-    ]
+      ],
+      "Overview_row2": []
+    }
 }

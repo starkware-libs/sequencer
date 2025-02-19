@@ -20,7 +20,7 @@ services:
   node:
     build:
       context: ../../../
-      dockerfile: ${monitoring_dir}/images/sequencer/Dockerfile
+      dockerfile: ${monitoring_dir}/../images/sequencer/Dockerfile
     command:
       - --config_file
       - /app/config/sequencer/presets/config.json
