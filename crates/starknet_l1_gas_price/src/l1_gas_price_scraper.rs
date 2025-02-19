@@ -1,7 +1,9 @@
+use std::any::type_name;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
@@ -13,8 +15,9 @@ use starknet_api::core::ChainId;
 use starknet_l1_gas_price_types::errors::L1GasPriceClientError;
 use starknet_l1_gas_price_types::L1GasPriceProviderClient;
 use starknet_sequencer_infra::component_client::ClientError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use thiserror::Error;
-use tracing::error;
+use tracing::{error, info};
 use validator::Validate;
 
 #[cfg(test)]
@@ -121,8 +124,6 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     }
 
     /// Run the scraper, starting from the given L1 `block_num`, indefinitely.
-    // TODO(guyn): dead code can be removed when adding the component starter in the next PR.
-    #[allow(dead_code)]
     async fn run(&mut self, mut block_num: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
         loop {
             block_num = self.update_prices(block_num).await?;
@@ -156,5 +157,31 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         }
 
         Ok(block_num)
+    }
+}
+
+#[async_trait]
+impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1GasPriceScraper<B> {
+    async fn start(&mut self) {
+        info!("Starting component {}.", type_name::<Self>());
+        let start_from = self.config.starting_block;
+        let start_from = if let Some(start_from) = start_from {
+            start_from
+        } else {
+            let latest = self
+                .base_layer
+                .latest_l1_block_number(self.config.finality)
+                .await
+                .expect("Could not get the latest L1 block number")
+                .expect("Could not get the latest L1 block number");
+            // If no starting block is provided, the default is to start from
+            // 2 * number_of_blocks_for_mean before the tip of L1.
+            // Note that for new chains this subtraction may be negative,
+            // hence the use of saturating_sub.
+            latest.saturating_sub(self.config.number_of_blocks_for_mean * 2)
+        };
+        self.run(start_from)
+            .await
+            .unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
     }
 }
