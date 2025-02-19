@@ -21,6 +21,7 @@ validator.workspace = true
 [dev-dependencies]
 mockall.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
+starknet_l1_gas_price_types = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
