@@ -5,6 +5,7 @@ use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use papyrus_storage::StorageConfig;
+use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
@@ -194,6 +195,26 @@ impl ExecutableSetup {
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
+    }
+
+    // TODO(noamsp): Change this into change_config once we need to change other values in the
+    // config.
+    pub fn update_revert_config(&mut self, value: Option<BlockNumber>) {
+        match value {
+            Some(value) => {
+                self.config.state_sync_config.revert_config.revert_up_to_and_including = value;
+                self.config.consensus_manager_config.revert_config.revert_up_to_and_including =
+                    value;
+                self.config.state_sync_config.revert_config.should_revert = true;
+                self.config.consensus_manager_config.revert_config.should_revert = true;
+            }
+            // If should revert is false, the revert_up_to_and_including value is irrelevant.
+            None => {
+                self.config.state_sync_config.revert_config.should_revert = false;
+                self.config.consensus_manager_config.revert_config.should_revert = false;
+            }
+        }
+        self.update_config_file();
     }
 
     fn update_config_file(&self) {
