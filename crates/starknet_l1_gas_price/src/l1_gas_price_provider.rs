@@ -78,13 +78,13 @@ impl L1GasPriceProvider {
         height: L1BlockNumber,
         sample: PriceSample,
     ) -> L1GasPriceProviderResult<()> {
-        let last_plus_one =
-            self.price_samples_by_block.back().map(|data| data.height + 1).unwrap_or(0);
-        if height != last_plus_one {
-            return Err(L1GasPriceProviderError::UnexpectedHeightError {
-                expected: last_plus_one,
-                found: height,
-            });
+        if let Some(data) = self.price_samples_by_block.back() {
+            if height != data.height + 1 {
+                return Err(L1GasPriceProviderError::UnexpectedHeightError {
+                    expected: data.height + 1,
+                    found: height,
+                });
+            }
         }
         self.price_samples_by_block.push(GasPriceData { height, sample });
         Ok(())
