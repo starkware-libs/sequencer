@@ -13,7 +13,6 @@ testing = []
 workspace = true
 
 [dependencies]
-clap.workspace = true
 metrics.workspace = true
 num-traits.workspace = true
 regex.workspace = true
