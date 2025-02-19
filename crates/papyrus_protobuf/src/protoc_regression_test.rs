@@ -24,6 +24,7 @@ fn protoc_output_matches_result_of_running_protoc() {
     assert!(
         expected_file == generated_file,
         "Generated protos are different from precompiled protos. Run 'cargo run --bin \
-         generate_protoc_output -q' to override precompiled protos with newly generated."
+         generate_protoc_output -q --features bin-deps' to override precompiled protos with newly \
+         generated."
     );
 }

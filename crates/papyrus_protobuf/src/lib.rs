@@ -4,6 +4,7 @@ pub mod converters;
 pub mod consensus;
 pub mod mempool;
 pub mod protobuf;
+#[cfg(any(test, feature = "bin-deps"))]
 pub mod regression_test_utils;
 pub mod sync;
 mod transaction;
