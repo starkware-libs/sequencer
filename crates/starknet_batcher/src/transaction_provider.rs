@@ -8,7 +8,11 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::errors::L1ProviderClientError;
-use starknet_l1_provider_types::{SharedL1ProviderClient, ValidationStatus as L1ValidationStatus};
+use starknet_l1_provider_types::{
+    InvalidValidationStatus as L1InvalidValidationStatus,
+    SharedL1ProviderClient,
+    ValidationStatus as L1ValidationStatus,
+};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 
@@ -25,7 +29,7 @@ pub enum TransactionProviderError {
     )]
     L1HandlerTransactionValidationFailed {
         tx_hash: TransactionHash,
-        validation_status: L1ValidationStatus,
+        validation_status: L1InvalidValidationStatus,
     },
     #[error(transparent)]
     L1ProviderError(#[from] L1ProviderClientError),
@@ -156,10 +160,10 @@ impl TransactionProvider for ValidateTransactionProvider {
             if let InternalConsensusTransaction::L1Handler(tx) = tx {
                 let l1_validation_status =
                     self.l1_provider_client.validate(tx.tx_hash, self.height).await?;
-                if l1_validation_status != L1ValidationStatus::Validated {
+                if let L1ValidationStatus::Invalid(validation_status) = l1_validation_status {
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed {
                         tx_hash: tx.tx_hash,
-                        validation_status: l1_validation_status,
+                        validation_status,
                     });
                 }
             }
