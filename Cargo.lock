@@ -11506,11 +11506,14 @@ dependencies = [
 name = "starknet_sequencer_metrics"
 version = "0.0.0"
 dependencies = [
+ "colored 3.0.0",
  "metrics 0.24.1",
  "num-traits",
  "regex",
  "serde",
  "serde_json",
+ "starknet_api",
+ "starknet_infra_utils",
 ]
 
 [[package]]
