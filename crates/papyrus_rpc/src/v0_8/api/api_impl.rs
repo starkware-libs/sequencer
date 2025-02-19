@@ -1235,7 +1235,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         block_not_reverted_validator.validate(&self.storage_reader)?;
 
         let simulation_result =
-            simulation_results.pop().expect("Should have transaction exeuction result");
+            simulation_results.pop().expect("Should have transaction execution result");
 
         let block_id = if is_pending {
             BlockId::Tag(Tag::Pending)
