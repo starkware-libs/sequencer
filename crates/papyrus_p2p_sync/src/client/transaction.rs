@@ -9,6 +9,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
 use starknet_class_manager_types::SharedClassManagerClient;
+use starknet_sequencer_metrics::metric_definitions::SYNC_PROCESSED_TRANSACTIONS;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::block_data_stream_builder::{
@@ -27,7 +28,10 @@ impl BlockData for (BlockBody, BlockNumber) {
         _class_manager_client: &'a mut SharedClassManagerClient,
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
+            let num_txs =
+                self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
             storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
+            SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
         }
         .boxed()

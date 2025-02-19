@@ -45,6 +45,7 @@ use starknet_sequencer_metrics::metric_definitions::{
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
     SYNC_BODY_MARKER,
     SYNC_HEADER_MARKER,
+    SYNC_PROCESSED_TRANSACTIONS,
     SYNC_STATE_MARKER,
 };
 use starknet_state_sync_types::state_sync_types::SyncBlock;
@@ -327,6 +328,7 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     let _ = SYNC_HEADER_MARKER.register();
     let _ = SYNC_BODY_MARKER.register();
     let _ = SYNC_STATE_MARKER.register();
+    SYNC_PROCESSED_TRANSACTIONS.register();
     set_metrics(txn);
 }
 
