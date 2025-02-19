@@ -323,6 +323,8 @@ pub struct FsClassStorage {
 pub enum FsClassStorageError {
     #[error(transparent)]
     ClassHashStorage(#[from] ClassHashStorageError),
+    #[error("Class of hash {class_id} not found.")]
+    ClassNotFound { class_id: ClassId },
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
@@ -452,22 +454,25 @@ impl ClassStorage for FsClassStorage {
         }
 
         let path = self.get_sierra_path(class_id);
-        Ok(RawClass::from_file(path)?)
+        let class =
+            RawClass::from_file(path)?.ok_or(FsClassStorageError::ClassNotFound { class_id })?;
+
+        Ok(Some(class))
     }
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        if self.contains_class(class_id)? {
-            let path = self.get_executable_path(class_id);
-            return Ok(RawExecutableClass::from_file(path)?);
+        let path = if self.contains_class(class_id)? {
+            self.get_executable_path(class_id)
+        } else if self.contains_deprecated_class(class_id) {
+            self.get_deprecated_executable_path(class_id)
+        } else {
+            // Class does not exist in storage.
+            return Ok(None);
         };
 
-        if self.contains_deprecated_class(class_id) {
-            let path = self.get_deprecated_executable_path(class_id);
-            return Ok(RawExecutableClass::from_file(path)?);
-        }
-
-        // Class does not exist in storage.
-        Ok(None)
+        let class = RawExecutableClass::from_file(path)?
+            .ok_or(FsClassStorageError::ClassNotFound { class_id })?;
+        Ok(Some(class))
     }
 
     fn get_executable_class_hash(
@@ -500,7 +505,10 @@ impl ClassStorage for FsClassStorage {
         }
 
         let path = self.get_deprecated_executable_path(class_id);
-        Ok(RawExecutableClass::from_file(path)?)
+        let class = RawExecutableClass::from_file(path)?
+            .ok_or(FsClassStorageError::ClassNotFound { class_id })?;
+
+        Ok(Some(class))
     }
 }
 

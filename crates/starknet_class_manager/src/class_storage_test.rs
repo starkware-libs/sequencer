@@ -9,6 +9,7 @@ use crate::class_storage::{
     ClassHashStorageConfig,
     ClassStorage,
     FsClassStorage,
+    FsClassStorageError,
 };
 
 // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
@@ -107,9 +108,10 @@ fn fs_storage_partial_write_only_atomic_marker() {
     let executable_class_hash = CompiledClassHash(felt!("0x5678"));
     storage.mark_class_id_as_existent(class_id, executable_class_hash).unwrap();
 
-    // Query class, should be considered non-existent.
-    assert_eq!(storage.get_sierra(class_id), Ok(None));
-    assert_eq!(storage.get_executable(class_id), Ok(None));
+    // Query class, should be considered an erroneous flow.
+    let class_not_found_error = FsClassStorageError::ClassNotFound { class_id };
+    assert_eq!(storage.get_sierra(class_id).unwrap_err(), class_not_found_error);
+    assert_eq!(storage.get_executable(class_id).unwrap_err(), class_not_found_error);
 }
 
 #[test]
