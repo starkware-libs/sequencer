@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use papyrus_base_layer::{MockBaseLayerContract, PriceSample};
+use starknet_l1_gas_price_types::MockL1GasPriceProviderClient;
 
-use crate::l1_gas_price_provider::MockL1GasPriceProviderClient;
 use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};
 
 const BLOCK_TIME: u64 = 2;
@@ -31,9 +31,9 @@ fn setup_scraper(
     mock_provider
         .expect_add_price_info()
         .withf(|block_number, price_sample| {
-            price_sample.timestamp == block_number.0 * BLOCK_TIME
-                && price_sample.base_fee_per_gas == block_number.0 as u128 * GAS_PRICE
-                && price_sample.blob_fee == block_number.0 as u128 * DATA_PRICE
+            price_sample.timestamp == *block_number * BLOCK_TIME
+                && price_sample.base_fee_per_gas == *block_number as u128 * GAS_PRICE
+                && price_sample.blob_fee == *block_number as u128 * DATA_PRICE
         })
         .times(expected_number_of_blocks)
         .returning(|_, _| Ok(()));
@@ -97,9 +97,9 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     mock_provider
         .expect_add_price_info()
         .withf(|block_number, price_sample| {
-            price_sample.timestamp == block_number.0 * BLOCK_TIME
-                && price_sample.base_fee_per_gas == block_number.0 as u128 * GAS_PRICE
-                && price_sample.blob_fee == block_number.0 as u128 * DATA_PRICE
+            price_sample.timestamp == *block_number * BLOCK_TIME
+                && price_sample.base_fee_per_gas == *block_number as u128 * GAS_PRICE
+                && price_sample.blob_fee == *block_number as u128 * DATA_PRICE
         })
         .times(END_BLOCK2 as usize - START_BLOCK as usize)
         .returning(|_, _| Ok(()));

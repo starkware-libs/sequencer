@@ -11290,7 +11290,6 @@ dependencies = [
 name = "starknet_l1_gas_price"
 version = "0.0.0"
 dependencies = [
- "mockall",
  "papyrus_base_layer",
  "papyrus_config",
  "serde",
@@ -11307,6 +11306,12 @@ dependencies = [
 name = "starknet_l1_gas_price_types"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
+ "mockall",
+ "papyrus_base_layer",
+ "serde",
+ "starknet_api",
+ "starknet_sequencer_infra",
  "thiserror 1.0.69",
 ]
 
