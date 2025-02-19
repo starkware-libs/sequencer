@@ -9,6 +9,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
 use starknet_class_manager_types::SharedClassManagerClient;
+use starknet_sequencer_metrics::metric_definitions::SYNC_BODY_MARKER;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::block_data_stream_builder::{
@@ -20,6 +21,7 @@ use super::block_data_stream_builder::{
 };
 use super::P2pSyncClientError;
 
+#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 impl BlockData for (BlockBody, BlockNumber) {
     fn write_to_storage<'a>(
         self: Box<Self>,
@@ -28,6 +30,7 @@ impl BlockData for (BlockBody, BlockNumber) {
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
             storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
+            SYNC_BODY_MARKER.set(self.1.unchecked_next().0 as f64);
             Ok(())
         }
         .boxed()
