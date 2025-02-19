@@ -1,41 +1,33 @@
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
-use clap::{Arg, Command};
-use starknet_sequencer_metrics::dashboard_definitions::SEQUENCER_DASHBOARD;
+use starknet_sequencer_metrics::dashboard_definitions::{DEV_JSON_PATH, SEQUENCER_DASHBOARD};
 
 /// Creates the dashboard json file.
 fn main() {
-    // Parse the command line arguments.
-    let matches = Command::new("sequencer_dashboard_generator")
-        .arg(Arg::new("output").short('o').long("output").help("The output file path"))
-        .get_matches();
+    // TODO(Tsabary): add test that the output is updated
 
-    let output_file_path: PathBuf = matches
-        .get_one::<String>("output")
-        .expect("Should have received an output file location arg.")
-        .into();
+    // Create file writer.
+    let file =
+        File::create(DEV_JSON_PATH).expect("Should have been able to create the output file.");
+    let mut writer = BufWriter::new(file);
 
-    // Serialize the dashboard to a JSON string.
-    let json_string = serde_json::to_string_pretty(&SEQUENCER_DASHBOARD)
+    // Add config as JSON content to writer.
+    serde_json::to_writer_pretty(&mut writer, &SEQUENCER_DASHBOARD)
         .expect("Should have been able to serialize the dashboard to JSON");
 
-    // Write the JSON string to a file.
-    let mut file = OpenOptions::new()
-        .append(true)
-        .create(true)
-        .open(&output_file_path)
-        .expect("Should have been able to open the output file.");
-    file.write_all(json_string.as_bytes())
-        .expect("Should have been able to write the JSON string to the file.");
-
     // Add an extra newline after the JSON content.
-    file.write_all(b"\n").expect("Should have been able to write the newline to the file.");
+    writer.write_all(b"\n").expect("Should have been able to write the newline to the file.");
+
+    // Write to file.
+    writer.flush().expect("Should have been able to flush the writer.");
 
     assert!(
-        PathBuf::from(&output_file_path).exists(),
+        PathBuf::from(&DEV_JSON_PATH).exists(),
         "Failed generating sequencer dashboard data file: {:?}",
-        output_file_path
+        DEV_JSON_PATH
     );
+
+    println!("Generated sequencer dashboard data file: {:?}", DEV_JSON_PATH);
 }
