@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 
@@ -98,7 +99,7 @@ impl Serialize for Dashboard<'_> {
         S: Serializer,
     {
         let mut map = serializer.serialize_map(Some(1))?;
-        let mut row_map = HashMap::new();
+        let mut row_map = IndexMap::new();
         for row in self.rows {
             row_map.insert(row.name, row.panels);
         }
