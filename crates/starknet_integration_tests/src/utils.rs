@@ -2,6 +2,10 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use alloy::primitives::U256;
+use alloy::providers::RootProvider;
+use alloy::rpc::types::TransactionReceipt;
+use alloy::transports::http::{Client, Http};
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::Router;
@@ -16,16 +20,26 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
+use papyrus_base_layer::test_utils::{
+    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
+    DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
+};
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
+use starknet_api::{calldata, felt};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_class_manager::class_storage::CachedClassStorageConfig;
@@ -73,9 +87,14 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 pub const TPS: u64 = 2;
 const N_TXS_IN_FIRST_BLOCK: usize = 2;
 
+const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
+
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 pub type ExpectedContentId = Felt;
+/// An interface that plays the role of the starknet L1 contract. It is able to create messages to
+/// L2 from this contract, which appear on the corresponding base layer.
+pub type StarknetL1Contract = Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>>;
 
 pub trait TestScenario {
     fn create_txs(
@@ -364,6 +383,62 @@ pub fn create_invoke_txs(
         .collect()
 }
 
+/// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
+/// [TestContract](FeatureContract::TestContract). Used for flow test.
+pub fn create_l1_handler_tx() -> L1HandlerTransaction {
+    // TODO(Arni): Get test contract from test setup.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    L1HandlerTransaction {
+        contract_address: test_contract.get_instance_address(0),
+        // TODO(Arni): Consider saving this value as a lazy constant.
+        entry_point_selector: selector_from_name("l1_handler_set_value"),
+        calldata: calldata![
+            DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
+            // Arbitrary key and value.
+            felt!("0x876"), // key
+            felt!("0x44")   // value
+        ],
+        ..Default::default()
+    }
+}
+
+/// Sends L1 messages, of type message to L2 to trigger the given
+/// [L1 handler transactions](L1HandlerTransaction) on L2.
+pub async fn send_messages_to_l2(node_url: Url, l1_handler_txs: &[L1HandlerTransaction]) {
+    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
+        node_url,
+        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+    });
+    let starknet_l1_contract =
+        Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
+
+    for l1_handler in l1_handler_txs {
+        let _tx_receipt = send_message_to_l2(l1_handler, &starknet_l1_contract).await;
+    }
+}
+
+/// Converts a given [L1 handler transaction](L1HandlerTransaction) to match the interface of the
+/// given [starknet l1 contract](StarknetL1Contract), and sends the messages to L2.
+async fn send_message_to_l2(
+    l1_handler: &L1HandlerTransaction,
+    starknet_l1_contract: &StarknetL1Contract,
+) -> TransactionReceipt {
+    let l2_contract_address = l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
+    let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
+
+    // The calldata of an L1 handler transaction consists of the L1 sender address followed by the
+    // transaction payload. We remove the sender address to extract the message payload.
+    let payload =
+        l1_handler.calldata.0[1..].iter().map(|x| x.to_hex_string().parse().unwrap()).collect();
+    let msg = starknet_l1_contract.sendMessageToL2(l2_contract_address, l2_entry_point, payload);
+
+    msg
+        .value(PAID_FEE_ON_L1) // Adds a non-zero paid fee on l1.
+        .send().await.unwrap() // Sends the transaction to the Starknet L1 contract.
+        .get_receipt().await.unwrap() // Gets the receipt for the L1 transaction.
+}
+
 async fn send_rpc_txs<'a, Fut>(
     rpc_txs: Vec<RpcTransaction>,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
@@ -385,14 +460,23 @@ where
 pub async fn run_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     create_rpc_txs_fn: CreateRpcTxsFn,
+    l1_handler_txs: Vec<L1HandlerTransaction>,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
     test_tx_hashes_fn: TestTxHashesFn,
+    chain_id: &ChainId,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
+    let mut tx_hashes: Vec<TransactionHash> = l1_handler_txs
+        .iter()
+        .map(|l1_handler| {
+            l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
+        })
+        .collect();
+
     let rpc_txs = create_rpc_txs_fn(tx_generator);
-    let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    tx_hashes.extend(send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
     test_tx_hashes_fn(&tx_hashes)
 }
 
