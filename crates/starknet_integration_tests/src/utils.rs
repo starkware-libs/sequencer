@@ -45,6 +45,7 @@ use starknet_gateway::config::{
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
+use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
@@ -155,6 +156,7 @@ pub fn create_node_config(
     let gateway_config = create_gateway_config(chain_info.clone());
     let l1_scraper_config =
         L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
+    let mempool_config = create_mempool_config();
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config = create_class_manager_config(class_manager_storage_config);
@@ -167,6 +169,7 @@ pub fn create_node_config(
             consensus_manager_config,
             gateway_config,
             http_server_config,
+            mempool_config,
             mempool_p2p_config,
             monitoring_endpoint_config,
             state_sync_config,
@@ -465,6 +468,10 @@ pub fn create_batcher_config(
         },
         ..Default::default()
     }
+}
+
+pub fn create_mempool_config() -> MempoolConfig {
+    MempoolConfig { transaction_ttl: Duration::from_secs(5 * 60), ..Default::default() }
 }
 
 pub fn create_class_manager_config(
