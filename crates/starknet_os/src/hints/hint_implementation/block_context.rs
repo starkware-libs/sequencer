@@ -17,8 +17,11 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn block_number<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
+pub(crate) fn block_number<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+) -> HintResult {
+    let block_number = hint_processor.execution_helper.os_input.block_info.block_number;
+    insert_value_into_ap(vm, Felt::from(block_number.0))
 }
 
 pub(crate) fn block_timestamp<S: StateReader>(
