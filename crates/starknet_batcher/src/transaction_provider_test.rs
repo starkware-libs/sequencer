@@ -201,10 +201,17 @@ async fn validate_flow(mut mock_dependencies: MockDependencies) {
 
 #[rstest]
 #[tokio::test]
-async fn validate_fails(mut mock_dependencies: MockDependencies) {
+async fn validate_fails(
+    mut mock_dependencies: MockDependencies,
+    #[values(
+        L1ValidationStatus::AlreadyIncludedInProposedBlock,
+        L1ValidationStatus::AlreadyIncludedOnL2,
+        L1ValidationStatus::ConsumedOnL1OrUnknown
+    )]
+    expected_validation_status: L1ValidationStatus,
+) {
     let test_tx = test_l1handler_tx();
-    mock_dependencies
-        .expect_validate_l1handler(test_tx.clone(), L1ValidationStatus::AlreadyIncludedOnL2);
+    mock_dependencies.expect_validate_l1handler(test_tx.clone(), expected_validation_status);
     mock_dependencies
         .simulate_input_txs(vec![
             InternalConsensusTransaction::L1Handler(test_tx),
@@ -218,6 +225,7 @@ async fn validate_fails(mut mock_dependencies: MockDependencies) {
     let result = validate_tx_provider.get_txs(MAX_TXS_PER_FETCH).await;
     assert_matches!(
         result,
-        Err(TransactionProviderError::L1HandlerTransactionValidationFailed(_tx_hash))
+        Err(TransactionProviderError::L1HandlerTransactionValidationFailed { validation_status, .. })
+        if validation_status == expected_validation_status
     );
 }
