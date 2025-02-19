@@ -154,6 +154,7 @@ impl ExecutableSetup {
         component_config: ComponentConfig,
         db_path_dir: Option<PathBuf>,
         config_path_dir: Option<PathBuf>,
+        l1_endpoint_url: Url,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
@@ -177,7 +178,6 @@ impl ExecutableSetup {
             ..Default::default()
         };
 
-        let l1_endpoint_url = Url::parse("https://node_url").expect("Should be a valid URL");
         let block_max_capacity_n_steps = GasAmount(17000000);
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
