@@ -1,11 +1,12 @@
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::calculate_contract_address;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
