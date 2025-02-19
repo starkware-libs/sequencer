@@ -227,52 +227,47 @@ use crate::{define_hint_enum, define_hint_extension_enum};
 #[path = "enum_definition_test.rs"]
 pub mod test;
 
-#[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
-#[derive(Debug, PartialEq)]
-pub enum AllHints {
-    AggregatorHint(AggregatorHint),
-    HintExtension(HintExtension),
-    OsHint(OsHint),
-    SyscallHint(SyscallHint),
-}
+macro_rules! all_hints_enum {
+    ($($inner_enum:ident),+) => {
+        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[derive(Debug, PartialEq)]
+        pub enum AllHints {
+            $($inner_enum($inner_enum)),+
+        }
 
-#[cfg(any(test, feature = "testing"))]
-impl AllHints {
-    pub fn all_iter() -> impl Iterator<Item = AllHints> {
-        Self::iter().flat_map(|default_inner_variant| match default_inner_variant {
-            Self::AggregatorHint(_) => {
-                AggregatorHint::iter().map(Self::from).collect::<Vec<Self>>()
+        #[cfg(any(test, feature = "testing"))]
+        impl AllHints {
+            pub fn all_iter() -> impl Iterator<Item = AllHints> {
+                Self::iter().flat_map(|default_inner_variant| match default_inner_variant {
+                    $(
+                        Self::$inner_enum(_) => {
+                            $inner_enum::iter().map(Self::from).collect::<Vec<Self>>()
+                        }
+                    )+
+                })
             }
-            Self::HintExtension(_) => HintExtension::iter().map(Self::from).collect::<Vec<Self>>(),
-            Self::OsHint(_) => OsHint::iter().map(Self::from).collect::<Vec<Self>>(),
-            Self::SyscallHint(_) => SyscallHint::iter().map(Self::from).collect::<Vec<Self>>(),
-        })
-    }
-}
-
-impl HintEnum for AllHints {
-    fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
-        match SyscallHint::from_str(hint_str) {
-            Ok(hint) => Ok(hint.into()),
-            Err(_) => match HintExtension::from_str(hint_str) {
-                Ok(hint) => Ok(hint.into()),
-                Err(_) => match OsHint::from_str(hint_str) {
-                    Ok(hint) => Ok(hint.into()),
-                    Err(_) => Ok(AggregatorHint::from_str(hint_str)?.into()),
-                },
-            },
         }
-    }
 
-    fn to_str(&self) -> &'static str {
-        match self {
-            Self::AggregatorHint(hint) => hint.to_str(),
-            Self::OsHint(hint) => hint.to_str(),
-            Self::SyscallHint(hint) => hint.to_str(),
-            Self::HintExtension(hint) => hint.to_str(),
+        impl HintEnum for AllHints {
+            fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
+                $(
+                    if let Ok(hint) = $inner_enum::from_str(hint_str) {
+                        return Ok(hint.into())
+                    }
+                )+
+                Err(OsHintError::UnknownHint(hint_str.to_string()))
+            }
+
+            fn to_str(&self) -> &'static str {
+                match self {
+                    $(Self::$inner_enum(hint) => hint.to_str(),)+
+                }
+            }
         }
     }
 }
+
+all_hints_enum!(SyscallHint, OsHint, HintExtension, AggregatorHint);
 
 define_hint_enum!(
     SyscallHint,
