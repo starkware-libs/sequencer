@@ -14,7 +14,7 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - run: npm install -g ganache@7.4.3
       - name: Cargo test
-        run: cargo test
+        run: cargo test -- -Z unstable-options --report-time
 
       - name: Cargo build
         run: cargo build
