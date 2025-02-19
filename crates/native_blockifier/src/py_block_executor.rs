@@ -10,6 +10,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
@@ -45,10 +46,11 @@ const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 #[path = "py_block_executor_test.rs"]
 mod py_block_executor_test;
 
-fn serialize_block_execution_info(
-    py_tx_execution_info: CentralTransactionExecutionInfo,
+fn serialize_tx_execution_info(
+    tx_execution_info: TransactionExecutionInfo,
 ) -> RawTransactionExecutionResult {
-    serde_json::to_vec(&py_tx_execution_info).expect(RESULT_SERIALIZE_ERR)
+    let central_tx_execution_info = CentralTransactionExecutionInfo::from(tx_execution_info);
+    serde_json::to_vec(&central_tx_execution_info).expect(RESULT_SERIALIZE_ERR)
 }
 
 #[pyclass]
@@ -141,11 +143,9 @@ impl PyBlockExecutor {
     ) -> NativeBlockifierResult<Py<PyBytes>> {
         let tx: Transaction = py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
         let (tx_execution_info, _state_diff) = self.tx_executor().execute(&tx)?;
-        let central_tx_execution_info = CentralTransactionExecutionInfo::from(tx_execution_info);
 
         // Serialize and convert to PyBytes.
-        let serialized_tx_execution_info =
-            serialize_block_execution_info(central_tx_execution_info);
+        let serialized_tx_execution_info = serialize_tx_execution_info(tx_execution_info);
         Ok(Python::with_gil(|py| PyBytes::new(py, &serialized_tx_execution_info).into()))
     }
 
@@ -177,9 +177,9 @@ impl PyBlockExecutor {
             .map(|result| match result {
                 Ok((tx_execution_info, _state_diff)) => (
                     true,
-                    serialize_block_execution_info(CentralTransactionExecutionInfo::from(
+                    serialize_tx_execution_info(
                         tx_execution_info,
-                    )),
+                    ),
                 ),
                 Err(error) => (false, serialize_failure_reason(error)),
             })
