@@ -172,8 +172,6 @@ impl Batcher {
             propose_block_input.retrospective_block_hash,
         )?;
 
-        self.set_active_proposal(propose_block_input.proposal_id).await?;
-
         self.mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price,
@@ -193,6 +191,8 @@ impl Batcher {
                 );
                 BatcherError::NotReady
             })?;
+
+        self.set_active_proposal(propose_block_input.proposal_id).await?;
 
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
@@ -227,7 +227,7 @@ impl Batcher {
             abort_signal_sender,
             proposal_metrics_handle,
         )
-        .await?;
+        .await;
 
         self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
         Ok(())
@@ -246,8 +246,6 @@ impl Batcher {
             validate_block_input.retrospective_block_hash,
         )?;
 
-        self.set_active_proposal(validate_block_input.proposal_id).await?;
-
         self.l1_provider_client
             .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
             .await
@@ -258,6 +256,8 @@ impl Batcher {
                 );
                 BatcherError::NotReady
             })?;
+
+        self.set_active_proposal(validate_block_input.proposal_id).await?;
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
@@ -292,7 +292,7 @@ impl Batcher {
             abort_signal_sender,
             proposal_metrics_handle,
         )
-        .await?;
+        .await;
 
         self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
         Ok(())
@@ -584,7 +584,7 @@ impl Batcher {
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
-    ) -> BatcherResult<()> {
+    ) {
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
         let active_proposal = self.active_proposal.clone();
@@ -618,7 +618,6 @@ impl Batcher {
         );
 
         self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
-        Ok(())
     }
 
     // Returns a completed proposal result, either its commitment or an error if the proposal
