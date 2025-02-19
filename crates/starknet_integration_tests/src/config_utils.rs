@@ -1,21 +1,8 @@
-use std::path::PathBuf;
-
-use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use serde_json::Value;
-use starknet_sequencer_node::config::config_utils::{
-    config_to_preset,
-    dump_json_data,
-    RequiredParams,
-};
-use starknet_sequencer_node::config::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
-};
 
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".
 
-const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
+pub const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
 /// Merges required parameters into an existing preset JSON object.
 ///
@@ -36,7 +23,7 @@ const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_change
 /// # Panics
 /// This function panics if either `preset` or `required_params` is not a JSON dictionary object, or
 /// if the `preset` already contains a key from the `required_params`.
-fn add_required_params_to_preset(preset: &mut Value, required_params: Value) {
+pub fn add_required_params_to_preset(preset: &mut Value, required_params: Value) {
     if let (Value::Object(preset_map), Value::Object(required_params_map)) =
         (preset, required_params)
     {
