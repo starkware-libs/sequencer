@@ -28,6 +28,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
 use starknet_l1_provider::L1ProviderConfig;
+use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
@@ -154,6 +155,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_scraper_config: L1ScraperConfig,
     #[validate]
+    pub mempool_config: MempoolConfig,
+    #[validate]
     pub mempool_p2p_config: MempoolP2pConfig,
     #[validate]
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
@@ -175,6 +178,7 @@ impl SerializeConfig for SequencerNodeConfig {
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
+            append_sub_config_name(self.mempool_config.dump(), "mempool_config"),
             append_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
             append_sub_config_name(
                 self.monitoring_endpoint_config.dump(),
