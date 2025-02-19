@@ -6,6 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true

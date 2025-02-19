@@ -11302,6 +11302,7 @@ dependencies = [
 name = "starknet_l1_gas_price"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "papyrus_base_layer",
  "papyrus_config",
  "serde",
