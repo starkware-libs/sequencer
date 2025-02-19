@@ -1,5 +1,5 @@
 use papyrus_base_layer::PriceSample;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::BlockTimestamp;
 
 use crate::l1_gas_price_provider::{
     L1GasPriceProvider,
@@ -23,7 +23,7 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceSample>) {
         let time = (i * 2).try_into().unwrap();
         let sample = PriceSample { timestamp: time, base_fee_per_gas: price, blob_fee: price + 1 };
         samples.push(sample.clone());
-        provider.add_price_info(BlockNumber(block_num), sample).unwrap();
+        provider.add_price_info(block_num, sample).unwrap();
     }
     (provider, samples)
 }
@@ -63,7 +63,7 @@ fn gas_price_provider_adding_samples() {
 
     // Add a block to the provider.
     let sample = PriceSample { timestamp: 10, base_fee_per_gas: 10, blob_fee: 11 };
-    provider.add_price_info(BlockNumber(5), sample).unwrap();
+    provider.add_price_info(5, sample).unwrap();
 
     let (gas_price_new, data_gas_price_new) =
         provider.get_price_info(BlockTimestamp(final_timestamp + lag)).unwrap();
@@ -74,11 +74,11 @@ fn gas_price_provider_adding_samples() {
 
     // Add another block to the provider.
     let sample = PriceSample { timestamp: 12, base_fee_per_gas: 12, blob_fee: 13 };
-    provider.add_price_info(BlockNumber(6), sample).unwrap();
+    provider.add_price_info(6, sample).unwrap();
 
     // Should fail because the memory of the provider is full, and we added another block.
     let ret = provider.get_price_info(BlockTimestamp(final_timestamp + lag));
-    matches!(ret, Result::Err(L1GasPriceProviderError::MissingData(_)));
+    matches!(ret, Result::Err(L1GasPriceProviderError::MissingDataError(_)));
 }
 #[test]
 fn gas_price_provider_timestamp_changes_mean() {
