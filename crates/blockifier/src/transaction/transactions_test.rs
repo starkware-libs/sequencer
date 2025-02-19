@@ -122,7 +122,7 @@ use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
-    get_syscall_resources,
+    get_const_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
     SaltManager,
@@ -463,7 +463,7 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[rstest]
 #[case::with_cairo0_account(
     ExpectedResultTestInvokeTx{
-        resources: &get_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
+        resources: &get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
             n_steps: 62,
             n_memory_holes:  0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),

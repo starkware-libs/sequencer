@@ -294,10 +294,11 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
     };
 }
 
-pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
+/// Returns the const syscall resources for the given syscall selector.
+pub fn get_const_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
+    versioned_constants.get_additional_os_syscall_resources(0 , &syscall_counter)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
