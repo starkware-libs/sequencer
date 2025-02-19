@@ -20,7 +20,7 @@ use papyrus_base_layer::constants::{
     MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -114,26 +114,27 @@ impl Default for L1ProviderConfig {
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "provider_startup_height",
-                &self.provider_startup_height_override,
-                "Height at which the provider should start.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "bootstrap_catch_up_height",
-                &self.bootstrap_catch_up_height_override,
-                "Height at which the provider should catch up to the bootstrapper.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "startup_sync_sleep_retry_interval",
-                &self.startup_sync_sleep_retry_interval.as_secs_f64(),
-                "Interval in seconds between each retry of syncing with L2 during startup.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        let mut config = BTreeMap::from([ser_param(
+            "startup_sync_sleep_retry_interval",
+            &self.startup_sync_sleep_retry_interval.as_secs_f64(),
+            "Interval in seconds between each retry of syncing with L2 during startup.",
+            ParamPrivacyInput::Public,
+        )]);
+        config.extend(ser_optional_param(
+            &self.provider_startup_height_override,
+            BlockNumber(1),
+            "provider_startup_height",
+            "Height at which the provider should start.",
+            ParamPrivacyInput::Public,
+        ));
+        config.extend(ser_optional_param(
+            &self.bootstrap_catch_up_height_override,
+            BlockNumber(0),
+            "bootstrap_catch_up_height",
+            "Height at which the provider should catch up to the bootstrapper.",
+            ParamPrivacyInput::Public,
+        ));
+        config
     }
 }
 
