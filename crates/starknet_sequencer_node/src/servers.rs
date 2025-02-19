@@ -427,8 +427,8 @@ async fn create_servers<ReturnType: Send + 'static>(
 }
 
 impl LocalServers {
-    async fn run(self) -> JoinSet<((), String)> {
-        create_servers(vec![
+    fn get_servers_futures_and_labels(self) -> Vec<(ComponentServerFuture, String)> {
+        vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
@@ -437,8 +437,7 @@ impl LocalServers {
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
             server_future_and_label(self.sierra_compiler, "Concurrent Local Sierra Compiler"),
             server_future_and_label(self.state_sync, "Local State Sync"),
-        ])
-        .await
+        ]
     }
 }
 
@@ -514,8 +513,8 @@ pub fn create_remote_servers(
 }
 
 impl RemoteServers {
-    async fn run(self) -> JoinSet<((), String)> {
-        create_servers(vec![
+    fn get_servers_futures_and_labels(self) -> Vec<(ComponentServerFuture, String)> {
+        vec![
             server_future_and_label(self.batcher, "Remote Batcher"),
             server_future_and_label(self.class_manager, "Remote Class Manager"),
             server_future_and_label(self.gateway, "Remote Gateway"),
@@ -523,8 +522,7 @@ impl RemoteServers {
             server_future_and_label(self.mempool, "Remote Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2p Propagator"),
             server_future_and_label(self.state_sync, "Remote State Sync"),
-        ])
-        .await
+        ]
     }
 }
 
@@ -570,16 +568,15 @@ fn create_wrapper_servers(
 }
 
 impl WrapperServers {
-    async fn run(self) -> JoinSet<((), String)> {
-        create_servers(vec![
+    fn get_servers_futures_and_labels(self) -> Vec<(ComponentServerFuture, String)> {
+        vec![
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
             server_future_and_label(self.l1_scraper_server, "L1 Scraper"),
             server_future_and_label(self.monitoring_endpoint, "Monitoring Endpoint"),
             server_future_and_label(self.mempool_p2p_runner, "Mempool P2p Runner"),
             server_future_and_label(self.state_sync_runner, "State Sync Runner"),
-        ])
-        .await
+        ]
     }
 }
 
@@ -616,29 +613,21 @@ fn get_server_error(result: JoinSetResult<((), String)>) -> anyhow::Result<()> {
 }
 
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
-    let mut local_servers = servers.local_servers.run().await;
-    let mut remote_servers = servers.remote_servers.run().await;
-    let mut wrapper_servers = servers.wrapper_servers.run().await;
+    let mut local_servers_and_labels = servers.local_servers.get_servers_futures_and_labels();
+    let mut remote_servers_and_labels = servers.remote_servers.get_servers_futures_and_labels();
+    let mut wrapper_servers_and_labels = servers.wrapper_servers.get_servers_futures_and_labels();
+    let labeled_futures = local_servers_and_labels
+        .drain(..)
+        .chain(remote_servers_and_labels.drain(..))
+        .chain(wrapper_servers_and_labels.drain(..))
+        .collect::<Vec<_>>();
 
-    // TODO(Lev/Itay): Consider using JoinSet instead of tokio::select!.
-    let (result, servers_type) = tokio::select! {
-        res = local_servers.join_next() => {
-            (res, "Local")
-        }
-        res = remote_servers.join_next() => {
-            (res, "Remote")
-        }
-        res = wrapper_servers.join_next() => {
-            (res, "Wrapper")
-        }
-    };
+    let mut all_servers = create_servers(labeled_futures).await;
+    let result = all_servers.join_next().await;
 
     let result = get_server_error(result);
-    error!("{} Servers ended unexpectedly.", servers_type);
 
-    local_servers.abort_all();
-    remote_servers.abort_all();
-    wrapper_servers.abort_all();
+    all_servers.abort_all();
 
     result
 }
