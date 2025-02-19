@@ -16,6 +16,8 @@ use crate::metric_definitions::{
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
 
+pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
+
 const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel = Panel::new(
     ADDED_TRANSACTIONS_TOTAL.get_name(),
     ADDED_TRANSACTIONS_TOTAL.get_description(),
