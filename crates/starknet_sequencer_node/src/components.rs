@@ -1,5 +1,4 @@
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use papyrus_base_layer::L1BlockReference;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
@@ -208,12 +207,8 @@ pub async fn create_node_components(
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
-
-            // FIXME: make the integration/flow tests use `new` instead of this constructor,
-            // once `Anvil` support is added there.
             Some(
-                L1Scraper::new_at_l1_block(
-                    L1BlockReference { number: 0, ..Default::default() },
+                L1Scraper::new(
                     l1_scraper_config,
                     l1_provider_client,
                     base_layer,
