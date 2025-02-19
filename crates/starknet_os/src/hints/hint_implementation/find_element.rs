@@ -4,7 +4,7 @@ use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
 
 pub(crate) fn search_sorted_optimistic<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+    HintArgs { .. }: HintArgs<'_, S>,
 ) -> HintResult {
     todo!()
 }

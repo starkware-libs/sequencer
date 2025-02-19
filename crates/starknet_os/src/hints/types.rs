@@ -20,31 +20,18 @@ pub trait HintEnum {
     fn to_str(&self) -> &'static str;
 }
 
-// TODO(Dori): After hints are implemented, try removing the different lifetime params - probably
-//   not all are needed (hopefully only one is needed).
-pub struct HintArgs<
-    'processor,
-    'vm,
-    'exec_scopes,
-    'ids_data,
-    'ap_tracking,
-    'constants,
-    S: StateReader,
-> {
-    pub hint_processor: &'processor mut SnosHintProcessor<S>,
-    pub vm: &'vm mut VirtualMachine,
-    pub exec_scopes: &'exec_scopes mut ExecutionScopes,
-    pub ids_data: &'ids_data HashMap<String, HintReference>,
-    pub ap_tracking: &'ap_tracking ApTracking,
-    pub constants: &'constants HashMap<String, Felt>,
+pub struct HintArgs<'a, S: StateReader> {
+    pub hint_processor: &'a mut SnosHintProcessor<S>,
+    pub vm: &'a mut VirtualMachine,
+    pub exec_scopes: &'a mut ExecutionScopes,
+    pub ids_data: &'a HashMap<String, HintReference>,
+    pub ap_tracking: &'a ApTracking,
+    pub constants: &'a HashMap<String, Felt>,
 }
 
 /// Executes the hint logic.
 pub trait HintImplementation {
-    fn execute_hint<S: StateReader>(
-        &self,
-        hint_args: HintArgs<'_, '_, '_, '_, '_, '_, S>,
-    ) -> HintResult;
+    fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> HintResult;
 }
 
 /// Hint extensions extend the current map of hints used by the VM.
@@ -53,6 +40,6 @@ pub trait HintImplementation {
 pub trait HintExtensionImplementation {
     fn execute_hint_extensive<S: StateReader>(
         &self,
-        hint_extension_args: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+        hint_extension_args: HintArgs<'_, S>,
     ) -> HintExtensionResult;
 }

@@ -39,7 +39,7 @@ macro_rules! define_hint_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl HintImplementation for $enum_name {
-            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, '_, '_, '_, '_, S>) -> HintResult {
+            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> HintResult {
                 match self {
                     $(Self::$hint_name => $implementation::<S>(hint_args),)+
                 }
@@ -57,7 +57,7 @@ macro_rules! define_hint_extension_enum {
         impl HintExtensionImplementation for $enum_name {
             fn execute_hint_extensive<S: StateReader>(
                 &self,
-                hint_extension_args: HintArgs<'_, '_, '_, '_, '_, '_, S>,
+                hint_extension_args: HintArgs<'_, S>,
             ) -> HintExtensionResult {
                 match self {
                     $(Self::$hint_name => $implementation::<S>(hint_extension_args),)+
