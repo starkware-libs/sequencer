@@ -198,7 +198,12 @@ async fn batcher_with_active_validate_block(
 ) -> Batcher {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     mock_create_builder_for_validate_block(&mut block_builder_factory, build_block_result);
+    batcher_with_active_validate_inner(block_builder_factory).await
+}
 
+async fn batcher_with_active_validate_inner(
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+) -> Batcher {
     let mut l1_provider_client = MockL1ProviderClient::new();
     l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
 
@@ -712,8 +717,15 @@ async fn consecutive_proposal_generation_success() {
 async fn concurrent_proposals_generation_fail() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    // Expecting the block builder factory to be called twice.
+    for _ in 0..2 {
+        mock_create_builder_for_validate_block(
+            &mut block_builder_factory,
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
+    let mut batcher = batcher_with_active_validate_inner(block_builder_factory).await;
 
     // Make sure another proposal can't be generated while the first one is still active.
     let result = batcher.propose_block(propose_block_input(ProposalId(1))).await;
