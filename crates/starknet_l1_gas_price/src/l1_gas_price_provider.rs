@@ -1,32 +1,15 @@
 use std::collections::VecDeque;
 
-#[cfg(any(feature = "testing", test))]
-use mockall::automock;
-use papyrus_base_layer::PriceSample;
+use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::BlockTimestamp;
 use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
+use starknet_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
 use validator::Validate;
 
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
 pub mod l1_gas_price_provider_test;
-
-// TODO(guyn, Gilad): consider moving this to starknet_l1_provider_types/lib.rs?
-// This is an interface that allows sharing the provider with the scraper across threads.
-#[cfg_attr(any(feature = "testing", test), automock)]
-pub trait L1GasPriceProviderClient: Send + Sync {
-    fn add_price_info(
-        &self,
-        height: BlockNumber,
-        sample: PriceSample,
-    ) -> Result<(), L1GasPriceProviderError>;
-
-    fn get_price_info(
-        &self,
-        timestamp: BlockTimestamp,
-    ) -> Result<(u128, u128), L1GasPriceProviderError>;
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceProviderConfig {
@@ -48,73 +31,81 @@ impl Default for L1GasPriceProviderConfig {
 }
 
 #[derive(Clone, Debug)]
+pub struct GasPriceData {
+    pub height: L1BlockNumber,
+    pub sample: PriceSample,
+}
+
+#[derive(Clone, Debug)]
 pub struct L1GasPriceProvider {
     config: L1GasPriceProviderConfig,
-    data: VecDeque<(BlockNumber, PriceSample)>,
+    price_samples_by_block: VecDeque<GasPriceData>,
 }
 
 impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
-        Self { config, data: VecDeque::new() }
+        let storage_limit = config.storage_limit;
+        Self { config, price_samples_by_block: VecDeque::with_capacity(storage_limit) }
     }
 
     pub fn add_price_info(
         &mut self,
-        height: BlockNumber,
+        height: L1BlockNumber,
         sample: PriceSample,
-    ) -> Result<(), L1GasPriceProviderError> {
-        let last_plus_one = self.data.back().map(|(h, _)| h.0 + 1).unwrap_or(0);
-        if height.0 != last_plus_one {
-            return Err(L1GasPriceProviderError::InvalidHeight(format!(
-                "Block height is not consecutive: expected {}, got {}",
-                last_plus_one, height.0
-            )));
+    ) -> L1GasPriceProviderResult<()> {
+        let last_plus_one =
+            self.price_samples_by_block.back().map(|data| data.height + 1).unwrap_or(0);
+        if height != last_plus_one {
+            return Err(L1GasPriceProviderError::UnexpectedHeightError {
+                expected: last_plus_one,
+                found: height,
+            });
         }
-        self.data.push_back((height, sample));
-        if self.data.len() > self.config.storage_limit {
-            self.data.pop_front();
+        self.price_samples_by_block.push_back(GasPriceData { height, sample });
+        if self.price_samples_by_block.len() > self.config.storage_limit {
+            self.price_samples_by_block.pop_front();
         }
         Ok(())
     }
 
-    pub fn get_price_info(
-        &self,
-        timestamp: BlockTimestamp,
-    ) -> Result<(u128, u128), L1GasPriceProviderError> {
+    pub fn get_price_info(&self, timestamp: BlockTimestamp) -> L1GasPriceProviderResult<PriceInfo> {
         let mut gas_price = 0;
         let mut data_gas_price = 0;
 
         // This index is for the last block in the mean (inclusive).
-        let index_last_timestamp_rev = self.data.iter().rev().position(|(_, sample)| {
-            sample.timestamp <= timestamp.0 - self.config.lag_margin_seconds
-        });
+        let index_last_timestamp_rev =
+            self.price_samples_by_block.iter().rev().position(|data| {
+                data.sample.timestamp <= timestamp.0 - self.config.lag_margin_seconds
+            });
 
         // Could not find a block with the requested timestamp and lag.
         let Some(last_index_rev) = index_last_timestamp_rev else {
-            return Err(L1GasPriceProviderError::MissingData(format!(
-                "No block price data from time {} - {}s",
-                timestamp.0, self.config.lag_margin_seconds
-            )));
+            return Err(L1GasPriceProviderError::MissingDataError {
+                timestamp: timestamp.0,
+                lag: self.config.lag_margin_seconds,
+            });
         };
         // We need to convert the index to the forward direction.
-        let last_index = self.data.len() - last_index_rev;
+        let last_index = self.price_samples_by_block.len() - last_index_rev;
 
         let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
             .expect("number_of_blocks_for_mean is too large to fit into a usize");
         if last_index < num_blocks {
-            return Err(L1GasPriceProviderError::MissingData(format!(
-                "Insufficient block price history: expected at least {}, found only {}",
-                num_blocks, last_index
-            )));
+            return Err(L1GasPriceProviderError::InsufficientHistoryError {
+                expected: num_blocks,
+                found: last_index,
+            });
         }
         // Go over all elements between last_index-num_blocks to last_index (non-inclusive).
-        for (_height, sample) in self.data.iter().skip(last_index - num_blocks).take(num_blocks) {
-            gas_price += sample.base_fee_per_gas;
-            data_gas_price += sample.blob_fee;
+        for data in
+            self.price_samples_by_block.iter().skip(last_index - num_blocks).take(num_blocks)
+        {
+            gas_price += data.sample.base_fee_per_gas;
+            data_gas_price += data.sample.blob_fee;
         }
-        Ok((
-            gas_price / u128::from(self.config.number_of_blocks_for_mean),
-            data_gas_price / u128::from(self.config.number_of_blocks_for_mean),
-        ))
+        Ok(PriceInfo {
+            base_fee_per_gas: gas_price / u128::from(self.config.number_of_blocks_for_mean),
+            blob_fee: data_gas_price / u128::from(self.config.number_of_blocks_for_mean),
+        })
     }
 }

@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
 use papyrus_base_layer::{MockBaseLayerContract, PriceSample};
+use starknet_l1_gas_price_types::MockL1GasPriceProviderClient;
 
-use crate::l1_gas_price_provider::MockL1GasPriceProviderClient;
 use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};
 
 const BLOCK_TIME: u64 = 2;
 const GAS_PRICE: u128 = 42;
 const DATA_PRICE: u128 = 137;
 
-#[allow(clippy::as_conversions)]
 fn setup_scraper(
     end_block: u64,
     expected_number_of_blocks: usize,
@@ -21,8 +20,8 @@ fn setup_scraper(
         } else {
             Ok(Some(PriceSample {
                 timestamp: block_number * BLOCK_TIME,
-                base_fee_per_gas: block_number as u128 * GAS_PRICE,
-                blob_fee: block_number as u128 * DATA_PRICE,
+                base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
+                blob_fee: u128::from(block_number) * DATA_PRICE,
             }))
         }
     });
@@ -30,10 +29,10 @@ fn setup_scraper(
     let mut mock_provider = MockL1GasPriceProviderClient::new();
     mock_provider
         .expect_add_price_info()
-        .withf(|block_number, price_sample| {
-            price_sample.timestamp == block_number.0 * BLOCK_TIME
-                && price_sample.base_fee_per_gas == block_number.0 as u128 * GAS_PRICE
-                && price_sample.blob_fee == block_number.0 as u128 * DATA_PRICE
+        .withf(|&block_number, price_sample| {
+            price_sample.timestamp == block_number * BLOCK_TIME
+                && price_sample.base_fee_per_gas == u128::from(block_number) * GAS_PRICE
+                && price_sample.blob_fee == u128::from(block_number) * DATA_PRICE
         })
         .times(expected_number_of_blocks)
         .returning(|_, _| Ok(()));
@@ -54,7 +53,6 @@ async fn run_l1_gas_price_scraper_single_block() {
     scraper.update_prices(START_BLOCK).await.unwrap();
 }
 
-#[allow(clippy::as_conversions)]
 #[tokio::test]
 async fn run_l1_gas_price_scraper_two_blocks() {
     const START_BLOCK: u64 = 2;
@@ -66,29 +64,29 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     // Note the order of the expectation is important! Can only scrape the first blocks first.
     mock_contract
         .expect_get_price_sample()
-        .times(END_BLOCK1 as usize - START_BLOCK as usize + 1)
+        .times(usize::try_from(END_BLOCK1).unwrap() - usize::try_from(START_BLOCK).unwrap() + 1)
         .returning(move |block_number| {
             if block_number >= END_BLOCK1 {
                 Ok(None)
             } else {
                 Ok(Some(PriceSample {
                     timestamp: block_number * BLOCK_TIME,
-                    base_fee_per_gas: block_number as u128 * GAS_PRICE,
-                    blob_fee: block_number as u128 * DATA_PRICE,
+                    base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
+                    blob_fee: u128::from(block_number) * DATA_PRICE,
                 }))
             }
         });
     mock_contract
         .expect_get_price_sample()
-        .times(END_BLOCK2 as usize - END_BLOCK1 as usize + 1)
+        .times(usize::try_from(END_BLOCK2).unwrap() - usize::try_from(END_BLOCK1).unwrap() + 1)
         .returning(move |block_number| {
             if block_number >= END_BLOCK2 {
                 Ok(None)
             } else {
                 Ok(Some(PriceSample {
                     timestamp: block_number * BLOCK_TIME,
-                    base_fee_per_gas: block_number as u128 * GAS_PRICE,
-                    blob_fee: block_number as u128 * DATA_PRICE,
+                    base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
+                    blob_fee: u128::from(block_number) * DATA_PRICE,
                 }))
             }
         });
@@ -96,12 +94,12 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     let mut mock_provider = MockL1GasPriceProviderClient::new();
     mock_provider
         .expect_add_price_info()
-        .withf(|block_number, price_sample| {
-            price_sample.timestamp == block_number.0 * BLOCK_TIME
-                && price_sample.base_fee_per_gas == block_number.0 as u128 * GAS_PRICE
-                && price_sample.blob_fee == block_number.0 as u128 * DATA_PRICE
+        .withf(|&block_number, price_sample| {
+            price_sample.timestamp == block_number * BLOCK_TIME
+                && price_sample.base_fee_per_gas == u128::from(block_number) * GAS_PRICE
+                && price_sample.blob_fee == u128::from(block_number) * DATA_PRICE
         })
-        .times(END_BLOCK2 as usize - START_BLOCK as usize)
+        .times(usize::try_from(END_BLOCK2).unwrap() - usize::try_from(START_BLOCK).unwrap())
         .returning(|_, _| Ok(()));
 
     let mut scraper = L1GasPriceScraper::new(
@@ -117,7 +115,6 @@ async fn run_l1_gas_price_scraper_two_blocks() {
 }
 
 #[tokio::test]
-#[allow(clippy::as_conversions)]
 async fn run_l1_gas_price_scraper_multiple_blocks() {
     const START_BLOCK: u64 = 5;
     const END_BLOCK: u64 = 10;
