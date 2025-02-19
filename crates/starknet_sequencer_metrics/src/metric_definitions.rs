@@ -143,4 +143,7 @@ define_counter_metrics!(
         { CONSENSUS_NUM_SENT_MESSAGES, "apollo_consensus_num_sent_messages", "The number of messages sent by the consensus p2p component", 0 },
         { CONSENSUS_NUM_RECEIVED_MESSAGES, "apollo_consensus_num_received_messages", "The number of messages received by the consensus p2p component", 0 },
     },
+    MetricScope::PapyrusSync => {
+        { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
+    }
 );
