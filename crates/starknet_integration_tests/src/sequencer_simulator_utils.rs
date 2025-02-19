@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::block::BlockNumber;
@@ -10,6 +10,7 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::utils::load_and_validate_config;
 use tracing::info;
+use url::Url;
 
 use crate::monitoring_utils;
 use crate::sequencer_manager::nonce_to_usize;
@@ -21,14 +22,22 @@ pub struct SequencerSimulator {
 }
 
 impl SequencerSimulator {
-    pub fn new(args: Vec<String>) -> Self {
-        let config = load_and_validate_config(args).expect("Failed to load and validate config");
+    pub fn new(config_file: String, url: String) -> Self {
+        // Calls `load_and_validate_config` with a dummy program name as the first argument,
+        // since the function expects a vector of command-line arguments and ignores the first
+        // entry.
+        let config = load_and_validate_config(vec![
+            "simulator_exec".to_string(),
+            "--config_file".to_string(),
+            config_file,
+        ])
+        .expect("Failed to load and validate config");
 
-        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
-        let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
+        let MonitoringEndpointConfig { ip: _, port, .. } = config.monitoring_endpoint_config;
+        let monitoring_client = MonitoringClient::new(get_socket_addr(&url, port).unwrap());
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
-        let http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+        let HttpServerConfig { ip: _, port } = config.http_server_config;
+        let http_client = HttpTestClient::new(get_socket_addr(&url, port).unwrap());
 
         Self { monitoring_client, http_client }
     }
@@ -75,4 +84,15 @@ impl SequencerSimulator {
         )
         .await;
     }
+}
+
+fn get_socket_addr(url_str: &str, port: u16) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+    let url = Url::parse(url_str)?;
+    let host = url.host_str().ok_or("Invalid URL: no host found")?;
+    let addr = format!("{}:{}", host, port)
+        .to_socket_addrs()?
+        .next()
+        .ok_or("Failed to resolve address")?;
+
+    Ok(addr)
 }
