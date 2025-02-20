@@ -16,7 +16,7 @@ class SequencerDevConfig(Config):
                 open(os.path.join(CONFIG_DIR, "default_config.json"), "r").read()
             ),
             config=(
-                json.loads(open(os.path.join(CONFIG_DIR, "presets", "config.json"), "r").read())
+                json.loads(open(os.path.join(CONFIG_DIR, "presets", "single_node_config.json"), "r").read())
                 if not config_file_path
                 else json.loads(open(os.path.abspath(config_file_path)).read())
             )
