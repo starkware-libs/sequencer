@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
+use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use papyrus_storage::StorageConfig;
+use serde_json::Value;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
@@ -15,15 +17,28 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::config_utils::{
+    config_to_preset,
+    dump_json_data,
+    RequiredParams,
+};
+use starknet_sequencer_node::config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+    CONFIG_POINTERS,
+};
 use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
 
-use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{create_node_config, spawn_local_success_recorder};
+
+// TODO(Tsabary): rename this module to `executable_setup`.
+
+const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
@@ -73,6 +88,10 @@ pub struct ExecutableSetup {
     pub batcher_storage_config: StorageConfig,
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
+    // Config values.
+    config: SequencerNodeConfig,
+    // Required param values.
+    required_params: RequiredParams,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -149,8 +168,7 @@ impl ExecutableSetup {
                 (node_config_dir_handle.path().to_path_buf(), Some(node_config_dir_handle))
             }
         };
-        let node_config_path = dump_config_file_changes(&config, required_params, node_config_dir);
-
+        let node_config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
@@ -158,21 +176,86 @@ impl ExecutableSetup {
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        Self {
+        let executable_setup = Self {
             node_execution_id,
             add_tx_http_client,
             monitoring_client,
             batcher_storage_handle,
-            batcher_storage_config: config.batcher_config.storage,
+            batcher_storage_config: config.batcher_config.storage.clone(),
+            config: config.clone(),
+            required_params,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
             class_manager_storage_handles,
-        }
+        };
+        executable_setup.dump_config_file_changes();
+        executable_setup
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
+    }
+
+    /// Creates a config file for the sequencer node for an integration test.
+    fn dump_config_file_changes(&self) {
+        // Create the entire mapping of the config and the pointers, without the required params.
+        let config_as_map = combine_config_map_and_pointers(
+            self.config.dump(),
+            &CONFIG_POINTERS,
+            &CONFIG_NON_POINTERS_WHITELIST,
+        )
+        .unwrap();
+
+        // Extract only the required fields from the config map.
+        let mut preset = config_to_preset(&config_as_map);
+
+        // Add the required params to the preset.
+        add_required_params_to_preset(&mut preset, self.required_params.as_json());
+
+        // Dump the preset to a file, return its path.
+        dump_json_data(preset, &self.node_config_path);
+        assert!(
+            &self.node_config_path.exists(),
+            "File does not exist: {:?}",
+            &self.node_config_path
+        );
+    }
+}
+
+/// Merges required parameters into an existing preset JSON object.
+///
+/// # Parameters
+/// - `preset`: A mutable reference to a `serde_json::Value` representing the preset. It must be a
+///   JSON dictionary object where additional parameters will be added.
+/// - `required_params`: A reference to a `serde_json::Value` representing the required parameters.
+///   It must also be a JSON dictionary object. Its keys and values will be merged into the
+///   `preset`.
+///
+/// # Behavior
+/// - For each key-value pair in `required_params`, the pair is inserted into `preset`.
+/// - If a key already exists in `preset`, its value will be overwritten by the value from
+///   `required_params`.
+/// - Both `preset` and `required_params` must be JSON dictionary objects; otherwise, the function
+///   panics.
+///
+/// # Panics
+/// This function panics if either `preset` or `required_params` is not a JSON dictionary object, or
+/// if the `preset` already contains a key from the `required_params`.
+fn add_required_params_to_preset(preset: &mut Value, required_params: Value) {
+    if let (Value::Object(preset_map), Value::Object(required_params_map)) =
+        (preset, required_params)
+    {
+        for (key, value) in required_params_map {
+            assert!(
+                !preset_map.contains_key(&key),
+                "Required parameter already exists in the preset: {:?}",
+                key
+            );
+            preset_map.insert(key, value);
+        }
+    } else {
+        panic!("Expecting JSON object dictionary objects");
     }
 }

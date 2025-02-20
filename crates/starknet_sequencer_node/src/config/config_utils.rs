@@ -109,7 +109,9 @@ impl RequiredParams {
     }
 
     pub fn dump_to_file(&self, path: &str, dir: PathBuf) -> PathBuf {
-        dump_json_data(self.as_json(), path, dir)
+        let file_path = dir.join(path);
+        dump_json_data(self.as_json(), &file_path);
+        file_path
     }
 }
 
@@ -175,14 +177,12 @@ pub fn config_to_preset(config_map: &Value) -> Value {
 }
 
 /// Dumps the input JSON data to a file at the specified path.
-pub fn dump_json_data(json_data: Value, path: &str, dir: PathBuf) -> PathBuf {
-    let temp_dir_path = dir.join(path);
-
+pub fn dump_json_data(json_data: Value, file_path: &PathBuf) {
     // Serialize the JSON data to a pretty-printed string
     let json_string = serde_json::to_string_pretty(&json_data).unwrap();
 
     // Write the JSON string to a file
-    let mut file = File::create(&temp_dir_path).unwrap();
+    let mut file = File::create(file_path).unwrap();
     file.write_all(json_string.as_bytes()).unwrap();
 
     // Add an extra newline after the JSON content.
@@ -190,6 +190,5 @@ pub fn dump_json_data(json_data: Value, path: &str, dir: PathBuf) -> PathBuf {
 
     file.flush().unwrap();
 
-    info!("Writing required config changes to: {:?}", &temp_dir_path);
-    temp_dir_path
+    info!("Writing required config changes to: {:?}", file_path);
 }
