@@ -60,7 +60,7 @@ impl Display for TestStreamId {
 
 #[cfg(test)]
 mod tests {
-    use papyrus_network::network_manager::BroadcastTopicServer;
+    use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicServer};
     use papyrus_protobuf::consensus::{IntoFromProto, ProposalInit, ProposalPart};
 
     use super::*;
@@ -99,7 +99,12 @@ mod tests {
 
     #[allow(clippy::type_complexity)]
     fn setup_test<T>() -> (
-        StreamHandler<T, TestStreamId, BroadcastTopicServer<StreamMessage<T, TestStreamId>>>,
+        StreamHandler<
+            T,
+            TestStreamId,
+            BroadcastTopicServer<StreamMessage<T, TestStreamId>>,
+            BroadcastTopicClient<StreamMessage<T, TestStreamId>>,
+        >,
         MockBroadcastedMessagesSender<StreamMessage<T, TestStreamId>>,
         mpsc::Receiver<mpsc::Receiver<T>>,
         BroadcastedMessageMetadata,
