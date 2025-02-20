@@ -11072,6 +11072,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_reverts",
  "async-trait",
+ "futures",
  "mockall",
  "papyrus_config",
  "papyrus_network",
