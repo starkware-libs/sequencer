@@ -237,6 +237,14 @@ impl IntegrationTestManager {
         self.run_integration_test_simulator(&InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT).await;
     }
 
+    pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
+        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+            let monitoring_client = running_node.node_setup.batcher_monitoring_client();
+            monitoring_utils::await_txs_accepted(monitoring_client, *sequencer_idx, target_n_txs)
+        });
+        futures::future::join_all(futures).await;
+    }
+
     /// This function tests and verifies the integration of the transaction flow.
     ///
     /// # Parameters
@@ -260,7 +268,7 @@ impl IntegrationTestManager {
         // Verify the initial state
         self.verify_txs_accepted(sender_account).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
-        self.await_execution(wait_for_block).await;
+        self.await_block(wait_for_block).await;
         self.verify_txs_accepted(sender_account).await;
     }
 
@@ -293,11 +301,11 @@ impl IntegrationTestManager {
             .await;
     }
 
-    async fn await_execution(&self, expected_block_number: BlockNumber) {
+    async fn await_block(&self, expected_block_number: BlockNumber) {
         let running_node =
             self.running_nodes.iter().next().expect("At least one node should be running").1;
         let running_node_setup = &running_node.node_setup;
-        monitoring_utils::await_execution(
+        monitoring_utils::await_block(
             running_node_setup.batcher_monitoring_client(),
             expected_block_number,
             running_node_setup.get_node_index().unwrap(),
