@@ -119,6 +119,11 @@
     "privacy": "Public",
     "value": 15728640
   },
+  "batcher_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
   "batcher_config.contract_class_manager_config.native_compiler_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
@@ -223,6 +228,11 @@
     "description": "Limitation of compiled native bytecode size.",
     "privacy": "Public",
     "value": 15728640
+  },
+  "compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
   },
   "compiler_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
