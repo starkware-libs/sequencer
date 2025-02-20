@@ -21,6 +21,7 @@ use papyrus_p2p_sync::client::{
 use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_storage::body::BodyStorageReader;
+use papyrus_storage::class_manager::ClassManagerStorageReader;
 use papyrus_storage::db::TransactionKind;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
@@ -44,6 +45,7 @@ use starknet_sequencer_metrics::metric_definitions::{
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
     SYNC_BODY_MARKER,
+    SYNC_CLASS_MANAGER_MARKER,
     SYNC_HEADER_MARKER,
     SYNC_PROCESSED_TRANSACTIONS,
     SYNC_STATE_MARKER,
@@ -328,6 +330,7 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_HEADER_MARKER.register();
     SYNC_BODY_MARKER.register();
     SYNC_STATE_MARKER.register();
+    SYNC_CLASS_MANAGER_MARKER.register();
     SYNC_PROCESSED_TRANSACTIONS.register();
     set_metrics(txn);
 }
@@ -337,6 +340,10 @@ fn set_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_HEADER_MARKER.set(txn.get_header_marker().expect("Should have a header marker").0 as f64);
     SYNC_BODY_MARKER.set(txn.get_body_marker().expect("Should have a body marker").0 as f64);
     SYNC_STATE_MARKER.set(txn.get_state_marker().expect("Should have a state marker").0 as f64);
+    SYNC_CLASS_MANAGER_MARKER.set(
+        txn.get_class_manager_block_marker().expect("Should have a class manager block marker").0
+            as f64,
+    );
 }
 
 pub type StateSyncRunnerServer = WrapperServer<StateSyncRunner>;
