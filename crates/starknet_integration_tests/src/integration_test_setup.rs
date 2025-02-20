@@ -15,6 +15,8 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::config_utils::RequiredParams;
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
@@ -73,6 +75,21 @@ pub struct ExecutableSetup {
     pub batcher_storage_config: StorageConfig,
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
+    // Config values.
+    // TODO(Tsabary): annotating with #[allow(dead_code)] as currently unused, but these will be
+    // used in the next pr.
+    #[allow(dead_code)]
+    config: SequencerNodeConfig,
+    // Required param values.
+    // TODO(Tsabary): annotating with #[allow(dead_code)] as currently unused, but these will be
+    // used in the next pr.
+    #[allow(dead_code)]
+    required_params: RequiredParams,
+    // Path to the directory holding the executable config.
+    // TODO(Tsabary): annotating with #[allow(dead_code)] as currently unused, but these will be
+    // used in the next pr.
+    #[allow(dead_code)]
+    node_config_dir: PathBuf,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -149,7 +166,8 @@ impl ExecutableSetup {
                 (node_config_dir_handle.path().to_path_buf(), Some(node_config_dir_handle))
             }
         };
-        let node_config_path = dump_config_file_changes(&config, required_params, node_config_dir);
+        let node_config_path =
+            dump_config_file_changes(&config, &required_params, node_config_dir.clone());
 
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
@@ -163,7 +181,10 @@ impl ExecutableSetup {
             add_tx_http_client,
             monitoring_client,
             batcher_storage_handle,
-            batcher_storage_config: config.batcher_config.storage,
+            batcher_storage_config: config.batcher_config.storage.clone(),
+            config: config.clone(),
+            required_params,
+            node_config_dir,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,

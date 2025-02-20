@@ -20,7 +20,7 @@ const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_change
 /// Creates a config file for the sequencer node for an integration test.
 pub(crate) fn dump_config_file_changes(
     config: &SequencerNodeConfig,
-    required_params: RequiredParams,
+    required_params: &RequiredParams,
     dir: PathBuf,
 ) -> PathBuf {
     // Create the entire mapping of the config and the pointers, without the required params.
