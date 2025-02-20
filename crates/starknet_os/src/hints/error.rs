@@ -7,6 +7,8 @@ use crate::hints::vars::{Const, Ids};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsHintError {
+    #[error("Assertion failed: {0}")]
+    AssertionFailed(String),
     #[error("{id:?} value {felt} is not a boolean.")]
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
