@@ -16,6 +16,7 @@ use starknet_infra_utils::test_utils::{
     MAX_NUMBER_OF_INSTANCES_PER_TEST,
 };
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_node::config::component_execution_config::ActiveComponentExecutionMode;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -27,6 +28,7 @@ use crate::node_component_configs::{
     create_distributed_node_configs,
     NodeComponentConfigs,
 };
+use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::utils::{
     create_chain_info,
     create_consensus_manager_configs_from_network_configs,
@@ -233,6 +235,16 @@ impl IntegrationTestManager {
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
+    /// Create a simulator that's connected to one of the node's http server. Preferrably a running
+    /// node if one exists.
+    pub fn create_simulator(&self) -> SequencerSimulator {
+        let http_server_executable_setup = self.find_http_server_executable_setup();
+        SequencerSimulator::new(
+            http_server_executable_setup.node_config_path.to_str().unwrap().to_owned(),
+            "http://127.0.0.1:8080".to_owned(),
+        )
+    }
+
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
         let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
             let monitoring_client = running_node.node_setup.batcher_monitoring_client();
@@ -320,6 +332,27 @@ impl IntegrationTestManager {
             expected_n_batched_txs,
         )
         .await;
+    }
+
+    /// Finds an executable setup that has http server component enabled. Preferrably a running
+    /// one.
+    fn find_http_server_executable_setup(&self) -> &ExecutableSetup {
+        let node_setups = self
+            .running_nodes
+            .values()
+            .map(|running_node| &running_node.node_setup)
+            .chain(self.idle_nodes.values());
+        for node_setup in node_setups {
+            for executable_setup in &node_setup.executables {
+                if matches!(
+                    &executable_setup.config().components.http_server.execution_mode,
+                    ActiveComponentExecutionMode::Enabled
+                ) {
+                    return executable_setup;
+                }
+            }
+        }
+        panic!("No executable with http server enabled found");
     }
 }
 
