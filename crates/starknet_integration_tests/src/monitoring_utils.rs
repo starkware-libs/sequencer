@@ -19,6 +19,31 @@ pub async fn get_batcher_latest_block_number(
     .expect("Storage height should be at least 1.")
 }
 
+/// Gets the latest block number from the sync's metrics.
+pub async fn get_sync_latest_block_number(
+    sync_monitoring_client: &MonitoringClient,
+) -> BlockNumber {
+    let sync_header_marker = sync_monitoring_client
+        .get_metric::<u64>(metric_definitions::SYNC_HEADER_MARKER.get_name())
+        .await
+        .expect("Failed to get sync header marker metric.");
+    let sync_body_marker = sync_monitoring_client
+        .get_metric::<u64>(metric_definitions::SYNC_BODY_MARKER.get_name())
+        .await
+        .expect("Failed to get sync body marker metric.");
+    let sync_state_marker = sync_monitoring_client
+        .get_metric::<u64>(metric_definitions::SYNC_STATE_MARKER.get_name())
+        .await
+        .expect("Failed to get sync state marker metric.");
+
+    BlockNumber(std::cmp::min(
+        sync_header_marker,
+        std::cmp::min(sync_body_marker, sync_state_marker),
+    ))
+    .prev()
+    .expect("Sync marker should be at least 1.")
+}
+
 /// Sample the metrics until sufficiently many blocks have been reported by the batcher. Returns an
 /// error if after the given number of attempts the target block number has not been reached.
 pub async fn await_batcher_block(
@@ -30,6 +55,20 @@ pub async fn await_batcher_block(
 ) -> Result<BlockNumber, ()> {
     let get_latest_block_number_closure =
         || get_batcher_latest_block_number(batcher_monitoring_client);
+
+    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
+        .await
+        .ok_or(())
+}
+
+pub async fn await_sync_block_marker(
+    interval: u64,
+    condition: impl Fn(&BlockNumber) -> bool + Send + Sync,
+    max_attempts: usize,
+    sync_monitoring_client: &MonitoringClient,
+    logger: CustomLogger,
+) -> Result<BlockNumber, ()> {
+    let get_latest_block_number_closure = || get_sync_latest_block_number(sync_monitoring_client);
 
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
