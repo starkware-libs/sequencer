@@ -1,5 +1,8 @@
 //! Interface for handling data related to the class manager.
 // TODO(noamsp): Add Documentation
+#[cfg(test)]
+#[path = "class_manager_test.rs"]
+mod class_manager_test;
 
 use starknet_api::block::BlockNumber;
 
@@ -23,11 +26,11 @@ where
     // To enforce that no commit happen after a failure, we consume and return Self on success.
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self>;
 
-    /// When reverting a block, if the class manager marker points to the block afterward, revert
-    /// the marker.
+    /// Reverts the class manager marker by one block if the current marker in storage is
+    /// `target_block_number + 1`. This means it can only revert one height at a time.
     fn try_revert_class_manager_marker(
         self,
-        reverted_block_number: BlockNumber,
+        target_block_number: BlockNumber,
     ) -> StorageResult<Self>;
 }
 
@@ -47,11 +50,11 @@ impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
 
     fn try_revert_class_manager_marker(
         self,
-        reverted_block_number: BlockNumber,
+        target_block_number: BlockNumber,
     ) -> StorageResult<Self> {
         let cur_marker = self.get_class_manager_block_marker()?;
-        if cur_marker == reverted_block_number.unchecked_next() {
-            Ok(self.update_class_manager_block_marker(&reverted_block_number)?)
+        if cur_marker == target_block_number.unchecked_next() {
+            Ok(self.update_class_manager_block_marker(&target_block_number)?)
         } else {
             Ok(self)
         }
