@@ -18,6 +18,7 @@ jobs:
       - run: echo $CARGO_HOME
       - run: echo $CARGO_TARGET_DIR
       - run: cargo metadata --format-version 1 | jq .workspace_root
+      - run: cargo metadata --format-version 1 | jq -r .target_directory
       - name: Cargo build
         run: cargo build
 
