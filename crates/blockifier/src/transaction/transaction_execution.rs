@@ -71,10 +71,10 @@ impl Transaction {
         }
     }
 
-    pub fn tx_hash(tx: &Transaction) -> TransactionHash {
-        match tx {
-            Transaction::Account(tx) => tx.tx_hash(),
-            Transaction::L1Handler(tx) => tx.tx_hash,
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            Self::Account(tx) => tx.tx_hash(),
+            Self::L1Handler(tx) => tx.tx_hash,
         }
     }
 
