@@ -284,6 +284,14 @@ impl IntegrationTestManager {
         self.run_integration_test_simulator(&InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT).await;
     }
 
+    pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
+        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+            let monitoring_client = running_node.node_setup.batcher_monitoring_client();
+            monitoring_utils::await_txs_accepted(monitoring_client, *sequencer_idx, target_n_txs)
+        });
+        futures::future::join_all(futures).await;
+    }
+
     /// This function tests and verifies the integration of the transaction flow.
     ///
     /// # Parameters
