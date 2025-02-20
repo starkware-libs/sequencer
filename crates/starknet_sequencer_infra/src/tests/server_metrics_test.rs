@@ -162,3 +162,40 @@ async fn only_metrics_counters_for_local_server() {
         0,
     );
 }
+
+#[tokio::test]
+async fn all_metrics_fo_local_server() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let (test_sem, client) = setup_local_server_test().await;
+
+    // In order to test not only message counters but the queue depth too, first we will send all
+    // the messages by spawning multiple clients and by that filling the channel queue.
+    let number_of_iterations = 10;
+    for _ in 0..number_of_iterations {
+        let multi_client = client.clone();
+        task::spawn(async move {
+            multi_client.perform_test().await.unwrap();
+        });
+    }
+    task::yield_now().await;
+
+    // And then we will provide a single permit each time and check that all metrics are adjusted
+    // accordingly.
+    for i in 0..number_of_iterations {
+        let metrics_as_string = recorder.handle().render();
+        assert_server_metrics(metrics_as_string.as_str(), i + 1, i, number_of_iterations - i - 1);
+        test_sem.add_permits(1);
+        task::yield_now().await;
+    }
+
+    // Finally all messages processed and queue is empty.
+    let metrics_as_string = recorder.handle().render();
+    assert_server_metrics(
+        metrics_as_string.as_str(),
+        number_of_iterations,
+        number_of_iterations,
+        0,
+    );
+}
