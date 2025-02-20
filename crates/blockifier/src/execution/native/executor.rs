@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_lang_sierra::program::Program;
+use cairo_lang_starknet_classes::compiler_version::VersionId;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::executor::AotContractExecutor;
@@ -15,7 +16,7 @@ use super::syscall_handler::NativeSyscallHandler;
 #[derive(Debug)]
 pub enum ContractExecutor {
     Aot(AotContractExecutor),
-    Emu((Arc<Program>, ContractEntryPoints)),
+    Emu((Arc<Program>, ContractEntryPoints, VersionId)),
 }
 
 impl From<AotContractExecutor> for ContractExecutor {
@@ -23,8 +24,8 @@ impl From<AotContractExecutor> for ContractExecutor {
         Self::Aot(value)
     }
 }
-impl From<(Arc<Program>, ContractEntryPoints)> for ContractExecutor {
-    fn from(value: (Arc<Program>, ContractEntryPoints)) -> Self {
+impl From<(Arc<Program>, ContractEntryPoints, VersionId)> for ContractExecutor {
+    fn from(value: (Arc<Program>, ContractEntryPoints, VersionId)) -> Self {
         Self::Emu(value)
     }
 }
@@ -42,9 +43,9 @@ impl ContractExecutor {
             ContractExecutor::Aot(aot_contract_executor) => {
                 aot_contract_executor.run(selector, args, gas, builtin_costs, syscall_handler)
             }
-            ContractExecutor::Emu((program, entrypoints)) => {
+            ContractExecutor::Emu((program, entrypoints, version)) => {
                 let mut virtual_machine =
-                    VirtualMachine::new_starknet(program.to_owned(), entrypoints);
+                    VirtualMachine::new_starknet(program.to_owned(), entrypoints, *version);
 
                 let builtin_costs = builtin_costs.map(|builtin_costs| sierra_emu::BuiltinCosts {
                     r#const: builtin_costs.r#const,
