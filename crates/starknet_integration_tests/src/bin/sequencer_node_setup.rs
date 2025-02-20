@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::get_sequencer_setup_configs;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
@@ -28,6 +29,7 @@ async fn main() {
         args.n_distributed,
         Some(PathBuf::from(args.db_dir)),
         Some(PathBuf::from(args.configs_dir)),
+        TestIdentifier::EndToEndIntegrationTest,
     )
     .await;
 
