@@ -55,10 +55,10 @@ async fn revert_batcher_blocks() {
 
 #[rstest]
 #[should_panic(expected = "Batcher's storage height marker 10 is not larger than the target \
-                           block 10. No reverts are needed.")]
+                           height marker 10. No reverts are needed.")]
 #[case::equal_block(BATCHER_HEIGHT)]
 #[should_panic(expected = "Batcher's storage height marker 10 is not larger than the target \
-                           block 11. No reverts are needed.")]
+                           height marker 11. No reverts are needed.")]
 #[case::larger_block(BATCHER_HEIGHT.unchecked_next())]
 #[tokio::test]
 async fn revert_with_invalid_height_panics(#[case] revert_up_to_and_including: BlockNumber) {
