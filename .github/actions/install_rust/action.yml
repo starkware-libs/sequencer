@@ -5,8 +5,8 @@ inputs:
   extra_rust_toolchains:
     description: "Extra toolchains to install, but aren't used by default"
     required: false
-  cache_target: "TBD"
-    required: false
+  cache_target:
+    description: "TBD"
     default: "target"
 
 runs:
