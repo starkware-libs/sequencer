@@ -151,7 +151,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     ) -> (
         mpsc::Sender<(StreamId, mpsc::Receiver<StreamContent>)>,
         mpsc::Receiver<mpsc::Receiver<StreamContent>>,
-        tokio::task::JoinHandle<()>,
+        StreamHandler<StreamContent, StreamId>,
     )
     where
         StreamContent: 'static,
@@ -169,21 +169,18 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         let (outbound_internal_sender, outbound_internal_receiver) =
             mpsc::channel(CHANNEL_BUFFER_LENGTH);
 
-        let mut stream_handler = StreamHandler::<StreamContent, StreamId>::new(
+        let stream_handler = StreamHandler::<StreamContent, StreamId>::new(
             inbound_internal_sender,    // Sender<Receiver<T>>,
             inbound_network_receiver,   // BroadcastTopicServer<StreamMessage<T>>,
             outbound_internal_receiver, // Receiver<(StreamId, Receiver<T>)>,
             outbound_network_sender,    // BroadcastTopicClient<StreamMessage<T>>
         );
-        let handle = tokio::spawn(async move {
-            stream_handler.run().await;
-        });
 
-        (outbound_internal_sender, inbound_internal_receiver, handle)
+        (outbound_internal_sender, inbound_internal_receiver, stream_handler)
     }
 
     /// Run the stream handler indefinitely.
-    pub async fn run(&mut self) {
+    pub async fn run(mut self) {
         loop {
             self.handle_next_msg().await
         }
