@@ -8,7 +8,11 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
-use starknet_l1_provider_types::{MockL1ProviderClient, ValidationStatus as L1ValidationStatus};
+use starknet_l1_provider_types::{
+    InvalidValidationStatus,
+    MockL1ProviderClient,
+    ValidationStatus as L1ValidationStatus,
+};
 use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::transaction_provider::{
@@ -204,14 +208,17 @@ async fn validate_flow(mut mock_dependencies: MockDependencies) {
 async fn validate_fails(
     mut mock_dependencies: MockDependencies,
     #[values(
-        L1ValidationStatus::AlreadyIncludedInProposedBlock,
-        L1ValidationStatus::AlreadyIncludedOnL2,
-        L1ValidationStatus::ConsumedOnL1OrUnknown
+        InvalidValidationStatus::AlreadyIncludedInProposedBlock,
+        InvalidValidationStatus::AlreadyIncludedOnL2,
+        InvalidValidationStatus::ConsumedOnL1OrUnknown
     )]
-    expected_validation_status: L1ValidationStatus,
+    expected_validation_status: InvalidValidationStatus,
 ) {
     let test_tx = test_l1handler_tx();
-    mock_dependencies.expect_validate_l1handler(test_tx.clone(), expected_validation_status);
+    mock_dependencies.expect_validate_l1handler(
+        test_tx.clone(),
+        L1ValidationStatus::Invalid(expected_validation_status),
+    );
     mock_dependencies
         .simulate_input_txs(vec![
             InternalConsensusTransaction::L1Handler(test_tx),

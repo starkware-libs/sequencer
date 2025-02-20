@@ -12,7 +12,7 @@ use starknet_l1_provider_types::SessionState::{
     Propose as ProposeSession,
     Validate as ValidateSession,
 };
-use starknet_l1_provider_types::{Event, ValidationStatus};
+use starknet_l1_provider_types::{Event, InvalidValidationStatus, ValidationStatus};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
@@ -73,16 +73,16 @@ fn validate_happy_flow() {
     );
     assert_eq!(
         l1_provider.validate(tx_hash!(2), BlockNumber(0)).unwrap(),
-        ValidationStatus::AlreadyIncludedOnL2
+        ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2)
     );
     assert_eq!(
         l1_provider.validate(tx_hash!(3), BlockNumber(0)).unwrap(),
-        ValidationStatus::ConsumedOnL1OrUnknown
+        ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown)
     );
     // Transaction wasn't deleted after the validation.
     assert_eq!(
         l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap(),
-        ValidationStatus::AlreadyIncludedInProposedBlock
+        ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
     );
 }
 

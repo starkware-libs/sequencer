@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::ValidationStatus;
+use starknet_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
@@ -30,15 +30,15 @@ impl TransactionManager {
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
         if self.committed.contains_key(&tx_hash) {
-            return ValidationStatus::AlreadyIncludedOnL2;
+            return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
         }
 
         if self.txs.soft_remove(tx_hash).is_some() {
             ValidationStatus::Validated
         } else if self.txs.is_staged(&tx_hash) {
-            ValidationStatus::AlreadyIncludedInProposedBlock
+            ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
         } else {
-            ValidationStatus::ConsumedOnL1OrUnknown
+            ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown)
         }
     }
 
