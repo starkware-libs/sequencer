@@ -6,6 +6,13 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
+use crate::io::os_input::CommitmentInfo;
+
+#[derive(Copy, Clone)]
+enum CommitmentType {
+    Class,
+    State,
+}
 
 fn assert_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -> HintResult {
     if tree_height != merkle_height {
@@ -19,74 +26,48 @@ fn assert_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
     Ok(())
 }
 
-pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
+fn set_preimage_for_commitments<S: StateReader>(
+    commitment_type: CommitmentType,
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
 ) -> HintResult {
     let os_input = &hint_processor.execution_helper.os_input;
+    let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
+        match commitment_type {
+            CommitmentType::Class => &os_input.contract_class_commitment_info,
+            CommitmentType::State => &os_input.contract_state_commitment_info,
+        };
     insert_value_from_var_name(
         Ids::InitialRoot.into(),
-        os_input.contract_state_commitment_info.previous_root.0,
+        previous_root.0,
         vm,
         ids_data,
         ap_tracking,
     )?;
-    insert_value_from_var_name(
-        Ids::FinalRoot.into(),
-        os_input.contract_state_commitment_info.updated_root.0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    insert_value_from_var_name(Ids::FinalRoot.into(), updated_root.0, vm, ids_data, ap_tracking)?;
 
     // TODO(Dori): See if we can avoid the clone() here. Possible method: using `take()` to take
     //   ownership; we should, however, somehow invalidate the
     //   `os_input.contract_state_commitment_info.commitment_facts` field in this case (panic if
     //   accessed again after this line).
-    exec_scopes.insert_value(
-        Scope::Preimage.into(),
-        os_input.contract_state_commitment_info.commitment_facts.clone(),
-    );
+    exec_scopes.insert_value(Scope::Preimage.into(), commitment_facts.clone());
 
     let merkle_height = Const::MerkleHeight.fetch(constants)?;
-    let tree_height: Felt = os_input.contract_state_commitment_info.tree_height.into();
+    let tree_height: Felt = (*tree_height).into();
     assert_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
 
     Ok(())
 }
 
-pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
+pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
+    hint_args: HintArgs<'_, S>,
 ) -> HintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
-    insert_value_from_var_name(
-        Ids::InitialRoot.into(),
-        os_input.contract_class_commitment_info.previous_root.0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    insert_value_from_var_name(
-        Ids::FinalRoot.into(),
-        os_input.contract_class_commitment_info.updated_root.0,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    set_preimage_for_commitments(CommitmentType::State, hint_args)
+}
 
-    // TODO(Dori): See if we can avoid the clone() here. Possible method: using `take()` to take
-    //   ownership; we should, however, somehow invalidate the
-    //   `os_input.contract_state_commitment_info.commitment_facts` field in this case (panic if
-    //   accessed again after this line).
-    exec_scopes.insert_value(
-        Scope::Preimage.into(),
-        os_input.contract_class_commitment_info.commitment_facts.clone(),
-    );
-
-    let merkle_height = Const::MerkleHeight.fetch(constants)?;
-    let tree_height: Felt = os_input.contract_class_commitment_info.tree_height.into();
-    assert_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
-
-    Ok(())
+pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
+    hint_args: HintArgs<'_, S>,
+) -> HintResult {
+    set_preimage_for_commitments(CommitmentType::Class, hint_args)
 }
 
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
