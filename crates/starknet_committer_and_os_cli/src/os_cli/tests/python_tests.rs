@@ -232,12 +232,12 @@ impl PythonTestRunner for OsPythonTestRunner {
     type SpecificError = OsSpecificTestError;
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
-            Self::CompareOsHints => test_os_hints_are_equal(Self::non_optional_input(input)?),
+            Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
         }
     }
 }
 
-fn test_os_hints_are_equal(input: &str) -> OsPythonTestResult {
+fn compare_os_hints(input: &str) -> OsPythonTestResult {
     let unfiltered_python_hints: HashSet<String> = serde_json::from_str(input)?;
 
     // Remove VM hints.
