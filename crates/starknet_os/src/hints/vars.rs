@@ -9,24 +9,26 @@ use crate::hints::error::OsHintError;
 
 #[derive(Copy, Clone)]
 pub(crate) enum Scope {
+    CommitmentInfoByAddress,
     CompiledClassFacts,
     DeprecatedClassHashes,
     DictManager,
     DictTracker,
     InitialDict,
+    Preimage,
     UseKzgDa,
-    CommitmentInfoByAddress,
 }
 
 impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
+            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::CompiledClassFacts => "compiled_class_facts",
             Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
-            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::InitialDict => "initial_dict",
+            Scope::Preimage => "preimage",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -44,7 +46,9 @@ pub enum Ids {
     BucketIndex,
     CompressedStart,
     DictPtr,
+    FinalRoot,
     FullOutput,
+    InitialRoot,
     NCompiledClassFacts,
     NextAvailableAlias,
     PrevOffset,
@@ -61,7 +65,9 @@ impl From<Ids> for &'static str {
             Ids::BucketIndex => "bucket_index",
             Ids::CompressedStart => "compressed_start",
             Ids::DictPtr => "dict_ptr",
+            Ids::FinalRoot => "final_root",
             Ids::FullOutput => "full_output",
+            Ids::InitialRoot => "initial_root",
             Ids::OsStateUpdate => "os_state_update",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
@@ -79,6 +85,7 @@ pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
     InitialAvailableAlias,
+    MerkleHeight,
 }
 
 impl From<Const> for &'static str {
@@ -87,6 +94,7 @@ impl From<Const> for &'static str {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
+            Const::MerkleHeight => "MERKLE_HEIGHT",
         }
     }
 }
