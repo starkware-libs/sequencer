@@ -106,7 +106,7 @@ impl StorageTestSetup {
         let mut fs_class_storage_builder = FsClassStorageBuilderForTesting::default();
         if let Some(class_manager_path) = fs_class_storage_db_path.as_ref() {
             let class_hash_storage_path_prefix = class_manager_path.join("class_hash_storage");
-            let persistent_root = class_manager_path.join("persistent_root");
+            let persistent_root = class_manager_path.join("classes");
             // The paths will be created in the first time the storage is opened (passing
             // `enforce_file_exists: false`).
             fs_class_storage_builder = fs_class_storage_builder
