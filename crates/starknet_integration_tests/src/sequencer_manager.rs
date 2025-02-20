@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::time::Duration;
 
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
@@ -16,8 +17,10 @@ use starknet_infra_utils::test_utils::{
     TestIdentifier,
     MAX_NUMBER_OF_INSTANCES_PER_TEST,
 };
+use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -201,6 +204,69 @@ impl IntegrationTestManager {
                 executable.update_revert_config(value);
             });
         });
+    }
+
+    pub async fn await_revert_all_running_nodes(
+        &self,
+        expected_block_number: BlockNumber,
+        timeout_duration: Duration,
+        interval_ms: u64,
+        max_attempts: usize,
+    ) {
+        info!("Waiting for all idle nodes to finish reverting.");
+        let condition =
+            |&latest_block_number: &BlockNumber| latest_block_number == expected_block_number;
+
+        let await_reverted_tasks = self.running_nodes.values().map(|running_node| async {
+            let running_node_setup = &running_node.node_setup;
+            let batcher_logger = CustomLogger::new(
+                TraceLevel::Info,
+                Some(format!(
+                    "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
+                     executable {}.",
+                    running_node_setup.get_node_index().unwrap(),
+                    running_node_setup.get_batcher_index(),
+                )),
+            );
+
+            // TODO(noamsp): rename batcher index/monitoringClient or use sync
+            // index/monitoringClient
+            let sync_logger = CustomLogger::new(
+                TraceLevel::Info,
+                Some(format!(
+                    "Waiting for state sync to reach block {expected_block_number} in sequencer \
+                     {} executable {}.",
+                    running_node_setup.get_node_index().unwrap(),
+                    running_node_setup.get_batcher_index(),
+                )),
+            );
+
+            join!(
+                monitoring_utils::await_batcher_block(
+                    interval_ms,
+                    condition,
+                    max_attempts,
+                    running_node_setup.batcher_monitoring_client(),
+                    batcher_logger,
+                ),
+                monitoring_utils::await_sync_block(
+                    interval_ms,
+                    condition,
+                    max_attempts,
+                    running_node_setup.batcher_monitoring_client(),
+                    sync_logger,
+                )
+            )
+        });
+
+        tokio::time::timeout(timeout_duration, join_all(await_reverted_tasks))
+            .await
+            .expect("Running Nodes should be reverted.");
+
+        info!(
+            "All running nodes have been reverted succesfully to block number \
+             {expected_block_number}."
+        );
     }
 
     pub fn get_node_indices(&self) -> HashSet<usize> {
