@@ -118,7 +118,7 @@ use super::{
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::casm_contract_class_central_format;
-use crate::cende::{BlobParameters, CendeAmbassador, CendeConfig, CendeContext};
+use crate::cende::{AerospikeBlob, BlobParameters};
 
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
@@ -134,6 +134,7 @@ pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
     "central_transaction_execution_info.json";
 pub const CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH: &str =
     "central_transaction_execution_info_reverted.json";
+pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
 
 fn resource_bounds() -> AllResourceBounds {
     AllResourceBounds {
@@ -561,6 +562,66 @@ fn central_transaction_execution_info_reverted() -> CentralTransactionExecutionI
     transaction_execution_info.into()
 }
 
+fn declare_tx_with_hash(tx_hash: u64) -> InternalConsensusTransaction {
+    InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::Declare(declare_transaction()),
+        tx_hash: TransactionHash(felt!(tx_hash)),
+    })
+}
+
+// Returns a vector of transactions and a mock class manager with the expectation that needed to
+// convert the consensus transactions to central transactions.
+fn input_txs_and_mock_class_manager() -> (Vec<InternalConsensusTransaction>, MockClassManagerClient)
+{
+    let invoke = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::Invoke(invoke_transaction()),
+        tx_hash: TransactionHash(Felt::TWO),
+    });
+    let deploy_account = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_account_tx()),
+        tx_hash: TransactionHash(Felt::THREE),
+    });
+    let l1_handler = InternalConsensusTransaction::L1Handler(l1_handler_tx());
+
+    let transactions =
+        vec![declare_tx_with_hash(1), invoke, deploy_account, l1_handler, declare_tx_with_hash(4)];
+
+    let mut mock_class_manager = MockClassManagerClient::new();
+    mock_class_manager
+        .expect_get_sierra()
+        .with(eq(declare_class_hash()))
+        .times(2)
+        .returning(|_| Ok(Some(sierra_contract_class())));
+    mock_class_manager.expect_get_executable().with(eq(declare_class_hash())).times(2).returning(
+        |_| Ok(Some(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0))))),
+    );
+
+    (transactions, mock_class_manager)
+}
+
+// TODO(dvir): use real blob when possible.
+fn central_blob() -> AerospikeBlob {
+    let (input_txs, mock_class_manager) = input_txs_and_mock_class_manager();
+    let blob_parameters = BlobParameters {
+        block_info: block_info(),
+        state_diff: thin_state_diff(),
+        compressed_state_diff: Some(commitment_state_diff()),
+        transactions: input_txs,
+        bouncer_weights: central_bouncer_weights(),
+        execution_infos: vec![transaction_execution_info()],
+    };
+
+    // This is to make the function sync (not async) so that it can be used as a case in the
+    // serialize_central_objects test.
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime
+        .block_on(AerospikeBlob::from_blob_parameters_and_class_manager(
+            blob_parameters,
+            Arc::new(mock_class_manager),
+        ))
+        .unwrap()
+}
+
 #[rstest]
 #[case::compressed_state_diff(central_compressed_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::state_diff(central_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
@@ -583,85 +644,10 @@ fn central_transaction_execution_info_reverted() -> CentralTransactionExecutionI
     central_transaction_execution_info_reverted(),
     CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH
 )]
+#[case::central_blob(central_blob(), CENTRAL_BLOB_JSON_PATH)]
 fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
-}
-
-fn input_txs() -> Vec<InternalConsensusTransaction> {
-    let declares: Vec<InternalConsensusTransaction> = (0u8..2)
-        .map(|i| {
-            InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
-                tx: InternalRpcTransactionWithoutTxHash::Declare(declare_transaction()),
-                tx_hash: TransactionHash(felt!(i)),
-            })
-        })
-        .collect();
-    let invoke = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
-        tx: InternalRpcTransactionWithoutTxHash::Invoke(invoke_transaction()),
-        tx_hash: TransactionHash(Felt::TWO),
-    });
-    let deploy_account = InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction {
-        tx: InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_account_tx()),
-        tx_hash: TransactionHash(Felt::THREE),
-    });
-    let l1_handler = InternalConsensusTransaction::L1Handler(l1_handler_tx());
-
-    let mut transactions = declares;
-    transactions.extend(vec![invoke, deploy_account, l1_handler]);
-    transactions
-}
-
-// Verifies that the length and order of transactions in the list is kept after the conversion to
-// an aerospike blob.
-fn verify_aerospike_blob_txs(
-    input_txs: Vec<InternalConsensusTransaction>,
-    aerospike_txs: &[CentralTransactionWritten],
-) {
-    assert_eq!(input_txs.len(), aerospike_txs.len());
-    for (input_tx, aerospike_tx) in input_txs.into_iter().zip(aerospike_txs) {
-        let central_input_tx =
-            CentralTransactionWritten::try_from((input_tx, Some(&sierra_contract_class()), 0))
-                .unwrap();
-        assert_eq!(*aerospike_tx, central_input_tx);
-    }
-}
-
-#[tokio::test]
-async fn test_transactions_conversion() {
-    // Prepare the mock class manager.
-    let mut mock_class_manager = MockClassManagerClient::new();
-    mock_class_manager
-        .expect_get_sierra()
-        .with(eq(declare_class_hash()))
-        .times(2)
-        .returning(|_| Ok(Some(sierra_contract_class())));
-    mock_class_manager.expect_get_executable().with(eq(declare_class_hash())).times(2).returning(
-        |_| Ok(Some(ContractClass::V1((casm_contract_class(), SierraVersion::new(0, 0, 0))))),
-    );
-    let cende_ambassador =
-        CendeAmbassador::new(CendeConfig::default(), Arc::new(mock_class_manager));
-
-    let transactions = input_txs();
-    let blob_parameters =
-        BlobParameters { transactions: transactions.clone(), ..Default::default() };
-
-    // Run the test: prepare_blob_for_next_height should convert the transactions to sierra and
-    // casm mappings.
-    cende_ambassador.prepare_blob_for_next_height(blob_parameters).await.unwrap();
-
-    // Verify the results.
-    let locked_aerospike_blob = cende_ambassador.prev_height_blob.lock().await;
-    let aerospike_blob = locked_aerospike_blob.as_ref().unwrap();
-
-    verify_aerospike_blob_txs(transactions, &aerospike_blob.transactions);
-
-    let expected_sierra_contract_classes = vec![(declare_class_hash(), sierra_contract_class()); 2];
-    assert_eq!(aerospike_blob.contract_classes, expected_sierra_contract_classes);
-
-    let expected_compiled_contract_classes =
-        vec![(declare_compiled_class_hash(), casm_contract_class()); 2];
-    assert_eq!(aerospike_blob.compiled_classes, expected_compiled_contract_classes);
 }

@@ -219,42 +219,13 @@ impl CendeContext for CendeAmbassador {
         blob_parameters: BlobParameters,
     ) -> CendeAmbassadorResult<()> {
         // TODO(dvir): as optimization, call the `into` and other preperation when writing to AS.
-        let block_number = blob_parameters.block_info.block_number;
-        let block_timestamp = blob_parameters.block_info.block_timestamp.0;
-
-        let block_info =
-            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
-        let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
-        let compressed_state_diff =
-            blob_parameters.compressed_state_diff.map(|compressed_state_diff| {
-                CentralStateDiff::from((compressed_state_diff, block_info))
-            });
-
-        let (central_transactions, contract_classes, compiled_classes) = process_transactions(
-            self.class_manager.clone(),
-            blob_parameters.transactions,
-            block_timestamp,
-        )
-        .await?;
-
-        let execution_infos = blob_parameters
-            .execution_infos
-            .into_iter()
-            .map(CentralTransactionExecutionInfo::from)
-            .collect();
-
-        let aerospike_blob = AerospikeBlob {
-            block_number,
-            state_diff,
-            compressed_state_diff,
-            bouncer_weights: blob_parameters.bouncer_weights,
-            transactions: central_transactions,
-            execution_infos,
-            contract_classes,
-            compiled_classes,
-        };
-
-        *self.prev_height_blob.lock().await = Some(aerospike_blob);
+        *self.prev_height_blob.lock().await = Some(
+            AerospikeBlob::from_blob_parameters_and_class_manager(
+                blob_parameters,
+                self.class_manager.clone(),
+            )
+            .await?,
+        );
         Ok(())
     }
 }
@@ -293,4 +264,43 @@ pub struct BlobParameters {
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
+}
+
+impl AerospikeBlob {
+    async fn from_blob_parameters_and_class_manager(
+        blob_parameters: BlobParameters,
+        class_manager: SharedClassManagerClient,
+    ) -> CendeAmbassadorResult<Self> {
+        let block_number = blob_parameters.block_info.block_number;
+        let block_timestamp = blob_parameters.block_info.block_timestamp.0;
+
+        let block_info =
+            CentralBlockInfo::from((blob_parameters.block_info, StarknetVersion::LATEST));
+        let state_diff = CentralStateDiff::from((blob_parameters.state_diff, block_info.clone()));
+        let compressed_state_diff =
+            blob_parameters.compressed_state_diff.map(|compressed_state_diff| {
+                CentralStateDiff::from((compressed_state_diff, block_info))
+            });
+
+        let (central_transactions, contract_classes, compiled_classes) =
+            process_transactions(class_manager, blob_parameters.transactions, block_timestamp)
+                .await?;
+
+        let execution_infos = blob_parameters
+            .execution_infos
+            .into_iter()
+            .map(CentralTransactionExecutionInfo::from)
+            .collect();
+
+        Ok(AerospikeBlob {
+            block_number,
+            state_diff,
+            compressed_state_diff,
+            bouncer_weights: blob_parameters.bouncer_weights,
+            transactions: central_transactions,
+            execution_infos,
+            contract_classes,
+            compiled_classes,
+        })
+    }
 }
