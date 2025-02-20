@@ -21,12 +21,12 @@ env:
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
-concurrency:
-  group: >
-    ${{ github.workflow }}-
-    ${{ github.ref }}-
-    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+# concurrency:
+#   group: >
+#     ${{ github.workflow }}-
+#     ${{ github.ref }}-
+#     ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+#   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify_cairo_file_dependencies:
@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
         with:
-          cache_target: 'sequencer/target'
+          target_dirs: 'sequencer/target'
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
