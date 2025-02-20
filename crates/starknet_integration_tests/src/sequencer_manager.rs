@@ -197,6 +197,7 @@ impl IntegrationTestManager {
         num_of_consolidated_nodes: usize,
         num_of_distributed_nodes: usize,
         custom_paths: Option<CustomPaths>,
+        test_unique_id: TestIdentifier,
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
@@ -205,6 +206,7 @@ impl IntegrationTestManager {
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
             custom_paths,
+            test_unique_id,
         )
         .await;
 
@@ -454,9 +456,8 @@ pub async fn get_sequencer_setup_configs(
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
     custom_paths: Option<CustomPaths>,
+    test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
-    let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
-
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);

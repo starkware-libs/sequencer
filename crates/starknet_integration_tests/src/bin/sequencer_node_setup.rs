@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::{CustomPaths, IntegrationTestManager};
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -25,9 +26,13 @@ async fn main() {
         args.data_prefix_path.map(PathBuf::from),
     );
 
-    let test_manager =
-        IntegrationTestManager::new(args.n_consolidated, args.n_distributed, Some(custom_paths))
-            .await;
+    let test_manager = IntegrationTestManager::new(
+        args.n_consolidated,
+        args.n_distributed,
+        Some(custom_paths),
+        TestIdentifier::PositiveFlowIntegrationTest,
+    )
+    .await;
 
     let simulator_ports_path = format!("{}/simulator_ports", args.output_base_dir);
     info!("Generate simulator ports json files under {:?}", simulator_ports_path);

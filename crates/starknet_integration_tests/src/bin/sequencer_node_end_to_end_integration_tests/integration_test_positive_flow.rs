@@ -1,4 +1,5 @@
 use starknet_api::block::BlockNumber;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
 use tracing::info;
@@ -14,9 +15,13 @@ async fn main() {
     const N_DISTRIBUTED_SEQUENCERS: usize = 2;
 
     // Get the sequencer configurations.
-    let mut integration_test_manager =
-        IntegrationTestManager::new(N_CONSOLIDATED_SEQUENCERS, N_DISTRIBUTED_SEQUENCERS, None)
-            .await;
+    let mut integration_test_manager = IntegrationTestManager::new(
+        N_CONSOLIDATED_SEQUENCERS,
+        N_DISTRIBUTED_SEQUENCERS,
+        None,
+        TestIdentifier::PositiveFlowIntegrationTest,
+    )
+    .await;
 
     let node_indices = integration_test_manager.get_node_indices();
     // Run the nodes.
