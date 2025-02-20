@@ -11,6 +11,8 @@ use crate::hints::vars::{Const, Ids};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsHintError {
+    #[error("Assertion failed: {0}")]
+    AssertionFailed(String),
     #[error("Block number is probably < {stored_block_hash_buffer}.")]
     BlockNumberTooSmall { stored_block_hash_buffer: Felt },
     #[error("{id:?} value {felt} is not a boolean.")]
