@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "sierra_multicompile")]
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
@@ -88,6 +89,7 @@ impl SerializeConfig for ConcurrencyConfig {
 pub struct ContractClassManagerConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,
     pub contract_cache_size: usize,
+    #[cfg(feature = "sierra_multicompile")]
     pub native_compiler_config: SierraCompilationConfig,
 }
 
@@ -96,6 +98,7 @@ impl Default for ContractClassManagerConfig {
         Self {
             cairo_native_run_config: CairoNativeRunConfig::default(),
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            #[cfg(feature = "sierra_multicompile")]
             native_compiler_config: SierraCompilationConfig::default(),
         }
     }
@@ -125,10 +128,13 @@ impl SerializeConfig for ContractClassManagerConfig {
             self.cairo_native_run_config.dump(),
             "cairo_native_run_config",
         ));
-        dump.append(&mut append_sub_config_name(
-            self.native_compiler_config.dump(),
-            "native_compiler_config",
-        ));
+        #[cfg(feature = "sierra_multicompile")]
+        {
+            dump.append(&mut append_sub_config_name(
+                self.native_compiler_config.dump(),
+                "native_compiler_config",
+            ));
+        }
         dump
     }
 }
