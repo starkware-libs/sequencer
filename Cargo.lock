@@ -11484,6 +11484,8 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.32",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
  "once_cell",
  "papyrus_config",
  "pretty_assertions",
