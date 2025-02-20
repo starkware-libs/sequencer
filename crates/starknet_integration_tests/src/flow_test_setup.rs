@@ -36,7 +36,6 @@ use tracing::{debug, instrument};
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
-    create_chain_info,
     create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
     create_node_config,
@@ -63,7 +62,7 @@ impl FlowTestSetup {
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
     ) -> Self {
-        let chain_info = create_chain_info();
+        let chain_info = ChainInfo::create_for_testing();
         let mut available_ports = AvailablePorts::new(test_unique_index, 0);
 
         let accounts = tx_generator.accounts();
