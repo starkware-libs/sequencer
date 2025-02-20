@@ -9,6 +9,7 @@ pub(crate) enum Scope {
     InitialDict,
     DictManager,
     DictTracker,
+    Preimage,
 }
 
 impl From<Scope> for &'static str {
@@ -17,6 +18,7 @@ impl From<Scope> for &'static str {
             Scope::InitialDict => "initial_dict",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
+            Scope::Preimage => "preimage",
         }
     }
 }
@@ -24,6 +26,8 @@ impl From<Scope> for &'static str {
 pub(crate) enum Ids {
     BucketIndex,
     DictPtr,
+    FinalRoot,
+    InitialRoot,
     PrevOffset,
     NextAvailableAlias,
 }
@@ -33,6 +37,8 @@ impl From<Ids> for &'static str {
         match ids {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
+            Ids::InitialRoot => "initial_root",
+            Ids::FinalRoot => "final_root",
             Ids::PrevOffset => "prev_offset",
             Ids::NextAvailableAlias => "next_available_alias",
         }
@@ -44,6 +50,7 @@ pub(crate) enum Const {
     AliasContractAddress,
     InitialAvailableAlias,
     AliasCounterStorageKey,
+    MerkleHeight,
 }
 
 impl From<Const> for &'static str {
@@ -52,6 +59,7 @@ impl From<Const> for &'static str {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
+            Const::MerkleHeight => "MERKLE_HEIGHT",
         }
     }
 }
