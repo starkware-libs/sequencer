@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
@@ -8,7 +9,7 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::block_committer::input::ContractAddress;
+use crate::block_committer::input::from_contract_address_for_node_index;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -43,6 +44,7 @@ impl UpdatedSkeletonForest {
         let mut storage_tries = HashMap::new();
 
         for (address, updates) in storage_updates {
+            let address_as_node_index = from_contract_address_for_node_index(address);
             let original_storage_trie = original_skeleton_forest
                 .storage_tries
                 .get_mut(address)
@@ -55,7 +57,7 @@ impl UpdatedSkeletonForest {
             storage_tries.insert(*address, updated_storage_trie);
 
             let current_leaf = original_contracts_trie_leaves
-                .get(&address.into())
+                .get(&address_as_node_index)
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
 
             let skeleton_leaf = Self::updated_contract_skeleton_leaf(
@@ -64,7 +66,7 @@ impl UpdatedSkeletonForest {
                 current_leaf,
                 storage_trie_becomes_empty,
             );
-            contracts_trie_leaves.insert(address.into(), skeleton_leaf);
+            contracts_trie_leaves.insert(address_as_node_index, skeleton_leaf);
         }
 
         // Contracts trie.
