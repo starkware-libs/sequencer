@@ -1,4 +1,5 @@
 use starknet_api::block::BlockNumber;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
 use tracing::info;
@@ -26,6 +27,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         None,
         None,
+        TestIdentifier::RestartFlowIntegrationTest,
     )
     .await;
 
