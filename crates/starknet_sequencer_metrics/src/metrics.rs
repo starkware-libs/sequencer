@@ -62,7 +62,6 @@ pub struct LabeledMetricCounter {
     name: &'static str,
     description: &'static str,
     initial_value: u64,
-    registered_labels: Vec<Vec<(&'static str, &'static str)>>,
 }
 
 impl LabeledMetricCounter {
@@ -72,7 +71,7 @@ impl LabeledMetricCounter {
         description: &'static str,
         initial_value: u64,
     ) -> Self {
-        Self { scope, name, description, initial_value, registered_labels: Vec::new() }
+        Self { scope, name, description, initial_value }
     }
 
     pub const fn get_name(&self) -> &'static str {
@@ -87,21 +86,14 @@ impl LabeledMetricCounter {
         self.description
     }
 
-    pub fn register(&mut self, label_variations: &[Vec<(&'static str, &'static str)>]) {
+    pub fn register(&self, label_variations: &[Vec<(&'static str, &'static str)>]) {
         label_variations.iter().for_each(|labels| {
             counter!(self.name, labels).absolute(self.initial_value);
         });
-        self.registered_labels = label_variations.into();
         describe_counter!(self.name, self.description);
     }
 
     pub fn increment(&self, value: u64, labels: &[(&'static str, &'static str)]) {
-        assert!(
-            self.registered_labels.contains(&labels.to_vec()),
-            "Labels {:?} not registered for metric {}",
-            labels,
-            self.name
-        );
         counter!(self.name, labels).increment(value);
     }
 
