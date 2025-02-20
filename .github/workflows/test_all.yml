@@ -20,7 +20,7 @@ jobs:
       - run: cargo metadata --format-version 1 | jq .workspace_root
       - run: cargo metadata --format-version 1 | jq -r .target_directory
       - name: Cargo build
-        run: cargo build
+        run: cargo build --verbose
 
       - name: Cargo test # Takes 11 minutes to compile when it's first!!!
         run: cargo test
