@@ -5,6 +5,7 @@ pub mod l1_handler;
 pub mod prices;
 pub mod struct_impls;
 pub mod syscall;
+#[cfg(test)]
 pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;

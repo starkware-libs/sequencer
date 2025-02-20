@@ -221,6 +221,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_execution_info.receipt.resources,
             &tx_state_changes_keys,
             &block_context.bouncer_config,
+            &block_context.versioned_constants,
         )?;
 
         Ok(tx_execution_info)

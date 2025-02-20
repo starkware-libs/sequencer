@@ -12,6 +12,7 @@ use crate::concurrency::fee_utils::{add_fee_to_sequencer_balance, fill_sequencer
 use crate::concurrency::test_utils::create_fee_transfer_call_info;
 use crate::context::BlockContext;
 use crate::fee::fee_utils::get_sequencer_balance_keys;
+use crate::state::cached_state::StateMaps;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::test_utils::BALANCE;
@@ -71,6 +72,7 @@ pub fn test_add_fee_to_sequencer_balance(
         get_sequencer_balance_keys(&block_context);
 
     let fee_token_address = block_context.chain_info.fee_token_address(&FeeType::Strk);
+    let state_diff = &mut StateMaps::default();
 
     add_fee_to_sequencer_balance(
         fee_token_address,
@@ -78,6 +80,8 @@ pub fn test_add_fee_to_sequencer_balance(
         actual_fee,
         &block_context,
         (sequencer_balance_low, sequencer_balance_high),
+        account.get_instance_address(0),
+        state_diff,
     );
 
     let new_sequencer_balance_value_low =
@@ -93,4 +97,28 @@ pub fn test_add_fee_to_sequencer_balance(
 
     assert_eq!(new_sequencer_balance_value_low, expected_sequencer_balance_value_low);
     assert_eq!(new_sequencer_balance_value_high, expected_sequencer_balance_value_high);
+
+    let expected_state_diff = StateMaps {
+        storage: {
+            let mut storage_entries = Vec::new();
+            if new_sequencer_balance_value_low != sequencer_balance_low {
+                storage_entries.push((
+                    (fee_token_address, sequencer_balance_key_low),
+                    new_sequencer_balance_value_low,
+                ));
+            }
+            if new_sequencer_balance_value_high != sequencer_balance_high {
+                storage_entries.push((
+                    (fee_token_address, sequencer_balance_key_high),
+                    new_sequencer_balance_value_high,
+                ));
+            }
+            storage_entries
+        }
+        .into_iter()
+        .collect(),
+        ..StateMaps::default()
+    };
+
+    assert_eq!(state_diff, &expected_state_diff);
 }

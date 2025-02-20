@@ -1,6 +1,6 @@
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
-use blockifier::bouncer::BuiltinCount;
+use blockifier::bouncer::BuiltinCounterMap;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::{
     ParseError,
@@ -104,7 +104,7 @@ pub enum NativeBlockifierInputError {
 #[derive(Debug, Error)]
 pub enum InvalidNativeBlockifierInputError {
     #[error("Invalid builtin count: {0:?}.")]
-    InvalidBuiltinCounts(BuiltinCount),
+    InvalidBuiltinCounts(BuiltinCounterMap),
     #[error("Invalid Wei gas price: {0}.")]
     InvalidL1GasPriceWei(u128),
     #[error("Invalid Fri gas price: {0}.")]

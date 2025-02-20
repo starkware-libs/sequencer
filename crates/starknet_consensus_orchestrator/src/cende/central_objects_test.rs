@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::vec;
 
-use blockifier::bouncer::BuiltinCount;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -341,22 +340,9 @@ fn central_l1_handler_tx() -> CentralTransactionWritten {
 
 fn central_bouncer_weights() -> CentralBouncerWeights {
     CentralBouncerWeights {
-        builtin_count: BuiltinCount {
-            add_mod: 1,
-            bitwise: 2,
-            ecdsa: 3,
-            ec_op: 4,
-            keccak: 5,
-            mul_mod: 6,
-            pedersen: 4948,
-            poseidon: 54,
-            range_check: 2301,
-            range_check96: 7,
-        },
         l1_gas: 8,
         message_segment_length: 9,
         n_events: 2,
-        n_steps: 121095,
         state_diff_size: 45,
         sierra_gas: GasAmount(10),
     }

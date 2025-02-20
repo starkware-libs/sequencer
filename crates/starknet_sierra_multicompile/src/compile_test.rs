@@ -29,6 +29,7 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
     max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+    panic_on_compilation_failure: true,
 };
 
 fn command_line_compiler() -> CommandLineCompiler {
