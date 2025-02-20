@@ -15,6 +15,8 @@ jobs:
       - run: npm install -g ganache@7.4.3
       - run: pwd
       - run: ls
+      - run: echo $CARGO_HOME
+      - run: echo $CARGO_TARGET_DIR
       - name: Cargo build
         run: cargo build
 
