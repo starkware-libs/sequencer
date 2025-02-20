@@ -117,7 +117,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_multiple_account_txs,
             test_multiple_account_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
+                "0x2a3ce358b96a4a26ac9c0ef4f7a8f878a9f3b1a4757e716874cac711617ca87",
             ),
         ),
         (

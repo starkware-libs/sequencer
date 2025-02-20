@@ -9,28 +9,16 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
 };
-<<<<<<< HEAD
-use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
-||||||| 2d2e421fe
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
-=======
+use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use blockifier::bouncer::{
     builtins_to_sierra_gas,
     BouncerConfig,
     BouncerWeights,
     BuiltinCounterMap,
 };
->>>>>>> origin/main-v0.13.4
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
-<<<<<<< HEAD
-||||||| 2d2e421fe
-use blockifier::versioned_constants::VersionedConstantsOverrides;
-=======
 use blockifier::utils::u64_from_usize;
-use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
->>>>>>> origin/main-v0.13.4
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;

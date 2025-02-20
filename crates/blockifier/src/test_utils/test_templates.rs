@@ -3,14 +3,6 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use rstest::rstest;
 use rstest_reuse::{apply, template};
 
-<<<<<<< HEAD
-||||||| 2d2e421fe
-#[cfg(test)]
-use crate::test_utils::{CairoVersion, RunnableCairo1};
-=======
-use crate::test_utils::{CairoVersion, RunnableCairo1};
-
->>>>>>> origin/main-v0.13.4
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
