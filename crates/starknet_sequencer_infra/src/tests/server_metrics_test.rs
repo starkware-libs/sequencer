@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Semaphore;
 use tokio::task;
 
@@ -17,7 +17,11 @@ use crate::component_definitions::{
     ComponentRequestHandler,
     ComponentStarter,
 };
-use crate::component_server::{ComponentServerStarter, LocalComponentServer};
+use crate::component_server::{
+    ComponentServerStarter,
+    ConcurrentLocalComponentServer,
+    LocalComponentServer,
+};
 use crate::tests::TEST_LOCAL_SERVER_METRICS;
 
 type TestResult = ClientResult<()>;
@@ -33,6 +37,8 @@ enum TestComponentResponse {
 }
 
 type LocalTestComponentClient = LocalComponentClient<TestComponentRequest, TestComponentResponse>;
+type TestReceiver =
+    Receiver<ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>>;
 
 #[async_trait]
 trait TestComponentClientTrait: Send + Sync {
@@ -80,21 +86,52 @@ where
     }
 }
 
-async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
+struct BasicSetup {
+    component: TestComponent,
+    local_client: LocalTestComponentClient,
+    rx: TestReceiver,
+    test_sem: Arc<Semaphore>,
+}
+
+fn basic_test_setup() -> BasicSetup {
     let test_sem = Arc::new(Semaphore::new(0));
     let component = TestComponent::new(test_sem.clone());
 
-    let (tx_a, rx_a) = channel::<
+    let (tx, rx) = channel::<
         ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>,
     >(32);
 
-    let local_client = LocalTestComponentClient::new(tx_a);
+    let local_client = LocalTestComponentClient::new(tx);
+
+    BasicSetup { component, local_client, rx, test_sem }
+}
+
+async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
+    let BasicSetup { test_sem, component, rx, local_client } = basic_test_setup();
 
     let max_concurrency = 1;
     let mut local_server =
-        LocalComponentServer::new(component, rx_a, max_concurrency, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component, rx, max_concurrency, TEST_LOCAL_SERVER_METRICS);
     task::spawn(async move {
         let _ = local_server.start().await;
+    });
+
+    (test_sem, local_client)
+}
+
+async fn setup_concurrent_local_server_test(
+    max_concurrency: usize,
+) -> (Arc<Semaphore>, LocalTestComponentClient) {
+    let BasicSetup { test_sem, component, rx, local_client } = basic_test_setup();
+
+    let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
+        component,
+        rx,
+        max_concurrency,
+        TEST_LOCAL_SERVER_METRICS,
+    );
+    task::spawn(async move {
+        let _ = concurrent_local_server.start().await;
     });
 
     (test_sem, local_client)
@@ -188,6 +225,48 @@ async fn all_metrics_fo_local_server() {
         assert_server_metrics(metrics_as_string.as_str(), i + 1, i, number_of_iterations - i - 1);
         test_sem.add_permits(1);
         task::yield_now().await;
+    }
+
+    // Finally all messages processed and queue is empty.
+    let metrics_as_string = recorder.handle().render();
+    assert_server_metrics(
+        metrics_as_string.as_str(),
+        number_of_iterations,
+        number_of_iterations,
+        0,
+    );
+}
+
+#[tokio::test]
+async fn only_metrics_counters_for_concurrent_server() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let number_of_iterations = 10;
+    let max_concurrency = number_of_iterations;
+    let (test_sem, client) = setup_concurrent_local_server_test(max_concurrency).await;
+
+    // Current test is checking that all metrics counters can actually count in parallel.
+    // So first we send all the messages.
+    let mut handles = Vec::new();
+    for _ in 0..number_of_iterations {
+        let multi_client = client.clone();
+        let handle = task::spawn(async move {
+            multi_client.perform_test().await.unwrap();
+        });
+        handles.push(handle);
+    }
+    task::yield_now().await;
+
+    // No all messages should be received but not processed.
+    let metrics_as_string = recorder.handle().render();
+    assert_server_metrics(metrics_as_string.as_str(), number_of_iterations, 0, 0);
+
+    // Now we provide all permits and wait for all messages to be processed.
+    test_sem.add_permits(number_of_iterations);
+
+    for handle in handles {
+        handle.await.unwrap();
     }
 
     // Finally all messages processed and queue is empty.
