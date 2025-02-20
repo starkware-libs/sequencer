@@ -7,9 +7,6 @@ mod block_builder_test;
 pub mod communication;
 pub mod config;
 mod metrics;
-mod reader_with_class_manager;
-#[cfg(test)]
-mod reader_with_class_manager_test;
 #[cfg(test)]
 mod test_utils;
 mod transaction_executor;

@@ -18,7 +18,6 @@ papyrus_config.workspace = true
 papyrus_state_reader.workspace = true
 papyrus_storage.workspace = true
 serde.workspace = true
-starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
 starknet_class_manager_types.workspace = true

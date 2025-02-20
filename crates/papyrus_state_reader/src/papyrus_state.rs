@@ -30,9 +30,9 @@ mod test;
 type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 
 pub struct ClassReader {
-    reader: SharedClassManagerClient,
+    pub reader: SharedClassManagerClient,
     // Used to invoke async functions from sync reader code.
-    runtime: tokio::runtime::Handle,
+    pub runtime: tokio::runtime::Handle,
 }
 
 impl ClassReader {
@@ -84,18 +84,21 @@ pub struct PapyrusReader {
 }
 
 impl PapyrusReader {
+    pub fn new_with_class_manager(
+        storage_reader: StorageReader,
+        latest_block: BlockNumber,
+        contract_class_manager: ContractClassManager,
+        class_reader: Option<ClassReader>,
+    ) -> Self {
+        Self { storage_reader, latest_block, contract_class_manager, class_reader }
+    }
+
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
         contract_class_manager: ContractClassManager,
     ) -> Self {
-        Self {
-            storage_reader,
-            latest_block,
-            contract_class_manager,
-            // TODO(Elin): integrate class manager client.
-            class_reader: None,
-        }
+        Self { storage_reader, latest_block, contract_class_manager, class_reader: None }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
