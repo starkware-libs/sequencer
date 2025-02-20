@@ -34,9 +34,10 @@ use starknet_class_manager::config::{
     FsClassStorageConfig,
 };
 use starknet_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use starknet_consensus::types::{ContextConfig, ValidatorId};
+use starknet_consensus::types::ValidatorId;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
+use starknet_consensus_orchestrator::config::ContextConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     StatefulTransactionValidatorConfig,

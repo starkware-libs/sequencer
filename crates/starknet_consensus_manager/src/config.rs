@@ -7,8 +7,8 @@ use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_consensus::config::ConsensusConfig;
-use starknet_consensus::types::ContextConfig;
 use starknet_consensus_orchestrator::cende::CendeConfig;
+use starknet_consensus_orchestrator::config::ContextConfig;
 use validator::Validate;
 
 /// The consensus manager related configuration.
