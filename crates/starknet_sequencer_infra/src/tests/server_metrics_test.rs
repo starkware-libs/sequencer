@@ -187,10 +187,6 @@ async fn only_metrics_counters_for_local_server() {
     let metrics_as_string = recorder.handle().render();
     assert_server_metrics(metrics_as_string.as_str(), 0, 0, 0);
 
-    // At the beginning all metrics counters are zero.
-    let metrics_as_string = recorder.handle().render();
-    assert_server_metrics(metrics_as_string.as_str(), 0, 0, 0);
-
     // In order to process a message the test component tries to acquire a permit from the
     // test semaphore. Current test is checking that all metrics counters actually count so we
     // need to provide enough permits for all messages to be processed.
