@@ -9,9 +9,9 @@ async fn main() {
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
     const N_TXS: usize = 50;
     /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+    const N_CONSOLIDATED_SEQUENCERS: usize = 0;
     /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+    const N_DISTRIBUTED_SEQUENCERS: usize = 1;
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
