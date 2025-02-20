@@ -457,12 +457,13 @@ pub fn create_batcher_config(
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     let concurrency_enabled = true;
+    let n_steps = 150000; // Enough steps to hold a single L1 handler transaction.
     BatcherConfig {
         storage: batcher_storage_config,
         block_builder_config: BlockBuilderConfig {
             chain_info,
             bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights { n_steps: 75000, ..Default::default() },
+                block_max_capacity: BouncerWeights { n_steps, ..Default::default() },
             },
             execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
             ..Default::default()
