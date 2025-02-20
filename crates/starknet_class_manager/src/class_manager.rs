@@ -6,6 +6,7 @@ use starknet_sierra_multicompile_types::{
     RawExecutableClass,
     SharedSierraCompilerClient,
 };
+use tracing::{info, instrument};
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::config::{ClassManagerConfig, FsClassManagerConfig};
@@ -37,6 +38,7 @@ impl<S: ClassStorage> ClassManager<S> {
 }
 
 impl<S: ClassStorage> ClassManager<S> {
+    #[instrument(skip(self, class), ret, err)]
     pub async fn add_class(&mut self, class: RawClass) -> ClassManagerResult<ClassHashes> {
         // TODO(Elin): think how to not clone the class to deserialize.
         let sierra_class =
@@ -49,15 +51,18 @@ impl<S: ClassStorage> ClassManager<S> {
             return Ok(class_hashes);
         }
 
+        info!("Adding class with hash: {:?}", class_hash);
         let (raw_executable_class, executable_class_hash) =
             self.compiler.compile(class.clone()).await?;
 
         self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
+        info!("Added class with hash: {:?}", class_hash);
 
         let class_hashes = ClassHashes { class_hash, executable_class_hash };
         Ok(class_hashes)
     }
 
+    #[instrument(skip(self), err)]
     pub fn get_executable(
         &self,
         class_id: ClassId,
@@ -65,10 +70,12 @@ impl<S: ClassStorage> ClassManager<S> {
         Ok(self.classes.get_executable(class_id)?)
     }
 
+    #[instrument(skip(self), err)]
     pub fn get_sierra(&self, class_id: ClassId) -> ClassManagerResult<Option<RawClass>> {
         Ok(self.classes.get_sierra(class_id)?)
     }
 
+    #[instrument(skip(self, class), ret, err)]
     pub fn add_deprecated_class(
         &mut self,
         class_id: ClassId,
