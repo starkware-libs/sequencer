@@ -21,6 +21,7 @@ use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
@@ -454,7 +455,10 @@ pub fn create_batcher_config(
         block_builder_config: BlockBuilderConfig {
             chain_info,
             bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights { n_steps: 75000, ..Default::default() },
+                block_max_capacity: BouncerWeights {
+                    sierra_gas: GasAmount(17000000),
+                    ..Default::default()
+                },
             },
             execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
             ..Default::default()
