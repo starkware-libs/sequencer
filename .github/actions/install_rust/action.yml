@@ -12,7 +12,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: moonrepo/setup-rust@v1
+    - uses: starkware-libs/setup-rust@v1
       name: Install Rust toolchain and binaries
       with:
         inherit-toolchain: true
