@@ -9,6 +9,7 @@ pub(crate) enum Scope {
     InitialDict,
     DictManager,
     DictTracker,
+    CommitmentInfoByAddress,
 }
 
 impl From<Scope> for &'static str {
@@ -17,6 +18,7 @@ impl From<Scope> for &'static str {
             Scope::InitialDict => "initial_dict",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
+            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
         }
     }
 }
