@@ -1,12 +1,20 @@
+use std::sync::Arc;
+
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
-use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
+use starknet_api::transaction::{
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 
 use self::hint_processor::{
@@ -22,6 +30,7 @@ use self::hint_processor::{
     SyscallHintProcessor,
 };
 use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
+use crate::context::TransactionContext;
 use crate::execution::call_info::MessageToL1;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -32,6 +41,11 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
+use crate::transaction::objects::{
+    CommonAccountFields,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
+};
 
 pub mod hint_processor;
 mod secp;
@@ -481,11 +495,31 @@ pub(crate) fn meta_tx_v0(
         entry_point_selector: selector,
         calldata: request.calldata,
         storage_address,
-        caller_address: syscall_handler.storage_address(),
+        caller_address: ContractAddress::default(),
         call_type: CallType::Call,
         // NOTE: this value might be overridden later on.
         initial_gas: *remaining_gas,
     };
+
+    // Replace `tx_context`.
+    let old_tx_context = syscall_handler.base.context.tx_context.clone();
+    let old_tx_info = &old_tx_context.tx_info;
+    let new_tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+        common_fields: CommonAccountFields {
+            // TODO(lior): Replace transaction hash with the hash of the meta-tx arguments.
+            transaction_hash: old_tx_info.transaction_hash(),
+            version: TransactionVersion::ZERO,
+            signature: request.signature,
+            nonce: Nonce(0.into()),
+            sender_address: storage_address,
+            only_query: old_tx_info.only_query(),
+        },
+        max_fee: Fee(0),
+    });
+    syscall_handler.base.context.tx_context = Arc::new(TransactionContext {
+        block_context: old_tx_context.block_context.clone(),
+        tx_info: new_tx_info,
+    });
 
     let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
         .map_err(|error| match error {
@@ -495,6 +529,9 @@ pub(crate) fn meta_tx_v0(
                 error.as_call_contract_execution_error(class_hash, storage_address, selector)
             }
         })?;
+
+    // Restore the old `tx_context`.
+    syscall_handler.base.context.tx_context = old_tx_context;
 
     Ok(MetaTxV0Response { segment: retdata_segment })
 }
