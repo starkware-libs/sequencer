@@ -17,6 +17,7 @@ pub(crate) enum Scope {
     DictManager,
     DictTracker,
     InitialDict,
+    Preimage,
     UseKzgDa,
 }
 
@@ -31,6 +32,7 @@ impl From<Scope> for &'static str {
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
             Scope::InitialDict => "initial_dict",
+            Scope::Preimage => "preimage",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -52,7 +54,9 @@ pub enum Ids {
     CompressedStart,
     ContractStateChanges,
     DictPtr,
+    FinalRoot,
     FullOutput,
+    InitialRoot,
     NCompiledClassFacts,
     NextAvailableAlias,
     OldBlockHash,
@@ -75,7 +79,9 @@ impl From<Ids> for &'static str {
             Ids::CompressedStart => "compressed_start",
             Ids::ContractStateChanges => "contract_state_changes",
             Ids::DictPtr => "dict_ptr",
+            Ids::FinalRoot => "final_root",
             Ids::FullOutput => "full_output",
+            Ids::InitialRoot => "initial_root",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
             Ids::OldBlockHash => "old_block_hash",
@@ -96,6 +102,7 @@ pub enum Const {
     AliasCounterStorageKey,
     BlockHashContractAddress,
     InitialAvailableAlias,
+    MerkleHeight,
     StoredBlockHashBuffer,
 }
 
@@ -106,6 +113,7 @@ impl From<Const> for &'static str {
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
             Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
+            Const::MerkleHeight => "MERKLE_HEIGHT",
             Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
         }
     }
