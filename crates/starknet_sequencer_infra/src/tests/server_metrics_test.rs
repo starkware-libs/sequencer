@@ -49,7 +49,7 @@ impl TestComponent {
         Self { test_sem }
     }
 
-    pub async fn perform_test(&self) {
+    pub async fn reduce_permit(&self) {
         self.test_sem.acquire().await.unwrap().forget();
     }
 }
@@ -61,7 +61,7 @@ impl ComponentRequestHandler<TestComponentRequest, TestComponentResponse> for Te
     async fn handle_request(&mut self, request: TestComponentRequest) -> TestComponentResponse {
         match request {
             TestComponentRequest::PerformTest => {
-                self.perform_test().await;
+                self.reduce_permit().await;
                 TestComponentResponse::PerformTest
             }
         }
@@ -146,14 +146,56 @@ async fn only_metrics_counters_for_local_server() {
 
     let number_of_iterations = 10;
 
+    // At the beginning all metrics counters are zero.
+    let metrics_as_string = recorder.handle().render();
+    assert_server_metrics(metrics_as_string.as_str(), 0, 0, 0);
+
     // In order to process a message the test component tries to acquire a permit from the
     // test semaphore. Current test is checking that all metrics counters actually count so we
     // need to provide enough permits for all messages to be processed.
     test_sem.add_permits(number_of_iterations);
-    for _ in 0..number_of_iterations {
+    for i in 0..number_of_iterations {
         client.perform_test().await.unwrap();
+
+        // Every time the request is sent and the response is received the metrics counters should
+        // be increased by one.
+        let metrics_as_string = recorder.handle().render();
+        assert_server_metrics(metrics_as_string.as_str(), i + 1, i + 1, 0);
+    }
+}
+
+#[tokio::test]
+async fn all_metrics_fo_local_server() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let (test_sem, client) = setup_local_server_test().await;
+
+    // In order to test not only message counters but the queue depth too, first we will send all
+    // the messages by spawning multiple clients and by that filling the channel queue.
+    let number_of_iterations = 10;
+    for _ in 0..number_of_iterations {
+        let multi_client = client.clone();
+        task::spawn(async move {
+            multi_client.perform_test().await.unwrap();
+        });
+    }
+    task::yield_now().await;
+
+    // And then we will provide a single permit each time and check that all metrics are adjusted
+    // accordingly.
+    for i in 0..number_of_iterations {
+        let metrics_as_string = recorder.handle().render();
+        // After sending i permits we should have i + 1 received messages, because the first message
+        // doesn't need a permit to be received but need a permit to be processed.
+        // So we will have only i processed messages.
+        // And the queue depth should be: number_of_iterations - number of received messages.
+        assert_server_metrics(metrics_as_string.as_str(), i + 1, i, number_of_iterations - i - 1);
+        test_sem.add_permits(1);
+        task::yield_now().await;
     }
 
+    // Finally all messages processed and queue is empty.
     let metrics_as_string = recorder.handle().render();
     assert_server_metrics(
         metrics_as_string.as_str(),
