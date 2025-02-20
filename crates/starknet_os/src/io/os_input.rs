@@ -57,9 +57,9 @@ pub struct ContractClassComponentHashes {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct StarknetOsInput {
-    pub contract_state_commitment_info: CommitmentInfo,
-    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
-    _contract_class_commitment_info: CommitmentInfo,
+    pub(crate) contract_state_commitment_info: CommitmentInfo,
+    pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
+    pub(crate) contract_class_commitment_info: CommitmentInfo,
     pub(crate) chain_info: ChainInfo,
     pub _transactions: Vec<Transaction>,
     pub _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
