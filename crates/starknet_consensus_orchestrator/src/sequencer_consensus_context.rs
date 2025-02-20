@@ -61,7 +61,6 @@ use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_consensus::types::{
     ConsensusContext,
     ConsensusError,
-    ContextConfig,
     ProposalCommitment,
     Round,
     ValidatorId,
@@ -76,6 +75,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::cende::{BlobParameters, CendeContext};
+use crate::config::ContextConfig;
 use crate::fee_market::calculate_next_base_gas_price;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 

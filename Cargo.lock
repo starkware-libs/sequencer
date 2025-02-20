@@ -8013,6 +8013,7 @@ dependencies = [
  "starknet_class_manager_types",
  "starknet_client",
  "starknet_consensus",
+ "starknet_consensus_orchestrator",
  "starknet_infra_utils",
  "strum 0.25.0",
  "tempfile",
@@ -11127,6 +11128,7 @@ dependencies = [
  "tokio-util",
  "tracing",
  "url",
+ "validator",
 ]
 
 [[package]]
