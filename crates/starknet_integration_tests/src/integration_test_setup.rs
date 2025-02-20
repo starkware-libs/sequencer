@@ -89,20 +89,9 @@ pub struct ExecutableSetup {
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
     // Config values.
-    // TODO(Tsabary): annotating with #[allow(dead_code)] as currently unused, but these will be
-    // used in the next pr.
-    #[allow(dead_code)]
     config: SequencerNodeConfig,
     // Required param values.
-    // TODO(Tsabary): annotating with #[allow(dead_code)] as currently unused, but these will be
-    // used in the next pr.
-    #[allow(dead_code)]
     required_params: RequiredParams,
-    // Path to the directory holding the executable config.
-    // TODO(Tsabary): annotating with #[allow(dead_code)] as currently unused, but these will be
-    // used in the next pr.
-    #[allow(dead_code)]
-    node_config_dir: PathBuf,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -179,9 +168,7 @@ impl ExecutableSetup {
                 (node_config_dir_handle.path().to_path_buf(), Some(node_config_dir_handle))
             }
         };
-        let node_config_path =
-            dump_config_file_changes(&config, &required_params, node_config_dir.clone());
-
+        let node_config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
@@ -189,7 +176,7 @@ impl ExecutableSetup {
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        Self {
+        let executable_setup = Self {
             node_execution_id,
             add_tx_http_client,
             monitoring_client,
@@ -197,45 +184,44 @@ impl ExecutableSetup {
             batcher_storage_config: config.batcher_config.storage.clone(),
             config: config.clone(),
             required_params,
-            node_config_dir,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,
             state_sync_storage_config: config.state_sync_config.storage_config,
             class_manager_storage_handles,
-        }
+        };
+        executable_setup.dump_config_file_changes();
+        executable_setup
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
     }
-}
 
-/// Creates a config file for the sequencer node for an integration test.
-fn dump_config_file_changes(
-    config: &SequencerNodeConfig,
-    required_params: &RequiredParams,
-    dir: PathBuf,
-) -> PathBuf {
-    // Create the entire mapping of the config and the pointers, without the required params.
-    let config_as_map = combine_config_map_and_pointers(
-        config.dump(),
-        &CONFIG_POINTERS,
-        &CONFIG_NON_POINTERS_WHITELIST,
-    )
-    .unwrap();
+    /// Creates a config file for the sequencer node for an integration test.
+    fn dump_config_file_changes(&self) {
+        // Create the entire mapping of the config and the pointers, without the required params.
+        let config_as_map = combine_config_map_and_pointers(
+            self.config.dump(),
+            &CONFIG_POINTERS,
+            &CONFIG_NON_POINTERS_WHITELIST,
+        )
+        .unwrap();
 
-    // Extract only the required fields from the config map.
-    let mut preset = config_to_preset(&config_as_map);
+        // Extract only the required fields from the config map.
+        let mut preset = config_to_preset(&config_as_map);
 
-    // Add the required params to the preset.
-    add_required_params_to_preset(&mut preset, required_params.as_json());
+        // Add the required params to the preset.
+        add_required_params_to_preset(&mut preset, self.required_params.as_json());
 
-    // Dump the preset to a file, return its path.
-    let node_config_path = dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
-    dump_json_data(preset, &node_config_path);
-    assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
-    node_config_path
+        // Dump the preset to a file, return its path.
+        dump_json_data(preset, &self.node_config_path);
+        assert!(
+            &self.node_config_path.exists(),
+            "File does not exist: {:?}",
+            &self.node_config_path
+        );
+    }
 }
 
 /// Merges required parameters into an existing preset JSON object.
