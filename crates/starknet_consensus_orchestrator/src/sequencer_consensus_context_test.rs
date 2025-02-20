@@ -51,11 +51,12 @@ use starknet_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
-use starknet_consensus::types::{ConsensusContext, ContextConfig, Round};
+use starknet_consensus::types::{ConsensusContext, Round};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;
+use crate::config::ContextConfig;
 use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
