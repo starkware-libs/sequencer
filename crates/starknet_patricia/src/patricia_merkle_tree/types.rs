@@ -30,6 +30,12 @@ impl From<SubTreeHeight> for u8 {
     }
 }
 
+impl From<SubTreeHeight> for Felt {
+    fn from(value: SubTreeHeight) -> Self {
+        value.0.into()
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Hash, derive_more::BitAnd, derive_more::Sub, PartialOrd, Ord,
 )]
