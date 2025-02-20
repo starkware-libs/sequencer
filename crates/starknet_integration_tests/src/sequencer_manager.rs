@@ -29,6 +29,7 @@ use crate::node_component_configs::{
     create_distributed_node_configs,
     NodeComponentConfigs,
 };
+use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
@@ -400,6 +401,19 @@ impl IntegrationTestManager {
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
+    /// Create a simulator that's connected to one of the node's http server. Preferrably a running
+    /// node if one exists.
+    pub fn create_simulator(&self) -> SequencerSimulator {
+        let config = self.find_http_server_executable_config();
+        const LOCALHOST_URL: &str = "http://127.0.0.1:8080";
+        SequencerSimulator::new(
+            LOCALHOST_URL.to_owned(),
+            config.http_server_config.port,
+            LOCALHOST_URL.to_owned(),
+            config.monitoring_endpoint_config.port,
+        )
+    }
+
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
         let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
             let monitoring_client = running_node.node_setup.batcher_monitoring_client();
@@ -487,6 +501,21 @@ impl IntegrationTestManager {
             expected_n_batched_txs,
         )
         .await;
+    }
+
+    /// Finds an executable config with an enabled http server. Preferrably a running one.
+    fn find_http_server_executable_config(&self) -> &SequencerNodeConfig {
+        let node_setup = self
+            .running_nodes
+            .values()
+            .next()
+            .map(|running_node| &running_node.node_setup)
+            .unwrap_or_else(|| self.idle_nodes.values().next().expect("No nodes exist"));
+        let executable_setup = node_setup
+            .executables
+            .get(node_setup.http_server_index)
+            .expect("http_server_index points to a non existing executable index");
+        executable_setup.config()
     }
 }
 
