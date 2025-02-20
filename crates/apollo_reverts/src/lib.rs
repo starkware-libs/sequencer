@@ -40,7 +40,7 @@ impl SerializeConfig for RevertConfig {
                 "revert_up_to_and_including",
                 &self.revert_up_to_and_including,
                 "The component will revert blocks up to this block number (including).",
-                // Use this configurations carefully to prevent significant revert operations and
+                // Use this configuration carefully to prevent significant revert operations and
                 // data loss
                 ParamPrivacyInput::Public,
             ),
@@ -71,22 +71,26 @@ where
     }
 
     info!(
-        "Reverting {component_name} from block {storage_height_marker} to block \
-         {revert_up_to_and_including}"
+        "Reverting {component_name} from storage height marker {storage_height_marker} to target \
+         storage height marker {revert_up_to_and_including}"
     );
 
     while storage_height_marker > revert_up_to_and_including {
         storage_height_marker = storage_height_marker.prev().expect(
             "A block number that's greater than another block number should return Some on prev",
         );
-        info!("Reverting {component_name} block number {storage_height_marker}.");
+        info!("Reverting {component_name}'s storage to height {storage_height_marker}.");
         revert_block_fn(storage_height_marker).await;
-        info!("Successfully reverted {component_name} block number {storage_height_marker}.");
+        info!(
+            "Successfully reverted {component_name}'s storage to height {storage_height_marker}."
+        );
     }
 
     info!(
-        "Done reverting {component_name} up to block {revert_up_to_and_including} including. \
-         Starting eternal pending."
+        "Done reverting {component_name} up to height {revert_up_to_and_including}. The latest \
+         block in storage is {}.
+         Starting eternal pending.",
+        revert_up_to_and_including.0 - 1
     );
     pending().await
 }
