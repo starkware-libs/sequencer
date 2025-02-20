@@ -36,3 +36,38 @@ impl LocalServerMetrics {
         self.queue_depth.set(value as f64);
     }
 }
+
+/// A struct to contain all metrics for a remote server.
+pub struct RemoteServerMetrics {
+    total_received_msgs: &'static MetricCounter,
+    valid_received_msgs: &'static MetricCounter,
+    processed_msgs: &'static MetricCounter,
+}
+
+impl RemoteServerMetrics {
+    pub const fn new(
+        total_received_msgs: &'static MetricCounter,
+        valid_received_msgs: &'static MetricCounter,
+        processed_msgs: &'static MetricCounter,
+    ) -> Self {
+        Self { total_received_msgs, valid_received_msgs, processed_msgs }
+    }
+
+    pub fn register(&self) {
+        self.total_received_msgs.register();
+        self.valid_received_msgs.register();
+        self.processed_msgs.register();
+    }
+
+    pub fn increment_total_received(&self) {
+        self.total_received_msgs.increment(1);
+    }
+
+    pub fn increment_valid_received(&self) {
+        self.valid_received_msgs.increment(1);
+    }
+
+    pub fn increment_processed(&self) {
+        self.processed_msgs.increment(1);
+    }
+}

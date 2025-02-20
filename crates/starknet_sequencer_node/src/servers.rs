@@ -27,32 +27,53 @@ use starknet_sequencer_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
-use starknet_sequencer_infra::metrics::LocalServerMetrics;
+use starknet_sequencer_infra::metrics::{LocalServerMetrics, RemoteServerMetrics};
 use starknet_sequencer_metrics::metric_definitions::{
-    BATCHER_MSGS_PROCESSED,
-    BATCHER_MSGS_RECEIVED,
-    BATCHER_QUEUE_DEPTH,
-    CLASS_MANAGER_MSGS_PROCESSED,
-    CLASS_MANAGER_MSGS_RECEIVED,
-    CLASS_MANAGER_QUEUE_DEPTH,
-    GATEWAY_MSGS_PROCESSED,
-    GATEWAY_MSGS_RECEIVED,
-    GATEWAY_QUEUE_DEPTH,
-    L1_PROVIDER_MSGS_PROCESSED,
-    L1_PROVIDER_MSGS_RECEIVED,
-    L1_PROVIDER_QUEUE_DEPTH,
-    MEMPOOL_MSGS_PROCESSED,
-    MEMPOOL_MSGS_RECEIVED,
-    MEMPOOL_P2P_MSGS_PROCESSED,
-    MEMPOOL_P2P_MSGS_RECEIVED,
-    MEMPOOL_P2P_QUEUE_DEPTH,
-    MEMPOOL_QUEUE_DEPTH,
-    SIERRA_COMPILER_MSGS_PROCESSED,
-    SIERRA_COMPILER_MSGS_RECEIVED,
-    SIERRA_COMPILER_QUEUE_DEPTH,
-    STATE_SYNC_MSGS_PROCESSED,
-    STATE_SYNC_MSGS_RECEIVED,
-    STATE_SYNC_QUEUE_DEPTH,
+    BATCHER_LOCAL_MSGS_PROCESSED,
+    BATCHER_LOCAL_MSGS_RECEIVED,
+    BATCHER_LOCAL_QUEUE_DEPTH,
+    BATCHER_REMOTE_MSGS_PROCESSED,
+    BATCHER_REMOTE_MSGS_RECEIVED,
+    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+    GATEWAY_LOCAL_MSGS_PROCESSED,
+    GATEWAY_LOCAL_MSGS_RECEIVED,
+    GATEWAY_LOCAL_QUEUE_DEPTH,
+    GATEWAY_REMOTE_MSGS_PROCESSED,
+    GATEWAY_REMOTE_MSGS_RECEIVED,
+    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+    L1_PROVIDER_LOCAL_MSGS_PROCESSED,
+    L1_PROVIDER_LOCAL_MSGS_RECEIVED,
+    L1_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_PROVIDER_REMOTE_MSGS_PROCESSED,
+    L1_PROVIDER_REMOTE_MSGS_RECEIVED,
+    L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+    MEMPOOL_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
+    MEMPOOL_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
+    SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
+    SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
+    SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+    STATE_SYNC_LOCAL_MSGS_PROCESSED,
+    STATE_SYNC_LOCAL_MSGS_RECEIVED,
+    STATE_SYNC_LOCAL_QUEUE_DEPTH,
+    STATE_SYNC_REMOTE_MSGS_PROCESSED,
+    STATE_SYNC_REMOTE_MSGS_RECEIVED,
+    STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
 };
 use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
@@ -154,7 +175,8 @@ macro_rules! create_remote_server {
         $local_client_getter:expr,
         $url:expr,
         $port:expr,
-        $max_concurrency:expr
+        $max_concurrency:expr,
+        $metrics:expr
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -166,6 +188,7 @@ macro_rules! create_remote_server {
                     $url,
                     $port,
                     $max_concurrency,
+                    $metrics,
                 )))
             }
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -288,9 +311,9 @@ fn create_local_servers(
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
     let batcher_metrics = LocalServerMetrics::new(
-        &BATCHER_MSGS_RECEIVED,
-        &BATCHER_MSGS_PROCESSED,
-        &BATCHER_QUEUE_DEPTH,
+        &BATCHER_LOCAL_MSGS_RECEIVED,
+        &BATCHER_LOCAL_MSGS_PROCESSED,
+        &BATCHER_LOCAL_QUEUE_DEPTH,
     );
     let batcher_server = create_local_server!(
         &config.components.batcher.execution_mode,
@@ -302,9 +325,9 @@ fn create_local_servers(
     );
 
     let class_manager_metrics = LocalServerMetrics::new(
-        &CLASS_MANAGER_MSGS_RECEIVED,
-        &CLASS_MANAGER_MSGS_PROCESSED,
-        &CLASS_MANAGER_QUEUE_DEPTH,
+        &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+        &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+        &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
     );
     let class_manager_server = create_local_server!(
         &config.components.class_manager.execution_mode,
@@ -316,9 +339,9 @@ fn create_local_servers(
     );
 
     let gateway_metrics = LocalServerMetrics::new(
-        &GATEWAY_MSGS_RECEIVED,
-        &GATEWAY_MSGS_PROCESSED,
-        &GATEWAY_QUEUE_DEPTH,
+        &GATEWAY_LOCAL_MSGS_RECEIVED,
+        &GATEWAY_LOCAL_MSGS_PROCESSED,
+        &GATEWAY_LOCAL_QUEUE_DEPTH,
     );
     let gateway_server = create_local_server!(
         &config.components.gateway.execution_mode,
@@ -330,9 +353,9 @@ fn create_local_servers(
     );
 
     let l1_provider_metrics = LocalServerMetrics::new(
-        &L1_PROVIDER_MSGS_RECEIVED,
-        &L1_PROVIDER_MSGS_PROCESSED,
-        &L1_PROVIDER_QUEUE_DEPTH,
+        &L1_PROVIDER_LOCAL_MSGS_RECEIVED,
+        &L1_PROVIDER_LOCAL_MSGS_PROCESSED,
+        &L1_PROVIDER_LOCAL_QUEUE_DEPTH,
     );
     let l1_provider_server = create_local_server!(
         &config.components.l1_provider.execution_mode,
@@ -344,9 +367,9 @@ fn create_local_servers(
     );
 
     let mempool_metrics = LocalServerMetrics::new(
-        &MEMPOOL_MSGS_RECEIVED,
-        &MEMPOOL_MSGS_PROCESSED,
-        &MEMPOOL_QUEUE_DEPTH,
+        &MEMPOOL_LOCAL_MSGS_RECEIVED,
+        &MEMPOOL_LOCAL_MSGS_PROCESSED,
+        &MEMPOOL_LOCAL_QUEUE_DEPTH,
     );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
@@ -358,9 +381,9 @@ fn create_local_servers(
     );
 
     let mempool_p2p_metrics = LocalServerMetrics::new(
-        &MEMPOOL_P2P_MSGS_RECEIVED,
-        &MEMPOOL_P2P_MSGS_PROCESSED,
-        &MEMPOOL_P2P_QUEUE_DEPTH,
+        &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
+        &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
+        &MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
     );
     let mempool_p2p_propagator_server = create_local_server!(
         &config.components.mempool_p2p.execution_mode,
@@ -372,9 +395,9 @@ fn create_local_servers(
     );
 
     let sierra_compiler_metrics = LocalServerMetrics::new(
-        &SIERRA_COMPILER_MSGS_RECEIVED,
-        &SIERRA_COMPILER_MSGS_PROCESSED,
-        &SIERRA_COMPILER_QUEUE_DEPTH,
+        &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
+        &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
+        &SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
     );
     let sierra_compiler_server = create_local_server!(
         &config.components.sierra_compiler.execution_mode,
@@ -386,9 +409,9 @@ fn create_local_servers(
     );
 
     let state_sync_metrics = LocalServerMetrics::new(
-        &STATE_SYNC_MSGS_RECEIVED,
-        &STATE_SYNC_MSGS_PROCESSED,
-        &STATE_SYNC_QUEUE_DEPTH,
+        &STATE_SYNC_LOCAL_MSGS_RECEIVED,
+        &STATE_SYNC_LOCAL_MSGS_PROCESSED,
+        &STATE_SYNC_LOCAL_QUEUE_DEPTH,
     );
     let state_sync_server = create_local_server!(
         &config.components.state_sync.execution_mode,
@@ -446,60 +469,102 @@ pub fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
+    let batcher_metrics = RemoteServerMetrics::new(
+        &BATCHER_REMOTE_MSGS_RECEIVED,
+        &BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+        &BATCHER_REMOTE_MSGS_PROCESSED,
+    );
     let batcher_server = create_remote_server!(
         &config.components.batcher.execution_mode,
         || { clients.get_batcher_local_client() },
         config.components.batcher.ip,
         config.components.batcher.port,
-        config.components.batcher.max_concurrency
+        config.components.batcher.max_concurrency,
+        batcher_metrics
     );
 
+    let class_manager_metrics = RemoteServerMetrics::new(
+        &CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+        &CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+        &CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+    );
     let class_manager_server = create_remote_server!(
         &config.components.class_manager.execution_mode,
         || { clients.get_class_manager_local_client() },
         config.components.class_manager.ip,
         config.components.class_manager.port,
-        config.components.class_manager.max_concurrency
+        config.components.class_manager.max_concurrency,
+        class_manager_metrics
     );
 
+    let gateway_metrics = RemoteServerMetrics::new(
+        &GATEWAY_REMOTE_MSGS_RECEIVED,
+        &GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+        &GATEWAY_REMOTE_MSGS_PROCESSED,
+    );
     let gateway_server = create_remote_server!(
         &config.components.gateway.execution_mode,
         || { clients.get_gateway_local_client() },
         config.components.gateway.ip,
         config.components.gateway.port,
-        config.components.gateway.max_concurrency
+        config.components.gateway.max_concurrency,
+        gateway_metrics
     );
 
+    let l1_provider_metrics = RemoteServerMetrics::new(
+        &L1_PROVIDER_REMOTE_MSGS_RECEIVED,
+        &L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+        &L1_PROVIDER_REMOTE_MSGS_PROCESSED,
+    );
     let l1_provider_server = create_remote_server!(
         &config.components.l1_provider.execution_mode,
         || { clients.get_l1_provider_local_client() },
         config.components.l1_provider.ip,
         config.components.l1_provider.port,
-        config.components.l1_provider.max_concurrency
+        config.components.l1_provider.max_concurrency,
+        l1_provider_metrics
     );
 
+    let mempool_metrics = RemoteServerMetrics::new(
+        &MEMPOOL_REMOTE_MSGS_RECEIVED,
+        &MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
+        &MEMPOOL_REMOTE_MSGS_PROCESSED,
+    );
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
         || { clients.get_mempool_local_client() },
         config.components.mempool.ip,
         config.components.mempool.port,
-        config.components.mempool.max_concurrency
+        config.components.mempool.max_concurrency,
+        mempool_metrics
     );
 
+    let mempool_p2p_metrics = RemoteServerMetrics::new(
+        &MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
+        &MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
+        &MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
+    );
     let mempool_p2p_propagator_server = create_remote_server!(
         &config.components.mempool_p2p.execution_mode,
         || { clients.get_mempool_p2p_propagator_local_client() },
         config.components.mempool_p2p.ip,
         config.components.mempool_p2p.port,
-        config.components.mempool_p2p.max_concurrency
+        config.components.mempool_p2p.max_concurrency,
+        mempool_p2p_metrics
     );
 
+    let state_sync_metrics = RemoteServerMetrics::new(
+        &STATE_SYNC_REMOTE_MSGS_RECEIVED,
+        &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
+        &STATE_SYNC_REMOTE_MSGS_PROCESSED,
+    );
     let state_sync_server = create_remote_server!(
         &config.components.state_sync.execution_mode,
         || { clients.get_state_sync_local_client() },
         config.components.state_sync.ip,
         config.components.state_sync.port,
-        config.components.state_sync.max_concurrency
+        config.components.state_sync.max_concurrency,
+        state_sync_metrics
     );
 
     RemoteServers {
