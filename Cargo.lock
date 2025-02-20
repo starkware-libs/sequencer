@@ -172,7 +172,7 @@ dependencies = [
  "alloy-transport",
  "futures",
  "futures-util",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -281,7 +281,7 @@ dependencies = [
  "alloy-sol-types",
  "serde",
  "serde_json",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
  "tracing",
 ]
 
@@ -307,7 +307,7 @@ dependencies = [
  "futures-utils-wasm",
  "serde",
  "serde_json",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -335,7 +335,7 @@ dependencies = [
  "rand 0.8.5",
  "serde_json",
  "tempfile",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
  "tracing",
  "url",
 ]
@@ -401,7 +401,7 @@ dependencies = [
  "schnellru",
  "serde",
  "serde_json",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
  "tokio",
  "tracing",
  "url",
@@ -505,7 +505,7 @@ dependencies = [
  "itertools 0.13.0",
  "serde",
  "serde_json",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -530,7 +530,7 @@ dependencies = [
  "auto_impl",
  "elliptic-curve",
  "k256",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -546,7 +546,7 @@ dependencies = [
  "async-trait",
  "k256",
  "rand 0.8.5",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -634,7 +634,7 @@ dependencies = [
  "futures-utils-wasm",
  "serde",
  "serde_json",
- "thiserror 2.0.9",
+ "thiserror 2.0.11",
  "tokio",
  "tower 0.5.2",
  "tracing",
@@ -1705,7 +1705,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-<<<<<<< HEAD
 version = "0.69.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
@@ -1729,32 +1728,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-||||||| 2d2e421fe
-version = "0.69.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "271383c67ccabffb7381723dea0672a673f292304fcb45c01cc648c7a8d58088"
-dependencies = [
- "bitflags 2.6.0",
- "cexpr",
- "clang-sys",
- "itertools 0.10.5",
- "lazy_static",
- "lazycell",
- "log",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 1.1.0",
- "shlex",
- "syn 2.0.95",
- "which",
-]
-
-[[package]]
-name = "bindgen"
-=======
->>>>>>> origin/main-v0.13.4
 version = "0.70.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f49d8fed880d473ea71efb9bf597651e77201bdd4893efe54c9e5d65ae04ce6f"
@@ -1859,13 +1832,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "ark-ec 0.4.2",
@@ -1917,13 +1884,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier_reexecution"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "blockifier",
@@ -3050,18 +3011,10 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "colored"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
-||||||| 2d2e421fe
-name = "committer_cli"
-version = "0.14.0-rc.0"
-=======
-name = "committer_cli"
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "windows-sys 0.59.0",
 ]
@@ -7013,13 +6966,7 @@ dependencies = [
 
 [[package]]
 name = "mempool_test_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "blockifier_test_utils",
@@ -7320,13 +7267,7 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "blockifier",
  "cached",
@@ -7864,13 +7805,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "alloy",
  "async-trait",
@@ -7893,13 +7828,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "base64 0.13.1",
@@ -7918,13 +7847,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_config"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "clap",
@@ -7943,136 +7866,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-||||||| 2d2e421fe
-name = "papyrus_consensus"
-version = "0.14.0-rc.0"
-dependencies = [
- "async-trait",
- "clap",
- "enum-as-inner",
- "fs2",
- "futures",
- "lazy_static",
- "lru",
- "metrics 0.21.1",
- "mockall",
- "nix 0.20.2",
- "papyrus_common",
- "papyrus_config",
- "papyrus_network",
- "papyrus_network_types",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "test-case",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "papyrus_consensus_orchestrator"
-version = "0.14.0-rc.0"
-dependencies = [
- "async-trait",
- "blockifier",
- "chrono",
- "futures",
- "indexmap 2.7.0",
- "lazy_static",
- "mockall",
- "papyrus_consensus",
- "papyrus_network",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_batcher_types",
- "starknet_infra_utils",
- "test-case",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
-=======
-name = "papyrus_consensus"
-version = "0.14.0-rc.1"
-dependencies = [
- "async-trait",
- "clap",
- "enum-as-inner",
- "fs2",
- "futures",
- "lazy_static",
- "lru",
- "metrics 0.21.1",
- "mockall",
- "nix 0.20.2",
- "papyrus_common",
- "papyrus_config",
- "papyrus_network",
- "papyrus_network_types",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "test-case",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "papyrus_consensus_orchestrator"
-version = "0.14.0-rc.1"
-dependencies = [
- "async-trait",
- "blockifier",
- "chrono",
- "futures",
- "indexmap 2.7.0",
- "lazy_static",
- "mockall",
- "papyrus_consensus",
- "papyrus_network",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_batcher_types",
- "starknet_infra_utils",
- "test-case",
- "tokio",
- "tokio-util",
- "tracing",
-]
-
-[[package]]
->>>>>>> origin/main-v0.13.4
 name = "papyrus_execution"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -8101,13 +7896,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_load_test"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -8125,13 +7914,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_monitoring_gateway"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "axum",
  "hyper 0.14.32",
@@ -8154,13 +7937,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -8194,13 +7971,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "libp2p",
  "papyrus_test_utils",
@@ -8210,13 +7981,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_node"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "clap",
@@ -8259,13 +8024,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_p2p_sync"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -8302,13 +8061,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_proc_macros"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
@@ -8322,13 +8075,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_protobuf"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "bytes",
  "indexmap 2.7.0",
@@ -8350,13 +8097,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_rpc"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -8409,13 +8150,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_state_reader"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "blockifier",
@@ -8433,13 +8168,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_storage"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "byteorder",
@@ -8491,13 +8220,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_sync"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -8534,13 +8257,7 @@ dependencies = [
 
 [[package]]
 name = "papyrus_test_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -10203,16 +9920,8 @@ dependencies = [
  "bitflags 2.6.0",
  "errno",
  "libc",
-<<<<<<< HEAD
  "linux-raw-sys 0.4.15",
  "windows-sys 0.59.0",
-||||||| 2d2e421fe
- "linux-raw-sys 0.4.14",
- "windows-sys 0.52.0",
-=======
- "linux-raw-sys 0.4.14",
- "windows-sys 0.59.0",
->>>>>>> origin/main-v0.13.4
 ]
 
 [[package]]
@@ -11116,13 +10825,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert-json-diff",
  "assert_matches",
@@ -11153,13 +10856,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_batcher"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "apollo_reverts",
  "assert_matches",
@@ -11195,13 +10892,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_batcher_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "blockifier",
@@ -11217,16 +10908,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "starknet_class_manager"
 version = "0.0.0"
-||||||| 2d2e421fe
-name = "starknet_class_manager_types"
-version = "0.14.0-rc.0"
-=======
-name = "starknet_class_manager_types"
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "hex",
@@ -11261,13 +10944,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_client"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11302,13 +10979,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "hex",
  "pretty_assertions",
@@ -11323,7 +10994,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
@@ -11358,13 +11028,6 @@ dependencies = [
 [[package]]
 name = "starknet_consensus"
 version = "0.0.0"
-||||||| 2d2e421fe
-name = "starknet_consensus_manager"
-version = "0.14.0-rc.0"
-=======
-name = "starknet_consensus_manager"
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "clap",
@@ -11465,13 +11128,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_gateway"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11513,13 +11170,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_gateway_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "enum-assoc",
@@ -11537,13 +11188,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_http_server"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "axum",
  "blockifier",
@@ -11573,13 +11218,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_infra_utils"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "nix 0.20.2",
  "pretty_assertions",
@@ -11591,13 +11230,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_integration_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -11668,13 +11301,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_l1_provider"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "alloy",
  "assert_matches",
@@ -11699,13 +11326,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_l1_provider_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "mockall",
@@ -11720,13 +11341,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11750,13 +11365,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_p2p"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "futures",
@@ -11782,13 +11391,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_p2p_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "mockall",
@@ -11802,13 +11405,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "mockall",
@@ -11822,13 +11419,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_monitoring_endpoint"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "axum",
  "hyper 0.14.32",
@@ -11868,13 +11459,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-recursion",
  "derive_more 0.99.18",
@@ -11906,13 +11491,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_sequencer_infra"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11948,13 +11527,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_sequencer_node"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "anyhow",
  "apollo_reverts",
@@ -12003,13 +11576,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_sierra_multicompile"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -12034,16 +11601,8 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "starknet_sierra_multicompile_types"
 version = "0.0.0"
-||||||| 2d2e421fe
-name = "starknet_state_sync"
-version = "0.14.0-rc.0"
-=======
-name = "starknet_state_sync"
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "mockall",
@@ -12087,13 +11646,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_state_sync_types"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "async-trait",
  "futures",
@@ -12109,13 +11662,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_task_executor"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "futures",
  "rstest",
@@ -12384,16 +11931,8 @@ dependencies = [
  "fastrand 2.3.0",
  "getrandom 0.2.15",
  "once_cell",
-<<<<<<< HEAD
  "rustix 0.38.43",
  "windows-sys 0.59.0",
-||||||| 2d2e421fe
- "rustix 0.38.42",
- "windows-sys 0.52.0",
-=======
- "rustix 0.38.42",
- "windows-sys 0.59.0",
->>>>>>> origin/main-v0.13.4
 ]
 
 [[package]]
@@ -13483,7 +13022,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "which"
 version = "4.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13496,21 +13034,6 @@ dependencies = [
 ]
 
 [[package]]
-||||||| 2d2e421fe
-name = "which"
-version = "4.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87ba24419a2078cd2b0f2ede2691b6c66d8e47836da3b6db8265ebad47afbfc7"
-dependencies = [
- "either",
- "home",
- "once_cell",
- "rustix 0.38.42",
-]
-
-[[package]]
-=======
->>>>>>> origin/main-v0.13.4
 name = "widestring"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13879,13 +13402,7 @@ dependencies = [
 
 [[package]]
 name = "workspace_tests"
-<<<<<<< HEAD
 version = "0.0.0"
-||||||| 2d2e421fe
-version = "0.14.0-rc.0"
-=======
-version = "0.14.0-rc.1"
->>>>>>> origin/main-v0.13.4
 dependencies = [
  "serde",
  "toml",
