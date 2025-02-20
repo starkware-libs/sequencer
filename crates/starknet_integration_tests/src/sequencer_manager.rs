@@ -210,6 +210,14 @@ impl IntegrationTestManager {
         Self { node_indices, idle_nodes, running_nodes, tx_generator }
     }
 
+    pub fn tx_generator(&self) -> &MultiAccountTransactionGenerator {
+        &self.tx_generator
+    }
+
+    pub fn tx_generator_mut(&mut self) -> &mut MultiAccountTransactionGenerator {
+        &mut self.tx_generator
+    }
+
     pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
         info!("Running specified nodes.");
 
