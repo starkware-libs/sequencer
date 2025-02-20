@@ -8175,7 +8175,6 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
- "futures",
  "indexmap 2.7.0",
  "log",
  "papyrus_storage",
@@ -8183,6 +8182,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_class_manager_types",
+ "tokio",
 ]
 
 [[package]]

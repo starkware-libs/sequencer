@@ -14,12 +14,12 @@ workspace = true
 [dependencies]
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
-futures.workspace = true
 log.workspace = true
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
