@@ -154,6 +154,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "context.tx_batch_size": {
+    "description": "The limit on the number of transactions in a batch.",
+    "privacy": "Public",
+    "value": 5
+  },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
     "pointer_target": "collect_metrics",

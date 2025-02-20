@@ -139,6 +139,7 @@ pub struct SequencerConsensusContext {
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     proposal_buffer_size: usize,
+    tx_batch_size: usize,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
@@ -194,6 +195,7 @@ impl SequencerConsensusContext {
             state_sync_client,
             batcher,
             proposal_buffer_size: config.proposal_buffer_size,
+            tx_batch_size: config.tx_batch_size,
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
@@ -364,16 +366,9 @@ impl ConsensusContext for SequencerConsensusContext {
         let transaction_converter = self.transaction_converter.clone();
         let mut outbound_proposal_sender = self.outbound_proposal_sender.clone();
         let channel_size = self.proposal_buffer_size;
+        let tx_batch_size = self.tx_batch_size;
         tokio::spawn(
             async move {
-                let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
-                    transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
-                }))
-                .await
-                .into_iter()
-                .collect::<Result<Vec<_>, _>>()
-                .expect("Failed converting transaction during repropose");
-                // TODO(Asmaa): send by chunks.
                 let (mut proposal_sender, proposal_receiver) = mpsc::channel(channel_size);
                 let stream_id = HeightAndRound(height.0, init.round);
                 outbound_proposal_sender
@@ -388,12 +383,21 @@ impl ConsensusContext for SequencerConsensusContext {
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
-                proposal_sender
-                    .send(ProposalPart::Transactions(TransactionBatch {
-                        transactions: transactions.clone(),
+                for batch in txs.chunks(tx_batch_size) {
+                    let transactions = futures::future::join_all(batch.iter().map(|tx| {
+                        transaction_converter
+                            .convert_internal_consensus_tx_to_consensus_tx(tx.clone())
                     }))
                     .await
-                    .expect("Failed to broadcast proposal content");
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("Failed converting transaction during repropose");
+
+                    proposal_sender
+                        .send(ProposalPart::Transactions(TransactionBatch { transactions }))
+                        .await
+                        .expect("Failed to broadcast proposal content");
+                }
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
@@ -760,6 +764,7 @@ async fn get_proposal_content(
                 // TODO(shahak): Don't panic here.
                 .expect("Failed converting consensus transaction to external representation");
                 debug!("Converted transactions to external representation.");
+                println!("ASMAA: transactions.len() = {}", transactions.len());
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 proposal_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
