@@ -14,4 +14,4 @@ if [ "$1" == "down" ]; then
 fi
 
 pip install -r ${monitoring_dir}/src/requirements.txt
-python ${monitoring_dir}/src/dashboard_builder.py builder -j ${monitoring_dir}/../../Monitoring/sequencer/grafana_data.json -o /tmp/dashboard_builder -d -u
+python ${monitoring_dir}/src/dashboard_builder.py builder -j ${monitoring_dir}/../../Monitoring/sequencer/dev_grafana.json -o /tmp/dashboard_builder -d -u

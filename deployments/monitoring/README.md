@@ -10,7 +10,7 @@ to deploy run:
 ```bash
 ./deploy_local_stack.sh up -d
 ```
-This will deploy node, Promethous and Grafana containers and upload the src/dummy_json.json dashboard to the grafana
+This will deploy node, Promethous and Grafana containers and upload the Monitoring/sequencer/dev_grafana.json dashboard to the grafana
 
 
 to destroy:
