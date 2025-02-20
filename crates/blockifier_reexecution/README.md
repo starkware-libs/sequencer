@@ -111,7 +111,7 @@ Therefore, when changing the files format, do these 4 steps in order:
 ```
 cargo run --bin blockifier_reexecution write-to-file -n <node_url>
 ```
-Make sure reexecution of all the blocks succeeded; if neccessary, rerun the command with the block numbers that failed.
+Make sure reexecution of all the blocks succeeded; if necessary, rerun the command with the block numbers that failed.
 
 - 3. Verify that offline reexecution succeeds by running
 ```
