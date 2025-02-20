@@ -9,7 +9,8 @@ replicas = 1
 
 def get_images() -> typing.Dict[str, str]:
     return {
-        "sequencer": "ghcr.io/starkware-libs/sequencer/sequencer:dev"
+        "dev": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
+        "dev-main-e6d3862": "ghcr.io/starkware-libs/sequencer/sequencer:dev-main-e6d3862"
     }
 
 
