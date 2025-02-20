@@ -21,6 +21,9 @@ pub enum TestIdentifier {
     EndToEndIntegrationTest,
     EndToEndFlowTest,
     InfraUnitTests,
+    PositiveFlowIntegrationTest,
+    RestartFlowIntegrationTest,
+    RevertFlowIntegrationTest,
 }
 
 impl From<TestIdentifier> for u16 {
@@ -29,6 +32,9 @@ impl From<TestIdentifier> for u16 {
             TestIdentifier::EndToEndIntegrationTest => 0,
             TestIdentifier::EndToEndFlowTest => 1,
             TestIdentifier::InfraUnitTests => 2,
+            TestIdentifier::PositiveFlowIntegrationTest => 3,
+            TestIdentifier::RestartFlowIntegrationTest => 4,
+            TestIdentifier::RevertFlowIntegrationTest => 5,
         }
     }
 }
