@@ -5,6 +5,9 @@ inputs:
   extra_rust_toolchains:
     description: "Extra toolchains to install, but aren't used by default"
     required: false
+  cache_target: "TBD"
+    required: false
+    default: "target"
 
 runs:
   using: "composite"
@@ -13,6 +16,7 @@ runs:
       name: Install Rust toolchain and binaries
       with:
         inherit-toolchain: true
+        cache-target: ${{ inputs.cache_target }}
         bins: taplo-cli@0.9.3, cargo-machete
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
         channel: ${{ inputs.extra_rust_toolchains }}
