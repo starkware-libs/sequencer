@@ -71,11 +71,11 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
 pub(crate) fn set_compressed_start<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    let use_kzg_da_felt = exec_scopes.get::<Felt252>(vars::scopes::USE_KZG_DA)?;
+    let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
     let use_kzg_da = match use_kzg_da_felt {
-        x if x == Felt252::ONE => Ok(true),
-        x if x == Felt252::ZERO => Ok(false),
+        x if x == Felt::ONE => Ok(true),
+        x if x == Felt::ZERO => Ok(false),
         _ => Err(HintError::CustomHint(
             "ids.use_kzg_da is not a boolean".to_string().into_boxed_str(),
         )),
@@ -83,7 +83,7 @@ pub(crate) fn set_compressed_start<S: StateReader>(
 
     if use_kzg_da {
         insert_value_from_var_name(
-            vars::ids::COMPRESSED_START,
+            Ids::CompressedStart.into(),
             vm.add_memory_segment(),
             vm,
             ids_data,
@@ -92,7 +92,7 @@ pub(crate) fn set_compressed_start<S: StateReader>(
     } else {
         // Assign a temporary segment, to be relocated into the output segment.
         insert_value_from_var_name(
-            vars::ids::COMPRESSED_START,
+            Ids::CompressedStart.into(),
             vm.add_temporary_segment(),
             vm,
             ids_data,
