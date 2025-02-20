@@ -23,24 +23,13 @@ pub async fn get_batcher_latest_block_number(
 /// error if after the given number of attempts the target block number has not been reached.
 pub async fn await_batcher_block(
     interval: u64,
-    target_block_number: BlockNumber,
+    condition: impl Fn(&BlockNumber) -> bool + Send + Sync,
     max_attempts: usize,
     batcher_monitoring_client: &MonitoringClient,
-    node_index: usize,
-    batcher_index: usize,
+    logger: CustomLogger,
 ) -> Result<BlockNumber, ()> {
-    let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
     let get_latest_block_number_closure =
         || get_batcher_latest_block_number(batcher_monitoring_client);
-
-    let logger = CustomLogger::new(
-        TraceLevel::Info,
-        Some(format!(
-            "Waiting for batcher height metric to reach block {target_block_number} in sequencer \
-             {} executable {}.",
-            node_index, batcher_index
-        )),
-    );
 
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
@@ -57,16 +46,20 @@ pub async fn await_block(
         "Awaiting until {expected_block_number} blocks have been created in sequencer {}.",
         node_index
     );
-    await_batcher_block(
-        5000,
-        expected_block_number,
-        50,
-        monitoring_client,
-        node_index,
-        batcher_index,
-    )
-    .await
-    .expect("Block number should have been reached.");
+    let condition =
+        |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
+
+    let logger = CustomLogger::new(
+        TraceLevel::Info,
+        Some(format!(
+            "Waiting for batcher height metric to reach block {expected_block_number} in \
+             sequencer {} executable {}.",
+            node_index, batcher_index
+        )),
+    );
+    await_batcher_block(5000, condition, 50, monitoring_client, logger)
+        .await
+        .expect("Block number should have been reached.");
 }
 
 pub async fn verify_txs_accepted(
