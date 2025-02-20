@@ -5,7 +5,7 @@ inputs:
   extra_rust_toolchains:
     description: "Extra toolchains to install, but aren't used by default"
     required: false
-  cache_target:
+  target_dirs:
     description: "TBD"
     default: "target"
 
@@ -16,6 +16,6 @@ runs:
       uses: ./.github/actions/install_rust
       with:
         extra_rust_toolchains: ${{ inputs.extra_rust_toolchains }}
-        cache_target: ${{ inputs.cache_target }}
+        target_dirs: ${{ inputs.target_dirs }}
     - name: Install cairo native.
       uses: ./.github/actions/setup_native_deps
