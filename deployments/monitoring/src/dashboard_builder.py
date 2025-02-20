@@ -46,31 +46,35 @@ def create_grafana_panel(panel: dict, panel_id: int ,y_position: int ) -> dict:
 def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
     dashboard = empty_dashboard.copy()
     panel_id = 1
+    y_position = 0
     dashboard["title"] = dashboard_name
     for row_title, panels in dev_dashboard.items():
         row_panel = row_object.copy()
         row_panel["title"] = row_title
         row_panel["id"] = panel_id
-        dashboard["panels"].append(row_panel)
+        row_panel["gridPos"]["y"] = y_position
+        row_panel["panels"] = []
         panel_id += 1
-        y_position = 0
+        y_position += 1
+        dashboard["panels"].append(row_panel)
         for panel in panels:
             grafana_panel = create_grafana_panel(panel, panel_id, y_position)
-            dashboard["panels"].append(grafana_panel)
+            row_panel["panels"].append(grafana_panel)
             panel_id += 1
             y_position += 6
+        
 
     return {  "dashboard":dashboard}
 
 
-def upload_dashboards_local(dashboard: dict) -> None:    
+def upload_dashboards_local(dashboard: dict) -> None:
     retry = 0
 
     while retry <= 10:
         try:
             res = requests.post(
                 "http://localhost:3000/api/dashboards/db",
-                json=dashboard,
+                json={**dashboard, **{"overwrite": True}}
             )
             if res.status_code != 200:
                 print(f"Failed to upload dashboard. {res.json()}")
