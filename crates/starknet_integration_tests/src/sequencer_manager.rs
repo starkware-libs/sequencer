@@ -189,6 +189,7 @@ impl IntegrationTestManager {
         num_of_distributed_nodes: usize,
         path_to_db_base_dir: Option<PathBuf>,
         path_to_config_base_dir: Option<PathBuf>,
+        test_unique_id: TestIdentifier,
     ) -> Self {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
@@ -201,6 +202,7 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             path_to_db_base_dir,
             path_to_config_base_dir,
+            test_unique_id,
         )
         .await;
 
@@ -374,9 +376,8 @@ pub async fn get_sequencer_setup_configs(
     num_of_distributed_nodes: usize,
     path_to_db_base_dir: Option<PathBuf>,
     path_to_config_base_dir: Option<PathBuf>,
+    test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
-    let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
-
     // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
     let mut available_ports =
         AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
