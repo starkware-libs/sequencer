@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
@@ -43,6 +44,9 @@ pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 // The block timestamp of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
+
+pub static CHAIN_ID_FOR_TESTS: LazyLock<ChainId> =
+    LazyLock::new(|| ChainId::Other("CHAIN_ID_SUBDIR".to_owned()));
 
 /// Returns the path to a file in the resources directory. This assumes the current working
 /// directory has a `resources` folder. The value for file_path should be the path to the required
