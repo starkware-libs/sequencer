@@ -3,11 +3,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
-use crate::blockifier_versioned_constants::{
-    AllocationCost,
-    ArchivalDataGasCosts,
-    VersionedConstants,
-};
+use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
 use crate::execution::call_info::{EventSummary, ExecutionSummary};
 #[cfg(test)]
 use crate::execution::contract_class::TrackedResource;
@@ -23,12 +19,6 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCountForFee};
 use crate::transaction::errors::TransactionFeeError;
 use crate::utils::u64_from_usize;
-<<<<<<< HEAD
-||||||| 2d2e421fe
-use crate::versioned_constants::{AllocationCost, ArchivalDataGasCosts, VersionedConstants};
-=======
-use crate::versioned_constants::{AllocationCost, VersionedConstants};
->>>>>>> origin/main-v0.13.4
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
 

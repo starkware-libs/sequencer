@@ -2,31 +2,16 @@ use std::sync::mpsc::{sync_channel, TrySendError};
 use std::sync::Arc;
 use std::thread::sleep;
 
-<<<<<<< HEAD
+use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-||||||| 2d2e421fe
-=======
-use assert_matches::assert_matches;
->>>>>>> origin/main-v0.13.4
 use rstest::rstest;
 use starknet_sierra_multicompile::config::DEFAULT_MAX_CPU_TIME;
 use starknet_sierra_multicompile::errors::CompilationUtilError;
 
 use crate::blockifier::config::CairoNativeRunConfig;
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
-<<<<<<< HEAD
 use crate::state::contract_class_manager::ContractClassManager;
-use crate::state::global_cache::{RawClassCache, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
-use crate::state::native_class_manager::CompilationRequest;
-use crate::test_utils::contracts::FeatureContractTrait;
-||||||| 2d2e421fe
-use crate::state::contract_class_manager::ContractClassManager;
-use crate::state::global_cache::{RawClassCache, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
-use crate::state::native_class_manager::CompilationRequest;
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::{CairoVersion, RunnableCairo1};
-=======
 use crate::state::global_cache::{
     CachedCairoNative,
     CachedClass,
@@ -39,9 +24,7 @@ use crate::state::native_class_manager::{
     ContractClassManagerError,
     NativeClassManager,
 };
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::{CairoVersion, RunnableCairo1};
->>>>>>> origin/main-v0.13.4
+use crate::test_utils::contracts::FeatureContractTrait;
 
 const TEST_CHANNEL_SIZE: usize = 10;
 
