@@ -12,6 +12,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
 use starknet_class_manager_types::SharedClassManagerClient;
+use starknet_sequencer_metrics::metric_definitions::SYNC_CLASS_MANAGER_MARKER;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{trace, warn};
 
@@ -24,6 +25,7 @@ use super::block_data_stream_builder::{
 };
 use super::P2pSyncClientError;
 
+#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage<'a>(
         self: Box<Self>,
@@ -67,6 +69,8 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
                 .begin_rw_txn()?
                 .update_class_manager_block_marker(&self.2.unchecked_next())?
                 .commit()?;
+            SYNC_CLASS_MANAGER_MARKER.set(self.2.unchecked_next().0 as f64);
+
             Ok(())
         }
         .boxed()
