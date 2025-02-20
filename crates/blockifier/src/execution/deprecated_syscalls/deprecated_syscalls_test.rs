@@ -7,9 +7,10 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::core::{calculate_contract_address, ChainId};
+use starknet_api::core::calculate_contract_address;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{
+    CHAIN_ID_FOR_TESTS,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
@@ -489,12 +490,12 @@ fn test_tx_info(
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
     let expected_tx_info = calldata![
-        expected_version,                                // Transaction version.
-        *sender_address.0.key(),                         // Account address.
-        felt!(max_fee.0),                                // Max fee.
-        tx_hash.0,                                       // Transaction hash.
-        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-        nonce.0                                          // Nonce.
+        expected_version,                     // Transaction version.
+        *sender_address.0.key(),              // Account address.
+        felt!(max_fee.0),                     // Max fee.
+        tx_hash.0,                            // Transaction hash.
+        felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
+        nonce.0                               // Nonce.
     ];
     let entry_point_selector = selector_from_name("test_get_tx_info");
     let entry_point_call = CallEntryPoint {

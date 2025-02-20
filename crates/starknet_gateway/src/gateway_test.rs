@@ -8,13 +8,14 @@ use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
-use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
 };
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::{
     InvokeTransaction,
     TransactionHash,
@@ -138,7 +139,7 @@ async fn test_add_tx(
     };
 
     let tx_hash = invoke_tx
-        .calculate_transaction_hash(&ChainId::create_for_testing(), &TransactionVersion::THREE)
+        .calculate_transaction_hash(&CHAIN_ID_FOR_TESTS, &TransactionVersion::THREE)
         .unwrap();
 
     let internal_invoke_tx = InternalRpcTransaction {

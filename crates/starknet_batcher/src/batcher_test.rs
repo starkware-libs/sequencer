@@ -10,8 +10,9 @@ use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ChainId, ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use starknet_batcher_types::batcher_types::{
@@ -137,7 +138,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
         Arc::new(mock_dependencies.mempool_client),
         TransactionConverter::new(
             mock_dependencies.class_manager_client,
-            ChainId::create_for_testing(),
+            CHAIN_ID_FOR_TESTS.clone(),
         ),
         Box::new(mock_dependencies.block_builder_factory),
     );
