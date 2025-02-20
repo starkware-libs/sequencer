@@ -112,6 +112,7 @@ use super::{
     CentralCompressedStateDiff,
     CentralDeclareTransaction,
     CentralDeployAccountTransaction,
+    CentralFeeMarketInfo,
     CentralInvokeTransaction,
     CentralStateDiff,
     CentralTransaction,
@@ -126,6 +127,7 @@ pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx
 pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
+pub const CENTRAL_FEE_MARKET_INFO_JSON_PATH: &str = "central_fee_market_info.json";
 pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.casm.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
@@ -361,6 +363,10 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
     }
 }
 
+fn central_fee_market_info() -> CentralFeeMarketInfo {
+    CentralFeeMarketInfo { l2_gas_consumed: 150000, next_l2_gas_price: 100000 }
+}
+
 fn entry_point(idx: usize, selector: u8) -> EntryPoint {
     EntryPoint { function_idx: FunctionIndex(idx), selector: EntryPointSelector(felt!(selector)) }
 }
@@ -569,6 +575,7 @@ fn central_transaction_execution_info_reverted() -> CentralTransactionExecutionI
 #[case::declare_tx(central_declare_tx(), CENTRAL_DECLARE_TX_JSON_PATH)]
 #[case::l1_handler_tx(central_l1_handler_tx(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
 #[case::bouncer_weights(central_bouncer_weights(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
+#[case::fee_market_info(central_fee_market_info(), CENTRAL_FEE_MARKET_INFO_JSON_PATH)]
 #[case::sierra_contract_class(sierra_contract_class(), CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH)]
 #[case::optionals_are_some(central_casm_contract_class(), CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH)]
 #[case::optionals_are_none(
