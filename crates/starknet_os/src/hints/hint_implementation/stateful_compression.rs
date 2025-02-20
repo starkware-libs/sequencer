@@ -5,6 +5,8 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_manager::DictManager;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_ptr_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::vm::errors::hint_errors::HintError;
@@ -26,9 +28,19 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
 }
 
 pub(crate) fn get_alias_entry_for_state_update<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    todo!()
+    let contract_state_str = Ids::ContractStateChangesEnd.into();
+    let aliases_contract_address = Const::AliasContractAddress.fetch(constants)?;
+
+    let dict_ptr = get_ptr_from_var_name(contract_state_str, vm, ids_data, ap_tracking)?;
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let alias_entry = dict_manager_borrowed
+        .get_tracker_mut(dict_ptr)?
+        .get_value(&aliases_contract_address.into())?;
+
+    insert_value_from_var_name(Ids::AliasesEntry.into(), alias_entry, vm, ids_data, ap_tracking)
 }
 
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
