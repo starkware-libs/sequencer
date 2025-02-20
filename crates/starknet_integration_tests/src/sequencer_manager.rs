@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
+use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
@@ -29,7 +30,6 @@ use tracing::info;
 use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
 use crate::utils::{
-    create_chain_info,
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
@@ -376,7 +376,7 @@ pub async fn get_sequencer_setup_configs(
     };
 
     info!("Creating node configurations.");
-    let chain_info = create_chain_info();
+    let chain_info = ChainInfo::create_for_testing();
     let accounts = tx_generator.accounts();
     let n_distributed_sequencers = node_component_configs
         .iter()
