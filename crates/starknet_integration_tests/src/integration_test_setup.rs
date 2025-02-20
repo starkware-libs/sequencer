@@ -232,7 +232,8 @@ fn dump_config_file_changes(
     add_required_params_to_preset(&mut preset, required_params.as_json());
 
     // Dump the preset to a file, return its path.
-    let node_config_path = dump_json_data(preset, NODE_CONFIG_CHANGES_FILE_PATH, dir);
+    let node_config_path = dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
+    dump_json_data(preset, &node_config_path);
     assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
     node_config_path
 }
