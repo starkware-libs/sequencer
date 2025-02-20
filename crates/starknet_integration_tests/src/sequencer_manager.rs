@@ -233,10 +233,6 @@ impl IntegrationTestManager {
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
-    pub async fn send_invoke_txs(&mut self, n_txs: usize) {
-        self.run_integration_test_simulator(&InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT).await;
-    }
-
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
         let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
             let monitoring_client = running_node.node_setup.batcher_monitoring_client();
