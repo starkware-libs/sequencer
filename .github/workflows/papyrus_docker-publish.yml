@@ -77,7 +77,8 @@ jobs:
             type=ref,event=pr
             # set `main*` tag for the default / release branches.
             type=raw,value={{branch}},enable=${{ github.event_name == 'push' && contains(github.ref, 'main') }}
-            type=raw,value={{branch}}{{tag}}-{{sha}},enable=${{ github.event_name == 'workflow_dispatch' }}
+            # set `{branch}-{tag}` tag for tag push events.
+            type=raw,value={{branch}}-{{tag}},enable=${{ github.event_name == 'push' && !contains(github.ref, 'main') }}
 
       # Build and push Docker image with Buildx
       # https://github.com/docker/build-push-action
