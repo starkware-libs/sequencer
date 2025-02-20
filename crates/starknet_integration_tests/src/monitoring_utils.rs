@@ -2,7 +2,12 @@ use starknet_api::block::BlockNumber;
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
-use starknet_sequencer_metrics::metric_definitions;
+use starknet_sequencer_metrics::metric_definitions::{
+    self,
+    SYNC_BODY_MARKER,
+    SYNC_HEADER_MARKER,
+    SYNC_STATE_MARKER,
+};
 use tracing::info;
 
 /// Gets the latest block number from the batcher's metrics.
@@ -19,6 +24,36 @@ pub async fn get_batcher_latest_block_number(
     .expect("Storage height should be at least 1.")
 }
 
+/// Gets the latest block number from the sync's metrics.
+async fn get_sync_latest_block_number(sync_monitoring_client: &MonitoringClient) -> BlockNumber {
+    let metrics = sync_monitoring_client.get_metrics().await.expect("Failed to get metrics.");
+
+    let latest_marker_value = [
+        SYNC_HEADER_MARKER,
+        SYNC_BODY_MARKER,
+        SYNC_STATE_MARKER,
+        // TODO(noamsp): Uncomment when these metrics are updated.
+        // SYNC_CLASS_MANAGER_MARKER,
+        // SYNC_COMPILED_CLASS_MARKER,
+    ]
+    .iter()
+    .map(|marker| {
+        marker
+            .parse_numeric_metric::<u64>(&metrics)
+            .unwrap_or_else(|| panic!("Failed to get {} metric.", marker.get_name()))
+    })
+    // we keep only the positive values because class manager marker is not updated in central sync
+    // and compiled class marker is not updated in p2p sync
+    .filter(|&marker_value| marker_value > 0)
+    // we take the minimum value, or 0 if there are no positive values
+    .min()
+    .unwrap_or(0);
+
+    BlockNumber(latest_marker_value)
+    .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
+    .expect("Sync marker should be at least 1.")
+}
+
 /// Sample the metrics until sufficiently many blocks have been reported by the batcher. Returns an
 /// error if after the given number of attempts the target block number has not been reached.
 pub async fn await_batcher_block(
@@ -30,6 +65,20 @@ pub async fn await_batcher_block(
 ) -> Result<BlockNumber, ()> {
     let get_latest_block_number_closure =
         || get_batcher_latest_block_number(batcher_monitoring_client);
+
+    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
+        .await
+        .ok_or(())
+}
+
+pub async fn await_sync_block(
+    interval: u64,
+    condition: impl Fn(&BlockNumber) -> bool + Send + Sync,
+    max_attempts: usize,
+    sync_monitoring_client: &MonitoringClient,
+    logger: CustomLogger,
+) -> Result<BlockNumber, ()> {
+    let get_latest_block_number_closure = || get_sync_latest_block_number(sync_monitoring_client);
 
     run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
