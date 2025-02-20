@@ -71,8 +71,8 @@ where
     }
 
     info!(
-        "Reverting {component_name} from block {storage_height_marker} to block \
-         {revert_up_to_and_including}"
+        "Reverting {component_name} from storage height marker {storage_height_marker} to target \
+         storage height marker {revert_up_to_and_including}"
     );
 
     while storage_height_marker > revert_up_to_and_including {
