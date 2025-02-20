@@ -59,7 +59,7 @@ class ServiceApp(Construct):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=self.service_topology.images.get("sequencer"),
+                                image=self.service_topology.images["dev"],
                                 image_pull_policy="Always",
                                 # command=["sleep", "infinity"],
                                 env=self._get_container_env(),
