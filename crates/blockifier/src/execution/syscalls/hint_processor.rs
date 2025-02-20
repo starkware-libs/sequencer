@@ -66,6 +66,7 @@ use crate::execution::syscalls::{
     get_execution_info,
     keccak,
     library_call,
+    meta_tx_v0,
     replace_class,
     send_message_to_l1,
     sha_256_process_block,
@@ -342,6 +343,9 @@ impl<'a> SyscallHintProcessor<'a> {
             ),
             SyscallSelector::LibraryCall => {
                 self.execute_syscall(vm, library_call, self.gas_costs().syscalls.library_call)
+            }
+            SyscallSelector::MetaTxV0 => {
+                self.execute_syscall(vm, meta_tx_v0, self.gas_costs().syscalls.meta_tx_v0)
             }
             SyscallSelector::ReplaceClass => {
                 self.execute_syscall(vm, replace_class, self.gas_costs().syscalls.replace_class)

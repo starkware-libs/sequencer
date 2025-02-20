@@ -53,17 +53,22 @@ mod MetaTxTestContract {
         self.add_call_info(:argument);
     }
 
+    extern fn meta_tx_v0_syscall(
+        address: ContractAddress,
+        entry_point_selector: felt252,
+        calldata: Span<felt252>,
+        signature: Span<felt252>,
+    ) -> starknet::SyscallResult<Span<felt252>> implicits(GasBuiltin, System) nopanic;
+
     #[external(v0)]
     fn execute_meta_tx_v0(
         ref self: ContractState,
         address: ContractAddress,
         entry_point_selector: felt252,
         calldata: Span<felt252>,
-        _signature: Span<felt252>,
+        signature: Span<felt252>,
     ) {
-        // TODO(lior, 01/03/2025): Replace `call_contract_syscall` with a meta transaction.
-        starknet::syscalls::call_contract_syscall(:address, :entry_point_selector, :calldata)
-            .unwrap();
+        meta_tx_v0_syscall(:address, :entry_point_selector, :calldata, :signature).unwrap();
         self.add_call_info(argument: 'NO_ARGUMENT');
     }
 }
