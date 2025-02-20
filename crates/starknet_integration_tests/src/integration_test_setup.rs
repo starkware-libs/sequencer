@@ -305,6 +305,10 @@ impl ExecutableSetup {
         self.dump_config_file_changes();
     }
 
+    pub fn config(&self) -> &SequencerNodeConfig {
+        &self.config
+    }
+
     /// Creates a config file for the sequencer node for an integration test.
     pub fn dump_config_file_changes(&self) {
         // Create the entire mapping of the config and the pointers, without the required params.
