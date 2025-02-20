@@ -79,7 +79,8 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let output_file_path = output_file.path().to_str().ok_or(
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
-        let additional_args = [output_file_path];
+        // TODO(Meshi): When adding a config for optimization level change it here.
+        let additional_args = [output_file_path, "--opt-level", "2"];
         let resource_limits = ResourceLimits::new(
             Some(self.config.max_cpu_time),
             Some(self.config.max_native_bytecode_size),
@@ -92,7 +93,11 @@ impl SierraToNativeCompiler for CommandLineCompiler {
             resource_limits,
         )?;
 
-        Ok(AotContractExecutor::load(Path::new(&output_file_path))?)
+        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap())
+    }
+
+    fn panic_on_compilation_failure(&self) -> bool {
+        self.config.panic_on_compilation_failure
     }
 }
 
