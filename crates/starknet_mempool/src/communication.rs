@@ -25,10 +25,11 @@ pub type LocalMempoolServer =
 pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool(
+    config: MempoolConfig,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> MempoolCommunicationWrapper {
     MempoolCommunicationWrapper::new(
-        Mempool::new(MempoolConfig::default(), Arc::new(InstantClock)),
+        Mempool::new(config, Arc::new(InstantClock)),
         mempool_p2p_propagator_client,
     )
 }
