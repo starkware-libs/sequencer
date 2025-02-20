@@ -927,8 +927,10 @@ fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: 
 fn add_tx_old_transactions_cleanup() {
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
-    let mut mempool = Mempool::new(fake_clock.clone());
-    mempool.config.transaction_ttl = Duration::from_secs(60);
+    let mut mempool = Mempool::new(
+        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        fake_clock.clone(),
+    );
 
     // Add a new transaction to the mempool.
     let first_tx =
@@ -968,8 +970,10 @@ fn add_tx_old_transactions_cleanup() {
 fn get_txs_old_transactions_cleanup() {
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
-    let mut mempool = Mempool::new(fake_clock.clone());
-    mempool.config.transaction_ttl = Duration::from_secs(60);
+    let mut mempool = Mempool::new(
+        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        fake_clock.clone(),
+    );
 
     // Add a new transaction to the mempool.
     let first_tx =
