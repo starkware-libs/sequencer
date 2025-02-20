@@ -113,8 +113,9 @@ fn setup(
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
     } = subscriber_channels;
-    let (outbound_proposal_stream_sender, _, _) =
+    let (outbound_proposal_stream_sender, _, stream_handler) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+    tokio::spawn(stream_handler.run()); // Continues to run when handle dropped.
 
     let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
