@@ -40,7 +40,7 @@ impl SerializeConfig for RevertConfig {
                 "revert_up_to_and_including",
                 &self.revert_up_to_and_including,
                 "The component will revert blocks up to this block number (including).",
-                // Use this configurations carefully to prevent significant revert operations and
+                // Use this configuration carefully to prevent significant revert operations and
                 // data loss
                 ParamPrivacyInput::Public,
             ),
@@ -71,22 +71,26 @@ where
     }
 
     info!(
-        "Reverting {component_name} from block {storage_height_marker} to block \
-         {revert_up_to_and_including}"
+        "Reverting {component_name} from storage height marker {storage_height_marker} to target \
+         storage height marker {revert_up_to_and_including}"
     );
 
     while storage_height_marker > revert_up_to_and_including {
         storage_height_marker = storage_height_marker.prev().expect(
             "A block number that's greater than another block number should return Some on prev",
         );
-        info!("Reverting {component_name} block number {storage_height_marker}.");
+        info!("Reverting {component_name}'s storage to height {storage_height_marker}.");
         revert_block_fn(storage_height_marker).await;
-        info!("Successfully reverted {component_name} block number {storage_height_marker}.");
+        info!(
+            "Successfully reverted {component_name}'s storage to height {storage_height_marker}."
+        );
     }
 
     info!(
-        "Done reverting {component_name} up to block {revert_up_to_and_including} including. \
-         Starting eternal pending."
+        "Done reverting {component_name} up to height {revert_up_to_and_including}. The latest \
+         block in storage is {}.
+         Starting eternal pending.",
+        revert_up_to_and_including.0 - 1
     );
     pending().await
 }
@@ -94,22 +98,22 @@ where
 /// Reverts everything related to the block, will succeed even if there is partial information for
 /// the block.
 // This function will panic if the storage reader fails to revert.
-pub fn revert_block(storage_writer: &mut StorageWriter, current_block_number: BlockNumber) {
+pub fn revert_block(storage_writer: &mut StorageWriter, target_block_marker: BlockNumber) {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .revert_header(current_block_number)
+        .revert_header(target_block_marker)
         .unwrap()
         .0
-        .revert_body(current_block_number)
+        .revert_body(target_block_marker)
         .unwrap()
         .0
-        .revert_state_diff(current_block_number)
+        .revert_state_diff(target_block_marker)
         .unwrap()
         .0
-        .try_revert_class_manager_marker(current_block_number)
+        .try_revert_class_manager_marker(target_block_marker)
         .unwrap()
-        .try_revert_base_layer_marker(current_block_number)
+        .try_revert_base_layer_marker(target_block_marker)
         .unwrap()
         .commit()
         .unwrap();
