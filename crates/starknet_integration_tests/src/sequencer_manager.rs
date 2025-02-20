@@ -233,6 +233,10 @@ impl IntegrationTestManager {
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
+    pub async fn send_invoke_txs(&mut self, n_txs: usize) {
+        self.run_integration_test_simulator(&InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT).await;
+    }
+
     /// This function tests and verifies the integration of the transaction flow.
     ///
     /// # Parameters
