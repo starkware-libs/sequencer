@@ -91,7 +91,7 @@ impl<T> SerializedClass<T> {
             .expect("Failing to open file with given options is impossible");
 
         let writer = BufWriter::new(file);
-        serde_json::to_writer(writer, &self.into_value())?;
+        serde_json::to_writer_pretty(writer, &self.into_value())?;
 
         Ok(())
     }
