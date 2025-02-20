@@ -195,6 +195,13 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
+use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
+use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::program::Program;
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
+use cairo_vm::Felt252;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
 use strum::IntoEnumIterator;
@@ -209,6 +216,7 @@ type OsPythonTestResult = PythonTestResult<OsSpecificTestError>;
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
     CompareOsHints,
+    RunOsFunction,
 }
 
 // Implements conversion from a string to the test runner.
@@ -233,6 +241,7 @@ impl PythonTestRunner for OsPythonTestRunner {
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
+            Self::RunOsFunction => run_os_function(Self::non_optional_input(input)?),
         }
     }
 }
@@ -261,6 +270,58 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
         rust_os_hints.difference(&python_os_hints).cloned().collect();
     only_in_rust.sort();
     Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
+}
+
+fn run_os_function(_input: &str) -> OsPythonTestResult {
+    Ok("".to_string())
+}
+
+pub fn run_cairo_0_entry_point(
+    program_content: &[u8],
+    entrypoint_offset: usize,
+    args: &[MaybeRelocatable],
+    expected_retdata: &[Felt252],
+    mut hint_processor: impl HintProcessor,
+) -> Result<(), CairoRunError> {
+    let program = Program::from_bytes(program_content, None).unwrap();
+    let mut cairo_runner = CairoRunner::new(&program, LayoutName::all_cairo, false, true).unwrap();
+    cairo_runner.initialize_function_runner()?;
+
+    // Implicit args.
+    let mut entrypoint_args: Vec<CairoArg> = vec![
+        MaybeRelocatable::from(Felt252::from(2_i128)).into(),
+        MaybeRelocatable::from((2, 0)).into(),
+    ];
+    // Explicit args.
+    let calldata_start = cairo_runner.vm.add_memory_segment();
+    let calldata_end = cairo_runner.vm.load_data(calldata_start, args).unwrap();
+    entrypoint_args.extend([
+        MaybeRelocatable::from(calldata_start).into(),
+        MaybeRelocatable::from(calldata_end).into(),
+    ]);
+    let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
+
+    cairo_runner.run_from_entrypoint(
+        entrypoint_offset,
+        &entrypoint_args,
+        true,
+        None,
+        &mut hint_processor,
+    )?;
+
+    // Check return values
+    let return_values = cairo_runner.vm.get_return_values(5).unwrap();
+    let retdata_start = return_values[3].get_relocatable().unwrap();
+    let retdata_end = return_values[4].get_relocatable().unwrap();
+    let retdata: Vec<Felt252> = cairo_runner
+        .vm
+        .get_integer_range(retdata_start, (retdata_end - retdata_start).unwrap())
+        .unwrap()
+        .iter()
+        .map(|c| c.clone().into_owned())
+        .collect();
+    assert_eq!(expected_retdata, &retdata);
+    Ok(())
 }
 
 fn vm_hints() -> HashSet<&'static str> {
