@@ -17,11 +17,6 @@ pub fn from_class_hash_for_node_index(class_hash: &ClassHash) -> NodeIndex {
     NodeIndex::from_leaf_felt(&class_hash.0)
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Nonce(pub Felt);
-
-impl_from_hex_for_felt_wrapper!(Nonce);
-
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
 
