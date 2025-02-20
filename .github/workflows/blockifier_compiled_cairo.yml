@@ -33,9 +33,6 @@ jobs:
     runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          target_dirs: 'sequencer/target'
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -53,6 +50,11 @@ jobs:
         with:
           repository: 'starkware-libs/sequencer'
           path: 'sequencer'
+
+      - name: "Bootstrap sequencer"
+        uses: ./.github/actions/bootstrap
+        with:
+          target_dirs: 'sequencer/target'
 
       - name: checkout cairo1 repo in order to compile cairo1 contracts.
         uses: actions/checkout@v4
@@ -74,9 +76,9 @@ jobs:
 
       - name: Verify cairo contract recompilation (both cairo versions).
         run:
+          # pwd &&
+          # ls &&
+          # ls target
           cd sequencer &&
-          pwd &&
-          ls &&
-          ls target
-          # pip install -r crates/blockifier_test_utils/tests/requirements.txt &&
-          # cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
+          pip install -r crates/blockifier_test_utils/tests/requirements.txt &&
+          cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
