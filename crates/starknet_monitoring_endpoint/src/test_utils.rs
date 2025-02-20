@@ -44,7 +44,7 @@ impl MonitoringClient {
         self.client
             .request(build_request(&self.socket.ip(), self.socket.port(), ALIVE))
             .await
-            .map_or(false, |response| response.status().is_success())
+            .is_ok_and(|response| response.status().is_success())
     }
 
     /// Blocks until 'alive', up to a maximum number of query attempts. Returns 'Ok(())' if the
