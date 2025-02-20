@@ -1,6 +1,7 @@
 mod concurrent_servers_test;
 mod local_component_client_server_test;
 mod remote_component_client_server_test;
+mod server_metrics_test;
 
 use std::sync::Arc;
 
