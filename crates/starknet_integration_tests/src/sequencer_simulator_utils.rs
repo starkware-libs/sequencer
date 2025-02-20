@@ -61,8 +61,7 @@ impl SequencerSimulator {
     }
 
     pub async fn await_execution(&self, expected_block_number: BlockNumber) {
-        monitoring_utils::await_execution(&self.monitoring_client, expected_block_number, 0, 0)
-            .await;
+        monitoring_utils::await_block(&self.monitoring_client, expected_block_number, 0, 0).await;
     }
 
     pub async fn verify_txs_accepted(
