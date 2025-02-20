@@ -2,8 +2,8 @@ use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use rstest::rstest;
+use starknet_types_core::felt::Felt;
 
-use crate::felt::Felt;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::internal_test_utils::random;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
@@ -121,5 +121,5 @@ fn test_nodeindex_to_felt_conversion() {
 #[rstest]
 fn test_felt_printing() {
     let felt = Felt::from(17_u8);
-    assert_eq!(format!("{:?}", felt), "17");
+    assert_eq!(format!("{:?}", felt), "0x11");
 }

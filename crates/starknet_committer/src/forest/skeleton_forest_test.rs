@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
@@ -19,6 +18,7 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use crate::block_committer::commit::get_all_modified_indices;

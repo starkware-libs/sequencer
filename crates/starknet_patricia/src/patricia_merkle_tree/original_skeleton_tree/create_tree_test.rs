@@ -6,9 +6,9 @@ use rstest::rstest;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_types_core::felt::Felt;
 
 use super::OriginalSkeletonTreeImpl;
-use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::external_test_utils::{
     create_binary_entry,
