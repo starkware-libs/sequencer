@@ -17,18 +17,25 @@ const _: () = {
 };
 
 #[derive(Debug, Copy, Clone)]
+// TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
-    EndToEndIntegrationTest,
+    SequencerSetup,
     EndToEndFlowTest,
     InfraUnitTests,
+    PositiveFlowIntegrationTest,
+    RestartFlowIntegrationTest,
+    RevertFlowIntegrationTest,
 }
 
 impl From<TestIdentifier> for u16 {
     fn from(variant: TestIdentifier) -> Self {
         match variant {
-            TestIdentifier::EndToEndIntegrationTest => 0,
+            TestIdentifier::SequencerSetup => 0,
             TestIdentifier::EndToEndFlowTest => 1,
             TestIdentifier::InfraUnitTests => 2,
+            TestIdentifier::PositiveFlowIntegrationTest => 3,
+            TestIdentifier::RestartFlowIntegrationTest => 4,
+            TestIdentifier::RevertFlowIntegrationTest => 5,
         }
     }
 }
