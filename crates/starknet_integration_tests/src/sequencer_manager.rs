@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -29,6 +30,7 @@ use crate::node_component_configs::{
     create_distributed_node_configs,
     NodeComponentConfigs,
 };
+use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
@@ -39,6 +41,7 @@ use crate::utils::{
     InvokeTxs,
     TestScenario,
 };
+
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
@@ -398,6 +401,28 @@ impl IntegrationTestManager {
 
     pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+    }
+
+    /// Create a simulator that's connected to the http server of Node 0.
+    pub fn create_simulator(&self) -> SequencerSimulator {
+        let node_0_setup = self
+            .running_nodes
+            .get(&0)
+            .map(|node| &(node.node_setup))
+            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
+        let config = node_0_setup
+            .executables
+            .get(node_0_setup.http_server_index)
+            .expect("http_server_index points to a non existing executable index")
+            .config();
+
+        let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
+        SequencerSimulator::new(
+            localhost_url.clone(),
+            config.http_server_config.port,
+            localhost_url,
+            config.monitoring_endpoint_config.port,
+        )
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
