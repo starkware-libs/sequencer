@@ -11,7 +11,7 @@ use futures::StreamExt;
 use papyrus_network::network_manager::{
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
-    BroadcastTopicServer,
+    ReceivedBroadcastedMessage,
 };
 use papyrus_network::utils::StreamHashMap;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
@@ -26,7 +26,9 @@ mod stream_handler_test;
 type PeerId = OpaquePeerId;
 type MessageId = u64;
 
-const CHANNEL_BUFFER_LENGTH: usize = 100;
+/// Channel size for stream messages.
+// TODO(guy): make this configurable.
+pub const CHANNEL_BUFFER_LENGTH: usize = 100;
 
 /// A combination of trait bounds needed for the content of the stream.
 pub trait StreamContentTrait:
@@ -99,12 +101,16 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
 /// A StreamHandler is responsible for:
 /// - Buffering inbound messages and reporting them to the application in order.
 /// - Sending outbound messages to the network, wrapped in StreamMessage.
-pub struct StreamHandler<StreamContent: StreamContentTrait, StreamId: StreamIdTrait> {
+pub struct StreamHandler<StreamContent, StreamId, InboundReceiverT>
+where
+    StreamContent: StreamContentTrait,
+    StreamId: StreamIdTrait,
+{
     // For each stream ID from the network, send the application a Receiver
     // that will receive the messages in order. This allows sending such Receivers.
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
     // This receives messages from the network.
-    inbound_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
+    inbound_receiver: InboundReceiverT,
     // A map from (peer_id, stream_id) to a struct that contains all the information
     // about the stream. This includes both the message buffer and some metadata
     // (like the latest message ID).
@@ -121,13 +127,18 @@ pub struct StreamHandler<StreamContent: StreamContentTrait, StreamId: StreamIdTr
     outbound_stream_number: HashMap<StreamId, MessageId>,
 }
 
-impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
-    StreamHandler<StreamContent, StreamId>
+impl<StreamContent, StreamId, InboundReceiverT>
+    StreamHandler<StreamContent, StreamId, InboundReceiverT>
+where
+    StreamContent: StreamContentTrait,
+    StreamId: StreamIdTrait,
+    InboundReceiverT: Unpin
+        + StreamExt<Item = ReceivedBroadcastedMessage<StreamMessage<StreamContent, StreamId>>>,
 {
     /// Create a new StreamHandler.
     pub fn new(
         inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
-        inbound_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
+        inbound_receiver: InboundReceiverT,
         outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
         outbound_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
     ) -> Self {
@@ -140,43 +151,6 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
             outbound_stream_receivers: StreamHashMap::new(HashMap::new()),
             outbound_stream_number: HashMap::new(),
         }
-    }
-
-    /// Create a new StreamHandler and start it running in a new task.
-    /// Gets network input/output channels and returns application input/output channels.
-    #[allow(clippy::type_complexity)]
-    pub fn get_channels(
-        inbound_network_receiver: BroadcastTopicServer<StreamMessage<StreamContent, StreamId>>,
-        outbound_network_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
-    ) -> (
-        mpsc::Sender<(StreamId, mpsc::Receiver<StreamContent>)>,
-        mpsc::Receiver<mpsc::Receiver<StreamContent>>,
-        StreamHandler<StreamContent, StreamId>,
-    )
-    where
-        StreamContent: 'static,
-        StreamId: 'static,
-    {
-        // The inbound messages come into StreamHandler via inbound_network_receiver.
-        // The application gets the messages from inbound_internal_receiver
-        // (the StreamHandler keeps the inbound_internal_sender to pass the messages).
-        let (inbound_internal_sender, inbound_internal_receiver) =
-            mpsc::channel(CHANNEL_BUFFER_LENGTH);
-        // The outbound messages that an application would like to send are:
-        //  1. Sent into outbound_internal_sender as tuples of (StreamId, Receiver)
-        //  2. Ingested by StreamHandler by its outbound_internal_receiver.
-        //  3. Broadcast by the StreamHandler using its outbound_network_sender.
-        let (outbound_internal_sender, outbound_internal_receiver) =
-            mpsc::channel(CHANNEL_BUFFER_LENGTH);
-
-        let stream_handler = StreamHandler::<StreamContent, StreamId>::new(
-            inbound_internal_sender,    // Sender<Receiver<T>>,
-            inbound_network_receiver,   // BroadcastTopicServer<StreamMessage<T>>,
-            outbound_internal_receiver, // Receiver<(StreamId, Receiver<T>)>,
-            outbound_network_sender,    // BroadcastTopicClient<StreamMessage<T>>
-        );
-
-        (outbound_internal_sender, inbound_internal_receiver, stream_handler)
     }
 
     /// Run the stream handler indefinitely.

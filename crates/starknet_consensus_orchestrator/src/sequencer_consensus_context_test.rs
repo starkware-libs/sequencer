@@ -52,7 +52,7 @@ use starknet_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, CHANNEL_BUFFER_LENGTH};
 use starknet_consensus::types::{ConsensusContext, ContextConfig, Round};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
@@ -113,8 +113,18 @@ fn setup(
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
     } = subscriber_channels;
-    let (outbound_proposal_stream_sender, _, stream_handler) =
-        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
+    let (inbound_internal_sender, _inbound_internal_receiver) =
+        mpsc::channel(CHANNEL_BUFFER_LENGTH);
+    let (outbound_proposal_stream_sender, outbound_internal_receiver) =
+        mpsc::channel(CHANNEL_BUFFER_LENGTH);
+    let stream_handler = StreamHandler::new(
+        inbound_internal_sender,
+        inbound_network_receiver,
+        outbound_internal_receiver,
+        outbound_network_sender,
+    );
+
     tokio::spawn(stream_handler.run()); // Continues to run when handle dropped.
 
     let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =

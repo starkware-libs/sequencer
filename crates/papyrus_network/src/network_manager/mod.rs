@@ -981,7 +981,7 @@ pub type BroadcastTopicSender<T, Message> = With<
 pub type BroadcastTopicServer<T> =
     Map<Receiver<(Bytes, BroadcastedMessageMetadata)>, BroadcastReceivedMessagesConverterFn<T>>;
 
-type ReceivedBroadcastedMessage<Message> =
+pub type ReceivedBroadcastedMessage<Message> =
     (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageMetadata);
 
 type BroadcastReceivedMessagesConverterFn<T> =
