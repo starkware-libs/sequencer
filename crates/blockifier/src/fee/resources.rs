@@ -23,12 +23,6 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCountForFee};
 use crate::transaction::errors::TransactionFeeError;
 use crate::utils::u64_from_usize;
-<<<<<<< HEAD
-||||||| 2d2e421fe
-use crate::versioned_constants::{AllocationCost, ArchivalDataGasCosts, VersionedConstants};
-=======
-use crate::versioned_constants::{AllocationCost, VersionedConstants};
->>>>>>> origin/main-v0.13.4
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
 

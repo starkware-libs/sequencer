@@ -21,7 +21,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
-<<<<<<< HEAD
 use crate::blockifier_versioned_constants::{
     GasCosts,
     OsConstants,
@@ -29,11 +28,6 @@ use crate::blockifier_versioned_constants::{
     VERSIONED_CONSTANTS_LATEST_JSON,
 };
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
-||||||| 2d2e421fe
-use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
-=======
-use crate::bouncer::{BouncerConfig, BouncerWeights};
->>>>>>> origin/main-v0.13.4
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;

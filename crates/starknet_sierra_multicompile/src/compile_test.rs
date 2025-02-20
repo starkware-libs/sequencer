@@ -35,15 +35,8 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
 }
-<<<<<<< HEAD
 
 fn get_test_contract() -> CairoLangContractClass {
-||||||| 2d2e421fe
-fn get_test_contract() -> ContractClass {
-=======
-
-fn get_test_contract() -> ContractClass {
->>>>>>> origin/main-v0.13.4
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
