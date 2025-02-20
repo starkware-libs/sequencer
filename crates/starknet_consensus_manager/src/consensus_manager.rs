@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use apollo_reverts::revert_blocks_and_eternal_pending;
 use async_trait::async_trait;
+use futures::channel::mpsc;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
@@ -14,7 +15,7 @@ use starknet_api::block::BlockNumber;
 use starknet_batcher_types::batcher_types::RevertBlockInput;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_consensus::stream_handler::StreamHandler;
+use starknet_consensus::stream_handler::{StreamHandler, CHANNEL_BUFFER_LENGTH};
 use starknet_consensus::types::ConsensusError;
 use starknet_consensus_orchestrator::cende::CendeAmbassador;
 use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
@@ -83,8 +84,16 @@ impl ConsensusManager {
             broadcast_topic_client: outbound_network_sender,
         } = proposals_broadcast_channels;
 
-        let (outbound_internal_sender, inbound_internal_receiver, stream_handler) =
-            StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+        let (inbound_internal_sender, inbound_internal_receiver) =
+            mpsc::channel(CHANNEL_BUFFER_LENGTH);
+        let (outbound_internal_sender, outbound_internal_receiver) =
+            mpsc::channel(CHANNEL_BUFFER_LENGTH);
+        let stream_handler = StreamHandler::new(
+            inbound_internal_sender,
+            inbound_network_receiver,
+            outbound_internal_receiver,
+            outbound_network_sender,
+        );
 
         let observer_height =
             self.batcher_client.get_height().await.map(|h| h.height).map_err(|e| {
