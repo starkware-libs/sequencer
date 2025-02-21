@@ -11,7 +11,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
-use crate::hints::error::{HintExtensionResult, HintResult};
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 
 pub struct SnosHintProcessor<S: StateReader> {
@@ -27,7 +26,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
         _exec_scopes: &mut ExecutionScopes,
         _hint_data: &Box<dyn Any>,
         _constants: &HashMap<String, Felt>,
-    ) -> HintResult {
+    ) -> Result<(), HintError> {
         Ok(())
     }
 
@@ -37,7 +36,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
         exec_scopes: &mut ExecutionScopes,
         hint_data: &Box<dyn Any>,
         constants: &HashMap<String, Felt>,
-    ) -> HintExtensionResult {
+    ) -> Result<HintExtension, HintError> {
         // OS hint, aggregator hint or Cairo0 syscall.
         if let Some(hint_processor_data) = hint_data.downcast_ref::<HintProcessorData>() {
             let hint_args = HintArgs {
@@ -48,9 +47,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
                 ap_tracking: &hint_processor_data.ap_tracking,
                 constants,
             };
-            match AllHints::from_str(hint_processor_data.code.as_str())
-                .map_err(|error| HintError::CustomHint(format!("{error}").into()))?
-            {
+            match AllHints::from_str(hint_processor_data.code.as_str())? {
                 AllHints::OsHint(os_hint) => {
                     os_hint.execute_hint(hint_args)?;
                     return Ok(HintExtension::default());
@@ -64,7 +61,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
                     return Ok(HintExtension::default());
                 }
                 AllHints::HintExtension(hint_extension) => {
-                    return hint_extension.execute_hint_extensive(hint_args);
+                    return Ok(hint_extension.execute_hint_extensive(hint_args)?);
                 }
             }
         }
