@@ -2,6 +2,7 @@ use std::fs::remove_dir_all;
 use std::path::PathBuf;
 
 use clap::Parser;
+use starknet_integration_tests::consts::SINGLE_NODE_CONFIG_PATH;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::get_sequencer_setup_configs;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
@@ -10,8 +11,6 @@ use tempfile::TempDir;
 use tracing::info;
 
 const DB_DIR: &str = "./data";
-const SINGLE_NODE_CONFIG_PATH: &str =
-    "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json";
 
 #[tokio::main]
 async fn main() {
