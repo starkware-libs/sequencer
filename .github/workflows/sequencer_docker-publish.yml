@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/sequencer_docker-publish.yml'
       - 'crates/**'
+      - 'config/sequencer/presets'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'deployments/images/base/Dockerfile'
