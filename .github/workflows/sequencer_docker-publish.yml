@@ -95,7 +95,7 @@ jobs:
       - name: Run basic docker test
         env:
           TIMEOUT_DURATION: "30s"
-          SEQUENCER_CONFIG_PATH: "./config/sequencer/presets/system_test_presets/single_node_config.json"
+          SEQUENCER_CONFIG_PATH: "./config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json"
         run: |
           # converts steps.meta.outputs.tags array to bash array.
           tags="${{ steps.meta.outputs.tags }}"
