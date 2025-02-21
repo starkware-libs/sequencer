@@ -208,12 +208,6 @@ impl SequencerNodeConfig {
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
         Self::load_and_process_config_file(args, None)
     }
-    pub fn load_and_process_file(
-        args: Vec<String>,
-        config_file_name: &str,
-    ) -> Result<Self, ConfigError> {
-        Self::load_and_process_config_file(args, Some(config_file_name))
-    }
 }
 
 /// The command line interface of this node.
