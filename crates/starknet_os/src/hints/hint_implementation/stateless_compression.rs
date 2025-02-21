@@ -41,7 +41,7 @@ pub(crate) fn get_prev_offset<S: StateReader>(
         get_maybe_relocatable_from_var_name(Ids::BucketIndex.into(), vm, ids_data, ap_tracking)?;
     let prev_offset =
         dict_manager.borrow_mut().get_tracker_mut(dict_ptr)?.get_value(&bucket_index)?.clone();
-    insert_value_from_var_name(Ids::PrevOffset.into(), prev_offset, vm, ids_data, ap_tracking)
+    Ok(insert_value_from_var_name(Ids::PrevOffset.into(), prev_offset, vm, ids_data, ap_tracking)?)
 }
 
 pub(crate) fn compression_hint<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {

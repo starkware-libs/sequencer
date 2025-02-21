@@ -7,7 +7,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_into_ap,
 };
-use cairo_vm::vm::errors::hint_errors::HintError;
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
@@ -61,17 +60,8 @@ pub(crate) fn read_alias_counter<S: StateReader>(
     let alias_counter = hint_processor
         .execution_helper
         .cached_state
-        .get_storage_at(aliases_contract_address, alias_counter_storage_key)
-        .map_err(|_| {
-            HintError::CustomHint(
-                format!(
-                    "Failed to read alias contract {aliases_contract_address} counter at key \
-                     {alias_counter_storage_key:?}."
-                )
-                .into(),
-            )
-        })?;
-    insert_value_into_ap(vm, alias_counter)
+        .get_storage_at(aliases_contract_address, alias_counter_storage_key)?;
+    Ok(insert_value_into_ap(vm, alias_counter)?)
 }
 
 pub(crate) fn initialize_alias_counter<S: StateReader>(
@@ -80,23 +70,11 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let initial_available_alias = *Const::InitialAvailableAlias.fetch(constants)?;
-    hint_processor
-        .execution_helper
-        .cached_state
-        .set_storage_at(
-            aliases_contract_address,
-            alias_counter_storage_key,
-            initial_available_alias,
-        )
-        .map_err(|_| {
-            HintError::CustomHint(
-                format!(
-                    "Failed to write the initial counter {initial_available_alias:?} to the alias \
-                     contract {aliases_contract_address} storage."
-                )
-                .into(),
-            )
-        })
+    Ok(hint_processor.execution_helper.cached_state.set_storage_at(
+        aliases_contract_address,
+        alias_counter_storage_key,
+        initial_available_alias,
+    )?)
 }
 
 pub(crate) fn update_alias_counter<S: StateReader>(
@@ -106,19 +84,11 @@ pub(crate) fn update_alias_counter<S: StateReader>(
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let next_available_alias =
         get_integer_from_var_name(Ids::NextAvailableAlias.into(), vm, ids_data, ap_tracking)?;
-    hint_processor
-        .execution_helper
-        .cached_state
-        .set_storage_at(aliases_contract_address, alias_counter_storage_key, next_available_alias)
-        .map_err(|_| {
-            HintError::CustomHint(
-                format!(
-                    "Failed to write the next available alias {next_available_alias:?} to the \
-                     alias contract {aliases_contract_address} storage."
-                )
-                .into(),
-            )
-        })
+    Ok(hint_processor.execution_helper.cached_state.set_storage_at(
+        aliases_contract_address,
+        alias_counter_storage_key,
+        next_available_alias,
+    )?)
 }
 
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
