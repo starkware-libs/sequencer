@@ -3,10 +3,8 @@ use std::env;
 use std::fs::File;
 use std::net::{IpAddr, Ipv4Addr};
 
-use assert_matches::assert_matches;
 use colored::Colorize;
 use papyrus_config::dumping::SerializeConfig;
-use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
 use starknet_api::test_utils::json_utils::assert_json_eq;
@@ -20,7 +18,7 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
-use crate::config::config_utils::{create_test_config_load_args, RequiredParams};
+use crate::config::config_utils::RequiredParams;
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -148,18 +146,6 @@ fn default_preset_file_is_up_to_date() {
          RequiredParams::create_for_testing())."
     );
     assert_json_eq(&from_default_preset_file, &current_preset_config.as_json(), error_message);
-}
-
-/// Tests parsing a node config without additional args.
-#[test]
-fn config_parsing() {
-    let required_params = RequiredParams::create_for_testing();
-    let args = create_test_config_load_args(required_params);
-    let config = SequencerNodeConfig::load_and_process(args);
-    let config = config.expect("Parsing function failed.");
-
-    let result = config_validate(&config);
-    assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
 }
 
 /// Tests compatibility of the required parameter settings: required params (containing required

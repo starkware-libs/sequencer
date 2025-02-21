@@ -123,7 +123,7 @@ impl NodeConfig {
     /// higher priority.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
         let default_config_file = std::fs::File::open(Path::new(DEFAULT_CONFIG_PATH))?;
-        load_and_process_config(default_config_file, node_command(), args)
+        load_and_process_config(default_config_file, node_command(), args, false)
     }
 }
 

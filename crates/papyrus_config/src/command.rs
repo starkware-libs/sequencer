@@ -11,8 +11,11 @@ pub(crate) fn get_command_matches(
     config_map: &BTreeMap<ParamPath, SerializedParam>,
     command: Command,
     command_input: Vec<String>,
+    config_file_required: bool,
 ) -> Result<ArgMatches, ConfigError> {
-    Ok(command.args(build_args_parser(config_map)).try_get_matches_from(command_input)?)
+    Ok(command
+        .args(build_args_parser(config_map, config_file_required))
+        .try_get_matches_from(command_input)?)
 }
 
 // Takes matched arguments from the command line interface and env variables and updates the config
@@ -33,15 +36,25 @@ pub(crate) fn update_config_map_by_command_args(
 
 // Builds the parser for the command line flags and env variables according to the types of the
 // values in the config map.
-fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<Arg> {
+fn build_args_parser(
+    config_map: &BTreeMap<ParamPath, SerializedParam>,
+    config_file_required: bool,
+) -> Vec<Arg> {
     let mut args_parser = vec![
         // Custom_config_file_path.
-        Arg::new("config_file")
-            .long("config_file")
-            .short('f')
-            .value_delimiter(',')
-            .help("Optionally sets a config file to use")
-            .value_parser(value_parser!(PathBuf)),
+        {
+            let mut arg = Arg::new("config_file")
+                .long("config_file")
+                .short('f')
+                .value_delimiter(',')
+                .help("Config file to use")
+                .value_parser(value_parser!(PathBuf));
+
+            if config_file_required {
+                arg = arg.required(true);
+            }
+            arg
+        },
     ];
 
     for (param_path, serialized_param) in config_map.iter() {

@@ -202,7 +202,7 @@ impl SequencerNodeConfig {
         };
 
         let default_config_file = File::open(config_file_name)?;
-        load_and_process_config(default_config_file, node_command(), args)
+        load_and_process_config(default_config_file, node_command(), args, true)
     }
 
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
