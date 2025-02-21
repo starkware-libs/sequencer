@@ -5,6 +5,8 @@ use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::error::OsHintError;
+
 pub(crate) enum Scope {
     InitialDict,
     DictManager,
@@ -40,7 +42,7 @@ impl From<Ids> for &'static str {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum Const {
+pub enum Const {
     AliasContractAddress,
     InitialAvailableAlias,
     AliasCounterStorageKey,
@@ -64,31 +66,27 @@ impl Const {
 
     pub fn get_alias_counter_storage_key(
         constants: &HashMap<String, Felt>,
-    ) -> Result<StorageKey, HintError> {
+    ) -> Result<StorageKey, OsHintError> {
         let alias_counter_storage_key = *Self::AliasCounterStorageKey.fetch(constants)?;
-        StorageKey::try_from(alias_counter_storage_key).map_err(|_| {
-            HintError::CustomHint(
-                format!(
-                    "Failed to convert the alias counter storage key \
-                     {alias_counter_storage_key:?} to storage key."
-                )
-                .into(),
-            )
-        })
+        Ok(StorageKey::try_from(alias_counter_storage_key).map_err(|_| {
+            OsHintError::ConstConversionError {
+                variant: Self::AliasCounterStorageKey,
+                felt: alias_counter_storage_key,
+                ty: std::any::type_name::<StorageKey>().into(),
+            }
+        })?)
     }
 
     pub fn get_alias_contract_address(
         constants: &HashMap<String, Felt>,
     ) -> Result<ContractAddress, HintError> {
         let alias_contract_address_as_felt = *Self::AliasContractAddress.fetch(constants)?;
-        ContractAddress::try_from(alias_contract_address_as_felt).map_err(|_| {
-            HintError::CustomHint(
-                format!(
-                    "Failed to convert the alias contract address \
-                     {alias_contract_address_as_felt:?} to contract address."
-                )
-                .into(),
-            )
-        })
+        Ok(ContractAddress::try_from(alias_contract_address_as_felt).map_err(|_| {
+            OsHintError::ConstConversionError {
+                variant: Self::AliasContractAddress,
+                felt: alias_contract_address_as_felt,
+                ty: std::any::type_name::<ContractAddress>().into(),
+            }
+        })?)
     }
 }
