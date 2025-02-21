@@ -3,10 +3,9 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_from_var_name,
 };
-use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::HintResult;
+use crate::hints::error::{HintResult, OsHintError};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
@@ -33,17 +32,13 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
     let use_kzg_da = match use_kzg_da_felt {
         x if x == Felt::ONE => Ok(true),
         x if x == Felt::ZERO => Ok(false),
-        _ => Err(HintError::CustomHint(
-            "ids.use_kzg_da is not a boolean".to_string().into_boxed_str(),
-        )),
+        _ => Err(OsHintError::BooleanIdExpected { id: Ids::UseKzgDa, felt: use_kzg_da_felt }),
     }?;
 
     let use_compress_state_updates = match compress_state_updates {
         x if x == Felt::ONE => Ok(true),
         x if x == Felt::ZERO => Ok(false),
-        _ => Err(HintError::CustomHint(
-            "ids.compress_state_updates is not a boolean".to_string().into_boxed_str(),
-        )),
+        _ => Err(OsHintError::BooleanIdExpected { id: Ids::FullOutput, felt: full_output }),
     }?;
 
     if use_kzg_da || use_compress_state_updates {
@@ -76,9 +71,7 @@ pub(crate) fn set_compressed_start<S: StateReader>(
     let use_kzg_da = match use_kzg_da_felt {
         x if x == Felt::ONE => Ok(true),
         x if x == Felt::ZERO => Ok(false),
-        _ => Err(HintError::CustomHint(
-            "ids.use_kzg_da is not a boolean".to_string().into_boxed_str(),
-        )),
+        _ => Err(OsHintError::BooleanIdExpected { id: Ids::UseKzgDa, felt: use_kzg_da_felt }),
     }?;
 
     if use_kzg_da {
