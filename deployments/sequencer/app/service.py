@@ -21,18 +21,21 @@ class ServiceApp(Construct):
         super().__init__(scope, id)
 
         self.namespace = namespace
-        self.label = {"app": Names.to_label_value(self, include_hash=False)}
+        self.labels = {"app": Names.to_label_value(self, include_hash=False)}
         self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
 
-        k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
+        k8s.KubeNamespace(
+            self,
+            "namespace",
+            metadata=k8s.ObjectMeta(name=self.namespace))
 
         k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.service_topology.config.get_config())),
+            data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
         )
 
         k8s.KubeService(
@@ -41,18 +44,19 @@ class ServiceApp(Construct):
             spec=k8s.ServiceSpec(
                 type=const.ServiceType.CLUSTER_IP,
                 ports=self._get_service_ports(),
-                selector=self.label,
+                selector=self.labels,
             ),
         )
 
         k8s.KubeDeployment(
             self,
             "deployment",
+            metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.DeploymentSpec(
                 replicas=self.service_topology.deployment.replicas,
-                selector=k8s.LabelSelector(match_labels=self.label),
+                selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
-                    metadata=k8s.ObjectMeta(labels=self.label),
+                    metadata=k8s.ObjectMeta(labels=self.labels),
                     spec=k8s.PodSpec(
                         security_context=k8s.PodSecurityContext(fs_group=1000),
                         volumes=self._get_volumes(),
@@ -81,7 +85,7 @@ class ServiceApp(Construct):
             "ingress",
             metadata=k8s.ObjectMeta(
                 name=f"{self.node.id}-ingress",
-                labels=self.label,
+                labels=self.labels,
                 annotations={
                     "kubernetes.io/tls-acme": "true",
                     "cert-manager.io/common-name": self.host,
@@ -99,7 +103,7 @@ class ServiceApp(Construct):
         k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
-            metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.label),
+            metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.labels),
             spec=k8s.PersistentVolumeClaimSpec(
                 storage_class_name=self.service_topology.pvc.storage_class_name,
                 access_modes=self.service_topology.pvc.access_modes,
