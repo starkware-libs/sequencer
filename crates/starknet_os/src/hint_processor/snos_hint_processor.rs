@@ -6,6 +6,7 @@ use cairo_vm::stdlib::boxed::Box;
 use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
@@ -71,6 +72,9 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
         todo!()
     }
 }
+
+/// Default implementation (required for the VM to use the type as a hint processor).
+impl<S: StateReader> ResourceTracker for SnosHintProcessor<S> {}
 
 pub(crate) struct SyscallHintProcessor;
 
