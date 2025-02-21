@@ -1,2 +1,16 @@
+use cairo_vm::types::errors::program_errors::ProgramError;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use cairo_vm::vm::errors::vm_exception::VmException;
+
 #[derive(Debug, thiserror::Error)]
-pub enum StarknetOsError {}
+pub enum StarknetOsError {
+    #[error(transparent)]
+    LoadProgramError(#[from] ProgramError),
+    #[error(transparent)]
+    RunnerError(#[from] RunnerError),
+    #[error(transparent)]
+    VmException(#[from] VmException),
+    #[error(transparent)]
+    VirtualMachineError(#[from] VirtualMachineError),
+}
