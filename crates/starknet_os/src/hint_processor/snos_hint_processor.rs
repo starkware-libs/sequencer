@@ -5,14 +5,17 @@ use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
 use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
-use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
-use crate::hints::error::{HintExtensionResult, HintResult};
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+
+type VmHintResultType<T> = Result<T, VmHintError>;
+type VmHintResult = VmHintResultType<()>;
+type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
 pub struct SnosHintProcessor<S: StateReader> {
     pub execution_helper: OsExecutionHelper<S>,
@@ -27,7 +30,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
         _exec_scopes: &mut ExecutionScopes,
         _hint_data: &Box<dyn Any>,
         _constants: &HashMap<String, Felt>,
-    ) -> HintResult {
+    ) -> VmHintResult {
         Ok(())
     }
 
@@ -37,7 +40,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
         exec_scopes: &mut ExecutionScopes,
         hint_data: &Box<dyn Any>,
         constants: &HashMap<String, Felt>,
-    ) -> HintExtensionResult {
+    ) -> VmHintExtensionResult {
         // OS hint, aggregator hint or Cairo0 syscall.
         if let Some(hint_processor_data) = hint_data.downcast_ref::<HintProcessorData>() {
             let hint_args = HintArgs {
@@ -48,9 +51,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
                 ap_tracking: &hint_processor_data.ap_tracking,
                 constants,
             };
-            return match AllHints::from_str(hint_processor_data.code.as_str())
-                .map_err(|error| HintError::CustomHint(format!("{error}").into()))?
-            {
+            return match AllHints::from_str(hint_processor_data.code.as_str())? {
                 AllHints::OsHint(os_hint) => {
                     os_hint.execute_hint(hint_args)?;
                     Ok(HintExtension::default())
@@ -64,7 +65,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
                     Ok(HintExtension::default())
                 }
                 AllHints::HintExtension(hint_extension) => {
-                    hint_extension.execute_hint_extensive(hint_args)
+                    Ok(hint_extension.execute_hint_extensive(hint_args)?)
                 }
             };
         }
