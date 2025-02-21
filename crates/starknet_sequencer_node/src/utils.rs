@@ -22,6 +22,7 @@ pub async fn create_node_modules(
 }
 
 pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
+    ensure_required_arg(&args, "--config_file");
     let config = SequencerNodeConfig::load_and_process(args);
     if let Err(ConfigError::CommandInput(clap_err)) = &config {
         error!("Failed loading configuration: {}", clap_err);
@@ -37,4 +38,11 @@ pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig
     info!("Finished validating configuration.");
 
     Ok(config)
+}
+
+fn ensure_required_arg(args: &[String], required_arg: &str) {
+    if !args.iter().any(|arg| arg == required_arg) {
+        eprintln!("Error: Missing required argument '{}'", required_arg);
+        std::process::exit(1);
+    }
 }
