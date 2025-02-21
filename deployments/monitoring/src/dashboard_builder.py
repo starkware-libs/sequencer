@@ -62,8 +62,6 @@ def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
             row_panel["panels"].append(grafana_panel)
             panel_id += 1
             y_position += 6
-        
-
     return {  "dashboard":dashboard}
 
 
