@@ -223,7 +223,7 @@ impl ExecutableSetup {
             state_sync_storage_config: config.state_sync_config.storage_config,
             class_manager_storage_handles,
         };
-        executable_setup.dump_config_file_changes();
+        executable_setup.dump_config_file_changes(None);
         executable_setup
     }
 
@@ -257,11 +257,11 @@ impl ExecutableSetup {
                 self.config.consensus_manager_config.revert_config.should_revert = false;
             }
         }
-        self.dump_config_file_changes();
+        self.dump_config_file_changes(None);
     }
 
     /// Creates a config file for the sequencer node for an integration test.
-    fn dump_config_file_changes(&self) {
+    fn dump_config_file_changes(&self, node_config_path: Option<PathBuf>) {
         // Create the entire mapping of the config and the pointers, without the required params.
         let config_as_map = combine_config_map_and_pointers(
             self.config.dump(),
@@ -276,13 +276,14 @@ impl ExecutableSetup {
         // Add the required params to the preset.
         add_required_params_to_preset(&mut preset, self.required_params.as_json());
 
+        let config_dump_path = match node_config_path {
+            Some(path) => path,
+            None => self.node_config_path.clone(),
+        };
+
         // Dump the preset to a file, return its path.
-        dump_json_data(preset, &self.node_config_path);
-        assert!(
-            &self.node_config_path.exists(),
-            "File does not exist: {:?}",
-            &self.node_config_path
-        );
+        dump_json_data(preset, &config_dump_path);
+        assert!(&config_dump_path.exists(), "File does not exist: {:?}", &config_dump_path);
     }
 }
 
