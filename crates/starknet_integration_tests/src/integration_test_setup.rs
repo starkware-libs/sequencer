@@ -220,7 +220,7 @@ impl ExecutableSetup {
     }
 
     /// Creates a config file for the sequencer node for an integration test.
-    fn dump_config_file_changes(&self, node_config_path: Option<PathBuf>) {
+    pub fn dump_config_file_changes(&self, node_config_path: Option<PathBuf>) {
         // Create the entire mapping of the config and the pointers, without the required params.
         let config_as_map = combine_config_map_and_pointers(
             self.config.dump(),
