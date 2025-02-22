@@ -3,7 +3,13 @@
 export monitoring_dir=$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")
 
 # Deploy the monitoring stack locally
-docker-compose -f ${monitoring_dir}/local/docker-compose.yml "$@"; ret=$?
+if command -v docker-compose &> /dev/null; then
+    echo "Running: docker-compose -f ${monitoring_dir}/local/docker-compose.yml "$@"; ret=$?"
+    docker-compose -f ${monitoring_dir}/local/docker-compose.yml "$@"; ret=$?
+else
+    echo "docker-compose not found, using docker compose"
+    docker compose -f ${monitoring_dir}/local/docker-compose.yml "$@"; ret=$?
+fi
 if [ $ret -ne 0 ]; then
     echo "Failed to deploy the monitoring stack locally"
     exit 1
