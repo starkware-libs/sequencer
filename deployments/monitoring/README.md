@@ -1,24 +1,16 @@
 Local monitoring stack
-first enable pipenv:
 
+To run:
 ```bash
-pipenv --python 3.12
-pipenv shell
+python3 -m venv monitoring_venv
+source monitoring_venv/bin/activate
+./deployments/monitoring/deploy_local_stack.sh up -d
 ```
+This will deploy the Sequencer node, Prometheus, and Grafana containers, using the Monitoring/sequencer/dev_grafana.json dashboard for Grafana.
 
-to deploy run:
+To shut down and clean up:
 ```bash
-./deploy_local_stack.sh up -d
-```
-This will deploy node, Promethous and Grafana containers and upload the Monitoring/sequencer/dev_grafana.json dashboard to the grafana
-
-
-to destroy:
-```bash
-./deploy_local_stack.sh down
-```
-
-to remove pipenv:
-```bash
-pipenv --rm
+./deployments/monitoring/deploy_local_stack.sh down
+deactivate
+rm -rf monitoring_venv
 ```
