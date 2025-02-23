@@ -29,5 +29,5 @@ impl From<OsHintError> for VmHintError {
     }
 }
 
-pub type HintResult = Result<(), OsHintError>;
-pub type HintExtensionResult = Result<HintExtension, OsHintError>;
+pub type OsHintResult = Result<(), OsHintError>;
+pub type OsHintExtensionResult = Result<HintExtension, OsHintError>;
