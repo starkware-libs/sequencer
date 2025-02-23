@@ -120,12 +120,16 @@ impl Default for MockDependencies {
         let expected_gas_price =
             propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price;
         mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
+        let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+        block_builder_factory.expect_take_class_cache_miss_counter().return_const(0_u64);
+        block_builder_factory.expect_take_class_cache_hit_counter().return_const(0_u64);
+
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriterTrait::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
-            block_builder_factory: MockBlockBuilderFactoryTrait::new(),
+            block_builder_factory,
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
         }

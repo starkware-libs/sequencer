@@ -10,6 +10,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+const_format.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
