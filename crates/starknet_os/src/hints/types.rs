@@ -10,6 +10,8 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 
+// This should not trigger the test.
+
 /// Hint enum maps between a (python) hint string in the cairo OS program under cairo-lang to a
 /// matching enum variant defined in the crate.
 pub trait HintEnum {
