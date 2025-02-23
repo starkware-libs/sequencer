@@ -9,6 +9,7 @@ pub(crate) enum Scope {
     InitialDict,
     DictManager,
     DictTracker,
+    UseKzgDa,
 }
 
 impl From<Scope> for &'static str {
@@ -17,6 +18,7 @@ impl From<Scope> for &'static str {
             Scope::InitialDict => "initial_dict",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
+            Scope::UseKzgDa => "use_kzg_da",
         }
     }
 }
@@ -24,8 +26,11 @@ impl From<Scope> for &'static str {
 pub(crate) enum Ids {
     BucketIndex,
     DictPtr,
+    FullOutput,
     PrevOffset,
     NextAvailableAlias,
+    StateUpdatesStart,
+    UseKzgDa,
 }
 
 impl From<Ids> for &'static str {
@@ -33,8 +38,11 @@ impl From<Ids> for &'static str {
         match ids {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
+            Ids::FullOutput => "full_output",
             Ids::PrevOffset => "prev_offset",
             Ids::NextAvailableAlias => "next_available_alias",
+            Ids::StateUpdatesStart => "state_updates_start",
+            Ids::UseKzgDa => "use_kzg_da",
         }
     }
 }
