@@ -15,6 +15,7 @@ use crate::io::os_input::{CachedStateInput, StarknetOsInput};
 pub struct OsExecutionHelper<S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_input: StarknetOsInput,
+    // TODO(Meshi): change it to pub(crate) when it is used in future hints.
     pub(crate) os_program: Program,
 }
 

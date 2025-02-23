@@ -8,11 +8,15 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::types::relocatable::Relocatable;
+use starknet_api::core::ContractAddress;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::hints::vars::{Const, Ids, InnerStateToPointerDict, Scope};
+
+// TODO(Meshi): Take this from the cairo constant.
+const ALIAS_CONTRACT_ADDRESS: u64 = 2;
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
@@ -21,40 +25,48 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     // needed.
     let dict_manager_str: &str = Scope::DictManager.into();
     let dict_manager: DictManager = exec_scopes.get(dict_manager_str)?;
-    let new_scope = HashMap::from([(dict_manager_str.to_string(), any_box!(dict_manager))]);
+    let classes_pointer_str: &str = Scope::ClassesPointer.into();
+    let classes_pointer: Relocatable = exec_scopes.get(classes_pointer_str)?;
+    let state_pointer_str: &str = Scope::StatePointer.into();
+    let state_pointer: Relocatable = exec_scopes.get(state_pointer_str)?;
+    let aliases_pointer_str: &str = Scope::AliasesPointer.into();
+    let aliases_pointer: Relocatable = exec_scopes.get(aliases_pointer_str)?;
+    let inner_state_to_pointer_str: &str = Scope::InnerStateToPointer.into();
+    let inner_state_to_pointer: InnerStateToPointerDict =
+        exec_scopes.get(inner_state_to_pointer_str)?;
+    let new_scope = HashMap::from([
+        (dict_manager_str.to_string(), any_box!(dict_manager)),
+        (classes_pointer_str.to_string(), any_box!(classes_pointer)),
+        (state_pointer_str.to_string(), any_box!(state_pointer)),
+        (inner_state_to_pointer_str.to_string(), any_box!(inner_state_to_pointer)),
+        (aliases_pointer_str.to_string(), any_box!(aliases_pointer)),
+    ]);
     exec_scopes.enter_scope(new_scope);
     Ok(())
 }
 
-pub(crate) fn get_alias_entry_for_state_update<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, constants, exec_scopes, hint_processor }: HintArgs<'_, S>,
+pub(crate) fn guess_alias_ptr<S: StateReader>(
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let aliases_contract_address = Const::AliasContractAddress.fetch(constants)?;
-    let nested_fields = vec!["contract_state_changes_end".to_string()];
-
-    let dict_ptr = get_address_of_nested_fields(
-        ids_data,
-        Ids::OsStateUpdate,
-        CairoStruct::OsStateUpdate,
-        vm,
-        ap_tracking,
-        &nested_fields,
-        &hint_processor.execution_helper.os_program,
-    )?;
-
-    let dict_manager = exec_scopes.get_dict_manager()?;
-    let mut dict_manager_borrowed = dict_manager.borrow_mut();
-    let alias_entry = dict_manager_borrowed
-        .get_tracker_mut(dict_ptr)?
-        .get_value(&aliases_contract_address.into())?;
+    let inner_state_to_pointer_str = Scope::InnerStateToPointer.into();
+    let mut inner_state_to_pointer: InnerStateToPointerDict =
+        exec_scopes.get(inner_state_to_pointer_str)?;
+    let aliases_contract_address = ContractAddress::from(ALIAS_CONTRACT_ADDRESS);
+    let aliases_pointer = *inner_state_to_pointer
+        .entry(aliases_contract_address)
+        .or_insert_with(|| vm.segments.add());
 
     Ok(insert_value_from_var_name(
         Ids::AliasesEntry.into(),
-        alias_entry,
+        aliases_pointer,
         vm,
         ids_data,
         ap_tracking,
     )?)
+}
+
+pub(crate) fn update_alias_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
 }
 
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
@@ -137,4 +149,32 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader
     );
 
     Ok(())
+}
+
+pub(crate) fn guess_inner_state_contract_address_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_inner_state_contract_address_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn guess_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn guess_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
 }
