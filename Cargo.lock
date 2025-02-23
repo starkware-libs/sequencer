@@ -11473,6 +11473,8 @@ dependencies = [
  "indexmap 2.7.0",
  "indoc 2.0.5",
  "num-bigint 0.4.6",
+ "num-integer",
+ "num-traits",
  "rstest",
  "serde",
  "serde_json",
