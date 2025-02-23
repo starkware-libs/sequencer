@@ -11,6 +11,7 @@ use crate::hints::hint_implementation::aggregator::{
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
     get_use_kzg_da_from_input,
+    update_state_combined_block,
     write_da_segment,
 };
 use crate::hints::hint_implementation::block_context::{
@@ -78,6 +79,7 @@ use crate::hints::hint_implementation::execution::{
     contract_address,
     end_tx,
     enter_call,
+    enter_execute_block_scope,
     enter_scope_deprecated_syscall_handler,
     enter_scope_descend_edge,
     enter_scope_left_child,
@@ -178,12 +180,19 @@ use crate::hints::hint_implementation::stateful_compression::{
     compute_commitments_on_finalized_state_with_aliases,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
-    get_alias_entry_for_state_update,
+    guess_alias_ptr,
+    guess_classes_ptr,
+    guess_inner_state_contract_address_ptr,
+    guess_state_ptr,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
     read_alias_counter,
     read_alias_from_key,
     update_alias_counter,
+    update_alias_ptr,
+    update_classes_ptr,
+    update_inner_state_contract_address_ptr,
+    update_state_ptr,
     write_next_alias_from_key,
 };
 use crate::hints::hint_implementation::stateless_compression::implementation::{
@@ -572,7 +581,7 @@ define_hint_enum!(
 
     is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
     ids.is_used_leaf = 1 if is_used_leaf else 0
-
+enter_scope_with_aliases
     ids.segment_length = current_segment_info.segment_length
     vm_enter_scope(new_scope_locals={
         "bytecode_segment_structure": current_segment_info.inner_structure,
@@ -635,20 +644,29 @@ define_hint_enum!(
         enter_scope_with_aliases,
         indoc! {r#"from starkware.starknet.definitions.constants import ALIAS_CONTRACT_ADDRESS
 
-    # This hint shouldn't be whitelisted.
-    vm_enter_scope(dict(
-        aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
-        execution_helper=execution_helper,
-        __dict_manager=__dict_manager,
-        os_input=os_input,
-    ))"#}
+# This hint shouldn't be whitelisted.
+vm_enter_scope(dict(
+    state_update_trees_pointers=state_update_trees_pointers,
+    inner_state_to_pointer=inner_state_to_pointer,
+    aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
+    execution_helper=execution_helper,
+    __dict_manager=__dict_manager,
+    os_input=os_input,
+))"#}
     ),
     (
-        GetAliasEntryForStateUpdate,
-        get_alias_entry_for_state_update,
-        indoc! {r#"ids.aliases_entry = __dict_manager.get_dict(ids.os_state_update.contract_state_changes_end)[
-        ids.ALIAS_CONTRACT_ADDRESS
-    ]"#}
+        GuessAliasPointer,
+        guess_alias_ptr,
+        indoc! {r#"if ids.ALIAS_CONTRACT_ADDRESS not in inner_state_to_pointer:
+        inner_state_to_pointer[ids.ALIAS_CONTRACT_ADDRESS] = segments.add()
+    ids.aliases_ptr = inner_state_to_pointer[ids.ALIAS_CONTRACT_ADDRESS]"#}
+    ),
+    (
+        UpdateAliasPointer,
+        update_alias_ptr,
+        indoc! {r#"inner_state_to_pointer[ids.ALIAS_CONTRACT_ADDRESS] = (
+    ids.squashed_aliases_storage_end.address_
+)"#}
     ),
     (
         KeyLtMinAliasAllocValue,
@@ -695,6 +713,49 @@ define_hint_enum!(
         ComputeCommitmentsOnFinalizedStateWithAliases,
         compute_commitments_on_finalized_state_with_aliases,
         "commitment_info_by_address=execution_helper.compute_storage_commitments()"
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        GuessInnerStateContractAddressPtr,
+        guess_inner_state_contract_address_ptr,
+        r#"if ids.state_changes.key not in inner_state_to_pointer:
+    inner_state_to_pointer[ids.state_changes.key] = segments.add()
+ids.squashed_contract_state_dict = inner_state_to_pointer[ids.state_changes.key]"#
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        UpdateInnerStateContractAddressPtr,
+        update_inner_state_contract_address_ptr,
+        "inner_state_to_pointer[ids.state_changes.key] = (
+    ids.squashed_contract_state_dict_end.address_
+)"
+    ),
+    (
+        GuessStatePtr,
+        guess_state_ptr,
+        "ids.final_squashed_contract_state_changes_start = (
+    state_update_trees_pointers.state_tree_pointer
+)"
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        UpdateStatePtr,
+        update_state_ptr,
+        "state_update_trees_pointers.state_tree_pointer = (
+    ids.final_squashed_contract_state_changes_end.address_
+)"
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        GuessClassesPtr,
+        guess_classes_ptr,
+        "ids.squashed_dict = state_update_trees_pointers.class_tree_pointer"
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        UpdateClassesPtr,
+        update_classes_ptr,
+        "state_update_trees_pointers.class_tree_pointer = ids.squashed_dict_end.address_"
     ),
     (
         DictionaryFromBucket,
@@ -967,6 +1028,23 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         'syscall_handler': syscall_handler,
          '__dict_manager': __dict_manager,
     })"#
+        }
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        EnterExecuteBlockScope,
+        enter_execute_block_scope,
+        indoc! {r#"from starkware.starknet.core.os.execution_helper import StateUpdatePointers
+
+            # A map from a contract address to a pointer for the contract state changes.
+            # This is used to make sure that the same contract state changes are written
+            # continually on the same memory segments through the multi-block.
+            inner_state_to_pointer = dict()
+
+            state_update_trees_pointers = StateUpdatePointers(
+                state_tree_pointer=segments.add(),
+                class_tree_pointer=segments.add(),
+            )"#
         }
     ),
     (EndTx, end_tx, "execution_helper.end_tx()"),
@@ -1674,7 +1752,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         starknet_os_input,
         indoc! {r#"
         from starkware.starknet.core.os.os_input import StarknetOsInput
-
         os_input = StarknetOsInput.load(data=program_input)"#
         }
     ),
@@ -1734,6 +1811,17 @@ for i, task in enumerate(tasks):
         dst_ptr=ids.os_outputs[i].address_,
         os_output=task.os_output,
     )"#
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        UpdateStateCombinedBlock,
+        update_state_combined_block,
+        r#"from starkware.starknet.core.os.execution_helper import StateUpdatePointers
+inner_state_to_pointer = dict()
+state_update_trees_pointers = StateUpdatePointers(
+    state_tree_pointer=segments.add(),
+    class_tree_pointer=segments.add(),
+)"#
     ),
     (
         GetAggregatorOutput,
