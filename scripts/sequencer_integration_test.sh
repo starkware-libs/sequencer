@@ -39,15 +39,25 @@ killall "$SEQUENCER_BINARY" 2>/dev/null
 # Build the main node binary (if required)
 cargo build --bin "$SEQUENCER_BINARY"
 
+# Helper function to build a test binary
+build_test() {
+  local tname="$1"
+  echo "==> Building test: $tname"
+  cargo build --bin "$tname" || { echo "Build for $tname failed"; exit 1; }
+}
+
 # Helper function to run a test binary
 run_test() {
   local tname="$1"
   echo "==> Running test: $tname"
-  cargo run --bin "$tname" || { echo "Test $tname failed"; exit 1; }
+  "./target/debug/$tname" || { echo "Test $tname failed"; exit 1; }
 }
 
 if [ "$TEST" = "all" ]; then
-  for alias in "" "${!TEST_ALIASES[@]}"; do
+  for alias in "${!TEST_ALIASES[@]}"; do
+    build_test "${TEST_ALIASES[$alias]}"
+  done
+  for alias in "${!TEST_ALIASES[@]}"; do
     run_test "${TEST_ALIASES[$alias]}"
   done
   exit 0
@@ -59,4 +69,5 @@ if [ -z "${TEST_ALIASES[$TEST]}" ]; then
   exit 1
 fi
 
+build_test "${TEST_ALIASES[$TEST]}"
 run_test "${TEST_ALIASES[$TEST]}"
