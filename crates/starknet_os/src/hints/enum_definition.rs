@@ -64,8 +64,7 @@ use crate::hints::hint_implementation::execute_transactions::{
     set_sha256_segment_in_syscall_handler,
     sha2_finalize,
     skip_tx,
-    start_tx_short,
-    start_tx_validate_declare_execution_context,
+    start_tx,
 };
 use crate::hints::hint_implementation::execution::{
     assert_transaction_hash,
@@ -108,7 +107,6 @@ use crate::hints::hint_implementation::execution::{
     set_ap_to_tx_nonce,
     set_fp_plus_4_to_tx_nonce,
     set_state_entry_to_account_contract_address,
-    start_tx_long,
     transaction_version,
     tx_account_deployment_data,
     tx_account_deployment_data_len,
@@ -739,25 +737,15 @@ define_hint_enum!(
         }
     ),
     (
-        StartTxValidateDeclareExecutionContext,
-        start_tx_validate_declare_execution_context,
-        indoc! {r#"
-    execution_helper.start_tx(
-        tx_info_ptr=ids.validate_declare_execution_context.deprecated_tx_info.address_
-    )"#
-        }
-    ),
-    (
         SegmentsAddTemp,
         segments_add_temp,
         indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add_temp_segment())"#
         }
     ),
     (
-        StartTxShort,
-        start_tx_short,
-        indoc! {r#"execution_helper.start_tx(tx_info_ptr=ids.deprecated_tx_info.address_)"#
-        }
+        StartTx,
+        start_tx,
+        indoc! {r#"execution_helper.start_tx()"# }
     ),
     (
         OsInputTransactions,
@@ -975,7 +963,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         EnterCall,
         enter_call,
-        "execution_helper.enter_call(cairo_execution_info=ids.execution_context.execution_info)"
+        indoc! {r#"
+        execution_helper.enter_call(
+            cairo_execution_info=ids.execution_context.execution_info,
+            deprecated_tx_info=ids.execution_context.deprecated_tx_info,
+        )"#}
     ),
     (ExitCall, exit_call, "execution_helper.exit_call()"),
     (
@@ -1045,14 +1037,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"
 	ids.signature_start = segments.gen_arg(arg=tx.signature)
 	ids.signature_len = len(tx.signature)"#
-        }
-    ),
-    (
-        StartTxLong,
-        start_tx_long,
-        indoc! {r#"
-    tx_info_ptr = ids.tx_execution_context.deprecated_tx_info.address_
-    execution_helper.start_tx(tx_info_ptr=tx_info_ptr)"#
         }
     ),
     (

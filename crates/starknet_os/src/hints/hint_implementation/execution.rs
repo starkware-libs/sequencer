@@ -157,10 +157,6 @@ pub(crate) fn gen_signature_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>
     todo!()
 }
 
-pub(crate) fn start_tx_long<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
-}
-
 pub(crate) fn is_reverted<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     todo!()
 }
