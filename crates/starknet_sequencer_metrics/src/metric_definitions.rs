@@ -142,3 +142,9 @@ define_metrics!(
         MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
     },
 );
+
+define_metrics!(
+    ClassManager => {
+        LabeledMetricCounter { N_CLASSES, "class_manager_n_classes", "Number of classes, by label (regular, deprecated)", 0 },
+    },
+);
