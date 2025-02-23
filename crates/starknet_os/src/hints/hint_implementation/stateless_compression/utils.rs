@@ -87,12 +87,12 @@ impl<const LENGTH: usize> TryFrom<BitsArray<LENGTH>> for Felt {
     }
 }
 
-type BucketElement15 = BitsArray<15>;
-type BucketElement31 = BitsArray<31>;
-type BucketElement62 = BitsArray<62>;
-type BucketElement83 = BitsArray<83>;
+pub(crate) type BucketElement15 = BitsArray<15>;
+pub(crate) type BucketElement31 = BitsArray<31>;
+pub(crate) type BucketElement62 = BitsArray<62>;
+pub(crate) type BucketElement83 = BitsArray<83>;
 pub(crate) type BucketElement125 = BitsArray<125>;
-type BucketElement252 = BitsArray<252>;
+pub(crate) type BucketElement252 = BitsArray<252>;
 
 /// Panics in case the length is 252 bits and the value is larger than max Felt.
 fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
@@ -234,5 +234,110 @@ impl<SizedElement: BucketElementTrait + Clone + Eq + Hash> UniqueValueBucket<Siz
     fn pack_in_felts(self) -> Result<Vec<Felt>, OsHintError> {
         let values = self.value_to_index.into_keys().collect::<Vec<_>>();
         SizedElement::pack_in_felts(&values)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct Buckets {
+    bucket15: UniqueValueBucket<BucketElement15>,
+    bucket31: UniqueValueBucket<BucketElement31>,
+    bucket62: UniqueValueBucket<BucketElement62>,
+    bucket83: UniqueValueBucket<BucketElement83>,
+    bucket125: UniqueValueBucket<BucketElement125>,
+    bucket252: UniqueValueBucket<BucketElement252>,
+}
+
+impl Buckets {
+    pub(crate) fn new() -> Self {
+        Self {
+            bucket15: UniqueValueBucket::new(),
+            bucket31: UniqueValueBucket::new(),
+            bucket62: UniqueValueBucket::new(),
+            bucket83: UniqueValueBucket::new(),
+            bucket125: UniqueValueBucket::new(),
+            bucket252: UniqueValueBucket::new(),
+        }
+    }
+
+    /// Returns the bucket index and the inverse bucket index.
+    fn bucket_index(&self, bucket_element: &BucketElement) -> (usize, usize) {
+        let bucket_index = match bucket_element {
+            BucketElement::BucketElement15(_) => 0,
+            BucketElement::BucketElement31(_) => 1,
+            BucketElement::BucketElement62(_) => 2,
+            BucketElement::BucketElement83(_) => 3,
+            BucketElement::BucketElement125(_) => 4,
+            BucketElement::BucketElement252(_) => 5,
+        };
+        (bucket_index, N_UNIQUE_BUCKETS - 1 - bucket_index)
+    }
+
+     /// Returns the index of the element in the respective bucket.
+    pub(crate) fn get_element_index(&self, bucket_element: &BucketElement) -> Option<&usize> {
+        match bucket_element {
+            BucketElement::BucketElement15(bucket_element15) => {
+                self.bucket15.get_index(bucket_element15)
+            }
+            BucketElement::BucketElement31(bucket_element31) => {
+                self.bucket31.get_index(bucket_element31)
+            }
+            BucketElement::BucketElement62(bucket_element62) => {
+                self.bucket62.get_index(bucket_element62)
+            }
+            BucketElement::BucketElement83(bucket_element83) => {
+                self.bucket83.get_index(bucket_element83)
+            }
+            BucketElement::BucketElement125(bucket_element125) => {
+                self.bucket125.get_index(bucket_element125)
+            }
+            BucketElement::BucketElement252(bucket_element252) => {
+                self.bucket252.get_index(bucket_element252)
+            }
+        }
+    }
+
+    pub(crate) fn add(&mut self, bucket_element: BucketElement) {
+        match bucket_element {
+            BucketElement::BucketElement15(bucket_element15) => self.bucket15.add(bucket_element15),
+            BucketElement::BucketElement31(bucket_element31) => self.bucket31.add(bucket_element31),
+            BucketElement::BucketElement62(bucket_element62) => self.bucket62.add(bucket_element62),
+            BucketElement::BucketElement83(bucket_element83) => self.bucket83.add(bucket_element83),
+            BucketElement::BucketElement125(bucket_element125) => {
+                self.bucket125.add(bucket_element125)
+            }
+            BucketElement::BucketElement252(bucket_element252) => {
+                self.bucket252.add(bucket_element252)
+            }
+        }
+    }
+
+    /// Returns the lengths of the buckets from the bucket with the largest numbers to the bucket
+    /// with the smallest.
+    pub(crate) fn lengths(&self) -> [usize; 6] {
+        [
+            self.bucket252.len(),
+            self.bucket125.len(),
+            self.bucket83.len(),
+            self.bucket62.len(),
+            self.bucket31.len(),
+            self.bucket15.len(),
+        ]
+    }
+
+    /// Chains the buckets from the bucket with the largest numbers to the bucket with the smallest,
+    /// and packed them into felts.
+    fn pack_in_felts(self) -> Result<Vec<Felt>, OsHintError> {
+        Ok([
+            self.bucket15.pack_in_felts()?,
+            self.bucket31.pack_in_felts()?,
+            self.bucket62.pack_in_felts()?,
+            self.bucket83.pack_in_felts()?,
+            self.bucket125.pack_in_felts()?,
+            self.bucket252.pack_in_felts()?,
+        ]
+        .into_iter()
+        .rev()
+        .flatten()
+        .collect())
     }
 }
