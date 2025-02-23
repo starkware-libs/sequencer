@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_api::core::ContractAddress;
@@ -7,8 +8,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
 
+#[derive(Copy, Clone)]
 pub(crate) enum Scope {
     InitialDict,
+    CompiledClassFacts,
+    DeprecatedClassHashes,
     DictManager,
     DictTracker,
     UseKzgDa,
@@ -18,10 +22,19 @@ impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
             Scope::InitialDict => "initial_dict",
+            Scope::CompiledClassFacts => "compiled_class_facts",
+            Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
             Scope::UseKzgDa => "use_kzg_da",
         }
+    }
+}
+
+impl fmt::Display for Scope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let scope_string: &'static str = (*self).into();
+        write!(f, "{}", scope_string)
     }
 }
 
@@ -32,6 +45,7 @@ pub enum Ids {
     DictPtr,
     FullOutput,
     PrevOffset,
+    NCompiledClassFacts,
     NextAvailableAlias,
     StateUpdatesStart,
     UseKzgDa,
@@ -45,6 +59,7 @@ impl From<Ids> for &'static str {
             Ids::CompressedStart => "compressed_start",
             Ids::FullOutput => "full_output",
             Ids::PrevOffset => "prev_offset",
+            Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::UseKzgDa => "use_kzg_da",
