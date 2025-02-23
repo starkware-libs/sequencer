@@ -132,3 +132,25 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader
 ) -> HintResult {
     todo!()
 }
+pub(crate) fn guess_inner_state_contract_address_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}
+pub(crate) fn update_inner_state_contract_address_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}
+pub(crate) fn guess_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
+pub(crate) fn update_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
+pub(crate) fn guess_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
+pub(crate) fn update_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
