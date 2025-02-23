@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -12,6 +13,9 @@ pub(crate) enum Scope {
     DictManager,
     DictTracker,
     UseKzgDa,
+    StatePointer,
+    ClassesPointer,
+    InnerStateToPointer,
 }
 
 impl From<Scope> for &'static str {
@@ -21,6 +25,9 @@ impl From<Scope> for &'static str {
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
             Scope::UseKzgDa => "use_kzg_da",
+            Scope::ClassesPointer => "classes_pointer",
+            Scope::StatePointer => "state_pointer",
+            Scope::InnerStateToPointer => "inner_state_to_pointer",
         }
     }
 }
@@ -103,3 +110,5 @@ impl Const {
         Self::AliasContractAddress.fetch_as(constants)
     }
 }
+
+pub(crate) type InnerStateToPointerDict = HashMap<ContractAddress, Relocatable>;
