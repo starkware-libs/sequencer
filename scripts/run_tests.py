@@ -87,7 +87,7 @@ def test_crates(crates: Set[str], base_command: BaseCommand):
     cmds = base_command.cmds(crates=crates)
 
     print("Running tests...")
-    for cmd in cmds:
+    for cmd in [cmd for cmd in cmds if cmd]:
         print(cmd, flush=True)
         subprocess.run(cmd, check=True)
     print("Tests complete.")
