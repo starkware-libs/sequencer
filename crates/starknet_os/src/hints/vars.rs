@@ -25,6 +25,7 @@ impl From<Scope> for &'static str {
 
 pub(crate) enum Ids {
     BucketIndex,
+    CompressedStart,
     DictPtr,
     FullOutput,
     PrevOffset,
@@ -38,6 +39,7 @@ impl From<Ids> for &'static str {
         match ids {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
+            Ids::CompressedStart => "compressed_start",
             Ids::FullOutput => "full_output",
             Ids::PrevOffset => "prev_offset",
             Ids::NextAvailableAlias => "next_available_alias",
