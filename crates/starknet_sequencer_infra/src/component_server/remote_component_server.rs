@@ -12,7 +12,7 @@ use serde::Serialize;
 use starknet_infra_utils::type_name::short_type_name;
 use tower::limit::ConcurrencyLimitLayer;
 use tower::ServiceBuilder;
-use tracing::warn;
+use tracing::{debug, error, warn};
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
@@ -169,7 +169,9 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: Arc<RemoteServerMetrics>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
+        debug!("Received HTTP request: {:?}", http_request);
         let body_bytes = to_bytes(http_request.into_body()).await?;
+        debug!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
         metrics.increment_total_received();
 
@@ -177,6 +179,7 @@ where
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
+                debug!("Successfully deserialized request: {:?}", request);
                 metrics.increment_valid_received();
 
                 let response = local_client.send(request).await;
@@ -184,14 +187,17 @@ where
                 metrics.increment_processed();
 
                 match response {
-                    Ok(response) => HyperResponse::builder()
-                        .status(StatusCode::OK)
-                        .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                        .body(Body::from(
-                            SerdeWrapper::new(response)
-                                .wrapper_serialize()
-                                .expect("Response serialization should succeed"),
-                        )),
+                    Ok(response) => {
+                        debug!("Local client processed request successfully: {:?}", response);
+                        HyperResponse::builder()
+                            .status(StatusCode::OK)
+                            .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                            .body(Body::from(
+                                SerdeWrapper::new(response)
+                                    .wrapper_serialize()
+                                    .expect("Response serialization should succeed"),
+                            ))
+                    }
                     Err(error) => {
                         panic!(
                             "Remote server failed sending with its local client. Error: {:?}",
@@ -201,6 +207,7 @@ where
                 }
             }
             Err(error) => {
+                error!("Failed to deserialize request: {:?}", error);
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
                 HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
                     SerdeWrapper::new(server_error)
@@ -210,6 +217,7 @@ where
             }
         }
         .expect("Response building should succeed");
+        debug!("Built HTTP response: {:?}", http_response);
 
         Ok(http_response)
     }
@@ -222,12 +230,18 @@ where
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
     async fn start(&mut self) {
+        debug!("Starting server on socket: {:?}", self.socket);
         let make_svc = make_service_fn(|_conn| {
             let local_client = self.local_client.clone();
             let max_concurrency = self.max_concurrency;
+            debug!(
+                "Initializing service for new connection with max_concurrency: {:?}",
+                max_concurrency
+            );
             let metrics = self.metrics.clone();
             async move {
                 let app_service = service_fn(move |req| {
+                    debug!("Received request: {:?}", req);
                     Self::remote_component_server_handler(
                         req,
                         local_client.clone(),
@@ -243,7 +257,7 @@ where
                 Ok::<_, hyper::Error>(service)
             }
         });
-
+        debug!("Binding server to socket: {:?}", self.socket);
         Server::bind(&self.socket)
             .serve(make_svc)
             .await
