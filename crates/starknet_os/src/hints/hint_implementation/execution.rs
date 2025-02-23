@@ -77,6 +77,14 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(HintArgs { .. }: HintArgs<'_,
     todo!()
 }
 
+// TODO(Meshi): when implementing this hint use [InnerStateToPointerDict] to create
+// [inner_state_to_pointer].
+pub(crate) fn enter_execute_block_scope<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}
+
 pub(crate) fn end_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
     //   end_tx().

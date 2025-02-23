@@ -7,6 +7,7 @@ use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
 use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
     disable_da_page_creation,
+    enter_combined_block_scope_aggregator,
     get_aggregator_output,
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
@@ -78,6 +79,7 @@ use crate::hints::hint_implementation::execution::{
     contract_address,
     end_tx,
     enter_call,
+    enter_execute_block_scope,
     enter_scope_deprecated_syscall_handler,
     enter_scope_descend_edge,
     enter_scope_left_child,
@@ -129,6 +131,7 @@ use crate::hints::hint_implementation::kzg::store_da_segment;
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
+    enter_combined_block_scope_os,
     initialize_class_hashes,
     initialize_state_changes,
     set_ap_to_new_block_hash,
@@ -178,12 +181,19 @@ use crate::hints::hint_implementation::stateful_compression::{
     compute_commitments_on_finalized_state_with_aliases,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
-    get_alias_entry_for_state_update,
+    guess_alias_ptr,
+    guess_classes_ptr,
+    guess_inner_state_contract_address_ptr,
+    guess_state_ptr,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
     read_alias_counter,
     read_alias_from_key,
     update_alias_counter,
+    update_alias_ptr,
+    update_classes_ptr,
+    update_inner_state_contract_address_ptr,
+    update_state_ptr,
     write_next_alias_from_key,
 };
 use crate::hints::hint_implementation::stateless_compression::{
@@ -624,18 +634,21 @@ define_hint_enum!(
 
     # This hint shouldn't be whitelisted.
     vm_enter_scope(dict(
+        state_pointer=state_pointer,
+        inner_state_to_pointer=inner_state_to_pointer,
+        classes_pointer=classes_pointer,
+        aliases_pointer=aliases_pointer,
         aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
         execution_helper=execution_helper,
         __dict_manager=__dict_manager,
         os_input=os_input,
     ))"#}
     ),
+    (GuessAliasPointer, guess_alias_ptr, indoc! {r#"ids.aliases_entry = aliases_pointer"#}),
     (
-        GetAliasEntryForStateUpdate,
-        get_alias_entry_for_state_update,
-        indoc! {r#"ids.aliases_entry = __dict_manager.get_dict(ids.os_state_update.contract_state_changes_end)[
-        ids.ALIAS_CONTRACT_ADDRESS
-    ]"#}
+        UpdateAliasPointer,
+        update_alias_ptr,
+        indoc! {r#"aliases_pointer = ids.squashed_aliases_storage_end"#}
     ),
     (
         KeyLtMinAliasAllocValue,
@@ -683,6 +696,37 @@ define_hint_enum!(
         compute_commitments_on_finalized_state_with_aliases,
         "commitment_info_by_address=execution_helper.compute_storage_commitments()"
     ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        GuessInnerStateContractAddressPtr,
+        guess_inner_state_contract_address_ptr,
+        r#"if ids.state_changes.key not in inner_state_to_pointer:
+    inner_state_to_pointer[ids.state_changes.key] = segments.add()
+
+ids.squashed_contract_state_dict = inner_state_to_pointer[ids.state_changes.key]"#
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        UpdateInnerStateContractAddressPtr,
+        update_inner_state_contract_address_ptr,
+        "inner_state_to_pointer[ids.state_changes.key] =  \
+         ids.squashed_contract_state_dict_end.address_"
+    ),
+    (
+        GuessStatePtr,
+        guess_state_ptr,
+        "ids.final_squashed_contract_state_changes_start = state_pointer"
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        UpdateStatePtr,
+        update_state_ptr,
+        "state_pointer = ids.final_squashed_contract_state_changes_end"
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (GuessClassesPtr, guess_classes_ptr, "ids.squashed_dict = classes_pointer"),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (UpdateClassesPtr, update_classes_ptr, "classes_pointer = ids.squashed_dict_end"),
     (
         DictionaryFromBucket,
         dictionary_from_bucket,
@@ -954,6 +998,36 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         'syscall_handler': syscall_handler,
          '__dict_manager': __dict_manager,
     })"#
+        }
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        EnterExecuteBlockScope,
+        enter_execute_block_scope,
+        indoc! {r#"# A map from contract address to a pointer for the contract state changes.
+        # This is used to make sure that the same contract state changes are written on
+        # the same memory segments through the multi-block.
+        inner_state_to_pointer = dict()
+        # A pointer to the sate tree to make sure that all state changes are written on the same
+        # memory segments through the multi-block.
+        state_pointer = segments.add()
+        # A pointer to the classes tree to make sure that all class changes are written on the same
+        # memory segments through the multi-block.
+        classes_pointer = segments.add()
+        # A pointer to the start of the state aliases to make sure that all aliases are written on the
+        # same memory segments through the multi-block.
+        aliases_pointer = segments.add()
+        vm_enter_scope(dict(
+            state_pointer=state_pointer,
+            inner_state_to_pointer=inner_state_to_pointer,
+            classes_pointer=classes_pointer,
+            aliases_pointer=aliases_pointer,
+            os_input=os_input,
+            syscall_handler=syscall_handler,
+            deprecated_syscall_handler=deprecated_syscall_handler,
+            execution_helper=execution_helper,
+            program_input=program_input,
+        ))"#
         }
     ),
     (EndTx, end_tx, "execution_helper.end_tx()"),
@@ -1665,6 +1739,18 @@ memory[ap] = 1 if case != 'both' else 0"#
         os_input = StarknetOsInput.load(data=program_input)"#
         }
     ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        EnterCombinedBlockScopeOS,
+        enter_combined_block_scope_os,
+        indoc! {r#"vm_enter_scope(dict(
+        state_pointer=state_pointer,
+        inner_state_to_pointer=inner_state_to_pointer,
+        classes_pointer=classes_pointer,
+        aliases_pointer=aliases_pointer,
+    ))"#
+        }
+    ),
     (
         InitializeStateChanges,
         initialize_state_changes,
@@ -1721,6 +1807,30 @@ for i, task in enumerate(tasks):
         dst_ptr=ids.os_outputs[i].address_,
         os_output=task.os_output,
     )"#
+    ),
+    // TODO(Meshi): Update implementation to reflect changes in hint.
+    (
+        EnterCombinedBlockScopeAggregator,
+        enter_combined_block_scope_aggregator,
+        r#"# A map from contract address to a pointer for the contract state changes.
+# This is used to make sure that the same contract state changes are written on
+# the same memory segments through the multi-block.
+inner_state_to_pointer = dict()
+# A pointer to the sate tree to make sure that all state changes are written on the same
+# memory segments through the multi-block.
+state_pointer = segments.add()
+# A pointer to the classes tree to make sure that all class changes are written on the same
+# memory segments through the multi-block.
+classes_pointer = segments.add()
+# A pointer to the start of the state aliases to make sure that all aliases are written on the
+# same memory segments through the multi-block.
+aliases_pointer = segments.add()
+vm_enter_scope(dict(
+    state_pointer=state_pointer,
+    inner_state_to_pointer=inner_state_to_pointer,
+    classes_pointer=classes_pointer,
+    aliases_pointer=aliases_pointer,
+))"#
     ),
     (
         GetAggregatorOutput,
