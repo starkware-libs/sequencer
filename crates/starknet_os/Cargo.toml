@@ -21,6 +21,8 @@ blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
 indoc.workspace = true
+num-bigint.workspace = true
+num-traits.workspace = true
 serde = { workspace = true, optional = true, features = ["derive"] }
 shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
@@ -31,8 +33,11 @@ strum_macros = { workspace = true, optional = true }
 thiserror.workspace = true
 
 [dev-dependencies]
+num-integer.workspace = true
+num-traits.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
+rstest.workspace = true
 
 [lints]
 workspace = true
