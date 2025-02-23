@@ -348,3 +348,77 @@ impl Buckets {
         .collect()
     }
 }
+
+/// A utility class for compression.
+/// Used to manage and store the unique values in separate buckets according to their bit length.
+#[derive(Clone, Debug)]
+pub(crate) struct CompressionSet {
+    buckets: Buckets,
+    bucket_index_per_elm: Vec<usize>,
+    repeating_value_locations: Vec<(usize, usize)>,
+}
+
+impl CompressionSet {
+    /// Creates a new Compression set.
+    /// Iterates over the provided values and assigns each value to the appropriate bucket based on
+    /// the number of bits required to represent it. If a value is already in a bucket, it is
+    /// recorded as a repeating value. Otherwise, it is added to the appropriate bucket.
+    pub fn new(values: &[Felt]) -> Self {
+        let mut obj = Self {
+            buckets: Buckets::new(),
+            repeating_value_locations: Vec::new(),
+            bucket_index_per_elm: Vec::new(),
+        };
+        let repeating_values_bucket_index = N_UNIQUE_BUCKETS;
+
+        for value in values {
+            let bucket_element = BucketElement::from(*value);
+            let (bucket_index, inverse_bucket_index) = obj.buckets.bucket_index(&bucket_element);
+            if let Some(element_index) = obj.buckets.get_element_index(&bucket_element) {
+                obj.repeating_value_locations.push((bucket_index, *element_index));
+                obj.bucket_index_per_elm.push(repeating_values_bucket_index);
+            } else {
+                obj.buckets.add(bucket_element.clone());
+                obj.bucket_index_per_elm.push(inverse_bucket_index);
+            }
+        }
+        obj
+    }
+
+    pub fn get_unique_value_bucket_lengths(&self) -> [usize; N_UNIQUE_BUCKETS] {
+        self.buckets.lengths()
+    }
+
+    pub fn n_repeating_values(&self) -> usize {
+        self.repeating_value_locations.len()
+    }
+
+    /// Converts the repeating value locations from (bucket, index) to a global index in the chained
+    /// buckets.
+    pub fn get_repeating_value_pointers(&self) -> Vec<usize> {
+        let unique_value_bucket_lengths = self.get_unique_value_bucket_lengths();
+        let bucket_offsets = get_bucket_offsets(&unique_value_bucket_lengths);
+
+        self.repeating_value_locations
+            .iter()
+            .map(|&(bucket_index, index_in_bucket)| bucket_offsets[bucket_index] + index_in_bucket)
+            .collect()
+    }
+
+    pub fn pack_unique_values(self) -> Vec<Felt> {
+        self.buckets.pack_in_felts()
+    }
+}
+
+/// Computes the starting offsets for each bucket in a list of buckets, based on their lengths.
+pub(crate) fn get_bucket_offsets(bucket_lengths: &[usize]) -> Vec<usize> {
+    let mut offsets = Vec::with_capacity(bucket_lengths.len());
+    let mut current = 0;
+
+    for &length in bucket_lengths {
+        offsets.push(current);
+        current += length;
+    }
+
+    offsets
+}
