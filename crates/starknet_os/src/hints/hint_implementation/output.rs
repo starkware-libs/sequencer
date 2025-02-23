@@ -68,8 +68,39 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_compressed_start<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
+pub(crate) fn set_compressed_start<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> HintResult {
+    let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
+
+    let use_kzg_da = match use_kzg_da_felt {
+        x if x == Felt::ONE => Ok(true),
+        x if x == Felt::ZERO => Ok(false),
+        _ => Err(HintError::CustomHint(
+            "ids.use_kzg_da is not a boolean".to_string().into_boxed_str(),
+        )),
+    }?;
+
+    if use_kzg_da {
+        insert_value_from_var_name(
+            Ids::CompressedStart.into(),
+            vm.add_memory_segment(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+    } else {
+        // Assign a temporary segment, to be relocated into the output segment.
+        insert_value_from_var_name(
+            Ids::CompressedStart.into(),
+            vm.add_temporary_segment(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+    }
+
+    Ok(())
 }
 
 pub(crate) fn set_n_updates_small<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
