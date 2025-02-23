@@ -22,7 +22,12 @@ async fn main() -> anyhow::Result<()> {
 
     let mut tx_generator = create_integration_test_tx_generator();
 
-    let sequencer_simulator = SequencerSimulator::new(args.config_file, args.url);
+    let sequencer_simulator = SequencerSimulator::new(
+        args.config_file,
+        args.http_url,
+        args.monitoring_url,
+        args.monitoring_port,
+    );
 
     info!("Sending bootstrap txs");
     sequencer_simulator.send_txs(&mut tx_generator, &BootstrapTxs, ACCOUNT_ID_0).await;
@@ -48,5 +53,11 @@ struct Args {
     config_file: String,
 
     #[arg(long, default_value = "http://127.0.0.1:8080")]
-    url: String,
+    http_url: String,
+
+    #[arg(long, default_value = "http://127.0.0.1")]
+    monitoring_url: String,
+
+    #[arg(long)]
+    monitoring_port: u16,
 }

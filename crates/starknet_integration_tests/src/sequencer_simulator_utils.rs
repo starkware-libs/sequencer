@@ -6,7 +6,6 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
-use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::utils::load_and_validate_config;
 use tracing::info;
@@ -22,7 +21,12 @@ pub struct SequencerSimulator {
 }
 
 impl SequencerSimulator {
-    pub fn new(config_file: String, url: String) -> Self {
+    pub fn new(
+        config_file: String,
+        http_url: String,
+        monitoring_url: String,
+        monitoring_port: u16,
+    ) -> Self {
         // Calls `load_and_validate_config` with a dummy program name as the first argument,
         // since the function expects a vector of command-line arguments and ignores the first
         // entry.
@@ -33,11 +37,11 @@ impl SequencerSimulator {
         ])
         .expect("Failed to load and validate config");
 
-        let MonitoringEndpointConfig { ip: _, port, .. } = config.monitoring_endpoint_config;
-        let monitoring_client = MonitoringClient::new(get_socket_addr(&url, port).unwrap());
+        let monitoring_client =
+            MonitoringClient::new(get_socket_addr(&monitoring_url, monitoring_port).unwrap());
 
         let HttpServerConfig { ip: _, port } = config.http_server_config;
-        let http_client = HttpTestClient::new(get_socket_addr(&url, port).unwrap());
+        let http_client = HttpTestClient::new(get_socket_addr(&http_url, port).unwrap());
 
         Self { monitoring_client, http_client }
     }
