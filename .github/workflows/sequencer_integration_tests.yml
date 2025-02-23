@@ -22,32 +22,33 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-run-sequencer-positive_flow_integration-test:
+  build-and-run-sequencer-integration_test_positive_flow:
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: |
           cargo build --bin starknet_sequencer_node
-          cargo build --bin positive_flow_integration_test
-          target/debug/positive_flow_integration_test
-  build-and-run-sequencer-revert_flow_integration-test:
-    runs-on: starkware-ubuntu-latest-large
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-      - run: |
-          cargo build --bin starknet_sequencer_node
-          cargo build --bin revert_flow_integration_test
-          target/debug/revert_flow_integration_test
+          cargo build --bin integration_test_positive_flow
+          target/debug/integration_test_positive_flow
   # TODO(Eitan): Have this test pass
-  # build-and-run-sequencer-restart_flow_integration-test:
+  # build-and-run-sequencer-integration_test_restart_flow:
   #   runs-on: starkware-ubuntu-latest-large
   #   steps:
   #     - uses: actions/checkout@v4
   #     - uses: ./.github/actions/bootstrap
   #     - run: |
   #         cargo build --bin starknet_sequencer_node
-  #         cargo build --bin restart_flow_integration_test
-  #         target/debug/restart_flow_integration_test
+  #         cargo build --bin integration_test_restart_flow
+  #         target/debug/integration_test_restart_flow
+  build-and-run-sequencer-integration_test_revert_flow:
+    runs-on: starkware-ubuntu-latest-large
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+      - run: |
+          cargo build --bin starknet_sequencer_node
+          cargo build --bin integration_test_revert_flow
+          target/debug/integration_test_revert_flow
+
 
