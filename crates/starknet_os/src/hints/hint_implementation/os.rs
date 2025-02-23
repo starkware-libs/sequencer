@@ -42,3 +42,8 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
 pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     todo!()
 }
+pub(crate) fn enter_combined_block_scope_os<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}

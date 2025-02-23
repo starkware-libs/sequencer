@@ -10,7 +10,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids, Scope};
+use crate::hints::vars::{Const, Ids, InnerStateToPointerDict, OsMainScope, Scope};
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
@@ -19,7 +19,19 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     // needed.
     let dict_manager_str: &str = Scope::DictManager.into();
     let dict_manager: DictManager = exec_scopes.get(dict_manager_str)?;
-    let new_scope = HashMap::from([(dict_manager_str.to_string(), any_box!(dict_manager))]);
+    let classes_pointer_str: &str = OsMainScope::ClassesPointer.into();
+    let classes_pointer: Relocatable = exec_scopes.get(classes_pointer_str)?;
+    let state_pointer_str: &str = OsMainScope::StatePointer.into();
+    let state_pointer: Relocatable = exec_scopes.get(state_pointer_str)?;
+    let inner_state_to_pointer_str: &str = OsMainScope::InnerStateToPointer.into();
+    let inner_state_to_pointer: InnerStateToPointerDict =
+        exec_scopes.get(inner_state_to_pointer_str)?;
+    let new_scope = HashMap::from([
+        (dict_manager_str.to_string(), any_box!(dict_manager)),
+        (classes_pointer_str.to_string(), any_box!(classes_pointer)),
+        (state_pointer_str.to_string(), any_box!(state_pointer)),
+        (inner_state_to_pointer_str.to_string(), any_box!(inner_state_to_pointer)),
+    ]);
     exec_scopes.enter_scope(new_scope);
     Ok(())
 }
@@ -100,5 +112,27 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> HintResult {
+    todo!()
+}
+pub(crate) fn guess_inner_state_contract_address_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}
+pub(crate) fn update_inner_state_contract_address_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}
+pub(crate) fn guess_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
+pub(crate) fn update_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
+pub(crate) fn guess_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    todo!()
+}
+pub(crate) fn update_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     todo!()
 }
