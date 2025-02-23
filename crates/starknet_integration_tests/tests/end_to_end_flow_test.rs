@@ -16,6 +16,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ChainId;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
@@ -41,14 +42,36 @@ use tracing::debug;
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
 const LAST_HEIGHT: BlockNumber = BlockNumber(4);
 
+struct TestBlockScenario {
+    height: BlockNumber,
+    create_rpc_txs_fn: CreateRpcTxsFn,
+    test_tx_hashes_fn: TestTxHashesFn,
+    expected_content_id: ExpectedContentId,
+}
+
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
     create_flow_test_tx_generator()
 }
 
 #[rstest]
+#[case::end_to_end_flow(
+    create_test_blocks(),
+    TestIdentifier::EndToEndFlowTest,
+    GasAmount(17000000) // TODO(Arni): increase this value to include an L1 transaction.
+)]
+#[case::many_txs_scenario(
+    create_test_blocks_for_many_txs_scenario(),
+    TestIdentifier::EndToEndFlowTestManyTxs,
+    GasAmount(17000000)
+)]
 #[tokio::test]
-async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
+async fn end_to_end_flow(
+    mut tx_generator: MultiAccountTransactionGenerator,
+    #[case] test_blocks_scenarios: Vec<TestBlockScenario>,
+    #[case] test_identifier: TestIdentifier,
+    #[case] block_max_capacity_sierra_gas: GasAmount,
+) {
     configure_tracing().await;
 
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
@@ -56,7 +79,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
-        TestIdentifier::EndToEndFlowTest.into(),
+        test_identifier.into(),
+        block_max_capacity_sierra_gas,
     )
     .await;
 
@@ -73,7 +97,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     expected_proposer_iter.next().unwrap();
 
     // Build multiple heights to ensure heights are committed.
-    for (height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id) in create_test_blocks()
+    for TestBlockScenario { height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id } in
+        test_blocks_scenarios
     {
         debug!("Starting height {}.", height);
         // Create and send transactions.
@@ -109,9 +134,9 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     }
 }
 
-fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> {
+fn create_test_blocks() -> Vec<TestBlockScenario> {
     let next_height = INITIAL_HEIGHT.unchecked_next();
-    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
+    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT);
     let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
         (
             create_multiple_account_txs,
@@ -134,6 +159,18 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
                 "0xb28fc13e038eaff29d46d8ead91e9a37e004949c3ea6b78020c5df315ef745",
             ),
         ),
+    ];
+    itertools::zip_eq(heights_to_build, test_scenarios)
+        .map(|(height, (create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id))| {
+            TestBlockScenario { height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id }
+        })
+        .collect()
+}
+
+fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
+    let next_height = INITIAL_HEIGHT.unchecked_next();
+    let heights_to_build = next_height.iter_up_to(BlockNumber(2));
+    let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
         // block. This means that the last 3 transactions could be included in the next block if
         // one is added to the test.
@@ -141,13 +178,13 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_many_invoke_txs,
             test_many_invoke_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
+                "0x1dc64adf3ef3e0a29ba5e14c68cf5a0a7947ebb9d5923b46e7db3cce9069c54",
             ),
         ),
     ];
     itertools::zip_eq(heights_to_build, test_scenarios)
-        .map(|(h, (create_txs_fn, test_tx_hashes_fn, expected_content_id))| {
-            (h, create_txs_fn, test_tx_hashes_fn, expected_content_id)
+        .map(|(height, (create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id))| {
+            TestBlockScenario { height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id }
         })
         .collect()
 }
