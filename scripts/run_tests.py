@@ -15,7 +15,7 @@ from tests_utils import (
 ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
 
 # Set of crates which - if changed - should trigger the integration tests.
-INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"sequencer_integration_tests"}
+INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"starknet_integration_tests"}
 
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "starknet_sequencer_node"
@@ -51,8 +51,11 @@ class BaseCommand(Enum):
             return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
         elif self == BaseCommand.INTEGRATION:
             # Do nothing if integration tests should not be triggered.
-            if INTEGRATION_TEST_CRATE_TRIGGERS not in crates:
+            if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates):
+                print(f"Skipping sequencer integration tests.")
                 return [[]]
+
+            print(f"Composing sequencer integration test commands.")
             # Commands to build the node and all the test binaries.
             build_cmds = [
                 ["cargo", "build", "--bin", binary_name]
@@ -86,8 +89,8 @@ def test_crates(crates: Set[str], base_command: BaseCommand):
     # If crates is empty (i.e. changes_only is False), all packages will be tested (no args).
     cmds = base_command.cmds(crates=crates)
 
-    print("Running tests...")
-    for cmd in cmds:
+    print("Executing test commands...")
+    for cmd in [cmd for cmd in cmds if cmd]:
         print(cmd, flush=True)
         subprocess.run(cmd, check=True)
     print("Tests complete.")
