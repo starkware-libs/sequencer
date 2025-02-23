@@ -143,6 +143,103 @@ impl UniqueValueBucket {
     }
 }
 
+/// A utility class for compression.
+/// Used to manage and store the unique values in separate buckets according to their bit length.
+#[derive(Default, Clone, Debug)]
+pub(crate) struct CompressionSet {
+    buckets: Vec<UniqueValueBucket>,
+    sorted_buckets: Vec<(usize, UniqueValueBucket)>,
+    repeating_value_locations: Vec<(usize, usize)>,
+    bucket_index_per_elm: Vec<usize>,
+    finalized: bool,
+}
+
+impl CompressionSet {
+    /// Creates a new Compression set given an array of the n_bits per each bucket in the set.
+    pub fn new(n_bits_per_bucket: &[usize]) -> Self {
+        let buckets: Vec<UniqueValueBucket> =
+            n_bits_per_bucket.iter().map(|&n_bits| UniqueValueBucket::new(n_bits)).collect();
+
+        let mut sorted_buckets: Vec<(usize, UniqueValueBucket)> =
+            buckets.clone().into_iter().enumerate().collect();
+
+        sorted_buckets.sort_by_key(|(_, bucket)| bucket.n_bits);
+        Self {
+            buckets,
+            sorted_buckets,
+            repeating_value_locations: Vec::new(),
+            bucket_index_per_elm: Vec::new(),
+            finalized: false,
+        }
+    }
+
+    /// Returns the bucket indices of the added values.
+    fn get_bucket_index_per_elm(&self) -> Vec<usize> {
+        assert!(self.finalized, "Cannot get bucket_index_per_elm before finalizing.");
+        self.bucket_index_per_elm.clone()
+    }
+
+    fn repeating_values_bucket_index(&self) -> usize {
+        self.buckets.len()
+    }
+
+    /// Iterates over the provided values and assigns each value to the appropriate bucket based on
+    /// the number of bits required to represent it. If a value is already in a bucket, it is
+    /// recorded as a repeating value. Otherwise, it is added to the appropriate bucket.
+    pub fn update(&mut self, values: &[Felt]) {
+        assert!(!self.finalized, "Cannot add values after finalizing.");
+
+        for value in values {
+            for (bucket_index, bucket) in &mut self.sorted_buckets {
+                if value.bits() <= bucket.n_bits {
+                    let bits_value = SizedBitsVec::from_felt(*value, bucket.n_bits);
+                    if bucket.contains(&bits_value) {
+                        self.repeating_value_locations
+                            .push((*bucket_index, bucket.get_index(&bits_value)));
+                        self.bucket_index_per_elm.push(self.repeating_values_bucket_index());
+                    } else {
+                        self.buckets[*bucket_index].add(bits_value.clone());
+                        bucket.add(bits_value.clone());
+                        self.bucket_index_per_elm.push(*bucket_index);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    pub fn get_unique_value_bucket_lengths(&self) -> Vec<usize> {
+        self.buckets.iter().map(|bucket| bucket.len()).collect()
+    }
+
+    pub fn get_repeating_value_bucket_length(&self) -> usize {
+        self.repeating_value_locations.len()
+    }
+
+    /// Returns a list of BigUint corresponding to the repeating values.
+    /// The BigUint point to the chained unique value buckets.
+    pub fn get_repeating_value_pointers(&self) -> Vec<usize> {
+        assert!(self.finalized, "Cannot get pointers before finalizing.");
+
+        let unique_value_bucket_lengths = self.get_unique_value_bucket_lengths();
+        let bucket_offsets = get_bucket_offsets(&unique_value_bucket_lengths);
+
+        self.repeating_value_locations
+            .iter()
+            .map(|&(bucket_index, index_in_bucket)| bucket_offsets[bucket_index] + index_in_bucket)
+            .collect()
+    }
+
+    pub fn pack_unique_values(&self) -> Vec<Felt> {
+        assert!(self.finalized, "Cannot pack before finalizing.");
+        self.buckets.iter().flat_map(|bucket| bucket.pack_in_felts()).collect()
+    }
+
+    pub fn finalize(&mut self) {
+        self.finalized = true;
+    }
+}
+
 /// Computes the starting offsets for each bucket in a list of buckets, based on their lengths.
 pub(crate) fn get_bucket_offsets(bucket_lengths: &[usize]) -> Vec<usize> {
     let mut offsets = Vec::with_capacity(bucket_lengths.len());
