@@ -1,4 +1,4 @@
-use crate::metrics::{MetricCounter, MetricGauge, MetricScope};
+use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
 /// This generates:
@@ -71,5 +71,11 @@ define_metrics!(
         // Counters
         // TODO(shahak): add to metric's dashboard
         MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
+    },
+);
+
+define_metrics!(
+    ClassManager => {
+        LabeledMetricCounter { N_CLASSES, "class_manager_n_classes", "Number of classes, by label (regular, deprecated)", 0 },
     },
 );
