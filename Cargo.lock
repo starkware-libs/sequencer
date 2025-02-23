@@ -11464,6 +11464,7 @@ dependencies = [
 name = "starknet_os"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
