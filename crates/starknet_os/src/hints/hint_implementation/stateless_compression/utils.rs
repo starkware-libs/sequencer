@@ -150,3 +150,51 @@ impl_bucket_element_trait!(BucketElement62, Bits62);
 impl_bucket_element_trait!(BucketElement83, Bits83);
 impl_bucket_element_trait!(BucketElement125, Bits125);
 impl_bucket_element_trait!(BucketElement252, Bits252);
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) enum BucketElement {
+    BucketElement15(BucketElement15),
+    BucketElement31(BucketElement31),
+    BucketElement62(BucketElement62),
+    BucketElement83(BucketElement83),
+    BucketElement125(BucketElement125),
+    BucketElement252(BucketElement252),
+}
+
+impl BucketElement {
+    pub(crate) fn as_bool_ref(&self) -> &[bool] {
+        match self {
+            BucketElement::BucketElement15(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
+            BucketElement::BucketElement31(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
+            BucketElement::BucketElement62(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
+            BucketElement::BucketElement83(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
+            BucketElement::BucketElement125(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
+            BucketElement::BucketElement252(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
+        }
+    }
+}
+
+impl From<Felt> for BucketElement {
+    fn from(felt: Felt) -> Self {
+        match BitLength::min_bit_length(felt.bits()).expect("felt is up to 252 bits") {
+            BitLength::Bits15 => {
+                BucketElement::BucketElement15(felt.try_into().expect("Up to 15 bits"))
+            }
+            BitLength::Bits31 => {
+                BucketElement::BucketElement31(felt.try_into().expect("Up to 31 bits"))
+            }
+            BitLength::Bits62 => {
+                BucketElement::BucketElement62(felt.try_into().expect("Up to 62 bits"))
+            }
+            BitLength::Bits83 => {
+                BucketElement::BucketElement83(felt.try_into().expect("Up to 83 bits"))
+            }
+            BitLength::Bits125 => {
+                BucketElement::BucketElement125(felt.try_into().expect("Up to 125 bits"))
+            }
+            BitLength::Bits252 => {
+                BucketElement::BucketElement252(felt.try_into().expect("Up to 252 bits"))
+            }
+        }
+    }
+}
