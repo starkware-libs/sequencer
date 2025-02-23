@@ -97,7 +97,6 @@ impl SierraCompiler {
 }
 
 pub fn create_sierra_compiler(config: SierraCompilationConfig) -> SierraCompiler {
-    // TODO(Elin): rewrite this function
     let compiler = CommandLineCompiler::new(config);
     SierraCompiler::new(compiler)
 }
