@@ -11470,6 +11470,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
+ "indexmap 2.7.0",
  "indoc 2.0.5",
  "rstest",
  "serde",
