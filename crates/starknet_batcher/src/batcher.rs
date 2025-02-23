@@ -61,6 +61,8 @@ use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
+    CAIRO_NATIVE_CACHE_HITS,
+    CAIRO_NATIVE_CACHE_MISSES,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     STORAGE_HEIGHT,
@@ -496,6 +498,10 @@ impl Batcher {
         let execution_infos: Vec<_> =
             block_execution_artifacts.execution_infos.into_iter().map(|(_, info)| info).collect();
 
+        CAIRO_NATIVE_CACHE_MISSES
+            .increment(self.block_builder_factory.take_class_cache_miss_counter());
+        CAIRO_NATIVE_CACHE_HITS
+            .increment(self.block_builder_factory.take_class_cache_hit_counter());
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
 

@@ -11517,6 +11517,7 @@ name = "starknet_sequencer_dashboard"
 version = "0.0.0"
 dependencies = [
  "colored 3.0.0",
+ "const_format",
  "indexmap 2.7.0",
  "serde",
  "serde_json",
