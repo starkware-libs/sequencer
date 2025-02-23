@@ -13,8 +13,14 @@ testing = []
 workspace = true
 
 [dependencies]
+indexmap.workspace = true
 metrics.workspace = true
 num-traits.workspace = true
 regex.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+
+[dev-dependencies]
+colored.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_infra_utils.workspace = true

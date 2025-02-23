@@ -26,14 +26,26 @@ impl LocalServerMetrics {
         self.received_msgs.increment(1);
     }
 
+    pub fn get_received_value(&self, metrics_as_string: &str) -> Option<u64> {
+        self.received_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    }
+
     pub fn increment_processed(&self) {
         self.processed_msgs.increment(1);
+    }
+
+    pub fn get_processed_value(&self, metrics_as_string: &str) -> Option<u64> {
+        self.processed_msgs.parse_numeric_metric::<u64>(metrics_as_string)
     }
 
     #[allow(clippy::as_conversions)]
     pub fn set_queue_depth(&self, value: usize) {
         // TODO(Itay,Lev): Enhance the gauge interface to support taking usize args.
         self.queue_depth.set(value as f64);
+    }
+
+    pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> Option<usize> {
+        self.queue_depth.parse_numeric_metric::<usize>(metrics_as_string)
     }
 }
 

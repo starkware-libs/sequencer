@@ -226,6 +226,20 @@ impl SequencerConsensusContext {
     }
 }
 
+struct ProposalBuildArguments {
+    timeout: Duration,
+    proposal_init: ProposalInit,
+    l1_da_mode: L1DataAvailabilityMode,
+    proposal_sender: mpsc::Sender<ProposalPart>,
+    fin_sender: oneshot::Sender<ProposalCommitment>,
+    batcher: Arc<dyn BatcherClient>,
+    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    proposal_id: ProposalId,
+    cende_write_success: AbortOnDropHandle<bool>,
+    gas_prices: GasPrices,
+    transaction_converter: TransactionConverter,
+}
+
 #[async_trait]
 impl ConsensusContext for SequencerConsensusContext {
     type ProposalPart = ProposalPart;
@@ -261,7 +275,7 @@ impl ConsensusContext for SequencerConsensusContext {
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let handle = tokio::spawn(
             async move {
-                build_proposal(
+                build_proposal(ProposalBuildArguments {
                     timeout,
                     proposal_init,
                     l1_da_mode,
@@ -273,7 +287,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     cende_write_success,
                     gas_prices,
                     transaction_converter,
-                )
+                })
                 .await;
             }
             .instrument(
@@ -465,7 +479,6 @@ impl ConsensusContext for SequencerConsensusContext {
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
-        // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.last_block_timestamp = Some(block_info.timestamp);
@@ -611,26 +624,14 @@ impl SequencerConsensusContext {
 
 // Handles building a new proposal without blocking consensus:
 #[allow(clippy::too_many_arguments)]
-async fn build_proposal(
-    timeout: Duration,
-    proposal_init: ProposalInit,
-    l1_da_mode: L1DataAvailabilityMode,
-    mut proposal_sender: mpsc::Sender<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalCommitment>,
-    batcher: Arc<dyn BatcherClient>,
-    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
-    proposal_id: ProposalId,
-    cende_write_success: AbortOnDropHandle<bool>,
-    gas_prices: GasPrices,
-    transaction_converter: TransactionConverter,
-) {
+async fn build_proposal(mut args: ProposalBuildArguments) {
     let block_info = initiate_build(
-        proposal_id,
-        &proposal_init,
-        l1_da_mode,
-        timeout,
-        batcher.as_ref(),
-        gas_prices,
+        args.proposal_id,
+        &args.proposal_init,
+        args.l1_da_mode,
+        args.timeout,
+        args.batcher.as_ref(),
+        args.gas_prices,
     )
     .await;
     let block_info = match block_info {
@@ -640,21 +641,21 @@ async fn build_proposal(
             return;
         }
     };
-    proposal_sender
-        .send(ProposalPart::Init(proposal_init))
+    args.proposal_sender
+        .send(ProposalPart::Init(args.proposal_init))
         .await
         .expect("Failed to send proposal init");
-    proposal_sender
+    args.proposal_sender
         .send(ProposalPart::BlockInfo(block_info.clone()))
         .await
         .expect("Failed to send block info");
 
     let Some((proposal_commitment, content)) = get_proposal_content(
-        proposal_id,
-        batcher.as_ref(),
-        proposal_sender,
-        cende_write_success,
-        &transaction_converter,
+        args.proposal_id,
+        args.batcher.as_ref(),
+        args.proposal_sender,
+        args.cende_write_success,
+        &args.transaction_converter,
     )
     .await
     else {
@@ -663,12 +664,12 @@ async fn build_proposal(
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
-    let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
+    let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
     valid_proposals
-        .entry(proposal_init.height)
+        .entry(args.proposal_init.height)
         .or_default()
-        .insert(proposal_commitment, (block_info, content, proposal_id));
-    if fin_sender.send(proposal_commitment).is_err() {
+        .insert(proposal_commitment, (block_info, content, args.proposal_id));
+    if args.fin_sender.send(proposal_commitment).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
     }
@@ -772,7 +773,7 @@ async fn get_proposal_content(
                 // can't finish the proposal.
                 match cende_write_success.now_or_never() {
                     Some(Ok(true)) => {
-                        debug!("Writing blob to Aerospike completed.");
+                        debug!("Writing blob to Aerospike completed successfully.");
                     }
                     Some(Ok(false)) => {
                         warn!("Writing blob to Aerospike failed.");

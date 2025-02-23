@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
-use starknet_patricia::felt::Felt;
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_types_core::felt::FromStrError;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::block_committer::input::{ContractAddress, StarknetStorageValue};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
+
+pub fn fixed_hex_string_no_prefix(felt: &Felt) -> String {
+    format!("{:064x}", felt)
+}
 
 // TODO(Nimrod, 1/6/2024): Use the ClassHash defined in starknet-types-core when available.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

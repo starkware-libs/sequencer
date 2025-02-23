@@ -48,6 +48,7 @@ use starknet_sequencer_metrics::metric_definitions::{
     SYNC_COMPILED_CLASS_MARKER,
     SYNC_HEADER_LATENCY_SEC,
     SYNC_HEADER_MARKER,
+    SYNC_PROCESSED_TRANSACTIONS,
     SYNC_STATE_MARKER,
 };
 use tokio::sync::RwLock;
@@ -440,6 +441,7 @@ impl<
 
         debug!("Storing block.");
         trace!("Block data: {block:#?}, signature: {signature:?}");
+        let num_txs = block.body.transactions.len();
         self.writer
             .begin_rw_txn()?
             .append_header(block_number, &block.header)?
@@ -448,6 +450,10 @@ impl<
             .commit()?;
         SYNC_HEADER_MARKER.set(block_number.unchecked_next().0 as f64);
         SYNC_BODY_MARKER.set(block_number.unchecked_next().0 as f64);
+        SYNC_PROCESSED_TRANSACTIONS.increment(num_txs.try_into().unwrap_or_else(|err| {
+            error!("Failed to convert number of transactions to u64: {}", err);
+            0
+        }));
         let time_delta = Utc::now()
             - Utc
                 .timestamp_opt(block.header.block_header_without_hash.timestamp.0 as i64, 0)

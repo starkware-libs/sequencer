@@ -145,6 +145,10 @@
                 "step_gas_cost": 510,
                 "syscall_base_gas_cost": 1
             },
+            "meta_tx_v0": {
+                "syscall_base_gas_cost": 0,
+                "step_gas_cost": 0
+            },
             "sha256_process_block": {
                 "step_gas_cost": 1852,
                 "range_check": 65,
@@ -341,6 +345,13 @@
                 "n_steps": 659,
                 "builtin_instance_counter": {
                     "range_check_builtin": 15
+                },
+                "n_memory_holes": 0
+            },
+            "MetaTxV0": {
+                "n_steps": 0,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 0
                 },
                 "n_memory_holes": 0
             },

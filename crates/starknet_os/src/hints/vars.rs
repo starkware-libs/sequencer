@@ -9,6 +9,7 @@ pub(crate) enum Scope {
     InitialDict,
     DictManager,
     DictTracker,
+    UseKzgDa,
 }
 
 impl From<Scope> for &'static str {
@@ -17,15 +18,20 @@ impl From<Scope> for &'static str {
             Scope::InitialDict => "initial_dict",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
+            Scope::UseKzgDa => "use_kzg_da",
         }
     }
 }
 
 pub(crate) enum Ids {
     BucketIndex,
+    CompressedStart,
     DictPtr,
+    FullOutput,
     PrevOffset,
     NextAvailableAlias,
+    StateUpdatesStart,
+    UseKzgDa,
 }
 
 impl From<Ids> for &'static str {
@@ -33,8 +39,12 @@ impl From<Ids> for &'static str {
         match ids {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
+            Ids::CompressedStart => "compressed_start",
+            Ids::FullOutput => "full_output",
             Ids::PrevOffset => "prev_offset",
             Ids::NextAvailableAlias => "next_available_alias",
+            Ids::StateUpdatesStart => "state_updates_start",
+            Ids::UseKzgDa => "use_kzg_da",
         }
     }
 }
@@ -62,33 +72,34 @@ impl Const {
         constants.get(identifier).ok_or(HintError::MissingConstant(Box::new(identifier)))
     }
 
-    pub fn get_alias_counter_storage_key(
+    pub fn fetch_as<T: TryFrom<Felt>>(
+        &self,
         constants: &HashMap<String, Felt>,
-    ) -> Result<StorageKey, HintError> {
-        let alias_counter_storage_key = *Self::AliasCounterStorageKey.fetch(constants)?;
-        StorageKey::try_from(alias_counter_storage_key).map_err(|_| {
+    ) -> Result<T, HintError>
+    where
+        <T as TryFrom<Felt>>::Error: std::fmt::Debug,
+    {
+        let self_felt = self.fetch(constants)?;
+        T::try_from(*self_felt).map_err(|error| {
             HintError::CustomHint(
                 format!(
-                    "Failed to convert the alias counter storage key \
-                     {alias_counter_storage_key:?} to storage key."
+                    "Failed to convert {self:?} felt value {self_felt:?} to type {}: {error:?}.",
+                    std::any::type_name::<T>()
                 )
                 .into(),
             )
         })
     }
 
+    pub fn get_alias_counter_storage_key(
+        constants: &HashMap<String, Felt>,
+    ) -> Result<StorageKey, HintError> {
+        Self::AliasCounterStorageKey.fetch_as(constants)
+    }
+
     pub fn get_alias_contract_address(
         constants: &HashMap<String, Felt>,
     ) -> Result<ContractAddress, HintError> {
-        let alias_contract_address_as_felt = *Self::AliasContractAddress.fetch(constants)?;
-        ContractAddress::try_from(alias_contract_address_as_felt).map_err(|_| {
-            HintError::CustomHint(
-                format!(
-                    "Failed to convert the alias contract address \
-                     {alias_contract_address_as_felt:?} to contract address."
-                )
-                .into(),
-            )
-        })
+        Self::AliasContractAddress.fetch_as(constants)
     }
 }

@@ -22,7 +22,7 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_state_reader::papyrus_state::PapyrusReader;
+use papyrus_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
@@ -44,7 +44,6 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
-use crate::reader_with_class_manager::ReaderWithClassManager;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -407,7 +406,7 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<TransactionExecutor<ReaderWithClassManager<PapyrusReader>>> {
+    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -420,15 +419,12 @@ impl BlockBuilderFactory {
             block_builder_config.bouncer_config,
         );
 
-        let papyrus_state_reader = PapyrusReader::new(
+        let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
+        let state_reader = PapyrusReader::new_with_class_manager(
             self.storage_reader.clone(),
             height,
             self.contract_class_manager.clone(),
-        );
-        let state_reader = ReaderWithClassManager::new(
-            papyrus_state_reader,
-            self.class_manager_client.clone(),
-            runtime,
+            class_reader,
         );
 
         let executor = TransactionExecutor::pre_process_and_create(

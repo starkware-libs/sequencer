@@ -20,30 +20,34 @@ use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, T
 #[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, false; "VM, execute")]
 #[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, true; "VM, execute, only_query")]
 #[test_case(RunnableCairo1::Casm, ExecutionMode::Validate, false; "VM, validate")]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        RunnableCairo1::Native,
-        ExecutionMode::Execute,
-        false; "Native, execute"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        RunnableCairo1::Native,
-        ExecutionMode::Execute,
-        true; "Native, execute, only_query"
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        RunnableCairo1::Native,
-        ExecutionMode::Validate,
-        false; "Native, validate"
-    )
-)]
+// TODO(lior): Uncomment when native supports `meta_tx_v0`.
+// #[cfg_attr(
+//     feature = "cairo_native",
+//     test_case(
+//         RunnableCairo1::Native,
+//         ExecutionMode::Execute,
+//         false;
+//         "Native, execute"
+//     )
+// )]
+// #[cfg_attr(
+//     feature = "cairo_native",
+//     test_case(
+//         RunnableCairo1::Native,
+//         ExecutionMode::Execute,
+//         true;
+//         "Native, execute, only_query"
+//     )
+// )]
+// #[cfg_attr(
+//     feature = "cairo_native",
+//     test_case(
+//         RunnableCairo1::Native,
+//         ExecutionMode::Validate,
+//         false;
+//         "Native, validate"
+//     )
+// )]
 fn test_meta_tx_v0(
     runnable_version: RunnableCairo1,
     execution_mode: ExecutionMode,
@@ -98,8 +102,16 @@ fn test_meta_tx_v0(
 
     let exec_result =
         entry_point_call.execute_directly_given_tx_info(&mut state, tx_info, false, execution_mode);
-    // TODO(lior): Once meta tx is implemented, execution should fail in validate mode.
-    assert!(!exec_result.unwrap().execution.failed);
+
+    match execution_mode {
+        ExecutionMode::Execute => {
+            assert!(!exec_result.unwrap().execution.failed);
+        }
+        ExecutionMode::Validate => {
+            assert!(exec_result.is_err());
+            return;
+        }
+    }
 
     let check_value = |key: Felt252, value: Felt252| {
         assert_eq!(state.get_storage_at(contract_address, key.try_into().unwrap()).unwrap(), value)

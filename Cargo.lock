@@ -8156,7 +8156,6 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
- "futures",
  "indexmap 2.7.0",
  "log",
  "papyrus_storage",
@@ -8164,6 +8163,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_class_manager_types",
+ "tokio",
 ]
 
 [[package]]
@@ -10924,6 +10924,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
  "validator",
 ]
 
@@ -10997,6 +10998,7 @@ dependencies = [
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "cairo-vm",
  "clap",
  "criterion",
@@ -11496,6 +11498,8 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.32",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
  "once_cell",
  "papyrus_config",
  "pretty_assertions",
@@ -11518,11 +11522,15 @@ dependencies = [
 name = "starknet_sequencer_metrics"
 version = "0.0.0"
 dependencies = [
+ "colored 3.0.0",
+ "indexmap 2.7.0",
  "metrics 0.24.1",
  "num-traits",
  "regex",
  "serde",
  "serde_json",
+ "starknet_api",
+ "starknet_infra_utils",
 ]
 
 [[package]]
@@ -11597,6 +11605,7 @@ dependencies = [
  "starknet_sierra_multicompile_types",
  "tempfile",
  "thiserror 1.0.69",
+ "tracing",
  "validator",
 ]
 
