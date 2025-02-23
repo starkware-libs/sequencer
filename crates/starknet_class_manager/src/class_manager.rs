@@ -1,11 +1,17 @@
+use async_trait::async_trait;
 use starknet_api::state::SierraContractClass;
 use starknet_class_manager_types::{ClassHashes, ClassId, ClassManagerError, ClassManagerResult};
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::component_definitions::{
+    default_component_start_fn,
+    ComponentStarter,
+};
+use starknet_sequencer_metrics::metric_definitions::N_CLASSES;
 use starknet_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,
 };
+use strum::IntoEnumIterator;
 use tracing::instrument;
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
@@ -95,4 +101,32 @@ pub fn create_class_manager(
     FsClassManager(class_manager)
 }
 
-impl ComponentStarter for FsClassManager {}
+#[async_trait]
+impl ComponentStarter for FsClassManager {
+    async fn start(&mut self) {
+        default_component_start_fn::<Self>().await;
+        register_metrics();
+    }
+}
+
+// Metric code.
+
+const CLASS_TYPE_LABEL: &str = "class_type";
+
+#[derive(strum_macros::IntoStaticStr, strum_macros::EnumIter)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum ClassType {
+    Regular,
+    Deprecated,
+}
+
+pub(crate) fn increment_n_classes(cls_type: ClassType) {
+    N_CLASSES.increment(1, &[(CLASS_TYPE_LABEL, cls_type.into())]);
+}
+
+fn register_metrics() {
+    let labels: Vec<(&str, &str)> =
+        ClassType::iter().map(|cls_type| (CLASS_TYPE_LABEL, cls_type.into())).collect();
+
+    N_CLASSES.register(&[labels]);
+}
