@@ -21,7 +21,6 @@ use papyrus_protobuf::consensus::{
     ProposalFin,
     ProposalInit,
     ProposalPart,
-    StreamMessage,
     TransactionBatch,
     Vote,
 };
@@ -52,7 +51,6 @@ use starknet_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
-use starknet_consensus::stream_handler::StreamHandler;
 use starknet_consensus::types::{ConsensusContext, ContextConfig, Round};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
@@ -100,21 +98,15 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
-    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart, HeightAndRound>>,
+    _outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
 fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
-    let TestSubscriberChannels { mock_network: mock_proposal_stream_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels {
-        broadcasted_messages_receiver: inbound_network_receiver,
-        broadcast_topic_client: outbound_network_sender,
-    } = subscriber_channels;
-    let (outbound_proposal_stream_sender, _, _) =
-        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+    let (outbound_proposal_sender, outbound_proposal_receiver) =
+        mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
 
     let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
@@ -133,14 +125,14 @@ fn setup(
         Arc::new(EmptyClassManagerClient),
         Arc::new(state_sync_client),
         Arc::new(batcher),
-        outbound_proposal_stream_sender,
+        outbound_proposal_sender,
         votes_topic_client,
         Arc::new(cende_ambassador),
     );
 
     let network_dependencies = NetworkDependencies {
         _vote_network: mock_vote_network,
-        _new_proposal_network: mock_proposal_stream_network,
+        _outbound_proposal_receiver: outbound_proposal_receiver,
     };
 
     (context, network_dependencies)
