@@ -10912,6 +10912,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
+ "tracing",
  "validator",
 ]
 
@@ -11592,6 +11593,7 @@ dependencies = [
  "starknet_sierra_multicompile_types",
  "tempfile",
  "thiserror 1.0.69",
+ "tracing",
  "validator",
 ]
 
