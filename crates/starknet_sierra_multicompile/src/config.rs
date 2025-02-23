@@ -11,6 +11,7 @@ pub const DEFAULT_MAX_CASM_BYTECODE_SIZE: usize = 80 * 1024;
 pub const DEFAULT_MAX_NATIVE_BYTECODE_SIZE: u64 = 15 * 1024 * 1024;
 pub const DEFAULT_MAX_CPU_TIME: u64 = 20;
 pub const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
+pub const DEFAULT_OPTIMIZATION_LEVEL: u8 = 2;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraCompilationConfig {
@@ -22,6 +23,8 @@ pub struct SierraCompilationConfig {
     pub max_cpu_time: u64,
     /// Compilation process’s virtual memory (address space) byte limit.
     pub max_memory_usage: u64,
+    /// The level of optimization to apply during compilation.
+    pub optimization_level: u8,
     pub panic_on_compilation_failure: bool,
     /// Sierra-to-Native compiler binary path.
     pub sierra_to_native_compiler_path: Option<PathBuf>,
@@ -36,6 +39,7 @@ impl Default for SierraCompilationConfig {
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
             panic_on_compilation_failure: false,
+            optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
         }
     }
 }
@@ -65,6 +69,12 @@ impl SerializeConfig for SierraCompilationConfig {
                 "max_memory_usage",
                 &self.max_memory_usage,
                 "Limitation of compilation process's virtual memory (bytes).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "optimization_level",
+                &self.optimization_level,
+                "The level of optimization to apply during compilation.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
