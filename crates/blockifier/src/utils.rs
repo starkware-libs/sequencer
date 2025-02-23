@@ -48,6 +48,7 @@ pub const fn const_max(a: u128, b: u128) -> u128 {
     [a, b][(a < b) as usize]
 }
 
+// TODO(Meshi): Move this code to starknet API.
 /// Conversion from u64 to usize. This conversion should only be used if the value came from a
 /// usize.
 pub fn usize_from_u64(val: u64) -> Result<usize, NumericConversionError> {

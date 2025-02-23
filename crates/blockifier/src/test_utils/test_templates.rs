@@ -25,7 +25,6 @@ fn cairo_version(
 ) {
 }
 
-#[cfg(test)]
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
@@ -82,4 +81,9 @@ fn test_cairo_version(cairo_version: CairoVersion) {
 #[apply(two_cairo_versions)]
 fn test_two_cairo_version(cairo_version1: CairoVersion, cairo_version2: CairoVersion) {
     println!("test {:?} {:?}", cairo_version1, cairo_version2);
+}
+
+#[apply(runnable_version)]
+fn test_runnable_version(runnable_version: RunnableCairo1) {
+    println!("test {:?}", runnable_version);
 }

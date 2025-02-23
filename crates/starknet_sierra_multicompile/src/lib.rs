@@ -48,6 +48,8 @@ pub trait SierraToNativeCompiler: Send + Sync {
         &self,
         contract_class: CairoLangContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError>;
+
+    fn panic_on_compilation_failure(&self) -> bool;
 }
 
 #[derive(Debug, Error)]

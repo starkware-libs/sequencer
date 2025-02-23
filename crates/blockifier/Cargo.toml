@@ -16,6 +16,7 @@ cairo_native = [
   "starknet_sierra_multicompile/cairo_native",
 ]
 native_blockifier = []
+node_api = []
 reexecution = ["transaction_serde"]
 testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
