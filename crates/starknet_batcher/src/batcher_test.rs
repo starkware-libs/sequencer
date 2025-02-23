@@ -7,6 +7,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::indexmap;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
+use num_rational::Ratio;
 use rstest::rstest;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -117,12 +118,16 @@ impl Default for MockDependencies {
         let expected_gas_price =
             propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price;
         mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
+        let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+        block_builder_factory
+            .expect_get_contract_class_manager_cache_miss_rate()
+            .return_const(Ratio::new(1, 2));
         Self {
             storage_reader,
             storage_writer: MockBatcherStorageWriterTrait::new(),
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
-            block_builder_factory: MockBlockBuilderFactoryTrait::new(),
+            block_builder_factory,
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
         }
