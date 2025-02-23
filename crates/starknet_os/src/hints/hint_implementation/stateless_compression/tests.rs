@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use super::utils::{pack_in_felts, SizedBitsVec};
 use crate::hints::hint_implementation::stateless_compression::utils::{
+    get_bucket_offsets,
     get_n_elms_per_felt,
     pack_usize_in_felts,
     UpperBound,
@@ -90,4 +91,11 @@ fn test_usize_pack_and_unpack() {
     let packed = pack_usize_in_felts(&nums, elm_bound);
     let unpacked = unpack_felts_to_usize(packed.as_ref(), nums.len(), elm_bound);
     assert_eq!(nums.to_vec(), unpacked);
+}
+
+#[test]
+fn test_get_bucket_offsets() {
+    let lengths = vec![2, 3, 5];
+    let offsets = get_bucket_offsets(&lengths);
+    assert_eq!(offsets, [0, 2, 5]);
 }
