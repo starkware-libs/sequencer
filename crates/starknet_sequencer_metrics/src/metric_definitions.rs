@@ -168,3 +168,9 @@ define_metrics!(
         LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 },
     },
 );
+
+define_metrics!(
+    ClassManager => {
+        LabeledMetricCounter { N_CLASSES, "class_manager_n_classes", "Number of classes, by label (regular, deprecated)", 0 },
+    },
+);

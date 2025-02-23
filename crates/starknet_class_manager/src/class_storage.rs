@@ -12,6 +12,7 @@ use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ChainId;
 use starknet_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
+use starknet_sequencer_metrics::metric_definitions::N_CLASSES;
 use starknet_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableClass};
 use thiserror::Error;
 use tracing::instrument;
@@ -140,6 +141,8 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             executable_class.clone(),
         )?;
 
+        N_CLASSES.increment(1, &[("class_type", "regular")]);
+
         // Cache the class.
         // Done after successfully writing to storage as an optimization;
         // does not require atomicity.
@@ -220,6 +223,9 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         }
 
         self.storage.set_deprecated_class(class_id, class.clone())?;
+
+        N_CLASSES.increment(1, &[("class_type", "deprecated")]);
+
         self.deprecated_classes.set(class_id, class);
 
         Ok(())
