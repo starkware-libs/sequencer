@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use metrics::{counter, describe_counter, describe_gauge, gauge, Gauge, IntoF64};
+use metrics::{counter, describe_counter, describe_gauge, gauge, IntoF64};
 use num_traits::Num;
 use regex::{escape, Regex};
 
@@ -137,10 +137,9 @@ impl MetricGauge {
         self.description
     }
 
-    pub fn register(&self) -> Gauge {
-        let gauge_metric = gauge!(self.name);
+    pub fn register(&self) {
+        let _ = gauge!(self.name);
         describe_gauge!(self.name, self.description);
-        gauge_metric
     }
 
     /// Increments the gauge.

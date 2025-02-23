@@ -20,10 +20,10 @@ pub struct SqmrNetworkMetrics {
 
 impl SqmrNetworkMetrics {
     pub fn register(&self) {
-        let num_active_inbound_sessions_metric = self.num_active_inbound_sessions.register();
-        num_active_inbound_sessions_metric.set(0f64);
-        let num_active_outbound_sessions_metric = self.num_active_outbound_sessions.register();
-        num_active_outbound_sessions_metric.set(0f64);
+        self.num_active_inbound_sessions.register();
+        self.num_active_inbound_sessions.set(0f64);
+        self.num_active_outbound_sessions.register();
+        self.num_active_outbound_sessions.set(0f64);
     }
 }
 
@@ -35,8 +35,8 @@ pub struct NetworkMetrics {
 
 impl NetworkMetrics {
     pub fn register(&self) {
-        let num_connected_peers_metric = self.num_connected_peers.register();
-        num_connected_peers_metric.set(0f64);
+        self.num_connected_peers.register();
+        self.num_connected_peers.set(0f64);
         if let Some(broadcast_metrics) = self.broadcast_metrics.as_ref() {
             broadcast_metrics.register();
         }

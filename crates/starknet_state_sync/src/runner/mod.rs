@@ -325,9 +325,9 @@ fn create_new_block_receiver_future_dev_null(
 }
 
 fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
-    let _ = SYNC_HEADER_MARKER.register();
-    let _ = SYNC_BODY_MARKER.register();
-    let _ = SYNC_STATE_MARKER.register();
+    SYNC_HEADER_MARKER.register();
+    SYNC_BODY_MARKER.register();
+    SYNC_STATE_MARKER.register();
     SYNC_PROCESSED_TRANSACTIONS.register();
     set_metrics(txn);
 }
