@@ -75,11 +75,23 @@ impl RemoteServerMetrics {
         self.total_received_msgs.increment(1);
     }
 
+    pub fn get_total_received_value(&self, metrics_as_string: &str) -> Option<u64> {
+        self.total_received_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    }
+
     pub fn increment_valid_received(&self) {
         self.valid_received_msgs.increment(1);
     }
 
+    pub fn get_valid_received_value(&self, metrics_as_string: &str) -> Option<u64> {
+        self.valid_received_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    }
+
     pub fn increment_processed(&self) {
         self.processed_msgs.increment(1);
+    }
+
+    pub fn get_processed_value(&self, metrics_as_string: &str) -> Option<u64> {
+        self.processed_msgs.parse_numeric_metric::<u64>(metrics_as_string)
     }
 }
