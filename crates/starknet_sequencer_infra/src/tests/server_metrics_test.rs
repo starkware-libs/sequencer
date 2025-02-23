@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -276,4 +277,47 @@ async fn only_metrics_counters_for_concurrent_server() {
         NUMBER_OF_ITERATIONS,
         0,
     );
+}
+
+#[tokio::test]
+async fn all_metrics_for_concurrent_server() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let max_concurrency = NUMBER_OF_ITERATIONS / 2;
+    let (test_sem, client) = setup_concurrent_local_server_test(max_concurrency).await;
+
+    // Current test is checking not only message counters but the queue depth too.
+    // So first we send all the messages.
+    for _ in 0..NUMBER_OF_ITERATIONS {
+        let multi_client = client.clone();
+        task::spawn(async move {
+            multi_client.perform_test().await.unwrap();
+        });
+    }
+    task::yield_now().await;
+
+    // At this point we have all tasks of the concurrent server to receive the message and waiting
+    // for the permit to process it. And also the concurrent handle_request received a request
+    // but doesn't have a task to continue. And with every permit one more message will be received.
+    // So number of a received messages should be 'max_concurrency + 1 + number of permits sent'.
+
+    for i in 0..NUMBER_OF_ITERATIONS {
+        // After sending i permits, we should have 'max_concurrency + i + 1' received messages,
+        // up to a maximum of NUMBER_OF_ITERATIONS.
+        let expected_received_msgs = min(max_concurrency + 1 + i, NUMBER_OF_ITERATIONS);
+
+        // The queue depth should be: 'NUMBER_OF_ITERATIONS - number of received messages'.
+        let expected_queue_depth = NUMBER_OF_ITERATIONS - expected_received_msgs;
+
+        let metrics_as_string = recorder.handle().render();
+        assert_server_metrics(
+            metrics_as_string.as_str(),
+            expected_received_msgs,
+            i,
+            expected_queue_depth,
+        );
+        test_sem.add_permits(1);
+        task::yield_now().await;
+    }
 }
