@@ -11,19 +11,21 @@ use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Semaphore;
 use tokio::task::{self, JoinSet};
 
-use crate::component_client::{ClientResult, LocalComponentClient};
+use crate::component_client::{ClientResult, LocalComponentClient, RemoteComponentClient};
 use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    RemoteClientConfig,
 };
 use crate::component_server::{
     ComponentServerStarter,
     ConcurrentLocalComponentServer,
     LocalComponentServer,
+    RemoteComponentServer,
 };
-use crate::tests::TEST_LOCAL_SERVER_METRICS;
+use crate::tests::{AVAILABLE_PORTS, TEST_LOCAL_SERVER_METRICS, TEST_REMOTE_SERVER_METRICS};
 
 type TestResult = ClientResult<()>;
 
@@ -40,6 +42,8 @@ enum TestComponentResponse {
 }
 
 type LocalTestComponentClient = LocalComponentClient<TestComponentRequest, TestComponentResponse>;
+type RemoteTestComponentClient = RemoteComponentClient<TestComponentRequest, TestComponentResponse>;
+
 type TestReceiver =
     Receiver<ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>>;
 
@@ -140,6 +144,28 @@ async fn setup_concurrent_local_server_test(
     (test_sem, local_client)
 }
 
+async fn setup_remote_server_test() -> (Arc<Semaphore>, RemoteTestComponentClient) {
+    let (test_sem, local_client) = setup_local_server_test().await;
+    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let config = RemoteClientConfig::default();
+
+    let max_concurrency = 10;
+    let mut remote_server = RemoteComponentServer::new(
+        local_client.clone(),
+        socket.ip(),
+        socket.port(),
+        max_concurrency,
+        TEST_REMOTE_SERVER_METRICS,
+    );
+    task::spawn(async move {
+        let _ = remote_server.start().await;
+    });
+    let remote_client =
+        RemoteTestComponentClient::new(config, &socket.ip().to_string(), socket.port());
+
+    (test_sem, remote_client)
+}
+
 fn usize_to_u64(value: usize) -> u64 {
     value.try_into().expect("Conversion failed")
 }
@@ -174,6 +200,41 @@ fn assert_server_metrics(
         "unexpected value for queue_depth, expected {} got {:?}",
         expected_queue_depth,
         queue_depth,
+    );
+}
+
+fn assert_remote_server_metrics(
+    metrics_as_string: &str,
+    expected_total_received_msgs: usize,
+    expected_valid_received_msgs: usize,
+    expected_processed_msgs: usize,
+) {
+    let total_received_msgs =
+        TEST_REMOTE_SERVER_METRICS.get_total_received_value(metrics_as_string);
+    let valid_received_msgs =
+        TEST_REMOTE_SERVER_METRICS.get_valid_received_value(metrics_as_string);
+    let processed_msgs = TEST_REMOTE_SERVER_METRICS.get_processed_value(metrics_as_string);
+
+    assert_eq!(
+        total_received_msgs,
+        Some(usize_to_u64(expected_total_received_msgs)),
+        "unexpected value for total_receives_msgs_started counter, expected {} got {:?}",
+        expected_total_received_msgs,
+        total_received_msgs,
+    );
+    assert_eq!(
+        valid_received_msgs,
+        Some(usize_to_u64(expected_valid_received_msgs)),
+        "unexpected value for valid_receives_msgs_started counter, expected {} got {:?}",
+        expected_total_received_msgs,
+        valid_received_msgs,
+    );
+    assert_eq!(
+        processed_msgs,
+        Some(usize_to_u64(expected_processed_msgs)),
+        "unexpected value for processed_msgs counter, expected {} got {:?}",
+        expected_processed_msgs,
+        processed_msgs,
     );
 }
 
@@ -319,5 +380,30 @@ async fn all_metrics_for_concurrent_server() {
         );
         test_sem.add_permits(1);
         task::yield_now().await;
+    }
+}
+
+#[tokio::test]
+async fn metrics_counters_for_remote_server() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let (test_sem, remote_client) = setup_remote_server_test().await;
+
+    // At the beginning all metrics counters are zero.
+    let metrics_as_string = recorder.handle().render();
+    assert_server_metrics(metrics_as_string.as_str(), 0, 0, 0);
+
+    // In order to process a message the test component tries to acquire a permit from the
+    // test semaphore. Current test is checking that all metrics counters actually count so we
+    // need to provide enough permits for all messages to be processed.
+    test_sem.add_permits(NUMBER_OF_ITERATIONS);
+    for i in 0..NUMBER_OF_ITERATIONS {
+        remote_client.perform_test().await.unwrap();
+
+        // Every time the request is sent and the response is received the metrics counters should
+        // be increased by one.
+        let metrics_as_string = recorder.handle().render();
+        assert_remote_server_metrics(metrics_as_string.as_str(), i + 1, i + 1, i + 1);
     }
 }
