@@ -17,6 +17,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ChainId;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
@@ -41,7 +42,15 @@ use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(5);
+const LAST_HEIGHT: BlockNumber = BlockNumber(4);
+const LAST_HEIGHT_FOR_MANY_TXS: BlockNumber = BlockNumber(1);
+
+struct TestBlockScenario {
+    height: BlockNumber,
+    create_rpc_txs_fn: CreateRpcTxsFn,
+    test_tx_hashes_fn: TestTxHashesFn,
+    expected_content_id: ExpectedContentId,
+}
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -49,8 +58,26 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 }
 
 #[rstest]
+#[case::end_to_end_flow(
+    TestIdentifier::EndToEndFlowTest,
+    create_test_blocks(),
+    GasAmount(29000000),
+    LAST_HEIGHT
+)]
+#[case::many_txs_scenario(
+    TestIdentifier::EndToEndFlowTestManyTxs,
+    create_test_blocks_for_many_txs_scenario(),
+    GasAmount(17000000),
+    LAST_HEIGHT_FOR_MANY_TXS
+)]
 #[tokio::test]
-async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
+async fn end_to_end_flow(
+    mut tx_generator: MultiAccountTransactionGenerator,
+    #[case] test_identifier: TestIdentifier,
+    #[case] test_blocks_scenarios: Vec<TestBlockScenario>,
+    #[case] block_max_capacity_sierra_gas: GasAmount,
+    #[case] expected_last_height: BlockNumber,
+) {
     // TODO(yair): Remove once sporadic error in CI is solved.
     if in_ci() {
         std::env::set_var("RUST_LOG", "starknet=debug,infra=off");
@@ -62,7 +89,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
-        TestIdentifier::EndToEndFlowTest.into(),
+        test_identifier.into(),
+        block_max_capacity_sierra_gas,
     )
     .await;
 
@@ -79,7 +107,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     expected_proposer_iter.next().unwrap();
 
     // Build multiple heights to ensure heights are committed.
-    for (height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id) in create_test_blocks()
+    for TestBlockScenario { height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id } in
+        test_blocks_scenarios
     {
         debug!("Starting height {}.", height);
         // Create and send transactions.
@@ -117,15 +146,14 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     for sequencer in sequencers {
         let height = sequencer.batcher_height().await;
         assert_eq!(
-            height,
-            LAST_HEIGHT.unchecked_next(),
+            height, expected_last_height,
             "Sequencer {} didn't reach last height.",
             sequencer.node_index
         );
     }
 }
 
-fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> {
+fn create_test_blocks() -> Vec<TestBlockScenario> {
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
@@ -157,6 +185,18 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
                 "0x4bc25e55d7e8515c39cd4837b49c9be5a82ea5fbbba306ac7c7b020eac7b7f6",
             ),
         ),
+    ];
+    itertools::zip_eq(heights_to_build, test_scenarios)
+        .map(|(height, (create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id))| {
+            TestBlockScenario { height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id }
+        })
+        .collect()
+}
+
+fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
+    let next_height = INITIAL_HEIGHT.unchecked_next();
+    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT_FOR_MANY_TXS.unchecked_next());
+    let test_scenarios: Vec<(CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> = vec![
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
         // block. This means that the last 3 transactions could be included in the next block if
         // one is added to the test.
@@ -164,13 +204,13 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_many_invoke_txs,
             test_many_invoke_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x2cf7cfb6a8f72303267ce824d6a65b5bf6f1f03890a61282cc036783ed78ce3",
+                "0x412540c4c46aee449f0534bc28ef9f9f8432ebeb84a0b4142d36dd5ade48d6e",
             ),
         ),
     ];
     itertools::zip_eq(heights_to_build, test_scenarios)
-        .map(|(h, (create_txs_fn, test_tx_hashes_fn, expected_content_id))| {
-            (h, create_txs_fn, test_tx_hashes_fn, expected_content_id)
+        .map(|(height, (create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id))| {
+            TestBlockScenario { height, create_rpc_txs_fn, test_tx_hashes_fn, expected_content_id }
         })
         .collect()
 }
