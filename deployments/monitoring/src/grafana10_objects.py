@@ -40,7 +40,7 @@ empty_dashboard = {
 }
 
 row_object = {
-      "collapsed": False,
+      "collapsed": True,
       "gridPos": {
         "h": 1,
         "w": 24,
