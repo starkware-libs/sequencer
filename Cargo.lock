@@ -10869,6 +10869,8 @@ dependencies = [
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
+ "num-rational 0.4.2",
+ "num-traits",
  "papyrus_config",
  "papyrus_state_reader",
  "papyrus_storage",

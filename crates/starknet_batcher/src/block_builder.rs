@@ -20,6 +20,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
+use num_rational::Ratio;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::{ClassReader, PapyrusReader};
@@ -349,6 +350,8 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         >,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
+
+    fn get_contract_class_manager_cache_miss_rate(&self) -> Ratio<usize>;
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -465,6 +468,10 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))
+    }
+
+    fn get_contract_class_manager_cache_miss_rate(&self) -> Ratio<usize> {
+        self.contract_class_manager.get_cache_miss_rate()
     }
 }
 

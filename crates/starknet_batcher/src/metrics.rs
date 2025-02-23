@@ -1,6 +1,7 @@
 use starknet_api::block::BlockNumber;
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
+    CAIRO_NATIVE_CACHE_MISS_RATIO,
     PROPOSAL_ABORTED,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
@@ -13,6 +14,9 @@ pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     #[allow(clippy::as_conversions)]
     STORAGE_HEIGHT.set(storage_height.0 as f64);
+
+    CAIRO_NATIVE_CACHE_MISS_RATIO.register();
+    CAIRO_NATIVE_CACHE_MISS_RATIO.set(0.0);
 
     PROPOSAL_STARTED.register();
     PROPOSAL_SUCCEEDED.register();

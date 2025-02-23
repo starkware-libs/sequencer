@@ -111,7 +111,8 @@ macro_rules! define_gauge_metrics {
 
 define_gauge_metrics!(
     MetricScope::Batcher => {
-        { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" }
+        { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
+        { CAIRO_NATIVE_CACHE_MISS_RATIO, "cairo_native_cache_miss_ratio","The cache miss of cairo native"}
     },
     MetricScope::Infra => {
         { BATCHER_LOCAL_QUEUE_DEPTH, "batcher_local_queue_depth", "The depth of the batcher's local message queue" },
