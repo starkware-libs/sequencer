@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
 
@@ -49,6 +50,28 @@ pub struct NativeClassManager {
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
     compiler: Option<Arc<dyn SierraToNativeCompiler>>,
+    /// cache_miss_rate
+    cache_metrics: Arc<CacheMetrics>,
+}
+
+#[derive(Default)]
+pub struct CacheMetrics {
+    pub cache_misses: AtomicU64,
+    pub cache_hits: AtomicU64,
+}
+
+impl CacheMetrics {
+    pub fn new() -> Self {
+        Self { cache_misses: AtomicU64::new(0), cache_hits: AtomicU64::new(0) }
+    }
+
+    pub fn record_miss(&self) {
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_hit(&self) {
+        self.cache_hits.fetch_add(1, Ordering::Relaxed);
+    }
 }
 
 impl NativeClassManager {
@@ -70,6 +93,7 @@ impl NativeClassManager {
                 cache,
                 sender: None,
                 compiler: None,
+                cache_metrics: Arc::new(CacheMetrics::new()),
             };
         }
 
@@ -82,6 +106,7 @@ impl NativeClassManager {
                 cache,
                 sender: None,
                 compiler: Some(compiler),
+                cache_metrics: Arc::new(CacheMetrics::new()),
             };
         }
 
@@ -92,12 +117,28 @@ impl NativeClassManager {
             move || run_compilation_worker(cache, receiver, compiler)
         });
 
-        NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
+        // TODO(AVIV): Add private constructor with default values.
+        NativeClassManager {
+            cairo_native_run_config,
+            cache,
+            sender: Some(sender),
+            compiler: None,
+            cache_metrics: Arc::new(CacheMetrics::new()),
+        }
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in cache.
     pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-        let cached_class = self.cache.get(class_hash)?;
+        let cached_class = match self.cache.get(class_hash) {
+            Some(class) => {
+                self.cache_metrics.record_hit();
+                class
+            }
+            None => {
+                self.cache_metrics.record_miss();
+                return None;
+            }
+        };
         if let CachedClass::V1(_, _) = cached_class {
             // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
             // `run_cairo_native` is false.
@@ -194,6 +235,16 @@ impl NativeClassManager {
     #[cfg(any(feature = "testing", test))]
     pub fn get_cache_size(&self) -> usize {
         self.cache.lock().cache_size()
+    }
+
+    /// Retrieves the current cache miss counter and resets it to zero.
+    pub fn take_cache_miss_counter(&self) -> u64 {
+        self.cache_metrics.cache_misses.swap(0, Ordering::Relaxed)
+    }
+
+    /// Retrieves the current cache hit counter and resets it to zero.
+    pub fn take_cache_hit_counter(&self) -> u64 {
+        self.cache_metrics.cache_hits.swap(0, Ordering::Relaxed)
     }
 }
 

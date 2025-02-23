@@ -19,6 +19,7 @@ starknet_http_server.workspace = true
 starknet_mempool.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true
+const_format.workspace = true
 
 [dev-dependencies]
 colored.workspace = true

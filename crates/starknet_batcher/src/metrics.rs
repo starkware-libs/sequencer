@@ -8,6 +8,8 @@ define_metrics!(
         MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
         // Counters
         MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", init = 0 },
+        MetricCounter { CAIRO_NATIVE_CACHE_MISSES, "cairo_native_cache_misses", "Counter for cache misses in the Cairo native class manager", init=0 },
+        MetricCounter { CAIRO_NATIVE_CACHE_HITS, "cairo_native_cache_hits", "Counter for cache hits in the Cairo native class manager", init=0 },
         MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", init = 0 },
         MetricCounter { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", init = 0 },
         MetricCounter { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", init = 0 },
@@ -23,6 +25,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     #[allow(clippy::as_conversions)]
     STORAGE_HEIGHT.set(storage_height.0 as f64);
+    CAIRO_NATIVE_CACHE_MISSES.register();
+    CAIRO_NATIVE_CACHE_HITS.register();
 
     PROPOSAL_STARTED.register();
     PROPOSAL_SUCCEEDED.register();
