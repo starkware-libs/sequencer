@@ -46,9 +46,22 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
 }
 
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, ..  }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let deprecated_class_iter = exec_scopes
+        .get_mut_ref::<IntoIter<Felt252, GenericDeprecatedCompiledClass>>(vars::scopes::COMPILED_CLASS_FACTS)?;
+
+    let (class_hash, deprecated_class) = deprecated_class_iter.next().unwrap();
+
+    exec_scopes.insert_value(vars::scopes::COMPILED_CLASS_HASH, class_hash);
+    exec_scopes.insert_value(vars::scopes::COMPILED_CLASS, deprecated_class.clone());
+
+    let dep_class_base = vm.add_memory_segment();
+    let starknet_api_class =
+        deprecated_class.to_starknet_api_contract_class().map_err(|e| custom_hint_error(e.to_string()))?;
+    get_deprecated_contract_class_struct(vm, dep_class_base, starknet_api_class)?;
+
+    insert_value_from_var_name(vars::ids::COMPILED_CLASS, dep_class_base, vm, ids_data, ap_tracking)
 }
 
 pub(crate) fn load_deprecated_class<S: StateReader>(
