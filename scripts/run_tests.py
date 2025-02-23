@@ -14,26 +14,56 @@ from tests_utils import (
 # Set of files which - if changed - should trigger tests for all packages.
 ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
 
+# Set of crates which - if changed - should trigger the integration tests.
+INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"sequencer_integration_tests"}
+
+# Sequencer node binary name.
+SEQUENCER_BINARY_NAME: str = "starknet_sequencer_node"
+
+# List of sequencer node integration test binary names. Stored as a list to maintain order.
+SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
+    "positive_flow_integration_test",
+    # TODO(Shahak/NoamP): enable these when required
+    # "restart_flow_integration_test",
+    "revert_flow_integration_test",
+]
+
 
 # Enum of base commands.
 class BaseCommand(Enum):
     TEST = "test"
     CLIPPY = "clippy"
     DOC = "doc"
+    INTEGRATION = "integration"
 
-    def cmd(self, crates: Set[str]) -> List[str]:
+    def cmds(self, crates: Set[str]) -> List[List[str]]:
         package_args = []
         for package in crates:
             package_args.extend(["--package", package])
 
         if self == BaseCommand.TEST:
-            return ["cargo", "test"] + package_args
+            return [["cargo", "test"] + package_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["cargo", "clippy"] + clippy_args + ["--all-targets"]
+            return [["cargo", "clippy"] + clippy_args + ["--all-targets"]]
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args
+            return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
+        elif self == BaseCommand.INTEGRATION:
+            # Do nothing if integration tests should not be triggered.
+            if INTEGRATION_TEST_CRATE_TRIGGERS not in crates:
+                return [[]]
+            # Commands to build the node and all the test binaries.
+            build_cmds = [
+                ["cargo", "build", "--bin", binary_name]
+                for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
+            ]
+            # Commands to run the test binaries.
+            run_cmds = [
+                [f"./target/debug/{test_binary_name}"]
+                for test_binary_name in SEQUENCER_INTEGRATION_TEST_NAMES
+            ]
+            return build_cmds + run_cmds
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
@@ -54,11 +84,12 @@ def test_crates(crates: Set[str], base_command: BaseCommand):
         args.extend(["--package", package])
 
     # If crates is empty (i.e. changes_only is False), all packages will be tested (no args).
-    cmd = base_command.cmd(crates=crates)
+    cmds = base_command.cmds(crates=crates)
 
     print("Running tests...")
-    print(cmd, flush=True)
-    subprocess.run(cmd, check=True)
+    for cmd in cmds:
+        print(cmd, flush=True)
+        subprocess.run(cmd, check=True)
     print("Tests complete.")
 
 
