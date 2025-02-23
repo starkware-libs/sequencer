@@ -4,12 +4,17 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use super::utils::{BitLength, BitsArray};
-use crate::hints::error::OsHintError;
-use crate::hints::hint_implementation::stateless_compression::utils::{
+use super::utils::{
+    BitLength,
+    BitsArray,
+    BucketElement,
     BucketElement125,
+    BucketElement31,
+    BucketElement62,
     BucketElementTrait,
+    Buckets,
 };
+use crate::hints::error::OsHintError;
 
 // Utils
 
@@ -66,4 +71,17 @@ fn test_pack_and_unpack() {
     let packed = BucketElement125::pack_in_felts(&bucket);
     let unpacked = unpack_felts(packed.as_ref(), bucket.len());
     assert_eq!(bucket, unpacked);
+}
+
+#[test]
+fn test_buckets() {
+    let mut buckets = Buckets::new();
+    buckets.add(BucketElement::BucketElement31(BucketElement31::try_from(Felt::ONE).unwrap()));
+    buckets.add(BucketElement::BucketElement62(BucketElement62::try_from(Felt::TWO).unwrap()));
+    let bucket62_3 =
+        BucketElement::BucketElement62(BucketElement62::try_from(Felt::THREE).unwrap());
+    buckets.add(bucket62_3.clone());
+
+    assert_eq!(buckets.get_element_index(&bucket62_3), Some(&1_usize));
+    assert_eq!(buckets.lengths(), [0, 0, 0, 2, 1, 0]);
 }
