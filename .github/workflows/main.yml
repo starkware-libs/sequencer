@@ -140,6 +140,15 @@ jobs:
         env:
           SEED: 0
 
+      - name: "Run integration tests pull request"
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+        env:
+          SEED: 0
+
       - name: "Run tests on push"
         if: github.event_name == 'push'
         # TODO(AdiY/Dori): Better support for running tests on push.
