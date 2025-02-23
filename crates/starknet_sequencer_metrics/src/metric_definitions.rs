@@ -151,9 +151,9 @@ define_counter_metrics!(
         { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 }
     },
     MetricScope::HttpServer => {
-        { ADDED_TRANSACTIONS_TOTAL, "ADDED_TRANSACTIONS_TOTAL", "Total number of transactions added", 0 },
-        { ADDED_TRANSACTIONS_SUCCESS, "ADDED_TRANSACTIONS_SUCCESS", "Number of successfully added transactions", 0 },
-        { ADDED_TRANSACTIONS_FAILURE, "ADDED_TRANSACTIONS_FAILURE", "Number of faulty added transactions", 0 }
+        { ADDED_TRANSACTIONS_TOTAL, "added_transactions_total", "Total number of transactions added", 0 },
+        { ADDED_TRANSACTIONS_SUCCESS, "added_transactions_success", "Number of successfully added transactions", 0 },
+        { ADDED_TRANSACTIONS_FAILURE, "added_transactions_failure", "Number of faulty added transactions", 0 }
     },
     MetricScope::Infra => {
         // Local server counters

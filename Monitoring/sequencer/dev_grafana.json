@@ -32,10 +32,10 @@
     ],
     "Http Server": [
       {
-        "title": "ADDED_TRANSACTIONS_TOTAL",
+        "title": "added_transactions_total",
         "description": "Total number of transactions added",
         "type": "stat",
-        "expr": "ADDED_TRANSACTIONS_TOTAL",
+        "expr": "added_transactions_total",
         "extra_params": {}
       }
     ],
