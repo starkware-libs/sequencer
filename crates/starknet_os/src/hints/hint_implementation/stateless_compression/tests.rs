@@ -5,6 +5,7 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
+    get_bucket_offsets,
     BitLength,
     BitsArray,
     BucketElement,
@@ -13,6 +14,7 @@ use super::utils::{
     BucketElement62,
     BucketElementTrait,
     Buckets,
+    CompressionSet,
 };
 use crate::hints::error::OsHintError;
 
@@ -84,4 +86,52 @@ fn test_buckets() {
 
     assert_eq!(buckets.get_element_index(&bucket62_3), Some(&1_usize));
     assert_eq!(buckets.lengths(), [0, 0, 0, 2, 1, 0]);
+}
+
+#[test]
+fn test_get_bucket_offsets() {
+    let lengths = vec![2, 3, 5];
+    let offsets = get_bucket_offsets(&lengths);
+    assert_eq!(offsets, [0, 2, 5]);
+}
+
+#[test]
+fn test_update_with_unique_values() {
+    let values = vec![
+        Felt::from(42),                    // < 15 bits
+        Felt::from(12833943439439439_u64), // 54 bits
+        Felt::from(1283394343),            // 31 bits
+    ];
+    let compression_set = CompressionSet::new(&values);
+
+    let unique_lengths = compression_set.get_unique_value_bucket_lengths();
+    assert_eq!(unique_lengths, [0, 0, 0, 1, 1, 1]);
+}
+
+#[test]
+fn test_update_with_repeated_values() {
+    let values = vec![Felt::from(42), Felt::from(42)];
+    let compression_set = CompressionSet::new(&values);
+
+    let unique_lengths = compression_set.get_unique_value_bucket_lengths();
+    assert_eq!(unique_lengths, [0, 0, 0, 0, 0, 1]);
+    assert_eq!(compression_set.n_repeating_values(), 1);
+}
+
+#[test]
+fn test_get_repeating_value_pointers_with_repeated_values() {
+    let values = vec![Felt::from(42), Felt::from(42)];
+    let compression_set = CompressionSet::new(&values);
+
+    let pointers = compression_set.get_repeating_value_pointers();
+    assert_eq!(pointers, [0]);
+}
+
+#[test]
+fn test_get_repeating_value_pointers_with_no_repeated_values() {
+    let values = vec![Felt::from(42), Felt::from(128)];
+    let compression_set = CompressionSet::new(&values);
+
+    let pointers = compression_set.get_repeating_value_pointers();
+    assert!(pointers.is_empty());
 }
