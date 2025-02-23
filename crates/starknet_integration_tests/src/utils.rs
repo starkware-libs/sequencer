@@ -142,12 +142,17 @@ pub fn create_node_config(
     monitoring_endpoint_config: MonitoringEndpointConfig,
     component_config: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
+    block_max_capacity_sierra_gas: GasAmount,
 ) -> (SequencerNodeConfig, RequiredParams) {
     let validator_id =
         set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
-    let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
+    let batcher_config = create_batcher_config(
+        batcher_storage_config,
+        chain_info.clone(),
+        block_max_capacity_sierra_gas,
+    );
     let gateway_config = create_gateway_config(chain_info.clone());
     let l1_scraper_config =
         L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
@@ -447,6 +452,7 @@ pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
 pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
+    block_max_capacity_sierra_gas: GasAmount,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     let concurrency_enabled = true;
@@ -456,7 +462,7 @@ pub fn create_batcher_config(
             chain_info,
             bouncer_config: BouncerConfig {
                 block_max_capacity: BouncerWeights {
-                    sierra_gas: GasAmount(17000000),
+                    sierra_gas: block_max_capacity_sierra_gas,
                     ..Default::default()
                 },
             },
