@@ -175,14 +175,20 @@ mod tests {
 
     #[tokio::test]
     async fn inbound_in_order() {
-        let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
-            setup_test();
+        let (
+            mut stream_handler,
+            mut network_sender,
+            mut inbound_channel_receiver,
+            metadata,
+            _x,
+            _y,
+        ) = setup_test();
 
         let stream_id = TestStreamId(127);
         for i in 0..10 {
             let message = make_test_message(stream_id, i, i == 9);
             send(&mut network_sender, &metadata, message).await;
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
         }
 
         let mut receiver = inbound_channel_receiver.next().await.unwrap();
@@ -201,8 +207,8 @@ mod tests {
             mut network_sender,
             mut inbound_channel_receiver,
             inbound_metadata,
-            _,
-            _,
+            _x,
+            _y,
         ) = setup_test();
         let peer_id = inbound_metadata.originator_id.clone();
         let stream_id = TestStreamId(127);
@@ -210,7 +216,7 @@ mod tests {
         for i in 0..5 {
             let message = make_test_message(stream_id, 5 - i, i == 0);
             send(&mut network_sender, &inbound_metadata, message).await;
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
         }
 
         // No receiver should be created yet.
@@ -241,7 +247,7 @@ mod tests {
 
         // Now send the last message:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id, 0, false)).await;
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
 
         assert!(stream_handler.inbound_stream_data.is_empty());
 
@@ -263,8 +269,8 @@ mod tests {
             mut network_sender,
             mut inbound_channel_receiver,
             inbound_metadata,
-            _,
-            _,
+            _x,
+            _y,
         ) = setup_test();
         let peer_id = inbound_metadata.originator_id.clone();
 
@@ -298,7 +304,7 @@ mod tests {
         }
 
         for _ in 0..num_msgs {
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
         }
 
         let values = [
@@ -345,7 +351,7 @@ mod tests {
 
         // Send the last message on stream_id1:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id1, 0, false)).await;
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
 
         // Get the receiver for the first stream.
         let mut receiver1 = inbound_channel_receiver.next().await.unwrap();
@@ -364,7 +370,7 @@ mod tests {
 
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
 
         // Get the receiver for the second stream.
         let mut receiver2 = inbound_channel_receiver.next().await.unwrap();
@@ -383,7 +389,7 @@ mod tests {
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
 
         // Get the receiver for the third stream.
         let mut receiver3 = inbound_channel_receiver.next().await.unwrap();
@@ -407,8 +413,14 @@ mod tests {
 
     #[tokio::test]
     async fn inbound_close_channel() {
-        let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
-            setup_test();
+        let (
+            mut stream_handler,
+            mut network_sender,
+            mut inbound_channel_receiver,
+            metadata,
+            _x,
+            _y,
+        ) = setup_test();
 
         let stream_id = TestStreamId(127);
         // Send two messages, no Fin.
@@ -417,7 +429,7 @@ mod tests {
             send(&mut network_sender, &metadata, message).await;
         }
         for _ in 0..2 {
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
         }
 
         let mut receiver = inbound_channel_receiver.next().await.unwrap();
@@ -440,7 +452,7 @@ mod tests {
         for i in 2..3 {
             let message = make_test_message(stream_id, i, false);
             send(&mut network_sender, &metadata, message).await;
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
         }
 
         // Check that the stream handler no longer contains the StreamData.
@@ -455,9 +467,9 @@ mod tests {
     async fn outbound_multiple_streams() {
         let (
             mut stream_handler,
-            _,
-            _,
-            _,
+            _x,
+            _y,
+            _z,
             mut broadcast_channel_sender,
             mut broadcasted_messages_receiver,
         ) = setup_test();
@@ -473,8 +485,8 @@ mod tests {
         let message1 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message1.clone()).await.unwrap();
 
-        stream_handler.handle_next_msg().await; // New stream.
-        stream_handler.handle_next_msg().await; // ProposalInit.
+        stream_handler.handle_next_msg().await.unwrap(); // New stream.
+        stream_handler.handle_next_msg().await.unwrap(); // ProposalInit.
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -495,7 +507,7 @@ mod tests {
         // Send another message on the same stream.
         let message2 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message2.clone()).await.unwrap();
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -514,8 +526,8 @@ mod tests {
         let message3 = ProposalPart::Init(ProposalInit::default());
         sender2.send(message3.clone()).await.unwrap();
 
-        stream_handler.handle_next_msg().await; // New stream.
-        stream_handler.handle_next_msg().await; // ProposalInit.
+        stream_handler.handle_next_msg().await.unwrap(); // New stream.
+        stream_handler.handle_next_msg().await.unwrap(); // ProposalInit.
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -534,7 +546,7 @@ mod tests {
 
         // Close the first channel.
         sender1.close_channel();
-        stream_handler.handle_next_msg().await; // Channel closed.
+        stream_handler.handle_next_msg().await.unwrap(); // Channel closed.
 
         // Check that we got a fin message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -584,6 +596,7 @@ mod tests_v2 {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn setup() -> (
         StreamHandler<
             ProposalPart,
@@ -640,13 +653,18 @@ mod tests_v2 {
     async fn outbound_single() {
         let num_messages = 5;
         let stream_id = 1;
-        let (mut stream_handler, _, _, mut outbound_internal_sender, mut outbound_network_receiver) =
-            setup();
+        let (
+            mut stream_handler,
+            _inbound_network_sender,
+            _inbound_internal_receiver,
+            mut outbound_internal_sender,
+            mut outbound_network_receiver,
+        ) = setup();
 
         // Create a new stream to send.
         let (mut sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
         outbound_internal_sender.send((TestStreamId(stream_id), stream_receiver)).await.unwrap();
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
 
         // Send the content of the stream.
         for i in 0..num_messages {
@@ -656,14 +674,14 @@ mod tests_v2 {
 
         // Check the content is sent to the network in order.
         for i in 0..num_messages {
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
             let actual = outbound_network_receiver.next().now_or_never().unwrap().unwrap();
             assert_eq!(actual, build_init_message(i, stream_id, i));
         }
 
         // Close the stream and check that a Fin is sent to the network.
         sender.close_channel();
-        stream_handler.handle_next_msg().await;
+        stream_handler.handle_next_msg().await.unwrap();
         assert_eq!(
             outbound_network_receiver.next().now_or_never().unwrap().unwrap(),
             build_fin_message(stream_id, num_messages)
@@ -674,8 +692,13 @@ mod tests_v2 {
     async fn outbound_multiple() {
         let num_messages = 5;
         let num_streams = 3;
-        let (mut stream_handler, _, _, mut outbound_internal_sender, mut outbound_network_receiver) =
-            setup();
+        let (
+            mut stream_handler,
+            _inbound_network_sender,
+            _inbound_internal_receiver,
+            mut outbound_internal_sender,
+            mut outbound_network_receiver,
+        ) = setup();
 
         // client opens up multiple outbound streams.
         let mut stream_senders = Vec::new();
@@ -686,7 +709,7 @@ mod tests_v2 {
                 .send((TestStreamId(stream_id), stream_receiver))
                 .await
                 .unwrap();
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
         }
 
         // Send messages on all of the streams.
@@ -704,7 +727,7 @@ mod tests_v2 {
         for stream_id in 0..num_streams {
             for i in 0..num_messages {
                 // The order the stream handler selects from among multiple streams is undefined.
-                stream_handler.handle_next_msg().await;
+                stream_handler.handle_next_msg().await.unwrap();
                 let msg = outbound_network_receiver.next().now_or_never().unwrap().unwrap();
                 actual_msgs[msg.stream_id.0 as usize].push(msg);
                 expected_msgs[stream_id as usize].push(build_init_message(i, stream_id, i));
@@ -716,7 +739,7 @@ mod tests_v2 {
         stream_senders.clear();
         let mut stream_ids = (0..num_streams).collect::<BTreeSet<_>>();
         for _ in 0..num_streams {
-            stream_handler.handle_next_msg().await;
+            stream_handler.handle_next_msg().await.unwrap();
             let fin = outbound_network_receiver.next().now_or_never().unwrap().unwrap();
             assert_eq!(fin.message, StreamMessageBody::Fin);
             assert_eq!(fin.message_id, num_messages as u64);
