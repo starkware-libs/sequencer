@@ -3,6 +3,8 @@ use std::cmp::max;
 use std::hash::Hash;
 
 use indexmap::IndexMap;
+use num_bigint::BigUint;
+use num_traits::Zero;
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::Display;
@@ -413,6 +415,35 @@ impl CompressionSet {
     pub fn pack_unique_values(self) -> Vec<Felt> {
         self.unique_value_buckets.pack_in_felts()
     }
+}
+
+/// Calculates the number of elements with the same bit length as the element bound, that can fit
+/// into a single felt value.
+pub fn get_n_elms_per_felt(elm_bound: u32) -> usize {
+    if elm_bound <= 1 {
+        return MAX_N_BITS;
+    }
+    let n_bits_required = 32 - elm_bound.leading_zeros();
+    MAX_N_BITS / usize::try_from(n_bits_required).expect("usize overflow")
+}
+
+/// Packs a list of elements into multiple felts, ensuring that each felt contains as many elements
+/// as can fit.
+pub fn pack_usize_in_felts(elms: &[usize], elm_bound: u32) -> Vec<Felt> {
+    elms.chunks(get_n_elms_per_felt(elm_bound))
+        .map(|chunk| pack_usize_in_felt(chunk, elm_bound))
+        .collect()
+}
+
+/// Packs a chunk of elements into a single felt. Assumes that the elms fit in a felt.
+fn pack_usize_in_felt(elms: &[usize], elm_bound: u32) -> Felt {
+    let elm_bound_as_big = BigUint::from(elm_bound);
+    elms.iter()
+        .enumerate()
+        .fold(BigUint::zero(), |acc, (i, elm)| {
+            acc + BigUint::from(*elm) * elm_bound_as_big.pow(u32::try_from(i).expect("fit u32"))
+        })
+        .into()
 }
 
 /// Computes the starting offsets for each bucket in a list of buckets, based on their lengths.

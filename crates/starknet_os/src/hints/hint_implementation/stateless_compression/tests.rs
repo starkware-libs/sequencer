@@ -1,11 +1,16 @@
 use std::cmp::min;
 
 use assert_matches::assert_matches;
+use num_bigint::BigUint;
+use num_integer::Integer;
+use num_traits::ToPrimitive;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
     get_bucket_offsets,
+    get_n_elms_per_felt,
+    pack_usize_in_felts,
     BitLength,
     BitsArray,
     BucketElement,
@@ -32,6 +37,24 @@ pub fn unpack_felts<const LENGTH: usize>(
         let n_packed_elms = min(n_elms_per_felt, n_elms - result.len());
         for chunk in felt.to_bits_le()[0..n_packed_elms * LENGTH].chunks_exact(LENGTH) {
             result.push(BitsArray(chunk.try_into().unwrap()));
+        }
+    }
+
+    result
+}
+
+pub fn unpack_felts_to_usize(compressed: &[Felt], n_elms: usize, elm_bound: u32) -> Vec<usize> {
+    let n_elms_per_felt = get_n_elms_per_felt(elm_bound);
+    let elm_bound_as_big = BigUint::from(elm_bound);
+    let mut result = Vec::with_capacity(n_elms);
+
+    for felt in compressed {
+        let mut remaining = felt.to_biguint();
+        let n_packed_elms = min(n_elms_per_felt, n_elms - result.len());
+        for _ in 0..n_packed_elms {
+            let (new_remaining, value) = remaining.div_rem(&elm_bound_as_big);
+            result.push(value.to_usize().unwrap());
+            remaining = new_remaining;
         }
     }
 
@@ -87,6 +110,15 @@ fn test_buckets() {
 
     assert_eq!(buckets.get_element_index(&bucket62_3), Some(&1_usize));
     assert_eq!(buckets.lengths(), [0, 0, 0, 2, 1, 0]);
+}
+
+#[test]
+fn test_usize_pack_and_unpack() {
+    let nums = vec![34, 0, 11111, 1034, 3404, 16, 32, 127, 129, 128];
+    let elm_bound = 12345;
+    let packed = pack_usize_in_felts(&nums, elm_bound);
+    let unpacked = unpack_felts_to_usize(packed.as_ref(), nums.len(), elm_bound);
+    assert_eq!(nums, unpacked);
 }
 
 #[test]
