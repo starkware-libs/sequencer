@@ -4,12 +4,16 @@ use std::hash::Hash;
 
 use indexmap::IndexMap;
 use num_bigint::BigUint;
-use num_traits::Zero;
+use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::{Display, EnumCount};
 
 use crate::hints::error::OsHintError;
+
+pub(crate) const COMPRESSION_VERSION: u8 = 0;
+pub(crate) const HEADER_ELM_N_BITS: usize = 20;
+pub(crate) const HEADER_ELM_BOUND: usize = 1 << HEADER_ELM_N_BITS;
 
 pub(crate) const N_UNIQUE_BUCKETS: usize = BitLength::COUNT;
 /// Number of buckets, including the repeating values bucket.
@@ -97,7 +101,7 @@ pub(crate) type BucketElement125 = BitsArray<125>;
 pub(crate) type BucketElement252 = BitsArray<252>;
 
 /// Panics in case the length is 252 bits and the value is larger than max Felt.
-fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
+pub(crate) fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
     if bits.len() > BitLength::MAX {
         return Err(OsHintError::StatelessCompressionOverflow {
             n_bits: bits.len(),
@@ -410,6 +414,34 @@ impl CompressionSet {
     pub fn pack_unique_values(self) -> Vec<Felt> {
         self.buckets.pack_in_felts()
     }
+}
+
+/// Compresses the data provided to output a Vec of compressed Felts.
+pub(crate) fn compress(data: &[Felt]) -> Vec<Felt> {
+    assert!(data.len() < HEADER_ELM_BOUND.to_usize().unwrap(), "Data is too long.");
+
+    let compression_set = CompressionSet::new(data);
+
+    let unique_value_bucket_lengths = compression_set.get_unique_value_bucket_lengths();
+    let n_unique_values: usize = unique_value_bucket_lengths.iter().sum();
+
+    let mut header: Vec<usize> = vec![COMPRESSION_VERSION.into(), data.len()];
+    header.extend(unique_value_bucket_lengths);
+    header.push(compression_set.n_repeating_values());
+
+    let packed_header = pack_usize_in_felts(&header, HEADER_ELM_BOUND);
+    let packed_repeating_value_pointers =
+        pack_usize_in_felts(&compression_set.get_repeating_value_pointers(), n_unique_values);
+    let packed_bucket_index_per_elm =
+        pack_usize_in_felts(&compression_set.bucket_index_per_elm, TOTAL_N_BUCKETS);
+
+    let unique_values = compression_set.pack_unique_values();
+    let mut result = Vec::new();
+    result.extend(packed_header);
+    result.extend(unique_values);
+    result.extend(packed_repeating_value_pointers);
+    result.extend(packed_bucket_index_per_elm);
+    result
 }
 
 /// Calculates the number of elements that can fit in a single felt value, given the element bound.
