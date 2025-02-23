@@ -32,6 +32,8 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error("Tried to iterate past the end of {item_type}.")]
+    EndOfIterator { item_type: String },
     #[error(transparent)]
     ExecutionScopes(#[from] ExecScopeError),
     #[error("{id:?} value {felt} is not a bit.")]
