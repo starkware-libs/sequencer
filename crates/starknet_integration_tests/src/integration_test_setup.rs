@@ -1,9 +1,16 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
-use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
+use papyrus_config::dumping::{
+    combine_config_map_and_pointers,
+    ConfigPointers,
+    Pointers,
+    SerializeConfig,
+};
+use papyrus_config::{ParamPath, SerializedContent, SerializedParam};
 use papyrus_storage::StorageConfig;
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
@@ -76,6 +83,28 @@ impl From<NodeExecutionId> for NodeRunner {
     }
 }
 
+#[derive(Clone)]
+struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
+
+impl ConfigPointersMap {
+    fn new(config_pointers: ConfigPointers) -> Self {
+        ConfigPointersMap(config_pointers.into_iter().map(|((k, v), p)| (k, (v, p))).collect())
+    }
+
+    fn change_target_value(&mut self, target: &str, value: Value) {
+        assert!(self.0.contains_key(target));
+        self.0.entry(target.to_owned()).and_modify(|(param, _)| {
+            param.content = SerializedContent::DefaultValue(value);
+        });
+    }
+}
+
+impl From<ConfigPointersMap> for ConfigPointers {
+    fn from(config_pointers_map: ConfigPointersMap) -> Self {
+        config_pointers_map.0.into_iter().map(|(k, (v, p))| ((k, v), p)).collect()
+    }
+}
+
 pub struct ExecutableSetup {
     // Node test identifier.
     pub node_execution_id: NodeExecutionId,
@@ -93,6 +122,8 @@ pub struct ExecutableSetup {
     config: SequencerNodeConfig,
     // Required param values.
     required_params: RequiredParams,
+    // Configuration parameters that share the same value across multiple components.
+    config_pointers_map: ConfigPointersMap,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -185,6 +216,7 @@ impl ExecutableSetup {
             batcher_storage_config: config.batcher_config.storage.clone(),
             config: config.clone(),
             required_params,
+            config_pointers_map: ConfigPointersMap::new(CONFIG_POINTERS.clone()),
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,
@@ -204,14 +236,23 @@ impl ExecutableSetup {
     pub fn update_revert_config(&mut self, value: Option<BlockNumber>) {
         match value {
             Some(value) => {
+                self.config_pointers_map.change_target_value(
+                    "revert_config.revert_up_to_and_including",
+                    Value::from(value.0),
+                );
                 self.config.state_sync_config.revert_config.revert_up_to_and_including = value;
                 self.config.consensus_manager_config.revert_config.revert_up_to_and_including =
                     value;
+
+                self.config_pointers_map
+                    .change_target_value("revert_config.should_revert", Value::from(true));
                 self.config.state_sync_config.revert_config.should_revert = true;
                 self.config.consensus_manager_config.revert_config.should_revert = true;
             }
             // If should revert is false, the revert_up_to_and_including value is irrelevant.
             None => {
+                self.config_pointers_map
+                    .change_target_value("revert_config.should_revert", Value::from(false));
                 self.config.state_sync_config.revert_config.should_revert = false;
                 self.config.consensus_manager_config.revert_config.should_revert = false;
             }
@@ -224,7 +265,7 @@ impl ExecutableSetup {
         // Create the entire mapping of the config and the pointers, without the required params.
         let config_as_map = combine_config_map_and_pointers(
             self.config.dump(),
-            &CONFIG_POINTERS,
+            &self.config_pointers_map.clone().into(),
             &CONFIG_NON_POINTERS_WHITELIST,
         )
         .unwrap();
