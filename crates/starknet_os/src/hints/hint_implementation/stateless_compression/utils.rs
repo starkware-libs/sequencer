@@ -4,12 +4,16 @@ use std::hash::Hash;
 
 use indexmap::IndexMap;
 use num_bigint::BigUint;
-use num_traits::Zero;
+use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::Display;
 
 use crate::hints::error::OsHintError;
+
+pub(crate) const COMPRESSION_VERSION: u8 = 0;
+pub(crate) const HEADER_ELM_N_BITS: usize = 20;
+pub(crate) const HEADER_ELM_BOUND: u32 = 1 << HEADER_ELM_N_BITS;
 
 pub(crate) const N_UNIQUE_BUCKETS: usize = BitLength::COUNT;
 /// Number of buckets, including the repeating values bucket.
@@ -398,6 +402,40 @@ impl CompressionSet {
     pub fn pack_unique_values(self) -> Vec<Felt> {
         self.unique_value_buckets.pack_in_felts()
     }
+}
+
+/// Compresses the data provided to output a Vec of compressed Felts.
+pub(crate) fn compress(data: &[Felt]) -> Vec<Felt> {
+    assert!(
+        data.len() < HEADER_ELM_BOUND.to_usize().expect("usize overflow"),
+        "Data is too long: {} >= {HEADER_ELM_BOUND}.",
+        data.len()
+    );
+
+    let compression_set = CompressionSet::new(data);
+
+    let unique_value_bucket_lengths = compression_set.get_unique_value_bucket_lengths();
+    let n_unique_values: usize = unique_value_bucket_lengths.iter().sum();
+
+    let mut header: Vec<usize> = vec![COMPRESSION_VERSION.into(), data.len()];
+    header.extend(unique_value_bucket_lengths);
+    header.push(compression_set.n_repeating_values());
+
+    let packed_header = pack_usize_in_felts(&header, HEADER_ELM_BOUND);
+    let packed_repeating_value_pointers = pack_usize_in_felts(
+        &compression_set.get_repeating_value_pointers(),
+        u32::try_from(n_unique_values).expect("Too many unique values"),
+    );
+    let packed_bucket_index_per_elm = pack_usize_in_felts(
+        &compression_set.bucket_index_per_elm,
+        u32::try_from(TOTAL_N_BUCKETS).expect("Too many buckets"),
+    );
+
+    let unique_values = compression_set.pack_unique_values();
+    [packed_header, unique_values, packed_repeating_value_pointers, packed_bucket_index_per_elm]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 /// Calculates the number of elements with the same bit length as the element bound, that can fit
