@@ -3,7 +3,7 @@ use std::cmp::max;
 
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
-use strum_macros::EnumCount;
+use strum_macros::{Display, EnumCount};
 
 use crate::hints::error::OsHintError;
 
@@ -13,8 +13,8 @@ pub(crate) const TOTAL_N_BUCKETS: usize = N_UNIQUE_BUCKETS + 1;
 
 pub(crate) const MAX_N_BITS: usize = 251;
 
-#[derive(Debug, EnumCount)]
-enum BitLength {
+#[derive(Debug, Display, EnumCount)]
+pub(crate) enum BitLength {
     Bits15,
     Bits31,
     Bits62,
@@ -37,11 +37,11 @@ impl BitLength {
         }
     }
 
-    fn n_elems_in_felt(&self) -> usize {
+    pub(crate) fn n_elems_in_felt(&self) -> usize {
         max(MAX_N_BITS / self.n_bits(), 1)
     }
 
-    fn min_bit_length(n_bits: usize) -> Result<Self, OsHintError> {
+    pub(crate) fn min_bit_length(n_bits: usize) -> Result<Self, OsHintError> {
         match n_bits {
             _ if n_bits <= 15 => Ok(Self::Bits15),
             _ if n_bits <= 31 => Ok(Self::Bits31),
@@ -89,7 +89,7 @@ type BucketElement15 = BitsArray<15>;
 type BucketElement31 = BitsArray<31>;
 type BucketElement62 = BitsArray<62>;
 type BucketElement83 = BitsArray<83>;
-type BucketElement125 = BitsArray<125>;
+pub(crate) type BucketElement125 = BitsArray<125>;
 type BucketElement252 = BitsArray<252>;
 
 /// Panics in case the length is 252 bits and the value is larger than max Felt.
@@ -113,3 +113,47 @@ fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
     }
     Ok(Felt::from_bytes_le(&bytes))
 }
+
+pub(crate) trait BucketElementTrait: Sized {
+    fn to_bit_length() -> BitLength;
+
+    fn as_bool_ref(&self) -> &[bool];
+
+    fn pack_in_felts(elms: &[Self]) -> Vec<Felt> {
+        elms.chunks(Self::to_bit_length().n_elems_in_felt())
+            .map(|chunk| {
+                felt_from_bits_le(
+                    &(chunk.iter().flat_map(Self::as_bool_ref).copied().collect::<Vec<_>>()),
+                )
+                .unwrap_or_else(|_| {
+                    panic!(
+                        "Chunks of size {}, each of bit length {}, fit in felts.",
+                        Self::to_bit_length().n_elems_in_felt(),
+                        Self::to_bit_length()
+                    )
+                })
+            })
+            .collect()
+    }
+}
+
+macro_rules! impl_bucket_element_trait {
+    ($bucket_element:ident, $bit_length:ident) => {
+        impl BucketElementTrait for $bucket_element {
+            fn to_bit_length() -> BitLength {
+                BitLength::$bit_length
+            }
+
+            fn as_bool_ref(&self) -> &[bool] {
+                &self.0.as_ref()
+            }
+        }
+    };
+}
+
+impl_bucket_element_trait!(BucketElement15, Bits15);
+impl_bucket_element_trait!(BucketElement31, Bits31);
+impl_bucket_element_trait!(BucketElement62, Bits62);
+impl_bucket_element_trait!(BucketElement83, Bits83);
+impl_bucket_element_trait!(BucketElement125, Bits125);
+impl_bucket_element_trait!(BucketElement252, Bits252);
