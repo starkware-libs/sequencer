@@ -7,7 +7,7 @@ use futures::channel::oneshot::Canceled;
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::pending;
-use futures::{FutureExt, SinkExt};
+use futures::{FutureExt, SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -287,33 +287,32 @@ async fn repropose() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let (mut context, mut network) = setup(batcher, success_cende_ammbassador());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(context.proposal_buffer_size);
-    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
-    content_sender
-        .send(ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![generate_invoke_tx(2)],
-        }))
-        .await
-        .unwrap();
-    content_sender
-        .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
-        }))
-        .await
-        .unwrap();
-    let fin_receiver =
-        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
+    let block_info = ProposalPart::BlockInfo(block_info(BlockNumber(0)));
+    content_sender.send(block_info.clone()).await.unwrap();
+    let transactions =
+        ProposalPart::Transactions(TransactionBatch { transactions: vec![generate_invoke_tx(2)] });
+    content_sender.send(transactions.clone()).await.unwrap();
+    let fin = ProposalPart::Fin(ProposalFin {
+        proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+    });
+    content_sender.send(fin.clone()).await.unwrap();
+    let init = ProposalInit::default();
+    let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
-    // Re-proposal: Just asserts this is a known valid proposal.
-    context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), ProposalInit::default()).await;
+    context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), init).await;
+    let (_, mut receiver) = network._outbound_proposal_receiver.next().await.unwrap();
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
+    assert_eq!(receiver.next().await.unwrap(), block_info);
+    assert_eq!(receiver.next().await.unwrap(), transactions);
 }
 
 #[tokio::test]
