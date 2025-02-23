@@ -23,6 +23,7 @@ starknet_sequencer_infra.workspace = true
 starknet_sierra_multicompile_types.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
