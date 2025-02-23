@@ -8,7 +8,6 @@ on:
 env:
   CI: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
-  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 jobs:
   code_style:
@@ -29,8 +28,6 @@ jobs:
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap
-        with:
-          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
 
       - name: Setup Python venv
         run: |
@@ -49,4 +46,4 @@ jobs:
       - name: "Run rustfmt on merge queue"
         # The nightly here is coupled with the one in install_rust/action.yml.
         # If we move the install here we can use a const.
-        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+        run: cargo fmt --all -- --check

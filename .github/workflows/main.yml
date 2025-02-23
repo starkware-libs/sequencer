@@ -20,7 +20,6 @@ env:
   CI: 1
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
   RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
-  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -55,8 +54,6 @@ jobs:
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap
-        with:
-          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
 
       - name: Setup Python venv
         run: |
@@ -86,9 +83,7 @@ jobs:
 
       # Run code style on push.
       - name: "Run rustfmt"
-        # The nightly here is coupled with the one in install_rust/action.yml.
-        # If we move the install here we can use a const.
-        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+        run: cargo fmt --all -- --check
 
       - name: "Run clippy on push"
         if: github.event_name == 'push'
