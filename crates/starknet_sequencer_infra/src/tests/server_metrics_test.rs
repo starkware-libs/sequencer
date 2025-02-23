@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -276,4 +277,37 @@ async fn only_metrics_counters_for_concurrent_server() {
         NUMBER_OF_ITERATIONS,
         0,
     );
+}
+
+#[tokio::test]
+async fn all_metrics_for_concurrent_server() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+
+    let max_concurrency = NUMBER_OF_ITERATIONS / 2;
+    let (test_sem, client) = setup_concurrent_local_server_test(max_concurrency).await;
+
+    // Let send all the messages.
+    for _ in 0..NUMBER_OF_ITERATIONS {
+        let multi_client = client.clone();
+        task::spawn(async move {
+            multi_client.perform_test().await.unwrap();
+        });
+    }
+    task::yield_now().await;
+
+    for i in 0..NUMBER_OF_ITERATIONS {
+        // After sending i permits we should have max_concurrency + i + 1 received messages (but
+        // maximum is NUMBER_OF_ITERATIONS), because the first max_currency + 1 messages
+        // doesn't need a permit to be received but need a permit to be processed. So we
+        // will have only i processed messages. And the queue depth should be:
+        // NUMBER_OF_ITERATIONS - number of received messages.
+        let received_messages = min(max_concurrency + i + 1, NUMBER_OF_ITERATIONS);
+        let queue_depth = NUMBER_OF_ITERATIONS - received_messages;
+
+        let metrics_as_string = recorder.handle().render();
+        assert_server_metrics(metrics_as_string.as_str(), received_messages, i, queue_depth);
+        test_sem.add_permits(1);
+        task::yield_now().await;
+    }
 }
