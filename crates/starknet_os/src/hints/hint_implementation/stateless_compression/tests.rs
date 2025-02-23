@@ -8,6 +8,8 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
+    compress,
+    felt_from_bits_le,
     get_bucket_offsets,
     get_n_elms_per_felt,
     pack_usize_in_felts,
@@ -20,10 +22,14 @@ use super::utils::{
     BucketElementTrait,
     Buckets,
     CompressionSet,
+    COMPRESSION_VERSION,
+    HEADER_ELM_BOUND,
     N_UNIQUE_BUCKETS,
+    TOTAL_N_BUCKETS,
 };
 use crate::hints::error::OsHintError;
 
+const HEADER_LEN: usize = 1 + 1 + TOTAL_N_BUCKETS;
 // Utils
 
 pub fn unpack_felts<const LENGTH: usize>(
@@ -58,6 +64,81 @@ pub fn unpack_felts_to_usize(compressed: &[Felt], n_elms: usize, elm_bound: u32)
         }
     }
 
+    result
+}
+
+/// Decompresses the given compressed data.
+pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
+    fn unpack_chunk<const LENGTH: usize>(
+        compressed: &mut impl Iterator<Item = Felt>,
+        n_elms: usize,
+    ) -> Vec<Felt> {
+        let n_elms_per_felt = BitLength::min_bit_length(LENGTH).unwrap().n_elems_in_felt();
+        let n_packed_felts = n_elms.div_ceil(n_elms_per_felt);
+        let compressed_chunk: Vec<_> = compressed.take(n_packed_felts).collect();
+        unpack_felts(&compressed_chunk, n_elms)
+            .into_iter()
+            .map(|bits: BitsArray<LENGTH>| felt_from_bits_le(&bits.0).unwrap())
+            .collect()
+    }
+
+    fn unpack_chunk_to_usize(
+        compressed: &mut impl Iterator<Item = Felt>,
+        n_elms: usize,
+        elm_bound: u32,
+    ) -> Vec<usize> {
+        let n_elms_per_felt = get_n_elms_per_felt(elm_bound);
+        let n_packed_felts = n_elms.div_ceil(n_elms_per_felt);
+
+        let compressed_chunk: Vec<_> = compressed.take(n_packed_felts).collect();
+        unpack_felts_to_usize(&compressed_chunk, n_elms, elm_bound)
+    }
+
+    let header = unpack_chunk_to_usize(compressed, HEADER_LEN, HEADER_ELM_BOUND);
+    let version = &header[0];
+    assert!(version == &usize::from(COMPRESSION_VERSION), "Unsupported compression version.");
+
+    let data_len = &header[1];
+    let unique_value_bucket_lengths: Vec<usize> = header[2..2 + N_UNIQUE_BUCKETS].to_vec();
+    let n_repeating_values = &header[2 + N_UNIQUE_BUCKETS];
+
+    let mut unique_values = Vec::new();
+    unique_values.extend(compressed.take(unique_value_bucket_lengths[0]));
+    unique_values.extend(unpack_chunk::<125>(compressed, unique_value_bucket_lengths[1]));
+    unique_values.extend(unpack_chunk::<83>(compressed, unique_value_bucket_lengths[2]));
+    unique_values.extend(unpack_chunk::<62>(compressed, unique_value_bucket_lengths[3]));
+    unique_values.extend(unpack_chunk::<31>(compressed, unique_value_bucket_lengths[4]));
+    unique_values.extend(unpack_chunk::<15>(compressed, unique_value_bucket_lengths[5]));
+
+    let repeating_value_pointers = unpack_chunk_to_usize(
+        compressed,
+        *n_repeating_values,
+        unique_values.len().try_into().unwrap(),
+    );
+
+    let repeating_values: Vec<_> =
+        repeating_value_pointers.iter().map(|ptr| unique_values[*ptr]).collect();
+
+    let mut all_values = unique_values;
+    all_values.extend(repeating_values);
+
+    let bucket_index_per_elm: Vec<usize> =
+        unpack_chunk_to_usize(compressed, *data_len, TOTAL_N_BUCKETS.try_into().unwrap());
+
+    let all_bucket_lengths: Vec<usize> =
+        unique_value_bucket_lengths.into_iter().chain([*n_repeating_values]).collect();
+
+    let bucket_offsets = get_bucket_offsets(&all_bucket_lengths);
+
+    let mut bucket_offset_iterators: Vec<_> = bucket_offsets;
+
+    let mut result = Vec::new();
+    for bucket_index in bucket_index_per_elm {
+        let offset = &mut bucket_offset_iterators[bucket_index];
+        let value = all_values[*offset];
+        *offset += 1;
+        result.push(value);
+    }
     result
 }
 
@@ -160,4 +241,89 @@ fn test_update_with_unique_values(
     assert_eq!(expected_unique_lengths, compression_set.get_unique_value_bucket_lengths());
     assert_eq!(expected_n_repeating_values, compression_set.n_repeating_values());
     assert_eq!(expected_repeating_value_pointers, compression_set.get_repeating_value_pointers());
+}
+
+// These values are calculated by importing the module and running the compression method
+// ```py
+// # import compress from compression
+// def main() -> int:
+//     print(compress([2,3,1]))
+//     return 0
+// ```
+#[rstest]
+#[case::single_value_1(vec![1u32], vec!["0x100000000000000000000000000000100000", "0x1", "0x5"])]
+#[case::single_value_2(vec![2u32], vec!["0x100000000000000000000000000000100000", "0x2", "0x5"])]
+#[case::single_value_3(vec![10u32], vec!["0x100000000000000000000000000000100000", "0xA", "0x5"])]
+#[case::two_values(vec![1u32, 2], vec!["0x200000000000000000000000000000200000", "0x10001", "0x28"])]
+#[case::three_values(vec![2u32, 3, 1], vec!["0x300000000000000000000000000000300000", "0x40018002", "0x11d"])]
+#[case::four_values(vec![1u32, 2, 3, 4], vec!["0x400000000000000000000000000000400000", "0x8000c0010001", "0x7d0"])]
+#[case::extracted_kzg_example(vec![1u32, 1, 6, 1991, 66, 0], vec!["0x10000500000000000000000000000000000600000", "0x841f1c0030001", "0x0", "0x17eff"])]
+
+fn test_compress_decompress(#[case] input: Vec<u32>, #[case] expected: Vec<&str>) {
+    let data: Vec<_> = input.into_iter().map(Felt::from).collect();
+    let compressed = compress(&data);
+    let expected: Vec<_> = expected.iter().map(|s| Felt::from_hex_unchecked(s)).collect();
+    assert_eq!(compressed, expected);
+
+    let decompressed = decompress(&mut compressed.into_iter());
+    assert_eq!(decompressed, data);
+}
+
+#[rstest]
+#[case::no_values(
+    vec![],
+    0, // A single bucket with one value.
+    None, // 1 header, 1 value, 1 pointer.
+)]
+#[case::single_value_1(
+    vec![Felt::from(7777777)],
+    1, // A single bucket with one value.
+    Some(300), // 1 header, 1 value, 1 pointer
+)]
+#[case::large_duplicates(
+    vec![Felt::from(BigUint::from(2_u8).pow(250)); 100],
+    1, // Should remove duplicated values.
+    Some(5),
+)]
+#[case::small_values(
+    (0..0x8000).map(Felt::from).collect(),
+    2048, // = 2**15/(251/15), as all elements are packed in the 15-bits bucket.
+    Some(7),
+)]
+#[case::mixed_buckets(
+    (0..252).map(|i| Felt::from(BigUint::from(2_u8).pow(i))).collect(),
+    1 + 2 + 8 + 7 + 21 + 127, // All buckets are involved here.
+    Some(67), // More than half of the values are in the biggest (252-bit) bucket.
+)]
+fn test_compression_length(
+    #[case] data: Vec<Felt>,
+    #[case] expected_unique_values_packed_length: usize,
+    #[case] expected_compression_percents: Option<usize>,
+) {
+    use std::collections::HashSet;
+
+    let compressed = compress(&data);
+    println!("compressed: {:?}", compressed);
+
+    let n_unique_values = data.iter().collect::<HashSet<_>>().len();
+    let n_repeated_values = data.len() - n_unique_values;
+    let expected_repeated_value_pointers_packed_length =
+        n_repeated_values.div_ceil(get_n_elms_per_felt(n_unique_values as u32));
+    let expected_bucket_indices_packed_length =
+        data.len().div_ceil(get_n_elms_per_felt(TOTAL_N_BUCKETS as u32));
+
+    assert_eq!(
+        compressed.len(),
+        1 + expected_unique_values_packed_length
+            + expected_repeated_value_pointers_packed_length
+            + expected_bucket_indices_packed_length
+    );
+
+    if let Some(expected_compression_percents_val) = expected_compression_percents {
+        assert_eq!(
+            100 * compressed.len() / data.len(),
+            expected_compression_percents_val
+        );
+    }
+    assert_eq!(data, decompress(&mut compressed.into_iter()));
 }
