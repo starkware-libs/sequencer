@@ -10908,6 +10908,7 @@ dependencies = [
  "starknet_api",
  "starknet_class_manager_types",
  "starknet_sequencer_infra",
+ "starknet_sequencer_metrics",
  "starknet_sierra_multicompile_types",
  "tempfile",
  "thiserror 1.0.69",

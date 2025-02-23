@@ -208,4 +208,8 @@ define_counter_metrics!(
     }
 );
 
-define_labeled_counter_metrics!();
+define_labeled_counter_metrics!(
+    MetricScope::ClassManager => {
+        { N_CLASSES, "class_manager_n_classes", "Number of classes, by label (regular, deprecated)", 0 },
+    },
+);

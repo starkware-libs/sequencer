@@ -1,6 +1,7 @@
 use starknet_api::state::SierraContractClass;
 use starknet_class_manager_types::{ClassHashes, ClassId, ClassManagerError, ClassManagerResult};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_metrics::metric_definitions::N_CLASSES;
 use starknet_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,
@@ -27,6 +28,8 @@ impl<S: ClassStorage> ClassManager<S> {
         compiler: SharedSierraCompilerClient,
         storage: S,
     ) -> Self {
+        register_metrics();
+
         let cached_class_storage_config = config.cached_class_storage_config.clone();
         Self {
             config,
@@ -89,6 +92,13 @@ pub fn create_class_manager(
     let class_manager = ClassManager::new(class_manager_config, compiler_client, fs_class_storage);
 
     FsClassManager(class_manager)
+}
+
+// TODO(Yael): fix labeled metrics definition.
+#[allow(const_item_mutation)]
+fn register_metrics() {
+    let labels = vec![("class_type", "regular"), ("class_type", "deprecated")];
+    N_CLASSES.register(&[labels]);
 }
 
 impl ComponentStarter for FsClassManager {}
