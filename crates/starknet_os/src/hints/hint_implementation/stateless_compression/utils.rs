@@ -1,5 +1,6 @@
 use std::cmp::max;
 
+use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::EnumCount;
 
@@ -56,4 +57,49 @@ impl BitLength {
     const fn n_lengths() -> usize {
         BitLength::COUNT
     }
+}
+
+/// A struct representing a vector of bits with a specified size.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct BitsArray<const LENGTH: usize>(pub(crate) [bool; LENGTH]);
+
+impl<const LENGTH: usize> TryFrom<Felt> for BitsArray<LENGTH> {
+    type Error = String;
+
+    fn try_from(felt: Felt) -> Result<Self, Self::Error> {
+        match felt.to_bits_le()[0..LENGTH].try_into() {
+            Ok(bits_vec) => Ok(Self(bits_vec)),
+            Err(_) => Err(format!("Too many bits in Felt to convert to BitsArray<{:?}>", LENGTH)),
+        }
+    }
+}
+
+impl<const LENGTH: usize> From<BitsArray<LENGTH>> for Felt {
+    /// Panics in case this value does not fit to Felt.
+    fn from(bits_array: BitsArray<LENGTH>) -> Self {
+        bits_to_felt(&bits_array.0)
+    }
+}
+
+type BucketElement15 = BitsArray<15>;
+type BucketElement31 = BitsArray<31>;
+type BucketElement62 = BitsArray<62>;
+type BucketElement83 = BitsArray<83>;
+type BucketElement125 = BitsArray<125>;
+type BucketElement252 = BitsArray<252>;
+
+/// Panics in case this value does not fit to Felt.
+fn bits_to_felt(bits: &[bool]) -> Felt {
+    assert!(bits.len() <= 256, "Converts too many bits into Felt");
+    let mut bytes = [0_u8; 32];
+    for (byte_idx, chunk) in bits.chunks(8).enumerate() {
+        let mut byte = 0_u8;
+        for (bit_idx, bit) in chunk.iter().enumerate() {
+            if *bit {
+                byte |= 1 << bit_idx;
+            }
+        }
+        bytes[byte_idx] = byte;
+    }
+    Felt::from_bytes_le(&bytes)
 }
