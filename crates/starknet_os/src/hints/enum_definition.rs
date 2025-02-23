@@ -3,7 +3,7 @@ use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
-use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
+use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
     disable_da_page_creation,
