@@ -78,14 +78,20 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(HintArgs { .. }: HintArgs<'_,
 }
 
 pub(crate) fn end_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
+    //   end_tx().
     todo!()
 }
 
 pub(crate) fn enter_call<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
+    //   enter_call().
     todo!()
 }
 
 pub(crate) fn exit_call<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+    // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
+    //   exit_call().
     todo!()
 }
 
@@ -154,10 +160,6 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
 }
 
 pub(crate) fn gen_signature_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
-}
-
-pub(crate) fn start_tx_long<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
     todo!()
 }
 
