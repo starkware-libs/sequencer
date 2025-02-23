@@ -13,6 +13,8 @@ pub enum OsHintError {
     ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error("Failed to compress: {reason:?}.")]
+    StatelessCompressionError { reason: String },
     #[error(transparent)]
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
