@@ -55,6 +55,13 @@ const PANEL_BATCHED_TRANSACTIONS: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(
+    "cairo_native_cache_miss_ratio",
+    "The ratio of cache misses in the Cairo native cache",
+    "cairo_native_cache_miss_ratio",
+    PanelType::Graph,
+);
+
 const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
     MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name(),
     MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_description(),
@@ -156,6 +163,7 @@ const BATCHER_ROW: Row<'_> = Row::new(
         PANEL_PROPOSAL_SUCCEEDED,
         PANEL_PROPOSAL_FAILED,
         PANEL_BATCHED_TRANSACTIONS,
+        PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO,
     ],
 );
 const HTTP_SERVER_ROW: Row<'_> = Row::new(

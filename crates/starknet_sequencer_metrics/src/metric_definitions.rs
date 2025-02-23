@@ -55,8 +55,9 @@ define_metrics!(
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 },
         MetricCounter { SYNCED_BLOCKS, "batcher_synced_blocks", "Counter of synced blocks", 0 },
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", 0 },
-        MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", 0 }
-    },
+        MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", 0 },
+        MetricGauge { CAIRO_NATIVE_CACHE_MISS_RATIO, "cairo_native_cache_miss_ratio","The cache miss of cairo native"}
+    }
 );
 
 define_metrics!(
