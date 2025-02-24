@@ -9,10 +9,14 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddr
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
 use starknet_api::transaction::{
+    signed_tx_version,
     EventContent,
     EventData,
     EventKey,
+    InvokeTransactionV0,
     L2ToL1Payload,
+    TransactionHasher,
+    TransactionOptions,
     TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
@@ -491,7 +495,7 @@ pub(crate) fn meta_tx_v0(
         code_address: Some(storage_address),
         entry_point_type: EntryPointType::External,
         entry_point_selector: selector,
-        calldata: request.calldata,
+        calldata: request.calldata.clone(),
         storage_address,
         caller_address: ContractAddress::default(),
         call_type: CallType::Call,
@@ -499,18 +503,31 @@ pub(crate) fn meta_tx_v0(
         initial_gas: *remaining_gas,
     };
 
-    // Replace `tx_context`.
     let old_tx_context = syscall_handler.base.context.tx_context.clone();
-    let old_tx_info = &old_tx_context.tx_info;
+    let only_query = old_tx_context.tx_info.only_query();
+
+    // Compute meta-transaction hash.
+    let transaction_hash = InvokeTransactionV0 {
+        max_fee: Fee(0),
+        signature: request.signature.clone(),
+        contract_address: storage_address,
+        entry_point_selector: selector,
+        calldata: request.calldata,
+    }
+    .calculate_transaction_hash(
+        &syscall_handler.base.context.tx_context.block_context.chain_info.chain_id,
+        &signed_tx_version(&TransactionVersion::ZERO, &TransactionOptions { only_query }),
+    )?;
+
+    // Replace `tx_context`.
     let new_tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
         common_fields: CommonAccountFields {
-            // TODO(lior): Replace transaction hash with the hash of the meta-tx arguments.
-            transaction_hash: old_tx_info.transaction_hash(),
+            transaction_hash,
             version: TransactionVersion::ZERO,
             signature: request.signature,
             nonce: Nonce(0.into()),
             sender_address: storage_address,
-            only_query: old_tx_info.only_query(),
+            only_query,
         },
         max_fee: Fee(0),
     });
