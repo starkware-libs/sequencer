@@ -433,18 +433,18 @@ fn create_local_servers(
     }
 }
 
-async fn create_servers<ReturnType: Send + 'static>(
-    labeled_futures: Vec<(impl Future<Output = ReturnType> + Send + 'static, String)>,
-) -> FuturesUnordered<Pin<Box<dyn Future<Output = (ReturnType, String)> + Send>>> {
+async fn create_servers(
+    labeled_futures: Vec<(impl Future<Output = ()> + Send + 'static, String)>,
+) -> FuturesUnordered<Pin<Box<dyn Future<Output = String> + Send>>> {
     let tasks = FuturesUnordered::new();
-    for (future, label) in labeled_futures {
-        tasks.push(future.map(move |res| (res, label.clone())).boxed());
+    for (future, label) in labeled_futures.into_iter() {
+        tasks.push(future.map(move |_| label).boxed());
     }
     tasks
 }
 
 impl LocalServers {
-    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = ((), String)> + Send>>> {
+    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = String> + Send>>> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
@@ -573,7 +573,7 @@ pub fn create_remote_servers(
 }
 
 impl RemoteServers {
-    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = ((), String)> + Send>>> {
+    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = String> + Send>>> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Remote Batcher"),
             server_future_and_label(self.class_manager, "Remote Class Manager"),
@@ -629,7 +629,7 @@ fn create_wrapper_servers(
 }
 
 impl WrapperServers {
-    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = ((), String)> + Send>>> {
+    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = String> + Send>>> {
         create_servers(vec![
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
@@ -662,7 +662,7 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     all_servers.extend(servers.remote_servers.run().await);
     all_servers.extend(servers.wrapper_servers.run().await);
 
-    if let Some((_, servers_type)) = all_servers.next().await {
+    if let Some(servers_type) = all_servers.next().await {
         Err(anyhow::anyhow!("{} Servers ended unexpectedly.", servers_type))
     } else {
         Err(anyhow::anyhow!("Failed to run component servers."))
