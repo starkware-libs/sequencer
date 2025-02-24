@@ -547,7 +547,11 @@ pub fn create_batcher_config(
 }
 
 pub fn create_mempool_config() -> MempoolConfig {
-    MempoolConfig { transaction_ttl: Duration::from_secs(5 * 60), ..Default::default() }
+    MempoolConfig {
+        transaction_ttl: Duration::from_secs(5 * 60),
+        declare_delay: Duration::from_secs(5),
+        ..Default::default()
+    }
 }
 
 pub fn create_class_manager_config(
