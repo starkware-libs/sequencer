@@ -475,8 +475,29 @@ async fn interrupt_active_proposal() {
 
 #[tokio::test]
 async fn build_proposal() {
-    // TODO(Asmaa): Test proposal content.
-    let (fin_receiver, _network) = build_proposal_setup(success_cende_ammbassador()).await;
+    let before: u64 =
+        chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
+    let (fin_receiver, mut network) = build_proposal_setup(success_cende_ammbassador()).await;
+    // Test proposal parts.
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
+    let block_info = receiver.next().await.unwrap();
+    let after: u64 =
+        chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
+    assert!(matches!(
+        block_info,
+        ProposalPart::BlockInfo(ConsensusBlockInfo {timestamp, .. }) if timestamp >= before && timestamp <= after));
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        })
+    );
+    assert!(receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
