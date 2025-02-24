@@ -9,7 +9,6 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
-use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionLabelValue};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
@@ -78,7 +77,6 @@ impl MempoolTestContent {
 struct MempoolTestContentBuilder {
     config: MempoolConfig,
     content: MempoolTestContent,
-    state: MempoolState,
     gas_price_threshold: NonzeroGasPrice,
 }
 
@@ -87,7 +85,6 @@ impl MempoolTestContentBuilder {
         Self {
             config: MempoolConfig { enable_fee_escalation: false, ..Default::default() },
             content: MempoolTestContent::default(),
-            state: MempoolState::default(),
             gas_price_threshold: NonzeroGasPrice::default(),
         }
     }
@@ -97,11 +94,6 @@ impl MempoolTestContentBuilder {
         P: IntoIterator<Item = InternalRpcTransaction>,
     {
         self.content.tx_pool = Some(pool_txs.into_iter().map(|tx| (tx.tx_hash, tx)).collect());
-        self
-    }
-
-    fn with_state(mut self, state: MempoolState) -> Self {
-        self.state = state;
         self
     }
 
@@ -148,7 +140,7 @@ impl MempoolTestContentBuilder {
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
             ),
-            state: self.state,
+            state: MempoolState::default(),
             clock: Arc::new(FakeClock::default()),
         }
     }
@@ -268,11 +260,6 @@ fn add_txs_and_verify_no_replacement_in_pool(
 #[fixture]
 fn mempool() -> Mempool {
     MempoolTestContentBuilder::new().build_full_mempool()
-}
-
-/// Used for the contains_tx_from tests.
-fn deployer_address() -> ContractAddress {
-    ContractAddress::from(100_u32)
 }
 
 // Tests.
@@ -569,25 +556,6 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
         .with_priority_queue(expected_queue_txs)
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
-}
-
-#[rstest]
-fn test_add_tx_does_not_decrease_account_nonce(mut mempool: Mempool) {
-    // Setup.
-    let input_account_nonce_0 =
-        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 2, account_nonce: 0);
-    let input_account_nonce_1 =
-        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
-    let input_account_nonce_2 =
-        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 3, account_nonce: 2);
-
-    // Test.
-    add_tx(&mut mempool, &input_account_nonce_1);
-    add_tx(&mut mempool, &input_account_nonce_0);
-    assert_eq!(mempool.state.get(contract_address!("0x0")), Some(nonce!(1)));
-
-    add_tx(&mut mempool, &input_account_nonce_2);
-    assert_eq!(mempool.state.get(contract_address!("0x0")), Some(nonce!(2)));
 }
 
 // `commit_block` tests.
@@ -975,34 +943,29 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
 }
 
 #[rstest]
-// Negative flow. The method should return false if the transaction is not in the mempool.
-#[case::empty(MempoolState::default(), false)]
-// Positive flows. The method should return true if the transaction is in the mempool.
-#[case::tentative(
-    MempoolState{
-        tentative: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true
-)]
-#[case::staged(
-    MempoolState{
-        staged: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true
-)]
-#[case::committed(
-    MempoolState{
-        committed: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true,
-)]
-fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: bool) {
-    let mempool = MempoolTestContentBuilder::new().with_state(state).build_full_mempool();
+fn tx_from_address_exists(mut mempool: Mempool) {
+    const ACCOUNT_ADDRESS: &str = "0x1";
+    let account_address = contract_address!(ACCOUNT_ADDRESS);
 
-    assert_eq!(mempool.contains_tx_from(deployer_address()), expected_result);
+    // Account is not known to the mempool.
+    assert_eq!(mempool.contains_tx_from(account_address), false);
+
+    // The account has a tx in the mempool.
+    add_tx(
+        &mut mempool,
+        &add_tx_input!(tx_hash: 1, address: ACCOUNT_ADDRESS, tx_nonce: 0, account_nonce: 0),
+    );
+    assert_eq!(mempool.contains_tx_from(account_address), true);
+
+    // The account has a staged tx in the mempool.
+    let get_tx_response = mempool.get_txs(1).unwrap();
+    assert_eq!(get_tx_response.first().unwrap().contract_address(), account_address);
+    assert_eq!(mempool.contains_tx_from(account_address), true);
+
+    // The account has no txs in the pool, but is known through a committed block.
+    commit_block(&mut mempool, [(ACCOUNT_ADDRESS, 1)], []);
+    MempoolTestContentBuilder::new().with_pool([]).build().assert_eq(&mempool.content());
+    assert_eq!(mempool.contains_tx_from(account_address), true);
 }
 
 #[rstest]

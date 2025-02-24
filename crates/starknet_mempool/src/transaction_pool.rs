@@ -150,8 +150,8 @@ impl TransactionPool {
         Ok(self.get_by_address_and_nonce(address, next_nonce))
     }
 
-    pub fn _contains_account(&self, address: ContractAddress) -> bool {
-        self.txs_by_account._contains(address)
+    pub fn contains_account(&self, address: ContractAddress) -> bool {
+        self.txs_by_account.contains(address)
     }
 
     pub fn get_submission_time(&self, tx_hash: TransactionHash) -> MempoolResult<Instant> {
@@ -256,7 +256,7 @@ impl AccountTransactionIndex {
         txs_with_lower_nonce.into_values().collect()
     }
 
-    fn _contains(&self, address: ContractAddress) -> bool {
+    fn contains(&self, address: ContractAddress) -> bool {
         self.0.contains_key(&address)
     }
 }
