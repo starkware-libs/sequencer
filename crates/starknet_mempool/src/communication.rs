@@ -16,6 +16,7 @@ use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
+use crate::config::MempoolConfig;
 use crate::mempool::Mempool;
 use crate::utils::InstantClock;
 
@@ -27,7 +28,7 @@ pub fn create_mempool(
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> MempoolCommunicationWrapper {
     MempoolCommunicationWrapper::new(
-        Mempool::new(Arc::new(InstantClock)),
+        Mempool::new(MempoolConfig::default(), Arc::new(InstantClock)),
         mempool_p2p_propagator_client,
     )
 }

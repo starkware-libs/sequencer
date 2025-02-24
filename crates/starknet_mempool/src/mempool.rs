@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -16,6 +15,7 @@ use starknet_mempool_types::mempool_types::{
 };
 use tracing::{debug, info, instrument};
 
+use crate::config::MempoolConfig;
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 use crate::utils::{try_increment_nonce, Clock};
@@ -23,27 +23,6 @@ use crate::utils::{try_increment_nonce, Clock};
 #[cfg(test)]
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
-
-#[derive(Debug, Clone)]
-pub struct MempoolConfig {
-    enable_fee_escalation: bool,
-    // TODO(AlonH): consider adding validations; should be bounded?
-    // Percentage increase for tip and max gas price to enable transaction replacement.
-    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
-    // Time-to-live for transactions in the mempool, in seconds.
-    // Transactions older than this value will be lazily removed.
-    transaction_ttl: Duration,
-}
-
-impl Default for MempoolConfig {
-    fn default() -> Self {
-        MempoolConfig {
-            enable_fee_escalation: true,
-            fee_escalation_percentage: 10,
-            transaction_ttl: Duration::from_secs(60), // 1 minute.
-        }
-    }
-}
 
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
 
@@ -155,9 +134,9 @@ pub struct Mempool {
 }
 
 impl Mempool {
-    pub fn new(clock: Arc<dyn Clock>) -> Self {
+    pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
-            config: MempoolConfig::default(),
+            config,
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::default(),
