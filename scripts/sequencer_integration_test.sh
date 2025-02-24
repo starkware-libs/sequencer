@@ -7,8 +7,8 @@
 # If no argument is provided, the default test "positive" is run.
 # You can also pass:
 #   - "positive" to run the positive flow test,
-#   - "revert" to run the revert flow test,
 #   - "restart" to run the restart flow test, or
+#   - "revert" to run the revert flow test,
 #   - "all" to run all tests.
 #
 # Note: Make sure the binaries exist in
@@ -21,9 +21,9 @@ sudo -v || { echo "Sudo authentication failed. Exiting."; exit 1; }
 
 # TODO(noamsp): find a way to get this mapping automatically instead of hardcoding
 declare -A TEST_ALIASES=(
-  [positive]="positive_flow_integration_test"
-  [revert]="revert_flow_integration_test"
-  [restart]="restart_flow_integration_test"
+  [positive]="integration_test_positive_flow"
+  [restart]="integration_test_restart_flow"
+  [revert]="integration_test_revert_flow"
 )
 
 # Set default test if none provided
