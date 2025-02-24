@@ -7812,6 +7812,7 @@ dependencies = [
  "colored 3.0.0",
  "ethers",
  "ethers-core",
+ "mempool_test_utils",
  "mockall",
  "papyrus_config",
  "pretty_assertions",
