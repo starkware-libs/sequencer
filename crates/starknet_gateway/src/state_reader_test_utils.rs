@@ -4,9 +4,9 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
-use blockifier::test_utils::BALANCE;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
+use mempool_test_utils::starknet_api_test_utils::VALID_ACCOUNT_BALANCE;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -75,7 +75,7 @@ pub fn local_test_state_reader_factory(
     zero_balance: bool,
 ) -> TestStateReaderFactory {
     let block_context = BlockContext::create_for_testing();
-    let account_balance = if zero_balance { Fee(0) } else { BALANCE };
+    let account_balance = if zero_balance { Fee(0) } else { VALID_ACCOUNT_BALANCE };
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
 

@@ -24,6 +24,7 @@ use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     ContractAddressSalt,
+    Fee,
     ResourceBounds,
     Tip,
     TransactionSignature,
@@ -44,10 +45,13 @@ use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FIL
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
-pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
+pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000 * 200000; // Enough to declare the test class.
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+#[allow(clippy::as_conversions)]
+pub const VALID_ACCOUNT_BALANCE: Fee =
+    Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
 
 // Utils.
 
@@ -408,6 +412,19 @@ impl AccountTransactionGenerator {
             contract_address_salt: ContractAddressSalt(self.contract_address_salt.0)
         );
         rpc_deploy_account_tx(deploy_account_args)
+    }
+
+    pub fn generate_declare(&mut self) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        let declare_args = declare_tx_args!(
+            signature: TransactionSignature(vec![Felt::ZERO]),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            compiled_class_hash: CompiledClassHash(felt!("0x1e4f1248860f32c336f93f2595099aaa4959be515e40b75472709ef5243ae17"))
+        );
+        let contract_class = contract_class();
+        rpc_declare_tx(declare_args, contract_class)
     }
 
     pub fn sender_address(&self) -> ContractAddress {
