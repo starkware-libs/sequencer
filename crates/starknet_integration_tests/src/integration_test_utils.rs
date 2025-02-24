@@ -4,6 +4,8 @@ use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::{info, warn};
 
+// TODO(Tsabary): This should trigger the test.
+
 // TODO(Tsabary): remove the hook definition once we transition to proper usage of task
 // spawning.
 pub fn set_panic_hook() {
