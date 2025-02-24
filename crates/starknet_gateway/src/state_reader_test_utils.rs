@@ -75,7 +75,7 @@ pub fn local_test_state_reader_factory(
     zero_balance: bool,
 ) -> TestStateReaderFactory {
     let block_context = BlockContext::create_for_testing();
-    let account_balance = if zero_balance { Fee(0) } else { BALANCE };
+    let account_balance = if zero_balance { Fee(0) } else { Fee(BALANCE.0 * 200000) };
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
 
