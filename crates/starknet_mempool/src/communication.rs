@@ -18,6 +18,7 @@ use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteCom
 
 use crate::config::MempoolConfig;
 use crate::mempool::Mempool;
+use crate::metrics::register_metrics;
 use crate::utils::InstantClock;
 
 pub type LocalMempoolServer =
@@ -121,4 +122,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
     }
 }
 
-impl ComponentStarter for MempoolCommunicationWrapper {}
+#[async_trait]
+impl ComponentStarter for MempoolCommunicationWrapper {
+    async fn start(&mut self) {
+        register_metrics();
+    }
+}
