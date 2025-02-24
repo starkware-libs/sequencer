@@ -42,16 +42,28 @@ use super::{
     GET_STATE_UPDATE_URL,
 };
 use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
-use crate::reader::Block;
+use crate::reader::{Block, FEE_MARKET_INFO_QUERY};
 use crate::test_utils::read_resource::read_resource_file;
 use crate::test_utils::retry::get_test_config;
 
 const NODE_VERSION: &str = "NODE VERSION";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
 
-const LATEST_BLOCK_URL: &str = "/feeder_gateway/get_block?blockNumber=latest";
+const LATEST_BLOCK_URL: &str =
+    "/feeder_gateway/get_block?blockNumber=latest&withFeeMarketInfo=true";
 
 fn get_block_url(block_number: u64) -> String {
+    format!(
+        "/feeder_gateway/get_block?{}={}&{}=true",
+        BLOCK_NUMBER_QUERY, block_number, FEE_MARKET_INFO_QUERY
+    )
+}
+
+// TODO(Ayelet): Temporary fallback for backward compatibility. Remove once version update is
+// complete.
+const DEPRECATED_LATEST_BLOCK_URL: &str = "/feeder_gateway/get_block?blockNumber=latest";
+
+fn get_deprecated_block_url(block_number: u64) -> String {
     format!("/feeder_gateway/get_block?{}={}", BLOCK_NUMBER_QUERY, block_number)
 }
 
@@ -97,8 +109,13 @@ async fn get_block_number() {
     // There are no blocks in Starknet.
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number -1 was not found."}"#;
     let mock_no_block = mock("GET", LATEST_BLOCK_URL).with_status(400).with_body(body).create();
+    // TODO(Ayelet): Temporary fallback for backward compatibility. Remove once version update is
+    // complete.
+    let mock_no_block_without_fee_market =
+        mock("GET", DEPRECATED_LATEST_BLOCK_URL).with_status(400).with_body(body).create();
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_no_block.assert();
+    mock_no_block_without_fee_market.assert();
     assert!(latest_block.is_none());
 }
 
@@ -364,13 +381,26 @@ async fn deprecated_pending_data() {
 #[tokio::test]
 async fn get_block() {
     let starknet_client = starknet_client().await;
-    let raw_block = read_resource_file("reader/block_post_0_13_1.json");
-    let mock_block =
-        mock("GET", get_block_url(20).as_str()).with_status(200).with_body(&raw_block).create();
-    let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
-    mock_block.assert();
-    let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
-    assert_eq!(block, expected_block);
+    let test_cases = vec!["0.13.1", "0.14.0"];
+
+    for starknet_version in test_cases {
+        let json_filename =
+            format!("reader/block_post_{}.json", starknet_version.replace('.', "_"));
+        let raw_block = read_resource_file(&json_filename);
+        let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
+
+        let mock_block =
+            mock("GET", get_block_url(20).as_str()).with_status(200).with_body(&raw_block).create();
+        let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
+        mock_block.assert();
+
+        assert_eq!(block, expected_block);
+
+        // Verify presence of fee market fields based on Starknet version (available from 0.14.0+).
+        let is_version_14_or_newer = starknet_version >= "0.14.0";
+        assert_eq!(block.l2_gas_consumed().is_some(), is_version_14_or_newer);
+        assert_eq!(block.next_l2_gas_price().is_some(), is_version_14_or_newer);
+    }
 }
 
 // Requesting a block that does not exist, expecting a "Block Not Found" error.
@@ -380,8 +410,16 @@ async fn get_block_not_found() {
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block 9999999999 was not found."}"#;
     let mock_no_block =
         mock("GET", get_block_url(9999999999).as_str()).with_status(400).with_body(body).create();
+    // TODO(Ayelet): Temporary fallback for backward compatibility. Remove once version update is
+    // complete.
+    let mock_no_block_without_fee_market =
+        mock("GET", get_deprecated_block_url(9999999999).as_str())
+            .with_status(400)
+            .with_body(body)
+            .create();
     let block = starknet_client.block(BlockNumber(9999999999)).await.unwrap();
     mock_no_block.assert();
+    mock_no_block_without_fee_market.assert();
     assert!(block.is_none());
 }
 

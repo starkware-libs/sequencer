@@ -141,6 +141,7 @@ const GET_COMPILED_CLASS_BY_CLASS_HASH_URL: &str =
     "feeder_gateway/get_compiled_class_by_class_hash";
 const GET_STATE_UPDATE_URL: &str = "feeder_gateway/get_state_update";
 const BLOCK_NUMBER_QUERY: &str = "blockNumber";
+const FEE_MARKET_INFO_QUERY: &str = "withFeeMarketInfo";
 const LATEST_BLOCK_NUMBER: &str = "latest";
 const CLASS_HASH_QUERY: &str = "classHash";
 const PENDING_BLOCK_ID: &str = "pending";
@@ -211,9 +212,19 @@ impl StarknetFeederGatewayClient {
         let mut url = self.urls.get_block.clone();
         let block_number =
             block_number.map(|bn| bn.to_string()).unwrap_or(String::from(LATEST_BLOCK_NUMBER));
-        url.query_pairs_mut().append_pair(BLOCK_NUMBER_QUERY, block_number.as_str());
+        url.query_pairs_mut()
+            .append_pair(BLOCK_NUMBER_QUERY, block_number.as_str())
+            .append_pair(FEE_MARKET_INFO_QUERY, "true"); // For version >= 0.14.0
 
-        let response = self.request_with_retry_url(url).await;
+        let mut response = self.request_with_retry_url(url).await;
+        // TODO(Ayelet): Temporary fallback for backward compatibility. Remove once version update
+        // is complete.
+        if response.is_err() {
+            let mut fallback_url = self.urls.get_block.clone();
+            fallback_url.query_pairs_mut().append_pair(BLOCK_NUMBER_QUERY, block_number.as_str());
+            response = self.request_with_retry_url(fallback_url).await;
+        }
+
         load_object_from_response(
             response,
             Some(KnownStarknetErrorCode::BlockNotFound),
