@@ -55,18 +55,20 @@ pub struct PyVersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_n_events: usize,
 }
 
 #[pymethods]
 impl PyVersionedConstantsOverrides {
     #[new]
-    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps))]
+    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events))]
     pub fn create(
         validate_max_n_steps: u32,
         max_recursion_depth: usize,
         invoke_tx_max_n_steps: u32,
+        max_n_events: usize,
     ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events }
     }
 }
 
@@ -76,8 +78,9 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_n_events,
         } = py_versioned_constants_overrides;
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events }
     }
 }
 
