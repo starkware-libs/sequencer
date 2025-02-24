@@ -443,7 +443,8 @@ impl<
 
         debug!("Storing block.");
         trace!("Block data: {block:#?}, signature: {signature:?}");
-        let num_txs = block.body.transactions.len();
+        let num_txs =
+            block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
         self.writer
             .begin_rw_txn()?
             .append_header(block_number, &block.header)?
@@ -452,10 +453,7 @@ impl<
             .commit()?;
         SYNC_HEADER_MARKER.set(block_number.unchecked_next().0 as f64);
         SYNC_BODY_MARKER.set(block_number.unchecked_next().0 as f64);
-        SYNC_PROCESSED_TRANSACTIONS.increment(num_txs.try_into().unwrap_or_else(|err| {
-            error!("Failed to convert number of transactions to u64: {}", err);
-            0
-        }));
+        SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
         let time_delta = Utc::now()
             - Utc
                 .timestamp_opt(block.header.block_header_without_hash.timestamp.0 as i64, 0)
