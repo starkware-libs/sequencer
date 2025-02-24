@@ -11498,6 +11498,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_sequencer_dashboard"
+version = "0.0.0"
+
+[[package]]
 name = "starknet_sequencer_infra"
 version = "0.0.0"
 dependencies = [
