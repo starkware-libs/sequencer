@@ -12,12 +12,6 @@ use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
-// TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
-// confusing `#[ignore]` api to mark slow tests.
-fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 // TODO(Gilad): figure out how To setup anvil on a specific L1 block (through genesis.json?) and
 // with a specified L2 block logged to L1 (hopefully without having to use real backup).
 /// This test simulates a bootstrapping flow, in which 3 blocks are synced from L2, during which two

@@ -1,4 +1,5 @@
 use alloy::primitives::Address as EthereumContractAddress;
+use mempool_test_utils::in_ci;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
@@ -7,12 +8,6 @@ use url::Url;
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 use crate::test_utils::{anvil, get_test_ethereum_node, DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS};
 use crate::BaseLayerContract;
-
-// TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
-// confusing `#[ignore]` api to mark slow tests.
-fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
 
 fn ethereum_base_layer_contract(
     node_url: Url,
