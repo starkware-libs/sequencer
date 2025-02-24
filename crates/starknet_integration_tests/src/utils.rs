@@ -125,14 +125,6 @@ impl TestScenario for BootstrapTxs {
     }
 }
 
-pub fn create_chain_info() -> ChainInfo {
-    let mut chain_info = ChainInfo::create_for_testing();
-    // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
-    // test.
-    chain_info.chain_id = starknet_api::test_utils::CHAIN_ID_FOR_TESTS.clone();
-    chain_info
-}
-
 // TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
 #[allow(clippy::too_many_arguments)]
 pub fn create_node_config(
