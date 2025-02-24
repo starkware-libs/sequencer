@@ -1,3 +1,5 @@
+#[cfg(test)]
+use starknet_api::rpc_transaction::RpcTransactionLabelValue;
 use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,
@@ -20,7 +22,7 @@ enum TransactionStatus {
 
 #[derive(strum_macros::IntoStaticStr, strum_macros::EnumIter)]
 #[strum(serialize_all = "snake_case")]
-enum DropReason {
+pub enum DropReason {
     FailedAddTxChecks,
     Expired,
     Rejected,
@@ -50,7 +52,6 @@ impl MempoolMetricHandle {
     }
 }
 
-// TODO add counter for rejected transactions
 pub(crate) fn metric_count_expired_txs(n_txs: usize) {
     MEMPOOL_TRANSACTIONS_DROPPED.increment(
         n_txs.try_into().expect("The number of expired_txs should fit u64"),
@@ -94,4 +95,26 @@ pub(crate) fn register_metrics() {
         drop_reason_label_variations.push(vec![(LABEL_NAME_DROP_REASON, drop_reason.into())]);
     }
     MEMPOOL_TRANSACTIONS_DROPPED.register(&drop_reason_label_variations);
+}
+
+#[cfg(test)]
+pub(crate) fn get_metric_counter_txs_dropped(metrics: &str, drop_reason: DropReason) -> u64 {
+    MEMPOOL_TRANSACTIONS_DROPPED
+        .parse_numeric_metric::<u64>(metrics, &[(LABEL_NAME_DROP_REASON, drop_reason.into())])
+        .unwrap()
+}
+
+#[cfg(test)]
+pub(crate) fn get_metric_counter_txs_committed(metrics: &str) -> u64 {
+    MEMPOOL_TRANSACTIONS_COMMITTED.parse_numeric_metric::<u64>(metrics).unwrap()
+}
+
+#[cfg(test)]
+pub(crate) fn get_metric_counter_txs_received(metrics: &str) -> u64 {
+    MEMPOOL_TRANSACTIONS_RECEIVED
+        .parse_numeric_metric::<u64>(
+            metrics,
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())],
+        )
+        .unwrap()
 }
