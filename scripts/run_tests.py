@@ -15,7 +15,7 @@ from tests_utils import (
 ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock"}
 
 # Set of crates which - if changed - should trigger the integration tests.
-INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"sequencer_integration_tests"}
+INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"starknet_integration_tests"}
 
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "starknet_sequencer_node"
@@ -87,7 +87,7 @@ def test_crates(crates: Set[str], base_command: BaseCommand):
     cmds = base_command.cmds(crates=crates)
 
     print("Running tests...")
-    for cmd in cmds:
+    for cmd in [cmd for cmd in cmds if cmd]:
         print(cmd, flush=True)
         subprocess.run(cmd, check=True)
     print("Tests complete.")
