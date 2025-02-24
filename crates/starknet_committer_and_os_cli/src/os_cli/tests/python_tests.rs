@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::BuiltinHintProcessor;
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
@@ -201,7 +200,10 @@ use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::Felt252;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point;
+use starknet_os::test_utils::cairo_runner::{
+    get_snos_hint_processor_for_testing,
+    run_cairo_0_entry_point,
+};
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
@@ -280,7 +282,7 @@ fn run_cairo_function(
     expected_retdata: &[Felt252],
 ) -> OsPythonTestResult {
     let program_bytes = program_str.as_bytes();
-    let hint_processor = BuiltinHintProcessor::new_empty(); //FIXME: Use starknet_os hint processor
+    let hint_processor = get_snos_hint_processor_for_testing();
     run_cairo_0_entry_point(program_bytes, function_name, args, expected_retdata, hint_processor)
         .map_err(|error| {
         PythonTestError::SpecificError(OsSpecificTestError::CairoRunnerError(error))

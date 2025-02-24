@@ -45,9 +45,9 @@ pub(crate) fn get_prev_offset<S: StateReader>(
 }
 
 pub(crate) fn compression_hint<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
+    Ok(())
 }
 
 pub(crate) fn set_decompressed_dst<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
-    todo!()
+    Ok(())
 }

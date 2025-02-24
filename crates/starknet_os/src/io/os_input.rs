@@ -60,9 +60,3 @@ pub struct StarknetOsInput {
     _debug_mode: bool,
     _full_output: bool,
 }
-
-impl StarknetOsInput {
-    pub fn default() -> StarknetOsInput {
-        StarknetOsInput { ..Default::default() }
-    }
-}
