@@ -240,6 +240,18 @@ struct ProposalBuildArguments {
     transaction_converter: TransactionConverter,
 }
 
+struct ProposalValidateArguments {
+    block_info_validation: BlockInfoValidation,
+    proposal_id: ProposalId,
+    batcher: Arc<dyn BatcherClient>,
+    timeout: Duration,
+    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    content_receiver: mpsc::Receiver<ProposalPart>,
+    fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
+    cancel_token: CancellationToken,
+    transaction_converter: TransactionConverter,
+}
+
 #[async_trait]
 impl ConsensusContext for SequencerConsensusContext {
     type ProposalPart = ProposalPart;
@@ -594,17 +606,17 @@ impl SequencerConsensusContext {
 
         let handle = tokio::spawn(
             async move {
-                validate_proposal(
+                validate_proposal(ProposalValidateArguments {
                     block_info_validation,
                     proposal_id,
-                    batcher.as_ref(),
+                    batcher,
                     timeout,
                     valid_proposals,
                     content_receiver,
                     fin_sender,
-                    cancel_token_clone,
+                    cancel_token: cancel_token_clone,
                     transaction_converter,
-                )
+                })
                 .await
             }
             .instrument(
@@ -800,34 +812,34 @@ async fn get_proposal_content(
 }
 
 // TODO(Arni): Remove the clippy when switch to ProposalInit.
-#[allow(clippy::too_many_arguments)]
-async fn validate_proposal(
-    block_info_validation: BlockInfoValidation,
-    proposal_id: ProposalId,
-    batcher: &dyn BatcherClient,
-    timeout: Duration,
-    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
-    mut content_receiver: mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
-    cancel_token: CancellationToken,
-    transaction_converter: TransactionConverter,
-) {
+async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let deadline = tokio::time::Instant::now() + timeout;
-    let Some((block_info, fin_sender)) =
-        await_second_proposal_part(&cancel_token, deadline, &mut content_receiver, fin_sender)
-            .await
+    let deadline = tokio::time::Instant::now() + args.timeout;
+    let Some((block_info, fin_sender)) = await_second_proposal_part(
+        &args.cancel_token,
+        deadline,
+        &mut args.content_receiver,
+        args.fin_sender,
+    )
+    .await
     else {
         return;
     };
-    if !is_block_info_valid(block_info_validation.clone(), block_info.clone()).await {
+    if !is_block_info_valid(args.block_info_validation.clone(), block_info.clone()).await {
         warn!(
-            "Invalid BlockInfo. block_info_validation={block_info_validation:?}, \
-             block_info={block_info:?}"
+            "Invalid BlockInfo. block_info_validation={:?}, block_info={:?}",
+            args.block_info_validation, block_info
         );
         return;
     }
-    if let Err(e) = initiate_validation(batcher, block_info.clone(), proposal_id, timeout).await {
+    if let Err(e) = initiate_validation(
+        args.batcher.as_ref(),
+        block_info.clone(),
+        args.proposal_id,
+        args.timeout,
+    )
+    .await
+    {
         error!("Failed to initiate proposal validation. {e:?}");
         return;
     }
@@ -835,23 +847,23 @@ async fn validate_proposal(
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
-            _ = cancel_token.cancelled() => {
+            _ = args.cancel_token.cancelled() => {
                 warn!("Proposal interrupted");
-                batcher_abort_proposal(batcher, proposal_id).await;
+                batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
             _ = tokio::time::sleep_until(deadline) => {
                 warn!("Validation timed out.");
-                batcher_abort_proposal(batcher, proposal_id).await;
+                batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
-            proposal_part = content_receiver.next() => {
+            proposal_part = args.content_receiver.next() => {
                 match handle_proposal_part(
-                    proposal_id,
-                    batcher,
+                    args.proposal_id,
+                    args.batcher.as_ref(),
                     proposal_part,
                     &mut content,
-                    &transaction_converter,
+                    &args.transaction_converter,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
                         break (built_block, received_fin);
@@ -864,7 +876,7 @@ async fn validate_proposal(
                     }
                     HandledProposalPart::Failed(fail_reason) => {
                         warn!("Failed to handle proposal part. {fail_reason}");
-                        batcher_abort_proposal(batcher, proposal_id).await;
+                        batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
                         return;
                     }
                 }
@@ -875,11 +887,11 @@ async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `get_proposal` being called before `valid_proposals` is updated.
     // TODO(Matan): Consider validating the ProposalFin signature here.
-    let mut valid_proposals = valid_proposals.lock().unwrap();
+    let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals
-        .entry(block_info_validation.height)
+        .entry(args.block_info_validation.height)
         .or_default()
-        .insert(built_block, (block_info, content, proposal_id));
+        .insert(built_block, (block_info, content, args.proposal_id));
     if fin_sender.send((built_block, received_fin)).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content ids");
