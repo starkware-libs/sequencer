@@ -82,13 +82,7 @@ fn new_urls() {
 
 #[tokio::test]
 async fn get_block_number() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     // There are blocks in Starknet.
     let mock_block = mock("GET", LATEST_BLOCK_URL)
         .with_status(200)
@@ -134,13 +128,7 @@ async fn declare_tx_serde() {
 
 #[tokio::test]
 async fn state_update() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let raw_state_update = read_resource_file("reader/block_state_update.json");
     let mock_state_update =
         mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=123456")[..])
@@ -174,13 +162,7 @@ async fn serialization_precision() {
 
 #[tokio::test]
 async fn contract_class() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let expected_contract_class = ContractClass {
         sierra_program: vec![
             felt!("0x302e312e30"),
@@ -230,13 +212,7 @@ async fn contract_class() {
 
 #[tokio::test]
 async fn deprecated_contract_class() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let expected_contract_class = DeprecatedContractClass {
         abi: Some(vec![ContractClassAbiEntry::Constructor(FunctionAbiEntry::<ConstructorType> {
             name: "constructor".to_string(),
@@ -332,13 +308,7 @@ async fn deprecated_contract_class() {
 
 #[tokio::test]
 async fn deprecated_pending_data() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
 
     // Pending
     let raw_pending_data = read_resource_file("reader/deprecated_pending_data.json");
@@ -404,13 +374,7 @@ async fn get_block_not_found() {
 
 #[tokio::test]
 async fn compiled_class_by_hash() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let raw_casm_contract_class = read_resource_file("reader/casm_contract_class.json");
     let mock_casm_contract_class = mock(
         "GET",
@@ -447,13 +411,7 @@ async fn compiled_class_by_hash() {
 
 #[tokio::test]
 async fn is_alive() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let mock_is_alive = mock("GET", "/feeder_gateway/is_alive")
         .with_status(200)
         .with_body(FEEDER_GATEWAY_ALIVE_RESPONSE)
@@ -467,13 +425,8 @@ async fn is_alive() {
 // the state diff commitment).
 #[tokio::test]
 async fn state_update_with_empty_storage_diff() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
+
     let mut state_update = StateUpdate::default();
     let empty_storage_diff = indexmap!(ContractAddress::default() => vec![]);
     state_update.state_diff.storage_diffs.clone_from(&empty_storage_diff);
@@ -496,13 +449,7 @@ async fn test_unserializable<
     url_suffix: &str,
     call_method: F,
 ) {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let body = "body";
     let mock = mock("GET", url_suffix).with_status(200).with_body(body).create();
     let error = call_method(starknet_client).await.unwrap_err();
@@ -562,13 +509,7 @@ async fn compiled_class_by_hash_unserializable() {
 
 #[tokio::test]
 async fn get_block_signature() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
 
     let expected_block_signature = BlockSignatureData::Deprecated {
         block_number: BlockNumber(20),
@@ -592,13 +533,7 @@ async fn get_block_signature() {
 
 #[tokio::test]
 async fn get_block_signature_unknown_block() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
 
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number 999999 was not found."}"#;
     let mock_no_block =
@@ -613,13 +548,7 @@ async fn get_block_signature_unknown_block() {
 
 #[tokio::test]
 async fn get_sequencer_public_key() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
 
     let expected_sequencer_pub_key = SequencerPublicKey(PublicKey(felt!("0x1")));
 
