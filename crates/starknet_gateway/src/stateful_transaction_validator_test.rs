@@ -15,7 +15,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
-use rstest::{fixture, rstest};
+use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
@@ -47,9 +47,8 @@ pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
         ),
     );
 
-#[fixture]
-fn stateful_validator() -> StatefulTransactionValidator {
-    StatefulTransactionValidator { config: StatefulTransactionValidatorConfig::default() }
+fn stateful_validator(runtime: tokio::runtime::Handle) -> StatefulTransactionValidator {
+    StatefulTransactionValidator { config: StatefulTransactionValidatorConfig::default(), runtime }
 }
 
 // TODO(Arni): consider testing declare and deploy account.
@@ -62,11 +61,12 @@ fn stateful_validator() -> StatefulTransactionValidator {
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     Err(STATEFUL_VALIDATOR_FEE_ERROR)
 )]
-fn test_stateful_tx_validator(
+#[tokio::test]
+async fn test_stateful_tx_validator(
     #[case] executable_tx: AccountTransaction,
     #[case] expected_result: BlockifierStatefulValidatorResult<()>,
-    stateful_validator: StatefulTransactionValidator,
 ) {
+    let stateful_validator = stateful_validator(tokio::runtime::Handle::current());
     let expected_result_as_stateful_transaction_result = expected_result
         .as_ref()
         .map(|validate_result| *validate_result)
@@ -85,17 +85,23 @@ fn test_stateful_tx_validator(
     });
     let mempool_client = Arc::new(mock_mempool_client);
 
-    let result = stateful_validator.run_validate(
-        &executable_tx,
-        account_nonce,
-        mempool_client,
-        mock_validator,
-    );
-    assert_eq!(result, expected_result_as_stateful_transaction_result);
+    tokio::task::spawn_blocking(move || {
+        let result = stateful_validator.run_validate(
+            &executable_tx,
+            account_nonce,
+            mempool_client,
+            mock_validator,
+        );
+        assert_eq!(result, expected_result_as_stateful_transaction_result);
+    })
+    .await
+    .unwrap();
 }
 
 #[rstest]
-fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) {
+#[tokio::test]
+async fn test_instantiate_validator() {
+    let stateful_validator = stateful_validator(tokio::runtime::Handle::current());
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
 
@@ -161,13 +167,14 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     false,
     false
 )]
-fn test_skip_stateful_validation(
+#[tokio::test]
+async fn test_skip_stateful_validation(
     #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
     #[case] contains_tx: bool,
     #[case] should_skip_validate: bool,
-    stateful_validator: StatefulTransactionValidator,
 ) {
+    let stateful_validator = stateful_validator(tokio::runtime::Handle::current());
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_validate()
@@ -177,10 +184,14 @@ fn test_skip_stateful_validation(
     mock_mempool_client.expect_contains_tx_from().returning(move |_| Ok(contains_tx));
     let mempool_client = Arc::new(mock_mempool_client);
 
-    let _ = stateful_validator.run_validate(
-        &executable_tx,
-        sender_nonce,
-        mempool_client,
-        mock_validator,
-    );
+    tokio::task::spawn_blocking(move || {
+        let _ = stateful_validator.run_validate(
+            &executable_tx,
+            sender_nonce,
+            mempool_client,
+            mock_validator,
+        );
+    })
+    .await
+    .unwrap();
 }
