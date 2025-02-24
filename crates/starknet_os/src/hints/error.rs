@@ -4,6 +4,7 @@ use cairo_vm::serde::deserialize_program::Identifier;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::vars::{Const, Ids};
@@ -14,6 +15,11 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error(
+        "Inconsistent block numbers: {actual}, {expected}. The constant STORED_BLOCK_HASH_BUFFER \
+         is probably out of sync."
+    )]
+    InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]

@@ -1,7 +1,14 @@
+use blockifier::abi::constants;
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    insert_value_from_var_name,
+};
+use starknet_api::block::BlockNumber;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
+use crate::hints::vars::Ids;
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -295,10 +302,103 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
     todo!()
 }
 
+// pub const GET_OLD_BLOCK_NUMBER_AND_HASH: &str = indoc! {r#"
+// 	(
+// 	    old_block_number, old_block_hash
+// 	) = execution_helper.get_old_block_number_and_hash()
+// 	assert old_block_number == ids.old_block_number,(
+// 	    "Inconsistent block number. "
+// 	    "The constant STORED_BLOCK_HASH_BUFFER is probably out of sync."
+// 	)
+// 	ids.old_block_hash = old_block_hash"#
+// };
+
+// pub async fn get_old_block_number_and_hash_async<PCS>(
+//     vm: &mut VirtualMachine,
+//     exec_scopes: &mut ExecutionScopes,
+//     ids_data: &HashMap<String, HintReference>,
+//     ap_tracking: &ApTracking,
+// ) -> Result<(), HintError>
+// where
+//     PCS: PerContractStorage + 'static,
+// {
+//     let execution_helper: ExecutionHelperWrapper<PCS> =
+//         exec_scopes.get(vars::scopes::EXECUTION_HELPER)?;
+//     let (old_block_number, old_block_hash) =
+//         execution_helper.get_old_block_number_and_hash().await?;
+
+//     let ids_old_block_number =
+//         get_integer_from_var_name(vars::ids::OLD_BLOCK_NUMBER, vm, ids_data, ap_tracking)?;
+//     if old_block_number != ids_old_block_number {
+//         log::warn!(
+//             "old_block_number ({}) != ids_old_block_number ({})",
+//             old_block_number,
+//             ids_old_block_number
+//         );
+//         return Err(HintError::AssertionFailed(
+//             "Inconsistent block number. The constant STORED_BLOCK_HASH_BUFFER is probably out of
+// \              sync."
+//                 .to_string()
+//                 .into_boxed_str(),
+//         ));
+//     }
+
+//     insert_value_from_var_name(
+//         vars::ids::OLD_BLOCK_HASH,
+//         old_block_hash,
+//         vm,
+//         ids_data,
+//         ap_tracking,
+//     )?;
+
+//     Ok(())
+// }
+
+// pub fn get_old_block_number_and_hash<PCS>(
+//     vm: &mut VirtualMachine,
+//     exec_scopes: &mut ExecutionScopes,
+//     ids_data: &HashMap<String, HintReference>,
+//     ap_tracking: &ApTracking,
+//     _constants: &HashMap<String, Felt252>,
+// ) -> Result<(), HintError>
+// where
+//     PCS: PerContractStorage + 'static,
+// {
+//     execute_coroutine(get_old_block_number_and_hash_async::<PCS>(
+//         vm,
+//         exec_scopes,
+//         ids_data,
+//         ap_tracking,
+//     ))?
+// }
+
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let os_input = &hint_processor.execution_helper.os_input;
+    let (old_block_number, old_block_hash) =
+        os_input.old_block_number_and_hash.unwrap_or_else(|| {
+            panic!("Block number is probably < {0}.", constants::STORED_BLOCK_HASH_BUFFER)
+        });
+    let ids_old_block_number = BlockNumber(
+        get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?
+            .try_into()
+            .expect("Block number should fit in u64"),
+    );
+    if old_block_number != ids_old_block_number {
+        return Err(OsHintError::InconsistentBlockNumber {
+            expected: old_block_number,
+            actual: ids_old_block_number,
+        });
+    }
+    insert_value_from_var_name(
+        Ids::OldBlockHash.into(),
+        old_block_hash.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn fetch_result<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
