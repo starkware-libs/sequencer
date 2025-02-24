@@ -17,6 +17,7 @@ use central_objects::{
     CentralBouncerWeights,
     CentralCasmContractClassEntry,
     CentralCompressedStateDiff,
+    CentralFeeMarketInfo,
     CentralSierraContractClassEntry,
     CentralStateDiff,
     CentralTransactionWritten,
@@ -37,6 +38,8 @@ use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{debug, error, info, warn, Instrument};
 use url::Url;
+
+use crate::fee_market::FeeMarketInfo;
 
 // TODO(dvir): add metrics when the infra side will be completed.
 
@@ -62,6 +65,7 @@ pub(crate) struct AerospikeBlob {
     // configuration.
     compressed_state_diff: Option<CentralCompressedStateDiff>,
     bouncer_weights: CentralBouncerWeights,
+    fee_market_info: CentralFeeMarketInfo,
     transactions: Vec<CentralTransactionWritten>,
     execution_infos: Vec<CentralTransactionExecutionInfo>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
@@ -292,6 +296,7 @@ pub struct BlobParameters {
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
+    pub(crate) fee_market_info: FeeMarketInfo,
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
 }
@@ -327,6 +332,7 @@ impl AerospikeBlob {
             state_diff,
             compressed_state_diff,
             bouncer_weights: blob_parameters.bouncer_weights,
+            fee_market_info: blob_parameters.fee_market_info,
             transactions: central_transactions,
             execution_infos,
             contract_classes,

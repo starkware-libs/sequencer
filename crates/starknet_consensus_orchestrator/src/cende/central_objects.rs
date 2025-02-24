@@ -49,6 +49,7 @@ use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 use super::{CendeAmbassadorError, CendeAmbassadorResult};
+use crate::fee_market::FeeMarketInfo;
 
 /// Central objects are required in order to continue processing the block by the centralized
 /// Python pipline. These objects are written to the Aerospike database and are used by python
@@ -58,6 +59,7 @@ use super::{CendeAmbassadorError, CendeAmbassadorResult};
 mod central_objects_test;
 
 pub(crate) type CentralBouncerWeights = BouncerWeights;
+pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
 pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClass = SierraContractClass;
 pub(crate) type CentralCasmContractClass = CasmContractClass;

@@ -1,9 +1,20 @@
 use std::cmp::max;
 
+use serde::Serialize;
+
 use crate::orchestrator_versioned_constants;
 
 #[cfg(test)]
 mod test;
+
+/// Fee market information for the next block.
+#[derive(Debug, Default, Serialize)]
+pub struct FeeMarketInfo {
+    /// Total gas consumed in the current block.
+    pub l2_gas_consumed: u64,
+    /// Gas price for the next block.
+    pub next_l2_gas_price: u64,
+}
 
 /// Calculate the base gas price for the next block according to EIP-1559.
 ///
