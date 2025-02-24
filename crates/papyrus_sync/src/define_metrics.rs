@@ -18,5 +18,6 @@ define_metrics!(
         // Counters
         // TODO(shahak): add to metric's dashboard
         MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", init = 0 },
+        MetricCounter { SYNC_REVERTED_TRANSACTIONS, "apollo_sync_reverted_transactions", "The number of transactions reverted by the sync component", init = 0 },
     },
 );
