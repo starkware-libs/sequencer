@@ -893,34 +893,29 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
 }
 
 #[rstest]
-// Negative flow. The method should return false if the transaction is not in the mempool.
-#[case::empty(MempoolState::default(), false)]
-// Positive flows. The method should return true if the transaction is in the mempool.
-#[case::tentative(
-    MempoolState{
-        tentative: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true
-)]
-#[case::staged(
-    MempoolState{
-        staged: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true
-)]
-#[case::committed(
-    MempoolState{
-        committed: [(deployer_address(), nonce!(0))].into_iter().collect(),
-        ..Default::default()
-    },
-    true,
-)]
-fn tx_from_address_exists(#[case] state: MempoolState, #[case] expected_result: bool) {
-    let mempool = MempoolTestContentBuilder::new().with_state(state).build_full_mempool();
+fn tx_from_address_exists(mut mempool: Mempool) {
+    const ACCOUNT_ADDRESS: &str = "0x1";
+    let account_address = contract_address!(ACCOUNT_ADDRESS);
 
-    assert_eq!(mempool.contains_tx_from(deployer_address()), expected_result);
+    // Account is not known to the mempool.
+    assert_eq!(mempool.contains_tx_from(account_address), false);
+
+    // The account has a tx in the mempool.
+    add_tx(
+        &mut mempool,
+        &add_tx_input!(tx_hash: 1, address: ACCOUNT_ADDRESS, tx_nonce: 0, account_nonce: 0),
+    );
+    assert_eq!(mempool.contains_tx_from(account_address), true);
+
+    // The account has a staged tx in the mempool.
+    let get_tx_response = mempool.get_txs(1).unwrap();
+    assert_eq!(get_tx_response.first().unwrap().contract_address(), account_address);
+    assert_eq!(mempool.contains_tx_from(account_address), true);
+
+    // The account has no txs in the pool, but is known through a committed block.
+    commit_block(&mut mempool, [(ACCOUNT_ADDRESS, 1)], []);
+    MempoolTestContentBuilder::new().with_pool([]).build().assert_eq(&mempool.content());
+    assert_eq!(mempool.contains_tx_from(account_address), true);
 }
 
 #[rstest]
