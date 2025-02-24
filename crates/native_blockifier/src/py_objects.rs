@@ -20,6 +20,7 @@ use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_utils::{felts_to_class_hash, PyFelt};
+
 // From Rust to Python.
 
 #[pyclass]

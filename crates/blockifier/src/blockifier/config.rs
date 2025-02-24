@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ClassHash;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
@@ -139,6 +139,7 @@ pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    #[serde(deserialize_with = "deserialize_optional_vec_class_hash")]
     pub contracts_for_native_compilation: Option<Vec<ClassHash>>,
 }
 
@@ -155,7 +156,7 @@ impl Default for CairoNativeRunConfig {
 
 impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
+        let mut config = BTreeMap::from_iter([
             ser_param(
                 "run_cairo_native",
                 &self.run_cairo_native,
@@ -174,12 +175,61 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "The size of the compilation request channel.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "contracts_for_native_compilation",
-                &self.contracts_for_native_compilation,
-                "Contracts to compile natively.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        ]);
+        config.extend([ser_param(
+            "contracts_for_native_compilation",
+            &serialize_optional_vec_class_hash(&self.contracts_for_native_compilation),
+            "Contracts to compile natively.",
+            ParamPrivacyInput::Public,
+        )]);
+
+        config
+    }
+}
+
+// TODO(AvivG): Move to a more accurate location.
+fn serialize_optional_vec_class_hash(optional_vector: &Option<Vec<ClassHash>>) -> String {
+    match optional_vector {
+        // TODO (AvivG): change "" to 'compile all contracts with native' or other more
+        // descriptive name.
+        None => "".to_owned(),
+        Some(vector) => {
+            format!(
+                "0x{}",
+                vector
+                    .iter()
+                    .map(|class_hash| format!("{:#x}", class_hash.0))
+                    .collect::<Vec<String>>()
+                    .join("")
+            )
+        }
+    }
+}
+
+fn deserialize_optional_vec_class_hash<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<ClassHash>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: Option<String> = Option::deserialize(deserializer)?;
+
+    match s.as_deref() {
+        None | Some("") => Ok(None),
+        Some(hex_string) => {
+            let classes: Result<Vec<ClassHash>, _> = hex_string
+                .split("0x") // Split on "0x"
+                .filter(|s| !s.is_empty()) // Ignore empty parts
+                .map(|class_hash| {
+                    u64::from_str_radix(class_hash, 16)
+                        .map(|class_hash| ClassHash(class_hash.into())) // Convert to ClassHash
+                        .map_err(|e| serde::de::Error::custom(format!(
+                            "Couldn't deserialize vector. Failed to parse class_hash: {} {}",
+                            class_hash, e
+                        )))
+                })
+                .collect();
+            classes.map(Some)
+        }
     }
 }
