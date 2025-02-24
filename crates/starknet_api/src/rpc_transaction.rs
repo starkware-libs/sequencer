@@ -50,7 +50,7 @@ use crate::{impl_deploy_transaction_trait, StarknetApiError};
 /// a block.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
 #[strum_discriminants(
-    name(TxTypeLabelValue),
+    name(RpcTransactionLabelValue),
     derive(IntoStaticStr, EnumIter),
     strum(serialize_all = "snake_case")
 )]
@@ -91,7 +91,12 @@ impl TransactionHasher for InternalRpcDeployAccountTransaction {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
+#[strum_discriminants(
+    name(InternalRpcTransactionLabelValue),
+    derive(IntoStaticStr, EnumIter),
+    strum(serialize_all = "snake_case")
+)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum InternalRpcTransactionWithoutTxHash {

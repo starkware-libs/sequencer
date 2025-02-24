@@ -15,7 +15,11 @@ use starknet_mempool_types::mempool_types::{
 };
 use tracing::{debug, info, instrument};
 
+<<<<<<< HEAD
 use crate::config::MempoolConfig;
+=======
+use crate::metrics::{metric_count_expired_txs, metric_count_rejected_txs, MempoolMetricHandle};
+>>>>>>> 16bf076fe (chore(starknet_mempool): add metric counters)
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
 use crate::utils::{try_increment_nonce, Clock};
@@ -202,6 +206,9 @@ impl Mempool {
         err
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
+        let mut metric_handle = MempoolMetricHandle::new(&args.tx.tx);
+        metric_handle.count_transaction_received();
+
         // First remove old transactions from the pool.
         self.remove_expired_txs();
 
@@ -212,6 +219,8 @@ impl Mempool {
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
+
+        metric_handle.transaction_inserted();
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
@@ -276,6 +285,7 @@ impl Mempool {
         debug!("Aligned mempool to committed nonces.");
 
         // Remove rejected transactions from the mempool.
+        metric_count_rejected_txs(rejected_tx_hashes.len());
         for tx_hash in rejected_tx_hashes {
             if let Ok(tx) = self.tx_pool.remove(tx_hash) {
                 self.tx_queue.remove(tx.contract_address());
@@ -393,6 +403,7 @@ impl Mempool {
     fn remove_expired_txs(&mut self) {
         let removed_txs = self.tx_pool.remove_txs_older_than(self.config.transaction_ttl);
         self.tx_queue.remove_txs(&removed_txs);
+        metric_count_expired_txs(removed_txs.len());
     }
 
     /// Given a chunk of transactions, removes from the pool those that are old, and returns the

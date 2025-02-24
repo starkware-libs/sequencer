@@ -10,6 +10,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
+use crate::metrics::metric_count_committed_txs;
 use crate::utils::{try_increment_nonce, Clock};
 
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
@@ -97,6 +98,8 @@ impl TransactionPool {
         self.remove_from_timed_mapping(&removed_txs);
 
         self.capacity.remove_n(removed_txs.len());
+
+        metric_count_committed_txs(removed_txs.len());
     }
 
     pub fn remove_txs_older_than(&mut self, duration: Duration) -> Vec<TransactionReference> {
