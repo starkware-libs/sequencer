@@ -111,7 +111,7 @@ type HeightToIdToContent = BTreeMap<
     BlockNumber,
     HashMap<
         ProposalCommitment,
-        (ConsensusBlockInfo, Vec<InternalConsensusTransaction>, ProposalId),
+        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
     >,
 >;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
@@ -378,14 +378,6 @@ impl ConsensusContext for SequencerConsensusContext {
         let channel_size = self.proposal_buffer_size;
         tokio::spawn(
             async move {
-                let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
-                    transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx.clone())
-                }))
-                .await
-                .into_iter()
-                .collect::<Result<Vec<_>, _>>()
-                .expect("Failed converting transaction during repropose");
-                // TODO(Asmaa): send by chunks.
                 let (mut proposal_sender, proposal_receiver) = mpsc::channel(channel_size);
                 let stream_id = HeightAndRound(height.0, init.round);
                 outbound_proposal_sender
@@ -400,12 +392,21 @@ impl ConsensusContext for SequencerConsensusContext {
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
-                proposal_sender
-                    .send(ProposalPart::Transactions(TransactionBatch {
-                        transactions: transactions.clone(),
+                for batch in txs.iter() {
+                    let transactions = futures::future::join_all(batch.iter().map(|tx| {
+                        transaction_converter
+                            .convert_internal_consensus_tx_to_consensus_tx(tx.clone())
                     }))
                     .await
-                    .expect("Failed to broadcast proposal content");
+                    .into_iter()
+                    .collect::<Result<Vec<_>, _>>()
+                    .expect("Failed converting transaction during repropose");
+
+                    proposal_sender
+                        .send(ProposalPart::Transactions(TransactionBatch { transactions }))
+                        .await
+                        .expect("Failed to broadcast proposal content");
+                }
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
@@ -456,6 +457,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
             proposals.retain(|&h, _| h > BlockNumber(height));
         }
+        let transactions = transactions.concat();
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
@@ -747,7 +749,7 @@ async fn get_proposal_content(
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: &TransactionConverter,
-) -> Option<(ProposalCommitment, Vec<InternalConsensusTransaction>)> {
+) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
     loop {
         // We currently want one part of the node failing to cause all components to fail. If this
@@ -760,7 +762,7 @@ async fn get_proposal_content(
 
         match response.content {
             GetProposalContent::Txs(txs) => {
-                content.extend_from_slice(&txs[..]);
+                content.push(txs.clone());
                 // TODO(matan): Make sure this isn't too large for a single proto message.
                 debug!(
                     hashes = ?txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>(),
@@ -990,7 +992,7 @@ async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
-    content: &mut Vec<InternalConsensusTransaction>,
+    content: &mut Vec<Vec<InternalConsensusTransaction>>,
     transaction_converter: &TransactionConverter,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -1010,10 +1012,11 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
+            let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
             info!(
                 network_block_id = ?id,
                 ?batcher_block_id,
-                num_txs = %content.len(),
+                num_txs,
                 "Finished validating proposal."
             );
             HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
@@ -1030,7 +1033,7 @@ async fn handle_proposal_part(
             .expect("Failed converting consensus transaction to internal representation");
             debug!("Converted transactions to internal representation.");
 
-            content.extend_from_slice(&txs[..]);
+            content.push(txs.clone());
             let input =
                 SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
