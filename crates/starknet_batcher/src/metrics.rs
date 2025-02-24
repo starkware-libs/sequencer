@@ -10,9 +10,9 @@ use starknet_sequencer_metrics::metric_definitions::{
 };
 
 pub fn register_metrics(storage_height: BlockNumber) {
-    let storage_height_metric = STORAGE_HEIGHT.register();
+    STORAGE_HEIGHT.register();
     #[allow(clippy::as_conversions)]
-    storage_height_metric.set(storage_height.0 as f64);
+    STORAGE_HEIGHT.set(storage_height.0 as f64);
 
     PROPOSAL_STARTED.register();
     PROPOSAL_SUCCEEDED.register();

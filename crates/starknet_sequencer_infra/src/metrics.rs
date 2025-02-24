@@ -19,7 +19,7 @@ impl LocalServerMetrics {
     pub fn register(&self) {
         self.received_msgs.register();
         self.processed_msgs.register();
-        let _ = self.queue_depth.register();
+        self.queue_depth.register();
     }
 
     pub fn increment_received(&self) {
