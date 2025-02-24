@@ -79,6 +79,11 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
@@ -794,6 +799,11 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
     "privacy": "Public",
@@ -1163,5 +1173,10 @@
     "description": "Maximum number of steps the validation function is allowed to run.",
     "privacy": "TemporaryValue",
     "value": 1000000
+  },
+  "versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "privacy": "TemporaryValue",
+    "value": 1000
   }
 }
