@@ -26,16 +26,20 @@ impl LocalServerMetrics {
         self.received_msgs.increment(1);
     }
 
-    pub fn get_received_value(&self, metrics_as_string: &str) -> Option<u64> {
-        self.received_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    pub fn get_received_value(&self, metrics_as_string: &str) -> u64 {
+        self.received_msgs
+            .parse_numeric_metric::<u64>(metrics_as_string)
+            .expect("received_msgs metrics not found")
     }
 
     pub fn increment_processed(&self) {
         self.processed_msgs.increment(1);
     }
 
-    pub fn get_processed_value(&self, metrics_as_string: &str) -> Option<u64> {
-        self.processed_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    pub fn get_processed_value(&self, metrics_as_string: &str) -> u64 {
+        self.processed_msgs
+            .parse_numeric_metric::<u64>(metrics_as_string)
+            .expect("processed_msgs metrics not found")
     }
 
     #[allow(clippy::as_conversions)]
@@ -44,8 +48,10 @@ impl LocalServerMetrics {
         self.queue_depth.set(value as f64);
     }
 
-    pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> Option<usize> {
-        self.queue_depth.parse_numeric_metric::<usize>(metrics_as_string)
+    pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> usize {
+        self.queue_depth
+            .parse_numeric_metric::<usize>(metrics_as_string)
+            .expect("queue_depth metrics not found")
     }
 }
 
@@ -75,24 +81,29 @@ impl RemoteServerMetrics {
         self.total_received_msgs.increment(1);
     }
 
-    // TODO(Lev): change all metrics value functions to returned a value and not an Option
-    pub fn get_total_received_value(&self, metrics_as_string: &str) -> Option<u64> {
-        self.total_received_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    pub fn get_total_received_value(&self, metrics_as_string: &str) -> u64 {
+        self.total_received_msgs
+            .parse_numeric_metric::<u64>(metrics_as_string)
+            .expect("total_received_msgs metrics not found")
     }
 
     pub fn increment_valid_received(&self) {
         self.valid_received_msgs.increment(1);
     }
 
-    pub fn get_valid_received_value(&self, metrics_as_string: &str) -> Option<u64> {
-        self.valid_received_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    pub fn get_valid_received_value(&self, metrics_as_string: &str) -> u64 {
+        self.valid_received_msgs
+            .parse_numeric_metric::<u64>(metrics_as_string)
+            .expect("valid_received_msgs metrics not found")
     }
 
     pub fn increment_processed(&self) {
         self.processed_msgs.increment(1);
     }
 
-    pub fn get_processed_value(&self, metrics_as_string: &str) -> Option<u64> {
-        self.processed_msgs.parse_numeric_metric::<u64>(metrics_as_string)
+    pub fn get_processed_value(&self, metrics_as_string: &str) -> u64 {
+        self.processed_msgs
+            .parse_numeric_metric::<u64>(metrics_as_string)
+            .expect("processed_msgs metrics not found")
     }
 }
