@@ -1,8 +1,9 @@
 use std::net::SocketAddr;
 
 use starknet_infra_utils::test_utils::AvailablePorts;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::component_execution_config::{
+
+use crate::config::component_config::ComponentConfig;
+use crate::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };

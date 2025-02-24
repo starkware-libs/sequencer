@@ -17,17 +17,17 @@ use starknet_infra_utils::test_utils::{
     MAX_NUMBER_OF_INSTANCES_PER_TEST,
 };
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_node::node_component_configs::{
+    create_consolidated_sequencer_configs,
+    create_distributed_node_configs,
+    NodeComponentConfigs,
+};
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
-use crate::node_component_configs::{
-    create_consolidated_sequencer_configs,
-    create_distributed_node_configs,
-    NodeComponentConfigs,
-};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
