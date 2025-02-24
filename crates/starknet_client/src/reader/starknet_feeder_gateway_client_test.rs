@@ -56,6 +56,11 @@ fn get_block_url(block_number: u64) -> String {
     format!("/feeder_gateway/get_block?{}={}", BLOCK_NUMBER_QUERY, block_number)
 }
 
+async fn starknet_client() -> StarknetFeederGatewayClient {
+    StarknetFeederGatewayClient::new(&mockito::server_url(), None, NODE_VERSION, get_test_config())
+        .unwrap()
+}
+
 #[test]
 fn new_urls() {
     let url_base_str = "https://url";
@@ -360,13 +365,7 @@ async fn deprecated_pending_data() {
 
 #[tokio::test]
 async fn get_block() {
-    let starknet_client = StarknetFeederGatewayClient::new(
-        &mockito::server_url(),
-        None,
-        NODE_VERSION,
-        get_test_config(),
-    )
-    .unwrap();
+    let starknet_client = starknet_client().await;
     let raw_block = read_resource_file("reader/block_post_0_13_1.json");
     let mock_block =
         mock("GET", get_block_url(20).as_str()).with_status(200).with_body(&raw_block).create();
@@ -374,8 +373,12 @@ async fn get_block() {
     mock_block.assert();
     let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
     assert_eq!(block, expected_block);
+}
 
-    // Non-existing block.
+// Requesting a block that does not exist, expecting a "Block Not Found" error.
+#[tokio::test]
+async fn get_block_not_found() {
+    let starknet_client = starknet_client().await;
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block 9999999999 was not found."}"#;
     let mock_no_block =
         mock("GET", get_block_url(9999999999).as_str()).with_status(400).with_body(body).create();
