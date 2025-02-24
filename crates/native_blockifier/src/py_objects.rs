@@ -67,18 +67,25 @@ pub struct PyVersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub min_sierra_version_for_sierra_gas: Option<String>,
 }
 
 #[pymethods]
 impl PyVersionedConstantsOverrides {
     #[new]
-    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps))]
+    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, min_sierra_version_for_sierra_gas))]
     pub fn create(
         validate_max_n_steps: u32,
         max_recursion_depth: usize,
         invoke_tx_max_n_steps: u32,
+        min_sierra_version_for_sierra_gas: Option<String>,
     ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            min_sierra_version_for_sierra_gas,
+        }
     }
 }
 
@@ -88,8 +95,24 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            min_sierra_version_for_sierra_gas,
         } = py_versioned_constants_overrides;
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        if let Some(min_sierra_version) = min_sierra_version_for_sierra_gas {
+            let min_sierra_version_for_sierra_gas = serde_json::from_str(&min_sierra_version)
+                .expect("Failed to parse min_sierra_version.");
+            Self {
+                validate_max_n_steps,
+                max_recursion_depth,
+                invoke_tx_max_n_steps,
+                min_sierra_version_for_sierra_gas,
+            }
+        } else {
+            VersionedConstantsOverrides::create_without_min_sierra_version(
+                validate_max_n_steps,
+                max_recursion_depth,
+                invoke_tx_max_n_steps,
+            )
+        }
     }
 }
 
