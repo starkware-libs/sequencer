@@ -474,8 +474,21 @@ async fn interrupt_active_proposal() {
 
 #[tokio::test]
 async fn build_proposal() {
-    // TODO(Asmaa): Test proposal content.
-    let (fin_receiver, _network) = build_proposal_setup(success_cende_ammbassador()).await;
+    let before: u64 =
+        chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
+    let (fin_receiver, mut network) = build_proposal_setup(success_cende_ammbassador()).await;
+    let after: u64 =
+        chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
+    // Test proposal parts.
+    let (_, mut receiver) = network._outbound_proposal_receiver.next().await.unwrap();
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
+    assert!(matches!(
+        receiver.next().await.unwrap(),
+        ProposalPart::BlockInfo(ConsensusBlockInfo {timestamp, .. }) if timestamp >= before && timestamp <= after));
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
