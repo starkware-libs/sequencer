@@ -19,7 +19,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
-
+use crate::py_utils::{felts_to_class_hash, PyFelt};
 // From Rust to Python.
 
 #[pyclass]
@@ -169,6 +169,7 @@ pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    pub contracts_for_native_compilation: Option<Vec<PyFelt>>,
 }
 
 impl Default for PyCairoNativeRunConfig {
@@ -177,16 +178,21 @@ impl Default for PyCairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            contracts_for_native_compilation: None,
         }
     }
 }
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
+        let native_contracts =
+            py_cairo_native_run_config.contracts_for_native_compilation.map(felts_to_class_hash);
+
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             channel_size: py_cairo_native_run_config.channel_size,
+            contracts_for_native_compilation: native_contracts,
         }
     }
 }

@@ -84,6 +84,11 @@
     "privacy": "Public",
     "value": 2000
   },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.contracts_for_native_compilation": {
+    "description": "Contracts to compile natively.",
+    "privacy": "Public",
+    "value": null
+  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
     "privacy": "Public",

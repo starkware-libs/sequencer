@@ -85,6 +85,10 @@ pub fn from_py_felts(py_felts: Vec<PyFelt>) -> Vec<Felt> {
     py_felts.into_iter().map(|felt| felt.0).collect()
 }
 
+pub fn felts_to_class_hash(py_felts: Vec<PyFelt>) -> Vec<ClassHash> {
+    py_felts.into_iter().map(|felt| ClassHash(felt.0)).collect()
+}
+
 pub fn int_to_chain_id(int: &PyAny) -> PyResult<ChainId> {
     let biguint: BigUint = int.extract()?;
     Ok(ChainId::Other(String::from_utf8_lossy(&biguint.to_bytes_be()).into()))
