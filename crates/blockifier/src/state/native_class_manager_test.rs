@@ -64,7 +64,7 @@ fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation
         CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
     let manager = NativeClassManager::create_for_testing(native_config);
 
-    assert_eq!(manager.cairo_native_run_config, native_config);
+    assert_eq!(manager.cairo_native_run_config.clone(), native_config);
     if run_cairo_native {
         if wait_on_native_compilation {
             assert!(
@@ -149,6 +149,7 @@ fn test_send_compilation_request_channel_disconnected() {
         run_cairo_native: true,
         wait_on_native_compilation: false,
         channel_size: TEST_CHANNEL_SIZE,
+        contracts_for_native_compilation: None,
     };
     let (sender, receiver) = sync_channel(native_config.channel_size);
     let manager = NativeClassManager {
@@ -171,6 +172,7 @@ fn test_send_compilation_request_channel_full() {
         run_cairo_native: true,
         wait_on_native_compilation: false,
         channel_size: 0,
+        contracts_for_native_compilation: None,
     };
     let manager = NativeClassManager::create_for_testing(native_config);
     let request = create_test_request();
@@ -196,6 +198,7 @@ fn test_process_compilation_request(
         wait_on_native_compilation: true,
         run_cairo_native: true,
         channel_size: TEST_CHANNEL_SIZE,
+        contracts_for_native_compilation: None,
     });
     let res = process_compilation_request(
         manager.clone().cache,
