@@ -83,6 +83,19 @@ impl NodeSetup {
         &self.executables
     }
 
+    pub fn set_executable_config_path(
+        &mut self,
+        index: usize,
+        new_path: PathBuf,
+    ) -> Result<(), &'static str> {
+        if let Some(exec) = self.executables.get_mut(index) {
+            exec.node_config_path = new_path;
+            Ok(())
+        } else {
+            panic!("Invalid executable index")
+        }
+    }
+
     pub fn get_batcher_index(&self) -> usize {
         self.batcher_index
     }
