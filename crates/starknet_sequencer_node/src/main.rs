@@ -19,7 +19,7 @@ async fn main() -> anyhow::Result<()> {
     let (_clients, servers) = create_node_modules(&config).await;
 
     info!("Starting components!");
-    run_component_servers(servers).await?;
+    run_component_servers(servers).await;
 
     // TODO(Tsabary): Add graceful shutdown.
     Ok(())

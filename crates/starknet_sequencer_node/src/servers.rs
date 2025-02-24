@@ -656,16 +656,16 @@ pub fn create_node_servers(
     SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
-pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
+pub async fn run_component_servers(servers: SequencerNodeServers) {
     let mut all_servers = FuturesUnordered::new();
     all_servers.extend(servers.local_servers.run().await);
     all_servers.extend(servers.remote_servers.run().await);
     all_servers.extend(servers.wrapper_servers.run().await);
 
     if let Some(servers_type) = all_servers.next().await {
-        Err(anyhow::anyhow!("{} Servers ended unexpectedly.", servers_type))
+        panic!("{} Servers ended unexpectedly.", servers_type);
     } else {
-        Err(anyhow::anyhow!("Failed to run component servers."))
+        unreachable!("all_servers is never empty");
     }
 }
 
