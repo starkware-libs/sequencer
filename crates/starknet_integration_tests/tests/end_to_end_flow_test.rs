@@ -49,6 +49,7 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 #[rstest]
 #[tokio::test]
 async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
+    std::env::set_var("RUST_LOG", "starknet=debug,infra=off");
     configure_tracing().await;
 
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
