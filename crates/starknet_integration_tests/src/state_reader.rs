@@ -4,12 +4,15 @@ use std::path::PathBuf;
 use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::BALANCE;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use mempool_test_utils::starknet_api_test_utils::{AccountTransactionGenerator, Contract};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountTransactionGenerator,
+    Contract,
+    VALID_ACCOUNT_BALANCE,
+};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
@@ -37,7 +40,6 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
-use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
 use starknet_class_manager::class_storage::{ClassStorage, FsClassStorage};
 use starknet_class_manager::config::FsClassStorageConfig;
@@ -356,7 +358,6 @@ struct ThinStateDiffBuilder<'a> {
 
 impl<'a> ThinStateDiffBuilder<'a> {
     fn new(chain_info: &ChainInfo) -> Self {
-        const TEST_INITIAL_ACCOUNT_BALANCE: Fee = BALANCE;
         let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
         let erc20_class_hash = erc20.get_class_hash();
 
@@ -366,7 +367,7 @@ impl<'a> ThinStateDiffBuilder<'a> {
 
         Self {
             chain_info: chain_info.clone(),
-            initial_account_balance: felt!(TEST_INITIAL_ACCOUNT_BALANCE.0),
+            initial_account_balance: felt!(VALID_ACCOUNT_BALANCE.0),
             deployed_contracts,
             ..Default::default()
         }
