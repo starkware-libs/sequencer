@@ -20,8 +20,6 @@ const _: () = {
 pub enum TestIdentifier {
     EndToEndIntegrationTest,
     EndToEndFlowTest,
-    MempoolSendsTxToOtherPeerTest,
-    MempoolReceivesTxFromOtherPeerTest,
     InfraUnitTests,
 }
 
@@ -30,9 +28,7 @@ impl From<TestIdentifier> for u16 {
         match variant {
             TestIdentifier::EndToEndIntegrationTest => 0,
             TestIdentifier::EndToEndFlowTest => 1,
-            TestIdentifier::MempoolSendsTxToOtherPeerTest => 2,
-            TestIdentifier::MempoolReceivesTxFromOtherPeerTest => 3,
-            TestIdentifier::InfraUnitTests => 4,
+            TestIdentifier::InfraUnitTests => 2,
         }
     }
 }
