@@ -57,37 +57,11 @@ pub struct MempoolState {
     committed: AddressToNonce,
     /// Provisionally incremented nonces during block creation.
     staged: AddressToNonce,
-    /// Temporary information on accounts that haven't appeared in recent blocks,
-    /// nor proposed for sequencing.
-    tentative: AddressToNonce,
 }
 
 impl MempoolState {
     fn get(&self, address: ContractAddress) -> Option<Nonce> {
-        self.staged
-            .get(&address)
-            .or_else(|| self.committed.get(&address))
-            .or_else(|| self.tentative.get(&address))
-            .copied()
-    }
-
-    fn get_or_insert(&mut self, address: ContractAddress, nonce: Nonce) -> Nonce {
-        if let Some(staged_or_committed_nonce) =
-            self.staged.get(&address).or_else(|| self.committed.get(&address)).copied()
-        {
-            return staged_or_committed_nonce;
-        }
-
-        let tentative_nonce = self
-            .tentative
-            .entry(address)
-            .and_modify(|tentative_nonce| {
-                if nonce > *tentative_nonce {
-                    *tentative_nonce = nonce;
-                }
-            })
-            .or_insert(nonce);
-        *tentative_nonce
+        self.staged.get(&address).or_else(|| self.committed.get(&address)).copied()
     }
 
     fn stage(&mut self, tx_reference: &TransactionReference) -> MempoolResult<()> {
@@ -111,16 +85,20 @@ impl MempoolState {
             .copied()
             .collect();
 
-        self.tentative.retain(|address, _| !address_to_nonce.contains_key(address));
         self.committed.extend(address_to_nonce);
         self.staged.clear();
 
         addresses_to_rewind
     }
 
-    fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {
+    fn validate_incoming_tx(
+        &self,
+        tx_reference: TransactionReference,
+        account_state: &AccountState,
+    ) -> MempoolResult<()> {
         let TransactionReference { address, nonce: tx_nonce, .. } = tx_reference;
-        if self.get(address).is_some_and(|existing_nonce| tx_nonce < existing_nonce) {
+        let account_nonce = self.get(address).unwrap_or(account_state.nonce);
+        if tx_nonce < account_nonce {
             return Err(MempoolError::NonceTooOld { address, nonce: tx_nonce });
         }
 
@@ -229,15 +207,15 @@ impl Mempool {
         let AddTransactionArgs { tx, account_state } = args;
         debug!("Adding transaction to mempool: {tx:#?}.");
         let tx_reference = TransactionReference::new(&tx);
-        self.validate_incoming_tx(tx_reference)?;
+        self.validate_incoming_tx(tx_reference, &account_state)?;
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
-        let stored_account_nonce = self.state.get_or_insert(address, incoming_account_nonce);
-        if tx_reference.nonce == stored_account_nonce {
+        let account_nonce = self.state.get(address).unwrap_or(incoming_account_nonce);
+        if tx_reference.nonce == account_nonce {
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
@@ -311,11 +289,15 @@ impl Mempool {
     }
 
     pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
-        self.state.get(account_address).is_some()
+        self.state.get(account_address).is_some() || self.tx_pool._contains_account(account_address)
     }
 
-    fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {
-        self.state.validate_incoming_tx(tx_reference)
+    fn validate_incoming_tx(
+        &self,
+        tx_reference: TransactionReference,
+        account_state: &AccountState,
+    ) -> MempoolResult<()> {
+        self.state.validate_incoming_tx(tx_reference, account_state)
     }
 
     fn validate_commitment(&self, address: ContractAddress, next_nonce: Nonce) {
