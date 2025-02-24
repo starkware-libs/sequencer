@@ -46,12 +46,15 @@ impl L1GasPriceProvider {
         height: BlockNumber,
         sample: PriceSample,
     ) -> L1GasPriceProviderResult<()> {
-        let last_plus_one = self.data.back().map(|(h, _)| h.0 + 1).unwrap_or(0);
-        if height.0 != last_plus_one {
-            return Err(L1GasPriceProviderError::InvalidHeight(format!(
-                "Block height is not consecutive: expected {}, got {}",
-                last_plus_one, height.0
-            )));
+        let last_height = self.data.back().map(|(h, _)| h.0);
+        if let Some(last_height) = last_height {
+            if height.0 != last_height + 1 {
+                return Err(L1GasPriceProviderError::InvalidHeight(format!(
+                    "Block height is not consecutive: expected {}, got {}",
+                    last_height + 1,
+                    height.0
+                )));
+            }
         }
         self.data.push_back((height, sample));
         if self.data.len() > self.config.storage_limit {
