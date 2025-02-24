@@ -355,12 +355,17 @@ impl VersionedConstants {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_n_events,
         } = versioned_constants_overrides;
+        let latest_constants = Self::latest_constants().clone();
+        let tx_event_limits =
+            EventLimits { max_n_emitted_events: max_n_events, ..latest_constants.tx_event_limits };
         Self {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
-            ..Self::latest_constants().clone()
+            tx_event_limits,
+            ..latest_constants
         }
     }
 
@@ -1276,6 +1281,7 @@ pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_n_events: usize,
 }
 
 impl Default for VersionedConstantsOverrides {
@@ -1285,6 +1291,7 @@ impl Default for VersionedConstantsOverrides {
             validate_max_n_steps: latest_versioned_constants.validate_max_n_steps,
             max_recursion_depth: latest_versioned_constants.max_recursion_depth,
             invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
+            max_n_events: latest_versioned_constants.tx_event_limits.max_n_emitted_events,
         }
     }
 }
