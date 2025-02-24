@@ -65,13 +65,14 @@ impl ClassReader {
         Ok(sierra)
     }
 
-    fn read_deprecated_casm(&self, class_hash: ClassHash) -> StateResult<DeprecatedClass> {
+    // TODO(Elin): make `read[_optional_deprecated]_casm` symmetrical and independent of invocation
+    // order.
+    fn read_optional_deprecated_casm(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<Option<DeprecatedClass>> {
         let casm = self.read_executable(class_hash)?;
-        let ContractClass::V0(casm) = casm else {
-            panic!("Class hash {class_hash} originated from a Cairo 0 contract.");
-        };
-
-        Ok(casm)
+        if let ContractClass::V0(casm) = casm { Ok(Some(casm)) } else { Ok(None) }
     }
 }
 
@@ -173,7 +174,7 @@ impl PapyrusReader {
             return Ok(option_casm);
         };
 
-        Ok(Some(class_reader.read_deprecated_casm(class_hash)?))
+        class_reader.read_optional_deprecated_casm(class_hash)
     }
 }
 
