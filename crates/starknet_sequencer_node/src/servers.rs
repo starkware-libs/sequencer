@@ -1,7 +1,8 @@
 use std::future::pending;
 use std::pin::Pin;
 
-use futures::{Future, FutureExt};
+use futures::stream::FuturesUnordered;
+use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
@@ -78,8 +79,6 @@ use starknet_sequencer_metrics::metric_definitions::{
 use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
 use starknet_state_sync::runner::StateSyncRunnerServer;
 use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
-use tokio::task::{JoinError, JoinSet};
-use tracing::error;
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
@@ -436,21 +435,16 @@ fn create_local_servers(
 
 async fn create_servers<ReturnType: Send + 'static>(
     labeled_futures: Vec<(impl Future<Output = ReturnType> + Send + 'static, String)>,
-) -> JoinSet<(ReturnType, String)> {
-    let mut tasks = JoinSet::new();
-
+) -> FuturesUnordered<Pin<Box<dyn Future<Output = (ReturnType, String)> + Send>>> {
+    let tasks = FuturesUnordered::new();
     for (future, label) in labeled_futures {
-        tasks.spawn(async move {
-            let res = future.await;
-            (res, label)
-        });
+        tasks.push(future.map(move |res| (res, label.clone())).boxed());
     }
-
     tasks
 }
 
 impl LocalServers {
-    async fn run(self) -> JoinSet<((), String)> {
+    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = ((), String)> + Send>>> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Local Batcher"),
             server_future_and_label(self.class_manager, "Local Class Manager"),
@@ -579,7 +573,7 @@ pub fn create_remote_servers(
 }
 
 impl RemoteServers {
-    async fn run(self) -> JoinSet<((), String)> {
+    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = ((), String)> + Send>>> {
         create_servers(vec![
             server_future_and_label(self.batcher, "Remote Batcher"),
             server_future_and_label(self.class_manager, "Remote Class Manager"),
@@ -635,7 +629,7 @@ fn create_wrapper_servers(
 }
 
 impl WrapperServers {
-    async fn run(self) -> JoinSet<((), String)> {
+    async fn run(self) -> FuturesUnordered<Pin<Box<dyn Future<Output = ((), String)> + Send>>> {
         create_servers(vec![
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
@@ -662,50 +656,17 @@ pub fn create_node_servers(
     SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
-type JoinSetResult<T> = Option<Result<T, JoinError>>;
-
-fn get_server_error(result: JoinSetResult<((), String)>) -> anyhow::Result<()> {
-    if let Some(result) = result {
-        match result {
-            Ok((_, label)) => {
-                panic!("{} Server stopped", label);
-            }
-            Err(e) => {
-                error!("Error while waiting for the first task: {:?}", e);
-                Err(e.into())
-            }
-        }
-    } else {
-        Ok(())
-    }
-}
-
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
-    let mut local_servers = servers.local_servers.run().await;
-    let mut remote_servers = servers.remote_servers.run().await;
-    let mut wrapper_servers = servers.wrapper_servers.run().await;
+    let mut all_servers = FuturesUnordered::new();
+    all_servers.extend(servers.local_servers.run().await);
+    all_servers.extend(servers.remote_servers.run().await);
+    all_servers.extend(servers.wrapper_servers.run().await);
 
-    // TODO(Lev/Itay): Consider using JoinSet instead of tokio::select!.
-    let (result, servers_type) = tokio::select! {
-        res = local_servers.join_next() => {
-            (res, "Local")
-        }
-        res = remote_servers.join_next() => {
-            (res, "Remote")
-        }
-        res = wrapper_servers.join_next() => {
-            (res, "Wrapper")
-        }
-    };
-
-    let result = get_server_error(result);
-    error!("{} Servers ended unexpectedly.", servers_type);
-
-    local_servers.abort_all();
-    remote_servers.abort_all();
-    wrapper_servers.abort_all();
-
-    result
+    if let Some((_, servers_type)) = all_servers.next().await {
+        Err(anyhow::anyhow!("{} Servers ended unexpectedly.", servers_type))
+    } else {
+        Err(anyhow::anyhow!("Failed to run component servers."))
+    }
 }
 
 type ComponentServerFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
