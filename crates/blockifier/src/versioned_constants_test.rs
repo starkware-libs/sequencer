@@ -50,12 +50,14 @@ fn test_versioned_constants_overrides() {
     let updated_invoke_tx_max_n_steps = versioned_constants.invoke_tx_max_n_steps + 1;
     let updated_validate_max_n_steps = versioned_constants.validate_max_n_steps + 1;
     let updated_max_recursion_depth = versioned_constants.max_recursion_depth + 1;
+    let min_sierra_version = versioned_constants.min_sierra_version_for_sierra_gas;
 
     // Create a versioned constants copy with overriden values.
     let result = VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
         validate_max_n_steps: updated_validate_max_n_steps,
         max_recursion_depth: updated_max_recursion_depth,
         invoke_tx_max_n_steps: updated_invoke_tx_max_n_steps,
+        min_sierra_version_for_sierra_gas: min_sierra_version,
     });
 
     // Assert the new values are used.

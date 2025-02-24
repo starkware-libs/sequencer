@@ -283,11 +283,13 @@ impl VersionedConstants {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            min_sierra_version_for_sierra_gas: min_sierra_version,
         } = versioned_constants_overrides;
         Self {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            min_sierra_version_for_sierra_gas: min_sierra_version,
             ..Self::latest_constants().clone()
         }
     }
@@ -1215,6 +1217,25 @@ pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub min_sierra_version_for_sierra_gas: SierraVersion,
+}
+
+impl VersionedConstantsOverrides {
+    pub fn create_without_min_sierra_version(
+        validate_max_n_steps: u32,
+        max_recursion_depth: usize,
+        invoke_tx_max_n_steps: u32,
+    ) -> VersionedConstantsOverrides {
+        let latest_versioned_constants = VersionedConstants::latest_constants();
+        VersionedConstantsOverrides {
+            validate_max_n_steps,
+            max_recursion_depth,
+            invoke_tx_max_n_steps,
+            min_sierra_version_for_sierra_gas: latest_versioned_constants
+                .min_sierra_version_for_sierra_gas
+                .clone(),
+        }
+    }
 }
 
 impl Default for VersionedConstantsOverrides {
@@ -1224,6 +1245,9 @@ impl Default for VersionedConstantsOverrides {
             validate_max_n_steps: latest_versioned_constants.validate_max_n_steps,
             max_recursion_depth: latest_versioned_constants.max_recursion_depth,
             invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
+            min_sierra_version_for_sierra_gas: latest_versioned_constants
+                .min_sierra_version_for_sierra_gas
+                .clone(),
         }
     }
 }
@@ -1247,6 +1271,12 @@ impl SerializeConfig for VersionedConstantsOverrides {
                 "invoke_tx_max_n_steps",
                 &self.invoke_tx_max_n_steps,
                 "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_sierra_version_for_sierra_gas",
+                &self.min_sierra_version_for_sierra_gas,
+                "Minimum sierra version to use sierra gas tracked resources.",
                 ParamPrivacyInput::Public,
             ),
         ])
