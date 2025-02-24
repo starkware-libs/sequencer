@@ -62,11 +62,7 @@ impl MonitoringClient {
             .map(|_| ())
     }
 
-    // TODO(Yael/Itay): add labels support
-    pub async fn get_metric<T: Num + FromStr>(
-        &self,
-        metric_name: &str,
-    ) -> Result<T, MonitoringClientError> {
+    pub async fn get_metrics(&self) -> Result<String, MonitoringClientError> {
         // Query the server for metrics.
         let response = self
             .client
@@ -85,7 +81,16 @@ impl MonitoringClient {
 
         // Parse the response body.
         let body_bytes = to_bytes(response.into_body()).await.unwrap();
-        let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+        Ok(String::from_utf8(body_bytes.to_vec()).unwrap())
+    }
+
+    // TODO(Yael/Itay): add labels support
+    // TODO(Itay): Consider making this private
+    pub async fn get_metric<T: Num + FromStr>(
+        &self,
+        metric_name: &str,
+    ) -> Result<T, MonitoringClientError> {
+        let body_string = self.get_metrics().await?;
 
         // Extract and return the metric value, or a suitable error.
         parse_numeric_metric::<T>(&body_string, metric_name, None)
