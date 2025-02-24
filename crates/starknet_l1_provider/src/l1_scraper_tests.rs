@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
 use alloy::primitives::U256;
+use mempool_test_utils::in_ci;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -23,12 +24,6 @@ use starknet_l1_provider_types::Event;
 use crate::event_identifiers_to_track;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
 use crate::test_utils::FakeL1ProviderClient;
-
-// TODO(Gilad): move to global test_utils crate and use everywhere instead of relying on the
-// confusing `#[ignore]` api to mark slow tests.
-fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.

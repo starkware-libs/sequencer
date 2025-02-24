@@ -30,6 +30,7 @@ validator.workspace = true
 alloy.workspace = true
 assert_matches.workspace = true
 itertools.workspace = true
+mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
