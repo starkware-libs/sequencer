@@ -15,10 +15,14 @@ use starknet_api::block::BlockInfo;
 use starknet_api::contract_address;
 #[cfg(feature = "cairo_native")]
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
+use starknet_api::test_utils::{
+    CHAIN_ID_FOR_TESTS,
+    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS2,
+};
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::blockifier_versioned_constants::{
@@ -155,7 +159,7 @@ impl GasCosts {
 impl ChainInfo {
     pub fn create_for_testing() -> Self {
         Self {
-            chain_id: ChainId::create_for_testing(),
+            chain_id: CHAIN_ID_FOR_TESTS.clone(),
             fee_token_addresses: FeeTokenAddresses {
                 eth_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS),
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
