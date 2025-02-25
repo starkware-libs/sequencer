@@ -11462,6 +11462,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "indoc 2.0.5",
+ "log",
  "serde",
  "shared_execution_objects",
  "starknet-types-core",
