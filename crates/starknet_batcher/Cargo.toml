@@ -41,6 +41,7 @@ metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
+pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
