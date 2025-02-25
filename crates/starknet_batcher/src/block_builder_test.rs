@@ -12,7 +12,7 @@ use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{indexmap, IndexMap, IndexSet};
 use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
@@ -36,7 +36,7 @@ use crate::block_builder::{
     BlockExecutionMetadata,
     FailOnErrorCause,
 };
-use crate::test_utils::test_txs;
+use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::{MockTransactionProvider, NextTxs};
 
@@ -61,11 +61,12 @@ fn output_channel()
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     rejected_tx_hashes: HashSet<TransactionHash>,
+    accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 ) -> BlockExecutionArtifacts {
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_infos,
-        metadata: BlockExecutionMetadata { rejected_tx_hashes, ..Default::default() },
+        metadata: BlockExecutionMetadata { rejected_tx_hashes, accepted_l1_handler_tx_hashes },
         commitment_state_diff: Default::default(),
         compressed_state_diff: Default::default(),
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
@@ -265,11 +266,13 @@ fn stream_done_test_expectations() -> TestExpectations {
 }
 
 fn transaction_failed_test_expectations() -> TestExpectations {
-    let input_txs = test_txs(0..3);
-    let failed_tx_hashes = HashSet::from([tx_hash!(1)]);
+    let input_invoke_txs = test_txs(0..3);
+    let input_l1_handler_txs = test_l1_handler_txs(3..5);
+    let input_txs = input_invoke_txs.into_iter().chain(input_l1_handler_txs);
+    let failed_tx_hashes = HashSet::from([tx_hash!(1), tx_hash!(3)]);
 
     let expected_txs_output =
-        input_txs.iter().filter(|tx| !failed_tx_hashes.contains(&tx.tx_hash())).cloned().collect();
+        input_txs.clone().filter(|tx| !failed_tx_hashes.contains(&tx.tx_hash())).collect();
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |txs| {
@@ -285,11 +288,15 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     });
 
     let execution_infos_mapping = indexmap![
-        tx_hash!(0)=> execution_info(),
-        tx_hash!(2)=> execution_info(),
+        tx_hash!(0) => execution_info(),
+        tx_hash!(2) => execution_info(),
+        tx_hash!(4) => execution_info(),
     ];
-    let expected_block_artifacts =
-        block_execution_artifacts(execution_infos_mapping, [tx_hash!(1)].into());
+    let expected_block_artifacts = block_execution_artifacts(
+        execution_infos_mapping,
+        [tx_hash!(1), tx_hash!(3)].into(),
+        [tx_hash!(4)].into(),
+    );
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok(BlockExecutionSummary {
@@ -299,7 +306,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         })
     });
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.collect()]);
 
     TestExpectations {
         mock_transaction_executor,
@@ -315,7 +322,7 @@ fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArt
     let execution_info_len_u8 = u8::try_from(execution_info_len).unwrap();
     let execution_infos_mapping =
         (0..execution_info_len_u8).map(|i| (tx_hash!(i), execution_info())).collect();
-    block_execution_artifacts(execution_infos_mapping, Default::default())
+    block_execution_artifacts(execution_infos_mapping, Default::default(), Default::default())
 }
 
 fn set_close_block_expectations(
