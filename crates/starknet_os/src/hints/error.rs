@@ -1,6 +1,8 @@
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::vars::{Const, Ids};
@@ -11,6 +13,10 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error(transparent)]
+    MathError(#[from] MathError),
+    #[error(transparent)]
+    MemoryError(#[from] MemoryError),
     #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]
