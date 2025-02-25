@@ -28,7 +28,7 @@ use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
 use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
-    create_distributed_node_configs,
+    create_nodes_deployment_units_configs,
     NodeComponentConfigs,
 };
 use crate::utils::{
@@ -425,7 +425,7 @@ pub async fn get_sequencer_setup_configs(
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
-        combined.extend(create_distributed_node_configs(
+        combined.extend(create_nodes_deployment_units_configs(
             &mut available_ports,
             num_of_distributed_nodes,
         ));
