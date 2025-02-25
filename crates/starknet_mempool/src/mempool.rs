@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
+use std::time::Instant;
 
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
@@ -125,7 +126,8 @@ impl MempoolState {
 pub struct Mempool {
     config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
-    // All transactions currently held in the mempool.
+    delayed_declares: VecDeque<(Instant, AddTransactionArgs)>,
+    // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
@@ -137,6 +139,7 @@ impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
             config,
+            delayed_declares: VecDeque::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::default(),
@@ -202,6 +205,18 @@ impl Mempool {
         err
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
+        if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
+            let tx_reference = TransactionReference::new(&args.tx);
+            self.validate_incoming_tx(tx_reference)?;
+            self.handle_fee_escalation(&args.tx)?;
+            self.delayed_declares.push_back((self.clock.now(), args));
+            return Ok(());
+        }
+        self.add_ready_declares();
+        self.add_tx_inner(args)
+    }
+
+    fn add_tx_inner(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         // First remove old transactions from the pool.
         self.remove_expired_txs();
 
@@ -222,6 +237,20 @@ impl Mempool {
         }
 
         Ok(())
+    }
+
+    fn add_ready_declares(&mut self) {
+        let now = self.clock.now();
+        while let Some((submission_time, _args)) = self.delayed_declares.front() {
+            if now - *submission_time < self.config.declare_delay {
+                break;
+            }
+            let (_submission_time, args) =
+                self.delayed_declares.pop_front().expect("Delay declare should exist.");
+            let _ = self
+                .add_tx_inner(args)
+                .map_err(|err| debug!("Failed to add declare tx after delay: {err}."));
+        }
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
