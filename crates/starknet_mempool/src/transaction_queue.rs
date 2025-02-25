@@ -49,6 +49,14 @@ impl TransactionQueue {
         );
     }
 
+    pub fn priority_queue_len(&self) -> usize {
+        self.priority_queue.len()
+    }
+
+    pub fn pending_queue_len(&self) -> usize {
+        self.pending_queue.len()
+    }
+
     // TODO(gilad): remove collect, if returning an iterator is possible.
     pub fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
