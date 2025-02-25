@@ -13,6 +13,12 @@ use starknet_mempool_types::mempool_types::{
     CommitBlockArgs,
     MempoolResult,
 };
+use starknet_sequencer_metrics::metric_definitions::{
+    MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
+};
 use tracing::{debug, info, instrument};
 
 use crate::config::MempoolConfig;
@@ -150,6 +156,13 @@ impl Mempool {
         }
     }
 
+    pub fn priority_queue_len(&self) -> usize {
+        self.tx_queue.priority_queue_len()
+    }
+
+    pub fn pending_queue_len(&self) -> usize {
+        self.tx_queue.pending_queue_len()
+    }
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
@@ -160,6 +173,7 @@ impl Mempool {
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
     // TODO(AlonH): Consider renaming to `pop_txs` to be more consistent with the standard library.
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     #[instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
@@ -183,6 +197,9 @@ impl Mempool {
             "Returned {} out of {n_txs} transactions, ready for sequencing.",
             eligible_tx_references.len()
         );
+
+        MEMPOOL_GET_TXS_SIZE.set(eligible_tx_references.len() as f64);
+        self.update_mempool_state_metrics();
 
         Ok(eligible_tx_references
             .iter()
@@ -231,6 +248,8 @@ impl Mempool {
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
+
+        self.update_mempool_state_metrics();
 
         Ok(())
     }
@@ -300,6 +319,8 @@ impl Mempool {
             // TTL.
         }
         debug!("Removed rejected transactions known to mempool.");
+
+        self.update_mempool_state_metrics();
     }
 
     pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
@@ -317,6 +338,7 @@ impl Mempool {
     /// Updates the gas price threshold for transactions that are eligible for sequencing.
     pub fn update_gas_price(&mut self, threshold: NonzeroGasPrice) {
         self.tx_queue.update_gas_price_threshold(threshold);
+        self.update_mempool_state_metrics();
     }
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
@@ -435,6 +457,13 @@ impl Mempool {
         }
 
         valid_txs
+    }
+
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+    fn update_mempool_state_metrics(&self) {
+        MEMPOOL_POOL_SIZE.set(self.tx_pool.capacity() as f64);
+        MEMPOOL_PRIORITY_QUEUE_SIZE.set(self.priority_queue_len() as f64);
+        MEMPOOL_PENDING_QUEUE_SIZE.set(self.pending_queue_len() as f64);
     }
 
     #[cfg(test)]
