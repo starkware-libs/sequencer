@@ -3,6 +3,10 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
 };
 use starknet_sequencer_metrics::metric_definitions::{
+    MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -78,9 +82,29 @@ pub(crate) fn metric_count_committed_txs(committed_txs: usize) {
         .increment(committed_txs.try_into().expect("The number of committed_txs should fit u64"));
 }
 
+#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+pub(crate) fn metric_set_get_txs_size(size: usize) {
+    MEMPOOL_GET_TXS_SIZE.set(size as f64);
+}
+
+pub struct MempoolStateMetrics {
+    pub pool_size: usize,
+    pub priority_queue_size: usize,
+    pub pending_queue_size: usize,
+}
+
+#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+pub(crate) fn update_mempool_state_metrics(state_metrics: MempoolStateMetrics) {
+    MEMPOOL_POOL_SIZE.set(state_metrics.pool_size as f64);
+    MEMPOOL_PRIORITY_QUEUE_SIZE.set(state_metrics.priority_queue_size as f64);
+    MEMPOOL_PENDING_QUEUE_SIZE.set(state_metrics.pending_queue_size as f64);
+}
+
 pub(crate) fn register_metrics() {
+    // Register Counters.
     MEMPOOL_TRANSACTIONS_COMMITTED.register();
 
+    // Register LabeledCounters
     let mut tx_type_label_variations: Vec<Vec<(&'static str, &'static str)>> = Vec::new();
     for tx_type in InternalRpcTransactionLabelValue::iter() {
         tx_type_label_variations.push(vec![(LABEL_NAME_TX_TYPE, tx_type.into())]);
@@ -92,4 +116,10 @@ pub(crate) fn register_metrics() {
         drop_reason_label_variations.push(vec![(LABEL_NAME_DROP_REASON, drop_reason.into())]);
     }
     MEMPOOL_TRANSACTIONS_DROPPED.register(&drop_reason_label_variations);
+
+    // Register Gauges.
+    MEMPOOL_POOL_SIZE.register();
+    MEMPOOL_PRIORITY_QUEUE_SIZE.register();
+    MEMPOOL_PENDING_QUEUE_SIZE.register();
+    MEMPOOL_GET_TXS_SIZE.register();
 }
