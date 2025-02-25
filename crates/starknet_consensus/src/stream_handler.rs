@@ -8,11 +8,7 @@ use std::hash::Hash;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_network::network_manager::{
-    BroadcastTopicClient,
-    BroadcastTopicClientTrait,
-    ReceivedBroadcastedMessage,
-};
+use papyrus_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use papyrus_network::utils::StreamHashMap;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
@@ -101,7 +97,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
 /// A StreamHandler is responsible for:
 /// - Buffering inbound messages and reporting them to the application in order.
 /// - Sending outbound messages to the network, wrapped in StreamMessage.
-pub struct StreamHandler<StreamContent, StreamId, InboundReceiverT>
+pub struct StreamHandler<StreamContent, StreamId, InboundReceiverT, OutboundSenderT>
 where
     StreamContent: StreamContentTrait,
     StreamId: StreamIdTrait,
@@ -122,25 +118,26 @@ where
     // A map where the abovementioned Receivers are stored.
     outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<StreamContent>>,
     // A network sender that allows sending StreamMessages to peers.
-    outbound_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
+    outbound_sender: OutboundSenderT,
     // For each stream, keep track of the message_id of the last message sent.
     outbound_stream_number: HashMap<StreamId, MessageId>,
 }
 
-impl<StreamContent, StreamId, InboundReceiverT>
-    StreamHandler<StreamContent, StreamId, InboundReceiverT>
+impl<StreamContent, StreamId, InboundReceiverT, OutboundSenderT>
+    StreamHandler<StreamContent, StreamId, InboundReceiverT, OutboundSenderT>
 where
     StreamContent: StreamContentTrait,
     StreamId: StreamIdTrait,
     InboundReceiverT: Unpin
         + StreamExt<Item = ReceivedBroadcastedMessage<StreamMessage<StreamContent, StreamId>>>,
+    OutboundSenderT: BroadcastTopicClientTrait<StreamMessage<StreamContent, StreamId>>,
 {
     /// Create a new StreamHandler.
     pub fn new(
         inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
         inbound_receiver: InboundReceiverT,
         outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
-        outbound_sender: BroadcastTopicClient<StreamMessage<StreamContent, StreamId>>,
+        outbound_sender: OutboundSenderT,
     ) -> Self {
         Self {
             inbound_channel_sender,
