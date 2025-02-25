@@ -1,9 +1,5 @@
 use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
 
-#[cfg(test)]
-#[path = "metric_definitions_test.rs"]
-pub mod metric_definitions_test;
-
 /// Macro to define `MetricCounter` constants for specified scopes and store them in a collection.
 /// This generates:
 /// - Individual `MetricCounter` constants (e.g., `PROPOSAL_STARTED`).
