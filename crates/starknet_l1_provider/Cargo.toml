@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = ["itertools", "pretty_assertions"]
+testing = ["itertools", "pretty_assertions", "starknet_api/testing"]
 
 [dependencies]
 async-trait.workspace = true
