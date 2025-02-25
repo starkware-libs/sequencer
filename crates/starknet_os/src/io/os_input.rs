@@ -42,10 +42,10 @@ pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
     _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
-    pub deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,
     _chain_info: ChainInfo,
-    _transactions: Vec<Transaction>,
+    pub(crate) transactions: Vec<Transaction>,
     _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
     _declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
