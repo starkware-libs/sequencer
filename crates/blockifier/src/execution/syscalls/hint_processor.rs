@@ -80,8 +80,7 @@ use crate::versioned_constants::GasCosts;
 #[derive(Default)]
 pub struct SyscallUsage {
     pub call_count: usize,
-    #[allow(dead_code)]
-    linear_factor: usize,
+    pub linear_factor: usize,
 }
 
 impl SyscallUsage {
@@ -310,12 +309,7 @@ impl<'a> SyscallHintProcessor<'a> {
         };
 
         let selector = SyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
-
-        // Keccak resource usage depends on the input length, so we increment the syscall count
-        // in the syscall execution callback.
-        if selector != SyscallSelector::Keccak {
-            self.increment_syscall_count(&selector);
-        }
+        self.increment_syscall_count(&selector);
 
         match selector {
             SyscallSelector::CallContract => {
@@ -529,13 +523,18 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
     }
 
-    pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
+    pub fn update_syscall_linear_factor(
+        &mut self,
+        selector: &SyscallSelector,
+        linear_factor: usize,
+    ) {
         let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
-        syscall_usage.call_count += n;
+        syscall_usage.linear_factor += linear_factor;
     }
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
-        self.increment_syscall_count_by(selector, 1);
+        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
+        syscall_usage.call_count += 1;
     }
 
     fn allocate_execution_info_segment(

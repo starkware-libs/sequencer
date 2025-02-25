@@ -27,7 +27,7 @@ mod TestContract {
         CircuitInputs, AddInputResultTrait
     };
     use core::hash::HashStateTrait;
-    use core::pedersen::PedersenTrait; 
+    use core::pedersen::PedersenTrait;
     use core::poseidon::PoseidonTrait;
 
     #[storage]
@@ -746,7 +746,7 @@ mod TestContract {
         let _z = x & y;
     }
 
-    #[external(v0)]  
+    #[external(v0)]
     fn test_pedersen (ref self: ContractState) {
         let mut state = PedersenTrait::new(0);
         state = state.update(1);
@@ -770,5 +770,3 @@ mod TestContract {
         ec::ec_state_add_mul(ref s, m, p);
     }
 }
-
-
