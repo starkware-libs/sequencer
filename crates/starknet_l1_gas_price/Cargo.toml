@@ -6,6 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+mockall = { workspace = true, optional = true }
 papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
@@ -25,4 +26,4 @@ papyrus_base_layer = { workspace = true, features = ["testing"] }
 workspace = true
 
 [features]
-testing = []
+testing = ["mockall"]
