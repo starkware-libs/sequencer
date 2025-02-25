@@ -13,7 +13,7 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -30,6 +30,7 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
+use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
 
@@ -46,6 +47,7 @@ use crate::utils::{
 const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
 const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
+const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
 
 pub struct FlowTestSetup {
     pub sequencer_0: FlowSequencerSetup,
@@ -237,11 +239,16 @@ pub fn create_consensus_manager_configs_and_channels(
     let channels_network_config = network_configs.pop().unwrap();
 
     let n_network_configs = network_configs.len();
-    let consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
+    let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         network_configs,
         n_network_configs,
         chain_id,
     );
+
+    for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
+        config.context_config.builder_address =
+            ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
+    }
 
     let broadcast_channels = network_config_into_broadcast_channels(
         channels_network_config,
