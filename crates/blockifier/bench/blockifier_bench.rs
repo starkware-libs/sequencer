@@ -6,17 +6,24 @@
 //! of transfers between randomly created accounts, which are iterated over round-robin.
 //!
 //! Run the benchmarks using `cargo bench --bench blockifier_bench`.
+//!
+//! For Cairo Native compilation run the benchmarks using:
+//! `cargo bench --bench blockifier_bench --features "cairo_native"`.
 
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType,
     TransfersGenerator,
     TransfersGeneratorConfig,
 };
+#[cfg(feature = "cairo_native")]
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use criterion::{criterion_group, criterion_main, Criterion};
 
 pub fn transfers_benchmark(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {
         recipient_generator_type: RecipientGeneratorType::Random,
+        #[cfg(feature = "cairo_native")]
+        cairo_version: CairoVersion::Cairo1(RunnableCairo1::Native),
         ..Default::default()
     };
     let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
