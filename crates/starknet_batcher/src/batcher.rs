@@ -53,8 +53,8 @@ use crate::block_builder::{
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
-    BlockExecutionMetadata,
     BlockMetadata,
+    BlockTransactionExecutionData,
 };
 use crate::config::BatcherConfig;
 use crate::metrics::{
@@ -486,13 +486,13 @@ impl Batcher {
         let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
             .expect("Number of transactions should fit in u64");
         let n_rejected_txs =
-            u64::try_from(block_execution_artifacts.metadata.rejected_tx_hashes.len())
+            u64::try_from(block_execution_artifacts.execution_data.rejected_tx_hashes.len())
                 .expect("Number of rejected transactions should fit in u64");
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.metadata,
+            block_execution_artifacts.execution_data,
         )
         .await?;
         let execution_infos: Vec<_> =
@@ -519,7 +519,7 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
-        metadata: BlockExecutionMetadata,
+        metadata: BlockTransactionExecutionData,
     ) -> BatcherResult<()> {
         let rejected_tx_hashes = metadata.rejected_tx_hashes;
         info!("Committing block at height {} and notifying mempool of the block.", height);
