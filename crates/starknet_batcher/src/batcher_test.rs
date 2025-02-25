@@ -36,7 +36,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
 use starknet_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
@@ -193,12 +193,17 @@ fn mock_create_builder_for_propose_block(
     );
 }
 
-async fn batcher_with_active_validate_block(
+async fn create_batcher_with_active_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) -> Batcher {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     mock_create_builder_for_validate_block(&mut block_builder_factory, build_block_result);
+    start_batcher_with_active_validate(block_builder_factory).await
+}
 
+async fn start_batcher_with_active_validate(
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+) -> Batcher {
     let mut l1_provider_client = MockL1ProviderClient::new();
     l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
 
@@ -452,8 +457,10 @@ async fn consecutive_heights_success() {
 async fn validate_block_full_flow() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing(),
+    ))
+    .await;
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
@@ -499,7 +506,8 @@ async fn send_content_to_an_invalid_proposal(
     #[case] content: SendProposalContent,
     #[case] response: ProposalStatus,
 ) {
-    let mut batcher = batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
+    let mut batcher =
+        create_batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
     batcher.await_active_proposal().await;
 
     let send_proposal_content_input =
@@ -520,8 +528,10 @@ async fn send_proposal_content_after_finish_or_abort(
     #[case] end_proposal_content: SendProposalContent,
     #[case] content: SendProposalContent,
 ) {
-    let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing(),
+    ))
+    .await;
 
     // End the proposal.
     let end_proposal =
@@ -540,7 +550,8 @@ async fn send_proposal_content_after_finish_or_abort(
 async fn send_proposal_content_abort() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    let mut batcher = batcher_with_active_validate_block(Err(BlockBuilderError::Aborted)).await;
+    let mut batcher =
+        create_batcher_with_active_validate_block(Err(BlockBuilderError::Aborted)).await;
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 0, 0, 0);
 
@@ -712,8 +723,15 @@ async fn consecutive_proposal_generation_success() {
 async fn concurrent_proposals_generation_fail() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    let mut batcher =
-        batcher_with_active_validate_block(Ok(BlockExecutionArtifacts::create_for_testing())).await;
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    // Expecting the block builder factory to be called twice.
+    for _ in 0..2 {
+        mock_create_builder_for_validate_block(
+            &mut block_builder_factory,
+            Ok(BlockExecutionArtifacts::create_for_testing()),
+        );
+    }
+    let mut batcher = start_batcher_with_active_validate(block_builder_factory).await;
 
     // Make sure another proposal can't be generated while the first one is still active.
     let result = batcher.propose_block(propose_block_input(ProposalId(1))).await;
@@ -724,6 +742,51 @@ async fn concurrent_proposals_generation_fail() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(0),
+            content: SendProposalContent::Finish,
+        })
+        .await
+        .unwrap();
+    batcher.await_active_proposal().await;
+
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 2, 1, 1, 0);
+}
+
+#[rstest]
+#[tokio::test]
+async fn proposal_startup_failure_allows_new_proposals() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    mock_create_builder_for_validate_block(
+        &mut block_builder_factory,
+        Ok(BlockExecutionArtifacts::create_for_testing()),
+    );
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    let error = L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
+        expected: BlockNumber(1),
+        got: BlockNumber(0),
+    });
+    l1_provider_client.expect_start_block().once().return_once(|_, _| Err(error));
+    l1_provider_client.expect_start_block().once().return_once(|_, _| Ok(()));
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    })
+    .await;
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    batcher
+        .propose_block(propose_block_input(ProposalId(0)))
+        .await
+        .expect_err("Expected to fail because of the first L1ProviderClient error");
+
+    batcher.validate_block(validate_block_input(ProposalId(1))).await.expect("Expected to succeed");
+    batcher
+        .send_proposal_content(SendProposalContentInput {
+            proposal_id: ProposalId(1),
             content: SendProposalContent::Finish,
         })
         .await

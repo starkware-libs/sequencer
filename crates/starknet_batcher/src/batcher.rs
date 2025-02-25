@@ -172,8 +172,6 @@ impl Batcher {
             propose_block_input.retrospective_block_hash,
         )?;
 
-        self.set_active_proposal(propose_block_input.proposal_id).await?;
-
         self.mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price,
@@ -245,8 +243,6 @@ impl Batcher {
             validate_block_input.block_info.block_number,
             validate_block_input.retrospective_block_hash,
         )?;
-
-        self.set_active_proposal(validate_block_input.proposal_id).await?;
 
         self.l1_provider_client
             .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
@@ -591,6 +587,7 @@ impl Batcher {
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
+        self.set_active_proposal(proposal_id).await?;
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
         let active_proposal = self.active_proposal.clone();
