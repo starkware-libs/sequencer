@@ -5,6 +5,7 @@ use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
 use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
+use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
@@ -20,7 +21,7 @@ type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
 pub struct SnosHintProcessor<S: StateReader> {
     pub execution_helper: OsExecutionHelper<S>,
-    _syscall_hint_processor: SyscallHintProcessor,
+    pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
 }
 
@@ -79,6 +80,15 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 /// Default implementation (required for the VM to use the type as a hint processor).
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<S> {}
 
-pub(crate) struct SyscallHintProcessor;
+pub struct SyscallHintProcessor {
+    // Sha256 segments.
+    sha256_segment: Option<Relocatable>,
+}
+
+impl SyscallHintProcessor {
+    pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
+        self.sha256_segment = Some(sha256_segment);
+    }
+}
 
 pub(crate) struct DeprecatedSyscallHintProcessor;
