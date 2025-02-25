@@ -14,7 +14,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
-testing = ["dep:strum", "dep:strum_macros"]
+testing = ["blockifier/testing", "dep:strum", "dep:strum_macros"]
 
 [dependencies]
 blockifier.workspace = true
