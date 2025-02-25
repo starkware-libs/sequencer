@@ -123,6 +123,12 @@ define_gauge_metrics!(
         { SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, "sierra_compiler_local_queue_depth", "The depth of the sierra compiler's local message queue" },
         { STATE_SYNC_LOCAL_QUEUE_DEPTH, "state_sync_local_queue_depth", "The depth of the state sync's local message queue" },
     },
+    MetricScope::Mempool => {
+        { MEMPOOL_POOL_SIZE, "mempool_pool_size", "The size of the mempool's transaction pool" },
+        { MEMPOOL_PRIORITY_QUEUE_SIZE, "mempool_priority_queue_size", "The size of the mempool's priority queue" },
+        { MEMPOOL_PENDING_QUEUE_SIZE, "mempool_pending_queue_size", "The size of the mempool's pending queue" },
+        { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
+    },
     MetricScope::Network => {
         { MEMPOOL_P2P_NUM_CONNECTED_PEERS, "apollo_mempool_p2p_num_connected_peers", "The number of connected peers to the mempool p2p component" },
         { CONSENSUS_NUM_CONNECTED_PEERS, "apollo_consensus_num_connected_peers", "The number of connected peers to the consensus p2p component" },
