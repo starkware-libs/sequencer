@@ -84,7 +84,6 @@ pub enum FailOnErrorCause {
 pub struct BlockExecutionArtifacts {
     // Note: The execution_infos must be ordered to match the order of the transactions in the
     // block.
-    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub execution_data: BlockTransactionExecutionData,
     pub commitment_state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
@@ -103,7 +102,7 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn tx_hashes(&self) -> HashSet<TransactionHash> {
-        HashSet::from_iter(self.execution_infos.keys().copied())
+        HashSet::from_iter(self.execution_data.execution_infos.keys().copied())
     }
 
     pub fn thin_state_diff(&self) -> ThinStateDiff {
@@ -182,7 +181,6 @@ impl BlockBuilder {
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
-        let mut execution_infos = IndexMap::new();
         let mut l2_gas_used = GasAmount::ZERO;
         let mut execution_data = BlockTransactionExecutionData::default();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
@@ -245,7 +243,6 @@ impl BlockBuilderTrait for BlockBuilder {
                 next_tx_chunk,
                 results,
                 &mut l2_gas_used,
-                &mut execution_infos,
                 &mut execution_data,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
@@ -255,7 +252,6 @@ impl BlockBuilderTrait for BlockBuilder {
         let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
             self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
-            execution_infos,
             execution_data,
             commitment_state_diff: state_diff,
             compressed_state_diff,
@@ -270,7 +266,6 @@ async fn collect_execution_results_and_stream_txs(
     tx_chunk: Vec<InternalConsensusTransaction>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     l2_gas_used: &mut GasAmount,
-    execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
     execution_data: &mut BlockTransactionExecutionData,
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -301,7 +296,7 @@ async fn collect_execution_results_and_stream_txs(
                     .expect("Total L2 gas overflow.");
 
                 let tx_hash = input_tx.tx_hash();
-                execution_infos.insert(tx_hash, tx_execution_info);
+                execution_data.execution_infos.insert(tx_hash, tx_execution_info);
                 if let InternalConsensusTransaction::L1Handler(_) = input_tx {
                     execution_data.accepted_l1_handler_tx_hashes.insert(tx_hash);
                 }
@@ -482,8 +477,9 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
 
 /// Supplementary information for use by downstream services.
 #[cfg_attr(test, derive(Clone))]
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct BlockTransactionExecutionData {
+    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
     pub accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 }
