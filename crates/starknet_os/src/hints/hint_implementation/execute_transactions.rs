@@ -1,12 +1,16 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 
 use crate::hints::error::HintResult;
 use crate::hints::types::HintArgs;
+use crate::hints::vars::Ids;
 
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    todo!()
+    let sha256_ptr = get_ptr_from_var_name(Ids::Sha256Ptr.into(), vm, ids_data, ap_tracking)?;
+    hint_processor.execution_helper.set_sha256_segment(sha256_ptr);
+    Ok(())
 }
 
 pub(crate) fn log_remaining_txs<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {

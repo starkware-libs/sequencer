@@ -46,6 +46,7 @@ pub enum Ids {
     PrevOffset,
     NCompiledClassFacts,
     NextAvailableAlias,
+    Sha256Ptr,
     StateUpdatesStart,
     UseKzgDa,
 }
@@ -60,6 +61,7 @@ impl From<Ids> for &'static str {
             Ids::PrevOffset => "prev_offset",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
+            Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::UseKzgDa => "use_kzg_da",
         }
