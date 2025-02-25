@@ -266,15 +266,22 @@ fn stream_done_test_expectations() -> TestExpectations {
 
 fn transaction_failed_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..3);
+    let failed_tx_hashes = HashSet::from([tx_hash!(1)]);
 
-    let mut expected_txs_output = input_txs.clone();
-    expected_txs_output.remove(1);
+    let expected_txs_output =
+        input_txs.iter().filter(|tx| !failed_tx_hashes.contains(&tx.tx_hash())).cloned().collect();
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let execution_error =
-        TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress);
-    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
-        vec![Ok(execution_info()), Err(execution_error), Ok(execution_info())]
+    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |txs| {
+        txs.iter()
+            .map(|tx| {
+                if failed_tx_hashes.contains(&BlockifierTransaction::tx_hash(tx)) {
+                    Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress))
+                } else {
+                    Ok(execution_info())
+                }
+            })
+            .collect()
     });
 
     let execution_infos_mapping = indexmap![
@@ -282,7 +289,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         tx_hash!(2)=> execution_info(),
     ];
     let expected_block_artifacts =
-        block_execution_artifacts(execution_infos_mapping, vec![tx_hash!(1)].into_iter().collect());
+        block_execution_artifacts(execution_infos_mapping, [tx_hash!(1)].into());
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok(BlockExecutionSummary {

@@ -8,10 +8,10 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::IndexMap;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{class_hash, contract_address, nonce, tx_hash};
+use starknet_api::{class_hash, contract_address, invoke_tx_args, nonce, tx_hash};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::block_builder::{
@@ -72,10 +72,9 @@ impl BlockBuilderTrait for FakeProposeBlockBuilder {
 pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction> {
     tx_hash_range
         .map(|i| {
-            InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs {
+            InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(invoke_tx_args!(
                 tx_hash: tx_hash!(i),
-                ..Default::default()
-            }))
+            )))
         })
         .collect()
 }
