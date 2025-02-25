@@ -209,4 +209,10 @@ define_counter_metrics!(
     }
 );
 
-define_labeled_counter_metrics!();
+define_labeled_counter_metrics!(
+    MetricScope::Gateway => {
+        { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", 0 },
+        { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", 0 },
+        { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 }
+    },
+);
