@@ -320,23 +320,28 @@ impl AccountTransaction {
                 };
                 let insufficiencies = resources_amount_tuple
                     .iter()
-                    .filter_map(
+                    .flat_map(
                         |(resource, resource_bounds, minimal_gas_amount, actual_gas_price)| {
+                            let mut insufficiencies_resource = vec![];
                             if minimal_gas_amount > &resource_bounds.max_amount {
-                                Some(ResourceBoundsError::MaxGasAmountTooLow {
-                                    resource: *resource,
-                                    max_gas_amount: resource_bounds.max_amount,
-                                    minimal_gas_amount: *minimal_gas_amount,
-                                })
-                            } else if resource_bounds.max_price_per_unit < actual_gas_price.get() {
-                                Some(ResourceBoundsError::MaxGasPriceTooLow {
-                                    resource: *resource,
-                                    max_gas_price: resource_bounds.max_price_per_unit,
-                                    actual_gas_price: (*actual_gas_price).into(),
-                                })
-                            } else {
-                                None
+                                insufficiencies_resource.push(
+                                    ResourceBoundsError::MaxGasAmountTooLow {
+                                        resource: *resource,
+                                        max_gas_amount: resource_bounds.max_amount,
+                                        minimal_gas_amount: *minimal_gas_amount,
+                                    },
+                                );
                             }
+                            if resource_bounds.max_price_per_unit < actual_gas_price.get() {
+                                insufficiencies_resource.push(
+                                    ResourceBoundsError::MaxGasPriceTooLow {
+                                        resource: *resource,
+                                        max_gas_price: resource_bounds.max_price_per_unit,
+                                        actual_gas_price: (*actual_gas_price).into(),
+                                    },
+                                );
+                            }
+                            insufficiencies_resource
                         },
                     )
                     .collect::<Vec<_>>();
