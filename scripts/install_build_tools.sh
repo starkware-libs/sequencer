@@ -48,9 +48,14 @@ function install_rust() {
     curl https://sh.rustup.rs -sSf | sh -s -- -y
 }
 
+function install_cargo_tools() {
+    curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mitsuhiko/insta/releases/download/1.42.0/cargo-insta-installer.sh | sh
+}
+
 cd "$(dirname "$0")"
 install_common_packages
 install_pypy &
 install_rust &
+install_cargo_tools &
 wait
 ./dependencies.sh
