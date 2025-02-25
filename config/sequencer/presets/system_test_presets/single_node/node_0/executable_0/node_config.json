@@ -123,8 +123,6 @@
   "components.state_sync.remote_client_config.retries": 3,
   "components.state_sync.url": "localhost",
   "consensus_manager_config.broadcast_buffer_size": 10000,
-  "consensus_manager_config.cende_config.certificates_file_path": "",
-  "consensus_manager_config.cende_config.certificates_file_path.#is_none": true,
   "consensus_manager_config.cende_config.skip_write_height": 1,
   "consensus_manager_config.cende_config.skip_write_height.#is_none": false,
   "consensus_manager_config.consensus_config.future_height_limit": 10,
