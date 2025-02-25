@@ -14,6 +14,7 @@ pub(crate) enum Scope {
     DeprecatedClassHashes,
     DictManager,
     DictTracker,
+    Preimage,
     UseKzgDa,
 }
 
@@ -25,6 +26,7 @@ impl From<Scope> for &'static str {
             Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
+            Scope::Preimage => "preimage",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -42,7 +44,9 @@ pub enum Ids {
     BucketIndex,
     CompressedStart,
     DictPtr,
+    FinalRoot,
     FullOutput,
+    InitialRoot,
     PrevOffset,
     NCompiledClassFacts,
     NextAvailableAlias,
@@ -57,7 +61,9 @@ impl From<Ids> for &'static str {
             Ids::DictPtr => "dict_ptr",
             Ids::BucketIndex => "bucket_index",
             Ids::CompressedStart => "compressed_start",
+            Ids::FinalRoot => "final_root",
             Ids::FullOutput => "full_output",
+            Ids::InitialRoot => "initial_root",
             Ids::PrevOffset => "prev_offset",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
@@ -73,6 +79,7 @@ pub enum Const {
     AliasContractAddress,
     InitialAvailableAlias,
     AliasCounterStorageKey,
+    MerkleHeight,
 }
 
 impl From<Const> for &'static str {
@@ -81,6 +88,7 @@ impl From<Const> for &'static str {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
+            Const::MerkleHeight => "MERKLE_HEIGHT",
         }
     }
 }
