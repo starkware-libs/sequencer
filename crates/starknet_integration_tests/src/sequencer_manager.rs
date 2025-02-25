@@ -466,11 +466,14 @@ impl IntegrationTestManager {
         sender_account: AccountId,
         wait_for_block: BlockNumber,
     ) {
-        // Verify the initial state
-        self.verify_txs_accepted(sender_account, 0).await;
+        self.verify_txs_accepted_on_all_running_nodes(sender_account, 0).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
-        self.await_block(wait_for_block).await;
-        self.verify_txs_accepted(sender_account, test_scenario.n_l1_handler_txs()).await;
+        self.await_block_on_all_running_nodes(wait_for_block).await;
+        self.verify_txs_accepted_on_all_running_nodes(
+            sender_account,
+            test_scenario.n_l1_handler_txs(),
+        )
+        .await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -478,13 +481,6 @@ impl IntegrationTestManager {
             self.running_nodes.values().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
-    }
-
-    /// Returns the sequencer index of the first running node and its monitoring client.
-    fn running_state_sync_monitoring_client(&self) -> (usize, &MonitoringClient) {
-        let sequencer_idx = 0;
-        let node_0 = self.running_nodes.get(&sequencer_idx).expect("Node 0 should be running.");
-        (sequencer_idx, node_0.node_setup.state_sync_monitoring_client())
     }
 
     async fn run_integration_test_simulator(
@@ -516,28 +512,44 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn await_block(&self, expected_block_number: BlockNumber) {
-        let running_node =
-            self.running_nodes.iter().next().expect("At least one node should be running").1;
-        let running_node_setup = &running_node.node_setup;
-        await_block(
-            running_node_setup.batcher_monitoring_client(),
-            running_node_setup.get_batcher_index(),
-            running_node_setup.state_sync_monitoring_client(),
-            running_node_setup.get_state_sync_index(),
-            expected_block_number,
-            running_node_setup.get_node_index().unwrap(),
-        )
+    /// Waits until all running nodes reach the specified block number.
+    /// Queries the batcher and state sync metrics to verify progress.
+    async fn await_block_on_all_running_nodes(&self, expected_block_number: BlockNumber) {
+        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+            let node_setup = &running_node.node_setup;
+            let batcher_monitoring_client = node_setup.batcher_monitoring_client();
+            let batcher_index = node_setup.get_batcher_index();
+            let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
+            let state_sync_index = node_setup.get_state_sync_index();
+            await_block(
+                batcher_monitoring_client,
+                batcher_index,
+                state_sync_monitoring_client,
+                state_sync_index,
+                expected_block_number,
+                sequencer_idx,
+            )
+        })
         .await;
     }
 
-    async fn verify_txs_accepted(&self, sender_account: AccountId, n_l1_txs: usize) {
+    async fn verify_txs_accepted_on_all_running_nodes(
+        &self,
+        sender_account: AccountId,
+        n_l1_txs: usize,
+    ) {
         // We use state syncs processed txs metric via its monitoring client to verify that the
         // transactions were accepted.
-        let (sequencer_idx, monitoring_client) = self.running_state_sync_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_accepted_txs = nonce_to_usize(account.get_nonce()) + n_l1_txs;
-        verify_txs_accepted(monitoring_client, sequencer_idx, expected_n_accepted_txs).await;
+
+        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
+            // We use state syncs processed txs metric via its monitoring client to verify that the
+            // transactions were accepted.
+            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
+            verify_txs_accepted(monitoring_client, sequencer_idx, expected_n_accepted_txs)
+        })
+        .await;
     }
 
     async fn perform_action_on_all_running_nodes<'a, F, Fut>(&'a self, f: F)
