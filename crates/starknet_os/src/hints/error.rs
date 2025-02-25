@@ -22,7 +22,7 @@ pub enum OsHintError {
     #[error("{id:?} value {felt} is not a boolean.")]
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
-    ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
+    ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
     #[error(transparent)]
     ExecutionScopes(#[from] ExecScopeError),
     #[error("The identifier {0:?} has no full name.")]
@@ -35,25 +35,25 @@ pub enum OsHintError {
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error(transparent)]
-    MathError(#[from] MathError),
+    Math(#[from] MathError),
     #[error(transparent)]
-    MemoryError(#[from] MemoryError),
+    Memory(#[from] MemoryError),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
     #[error("{error:?} for json value {value}.")]
-    SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
+    SerdeJson { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
-    StateError(#[from] StateError),
+    State(#[from] StateError),
     #[error("Convert {n_bits} bits for {type_name}.")]
     StatelessCompressionOverflow { n_bits: usize, type_name: String },
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
     #[error(transparent)]
-    VmError(#[from] VirtualMachineError),
+    Vm(#[from] VirtualMachineError),
     #[error(transparent)]
-    VmHintError(#[from] VmHintError),
+    VmHint(#[from] VmHintError),
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
