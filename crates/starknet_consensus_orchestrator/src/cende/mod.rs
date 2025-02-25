@@ -3,7 +3,6 @@ mod cende_test;
 mod central_objects;
 
 use std::collections::BTreeMap;
-use std::fs;
 use std::future::ready;
 use std::sync::Arc;
 
@@ -26,7 +25,7 @@ use central_objects::{
 use mockall::automock;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use reqwest::{Certificate, Client, ClientBuilder, RequestBuilder, Response};
+use reqwest::{Client, RequestBuilder, Response};
 use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
@@ -110,22 +109,10 @@ impl CendeAmbassador {
                 .recorder_url
                 .join(RECORDER_WRITE_BLOB_PATH)
                 .expect("Failed to join `RECORDER_WRITE_BLOB_PATH` with the Recorder URL"),
-            client: Self::build_client(cende_config.certificates_file_path),
+            client: Client::new(),
             skip_write_height: cende_config.skip_write_height,
             class_manager,
         }
-    }
-
-    fn build_client(certificates_file_path: Option<String>) -> Client {
-        let mut client_builder = ClientBuilder::new();
-        if let Some(certificates_file_path) = certificates_file_path {
-            let content =
-                fs::read(certificates_file_path).expect("Failed to read cende certificates file.");
-            let certificates =
-                Certificate::from_pem(&content).expect("Failed to parse the certificates");
-            client_builder = client_builder.add_root_certificate(certificates);
-        }
-        client_builder.build().expect("Failed to build the client")
     }
 }
 
@@ -133,7 +120,6 @@ impl CendeAmbassador {
 pub struct CendeConfig {
     pub recorder_url: Url,
     pub skip_write_height: Option<BlockNumber>,
-    pub certificates_file_path: Option<String>,
 }
 
 impl Default for CendeConfig {
@@ -143,7 +129,6 @@ impl Default for CendeConfig {
                 .parse()
                 .expect("recorder_url must be a valid Recorder URL"),
             skip_write_height: None,
-            certificates_file_path: None,
         }
     }
 }
@@ -164,14 +149,7 @@ impl SerializeConfig for CendeConfig {
              previous height blob to write) or to handle extreme cases (all the nodes failed).",
             ParamPrivacyInput::Private,
         ));
-        config.extend(ser_optional_param(
-            &self.certificates_file_path,
-            "".to_string(),
-            "certificates_file_path",
-            "The path to the certificates file. The certificates are used when sending a request \
-             to the cende_recorder.",
-            ParamPrivacyInput::Private,
-        ));
+
         config
     }
 }
