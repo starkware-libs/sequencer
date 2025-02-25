@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
-use crate::execution::syscalls::hint_processor::SyscallCounter;
+use crate::execution::syscalls::hint_processor::SyscallUsageMap;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
@@ -304,9 +304,9 @@ impl VersionedConstants {
 
     pub fn get_additional_os_syscall_resources(
         &self,
-        syscall_counter: &SyscallCounter,
+        syscalls_usage: &SyscallUsageMap,
     ) -> ExecutionResources {
-        self.os_resources.get_additional_os_syscall_resources(syscall_counter)
+        self.os_resources.get_additional_os_syscall_resources(syscalls_usage)
     }
 
     pub fn get_validate_block_number_rounding(&self) -> u64 {
@@ -632,10 +632,10 @@ impl OsResources {
     /// i.e., the resources of the Starknet OS function `execute_syscalls`.
     fn get_additional_os_syscall_resources(
         &self,
-        syscall_counter: &SyscallCounter,
+        syscalls_usage: &SyscallUsageMap,
     ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
-        for (syscall_selector, count) in syscall_counter {
+        for (syscall_selector, syscall_usage) in syscalls_usage {
             if syscall_selector == &SyscallSelector::Keccak {
                 let keccak_base_resources =
                     self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
@@ -652,7 +652,7 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-            os_additional_resources += &(syscall_resources * *count);
+            os_additional_resources += &(syscall_resources * syscall_usage.call_count);
         }
 
         os_additional_resources

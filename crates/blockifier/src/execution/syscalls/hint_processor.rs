@@ -77,7 +77,24 @@ use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
 use crate::versioned_constants::GasCosts;
 
-pub type SyscallCounter = HashMap<SyscallSelector, usize>;
+#[derive(Default)]
+pub struct SyscallUsage {
+    pub call_count: usize,
+    #[allow(dead_code)]
+    linear_factor: usize,
+}
+
+impl SyscallUsage {
+    pub fn new(call_count: usize, linear_factor: usize) -> Self {
+        SyscallUsage { call_count, linear_factor }
+    }
+
+    pub fn increment_call_count(&mut self) {
+        self.call_count += 1;
+    }
+}
+
+pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
 
 #[derive(Debug, Error)]
 pub enum SyscallExecutionError {
@@ -214,7 +231,7 @@ pub struct SyscallHintProcessor<'a> {
     pub base: Box<SyscallHandlerBase<'a>>,
 
     // VM-specific fields.
-    pub syscall_counter: SyscallCounter,
+    pub syscalls_usage: SyscallUsageMap,
 
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
@@ -244,7 +261,7 @@ impl<'a> SyscallHintProcessor<'a> {
     ) -> Self {
         SyscallHintProcessor {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscall_counter: SyscallCounter::default(),
+            syscalls_usage: SyscallUsageMap::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
             hints,
@@ -513,8 +530,8 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 
     pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_count = self.syscall_counter.entry(*selector).or_default();
-        *syscall_count += n;
+        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
+        syscall_usage.call_count += n;
     }
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
