@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Cli for the committer package."
 
+[features]
+testing = ["starknet_os/testing"]
+
 [lints]
 workspace = true
 
