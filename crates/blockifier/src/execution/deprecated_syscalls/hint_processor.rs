@@ -68,11 +68,9 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
 };
 use crate::execution::hint_code;
-use crate::execution::syscalls::hint_processor::EmitEventError;
+use crate::execution::syscalls::hint_processor::{EmitEventError, SyscallCounter};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-
-pub type SyscallCounter = HashMap<DeprecatedSyscallSelector, usize>;
 
 #[derive(Debug, Error)]
 pub enum DeprecatedSyscallExecutionError {
