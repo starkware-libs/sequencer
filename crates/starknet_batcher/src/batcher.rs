@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(test)]
 use mockall::automock;
+use num_traits::cast::ToPrimitive;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -44,6 +45,7 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
+    CAIRO_NATIVE_CACHE_MISS_RATIO,
     REJECTED_TRANSACTIONS,
     STORAGE_HEIGHT,
 };
@@ -489,6 +491,12 @@ impl Batcher {
         let execution_infos: Vec<_> =
             block_execution_artifacts.execution_infos.into_iter().map(|(_, info)| info).collect();
 
+        CAIRO_NATIVE_CACHE_MISS_RATIO.set(
+            self.block_builder_factory
+                .get_contract_class_manager_cache_miss_rate()
+                .to_f64()
+                .unwrap_or(0.0),
+        );
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
 

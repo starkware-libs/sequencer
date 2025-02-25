@@ -7,6 +7,7 @@ pub use crate::state::native_class_manager::NativeClassManager as ContractClassM
 pub mod trivial_class_manager {
     #[cfg(any(feature = "testing", test))]
     use cached::Cached;
+    use num_rational::Ratio;
     use starknet_api::core::ClassHash;
 
     use crate::blockifier::config::ContractClassManagerConfig;
@@ -43,6 +44,11 @@ pub mod trivial_class_manager {
         #[cfg(any(feature = "testing", test))]
         pub fn get_cache_size(&self) -> usize {
             self.cache.lock().cache_size()
+        }
+
+        pub fn get_cache_miss_rate(&self) -> Ratio<usize> {
+            // TODO(Aviv): consider support cache miss metrics.
+            Ratio::ZERO
         }
     }
 }

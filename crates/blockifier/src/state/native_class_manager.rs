@@ -1,9 +1,11 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
 
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
 use log;
+use num_rational::Ratio;
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
@@ -49,6 +51,39 @@ pub struct NativeClassManager {
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
     compiler: Option<Arc<dyn SierraToNativeCompiler>>,
+    /// cache_miss_rate
+    cache_metrics: CacheMetrics,
+}
+
+#[derive(Default, Clone)]
+
+pub struct CacheMetrics {
+    cache_misses: Arc<AtomicUsize>,
+    total_cache_calls: Arc<AtomicUsize>,
+}
+
+impl CacheMetrics {
+    pub fn new() -> Self {
+        Self {
+            cache_misses: Arc::new(AtomicUsize::new(0)),
+            total_cache_calls: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    pub fn record_miss(&self) {
+        self.cache_misses.fetch_add(1, Ordering::Relaxed);
+        self.total_cache_calls.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn record_hit(&self) {
+        self.total_cache_calls.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn miss_rate(&self) -> Ratio<usize> {
+        let misses = self.cache_misses.load(Ordering::Relaxed);
+        let total = self.total_cache_calls.load(Ordering::Relaxed);
+        if total == 0 { Ratio::ZERO } else { Ratio::new(misses, total) }
+    }
 }
 
 impl NativeClassManager {
@@ -70,6 +105,7 @@ impl NativeClassManager {
                 cache,
                 sender: None,
                 compiler: None,
+                cache_metrics: CacheMetrics::new(),
             };
         }
 
@@ -82,6 +118,7 @@ impl NativeClassManager {
                 cache,
                 sender: None,
                 compiler: Some(compiler),
+                cache_metrics: CacheMetrics::new(),
             };
         }
 
@@ -92,12 +129,27 @@ impl NativeClassManager {
             move || run_compilation_worker(cache, receiver, compiler)
         });
 
-        NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
+        NativeClassManager {
+            cairo_native_run_config,
+            cache,
+            sender: Some(sender),
+            compiler: None,
+            cache_metrics: CacheMetrics::new(),
+        }
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in cache.
     pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-        let cached_class = self.cache.get(class_hash)?;
+        let cached_class = match self.cache.get(class_hash) {
+            Some(class) => {
+                self.cache_metrics.record_hit();
+                class
+            }
+            None => {
+                self.cache_metrics.record_miss();
+                return None;
+            }
+        };
         if let CachedClass::V1(_, _) = cached_class {
             // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
             // `run_cairo_native` is false.
@@ -194,6 +246,10 @@ impl NativeClassManager {
     #[cfg(any(feature = "testing", test))]
     pub fn get_cache_size(&self) -> usize {
         self.cache.lock().cache_size()
+    }
+
+    pub fn get_cache_miss_rate(&self) -> Ratio<usize> {
+        self.cache_metrics.miss_rate()
     }
 }
 
