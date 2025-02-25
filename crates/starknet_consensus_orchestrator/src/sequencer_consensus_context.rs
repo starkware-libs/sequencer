@@ -168,6 +168,7 @@ pub struct SequencerConsensusContext {
     l1_da_mode: L1DataAvailabilityMode,
     block_timestamp_window: u64,
     last_block_timestamp: Option<u64>,
+    builder_address: ContractAddress,
 }
 
 impl SequencerConsensusContext {
@@ -211,6 +212,8 @@ impl SequencerConsensusContext {
             l1_da_mode,
             block_timestamp_window: config.block_timestamp_window,
             last_block_timestamp: None,
+            // TODO(guyn): consider saving the config in self, instead of individual fields.
+            builder_address: config.builder_address,
         }
     }
 
@@ -238,6 +241,7 @@ struct ProposalBuildArguments {
     cende_write_success: AbortOnDropHandle<bool>,
     gas_prices: GasPrices,
     transaction_converter: TransactionConverter,
+    builder_address: ContractAddress,
 }
 
 struct ProposalValidateArguments {
@@ -286,6 +290,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Failed to send proposal receiver");
         let gas_prices = self.gas_prices();
         let transaction_converter = self.transaction_converter.clone();
+        let builder_address = self.builder_address;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let handle = tokio::spawn(
@@ -302,6 +307,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     cende_write_success,
                     gas_prices,
                     transaction_converter,
+                    builder_address,
                 })
                 .await;
             }
@@ -654,6 +660,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
         args.timeout,
         args.batcher.as_ref(),
         args.gas_prices,
+        args.builder_address,
     )
     .await;
     let block_info = match block_info {
@@ -704,6 +711,7 @@ async fn initiate_build(
     timeout: Duration,
     batcher: &dyn BatcherClient,
     gas_prices: GasPrices,
+    builder_address: ContractAddress,
 ) -> BatcherClientResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
         .expect("Can't convert timeout to chrono::Duration");
@@ -712,7 +720,7 @@ async fn initiate_build(
     let block_info = ConsensusBlockInfo {
         height: proposal_init.height,
         timestamp: now.timestamp().try_into().expect("Failed to convert timestamp"),
-        builder: proposal_init.proposer,
+        builder: builder_address,
         l1_da_mode,
         l2_gas_price_fri: gas_prices.strk_gas_prices.l2_gas_price.get().0,
         l1_gas_price_wei: gas_prices.eth_gas_prices.l1_gas_price.get().0,
