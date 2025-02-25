@@ -30,6 +30,10 @@ use crate::metrics::{
     DropReason,
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE,
+    MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -1103,9 +1107,10 @@ fn test_register_metrics() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_metrics();
 
-    // Assert: metrics.
     let metrics = recorder.handle().render();
+    // Assert: counter metrics.
     assert_eq!(get_metric_counter_txs_committed(&metrics), 0);
+    // Assert: labeled counter metrics.
     for tx_type in InternalRpcTransactionLabelValue::iter() {
         assert_eq!(
             MEMPOOL_TRANSACTIONS_RECEIVED
@@ -1117,6 +1122,11 @@ fn test_register_metrics() {
     for drop_reason in DropReason::iter() {
         assert_eq!(get_metric_counter_txs_dropped(&metrics, drop_reason), 0);
     }
+    // Assert: gauges metrics.
+    assert_eq!(MEMPOOL_POOL_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
+    assert_eq!(MEMPOOL_PRIORITY_QUEUE_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
+    assert_eq!(MEMPOOL_PENDING_QUEUE_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
+    assert_eq!(MEMPOOL_GET_TXS_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
 }
 
 #[rstest]
