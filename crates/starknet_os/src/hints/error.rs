@@ -16,26 +16,26 @@ pub enum OsHintError {
     #[error("{id:?} value {felt} is not a boolean.")]
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
-    ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
+    ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
     #[error(
         "Inconsistent block numbers: {actual}, {expected}. The constant STORED_BLOCK_HASH_BUFFER \
          is probably out of sync."
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error(transparent)]
-    StateError(#[from] StateError),
+    Math(#[from] MathError),
     #[error(transparent)]
-    VmHintError(#[from] VmHintError),
+    Memory(#[from] MemoryError),
+    #[error(transparent)]
+    State(#[from] StateError),
+    #[error(transparent)]
+    VmHint(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
     #[error("The identifier {0:?} has no full name.")]
     IdentifierHasNoFullName(Box<Identifier>),
     #[error("The identifier {0:?} has no members.")]
     IdentifierHasNoMembers(Box<Identifier>),
-    #[error(transparent)]
-    MathError(#[from] MathError),
-    #[error(transparent)]
-    MemoryError(#[from] MemoryError),
     #[error("Convert {n_bits} bits for {type_name}.")]
     StatelessCompressionOverflow { n_bits: usize, type_name: String },
 }
