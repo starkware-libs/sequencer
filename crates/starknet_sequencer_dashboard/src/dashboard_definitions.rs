@@ -1,5 +1,4 @@
-use crate::dashboard::{Dashboard, Panel, PanelType, Row};
-use crate::metric_definitions::{
+use starknet_sequencer_metrics::metric_definitions::{
     ADDED_TRANSACTIONS_TOTAL,
     BATCHED_TRANSACTIONS,
     CONSENSUS_NUM_CONNECTED_PEERS,
@@ -15,6 +14,8 @@ use crate::metric_definitions::{
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
+
+use crate::dashboard::{Dashboard, Panel, PanelType, Row};
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
