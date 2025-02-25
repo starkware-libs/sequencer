@@ -620,7 +620,7 @@ pub fn keccak(
 
     // For the keccak system call we want to count the number of rounds rather than the number of
     // syscall invocations.
-    syscall_handler.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
+    syscall_handler.update_syscall_usage(&SyscallSelector::Keccak, n_rounds);
 
     Ok(KeccakResponse {
         result_low: (Felt::from(state[1]) * Felt::TWO.pow(64_u128)) + Felt::from(state[0]),
