@@ -452,6 +452,7 @@ async fn get_contract_classes_if_declare(
 
     let class_hash = declare_tx.class_hash;
 
+    // TODO(yael, dvir): get the classes in parallel from the class manager.
     let ContractClass::V1(casm) = class_manager
         .get_executable(class_hash)
         .await?

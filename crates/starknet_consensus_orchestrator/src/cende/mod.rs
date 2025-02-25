@@ -58,7 +58,6 @@ pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 /// A chunk of all the data to write to Aersopike.
 #[derive(Debug, Serialize)]
 pub(crate) struct AerospikeBlob {
-    // TODO(yael, dvir): add the Casm and Sierra contract class
     block_number: BlockNumber,
     state_diff: CentralStateDiff,
     // The batcher may return a `None` compressed state diff if it is disabled in the
@@ -250,6 +249,7 @@ impl CendeContext for CendeAmbassador {
 }
 
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
+    // TODO(dvir): use compression to reduce the size of the blob in the network.
     match request_builder.json(blob).send().await {
         Ok(response) => {
             if response.status().is_success() {
@@ -290,14 +290,14 @@ async fn print_write_blob_response(response: Response) {
 
 #[derive(Debug, Default)]
 pub struct BlobParameters {
-    // TODO(dvir): add here all the information needed for creating the blob: classes,
-    // bouncer_weights.
     pub(crate) block_info: BlockInfo,
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) fee_market_info: FeeMarketInfo,
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
+    // TODO(dvir): consider passing the execution_infos from the batcher as a string that
+    // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
 }
 

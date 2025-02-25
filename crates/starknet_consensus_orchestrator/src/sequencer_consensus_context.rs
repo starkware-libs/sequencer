@@ -262,6 +262,9 @@ impl ConsensusContext for SequencerConsensusContext {
         proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalCommitment> {
+        // TODO(dvir): consider start writing the blob in `decision_reached`, to reduce transactions
+        // finality time. Use this option only for one special sequencer that is the same cluster as
+        // the recorder.
         let cende_write_success = AbortOnDropHandle::new(
             self.cende_ambassador.write_prev_height_blob(proposal_init.height),
         );

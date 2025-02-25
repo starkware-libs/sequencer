@@ -120,6 +120,8 @@ use super::{
 use crate::cende::central_objects::casm_contract_class_central_format;
 use crate::cende::{AerospikeBlob, BlobParameters};
 
+// TODO(yael, dvir): add default object serialization tests.
+
 pub const CENTRAL_STATE_DIFF_JSON_PATH: &str = "central_state_diff.json";
 pub const CENTRAL_INVOKE_TX_JSON_PATH: &str = "central_invoke_tx.json";
 pub const CENTRAL_DEPLOY_ACCOUNT_TX_JSON_PATH: &str = "central_deploy_account_tx.json";
