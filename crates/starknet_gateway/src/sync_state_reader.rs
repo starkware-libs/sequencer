@@ -106,15 +106,6 @@ impl BlockifierStateReader for SyncStateReader {
             .map_err(|e| StateError::StateReadError(e.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
-        // TODO(noamsp): Remove this once class manager component is implemented.
-        let contract_class = match contract_class {
-            ContractClass::V0(ref inner) if inner == &Default::default() => block_on(
-                self.state_sync_client.get_compiled_class_deprecated(self.block_number, class_hash),
-            )
-            .map_err(|e| StateError::StateReadError(e.to_string()))?,
-            _ => contract_class,
-        };
-
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
                 Ok(RunnableCompiledClass::V1(casm_contract_class.try_into()?))
