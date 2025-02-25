@@ -41,7 +41,7 @@ pub struct ContractClassComponentHashes {
 pub struct StarknetOsInput {
     pub contract_state_commitment_info: CommitmentInfo,
     _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
-    _contract_class_commitment_info: CommitmentInfo,
+    pub contract_class_commitment_info: CommitmentInfo,
     _deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,
     _chain_info: ChainInfo,
