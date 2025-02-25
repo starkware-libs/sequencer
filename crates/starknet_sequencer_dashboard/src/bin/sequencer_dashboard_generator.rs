@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
-use starknet_sequencer_metrics::dashboard_definitions::{DEV_JSON_PATH, SEQUENCER_DASHBOARD};
+use starknet_sequencer_dashboard::dashboard_definitions::{DEV_JSON_PATH, SEQUENCER_DASHBOARD};
 
 /// Creates the dashboard json file.
 fn main() {
