@@ -356,7 +356,7 @@ struct ThinStateDiffBuilder<'a> {
 
 impl<'a> ThinStateDiffBuilder<'a> {
     fn new(chain_info: &ChainInfo) -> Self {
-        const TEST_INITIAL_ACCOUNT_BALANCE: Fee = BALANCE;
+        const TEST_INITIAL_ACCOUNT_BALANCE: Fee = Fee(BALANCE.0 * 1000);
         let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
         let erc20_class_hash = erc20.get_class_hash();
 

@@ -34,13 +34,14 @@ use starknet_integration_tests::utils::{
     CreateRpcTxsFn,
     ExpectedContentId,
     TestTxHashesFn,
+    ACCOUNT_ID_0,
     UNDEPLOYED_ACCOUNT_ID,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::debug;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(4);
+const LAST_HEIGHT: BlockNumber = BlockNumber(5);
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -122,21 +123,28 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_multiple_account_txs,
             test_multiple_account_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
+                "0x1799fa93d9b61f297355721eef387a301b1b110e43a5e53d641c76fa9c872af",
             ),
         ),
         (
             create_funding_txs,
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x354a08374de0b194773930010006a0cc42f7f984f509ceb0d564da37ed15bab",
+                "0x2367bdbc901da35ad39fe42ddbd222e9fde8a910ef5014c11456d9357422248",
             ),
         ),
         (
             deploy_account_and_invoke,
             test_two_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0xb28fc13e038eaff29d46d8ead91e9a37e004949c3ea6b78020c5df315ef745",
+                "0x1131983566e0d2d43cae0c90bfaf7835579f83bb53c732b7d46d9b9be8c7730",
+            ),
+        ),
+        (
+            create_declare_tx,
+            test_single_tx,
+            ExpectedContentId::from_hex_unchecked(
+                "0x77aac478aa4b0a298633cada878117b61e592c59b94425a2d54f29c2ed701a2",
             ),
         ),
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
@@ -146,7 +154,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_many_invoke_txs,
             test_many_invoke_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
+                "0x34018410b1a784bef4842676c0b803ea11ce325943c169bcdf7eae4d2798902",
             ),
         ),
     ];
@@ -297,4 +305,10 @@ fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
 fn test_two_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 2, "Expected two transactions");
     tx_hashes.to_vec()
+}
+
+fn create_declare_tx(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
+    let account_tx_generator = tx_generator.account_with_id_mut(ACCOUNT_ID_0);
+    let declare_tx = account_tx_generator.generate_declare();
+    vec![declare_tx]
 }
