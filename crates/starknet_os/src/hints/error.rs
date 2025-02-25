@@ -17,6 +17,10 @@ pub enum OsHintError {
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
+    #[error("The identifier {0:?} has no full name.")]
+    IdentifierHasNoFullName(String),
+    #[error("The identifier {0:?} has no members.")]
+    IdentifierHasNoMembers(String),
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
