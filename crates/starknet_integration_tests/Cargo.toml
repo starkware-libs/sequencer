@@ -9,6 +9,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+alloy.workspace = true
 anyhow.workspace = true
 assert_matches.workspace = true
 axum.workspace = true
