@@ -62,6 +62,9 @@ jobs:
       - name: Build CLI binary
         run: ./build_native_in_docker.sh cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
 
+      - name: Build TESTING CLI binary
+        run: ./build_native_in_docker.sh cargo build --features testing -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli_for_testing --target-dir CLI_TARGET
+
       - id: auth
         uses: "google-github-actions/auth@v2"
         with:
