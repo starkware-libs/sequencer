@@ -119,3 +119,18 @@ impl Const {
         Self::AliasContractAddress.fetch_as(constants)
     }
 }
+
+/// Full path of a Cairo 0 struct.
+pub struct CairoStructPath(pub(crate) String);
+
+pub enum CairoStruct {
+    DictAccess,
+}
+
+impl From<CairoStruct> for CairoStructPath {
+    fn from(struct_name: CairoStruct) -> Self {
+        match struct_name {
+            CairoStruct::DictAccess => Self("starkware.cairo.common.dict_access.DictAccess".into()),
+        }
+    }
+}
