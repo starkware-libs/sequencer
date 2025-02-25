@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::metric_definitions::{
+use starknet_sequencer_metrics::metric_definitions::{
     ALL_LABELED_METRIC_COUNTERS,
     ALL_METRIC_COUNTERS,
     ALL_METRIC_GAUGES,
