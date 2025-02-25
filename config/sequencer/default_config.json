@@ -739,6 +739,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "consensus_manager_config.context_config.builder_address": {
+    "description": "The address of the contract that builds the block.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
   "consensus_manager_config.context_config.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "pointer_target": "chain_id",
