@@ -10873,6 +10873,7 @@ dependencies = [
  "papyrus_config",
  "papyrus_state_reader",
  "papyrus_storage",
+ "pretty_assertions",
  "rstest",
  "serde",
  "starknet-types-core",
