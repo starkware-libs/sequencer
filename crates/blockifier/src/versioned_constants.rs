@@ -25,8 +25,8 @@ use strum::IntoEnumIterator;
 use thiserror::Error;
 
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
+use crate::execution::syscalls::hint_processor::SyscallCounter;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
