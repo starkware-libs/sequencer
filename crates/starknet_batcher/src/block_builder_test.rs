@@ -15,6 +15,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use mockall::Sequence;
+use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -400,11 +401,7 @@ async fn verify_build_block_output(
     // Verify the transactions in the output channel.
     let mut output_txs = vec![];
     output_stream_receiver.recv_many(&mut output_txs, TX_CHANNEL_SIZE).await;
-
-    assert_eq!(output_txs.len(), expected_output_txs.len());
-    for tx in expected_output_txs.iter() {
-        assert!(output_txs.contains(tx));
-    }
+    assert_eq!(output_txs, expected_output_txs);
 
     // Verify the block artifacts.
     assert_eq!(result_block_artifacts, expected_block_artifacts);
