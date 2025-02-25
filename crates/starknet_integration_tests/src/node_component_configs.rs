@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
@@ -6,7 +6,6 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -113,29 +112,28 @@ fn get_http_container_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
-    let local_url = "127.0.0.1".to_string();
     config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        local_url.clone(),
+        Ipv4Addr::LOCALHOST.to_string(),
         gateway_socket.ip(),
         gateway_socket.port(),
     );
     config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        local_url.clone(),
+        Ipv4Addr::LOCALHOST.to_string(),
         mempool_socket.ip(),
         mempool_socket.port(),
     );
     config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        local_url.clone(),
+        Ipv4Addr::LOCALHOST.to_string(),
         mempool_p2p_socket.ip(),
         mempool_p2p_socket.port(),
     );
     config.state_sync = ReactiveComponentExecutionConfig::remote(
-        local_url.clone(),
+        Ipv4Addr::LOCALHOST.to_string(),
         state_sync_socket.ip(),
         state_sync_socket.port(),
     );
     config.class_manager = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        local_url.clone(),
+        Ipv4Addr::LOCALHOST.to_string(),
         class_manager_socket.ip(),
         class_manager_socket.port(),
     );
@@ -151,35 +149,168 @@ fn get_non_http_container_config(
     state_sync_socket: SocketAddr,
     class_manager_socket: SocketAddr,
 ) -> ComponentConfig {
-    let local_url = "127.0.0.1".to_string();
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),
         gateway: ReactiveComponentExecutionConfig::remote(
-            local_url.clone(),
+            Ipv4Addr::LOCALHOST.to_string(),
             gateway_socket.ip(),
             gateway_socket.port(),
         ),
         mempool: ReactiveComponentExecutionConfig::remote(
-            local_url.clone(),
+            Ipv4Addr::LOCALHOST.to_string(),
             mempool_socket.ip(),
             mempool_socket.port(),
         ),
         mempool_p2p: ReactiveComponentExecutionConfig::remote(
-            local_url.clone(),
+            Ipv4Addr::LOCALHOST.to_string(),
             mempool_p2p_socket.ip(),
             mempool_p2p_socket.port(),
         ),
         state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            local_url.clone(),
+            Ipv4Addr::LOCALHOST.to_string(),
             state_sync_socket.ip(),
             state_sync_socket.port(),
         ),
         class_manager: ReactiveComponentExecutionConfig::remote(
-            local_url.clone(),
+            Ipv4Addr::LOCALHOST.to_string(),
             class_manager_socket.ip(),
             class_manager_socket.port(),
         ),
         ..ComponentConfig::default()
     }
+}
+
+// TODO(alonl): use enums to represent the different types of units distributions.
+pub fn create_nodes_deployment_units_configs(
+    available_ports: &mut AvailablePorts,
+    distributed_sequencers_num: usize,
+) -> Vec<NodeComponentConfigs> {
+    std::iter::repeat_with(|| {
+        let batcher_socket = available_ports.get_next_local_host_socket();
+        let class_manager_socket = available_ports.get_next_local_host_socket();
+        let gateway_socket = available_ports.get_next_local_host_socket();
+        let mempool_socket = available_ports.get_next_local_host_socket();
+        let mempool_p2p_socket = available_ports.get_next_local_host_socket();
+        let sierra_compiler_socket = available_ports.get_next_local_host_socket();
+        let state_sync_socket = available_ports.get_next_local_host_socket();
+
+        NodeComponentConfigs::new(
+            vec![
+                get_batcher_config(batcher_socket),
+                get_class_manager_config(class_manager_socket),
+                get_gateway_config(gateway_socket),
+                get_mempool_config(mempool_socket, mempool_p2p_socket),
+                get_sierra_compiler_config(sierra_compiler_socket),
+                get_state_sync_config(state_sync_socket),
+                get_consensus_manager_config(),
+                get_http_server_config(),
+                get_l1_provider_config(available_ports.get_next_local_host_socket()),
+            ],
+            0,
+            7,
+        )
+    })
+    .take(distributed_sequencers_num)
+    .collect()
+}
+
+fn get_batcher_config(batcher_socket: SocketAddr) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.batcher = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        batcher_socket.ip(),
+        batcher_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_class_manager_config(class_manager_socket: SocketAddr) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.class_manager = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        class_manager_socket.ip(),
+        class_manager_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_gateway_config(gateway_socket: SocketAddr) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        gateway_socket.ip(),
+        gateway_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_mempool_config(
+    mempool_socket: SocketAddr,
+    mempool_p2p_socket: SocketAddr,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        mempool_socket.ip(),
+        mempool_socket.port(),
+    );
+    config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        mempool_p2p_socket.ip(),
+        mempool_p2p_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_sierra_compiler_config(sierra_compiler_socket: SocketAddr) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.sierra_compiler = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        sierra_compiler_socket.ip(),
+        sierra_compiler_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_state_sync_config(state_sync_socket: SocketAddr) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.state_sync = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        state_sync_socket.ip(),
+        state_sync_socket.port(),
+    );
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_consensus_manager_config() -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.consensus_manager = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_http_server_config() -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.http_server = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
+}
+
+fn get_l1_provider_config(l1_provider_socket: SocketAddr) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.l1_provider = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        l1_provider_socket.ip(),
+        l1_provider_socket.port(),
+    );
+    config.l1_scraper = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config
 }
