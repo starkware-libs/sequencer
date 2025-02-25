@@ -5,6 +5,10 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
 };
 use starknet_sequencer_metrics::metric_definitions::{
+    MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -81,8 +85,10 @@ impl Drop for MempoolMetricHandle {
 }
 
 pub(crate) fn register_metrics() {
+    // Register Counters.
     MEMPOOL_TRANSACTIONS_COMMITTED.register();
 
+    // Register LabeledCounters
     let mut tx_type_label_variations: Vec<Vec<(&'static str, &'static str)>> = Vec::new();
     for tx_type in InternalRpcTransactionLabelValue::iter() {
         tx_type_label_variations.push(vec![(LABEL_NAME_TX_TYPE, tx_type.into())]);
@@ -94,6 +100,12 @@ pub(crate) fn register_metrics() {
         drop_reason_label_variations.push(vec![(LABEL_NAME_DROP_REASON, drop_reason.into())]);
     }
     MEMPOOL_TRANSACTIONS_DROPPED.register(&drop_reason_label_variations);
+
+    // Register Gauges.
+    MEMPOOL_POOL_SIZE.register();
+    MEMPOOL_PRIORITY_QUEUE_SIZE.register();
+    MEMPOOL_PENDING_QUEUE_SIZE.register();
+    MEMPOOL_GET_TXS_SIZE.register();
 }
 
 #[cfg(test)]

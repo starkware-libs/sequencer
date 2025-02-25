@@ -39,6 +39,10 @@ impl TransactionPool {
         }
     }
 
+    pub fn capacity(&self) -> usize {
+        self.capacity.n_txs()
+    }
+
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
@@ -272,6 +276,10 @@ impl PoolCapacity {
     fn remove_n(&mut self, n: usize) {
         self.n_txs =
             self.n_txs.checked_sub(n).expect("Underflow: Cannot subtract from an empty pool.");
+    }
+
+    fn n_txs(&self) -> usize {
+        self.n_txs
     }
 }
 
