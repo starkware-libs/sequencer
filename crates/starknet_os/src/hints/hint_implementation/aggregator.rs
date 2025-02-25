@@ -20,6 +20,11 @@ pub(crate) fn get_os_output_for_inner_blocks<S: StateReader>(
 ) -> HintResult {
     todo!()
 }
+pub(crate) fn enter_combined_block_scope_aggregator<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> HintResult {
+    todo!()
+}
 
 pub(crate) fn get_aggregator_output<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
