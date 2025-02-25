@@ -90,7 +90,7 @@ pub async fn await_block(
     monitoring_client: &MonitoringClient,
     expected_block_number: BlockNumber,
     node_index: usize,
-    batcher_index: usize,
+    executable_index: usize,
 ) {
     info!(
         "Awaiting until {expected_block_number} blocks have been created in sequencer {}.",
@@ -99,17 +99,23 @@ pub async fn await_block(
     let condition =
         |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
 
-    let logger = CustomLogger::new(
-        TraceLevel::Info,
-        Some(format!(
-            "Waiting for batcher height metric to reach block {expected_block_number} in \
-             sequencer {} executable {}.",
-            node_index, batcher_index
-        )),
-    );
-    await_batcher_block(5000, condition, 50, monitoring_client, logger)
+    let expected_height = expected_block_number.unchecked_next();
+    let [batcher_logger, sync_logger] = ["Batcher", "Sync"].map(|component_name| {
+        CustomLogger::new(
+            TraceLevel::Info,
+            Some(format!(
+                "Waiting for {component_name} height metric to reach block {expected_height} in \
+                 sequencer {node_index} executable {executable_index}.",
+            )),
+        )
+    });
+
+    await_batcher_block(5000, condition, 50, monitoring_client, batcher_logger)
         .await
-        .expect("Block number should have been reached.");
+        .expect("Batcher did not reach the expected block number.");
+    await_sync_block(5000, condition, 50, monitoring_client, sync_logger)
+        .await
+        .expect("Sync did not reach the expected block number.");
 }
 
 pub async fn verify_txs_accepted(
