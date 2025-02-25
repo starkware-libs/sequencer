@@ -237,7 +237,7 @@ expression: dumped_default_config
     "privacy": "TemporaryValue"
   },
   "network.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "value": "SN_MAIN",
     "privacy": "Public"
   },
@@ -364,7 +364,7 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "rpc.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "value": "SN_MAIN",
     "privacy": "Public"
   },
@@ -436,7 +436,7 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "storage.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "value": "SN_MAIN",
     "privacy": "Public"
   },
