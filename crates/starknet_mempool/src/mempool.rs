@@ -363,7 +363,7 @@ impl Mempool {
 
         debug!("{existing_tx_reference} will be replaced by {incoming_tx_reference}.");
 
-        self.tx_queue.remove(address);
+        self.tx_queue.remove_txs(&[existing_tx_reference]);
         self.tx_pool
             .remove(existing_tx_reference.tx_hash)
             .expect("Transaction hash from pool must exist.");

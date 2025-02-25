@@ -717,6 +717,34 @@ fn test_fee_escalation_invalid_replacement(
 }
 
 #[rstest]
+fn fee_escalation_queue_removal() {
+    // Setup.
+    let min_gas_price = 1;
+    let queued_tx = add_tx_input!(tx_hash: 0, address: "0x0", tx_nonce: 0, tip: 0, max_l2_gas_price: min_gas_price);
+    let queued_tx_reference = TransactionReference::new(&queued_tx.tx);
+    let tx_to_be_replaced = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, tip: 0, max_l2_gas_price: min_gas_price);
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            enable_fee_escalation: true,
+            fee_escalation_percentage: 0,
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    );
+    add_tx(&mut mempool, &queued_tx);
+    add_tx(&mut mempool, &tx_to_be_replaced);
+
+    // Test and assert: replacement doesn't affect queue.
+    let valid_replacement_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 0, max_l2_gas_price: min_gas_price);
+    add_tx(&mut mempool, &valid_replacement_input);
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_pool([queued_tx.tx, valid_replacement_input.tx])
+        .with_priority_queue([queued_tx_reference])
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
+}
+
+#[rstest]
 fn test_fee_escalation_valid_replacement_minimum_values() {
     // Setup.
     let min_gas_price = 1;
