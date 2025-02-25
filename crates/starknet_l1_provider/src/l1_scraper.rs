@@ -72,6 +72,27 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         })
     }
 
+    /// Initialize the scraper at a specific L1 block number.
+    /// Prefer `new` over this constructor whenever possible unless you are sure about which
+    /// L1 block the scraper should start on.
+    /// FIXME: make the integration/flow tests use `new` instead of this constructor, once `Anvil`
+    /// support is added there.
+    pub async fn new_at_l1_block(
+        l1_block_to_start_scraping_from: L1BlockReference,
+        config: L1ScraperConfig,
+        l1_provider_client: SharedL1ProviderClient,
+        base_layer: B,
+        events_identifiers_to_track: &[EventIdentifier],
+    ) -> L1ScraperResult<Self, B> {
+        Ok(Self {
+            l1_provider_client,
+            base_layer,
+            last_l1_block_processed: l1_block_to_start_scraping_from,
+            config,
+            tracked_event_identifiers: events_identifiers_to_track.to_vec(),
+        })
+    }
+
     #[instrument(skip(self), err)]
     pub async fn initialize(&mut self) -> L1ScraperResult<(), B> {
         let Some((latest_l1_block, events)) = self.fetch_events().await? else {

@@ -1,4 +1,5 @@
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::L1BlockReference;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
@@ -207,16 +208,30 @@ pub async fn create_node_components(
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
-            Some(
-                L1Scraper::new(
-                    l1_scraper_config,
-                    l1_provider_client,
-                    base_layer,
-                    event_identifiers_to_track(),
-                )
-                .await
-                .unwrap(),
+            let l1_scraper_creation_result = L1Scraper::new(
+                l1_scraper_config.clone(),
+                l1_provider_client.clone(),
+                base_layer,
+                event_identifiers_to_track(),
             )
+            .await;
+            Some(match l1_scraper_creation_result {
+                Ok(l1_scraper) => l1_scraper,
+                Err(e) => {
+                    tracing::error!("Failed to create L1Scraper: {}", e);
+                    let base_layer =
+                        EthereumBaseLayerContract::new(config.base_layer_config.clone());
+                    L1Scraper::new_at_l1_block(
+                        L1BlockReference { number: 0, ..Default::default() },
+                        l1_scraper_config,
+                        l1_provider_client,
+                        base_layer,
+                        event_identifiers_to_track(),
+                    )
+                    .await
+                    .unwrap()
+                }
+            })
         }
         ActiveComponentExecutionMode::Disabled => None,
     };
