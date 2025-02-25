@@ -11500,6 +11500,15 @@ dependencies = [
 [[package]]
 name = "starknet_sequencer_dashboard"
 version = "0.0.0"
+dependencies = [
+ "colored 3.0.0",
+ "indexmap 2.7.0",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_infra_utils",
+ "starknet_sequencer_metrics",
+]
 
 [[package]]
 name = "starknet_sequencer_infra"
@@ -11533,12 +11542,9 @@ name = "starknet_sequencer_metrics"
 version = "0.0.0"
 dependencies = [
  "colored 3.0.0",
- "indexmap 2.7.0",
  "metrics 0.24.1",
  "num-traits",
  "regex",
- "serde",
- "serde_json",
  "starknet_api",
  "starknet_infra_utils",
 ]
