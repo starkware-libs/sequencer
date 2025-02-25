@@ -15,7 +15,7 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
-    TxTypeLabelValue,
+    RpcTransactionLabelValue,
 };
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::{
@@ -233,7 +233,7 @@ fn test_register_metrics() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_metrics();
     let metrics = recorder.handle().render();
-    for tx_type in TxTypeLabelValue::iter() {
+    for tx_type in RpcTransactionLabelValue::iter() {
         for source in SourceLabelValue::iter() {
             assert_eq!(
                 TRANSACTIONS_RECEIVED
