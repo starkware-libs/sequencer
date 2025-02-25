@@ -2,6 +2,7 @@ use std::fs::remove_dir_all;
 use std::path::PathBuf;
 
 use clap::Parser;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::consts::SINGLE_NODE_CONFIG_PATH;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::get_sequencer_setup_configs;
@@ -34,6 +35,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         Some(PathBuf::from(args.db_dir.clone())),
         Some(temp_dir_path),
+        TestIdentifier::SystemTestDumpSingleNodeConfig,
     )
     .await;
 
