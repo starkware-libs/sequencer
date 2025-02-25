@@ -22,7 +22,7 @@ pub(crate) struct Input {
 pub fn parse_and_run_os(input_path: String, _output_path: String) {
     let Input { compiled_os_path, layout, os_input } = load_input(input_path);
     assert!(
-        os_input._transactions.len() == os_input._tx_execution_infos.len(),
+        os_input.transactions.len() == os_input._tx_execution_infos.len(),
         "The number of transactions and execution infos should be equal"
     );
     info!("Parsed OS input successfully for block number: {}", os_input.block_info.block_number);
