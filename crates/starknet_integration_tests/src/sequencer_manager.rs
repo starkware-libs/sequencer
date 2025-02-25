@@ -189,6 +189,7 @@ impl CustomPaths {
     }
 }
 
+// TODO(noamsp): remove monitoring_utils:: qualifier throughout the file, renaming fns if needed.
 impl IntegrationTestManager {
     pub async fn new(
         num_of_consolidated_nodes: usize,
@@ -479,11 +480,11 @@ impl IntegrationTestManager {
     async fn verify_txs_accepted(&self, sender_account: AccountId) {
         let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_batched_txs = nonce_to_usize(account.get_nonce());
+        let expected_n_accepted_txs = nonce_to_usize(account.get_nonce());
         monitoring_utils::verify_txs_accepted(
             monitoring_client,
             sequencer_idx,
-            expected_n_batched_txs,
+            expected_n_accepted_txs,
         )
         .await;
     }
