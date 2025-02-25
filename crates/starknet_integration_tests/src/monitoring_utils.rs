@@ -115,56 +115,55 @@ pub async fn await_block(
 pub async fn verify_txs_accepted(
     monitoring_client: &MonitoringClient,
     sequencer_idx: usize,
-    expected_n_batched_txs: usize,
+    expected_n_accepted_txs: usize,
 ) {
-    info!("Verifying that sequencer {sequencer_idx} got {expected_n_batched_txs} batched txs.");
-    let n_batched_txs = get_batched_transactions_metric(monitoring_client).await;
+    info!("Verifying that sequencer {sequencer_idx} accepted {expected_n_accepted_txs} txs.");
+    let n_accepted_txs = sequencer_num_accepted_txs(monitoring_client).await;
     assert_eq!(
-        n_batched_txs, expected_n_batched_txs,
-        "Sequencer {sequencer_idx} got an unexpected number of batched txs. Expected \
-         {expected_n_batched_txs} got {n_batched_txs}"
+        n_accepted_txs, expected_n_accepted_txs,
+        "Sequencer {sequencer_idx} accepted an unexpected number of txs. Expected \
+         {expected_n_accepted_txs} got {n_accepted_txs}"
     );
 }
 
-// TODO(noamsp): If verify_txs_accepted is changed to use sync metrics, change await_txs_accepted
-// as well.
 pub async fn await_txs_accepted(
     monitoring_client: &MonitoringClient,
     sequencer_idx: usize,
-    target_n_batched_txs: usize,
+    target_n_accepted_txs: usize,
 ) {
     const INTERVAL_MILLIS: u64 = 5000;
     const MAX_ATTEMPTS: usize = 50;
-    info!("Waiting until sequencer {sequencer_idx} gets {target_n_batched_txs} batched txs.");
+    info!("Waiting until sequencer {sequencer_idx} accepts {target_n_accepted_txs} txs.");
 
     let condition =
-        |&current_num_batched_txs: &usize| current_num_batched_txs >= target_n_batched_txs;
+        |&current_n_accepted_txs: &usize| current_n_accepted_txs >= target_n_accepted_txs;
 
-    let get_current_num_batched_txs_closure = || get_batched_transactions_metric(monitoring_client);
+    let get_current_n_accepted_txs_closure = || sequencer_num_accepted_txs(monitoring_client);
 
     let logger = CustomLogger::new(
         TraceLevel::Info,
         Some(format!(
-            "Waiting for batcher to batch {target_n_batched_txs} in sequencer {sequencer_idx}.",
+            "Waiting for sequencer {sequencer_idx} to accept {target_n_accepted_txs} txs.",
         )),
     );
 
     run_until(
         INTERVAL_MILLIS,
         MAX_ATTEMPTS,
-        get_current_num_batched_txs_closure,
+        get_current_n_accepted_txs_closure,
         condition,
         Some(logger),
     )
     .await
     .unwrap_or_else(|| {
-        panic!("Sequencer {sequencer_idx} did not batch {target_n_batched_txs} transactions.")
+        panic!("Sequencer {sequencer_idx} did not accept {target_n_accepted_txs} txs.")
     });
 }
 
-async fn get_batched_transactions_metric(monitoring_client: &MonitoringClient) -> usize {
+async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
+    // If the sequencer accepted txs, sync should process them and update the respective metric.
     monitoring_client
-        .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
+        .get_metric::<usize>(metric_definitions::SYNC_PROCESSED_TRANSACTIONS.get_name())
         .await
-        .expect("Failed to get batched txs metric.")
+        .unwrap()
 }
