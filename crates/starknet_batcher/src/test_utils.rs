@@ -113,8 +113,8 @@ impl BlockExecutionArtifacts {
     pub fn create_for_testing() -> Self {
         // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
         Self {
-            execution_infos: indexed_execution_infos(),
             execution_data: BlockTransactionExecutionData {
+                execution_infos: indexed_execution_infos(),
                 rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
                 accepted_l1_handler_tx_hashes: Default::default(),
             },
