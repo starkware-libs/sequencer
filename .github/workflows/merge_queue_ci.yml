@@ -12,7 +12,7 @@ env:
 
 jobs:
   code_style:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       # Environment setup.
       - uses: actions/checkout@v4
