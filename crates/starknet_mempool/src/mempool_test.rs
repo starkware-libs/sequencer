@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
@@ -9,16 +10,26 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
-use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionLabelValue};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
+use starknet_sequencer_metrics::metric_definitions::MEMPOOL_TRANSACTIONS_RECEIVED;
+use strum::IntoEnumIterator;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
+use crate::metrics::{
+    get_metric_counter_txs_committed,
+    get_metric_counter_txs_dropped,
+    get_metric_counter_txs_received,
+    register_metrics,
+    DropReason,
+    LABEL_NAME_TX_TYPE,
+};
 use crate::test_utils::{
     add_tx,
     add_tx_expect_error,
@@ -447,6 +458,10 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 // TODO(Elin): reconsider this test in a more realistic scenario.
 #[rstest]
 fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
     // Setup.
     let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
     // Same hash is possible if signature is different, for example.
@@ -465,6 +480,11 @@ fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     // Assert: the original transaction remains.
     let expected_mempool_content = MempoolTestContentBuilder::new().with_pool([input.tx]).build();
     expected_mempool_content.assert_eq(&mempool.content());
+
+    // Assert: metrics.
+    let metrics = recorder.handle().render();
+    assert_eq!(get_metric_counter_txs_received(&metrics), 2);
+    assert_eq!(get_metric_counter_txs_dropped(&metrics, DropReason::FailedAddTxChecks), 1);
 }
 
 #[rstest]
@@ -846,6 +866,10 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
 
 #[rstest]
 fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
     // Setup. The tip is used here to control the order of transactions in the mempool.
     let tx_address_1_rejected =
         add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 2, account_nonce: 2, tip: 1);
@@ -890,6 +914,12 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
         .with_priority_queue(vec![])
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
+
+    // Assert: metrics.
+    let metrics = recorder.handle().render();
+    assert_eq!(get_metric_counter_txs_received(&metrics), 4);
+    assert_eq!(get_metric_counter_txs_dropped(&metrics, DropReason::Rejected), 2);
+    assert_eq!(get_metric_counter_txs_committed(&metrics), 1);
 }
 
 #[rstest]
@@ -968,6 +998,10 @@ fn add_tx_old_transactions_cleanup() {
 
 #[rstest]
 fn get_txs_old_transactions_cleanup() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
@@ -1007,4 +1041,31 @@ fn get_txs_old_transactions_cleanup() {
         .with_pending_queue([])
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
+
+    // Assert: metrics.
+    let metrics = recorder.handle().render();
+    assert_eq!(get_metric_counter_txs_received(&metrics), 2);
+    assert_eq!(get_metric_counter_txs_dropped(&metrics, DropReason::Expired), 1);
+}
+
+#[test]
+fn test_register_metrics() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    // Assert: metrics.
+    let metrics = recorder.handle().render();
+    assert_eq!(get_metric_counter_txs_committed(&metrics), 0);
+    for tx_type in InternalRpcTransactionLabelValue::iter() {
+        assert_eq!(
+            MEMPOOL_TRANSACTIONS_RECEIVED
+                .parse_numeric_metric::<u64>(&metrics, &[(LABEL_NAME_TX_TYPE, tx_type.into())])
+                .unwrap(),
+            0
+        );
+    }
+    for drop_reason in DropReason::iter() {
+        assert_eq!(get_metric_counter_txs_dropped(&metrics, drop_reason), 0);
+    }
 }

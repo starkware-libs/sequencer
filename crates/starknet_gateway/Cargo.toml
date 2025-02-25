@@ -19,7 +19,6 @@ blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true
-metrics.workspace = true
 papyrus_config.workspace = true
 papyrus_network_types.workspace = true
 papyrus_rpc.workspace = true
@@ -48,6 +47,7 @@ blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
+metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 mockito.workspace = true
