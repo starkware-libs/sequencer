@@ -50,9 +50,10 @@ pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> Hint
 }
 
 pub(crate) fn os_input_transactions<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> HintResult {
-    todo!()
+    let num_txns = hint_processor.execution_helper.os_input.transactions.len();
+    Ok(vm.insert_value((vm.get_fp() + 12)?, num_txns)?)
 }
 
 pub(crate) fn segments_add<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
