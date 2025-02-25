@@ -119,3 +119,14 @@ impl Const {
         Self::AliasContractAddress.fetch_as(constants)
     }
 }
+pub enum CairoStruct {
+    DictAccess,
+}
+
+impl From<CairoStruct> for &'static str {
+    fn from(struct_name: CairoStruct) -> Self {
+        match struct_name {
+            CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
+        }
+    }
+}
