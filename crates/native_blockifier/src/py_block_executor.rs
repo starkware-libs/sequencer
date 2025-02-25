@@ -1,5 +1,7 @@
 #![allow(non_local_definitions)]
 
+use std::str::FromStr;
+
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -18,6 +20,7 @@ use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_types_core::felt::Felt;
 
@@ -296,7 +299,7 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
-    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size))]
+    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version))]
     #[staticmethod]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
@@ -305,12 +308,20 @@ impl PyBlockExecutor {
         path: std::path::PathBuf,
         max_state_diff_size: usize,
         stack_size: usize,
+        min_sierra_version: Option<String>,
     ) -> Self {
         use blockifier::bouncer::BouncerWeights;
         // TODO(Meshi, 01/01/2025): Remove this once we fix all python tests that re-declare cairo0
         // contracts.
         let mut versioned_constants = VersionedConstants::latest_constants().clone();
         versioned_constants.disable_cairo0_redeclaration = false;
+
+        if let Some(min_sierra_version) = min_sierra_version {
+            versioned_constants.min_sierra_version_for_sierra_gas =
+                SierraVersion::from_str(&min_sierra_version)
+                    .expect("failed to parse sierra version.");
+        }
+
         Self {
             bouncer_config: BouncerConfig {
                 block_max_capacity: BouncerWeights {
@@ -378,6 +389,7 @@ impl PyBlockExecutor {
             path,
             max_state_diff_size,
             stack_size,
+            None,
         )
     }
 }
