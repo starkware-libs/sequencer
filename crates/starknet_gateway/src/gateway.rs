@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use futures::executor::block_on;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -48,6 +47,7 @@ impl Gateway {
         state_reader_factory: Arc<dyn StateReaderFactory>,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
+        runtime: tokio::runtime::Handle,
     ) -> Self {
         Self {
             config: config.clone(),
@@ -56,6 +56,7 @@ impl Gateway {
             }),
             stateful_tx_validator: Arc::new(StatefulTransactionValidator {
                 config: config.stateful_tx_validator_config.clone(),
+                runtime,
             }),
             state_reader_factory,
             mempool_client,
@@ -71,11 +72,10 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
         debug!("Processing tx: {:?}", tx);
-
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
-        let blocking_task = ProcessTxBlockingTask::new(self, tx);
+        let blocking_task = ProcessTxBlockingTask::new(self, tx, tokio::runtime::Handle::current());
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let add_tx_args =
@@ -108,10 +108,11 @@ struct ProcessTxBlockingTask {
     chain_info: ChainInfo,
     tx: RpcTransaction,
     transaction_converter: TransactionConverter,
+    runtime: tokio::runtime::Handle,
 }
 
 impl ProcessTxBlockingTask {
-    pub fn new(gateway: &Gateway, tx: RpcTransaction) -> Self {
+    pub fn new(gateway: &Gateway, tx: RpcTransaction, runtime: tokio::runtime::Handle) -> Self {
         Self {
             stateless_tx_validator: gateway.stateless_tx_validator.clone(),
             stateful_tx_validator: gateway.stateful_tx_validator.clone(),
@@ -120,6 +121,7 @@ impl ProcessTxBlockingTask {
             chain_info: gateway.chain_info.clone(),
             tx,
             transaction_converter: gateway.transaction_converter.clone(),
+            runtime,
         }
     }
 
@@ -131,21 +133,27 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
-        let internal_tx =
-            block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
-                .map_err(|err| {
-                    warn!("Failed to convert RPC transaction to internal RPC transaction: {}", err);
-                    GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-                })?;
+        let internal_tx = self
+            .runtime
+            .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
+            .map_err(|err| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", err);
+                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            })?;
 
-        let executable_tx = block_on(
-            self.transaction_converter
-                .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
-        )
-        .map_err(|err| {
-            warn!("Failed to convert internal RPC transaction to executable transaction: {}", err);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-        })?;
+        let executable_tx = self
+            .runtime
+            .block_on(
+                self.transaction_converter
+                    .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
+            )
+            .map_err(|err| {
+                warn!(
+                    "Failed to convert internal RPC transaction to executable transaction: {}",
+                    err
+                );
+                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            })?;
 
         // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
@@ -180,6 +188,7 @@ pub fn create_gateway(
     shared_state_sync_client: SharedStateSyncClient,
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
+    runtime: tokio::runtime::Handle,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
         shared_state_sync_client,
@@ -188,7 +197,7 @@ pub fn create_gateway(
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());
 
-    Gateway::new(config, state_reader_factory, mempool_client, transaction_converter)
+    Gateway::new(config, state_reader_factory, mempool_client, transaction_converter, runtime)
 }
 
 #[async_trait]

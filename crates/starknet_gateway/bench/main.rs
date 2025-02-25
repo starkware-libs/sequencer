@@ -18,15 +18,14 @@ use utils::{BenchTestSetup, BenchTestSetupConfig};
 fn invoke_benchmark(criterion: &mut Criterion) {
     let tx_generator_config = BenchTestSetupConfig::default();
     let n_txs = tx_generator_config.n_txs;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
 
-    let test_setup = BenchTestSetup::new(tx_generator_config);
+    let test_setup = BenchTestSetup::new(tx_generator_config, runtime.handle().clone());
     criterion.bench_with_input(
         BenchmarkId::new("invoke", n_txs),
         &test_setup,
         |bencher, test_setup| {
-            bencher
-                .to_async(tokio::runtime::Runtime::new().unwrap())
-                .iter(|| test_setup.send_txs_to_gateway());
+            bencher.to_async(&runtime).iter(|| test_setup.send_txs_to_gateway());
         },
     );
 }

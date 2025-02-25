@@ -69,7 +69,7 @@ pub struct BenchTestSetup {
 }
 
 impl BenchTestSetup {
-    pub fn new(config: BenchTestSetupConfig) -> Self {
+    pub fn new(config: BenchTestSetupConfig, runtime: tokio::runtime::Handle) -> Self {
         let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
         let mut tx_generator = TransactionGenerator::new(cairo_version);
 
@@ -95,6 +95,7 @@ impl BenchTestSetup {
             Arc::new(state_reader_factory),
             Arc::new(mempool_client),
             transaction_converter,
+            runtime,
         );
 
         Self { gateway: gateway_business_logic, txs }

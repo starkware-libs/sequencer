@@ -90,7 +90,7 @@ struct MockDependencies {
 }
 
 impl MockDependencies {
-    fn gateway(self) -> Gateway {
+    fn gateway(self, runtime: tokio::runtime::Handle) -> Gateway {
         register_metrics();
         let chain_id = self.config.chain_info.chain_id.clone();
         Gateway::new(
@@ -98,6 +98,7 @@ impl MockDependencies {
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
             TransactionConverter::new(self.class_manager_client, chain_id),
+            runtime,
         )
     }
 
@@ -179,7 +180,7 @@ async fn test_add_tx(
         expected_result,
     );
 
-    let gateway = mock_dependencies.gateway();
+    let gateway = mock_dependencies.gateway(tokio::runtime::Handle::current());
 
     let result = gateway.add_tx(rpc_tx.clone(), p2p_message_metadata.clone()).await;
 
@@ -221,7 +222,7 @@ async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) 
     declare_tx.compiled_class_hash = CompiledClassHash::default();
     let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
 
-    let gateway = mock_dependencies.gateway();
+    let gateway = mock_dependencies.gateway(tokio::runtime::Handle::current());
 
     let err = gateway.add_tx(tx, None).await.unwrap_err();
     assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
