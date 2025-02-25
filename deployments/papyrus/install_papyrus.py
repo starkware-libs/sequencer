@@ -15,7 +15,7 @@ def parse_command_line_args():
     parser.add_argument("--namespace", type=str, required=True, help="Target namespace for the Papyrus node.")
     parser.add_argument("--create_namespace", action="store_true", default=False, help="Enabling this option will install a new namespace with the given name.")
     parser.add_argument("--values_file", action="store", default=None, help="Add additional values file.")
-    parser.add_argument("--with_alerts", action="store_true", default=False, help="Enabling this option will also deploy a grafana alerts deashboard with the pod.")
+    parser.add_argument("--with_alerts", action="store_true", default=False, help="Enabling this option will also deploy a grafana alerts dashboard with the pod.")
     parser.add_argument("--prometheus_uid", type=str, required=False, help="UID for prometheus (to use with Grafana).")
     parser.add_argument("--old_version", type=str, required=False, help="Represents previous RPC version for the desired env (e.g. v0_3).")
     parser.add_argument("--new_version", type=str, required=False, help="Represents current RPC version for the desired env (e.g. v0_4).")
