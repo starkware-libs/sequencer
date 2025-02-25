@@ -6,6 +6,7 @@ use starknet_sequencer_metrics::metric_definitions::{
     self,
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
+    SYNC_COMPILED_CLASS_MARKER,
     SYNC_HEADER_MARKER,
     SYNC_STATE_MARKER,
 };
@@ -34,8 +35,7 @@ async fn get_sync_latest_block_number(sync_monitoring_client: &MonitoringClient)
         SYNC_BODY_MARKER,
         SYNC_STATE_MARKER,
         SYNC_CLASS_MANAGER_MARKER,
-        // TODO(noamsp): Uncomment when this metric is registered.
-        // SYNC_COMPILED_CLASS_MARKER,
+        SYNC_COMPILED_CLASS_MARKER,
     ]
     .iter()
     .map(|marker| {
