@@ -266,23 +266,34 @@ fn stream_done_test_expectations() -> TestExpectations {
 
 fn transaction_failed_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..3);
+    let failed_tx_hashes = HashSet::from([tx_hash!(1)]);
 
-    let mut expected_txs_output = input_txs.clone();
-    expected_txs_output.remove(1);
+    let expected_txs_output: Vec<_> =
+        input_txs.iter().filter(|tx| !failed_tx_hashes.contains(&tx.tx_hash())).cloned().collect();
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let execution_error =
-        TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress);
-    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
-        vec![Ok(execution_info()), Err(execution_error), Ok(execution_info())]
-    });
+    let failed_tx_hashes_ref = failed_tx_hashes.clone();
+    let mocked_add_txs_response = move |txs: &[BlockifierTransaction]| {
+        txs.iter()
+            .map(|tx| {
+                if (failed_tx_hashes_ref).contains(&BlockifierTransaction::tx_hash(tx)) {
+                    Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress))
+                } else {
+                    Ok(execution_info())
+                }
+            })
+            .collect()
+    };
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .return_once(mocked_add_txs_response);
 
-    let execution_infos_mapping = indexmap![
-        tx_hash!(0)=> execution_info(),
-        tx_hash!(2)=> execution_info(),
-    ];
+    let execution_infos_mapping =
+        expected_txs_output.iter().map(|tx| (tx.tx_hash(), execution_info())).collect();
+
     let expected_block_artifacts =
-        block_execution_artifacts(execution_infos_mapping, vec![tx_hash!(1)].into_iter().collect());
+        block_execution_artifacts(execution_infos_mapping, failed_tx_hashes);
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok(BlockExecutionSummary {
