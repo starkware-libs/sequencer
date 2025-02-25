@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use apollo_reverts::revert_block;
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -11,6 +12,7 @@ use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -54,7 +56,6 @@ use crate::block_builder::{
     BlockBuilderTrait,
     BlockExecutionArtifacts,
     BlockMetadata,
-    BlockTransactionExecutionData,
 };
 use crate::config::BatcherConfig;
 use crate::metrics::{
@@ -463,8 +464,14 @@ impl Batcher {
         }
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
-        self.commit_proposal_and_block(height, state_diff, address_to_nonce, Default::default())
-            .await?;
+        self.commit_proposal_and_block(
+            height,
+            state_diff,
+            address_to_nonce,
+            Default::default(),
+            Default::default(),
+        )
+        .await?;
         SYNCED_BLOCKS.increment(1);
         SYNCED_TRANSACTIONS.increment(transaction_hashes.len().try_into().unwrap());
         Ok(())
@@ -492,11 +499,16 @@ impl Batcher {
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.execution_data,
+            block_execution_artifacts.execution_data.accepted_l1_handler_tx_hashes,
+            block_execution_artifacts.execution_data.rejected_tx_hashes,
         )
         .await?;
-        let execution_infos: Vec<_> =
-            block_execution_artifacts.execution_infos.into_iter().map(|(_, info)| info).collect();
+        let execution_infos: Vec<_> = block_execution_artifacts
+            .execution_data
+            .execution_infos
+            .into_iter()
+            .map(|(_, info)| info)
+            .collect();
 
         CLASS_CACHE_MISSES.increment(self.block_builder_factory.take_class_cache_miss_counter());
         CLASS_CACHE_HITS.increment(self.block_builder_factory.take_class_cache_hit_counter());
@@ -519,9 +531,9 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
-        metadata: BlockTransactionExecutionData,
+        accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+        rejected_tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
-        let rejected_tx_hashes = metadata.rejected_tx_hashes;
         info!("Committing block at height {} and notifying mempool of the block.", height);
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
@@ -543,7 +555,7 @@ impl Batcher {
 
         let l1_provider_result = self
             .l1_provider_client
-            .commit_block(metadata.accepted_l1_handler_tx_hashes.iter().copied().collect(), height)
+            .commit_block(accepted_l1_handler_tx_hashes.iter().copied().collect(), height)
             .await;
         l1_provider_result.unwrap_or_else(|err| match err {
             L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {

@@ -66,8 +66,8 @@ fn block_execution_artifacts(
 ) -> BlockExecutionArtifacts {
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
-        execution_infos,
         execution_data: BlockTransactionExecutionData {
+            execution_infos,
             rejected_tx_hashes,
             accepted_l1_handler_tx_hashes,
         },
@@ -655,7 +655,7 @@ async fn test_execution_info_order() {
     .unwrap();
 
     // Verify that the execution_infos are ordered in the same order as the input_txs.
-    result_block_artifacts.execution_infos.iter().zip(&input_txs).for_each(
+    result_block_artifacts.execution_data.execution_infos.iter().zip(&input_txs).for_each(
         |((tx_hash, _execution_info), tx)| {
             assert_eq!(tx_hash, &tx.tx_hash());
         },
