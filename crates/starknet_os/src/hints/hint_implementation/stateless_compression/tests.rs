@@ -6,31 +6,32 @@ use num_traits::ToPrimitive;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use super::utils::{pack_in_felts, SizedBitsVec, TOTAL_N_BUCKETS};
-use crate::hints::hint_implementation::stateless_compression::utils::{
+use crate::hints::hint_implementation::stateless_compression::utils::{BucketElement125, BucketElementTrait, N_UNIQUE_BUCKETS};
+
+use super::utils::{
+    BitsArray,
+    TOTAL_N_BUCKETS,
     compress,
     get_bucket_offsets,
     get_n_elms_per_felt,
     pack_usize_in_felts,
+    BitLength,
     CompressionSet,
-    UpperBound,
     COMPRESSION_VERSION,
     HEADER_ELM_BOUND,
-    MAX_N_BITS,
-    N_BITS_PER_BUCKET,
 };
 
 const HEADER_LEN: usize = 1 + 1 + TOTAL_N_BUCKETS;
 // Utils
 
-pub fn unpack_felts(compressed: &[Felt], n_elms: usize, n_bits: usize) -> Vec<SizedBitsVec> {
-    let n_elms_per_felt = get_n_elms_per_felt(UpperBound::NBits(n_bits));
+pub fn unpack_felts<const LENGTH: usize>(compressed: &[Felt], n_elms: usize) -> Vec<BitsArray<LENGTH>> {
+    let n_elms_per_felt = BitLength::from_n_bits(LENGTH).n_elems_in_felt();
     let mut result = Vec::with_capacity(n_elms);
 
     for felt in compressed {
         let n_packed_elms = min(n_elms_per_felt, n_elms - result.len());
-        for chunk in felt.to_bits_le()[0..n_packed_elms * n_bits].chunks_exact(n_bits) {
-            result.push(SizedBitsVec(chunk.to_vec()));
+        for chunk in felt.to_bits_le()[0..n_packed_elms * LENGTH].chunks_exact(LENGTH) {
+            result.push(BitsArray(chunk.try_into().unwrap()));
         }
     }
 
@@ -38,7 +39,7 @@ pub fn unpack_felts(compressed: &[Felt], n_elms: usize, n_bits: usize) -> Vec<Si
 }
 
 pub fn unpack_felts_to_usize(compressed: &[Felt], n_elms: usize, elm_bound: usize) -> Vec<usize> {
-    let n_elms_per_felt = get_n_elms_per_felt(UpperBound::BiggestNum(elm_bound));
+    let n_elms_per_felt = get_n_elms_per_felt(elm_bound);
     let elm_bound_as_big = BigUint::from(elm_bound);
     let mut result = Vec::with_capacity(n_elms);
 
@@ -57,16 +58,14 @@ pub fn unpack_felts_to_usize(compressed: &[Felt], n_elms: usize, elm_bound: usiz
 
 /// Decompresses the given compressed data.
 pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
-    fn unpack_chunk(
+    fn unpack_chunk<const LENGTH: usize>(
         compressed: &mut impl Iterator<Item = Felt>,
         n_elms: usize,
-        n_bits: usize,
-    ) -> Vec<SizedBitsVec> {
-        let n_elms_per_felt = get_n_elms_per_felt(UpperBound::NBits(n_bits));
+    ) -> Vec<Felt> {
+        let n_elms_per_felt = BitLength::from_n_bits(LENGTH).n_elems_in_felt();
         let n_packed_felts = n_elms.div_ceil(n_elms_per_felt);
-
         let compressed_chunk: Vec<_> = compressed.take(n_packed_felts).collect();
-        unpack_felts(&compressed_chunk, n_elms, n_bits)
+        unpack_felts(&compressed_chunk, n_elms).into_iter().map(|bits: BitsArray<LENGTH>| Felt::from(bits)).collect()
     }
 
     fn unpack_chunk_to_usize(
@@ -74,7 +73,7 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
         n_elms: usize,
         elm_bound: usize,
     ) -> Vec<usize> {
-        let n_elms_per_felt = get_n_elms_per_felt(UpperBound::BiggestNum(elm_bound));
+        let n_elms_per_felt = get_n_elms_per_felt(elm_bound);
         let n_packed_felts = n_elms.div_ceil(n_elms_per_felt);
 
         let compressed_chunk: Vec<_> = compressed.take(n_packed_felts).collect();
@@ -86,19 +85,22 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
     assert!(version == &usize::from(COMPRESSION_VERSION), "Unsupported compression version.");
 
     let data_len = &header[1];
-    let unique_value_bucket_lengths: Vec<usize> = header[2..2 + N_BITS_PER_BUCKET.len()].to_vec();
-    let n_repeating_values = &header[2 + N_BITS_PER_BUCKET.len()];
+    let unique_value_bucket_lengths: Vec<usize> = header[2..2 + N_UNIQUE_BUCKETS].to_vec();
+    let n_repeating_values = &header[2 + N_UNIQUE_BUCKETS];
 
     let mut unique_values = Vec::new();
-    for (&length, &n_bits) in unique_value_bucket_lengths.iter().zip(&N_BITS_PER_BUCKET) {
-        unique_values.extend(unpack_chunk(compressed, length, n_bits));
-    }
+    unique_values.extend(unpack_chunk::<252>(compressed, unique_value_bucket_lengths[0]));
+    unique_values.extend(unpack_chunk::<125>(compressed, unique_value_bucket_lengths[1]));
+    unique_values.extend(unpack_chunk::<83>(compressed, unique_value_bucket_lengths[2]));
+    unique_values.extend(unpack_chunk::<62>(compressed, unique_value_bucket_lengths[3]));
+    unique_values.extend(unpack_chunk::<31>(compressed, unique_value_bucket_lengths[4]));
+    unique_values.extend(unpack_chunk::<15>(compressed, unique_value_bucket_lengths[5]));
 
     let repeating_value_pointers =
-        unpack_chunk_to_usize(compressed, *n_repeating_values, unique_values.len());
+        unpack_chunk_to_usize(compressed, *n_repeating_values, N_UNIQUE_BUCKETS);
 
     let repeating_values: Vec<_> =
-        repeating_value_pointers.iter().map(|ptr| unique_values[*ptr].clone()).collect();
+        repeating_value_pointers.iter().map(|ptr| unique_values[*ptr]).collect();
 
     let mut all_values = unique_values;
     all_values.extend(repeating_values);
@@ -116,9 +118,9 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
     let mut result = Vec::new();
     for bucket_index in bucket_index_per_elm {
         let offset = &mut bucket_offset_iterators[bucket_index];
-        let value = all_values[*offset].clone();
+        let value = all_values[*offset];
         *offset += 1;
-        result.push(value.into());
+        result.push(value);
     }
     result
 }
@@ -128,18 +130,7 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
 #[test]
 fn test_bits_n() {
     let expected = [false, false, false, true, false, true, true, true, true, true];
-    assert_eq!(SizedBitsVec::from_felt(Felt::from(0b_0000_0011_1110_1000_u16), 10).0, expected);
-}
-
-#[rstest]
-#[case(1, MAX_N_BITS)]
-#[case(125, 2)]
-#[case(83, 3)]
-#[case(62, 4)]
-#[case(31, 8)]
-#[case(15, 16)]
-fn test_get_n_elms_per_felt(#[case] input: usize, #[case] expected: usize) {
-    assert_eq!(get_n_elms_per_felt(UpperBound::NBits(input)), expected);
+    assert_eq!(BitsArray::<10>::try_from(Felt::from(0b_0000_0011_1110_1000_u16)).unwrap().0, expected);
 }
 
 #[test]
@@ -151,10 +142,9 @@ fn test_pack_and_unpack() {
         Felt::from(1034_u32),
         Felt::from(3404_u32),
     ];
-    let n_bits = 125;
-    let bucket: Vec<_> = felts.into_iter().map(|f| SizedBitsVec::from_felt(f, n_bits)).collect();
-    let packed = pack_in_felts(&bucket, n_bits);
-    let unpacked = unpack_felts(packed.as_ref(), bucket.len(), n_bits);
+    let bucket: Vec<_> = felts.into_iter().map(|f| BucketElement125::try_from(f).unwrap()).collect();
+    let packed = BucketElement125::pack_in_felts(&bucket);
+    let unpacked = unpack_felts(packed.as_ref(), bucket.len());
     assert_eq!(bucket, unpacked);
 }
 
@@ -176,30 +166,34 @@ fn test_get_bucket_offsets() {
 
 #[test]
 fn test_update_with_unique_values() {
-    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
-    let values = vec![Felt::from(42), Felt::from(12833943439439439_u64), Felt::from(1283394343)];
+    let mut compression_set = CompressionSet::new();
+    let values = vec![
+        Felt::from(42), // < 15 bits
+        Felt::from(12833943439439439_u64), // 54 bits
+        Felt::from(1283394343) // 31 bits
+    ];
 
     compression_set.update(&values);
 
     let unique_lengths = compression_set.get_unique_value_bucket_lengths();
-    assert_eq!(unique_lengths, vec![1, 0, 1]);
+    assert_eq!(unique_lengths, vec![0, 0, 0, 1, 1, 1]);
 }
 
 #[test]
 fn test_update_with_repeated_values() {
-    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let mut compression_set = CompressionSet::new();
     let values = vec![Felt::from(42), Felt::from(42)];
 
     compression_set.update(&values);
 
     let unique_lengths = compression_set.get_unique_value_bucket_lengths();
-    assert_eq!(unique_lengths, vec![1, 0, 0]);
+    assert_eq!(unique_lengths, vec![0, 0, 0, 0, 0, 1]);
     assert_eq!(compression_set.get_repeating_value_bucket_length(), 1);
 }
 
 #[test]
 fn test_get_repeating_value_pointers_with_repeated_values() {
-    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let mut compression_set = CompressionSet::new();
     let values = vec![Felt::from(42), Felt::from(42)];
 
     compression_set.update(&values);
@@ -211,7 +205,7 @@ fn test_get_repeating_value_pointers_with_repeated_values() {
 
 #[test]
 fn test_get_repeating_value_pointers_with_no_repeated_values() {
-    let mut compression_set = CompressionSet::new(&[8, 16, 32]);
+    let mut compression_set = CompressionSet::new();
     let values = vec![Felt::from(42), Felt::from(128)];
 
     compression_set.update(&values);

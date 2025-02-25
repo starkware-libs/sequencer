@@ -14,7 +14,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
-testing = ["dep:strum", "dep:strum_macros"]
+testing = ["dep:strum"]
 
 [dependencies]
 bitvec.workspace = true
@@ -31,14 +31,13 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_patricia.workspace = true
 strum = { workspace = true, optional = true }
-strum_macros = { workspace = true, optional = true }
+strum_macros = { workspace = true }
 thiserror.workspace = true
 
 [dev-dependencies]
 num-integer.workspace = true
 num-traits.workspace = true
 strum.workspace = true
-strum_macros.workspace = true
 rstest.workspace = true
 
 [lints]
