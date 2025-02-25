@@ -77,7 +77,32 @@ use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
 use crate::versioned_constants::GasCosts;
 
-pub type SyscallCounter = HashMap<SyscallSelector, usize>;
+#[derive(Default)]
+pub struct SyscallUsageStats {
+    call_count: usize,
+    #[allow(dead_code)]
+    total_calldata_length: usize,
+}
+
+impl SyscallUsageStats {
+    pub fn empty() -> Self {
+        SyscallUsageStats { call_count: 0, total_calldata_length: 0 }
+    }
+
+    pub fn new(call_count: usize, total_calldata_length: usize) -> Self {
+        SyscallUsageStats { call_count, total_calldata_length }
+    }
+
+    pub fn increment_call_count(&mut self) {
+        self.call_count += 1;
+    }
+
+    pub fn get_call_count(&self) -> usize {
+        self.call_count
+    }
+}
+
+pub type SyscallUsageStatsMap = HashMap<SyscallSelector, SyscallUsageStats>;
 
 #[derive(Debug, Error)]
 pub enum SyscallExecutionError {
@@ -214,7 +239,7 @@ pub struct SyscallHintProcessor<'a> {
     pub base: Box<SyscallHandlerBase<'a>>,
 
     // VM-specific fields.
-    pub syscall_counter: SyscallCounter,
+    pub syscall_counter: SyscallUsageStatsMap,
 
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
@@ -244,7 +269,7 @@ impl<'a> SyscallHintProcessor<'a> {
     ) -> Self {
         SyscallHintProcessor {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscall_counter: SyscallCounter::default(),
+            syscall_counter: SyscallUsageStatsMap::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
             hints,
@@ -513,8 +538,8 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 
     pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_count = self.syscall_counter.entry(*selector).or_default();
-        *syscall_count += n;
+        let syscall_usage_stats = self.syscall_counter.entry(*selector).or_default();
+        syscall_usage_stats.call_count += n;
     }
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
