@@ -49,6 +49,7 @@ fn global_contract_cache_update() {
         temp_storage_path,
         4000,
         DEFAULT_STACK_SIZE,
+        None,
     );
     block_executor
         .append_block(
