@@ -354,13 +354,6 @@ impl IntegrationTestManager {
         join_all(await_alive_tasks).await;
     }
 
-    /// Returns the sequencer index of the first running node and its monitoring client.
-    fn running_batcher_monitoring_client(&self) -> (usize, &MonitoringClient) {
-        let sequencer_idx = 0;
-        let node_0 = self.running_nodes.get(&sequencer_idx).expect("Node 0 should be running.");
-        (sequencer_idx, node_0.node_setup.batcher_monitoring_client())
-    }
-
     async fn run_integration_test_simulator(
         &mut self,
         test_scenario: &impl TestScenario,
@@ -377,28 +370,35 @@ impl IntegrationTestManager {
     }
 
     async fn await_block(&self, expected_block_number: BlockNumber) {
-        let running_node =
-            self.running_nodes.iter().next().expect("At least one node should be running").1;
-        let running_node_setup = &running_node.node_setup;
-        monitoring_utils::await_block(
-            running_node_setup.batcher_monitoring_client(),
-            expected_block_number,
-            running_node_setup.get_node_index().unwrap(),
-            running_node_setup.get_batcher_index(),
-        )
-        .await;
+        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+            let node_setup = &running_node.node_setup;
+            let monitoring_client = node_setup.batcher_monitoring_client();
+            let batcher_index = node_setup.get_batcher_index();
+            monitoring_utils::await_block(
+                monitoring_client,
+                expected_block_number,
+                *sequencer_idx,
+                batcher_index,
+            )
+        });
+
+        futures::future::join_all(futures).await;
     }
 
     async fn verify_txs_accepted(&self, sender_account: AccountId) {
-        let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_accepted_txs = nonce_to_usize(account.get_nonce());
-        monitoring_utils::verify_txs_accepted(
-            monitoring_client,
-            sequencer_idx,
-            expected_n_accepted_txs,
-        )
-        .await;
+
+        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+            let monitoring_client = running_node.node_setup.batcher_monitoring_client();
+            monitoring_utils::verify_txs_accepted(
+                monitoring_client,
+                *sequencer_idx,
+                expected_n_accepted_txs,
+            )
+        });
+
+        futures::future::join_all(futures).await;
     }
 }
 
