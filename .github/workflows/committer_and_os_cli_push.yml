@@ -40,7 +40,7 @@ concurrency:
 
 jobs:
   gcs-push:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
