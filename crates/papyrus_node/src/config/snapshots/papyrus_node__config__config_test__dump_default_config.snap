@@ -162,6 +162,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.builder_address": {
+    "description": "A required param! The address of the contract that builds the block.",
+    "param_type": "String",
+    "privacy": "Public"
+  },
   "context.chain_id": {
     "description": "The chain id of the Starknet chain.",
     "value": "SN_MAIN",
