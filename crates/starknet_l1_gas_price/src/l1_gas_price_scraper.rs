@@ -7,13 +7,12 @@ use papyrus_config::validators::validate_ascii;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
-use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
+use starknet_l1_gas_price_types::errors::L1GasPriceClientError;
+use starknet_l1_gas_price_types::L1GasPriceProviderClient;
 use starknet_sequencer_infra::component_client::ClientError;
 use thiserror::Error;
 use tracing::error;
 use validator::Validate;
-
-use crate::l1_gas_price_provider::L1GasPriceProviderClient;
 
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
@@ -27,7 +26,7 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
     BaseLayerError(T::Error),
     #[error("Could not update gas price provider: {0}")]
-    GasPriceProviderError(L1GasPriceProviderError),
+    GasPriceClientError(L1GasPriceClientError),
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
@@ -105,7 +104,8 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 Some(sample) => {
                     self.l1_gas_price_provider
                         .add_price_info(BlockNumber(block_num), sample)
-                        .map_err(L1GasPriceScraperError::GasPriceProviderError)?;
+                        .await
+                        .map_err(L1GasPriceScraperError::GasPriceClientError)?;
 
                     block_num += 1;
                 }
