@@ -632,27 +632,24 @@ impl OsResources {
     /// i.e., the resources of the Starknet OS function `execute_syscalls`.
     fn get_additional_os_syscall_resources(
         &self,
-        syscalls_usage: &SyscallUsageMap,
+        syscall_usage_stats_map: &SyscallUsageMap,
     ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
-        for (syscall_selector, syscall_usage) in syscalls_usage {
-            if syscall_selector == &SyscallSelector::Keccak {
-                let keccak_base_resources =
-                    self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
+        for (syscall_selector, syscall_usage_stats) in syscall_usage_stats_map {
+            let linear_factor_coefficient = match syscall_selector {
+                SyscallSelector::Keccak => {
+                    self.execute_syscalls.get(&SyscallSelector::KeccakRound).unwrap_or_else(|| {
                         panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
-                    });
-                os_additional_resources += keccak_base_resources;
-            }
-            let syscall_selector = if syscall_selector == &SyscallSelector::Keccak {
-                &SyscallSelector::KeccakRound
-            } else {
-                syscall_selector
+                    })
+                }
+                _ => &ExecutionResources::default(),
             };
             let syscall_resources =
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-            os_additional_resources += &(syscall_resources * syscall_usage.call_count);
+            os_additional_resources += &(&(syscall_resources * syscall_usage_stats.call_count)
+                + &(linear_factor_coefficient * syscall_usage_stats.linear_factor));
         }
 
         os_additional_resources

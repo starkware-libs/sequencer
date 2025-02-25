@@ -80,8 +80,7 @@ use crate::versioned_constants::GasCosts;
 #[derive(Default)]
 pub struct SyscallUsage {
     pub call_count: usize,
-    #[allow(dead_code)]
-    linear_factor: usize,
+    pub linear_factor: usize,
 }
 
 impl SyscallUsage {
@@ -529,13 +528,18 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
     }
 
-    pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
+    pub fn increment_syscall_count_with_linear_factor(
+        &mut self,
+        selector: &SyscallSelector,
+        linear_factor: usize,
+    ) {
         let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
-        syscall_usage.call_count += n;
+        syscall_usage.call_count += 1;
+        syscall_usage.linear_factor += linear_factor;
     }
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
-        self.increment_syscall_count_by(selector, 1);
+        self.increment_syscall_count_with_linear_factor(selector, 0);
     }
 
     fn allocate_execution_info_segment(
