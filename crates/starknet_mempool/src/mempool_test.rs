@@ -35,7 +35,9 @@ use crate::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TRANSACTIONS_COMMITTED,
-    MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED,
+    MEMPOOL_TRANSACTIONS_DROPPED,
+    MEMPOOL_TRANSACTIONS_RECEIVED,
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
 use crate::test_utils::{
     add_tx,
@@ -1126,4 +1128,5 @@ fn test_register_metrics() {
     assert_eq!(MEMPOOL_PRIORITY_QUEUE_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
     assert_eq!(MEMPOOL_PENDING_QUEUE_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
     assert_eq!(MEMPOOL_GET_TXS_SIZE.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
+    assert_eq!(TRANSACTION_TIME_SPENT_IN_MEMPOOL.parse_numeric_metric::<u64>(&metrics).unwrap(), 0);
 }
