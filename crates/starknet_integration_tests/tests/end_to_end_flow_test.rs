@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use futures::StreamExt;
-use mempool_test_utils::in_ci;
+// use mempool_test_utils::in_ci;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
@@ -87,9 +87,9 @@ async fn end_to_end_flow(
     #[case] expected_last_height: BlockNumber,
 ) {
     // TODO(yair): Remove once sporadic error in CI is solved.
-    if in_ci() {
-        std::env::set_var("RUST_LOG", "starknet=debug,infra=off");
-    }
+    // if in_ci() {
+    //     std::env::set_var("RUST_LOG", "starknet=debug,infra=off");
+    // }
     configure_tracing().await;
 
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
