@@ -8,7 +8,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::hints::error::{HintExtensionResult, HintResult, OsHintError};
+use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 
 /// Hint enum maps between a (python) hint string in the cairo OS program under cairo-lang to a
 /// matching enum variant defined in the crate.
@@ -31,7 +31,7 @@ pub struct HintArgs<'a, S: StateReader> {
 
 /// Executes the hint logic.
 pub trait HintImplementation {
-    fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> HintResult;
+    fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> OsHintResult;
 }
 
 /// Hint extensions extend the current map of hints used by the VM.
@@ -41,5 +41,5 @@ pub trait HintExtensionImplementation {
     fn execute_hint_extensive<S: StateReader>(
         &self,
         hint_extension_args: HintArgs<'_, S>,
-    ) -> HintExtensionResult;
+    ) -> OsHintExtensionResult;
 }

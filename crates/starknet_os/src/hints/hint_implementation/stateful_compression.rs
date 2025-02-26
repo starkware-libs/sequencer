@@ -8,13 +8,13 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_into_ap,
 };
 
-use crate::hints::error::HintResult;
+use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     // Note that aliases, execution_helper and os_input do not enter the new scope as they are not
     // needed.
     let dict_manager_str: &str = Scope::DictManager.into();
@@ -26,35 +26,37 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
 
 pub(crate) fn get_alias_entry_for_state_update<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn read_alias_from_key<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+pub(crate) fn read_alias_from_key<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn write_next_alias_from_key<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn read_alias_counter<S: StateReader>(
     HintArgs { hint_processor, vm, constants, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let alias_counter = hint_processor
@@ -66,7 +68,7 @@ pub(crate) fn read_alias_counter<S: StateReader>(
 
 pub(crate) fn initialize_alias_counter<S: StateReader>(
     HintArgs { hint_processor, constants, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let initial_available_alias = *Const::InitialAvailableAlias.fetch(constants)?;
@@ -79,7 +81,7 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
 
 pub(crate) fn update_alias_counter<S: StateReader>(
     HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let next_available_alias =
@@ -93,12 +95,12 @@ pub(crate) fn update_alias_counter<S: StateReader>(
 
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }

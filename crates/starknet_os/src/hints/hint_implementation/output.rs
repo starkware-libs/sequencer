@@ -5,17 +5,17 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::{HintResult, OsHintError};
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
-pub(crate) fn set_tree_structure<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+pub(crate) fn set_tree_structure<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn set_state_updates_start<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     let use_kzg_da_felt =
         get_integer_from_var_name(Ids::UseKzgDa.into(), vm, ids_data, ap_tracking)?;
 
@@ -65,7 +65,7 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
 
 pub(crate) fn set_compressed_start<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
     let use_kzg_da = match use_kzg_da_felt {
@@ -96,6 +96,8 @@ pub(crate) fn set_compressed_start<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_n_updates_small<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> HintResult {
+pub(crate) fn set_n_updates_small<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
     todo!()
 }
