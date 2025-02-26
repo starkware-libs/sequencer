@@ -1,5 +1,3 @@
-use paste::paste;
-
 use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
@@ -7,6 +5,7 @@ use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricSco
 /// - Individual metric constant according to type: `MetricCounter`or `MetricGauge` or
 ///   `LabeledMetricCounter`.
 /// - A const array `ALL_METRICS` containing all $keys of all the metrics constants.
+#[macro_export]
 macro_rules! define_metrics {
     (
         $(
@@ -29,9 +28,9 @@ macro_rules! define_metrics {
                 );
             )*
         )*
-
+        // TODO(Lev): change macro to output this only for cfg[(test,testing)
         $(
-            paste! {
+            $crate::paste::paste! {
                 pub const [<$scope:snake:upper _ALL_METRICS>]: &[&'static str] = &[
                     $(
                         $key,
@@ -158,13 +157,5 @@ define_metrics!(
         // Counters
         // TODO(shahak): add to metric's dashboard
         MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
-    },
-);
-
-define_metrics!(
-    Gateway => {
-        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", 0 },
-        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", 0 },
-        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 },
     },
 );
