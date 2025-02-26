@@ -1,3 +1,5 @@
+use paste::paste;
+
 use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
@@ -8,7 +10,7 @@ use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricSco
 macro_rules! define_metrics {
     (
         $(
-            $scope:expr => {
+            $scope:ident => {
                 $(
                     $type:ty { $name:ident, $key:expr, $desc:expr $(, $init:expr)? }
                 ),*
@@ -20,7 +22,7 @@ macro_rules! define_metrics {
         $(
             $(
                 pub const $name: $type = <$type>::new(
-                    $scope,
+                    MetricScope::$scope,
                     $key,
                     $desc
                     $(, $init)?
@@ -28,18 +30,20 @@ macro_rules! define_metrics {
             )*
         )*
 
-        pub const ALL_METRICS: &[&'static str] = &[
-            $(
-                $(
-                    $key,
-                )*
-            )*
-        ];
+        $(
+            paste! {
+                pub const [<$scope:upper _ALL_METRICS>]: &[&'static str] = &[
+                    $(
+                        $key,
+                    )*
+                ];
+            }
+        )*
     };
 }
 
 define_metrics!(
-    MetricScope::Batcher => {
+    Batcher => {
         // Gauges
         MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
         // Counters
@@ -53,12 +57,18 @@ define_metrics!(
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", 0 },
         MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", 0 }
     },
-    MetricScope::HttpServer => {
+);
+
+define_metrics!(
+    HttpServer => {
         MetricCounter { ADDED_TRANSACTIONS_TOTAL, "http_server_added_transactions_total", "Total number of transactions added", 0 },
         MetricCounter { ADDED_TRANSACTIONS_SUCCESS, "http_server_added_transactions_success", "Number of successfully added transactions", 0 },
         MetricCounter { ADDED_TRANSACTIONS_FAILURE, "http_server_added_transactions_failure", "Number of faulty added transactions", 0 },
     },
-    MetricScope::Infra => {
+);
+
+define_metrics!(
+    Infra => {
         // Local server counters
         MetricCounter { BATCHER_LOCAL_MSGS_RECEIVED, "batcher_local_msgs_received", "Counter of messages received by batcher local server", 0 },
         MetricCounter { BATCHER_LOCAL_MSGS_PROCESSED, "batcher_local_msgs_processed", "Counter of messages processed by batcher local server", 0 },
@@ -108,7 +118,10 @@ define_metrics!(
         MetricGauge { SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, "sierra_compiler_local_queue_depth", "The depth of the sierra compiler's local message queue" },
         MetricGauge { STATE_SYNC_LOCAL_QUEUE_DEPTH, "state_sync_local_queue_depth", "The depth of the state sync's local message queue" },
     },
-    MetricScope::Network => {
+);
+
+define_metrics!(
+    Network => {
         // Gauges
         MetricGauge { MEMPOOL_P2P_NUM_CONNECTED_PEERS, "apollo_mempool_p2p_num_connected_peers", "The number of connected peers to the mempool p2p component" },
         MetricGauge { CONSENSUS_NUM_CONNECTED_PEERS, "apollo_consensus_num_connected_peers", "The number of connected peers to the consensus p2p component" },
@@ -121,7 +134,10 @@ define_metrics!(
         MetricCounter { CONSENSUS_NUM_SENT_MESSAGES, "apollo_consensus_num_sent_messages", "The number of messages sent by the consensus p2p component", 0 },
         MetricCounter { CONSENSUS_NUM_RECEIVED_MESSAGES, "apollo_consensus_num_received_messages", "The number of messages received by the consensus p2p component", 0 },
     },
-   MetricScope::PapyrusSync => {
+);
+
+define_metrics!(
+    PapyrusSync => {
         // Gauges
         MetricGauge { SYNC_HEADER_MARKER, "apollo_sync_header_marker", "The first block number for which sync does not have a header" },
         MetricGauge { SYNC_BODY_MARKER, "apollo_sync_body_marker", "The first block number for which sync does not have a body" },
@@ -135,9 +151,12 @@ define_metrics!(
         // TODO(shahak): add to metric's dashboard
         MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
     },
-    MetricScope::Gateway => {
+);
+
+define_metrics!(
+    Gateway => {
         LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", 0 },
         LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", 0 },
         LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 },
-    }
+    },
 );
