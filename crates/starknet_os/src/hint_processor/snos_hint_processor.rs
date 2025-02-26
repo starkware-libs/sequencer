@@ -25,6 +25,20 @@ pub struct SnosHintProcessor<S: StateReader> {
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
 }
 
+impl<S: StateReader> SnosHintProcessor<S> {
+    pub fn new(
+        execution_helper: OsExecutionHelper<S>,
+        syscall_hint_processor: SyscallHintProcessor,
+        deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
+    ) -> Self {
+        Self {
+            execution_helper,
+            syscall_hint_processor,
+            _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
+        }
+    }
+}
+
 impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
     fn execute_hint(
         &mut self,
@@ -85,10 +99,16 @@ pub struct SyscallHintProcessor {
     sha256_segment: Option<Relocatable>,
 }
 
+// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
+#[allow(clippy::new_without_default)]
 impl SyscallHintProcessor {
+    pub fn new() -> Self {
+        Self { sha256_segment: None }
+    }
+
     pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
         self.sha256_segment = Some(sha256_segment);
     }
 }
 
-pub(crate) struct DeprecatedSyscallHintProcessor;
+pub struct DeprecatedSyscallHintProcessor;
