@@ -1,13 +1,16 @@
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use starknet_sequencer_metrics::metric_definitions::{
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
-};
-#[cfg(test)]
-use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
+use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricScope};
+use starknet_sequencer_metrics::define_metrics;
 use strum::IntoEnumIterator;
+
+define_metrics!(
+    Gateway => {
+        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", 0 },
+        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", 0 },
+        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 },
+    },
+);
 
 pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub const LABEL_NAME_SOURCE: &str = "source";
