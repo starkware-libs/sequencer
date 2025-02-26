@@ -113,6 +113,9 @@ define_gauge_metrics!(
     MetricScope::Batcher => {
         { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" }
     },
+    MetricScope::Consensus => {
+        { CONSENSUS_HEIGHT, "consensus_height", "The height of the state machine" },
+    },
     MetricScope::Infra => {
         { BATCHER_LOCAL_QUEUE_DEPTH, "batcher_local_queue_depth", "The depth of the batcher's local message queue" },
         { CLASS_MANAGER_LOCAL_QUEUE_DEPTH, "class_manager_local_queue_depth", "The depth of the class manager's local message queue" },
