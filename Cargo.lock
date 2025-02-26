@@ -11055,6 +11055,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_sequencer_metrics",
  "test-case",
  "thiserror 1.0.69",
  "tokio",

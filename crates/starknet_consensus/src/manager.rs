@@ -22,9 +22,11 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockNumber;
+use starknet_sequencer_metrics::metric_definitions::CONSENSUS_HEIGHT;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
+use crate::metrics::register_metrics;
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -172,6 +174,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
              {validators:?}"
         );
+
+        register_metrics();
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+        CONSENSUS_HEIGHT.set(height.0 as f64);
+
         let mut shc = SingleHeightConsensus::new(
             height,
             is_observer,

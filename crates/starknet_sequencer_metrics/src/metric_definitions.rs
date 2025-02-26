@@ -42,6 +42,12 @@ macro_rules! define_metrics {
 }
 
 define_metrics!(
+    Consensus => {
+        MetricGauge { CONSENSUS_HEIGHT, "consensus_height", "The height of the state machine" },
+    },
+);
+
+define_metrics!(
     HttpServer => {
         MetricCounter { ADDED_TRANSACTIONS_TOTAL, "http_server_added_transactions_total", "Total number of transactions added", 0 },
         MetricCounter { ADDED_TRANSACTIONS_SUCCESS, "http_server_added_transactions_success", "Number of successfully added transactions", 0 },
