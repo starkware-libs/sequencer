@@ -409,7 +409,7 @@ fn test_infinite_recursion(
     resource_bounds: ValidResourceBounds,
 ) {
     // Limit the number of execution steps (so we quickly hit the limit).
-    block_context.versioned_constants.invoke_tx_max_n_steps = 4200;
+    block_context.versioned_constants.invoke_tx_max_n_steps = 4400;
 
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
