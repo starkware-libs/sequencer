@@ -1,6 +1,7 @@
 use blockifier::context::BlockContext;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::program::Program;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::OsExecutionHelper;
@@ -9,12 +10,13 @@ use crate::io::os_input::StarknetOsInput;
 use crate::io::os_output::StarknetOsRunnerOutput;
 
 pub fn run_os<S: StateReader>(
-    _compiled_os: &[u8],
+    compiled_os: &[u8],
     _layout: LayoutName,
     _block_context: BlockContext,
     os_input: StarknetOsInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    let _execution_helper = OsExecutionHelper::<S>::new(os_input);
+    let os_program = Program::from_bytes(compiled_os, Some("main"))?;
+    let _execution_helper = OsExecutionHelper::<S>::new(os_input, os_program);
     todo!()
 }
 
