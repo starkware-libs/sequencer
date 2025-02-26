@@ -49,7 +49,10 @@ use starknet_sequencer_metrics::metric_definitions::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
+    REVERTED_BLOCKS,
     STORAGE_HEIGHT,
+    SYNCED_BLOCKS,
+    SYNCED_TRANSACTIONS,
 };
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
@@ -830,19 +833,28 @@ async fn add_sync_block() {
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
+    let transaction_hashes: Vec<_> = test_tx_hashes().into_iter().collect();
+    let n_synced_transactions = transaction_hashes.len();
+
     let sync_block = SyncBlock {
         block_header_without_hash: BlockHeaderWithoutHash {
             block_number: INITIAL_HEIGHT,
             ..Default::default()
         },
         state_diff: test_state_diff(),
-        transaction_hashes: test_tx_hashes().into_iter().collect(),
+        transaction_hashes,
     };
     batcher.add_sync_block(sync_block).await.unwrap();
     let metrics = recorder.handle().render();
     assert_eq!(
         STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics),
         Some(INITIAL_HEIGHT.unchecked_next().0)
+    );
+    let metrics = recorder.handle().render();
+    assert_eq!(SYNCED_BLOCKS.parse_numeric_metric::<usize>(&metrics), Some(1));
+    assert_eq!(
+        SYNCED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
+        Some(n_synced_transactions)
     );
 }
 
@@ -891,6 +903,7 @@ async fn revert_block() {
 
     let metrics = recorder.handle().render();
     assert_eq!(STORAGE_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
+    assert_eq!(REVERTED_BLOCKS.parse_numeric_metric::<usize>(&metrics), Some(1));
 }
 
 #[tokio::test]
