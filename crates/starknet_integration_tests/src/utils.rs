@@ -16,8 +16,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
@@ -142,7 +140,6 @@ pub fn create_node_config(
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
     component_config: ComponentConfig,
-    base_layer_endpoint_url: Url,
 ) -> (SequencerNodeConfig, RequiredParams) {
     let validator_id =
         set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
@@ -157,14 +154,9 @@ pub fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config = create_class_manager_config(class_manager_storage_config);
     state_sync_config.storage_config = state_sync_storage_config;
-    let base_layer_config = EthereumBaseLayerConfig {
-        node_url: base_layer_endpoint_url.clone(),
-        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-    };
 
     (
         SequencerNodeConfig {
-            base_layer_config,
             batcher_config,
             class_manager_config,
             consensus_manager_config,
@@ -185,7 +177,7 @@ pub fn create_node_config(
             validator_id,
             recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
-                node_url: base_layer_endpoint_url,
+                node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
             },
         },
     )
