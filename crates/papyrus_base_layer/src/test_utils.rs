@@ -14,6 +14,9 @@ use crate::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
+
+// Anvil related constants.
+pub const ANVIL_DEFAULT_PORT: u16 = 8545;
 // Default funded account, there are more fixed funded accounts,
 // see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
 // This address is the sender address of messages sent to L2 by Anvil.
@@ -74,9 +77,16 @@ pub fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddr
     ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
 }
 
+// TODO(Arni): Make port non-optional.
 // Spin up Anvil instance, a local Ethereum node, dies when dropped.
-pub fn anvil() -> AnvilInstance {
-    Anvil::new().try_spawn().unwrap_or_else(|error| match error {
+pub fn anvil(port: Option<u16>) -> AnvilInstance {
+    let mut anvil = Anvil::new();
+    // If the port is not set explicitly, a random value will be used.
+    if let Some(port) = port {
+        anvil = anvil.port(port);
+    }
+
+    anvil.try_spawn().unwrap_or_else(|error| match error {
         AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
             panic!(
                 "\n{}\n{}\n",
