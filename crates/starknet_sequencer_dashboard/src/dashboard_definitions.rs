@@ -7,6 +7,7 @@ use starknet_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
 };
+use starknet_consensus::metrics::CONSENSUS_HEIGHT;
 use starknet_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
@@ -73,6 +74,13 @@ const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(
         CLASS_CACHE_HITS.get_name()
     ),
     PanelType::Graph,
+);
+
+const PANEL_CONSENSUS_HEIGHT: Panel = Panel::new(
+    CONSENSUS_HEIGHT.get_name(),
+    CONSENSUS_HEIGHT.get_description(),
+    CONSENSUS_HEIGHT.get_name(),
+    PanelType::Stat,
 );
 
 const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
@@ -179,6 +187,13 @@ const BATCHER_ROW: Row<'_> = Row::new(
         PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO,
     ],
 );
+
+const CONSENSUS_ROW: Row<'_> = Row::new(
+    "Consensus",
+    "Consensus metrics including height, round, and so on.",
+    &[PANEL_CONSENSUS_HEIGHT],
+);
+
 const HTTP_SERVER_ROW: Row<'_> = Row::new(
     "Http Server",
     "Http Server metrics including added transactions",
@@ -188,5 +203,12 @@ const HTTP_SERVER_ROW: Row<'_> = Row::new(
 pub const SEQUENCER_DASHBOARD: Dashboard<'_> = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
-    &[BATCHER_ROW, HTTP_SERVER_ROW, MEMPOOL_P2P_ROW, CONSENSUS_P2P_ROW, STATE_SYNC_P2P_ROW],
+    &[
+        BATCHER_ROW,
+        CONSENSUS_ROW,
+        HTTP_SERVER_ROW,
+        MEMPOOL_P2P_ROW,
+        CONSENSUS_P2P_ROW,
+        STATE_SYNC_P2P_ROW,
+    ],
 );
