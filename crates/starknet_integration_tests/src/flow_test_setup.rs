@@ -13,6 +13,7 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -221,6 +222,10 @@ impl FlowSequencerSetup {
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
+    }
+
+    pub async fn batcher_height(&self) -> BlockNumber {
+        self._clients.get_batcher_shared_client().unwrap().get_height().await.unwrap().height
     }
 }
 
