@@ -9,6 +9,8 @@ use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 
+use crate::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
@@ -87,4 +89,11 @@ pub fn anvil() -> AnvilInstance {
         }
         _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
     })
+}
+
+pub fn ethereum_base_layer_config_from_anvil(anvil: &AnvilInstance) -> EthereumBaseLayerConfig {
+    EthereumBaseLayerConfig {
+        node_url: anvil.endpoint_url(),
+        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+    }
 }
