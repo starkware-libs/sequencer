@@ -55,7 +55,7 @@ async fn get_proved_block_at_unknown_block_number() {
         return;
     }
 
-    let anvil = anvil();
+    let anvil = anvil(None);
     let config = ethereum_base_layer_config_from_anvil(&anvil);
     let contract = ethereum_base_layer_contract(config.node_url, config.starknet_contract_address);
 
