@@ -149,7 +149,10 @@ define_counter_metrics!(
         { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", 0 },
         { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", 0 },
         { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", 0 },
-        { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 }
+        { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 },
+        { SYNCED_BLOCKS, "batcher_synced_blocks", "Counter of synced blocks", 0 },
+        { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", 0 },
+        { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", 0 }
     },
     MetricScope::HttpServer => {
         { ADDED_TRANSACTIONS_TOTAL, "http_server_added_transactions_total", "Total number of transactions added", 0 },

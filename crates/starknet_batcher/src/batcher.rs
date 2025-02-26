@@ -45,7 +45,10 @@ use starknet_sequencer_infra::component_definitions::{
 use starknet_sequencer_metrics::metric_definitions::{
     BATCHED_TRANSACTIONS,
     REJECTED_TRANSACTIONS,
+    REVERTED_BLOCKS,
     STORAGE_HEIGHT,
+    SYNCED_BLOCKS,
+    SYNCED_TRANSACTIONS,
 };
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::Mutex;
@@ -439,7 +442,7 @@ impl Batcher {
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
             state_diff,
-            transaction_hashes: _,
+            transaction_hashes,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
         } = sync_block;
 
@@ -458,7 +461,10 @@ impl Batcher {
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
         self.commit_proposal_and_block(height, state_diff, address_to_nonce, Default::default())
-            .await
+            .await?;
+        SYNCED_BLOCKS.increment(1);
+        SYNCED_TRANSACTIONS.increment(transaction_hashes.len().try_into().unwrap());
+        Ok(())
     }
 
     #[instrument(skip(self), err)]
@@ -679,6 +685,7 @@ impl Batcher {
 
         self.storage_writer.revert_block(height);
         STORAGE_HEIGHT.decrement(1);
+        REVERTED_BLOCKS.increment(1);
         Ok(())
     }
 }
