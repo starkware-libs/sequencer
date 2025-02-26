@@ -113,11 +113,12 @@ use super::{
     CentralDeployAccountTransaction,
     CentralFeeMarketInfo,
     CentralInvokeTransaction,
+    CentralSierraContractClass,
     CentralStateDiff,
     CentralTransaction,
     CentralTransactionWritten,
 };
-use crate::cende::central_objects::casm_contract_class_central_format;
+use crate::cende::central_objects::CentralCasmContractClass;
 use crate::cende::{AerospikeBlob, BlobParameters};
 
 // TODO(yael, dvir): add default object serialization tests.
@@ -373,6 +374,10 @@ fn sierra_contract_class() -> SierraContractClass {
     }
 }
 
+fn central_sierra_contract_class() -> CentralSierraContractClass {
+    CentralSierraContractClass { contract_class: sierra_contract_class() }
+}
+
 fn casm_contract_entry_points() -> Vec<CasmContractEntryPoint> {
     vec![CasmContractEntryPoint {
         selector: BigUint::from(1_u8),
@@ -405,17 +410,17 @@ fn casm_contract_class() -> CasmContractClass {
     }
 }
 
-fn central_casm_contract_class() -> CasmContractClass {
-    casm_contract_class_central_format(casm_contract_class())
+fn central_casm_contract_class() -> CentralCasmContractClass {
+    CentralCasmContractClass::from(casm_contract_class())
 }
 
-fn central_casm_contract_class_default_optional_fields() -> CasmContractClass {
+fn central_casm_contract_class_default_optional_fields() -> CentralCasmContractClass {
     let casm_contract_class = CasmContractClass {
         bytecode_segment_lengths: None,
         pythonic_hints: None,
         ..casm_contract_class()
     };
-    casm_contract_class_central_format(casm_contract_class)
+    CentralCasmContractClass::from(casm_contract_class)
 }
 
 fn execution_resources() -> ExecutionResources {
@@ -626,7 +631,10 @@ fn central_blob() -> AerospikeBlob {
 #[case::l1_handler_tx(central_l1_handler_tx(), CENTRAL_L1_HANDLER_TX_JSON_PATH)]
 #[case::bouncer_weights(central_bouncer_weights(), CENTRAL_BOUNCER_WEIGHTS_JSON_PATH)]
 #[case::fee_market_info(central_fee_market_info(), CENTRAL_FEE_MARKET_INFO_JSON_PATH)]
-#[case::sierra_contract_class(sierra_contract_class(), CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH)]
+#[case::sierra_contract_class(
+    central_sierra_contract_class(),
+    CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH
+)]
 #[case::optionals_are_some(central_casm_contract_class(), CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH)]
 #[case::optionals_are_none(
     central_casm_contract_class_default_optional_fields(),
