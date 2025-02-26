@@ -11516,6 +11516,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "starknet_batcher",
  "starknet_gateway",
  "starknet_infra_utils",
  "starknet_sequencer_metrics",

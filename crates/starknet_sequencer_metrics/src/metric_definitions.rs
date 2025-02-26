@@ -42,23 +42,6 @@ macro_rules! define_metrics {
 }
 
 define_metrics!(
-    Batcher => {
-        // Gauges
-        MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
-        // Counters
-        MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", 0 },
-        MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", 0 },
-        MetricCounter { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", 0 },
-        MetricCounter { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", 0 },
-        MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", 0 },
-        MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 },
-        MetricCounter { SYNCED_BLOCKS, "batcher_synced_blocks", "Counter of synced blocks", 0 },
-        MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", 0 },
-        MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", 0 }
-    },
-);
-
-define_metrics!(
     HttpServer => {
         MetricCounter { ADDED_TRANSACTIONS_TOTAL, "http_server_added_transactions_total", "Total number of transactions added", 0 },
         MetricCounter { ADDED_TRANSACTIONS_SUCCESS, "http_server_added_transactions_success", "Number of successfully added transactions", 0 },
