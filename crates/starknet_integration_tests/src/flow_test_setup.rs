@@ -32,7 +32,6 @@ use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
-use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
@@ -85,14 +84,11 @@ impl FlowTestSetup {
                 .try_into()
                 .unwrap();
 
-        let l1_endpoint_url = Url::parse("https://node_url").expect("Should be a valid URL");
-
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
             accounts.to_vec(),
             SEQUENCER_0,
             chain_info.clone(),
-            l1_endpoint_url.clone(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 1),
@@ -104,7 +100,6 @@ impl FlowTestSetup {
             accounts.to_vec(),
             SEQUENCER_1,
             chain_info,
-            l1_endpoint_url,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 2),
@@ -150,13 +145,11 @@ pub struct FlowSequencerSetup {
 }
 
 impl FlowSequencerSetup {
-    #[allow(clippy::too_many_arguments)]
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
         node_index: usize,
         chain_info: ChainInfo,
-        l1_endpoint_url: Url,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
@@ -200,7 +193,6 @@ impl FlowSequencerSetup {
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
-            l1_endpoint_url,
         );
 
         debug!("Sequencer config: {:#?}", node_config);
