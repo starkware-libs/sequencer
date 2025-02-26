@@ -13,6 +13,7 @@ workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+starknet_gateway.workspace = true
 starknet_sequencer_metrics.workspace = true
 
 [dev-dependencies]
