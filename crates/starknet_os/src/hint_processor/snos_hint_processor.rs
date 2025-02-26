@@ -25,6 +25,20 @@ pub struct SnosHintProcessor<S: StateReader> {
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
 }
 
+impl<S: StateReader> SnosHintProcessor<S> {
+    pub fn new(
+        execution_helper: OsExecutionHelper<S>,
+        syscall_hint_processor: SyscallHintProcessor,
+        deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
+    ) -> Self {
+        Self {
+            execution_helper,
+            _syscall_hint_processor: syscall_hint_processor,
+            _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
+        }
+    }
+}
+
 impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
     fn execute_hint(
         &mut self,
@@ -91,4 +105,4 @@ impl SyscallHintProcessor {
     }
 }
 
-pub(crate) struct DeprecatedSyscallHintProcessor;
+pub struct DeprecatedSyscallHintProcessor;
