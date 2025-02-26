@@ -1,3 +1,4 @@
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use rstest::rstest;
 
 use crate::blockifier::config::ConcurrencyConfig;
@@ -6,7 +7,6 @@ use crate::test_utils::transfers_generator::{
     TransfersGenerator,
     TransfersGeneratorConfig,
 };
-use crate::test_utils::{CairoVersion, RunnableCairo1};
 
 #[rstest]
 #[case::cairo1(CairoVersion::Cairo1(RunnableCairo1::Casm))]
