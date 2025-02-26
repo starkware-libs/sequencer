@@ -9,6 +9,7 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
 };
+<<<<<<< HEAD
 use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use blockifier::bouncer::{
     builtins_to_sierra_gas,
@@ -16,21 +17,34 @@ use blockifier::bouncer::{
     BouncerWeights,
     BuiltinCounterMap,
 };
+||||||| 46c9b5335
+use blockifier::bouncer::{
+    builtins_to_sierra_gas,
+    BouncerConfig,
+    BouncerWeights,
+    BuiltinCounterMap,
+};
+=======
+use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+>>>>>>> origin/main-v0.13.4
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+<<<<<<< HEAD
 use blockifier::utils::u64_from_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
+||||||| 46c9b5335
+use blockifier::utils::u64_from_usize;
+use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
+use cairo_vm::types::builtin_name::BuiltinName;
+=======
+use blockifier::versioned_constants::VersionedConstantsOverrides;
+>>>>>>> origin/main-v0.13.4
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
-use crate::errors::{
-    InvalidNativeBlockifierInputError,
-    NativeBlockifierError,
-    NativeBlockifierInputError,
-    NativeBlockifierResult,
-};
+use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 
 // From Rust to Python.
 
@@ -67,18 +81,20 @@ pub struct PyVersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_n_events: usize,
 }
 
 #[pymethods]
 impl PyVersionedConstantsOverrides {
     #[new]
-    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps))]
+    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events))]
     pub fn create(
         validate_max_n_steps: u32,
         max_recursion_depth: usize,
         invoke_tx_max_n_steps: u32,
+        max_n_events: usize,
     ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events }
     }
 }
 
@@ -88,8 +104,9 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_n_events,
         } = py_versioned_constants_overrides;
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events }
     }
 }
 
@@ -109,29 +126,10 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
     }
 }
 
-fn hash_map_into_builtin_count(
-    builtins: HashMap<String, usize>,
-) -> Result<BuiltinCounterMap, NativeBlockifierInputError> {
-    let mut builtin_count_map = BuiltinCounterMap::new();
-    for (builtin_name, count) in builtins.iter() {
-        if *count == 0 {
-            return Err(NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-                InvalidNativeBlockifierInputError::InvalidBuiltinCounts(builtin_count_map.clone()),
-            ));
-        }
-        let builtin = BuiltinName::from_str_with_suffix(builtin_name)
-            .ok_or(NativeBlockifierInputError::UnknownBuiltin(builtin_name.clone()))?;
-        builtin_count_map.insert(builtin, *count);
-    }
-
-    Ok(builtin_count_map)
-}
-
 fn hash_map_into_bouncer_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BouncerWeights> {
     let l1_gas = data.remove(constants::L1_GAS_USAGE).expect("gas_weight must be present");
-    let n_steps = data.remove(constants::N_STEPS_RESOURCE).expect("n_steps must be present");
     let message_segment_length = data
         .remove(constants::MESSAGE_SEGMENT_LENGTH)
         .expect("message_segment_length must be present");
@@ -144,31 +142,8 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-    // TODO(AvivG): Implement logic to retrieve only the Sierra gas limit from Python without VM
-    // resources.
-    let builtins_count = hash_map_into_builtin_count(data)?;
-    let versioned_constants = VersionedConstants::latest_constants();
-    let builtins_gas = builtins_to_sierra_gas(&builtins_count, versioned_constants);
-    let steps_gas = GasAmount(u64_from_usize(n_steps));
 
-    let sierra_gas_w_vm = sierra_gas
-        .checked_add(builtins_gas)
-        .and_then(|gas_with_builtins| gas_with_builtins.checked_add(steps_gas))
-        .unwrap_or_else(|| {
-            panic!(
-                "Gas overflow: failed to add built-in gas and steps to Sierra gas.\nBuilt-ins: \
-                 {:?}\nSteps: {}\nInitial Sierra gas: {}",
-                builtins_count, n_steps, sierra_gas
-            )
-        });
-
-    Ok(BouncerWeights {
-        l1_gas,
-        message_segment_length,
-        state_diff_size,
-        n_events,
-        sierra_gas: sierra_gas_w_vm,
-    })
+    Ok(BouncerWeights { l1_gas, message_segment_length, state_diff_size, n_events, sierra_gas })
 }
 
 #[derive(Debug, Default, FromPyObject)]
@@ -193,6 +168,7 @@ pub struct PySierraCompilationConfig {
     pub max_native_bytecode_size: u64,
     pub max_cpu_time: u64,
     pub max_memory_usage: u64,
+    pub optimization_level: u8,
     pub panic_on_compilation_failure: bool,
 }
 
@@ -211,6 +187,7 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
             max_memory_usage: py_sierra_compilation_config.max_memory_usage,
             panic_on_compilation_failure: py_sierra_compilation_config.panic_on_compilation_failure,
+            optimization_level: py_sierra_compilation_config.optimization_level,
             ..Default::default()
         }
     }

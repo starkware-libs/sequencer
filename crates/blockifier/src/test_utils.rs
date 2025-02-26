@@ -46,8 +46,8 @@ use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
-use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::syscalls::hint_processor::{SyscallUsage, SyscallUsageMap};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::transaction::transaction_types::TransactionType;
@@ -297,8 +297,9 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
 
 pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
-    let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
+    let syscalls_usage: SyscallUsageMap =
+        HashMap::from([(syscall_selector, SyscallUsage::new(1, 0))]);
+    versioned_constants.get_additional_os_syscall_resources(&syscalls_usage)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
