@@ -25,6 +25,7 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
+use crate::metrics::{register_metrics, CONSENSUS_HEIGHT};
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -172,6 +173,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
              {validators:?}"
         );
+
+        register_metrics();
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+        CONSENSUS_HEIGHT.set(height.0 as f64);
+
         let mut shc = SingleHeightConsensus::new(
             height,
             is_observer,
