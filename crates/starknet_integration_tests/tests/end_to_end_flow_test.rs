@@ -113,6 +113,16 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
         .await
         .expect("listen to broadcasted messages should finish in time");
     }
+
+    for sequencer in sequencers {
+        let height = sequencer.batcher_height().await;
+        assert_eq!(
+            height,
+            LAST_HEIGHT.unchecked_next(),
+            "Sequencer {} didn't reach last height.",
+            sequencer.node_index
+        );
+    }
 }
 
 fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, ExpectedContentId)> {
