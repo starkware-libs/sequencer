@@ -1,10 +1,12 @@
 use blockifier::state::state_api::StateReader;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
 use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
+use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
@@ -14,6 +16,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::io::os_input::StarknetOsInput;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -88,6 +91,29 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 
         // Cairo1 syscall or core hint.
         todo!()
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+impl SnosHintProcessor<DictStateReader> {
+    pub fn new_for_testing(
+        state_reader: Option<DictStateReader>,
+        os_input: Option<StarknetOsInput>,
+        os_program: Option<Program>,
+    ) -> Self {
+        let state_reader = state_reader.unwrap_or_default();
+        let os_input = os_input.unwrap_or_default();
+        let os_program = os_program.unwrap_or_default();
+        let execution_helper = OsExecutionHelper::<DictStateReader>::new_for_testing(
+            state_reader,
+            os_input,
+            os_program,
+        );
+
+        let syscall_handler = SyscallHintProcessor::new();
+        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
+
+        SnosHintProcessor::new(execution_helper, syscall_handler, deprecated_syscall_handler)
     }
 }
 
