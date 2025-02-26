@@ -2,8 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
-use starknet_integration_tests::sequencer_manager::get_sequencer_setup_configs;
-use starknet_integration_tests::utils::create_integration_test_tx_generator;
+use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::info;
 
@@ -17,13 +16,9 @@ async fn main() {
 
     set_panic_hook();
 
-    // Creates a multi-account transaction generator for integration test
-    let tx_generator = create_integration_test_tx_generator();
-
     info!("Generate config files under {:?}", args.configs_dir);
-    // Run node setup.
-    get_sequencer_setup_configs(
-        &tx_generator,
+
+    IntegrationTestManager::new(
         args.n_consolidated,
         args.n_distributed,
         Some(PathBuf::from(args.db_dir)),
