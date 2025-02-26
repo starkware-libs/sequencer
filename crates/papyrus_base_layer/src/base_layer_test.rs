@@ -1,21 +1,11 @@
-use alloy::primitives::Address as EthereumContractAddress;
 use mempool_test_utils::in_ci;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
-use url::Url;
 
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 use crate::test_utils::{anvil, ethereum_base_layer_config_from_anvil, get_test_ethereum_node};
 use crate::BaseLayerContract;
-
-fn ethereum_base_layer_contract(
-    node_url: Url,
-    starknet_contract_address: EthereumContractAddress,
-) -> EthereumBaseLayerContract {
-    let config = EthereumBaseLayerConfig { node_url, starknet_contract_address };
-    EthereumBaseLayerContract::new(config)
-}
 
 #[tokio::test]
 // Note: the test requires ganache-cli installed, otherwise it is ignored.
@@ -26,7 +16,8 @@ async fn latest_proved_block_ethereum() {
 
     let (node_handle, starknet_contract_address) = get_test_ethereum_node();
     let node_url = node_handle.0.endpoint().parse().unwrap();
-    let contract = ethereum_base_layer_contract(node_url, starknet_contract_address);
+    let config = EthereumBaseLayerConfig { node_url, starknet_contract_address };
+    let contract = EthereumBaseLayerContract::new(config);
 
     let first_sn_state_update =
         BlockHashAndNumber { number: BlockNumber(100), hash: BlockHash(felt!("0x100")) };
@@ -57,7 +48,7 @@ async fn get_proved_block_at_unknown_block_number() {
 
     let anvil = anvil();
     let config = ethereum_base_layer_config_from_anvil(&anvil);
-    let contract = ethereum_base_layer_contract(config.node_url, config.starknet_contract_address);
+    let contract = EthereumBaseLayerContract::new(config);
 
     assert!(
         contract
@@ -78,7 +69,8 @@ async fn get_gas_price_and_timestamps() {
 
     let (node_handle, starknet_contract_address) = get_test_ethereum_node();
     let node_url = node_handle.0.endpoint().parse().unwrap();
-    let contract = ethereum_base_layer_contract(node_url, starknet_contract_address);
+    let config = EthereumBaseLayerConfig { node_url, starknet_contract_address };
+    let contract = EthereumBaseLayerContract::new(config);
 
     let block_number = 30;
     let price_sample = contract.get_price_sample(block_number).await.unwrap().unwrap();
