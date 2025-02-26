@@ -52,7 +52,7 @@ async fn txs_happy_flow() {
         return;
     }
 
-    let anvil = anvil();
+    let anvil = anvil(None);
     // Setup.
     let (mut scraper, fake_client) = scraper(&anvil).await;
 
