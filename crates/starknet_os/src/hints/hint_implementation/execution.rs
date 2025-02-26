@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-use blockifier::state::state_api::StateReader;
-=======
 use blockifier::abi::constants;
 use blockifier::state::state_api::{State, StateReader};
->>>>>>> 5516cf2fc (feat(starknet_os): implement hint write_old_block_to_storage)
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
     get_integer_from_var_name,
@@ -291,66 +287,22 @@ pub(crate) fn gen_class_hash_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S
     todo!()
 }
 
-// pub const WRITE_OLD_BLOCK_TO_STORAGE: &str = indoc! {r#"
-// 	storage = execution_helper.storage_by_address[ids.BLOCK_HASH_CONTRACT_ADDRESS]
-// 	storage.write(key=ids.old_block_number, value=ids.old_block_hash)"#
-// };
-
-// pub async fn write_old_block_to_storage_async<PCS>(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-//     constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     let mut execution_helper: ExecutionHelperWrapper<PCS> =
-// exec_scopes.get(vars::scopes::EXECUTION_HELPER)?;
-
-//     let block_hash_contract_address = get_constant(vars::constants::BLOCK_HASH_CONTRACT_ADDRESS,
-// constants)?;     let old_block_number = get_integer_from_var_name(vars::ids::OLD_BLOCK_NUMBER,
-// vm, ids_data, ap_tracking)?;     let old_block_hash =
-// get_integer_from_var_name(vars::ids::OLD_BLOCK_HASH, vm, ids_data, ap_tracking)?;
-
-//     log::debug!("writing block number: {} -> block hash: {}", old_block_number, old_block_hash);
-//     execution_helper
-//         .write_storage_for_address(*block_hash_contract_address, old_block_number,
-// old_block_hash)         .await
-//         .map_err(|e| {
-//             custom_hint_error(format!("Failed to write storage for contract {}: {e}",
-// block_hash_contract_address))         })?;
-
-//     Ok(())
-// }
-
-// pub fn write_old_block_to_storage<PCS>(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-//     constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     execute_coroutine(write_old_block_to_storage_async::<PCS>(vm, exec_scopes, ids_data,
-// ap_tracking, constants))? }
-
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let execution_helper = &mut hint_processor.execution_helper;
 
-    let block_hash_contract_address = *Const::BlockHashContractAddress.fetch(constants)?;
+    let block_hash_contract_address =
+        get_constant_from_var_name(Const::BlockHashContractAddress.into(), constants)?;
     let old_block_number =
         get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?;
     let old_block_hash =
         get_integer_from_var_name(Ids::OldBlockHash.into(), vm, ids_data, ap_tracking)?;
 
+    log::debug!("writing block number: {} -> block hash: {}", old_block_number, old_block_hash);
+
     execution_helper.cached_state.set_storage_at(
-        ContractAddress(PatriciaKey::try_from(block_hash_contract_address)?),
+        ContractAddress(PatriciaKey::try_from(*block_hash_contract_address)?),
         StorageKey(PatriciaKey::try_from(old_block_number)?),
         old_block_hash,
     )?;
