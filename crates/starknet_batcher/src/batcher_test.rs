@@ -42,18 +42,6 @@ use starknet_mempool_types::communication::{MempoolClientError, MockMempoolClien
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_metrics::metric_definitions::{
-    BATCHED_TRANSACTIONS,
-    PROPOSAL_ABORTED,
-    PROPOSAL_FAILED,
-    PROPOSAL_STARTED,
-    PROPOSAL_SUCCEEDED,
-    REJECTED_TRANSACTIONS,
-    REVERTED_BLOCKS,
-    STORAGE_HEIGHT,
-    SYNCED_BLOCKS,
-    SYNCED_TRANSACTIONS,
-};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
@@ -66,6 +54,18 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::config::BatcherConfig;
+use crate::metrics::{
+    BATCHED_TRANSACTIONS,
+    PROPOSAL_ABORTED,
+    PROPOSAL_FAILED,
+    PROPOSAL_STARTED,
+    PROPOSAL_SUCCEEDED,
+    REJECTED_TRANSACTIONS,
+    REVERTED_BLOCKS,
+    STORAGE_HEIGHT,
+    SYNCED_BLOCKS,
+    SYNCED_TRANSACTIONS,
+};
 use crate::test_utils::{
     test_txs,
     verify_indexed_execution_infos,
