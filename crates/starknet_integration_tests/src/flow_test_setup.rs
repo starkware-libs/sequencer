@@ -13,6 +13,7 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -141,7 +142,7 @@ pub struct FlowSequencerSetup {
     // Retain clients to avoid closing communication channels, which crashes the server and
     // subsequently the test. This occurs for components who are wrapped by servers, but no other
     // component has their client, usually due to these clients being added in a later date.
-    _clients: SequencerNodeClients,
+    clients: SequencerNodeClients,
 }
 
 impl FlowSequencerSetup {
@@ -196,7 +197,7 @@ impl FlowSequencerSetup {
         );
 
         debug!("Sequencer config: {:#?}", node_config);
-        let (_clients, servers) = create_node_modules(&node_config).await;
+        let (clients, servers) = create_node_modules(&node_config).await;
 
         let MonitoringEndpointConfig { ip, port, .. } = node_config.monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
@@ -215,12 +216,16 @@ impl FlowSequencerSetup {
             class_manager_storage_file_handles: class_manager_storage_handles,
             node_config,
             monitoring_client,
-            _clients,
+            clients,
         }
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
+    }
+
+    pub async fn batcher_height(&self) -> BlockNumber {
+        self.clients.get_batcher_shared_client().unwrap().get_height().await.unwrap().height
     }
 }
 
