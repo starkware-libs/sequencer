@@ -1,4 +1,5 @@
 use blockifier::state::state_api::StateReader;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::stdlib::any::Any;
@@ -14,6 +15,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::io::os_input::StarknetOsInput;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -88,6 +90,19 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 
         // Cairo1 syscall or core hint.
         todo!()
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+impl SnosHintProcessor<DictStateReader> {
+    pub fn new_for_testing() -> Self {
+        let execution_helper =
+            OsExecutionHelper::<DictStateReader>::new_for_testing(StarknetOsInput::default());
+
+        let syscall_handler = SyscallHintProcessor::new();
+        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
+
+        SnosHintProcessor::new(execution_helper, syscall_handler, deprecated_syscall_handler)
     }
 }
 
