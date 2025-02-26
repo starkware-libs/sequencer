@@ -61,8 +61,6 @@ mod central_objects_test;
 pub(crate) type CentralBouncerWeights = BouncerWeights;
 pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
 pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
-pub(crate) type CentralSierraContractClass = SierraContractClass;
-pub(crate) type CentralCasmContractClass = CasmContractClass;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
 
@@ -422,18 +420,29 @@ impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>, u64)>
         })
     }
 }
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) struct CentralSierraContractClass {
+    contract_class: SierraContractClass,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) struct CentralCasmContractClass {
+    compiled_class: CasmContractClass,
+}
 
 // Converts the CasmContractClass into a format that serializes into the python object.
 pub(crate) fn casm_contract_class_central_format(
-    compiled_class_hash: CasmContractClass,
+    compiled_class: CasmContractClass,
 ) -> CentralCasmContractClass {
     CentralCasmContractClass {
-        // The rust object allows these fields to be none, while in python they are mandatory.
-        bytecode_segment_lengths: Some(
-            compiled_class_hash.bytecode_segment_lengths.unwrap_or(NestedIntList::Node(vec![])),
-        ),
-        pythonic_hints: Some(compiled_class_hash.pythonic_hints.unwrap_or_default()),
-        ..compiled_class_hash
+        compiled_class: CasmContractClass {
+            // The rust object allows these fields to be none, while in python they are mandatory.
+            bytecode_segment_lengths: Some(
+                compiled_class.bytecode_segment_lengths.unwrap_or(NestedIntList::Node(vec![])),
+            ),
+            pythonic_hints: Some(compiled_class.pythonic_hints.unwrap_or_default()),
+            ..compiled_class
+        },
     }
 }
 async fn get_contract_classes_if_declare(
@@ -466,7 +475,7 @@ async fn get_contract_classes_if_declare(
         .get_sierra(class_hash)
         .await?
         .ok_or(CendeAmbassadorError::ClassNotFound { class_hash })?;
-    let hashed_sierra = (class_hash, sierra);
+    let hashed_sierra = (class_hash, CentralSierraContractClass { contract_class: sierra });
 
     Ok(Some((hashed_sierra, hashed_casm)))
 }
@@ -489,7 +498,7 @@ pub(crate) async fn process_transactions(
         {
             central_transactions.push(CentralTransactionWritten::try_from((
                 tx,
-                Some(&contract_class.1),
+                Some(&contract_class.1.contract_class),
                 timestamp,
             ))?);
             contract_classes.push(contract_class);
