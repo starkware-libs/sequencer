@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
@@ -33,6 +34,7 @@ use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
+use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
@@ -85,11 +87,17 @@ impl FlowTestSetup {
                 .try_into()
                 .unwrap();
 
+        let base_layer_config = EthereumBaseLayerConfig {
+            node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+            ..Default::default()
+        };
+
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
             accounts.to_vec(),
             SEQUENCER_0,
             chain_info.clone(),
+            base_layer_config.clone(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 1),
@@ -101,6 +109,7 @@ impl FlowTestSetup {
             accounts.to_vec(),
             SEQUENCER_1,
             chain_info,
+            base_layer_config,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 2),
@@ -146,11 +155,13 @@ pub struct FlowSequencerSetup {
 }
 
 impl FlowSequencerSetup {
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
     pub async fn new(
         accounts: Vec<AccountTransactionGenerator>,
         node_index: usize,
         chain_info: ChainInfo,
+        base_layer_config: EthereumBaseLayerConfig,
         mut consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
@@ -194,6 +205,7 @@ impl FlowSequencerSetup {
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
+            base_layer_config,
         );
 
         debug!("Sequencer config: {:#?}", node_config);
