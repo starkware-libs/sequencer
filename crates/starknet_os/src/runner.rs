@@ -1,6 +1,8 @@
 use blockifier::context::BlockContext;
 use blockifier::state::state_api::StateReader;
+use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::program::Program;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::OsExecutionHelper;
@@ -9,12 +11,20 @@ use crate::io::os_input::StarknetOsInput;
 use crate::io::os_output::StarknetOsRunnerOutput;
 
 pub fn run_os<S: StateReader>(
-    _compiled_os: &[u8],
-    _layout: LayoutName,
+    compiled_os: &[u8],
+    layout: LayoutName,
     _block_context: BlockContext,
     os_input: StarknetOsInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    let _execution_helper = OsExecutionHelper::<S>::new(os_input);
+    // Init CairoRunConfig.
+    let cairo_run_config =
+        CairoRunConfig { layout, relocate_mem: true, trace_enabled: true, ..Default::default() };
+    let _allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or(false);
+
+    // Load the Starknet OS Program.
+    let os_program = Program::from_bytes(compiled_os, Some(cairo_run_config.entrypoint))?;
+
+    let _execution_helper = OsExecutionHelper::<S>::new(os_input, os_program);
     todo!()
 }
 
