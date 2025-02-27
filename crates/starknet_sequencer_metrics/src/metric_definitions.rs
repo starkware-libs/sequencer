@@ -1,4 +1,4 @@
-use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
+use crate::metrics::{MetricCounter, MetricGauge, MetricScope};
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
 /// This generates:
@@ -40,14 +40,6 @@ macro_rules! define_metrics {
         )*
     };
 }
-
-define_metrics!(
-    Mempool => {
-        MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", 0 },
-    },
-);
 
 define_metrics!(
     Network => {
