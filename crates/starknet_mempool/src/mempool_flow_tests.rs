@@ -3,17 +3,18 @@ use std::sync::Arc;
 use rstest::{fixture, rstest};
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::{contract_address, nonce};
-use starknet_mempool::add_tx_input;
-use starknet_mempool::config::MempoolConfig;
-use starknet_mempool::mempool::Mempool;
-use starknet_mempool::test_utils::{
+use starknet_mempool_types::errors::MempoolError;
+
+use crate::add_tx_input;
+use crate::config::MempoolConfig;
+use crate::mempool::Mempool;
+use crate::test_utils::{
     add_tx,
     add_tx_expect_error,
     commit_block,
     get_txs_and_assert_expected,
     FakeClock,
 };
-use starknet_mempool_types::errors::MempoolError;
 
 // Fixtures.
 
