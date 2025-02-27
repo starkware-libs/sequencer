@@ -1,3 +1,4 @@
+pub mod label_utils;
 pub mod metric_definitions;
 pub mod metrics;
 
