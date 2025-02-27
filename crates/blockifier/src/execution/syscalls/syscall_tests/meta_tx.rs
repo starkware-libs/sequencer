@@ -3,9 +3,18 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::Felt252;
 use starknet_api::abi::abi_utils::{selector_from_name, starknet_keccak};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::felt;
-use starknet_api::transaction::fields::Calldata;
-use starknet_api::transaction::{TransactionHash, TransactionVersion, QUERY_VERSION_BASE};
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::transaction::{
+    signed_tx_version,
+    InvokeTransactionV0,
+    TransactionHash,
+    TransactionHasher,
+    TransactionOptions,
+    TransactionVersion,
+    QUERY_VERSION_BASE,
+};
+use starknet_api::{calldata, felt};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use test_case::test_case;
 
@@ -66,6 +75,19 @@ fn test_meta_tx_v0(
     let account_address: ContractAddress = 0xfedcba0000_u128.into();
     let expected_version = felt!(3_u32) + (if only_query { *QUERY_VERSION_BASE } else { 0.into() });
     let expected_meta_tx_version = if only_query { *QUERY_VERSION_BASE } else { 0.into() };
+
+    let expected_meta_tx_hash = InvokeTransactionV0 {
+        max_fee: Fee(0),
+        signature: Default::default(),
+        contract_address,
+        entry_point_selector: selector_from_name("foo"),
+        calldata: calldata!(argument),
+    }
+    .calculate_transaction_hash(
+        &CHAIN_ID_FOR_TESTS.clone(),
+        &signed_tx_version(&TransactionVersion::ZERO, &TransactionOptions { only_query }),
+    )
+    .unwrap();
 
     let calldata = Calldata(
         vec![
@@ -131,8 +153,7 @@ fn test_meta_tx_v0(
     check_value(call_data_item0_key + 1, contract_address.into()); // account_contract_address.
     check_value(call_data_item0_key + 2, expected_meta_tx_version); // tx_version.
     check_value(call_data_item0_key + 3, argument); // argument.
-    // TODO(lior): Once meta tx is implemented, replace with meta tx hash.
-    check_value(call_data_item0_key + 4, tx_hash); // transaction_hash.
+    check_value(call_data_item0_key + 4, expected_meta_tx_hash.0); // transaction_hash.
     check_value(call_data_item0_key + 5, signature0); // signature.
     check_value(call_data_item0_key + 6, 0.into()); // max_fee.
     check_value(call_data_item0_key + 7, 0.into()); // resource_bound_len.
