@@ -13,8 +13,7 @@ use crate::component_definitions::{
     ComponentRequestHandler,
     ComponentStarter,
 };
-use crate::component_server::{ComponentReplacer, ComponentServerStarter};
-use crate::errors::ReplaceComponentError;
+use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
@@ -122,19 +121,6 @@ where
             metrics: Arc::new(metrics),
             _local_server_type: PhantomData,
         }
-    }
-}
-
-impl<Component, Request, Response, LocalServerType> ComponentReplacer<Component>
-    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
-where
-    Component: ComponentRequestHandler<Request, Response>,
-    Request: Send,
-    Response: Send,
-{
-    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
-        self.component = component;
-        Ok(())
     }
 }
 
