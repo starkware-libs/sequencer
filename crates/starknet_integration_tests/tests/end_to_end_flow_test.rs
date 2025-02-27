@@ -122,21 +122,21 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_multiple_account_txs,
             test_multiple_account_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x665101f416fd5c4e91083fa9dcac1dba9a282f5211a1a2ad7695e95cb35d6b",
+                "0x227243111304dd1c1aab10c68f421c2cf3df12ecfb811e0ce77f4ec3d964d75",
             ),
         ),
         (
             create_funding_txs,
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x354a08374de0b194773930010006a0cc42f7f984f509ceb0d564da37ed15bab",
+                "0x2e483ae151c22437c4a2028ded434529194d9328620874aeb84130f07afe0cd",
             ),
         ),
         (
             deploy_account_and_invoke,
             test_two_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0xb28fc13e038eaff29d46d8ead91e9a37e004949c3ea6b78020c5df315ef745",
+                "0x410e1d500febac80f3318e50c1c7fecc51c8434bd6c59e678957f94b5dbe4c7",
             ),
         ),
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
@@ -146,7 +146,7 @@ fn create_test_blocks() -> Vec<(BlockNumber, CreateRpcTxsFn, TestTxHashesFn, Exp
             create_many_invoke_txs,
             test_many_invoke_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x4c490b06c1479e04c535342d4036f797444c23484f3eb53a419e361c88fcdae",
+                "0x21b89dc39c561c4aa3c073f206954c200126ee02a870073618f89c69c684138",
             ),
         ),
     ];
