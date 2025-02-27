@@ -21,7 +21,7 @@ enum Size {
     Large,
 }
 
-generate_permutations!(("color", Color), ("size", Size),);
+generate_permutation_labels!(("color", Color), ("size", Size),);
 
 fn are_slices_equal<T: Hash + Eq + Clone>(a: &[T], b: &[T]) -> bool {
     a.len() == b.len()
@@ -43,4 +43,11 @@ fn generate_permutations() {
     ];
 
     assert!(are_slices_equal(&COLOR_SIZE_PERMUTATIONS, &expected_values), "Mismatch");
+}
+
+// Tests the generated constants are of the correct type by binding them to typed variables.
+#[test]
+fn generate_permutation_labels_types() {
+    let _temp: [[(&str, &str); 2]; 9] = COLOR_SIZE_PERMUTATIONS;
+    let _temp: &[&[(&str, &str)]] = COLOR_SIZE_LABELS;
 }
