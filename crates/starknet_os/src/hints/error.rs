@@ -1,6 +1,9 @@
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
+use cairo_vm::serde::deserialize_program::Identifier;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::vars::{Const, Ids};
@@ -17,6 +20,14 @@ pub enum OsHintError {
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
+    #[error("The identifier {0:?} has no full name.")]
+    IdentifierHasNoFullName(Box<Identifier>),
+    #[error("The identifier {0:?} has no members.")]
+    IdentifierHasNoMembers(Box<Identifier>),
+    #[error(transparent)]
+    MathError(#[from] MathError),
+    #[error(transparent)]
+    MemoryError(#[from] MemoryError),
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
@@ -29,5 +40,5 @@ impl From<OsHintError> for VmHintError {
     }
 }
 
-pub type HintResult = Result<(), OsHintError>;
-pub type HintExtensionResult = Result<HintExtension, OsHintError>;
+pub type OsHintResult = Result<(), OsHintError>;
+pub type OsHintExtensionResult = Result<HintExtension, OsHintError>;

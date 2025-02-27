@@ -1,9 +1,9 @@
 use starknet_api::block::BlockNumber;
+use starknet_batcher::metrics::{BATCHED_TRANSACTIONS, STORAGE_HEIGHT};
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_metrics::metric_definitions::{
-    self,
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
     SYNC_COMPILED_CLASS_MARKER,
@@ -18,7 +18,7 @@ pub async fn get_batcher_latest_block_number(
 ) -> BlockNumber {
     BlockNumber(
         batcher_monitoring_client
-            .get_metric::<u64>(metric_definitions::STORAGE_HEIGHT.get_name())
+            .get_metric::<u64>(STORAGE_HEIGHT.get_name())
             .await
             .expect("Failed to get storage height metric."),
     )
@@ -164,7 +164,7 @@ pub async fn await_txs_accepted(
 
 async fn get_batched_transactions_metric(monitoring_client: &MonitoringClient) -> usize {
     monitoring_client
-        .get_metric::<usize>(metric_definitions::BATCHED_TRANSACTIONS.get_name())
+        .get_metric::<usize>(BATCHED_TRANSACTIONS.get_name())
         .await
         .expect("Failed to get batched txs metric.")
 }

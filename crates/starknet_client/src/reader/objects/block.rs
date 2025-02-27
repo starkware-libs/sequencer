@@ -74,6 +74,12 @@ pub struct BlockPostV0_13_1 {
     pub receipt_commitment: Option<ReceiptCommitment>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_diff_length: Option<usize>,
+    // New field in V0.14.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub l2_gas_consumed: Option<u64>,
+    // New field in V0.14.0
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_l2_gas_price: Option<u64>,
 }
 
 impl BlockPostV0_13_1 {
@@ -264,6 +270,18 @@ impl Block {
     pub fn state_diff_length(&self) -> Option<usize> {
         match self {
             Block::PostV0_13_1(block) => block.state_diff_length,
+        }
+    }
+
+    pub fn l2_gas_consumed(&self) -> Option<u64> {
+        match self {
+            Block::PostV0_13_1(block) => block.l2_gas_consumed,
+        }
+    }
+
+    pub fn next_l2_gas_price(&self) -> Option<u64> {
+        match self {
+            Block::PostV0_13_1(block) => block.next_l2_gas_price,
         }
     }
 

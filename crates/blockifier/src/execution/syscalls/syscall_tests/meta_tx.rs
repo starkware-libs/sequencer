@@ -65,6 +65,7 @@ fn test_meta_tx_v0(
     let tx_hash: Felt252 = 0xabcdef.into();
     let account_address: ContractAddress = 0xfedcba0000_u128.into();
     let expected_version = felt!(3_u32) + (if only_query { *QUERY_VERSION_BASE } else { 0.into() });
+    let expected_meta_tx_version = if only_query { *QUERY_VERSION_BASE } else { 0.into() };
 
     let calldata = Calldata(
         vec![
@@ -126,22 +127,16 @@ fn test_meta_tx_v0(
     check_value(call_data_key, 2.into());
 
     // Inside the meta-tx.
-    // TODO(lior): Once meta tx is implemented, replace with 0.
-    check_value(call_data_item0_key + 0, contract_address.into()); // caller_address.
-    // TODO(lior): Once meta tx is implemented, replace with contract_address.
-    check_value(call_data_item0_key + 1, account_address.into()); // account_contract_address.
-    // TODO(lior): Once meta tx is implemented, replace with 0.
-    check_value(call_data_item0_key + 2, expected_version); // tx_version.
+    check_value(call_data_item0_key + 0, 0.into()); // caller_address.
+    check_value(call_data_item0_key + 1, contract_address.into()); // account_contract_address.
+    check_value(call_data_item0_key + 2, expected_meta_tx_version); // tx_version.
     check_value(call_data_item0_key + 3, argument); // argument.
     // TODO(lior): Once meta tx is implemented, replace with meta tx hash.
     check_value(call_data_item0_key + 4, tx_hash); // transaction_hash.
-    // TODO(lior): Once meta tx is implemented, replace with SIGNATURE.
-    check_value(call_data_item0_key + 5, from_bytes(b"NO_SIGNATURE")); // signature.
+    check_value(call_data_item0_key + 5, signature0); // signature.
     check_value(call_data_item0_key + 6, 0.into()); // max_fee.
-    // TODO(lior): Once meta tx is implemented, replace with 0.
-    check_value(call_data_item0_key + 7, 3.into()); // resource_bound_len.
-    // TODO(lior): Once meta tx is implemented, replace with 0.
-    check_value(call_data_item0_key + 8, nonce); // nonce.
+    check_value(call_data_item0_key + 7, 0.into()); // resource_bound_len.
+    check_value(call_data_item0_key + 8, 0.into()); // nonce.
 
     // Outside the meta-tx.
     check_value(call_data_item1_key + 0, account_address.into()); // caller_address

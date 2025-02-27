@@ -1,20 +1,23 @@
-use crate::dashboard::{Dashboard, Panel, PanelType, Row};
-use crate::metric_definitions::{
-    ADDED_TRANSACTIONS_TOTAL,
+use starknet_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    PROPOSAL_FAILED,
+    PROPOSAL_STARTED,
+    PROPOSAL_SUCCEEDED,
+};
+use starknet_sequencer_metrics::metric_definitions::{
+    ADDED_TRANSACTIONS_TOTAL,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_NUM_SENT_MESSAGES,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
-    PROPOSAL_FAILED,
-    PROPOSAL_STARTED,
-    PROPOSAL_SUCCEEDED,
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
+
+use crate::dashboard::{Dashboard, Panel, PanelType, Row};
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]

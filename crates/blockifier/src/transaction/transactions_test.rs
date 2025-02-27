@@ -478,7 +478,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExecutionResources::default(),
         validate_gas_consumed: 11690, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 111740,
+        execute_gas_consumed: 115510,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
@@ -486,7 +486,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         resources: ExecutionResources::default(),
         validate_gas_consumed: 11690, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 111740,
+        execute_gas_consumed: 115510,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -1197,8 +1197,6 @@ fn test_insufficient_new_resource_bounds_pre_validation(
     };
 
     // Max gas amount too low, new resource bounds.
-    // TODO(Aner): add a test for more than 1 insufficient resource amount, after error message
-    // contains all insufficient resources.
     for (insufficient_resource, resource_bounds) in [
         (L1Gas, default_resource_bounds.l1_gas),
         (L2Gas, default_resource_bounds.l2_gas),
@@ -1264,6 +1262,49 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             )
         );
     }
+
+    // Test several insufficient resources in the same transaction.
+    let mut invalid_resources = default_resource_bounds;
+    invalid_resources.l2_gas.max_amount.0 -= 1;
+    invalid_resources.l1_gas.max_price_per_unit.0 -= 1;
+    invalid_resources.l2_gas.max_price_per_unit.0 -= 1;
+    invalid_resources.l1_data_gas.max_price_per_unit.0 -= 1;
+    let invalid_v3_tx = invoke_tx_with_default_flags(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
+        nonce: nonce!(next_nonce),
+        ..valid_invoke_tx_args.clone()
+    });
+    let execution_error = invalid_v3_tx.execute(&mut state, &block_context).unwrap_err();
+    assert_matches!(
+        execution_error,
+        TransactionExecutionError::TransactionPreValidationError(
+            TransactionPreValidationError::TransactionFeeError(
+                TransactionFeeError::InsufficientResourceBounds{ errors }
+            )
+        ) => {
+            assert_eq!(errors.len(), 4);
+            assert_matches!(
+                errors[0],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == L1Gas
+            );
+            assert_matches!(
+                errors[1],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == L1DataGas
+            );
+            assert_matches!(
+                errors[2],
+                ResourceBoundsError::MaxGasAmountTooLow{resource,..}
+                if resource == L2Gas
+            );
+            assert_matches!(
+                errors[3],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == L2Gas
+            );
+        }
+    );
 }
 
 #[rstest]
@@ -2501,11 +2542,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 18007_u32.into(),
+            l1_gas: 18082_u32.into(),
             l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19701_u32.into()),
+        false => GasVector::from_l1_gas(19776_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {

@@ -140,7 +140,7 @@ fn setup(
 // Setup for test of the `build_proposal` function.
 async fn build_proposal_setup(
     mock_cende_context: MockCendeContext,
-) -> (oneshot::Receiver<BlockHash>, NetworkDependencies) {
+) -> (oneshot::Receiver<BlockHash>, SequencerConsensusContext, NetworkDependencies) {
     let mut batcher = MockBatcherClient::new();
     let proposal_id = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -172,7 +172,7 @@ async fn build_proposal_setup(
     let (mut context, _network) = setup(batcher, mock_cende_context);
     let init = ProposalInit::default();
 
-    (context.build_proposal(init, TIMEOUT).await, _network)
+    (context.build_proposal(init, TIMEOUT).await, context, _network)
 }
 
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
@@ -476,8 +476,29 @@ async fn interrupt_active_proposal() {
 
 #[tokio::test]
 async fn build_proposal() {
-    // TODO(Asmaa): Test proposal content.
-    let (fin_receiver, _network) = build_proposal_setup(success_cende_ammbassador()).await;
+    let before: u64 =
+        chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
+    let (fin_receiver, _, mut network) = build_proposal_setup(success_cende_ammbassador()).await;
+    // Test proposal parts.
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
+    let block_info = receiver.next().await.unwrap();
+    let after: u64 =
+        chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
+    assert!(matches!(
+        block_info,
+        ProposalPart::BlockInfo(ConsensusBlockInfo {timestamp, .. }) if timestamp >= before && timestamp <= after));
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        })
+    );
+    assert!(receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
@@ -488,7 +509,7 @@ async fn build_proposal_cende_failure() {
         .expect_write_prev_height_blob()
         .return_once(|_height| tokio::spawn(ready(false)));
 
-    let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
+    let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
 
     assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
 }
@@ -500,7 +521,7 @@ async fn build_proposal_cende_incomplete() {
         .expect_write_prev_height_blob()
         .return_once(|_height| tokio::spawn(pending()));
 
-    let (fin_receiver, _network) = build_proposal_setup(mock_cende_context).await;
+    let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
 
     assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
 }
@@ -531,4 +552,33 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     }
+}
+
+#[tokio::test]
+async fn propose_then_repropose() {
+    // Build proposal.
+    let (fin_receiver, mut context, mut network) =
+        build_proposal_setup(success_cende_ammbassador()).await;
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    // Receive the proposal parts.
+    let _init = receiver.next().await.unwrap();
+    let block_info = receiver.next().await.unwrap();
+    let txs = receiver.next().await.unwrap();
+    let fin = receiver.next().await.unwrap();
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+
+    // Re-propose.
+    context
+        .repropose(
+            BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            ProposalInit { round: 1, ..Default::default() },
+        )
+        .await;
+    // Re-propose sends the same proposal.
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    let _init = receiver.next().await.unwrap();
+    assert_eq!(receiver.next().await.unwrap(), block_info);
+    assert_eq!(receiver.next().await.unwrap(), txs);
+    assert_eq!(receiver.next().await.unwrap(), fin);
+    assert!(receiver.next().await.is_none());
 }

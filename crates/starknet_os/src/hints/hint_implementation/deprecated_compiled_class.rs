@@ -5,13 +5,13 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use starknet_api::core::ClassHash;
 
-use crate::hints::error::{HintExtensionResult, HintResult};
+use crate::hints::error::{OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     let os_input = &hint_processor.execution_helper.os_input;
     // TODO(Rotem): see if we can avoid cloning here.
     let deprecated_class_hashes: HashSet<ClassHash> =
@@ -35,12 +35,12 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
 
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintResult {
+) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn load_deprecated_class<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
-) -> HintExtensionResult {
+) -> OsHintExtensionResult {
     todo!()
 }

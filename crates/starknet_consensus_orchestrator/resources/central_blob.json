@@ -417,8 +417,8 @@
           "n_steps": 2,
           "n_memory_holes": 3,
           "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
+            "pedersen_builtin": 4,
+            "range_check_builtin": 31
           }
         },
         "tracked_resource": "SierraGas",
@@ -588,8 +588,8 @@
           "n_steps": 2,
           "n_memory_holes": 3,
           "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
+            "range_check_builtin": 31,
+            "pedersen_builtin": 4
           }
         },
         "tracked_resource": "SierraGas",
@@ -794,9 +794,9 @@
         "l2_gas": 1
       },
       "actual_resources": {
-        "pedersen_builtin": 4,
+        "n_steps": 7,
         "range_check_builtin": 31,
-        "n_steps": 7
+        "pedersen_builtin": 4
       },
       "revert_error": null,
       "total_gas": {
@@ -810,65 +810,69 @@
     [
       "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056",
       {
-        "sierra_program": [
-          "0x0",
-          "0x1",
-          "0x2"
-        ],
-        "contract_class_version": "0.1.0",
-        "entry_points_by_type": {
-          "CONSTRUCTOR": [
-            {
-              "function_idx": 1,
-              "selector": "0x2"
-            }
+        "contract_class": {
+          "sierra_program": [
+            "0x0",
+            "0x1",
+            "0x2"
           ],
-          "EXTERNAL": [
-            {
-              "function_idx": 3,
-              "selector": "0x4"
-            }
-          ],
-          "L1_HANDLER": [
-            {
-              "function_idx": 5,
-              "selector": "0x6"
-            }
-          ]
-        },
-        "abi": "dummy abi"
+          "contract_class_version": "0.1.0",
+          "entry_points_by_type": {
+            "CONSTRUCTOR": [
+              {
+                "function_idx": 1,
+                "selector": "0x2"
+              }
+            ],
+            "EXTERNAL": [
+              {
+                "function_idx": 3,
+                "selector": "0x4"
+              }
+            ],
+            "L1_HANDLER": [
+              {
+                "function_idx": 5,
+                "selector": "0x6"
+              }
+            ]
+          },
+          "abi": "dummy abi"
+        }
       }
     ],
     [
       "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056",
       {
-        "sierra_program": [
-          "0x0",
-          "0x1",
-          "0x2"
-        ],
-        "contract_class_version": "0.1.0",
-        "entry_points_by_type": {
-          "CONSTRUCTOR": [
-            {
-              "function_idx": 1,
-              "selector": "0x2"
-            }
+        "contract_class": {
+          "sierra_program": [
+            "0x0",
+            "0x1",
+            "0x2"
           ],
-          "EXTERNAL": [
-            {
-              "function_idx": 3,
-              "selector": "0x4"
-            }
-          ],
-          "L1_HANDLER": [
-            {
-              "function_idx": 5,
-              "selector": "0x6"
-            }
-          ]
-        },
-        "abi": "dummy abi"
+          "contract_class_version": "0.1.0",
+          "entry_points_by_type": {
+            "CONSTRUCTOR": [
+              {
+                "function_idx": 1,
+                "selector": "0x2"
+              }
+            ],
+            "EXTERNAL": [
+              {
+                "function_idx": 3,
+                "selector": "0x4"
+              }
+            ],
+            "L1_HANDLER": [
+              {
+                "function_idx": 5,
+                "selector": "0x6"
+              }
+            ]
+          },
+          "abi": "dummy abi"
+        }
       }
     ]
   ],
@@ -876,132 +880,136 @@
     [
       "0x1",
       {
-        "prime": "0x1",
-        "compiler_version": "dummy version",
-        "bytecode": [
-          "0x1"
-        ],
-        "bytecode_segment_lengths": [
-          1,
-          2
-        ],
-        "hints": [
-          [
-            4,
+        "compiled_class": {
+          "prime": "0x1",
+          "compiler_version": "dummy version",
+          "bytecode": [
+            "0x1"
+          ],
+          "bytecode_segment_lengths": [
+            1,
+            2
+          ],
+          "hints": [
             [
-              {
-                "AllocSegment": {
-                  "dst": {
-                    "register": "AP",
-                    "offset": 1
+              4,
+              [
+                {
+                  "AllocSegment": {
+                    "dst": {
+                      "register": "AP",
+                      "offset": 1
+                    }
                   }
                 }
+              ]
+            ]
+          ],
+          "pythonic_hints": [
+            [
+              5,
+              [
+                "dummy pythonic hint"
+              ]
+            ]
+          ],
+          "entry_points_by_type": {
+            "EXTERNAL": [
+              {
+                "selector": "0x1",
+                "offset": 1,
+                "builtins": [
+                  "dummy builtin"
+                ]
+              }
+            ],
+            "L1_HANDLER": [
+              {
+                "selector": "0x1",
+                "offset": 1,
+                "builtins": [
+                  "dummy builtin"
+                ]
+              }
+            ],
+            "CONSTRUCTOR": [
+              {
+                "selector": "0x1",
+                "offset": 1,
+                "builtins": [
+                  "dummy builtin"
+                ]
               }
             ]
-          ]
-        ],
-        "pythonic_hints": [
-          [
-            5,
-            [
-              "dummy pythonic hint"
-            ]
-          ]
-        ],
-        "entry_points_by_type": {
-          "EXTERNAL": [
-            {
-              "selector": "0x1",
-              "offset": 1,
-              "builtins": [
-                "dummy builtin"
-              ]
-            }
-          ],
-          "L1_HANDLER": [
-            {
-              "selector": "0x1",
-              "offset": 1,
-              "builtins": [
-                "dummy builtin"
-              ]
-            }
-          ],
-          "CONSTRUCTOR": [
-            {
-              "selector": "0x1",
-              "offset": 1,
-              "builtins": [
-                "dummy builtin"
-              ]
-            }
-          ]
+          }
         }
       }
     ],
     [
       "0x1",
       {
-        "prime": "0x1",
-        "compiler_version": "dummy version",
-        "bytecode": [
-          "0x1"
-        ],
-        "bytecode_segment_lengths": [
-          1,
-          2
-        ],
-        "hints": [
-          [
-            4,
+        "compiled_class": {
+          "prime": "0x1",
+          "compiler_version": "dummy version",
+          "bytecode": [
+            "0x1"
+          ],
+          "bytecode_segment_lengths": [
+            1,
+            2
+          ],
+          "hints": [
             [
-              {
-                "AllocSegment": {
-                  "dst": {
-                    "register": "AP",
-                    "offset": 1
+              4,
+              [
+                {
+                  "AllocSegment": {
+                    "dst": {
+                      "register": "AP",
+                      "offset": 1
+                    }
                   }
                 }
+              ]
+            ]
+          ],
+          "pythonic_hints": [
+            [
+              5,
+              [
+                "dummy pythonic hint"
+              ]
+            ]
+          ],
+          "entry_points_by_type": {
+            "EXTERNAL": [
+              {
+                "selector": "0x1",
+                "offset": 1,
+                "builtins": [
+                  "dummy builtin"
+                ]
+              }
+            ],
+            "L1_HANDLER": [
+              {
+                "selector": "0x1",
+                "offset": 1,
+                "builtins": [
+                  "dummy builtin"
+                ]
+              }
+            ],
+            "CONSTRUCTOR": [
+              {
+                "selector": "0x1",
+                "offset": 1,
+                "builtins": [
+                  "dummy builtin"
+                ]
               }
             ]
-          ]
-        ],
-        "pythonic_hints": [
-          [
-            5,
-            [
-              "dummy pythonic hint"
-            ]
-          ]
-        ],
-        "entry_points_by_type": {
-          "EXTERNAL": [
-            {
-              "selector": "0x1",
-              "offset": 1,
-              "builtins": [
-                "dummy builtin"
-              ]
-            }
-          ],
-          "L1_HANDLER": [
-            {
-              "selector": "0x1",
-              "offset": 1,
-              "builtins": [
-                "dummy builtin"
-              ]
-            }
-          ],
-          "CONSTRUCTOR": [
-            {
-              "selector": "0x1",
-              "offset": 1,
-              "builtins": [
-                "dummy builtin"
-              ]
-            }
-          ]
+          }
         }
       }
     ]
