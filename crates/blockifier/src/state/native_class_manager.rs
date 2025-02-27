@@ -117,6 +117,13 @@ impl NativeClassManager {
         match compiled_class {
             CachedClass::V0(_) => self.cache.set(class_hash, compiled_class),
             CachedClass::V1(compiled_class_v1, sierra_contract_class) => {
+                if !self.compile_with_native(class_hash) {
+                    // Cache the V1 class.
+                    self.cache
+                        .set(class_hash, CachedClass::V1(compiled_class_v1, sierra_contract_class));
+                    return;
+                }
+
                 // TODO(Yoni): instead of these two flag, use an enum.
                 if self.wait_on_native_compilation() {
                     assert!(self.run_cairo_native(), "Native compilation is disabled.");
@@ -184,6 +191,16 @@ impl NativeClassManager {
 
     fn wait_on_native_compilation(&self) -> bool {
         self.cairo_native_run_config.wait_on_native_compilation
+    }
+
+    /// Determines if a contract should be compiled natively based on the allowlist.
+    /// `None` enables all, an empty list disables all, and listed contracts are compiled natively.
+    /// TODO(AvivG): implement for list, currently only one contract is supported.
+    fn compile_with_native(&self, class_hash: ClassHash) -> bool {
+        self.cairo_native_run_config
+            .contract_to_compile_with_native
+            .as_ref()
+            .map_or(true, |contracts| contracts == &class_hash)
     }
 
     /// Clears the contract cache.
