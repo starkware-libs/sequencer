@@ -196,30 +196,61 @@ pub fn create_nodes_deployment_units_configs(
         let state_sync_socket = available_ports.get_next_local_host_socket();
         let l1_provider_socket = available_ports.get_next_local_host_socket();
 
+        let class_manager_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            class_manager_socket.ip(),
+            class_manager_socket.port(),
+        );
+        let gateway_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            gateway_socket.ip(),
+            gateway_socket.port(),
+        );
+        let mempool_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            mempool_socket.ip(),
+            mempool_socket.port(),
+        );
+        let sierra_compiler_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            sierra_compiler_socket.ip(),
+            sierra_compiler_socket.port(),
+        );
+        let state_sync_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            state_sync_socket.ip(),
+            state_sync_socket.port(),
+        );
+        let l1_provider_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            l1_provider_socket.ip(),
+            l1_provider_socket.port(),
+        );
+
         NodeComponentConfigs::new(
             vec![
                 get_batcher_config(
                     batcher_socket,
-                    class_manager_socket,
-                    l1_provider_socket,
-                    mempool_socket,
+                    class_manager_remote_config.clone(),
+                    l1_provider_remote_config,
+                    mempool_remote_config.clone(),
                 ),
-                get_class_manager_config(class_manager_socket, sierra_compiler_socket),
+                get_class_manager_config(class_manager_socket, sierra_compiler_remote_config),
                 get_gateway_config(
                     gateway_socket,
-                    class_manager_socket,
-                    mempool_socket,
-                    state_sync_socket,
+                    class_manager_remote_config.clone(),
+                    mempool_remote_config,
+                    state_sync_remote_config.clone(),
                 ),
                 get_mempool_config(mempool_socket, mempool_p2p_socket),
                 get_sierra_compiler_config(sierra_compiler_socket),
-                get_state_sync_config(state_sync_socket, class_manager_socket),
+                get_state_sync_config(state_sync_socket, class_manager_remote_config.clone()),
                 get_consensus_manager_config(
                     batcher_socket,
-                    class_manager_socket,
-                    state_sync_socket,
+                    class_manager_remote_config,
+                    state_sync_remote_config,
                 ),
-                get_http_server_config(gateway_socket),
+                get_http_server_config(gateway_remote_config),
                 get_l1_provider_config(l1_provider_socket),
             ],
             0,
@@ -232,9 +263,9 @@ pub fn create_nodes_deployment_units_configs(
 
 fn get_batcher_config(
     batcher_socket: SocketAddr,
-    class_manager_socket: SocketAddr,
-    l1_provider_socket: SocketAddr,
-    mempool_socket: SocketAddr,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
+    l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    mempool_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.batcher = ReactiveComponentExecutionConfig::local_with_remote_enabled(
@@ -242,28 +273,16 @@ fn get_batcher_config(
         batcher_socket.ip(),
         batcher_socket.port(),
     );
-    config.class_manager = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        class_manager_socket.ip(),
-        class_manager_socket.port(),
-    );
-    config.l1_provider = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        l1_provider_socket.ip(),
-        l1_provider_socket.port(),
-    );
-    config.mempool = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        mempool_socket.ip(),
-        mempool_socket.port(),
-    );
+    config.class_manager = class_manager_remote_config;
+    config.l1_provider = l1_provider_remote_config;
+    config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
 fn get_class_manager_config(
     class_manager_socket: SocketAddr,
-    sierra_compiler_socket: SocketAddr,
+    sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.class_manager = ReactiveComponentExecutionConfig::local_with_remote_enabled(
@@ -271,20 +290,16 @@ fn get_class_manager_config(
         class_manager_socket.ip(),
         class_manager_socket.port(),
     );
-    config.sierra_compiler = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        sierra_compiler_socket.ip(),
-        sierra_compiler_socket.port(),
-    );
+    config.sierra_compiler = sierra_compiler_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
 fn get_gateway_config(
     gateway_socket: SocketAddr,
-    class_manager_socket: SocketAddr,
-    mempool_socket: SocketAddr,
-    state_sync_socket: SocketAddr,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
+    mempool_remote_config: ReactiveComponentExecutionConfig,
+    state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(
@@ -292,21 +307,9 @@ fn get_gateway_config(
         gateway_socket.ip(),
         gateway_socket.port(),
     );
-    config.class_manager = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        class_manager_socket.ip(),
-        class_manager_socket.port(),
-    );
-    config.mempool = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        mempool_socket.ip(),
-        mempool_socket.port(),
-    );
-    config.state_sync = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        state_sync_socket.ip(),
-        state_sync_socket.port(),
-    );
+    config.class_manager = class_manager_remote_config;
+    config.mempool = mempool_remote_config;
+    config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
@@ -343,7 +346,7 @@ fn get_sierra_compiler_config(sierra_compiler_socket: SocketAddr) -> ComponentCo
 
 fn get_state_sync_config(
     state_sync_socket: SocketAddr,
-    class_manager_socket: SocketAddr,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.state_sync = ReactiveComponentExecutionConfig::local_with_remote_enabled(
@@ -351,19 +354,15 @@ fn get_state_sync_config(
         state_sync_socket.ip(),
         state_sync_socket.port(),
     );
-    config.class_manager = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        class_manager_socket.ip(),
-        class_manager_socket.port(),
-    );
+    config.class_manager = class_manager_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
 fn get_consensus_manager_config(
     batcher_socket: SocketAddr,
-    class_manager_socket: SocketAddr,
-    state_sync_socket: SocketAddr,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
+    state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::default();
@@ -372,28 +371,18 @@ fn get_consensus_manager_config(
         batcher_socket.ip(),
         batcher_socket.port(),
     );
-    config.class_manager = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        class_manager_socket.ip(),
-        class_manager_socket.port(),
-    );
-    config.state_sync = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        state_sync_socket.ip(),
-        state_sync_socket.port(),
-    );
+    config.class_manager = class_manager_remote_config;
+    config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
 
-fn get_http_server_config(gateway_socket: SocketAddr) -> ComponentConfig {
+fn get_http_server_config(
+    gateway_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::default();
-    config.gateway = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        gateway_socket.ip(),
-        gateway_socket.port(),
-    );
+    config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
