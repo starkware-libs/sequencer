@@ -12,8 +12,8 @@ define_metrics!(
     },
 );
 
-pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
-pub const LABEL_NAME_SOURCE: &str = "source";
+pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
+pub(crate) const LABEL_NAME_SOURCE: &str = "source";
 
 #[derive(Clone, Copy, Debug, strum_macros::IntoStaticStr, strum_macros::EnumIter)]
 #[strum(serialize_all = "snake_case")]
