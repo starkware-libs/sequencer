@@ -70,7 +70,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // Transactions per second sent to the gateway. This rate makes each block contain ~10 transactions
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 2;
-const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
