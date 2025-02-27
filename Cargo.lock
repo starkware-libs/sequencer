@@ -11523,6 +11523,7 @@ dependencies = [
  "starknet_api",
  "starknet_batcher",
  "starknet_gateway",
+ "starknet_http_server",
  "starknet_infra_utils",
  "starknet_sequencer_metrics",
 ]

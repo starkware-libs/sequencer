@@ -4,8 +4,8 @@ use starknet_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
 };
+use starknet_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use starknet_sequencer_metrics::metric_definitions::{
-    ADDED_TRANSACTIONS_TOTAL,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_NUM_SENT_MESSAGES,

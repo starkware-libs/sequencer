@@ -42,14 +42,6 @@ macro_rules! define_metrics {
 }
 
 define_metrics!(
-    HttpServer => {
-        MetricCounter { ADDED_TRANSACTIONS_TOTAL, "http_server_added_transactions_total", "Total number of transactions added", 0 },
-        MetricCounter { ADDED_TRANSACTIONS_SUCCESS, "http_server_added_transactions_success", "Number of successfully added transactions", 0 },
-        MetricCounter { ADDED_TRANSACTIONS_FAILURE, "http_server_added_transactions_failure", "Number of faulty added transactions", 0 },
-    },
-);
-
-define_metrics!(
     Infra => {
         // Local server counters
         MetricCounter { BATCHER_LOCAL_MSGS_RECEIVED, "batcher_local_msgs_received", "Counter of messages received by batcher local server", 0 },

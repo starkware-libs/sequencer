@@ -1,13 +1,18 @@
-use starknet_sequencer_metrics::metric_definitions::{
-    ADDED_TRANSACTIONS_FAILURE,
-    ADDED_TRANSACTIONS_SUCCESS,
-    ADDED_TRANSACTIONS_TOTAL,
-};
+use starknet_sequencer_metrics::define_metrics;
+use starknet_sequencer_metrics::metrics::{MetricCounter, MetricScope};
 use tracing::info;
 
 #[cfg(test)]
 #[path = "metrics_test.rs"]
 pub mod metrics_test;
+
+define_metrics!(
+    HttpServer => {
+        MetricCounter { ADDED_TRANSACTIONS_TOTAL, "http_server_added_transactions_total", "Total number of transactions added", 0 },
+        MetricCounter { ADDED_TRANSACTIONS_SUCCESS, "http_server_added_transactions_success", "Number of successfully added transactions", 0 },
+        MetricCounter { ADDED_TRANSACTIONS_FAILURE, "http_server_added_transactions_failure", "Number of faulty added transactions", 0 },
+    },
+);
 
 pub(crate) fn init_metrics() {
     info!("Initializing HTTP Server metrics");
