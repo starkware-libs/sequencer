@@ -9,6 +9,7 @@ use indexmap::IndexMap;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
@@ -73,6 +74,17 @@ pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction
     tx_hash_range
         .map(|i| {
             InternalConsensusTransaction::RpcTransaction(internal_invoke_tx(InvokeTxArgs {
+                tx_hash: tx_hash!(i),
+                ..Default::default()
+            }))
+        })
+        .collect()
+}
+
+pub fn test_l1_handler_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction> {
+    tx_hash_range
+        .map(|i| {
+            InternalConsensusTransaction::L1Handler(executable_l1_handler_tx(L1HandlerTxArgs {
                 tx_hash: tx_hash!(i),
                 ..Default::default()
             }))
