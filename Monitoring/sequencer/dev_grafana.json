@@ -28,6 +28,13 @@
         "type": "stat",
         "expr": "batcher_batched_transactions",
         "extra_params": {}
+      },
+      {
+        "title": "cairo_native_cache_miss_ratio",
+        "description": "The ratio of cache misses in the Cairo native cache",
+        "type": "graph",
+        "expr": "100 * (cairo_native_cache_misses / (cairo_native_cache_misses + cairo_native_cache_hits))",
+        "extra_params": {}
       }
     ],
     "Http Server": [
