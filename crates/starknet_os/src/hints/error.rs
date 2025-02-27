@@ -36,6 +36,8 @@ pub enum OsHintError {
     MathError(#[from] MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
+    #[error("Convert {n_bits} bits for {type_name}.")]
+    StatelessCompressionOverflow { n_bits: usize, type_name: String },
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
