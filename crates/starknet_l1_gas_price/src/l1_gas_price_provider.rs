@@ -31,15 +31,42 @@ impl Default for L1GasPriceProviderConfig {
 }
 
 #[derive(Clone, Debug)]
+struct RingBuffer<T>(VecDeque<T>);
+impl<T: Clone> RingBuffer<T> {
+    fn new(size: usize) -> Self {
+        Self(VecDeque::with_capacity(size))
+    }
+
+    fn push(&mut self, item: T) {
+        if self.0.len() == self.0.capacity() {
+            self.0.pop_front();
+        }
+        self.0.push_back(item);
+    }
+}
+impl<T: Clone> std::ops::Deref for RingBuffer<T> {
+    type Target = VecDeque<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: Clone> std::ops::DerefMut for RingBuffer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct L1GasPriceProvider {
     config: L1GasPriceProviderConfig,
-    price_samples_by_block: VecDeque<(L1BlockNumber, PriceSample)>,
+    price_samples_by_block: RingBuffer<(L1BlockNumber, PriceSample)>,
 }
 
 impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
         let storage_limit = config.storage_limit;
-        Self { config, price_samples_by_block: VecDeque::with_capacity(storage_limit) }
+        Self { config, price_samples_by_block: RingBuffer::new(storage_limit) }
     }
 
     pub fn add_price_info(
@@ -54,10 +81,7 @@ impl L1GasPriceProvider {
                 found: height,
             });
         }
-        self.price_samples_by_block.push_back((height, sample));
-        if self.price_samples_by_block.len() > self.config.storage_limit {
-            self.price_samples_by_block.pop_front();
-        }
+        self.price_samples_by_block.push((height, sample));
         Ok(())
     }
 
