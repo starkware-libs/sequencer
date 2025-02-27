@@ -1,5 +1,6 @@
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::program::Program;
 
 use crate::io::os_input::StarknetOsInput;
@@ -19,5 +20,16 @@ impl<S: StateReader> OsExecutionHelper<S> {
     // TODO(Dori): Create a cached state with all initial read values from the OS input.
     fn initialize_cached_state(_os_input: &StarknetOsInput) -> CachedState<S> {
         todo!()
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl OsExecutionHelper<DictStateReader> {
+    pub fn new_for_testing(
+        state_reader: DictStateReader,
+        os_input: StarknetOsInput,
+        os_program: Program,
+    ) -> Self {
+        Self { cached_state: CachedState::from(state_reader), os_input, os_program }
     }
 }
