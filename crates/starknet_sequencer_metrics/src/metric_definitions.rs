@@ -1,5 +1,3 @@
-use paste::paste;
-
 use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricScope};
 
 /// Macro to define all metric constants for specified scopes and store them in a collection.
@@ -7,6 +5,7 @@ use crate::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricSco
 /// - Individual metric constant according to type: `MetricCounter`or `MetricGauge` or
 ///   `LabeledMetricCounter`.
 /// - A const array `ALL_METRICS` containing all $keys of all the metrics constants.
+#[macro_export]
 macro_rules! define_metrics {
     (
         $(
@@ -29,9 +28,9 @@ macro_rules! define_metrics {
                 );
             )*
         )*
-
+        // TODO(Lev): change macro to output this only for cfg[(test,testing)
         $(
-            paste! {
+            $crate::paste::paste! {
                 pub const [<$scope:snake:upper _ALL_METRICS>]: &[&'static str] = &[
                     $(
                         $key,
@@ -41,23 +40,6 @@ macro_rules! define_metrics {
         )*
     };
 }
-
-define_metrics!(
-    Batcher => {
-        // Gauges
-        MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
-        // Counters
-        MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", 0 },
-        MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", 0 },
-        MetricCounter { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", 0 },
-        MetricCounter { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", 0 },
-        MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", 0 },
-        MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", 0 },
-        MetricCounter { SYNCED_BLOCKS, "batcher_synced_blocks", "Counter of synced blocks", 0 },
-        MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", 0 },
-        MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", 0 }
-    },
-);
 
 define_metrics!(
     HttpServer => {
@@ -158,13 +140,5 @@ define_metrics!(
         // Counters
         // TODO(shahak): add to metric's dashboard
         MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
-    },
-);
-
-define_metrics!(
-    Gateway => {
-        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", 0 },
-        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", 0 },
-        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 },
     },
 );

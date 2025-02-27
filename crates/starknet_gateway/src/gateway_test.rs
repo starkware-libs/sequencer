@@ -35,11 +35,6 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use starknet_sequencer_metrics::metric_definitions::{
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
-};
 use strum::IntoEnumIterator;
 
 use crate::config::{
@@ -54,6 +49,9 @@ use crate::metrics::{
     SourceLabelValue,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
+    TRANSACTIONS_FAILED,
+    TRANSACTIONS_RECEIVED,
+    TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 
