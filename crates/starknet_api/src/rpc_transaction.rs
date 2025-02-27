@@ -95,8 +95,8 @@ impl TransactionHasher for InternalRpcDeployAccountTransaction {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(InternalRpcTransactionLabelValue),
-    derive(IntoStaticStr, EnumIter),
-    strum(serialize_all = "snake_case")
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "PascalCase")
 )]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
