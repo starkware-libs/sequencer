@@ -24,8 +24,8 @@ use strum::IntoEnumIterator;
 use thiserror::Error;
 
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
+use crate::execution::syscalls::hint_processor::SyscallUsageMap;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
@@ -232,9 +232,9 @@ impl VersionedConstants {
 
     pub fn get_additional_os_syscall_resources(
         &self,
-        syscall_counter: &SyscallCounter,
+        syscalls_usage: &SyscallUsageMap,
     ) -> ExecutionResources {
-        self.os_resources.get_additional_os_syscall_resources(syscall_counter)
+        self.os_resources.get_additional_os_syscall_resources(syscalls_usage)
     }
 
     pub fn get_validate_block_number_rounding(&self) -> u64 {
@@ -283,12 +283,17 @@ impl VersionedConstants {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_n_events,
         } = versioned_constants_overrides;
+        let latest_constants = Self::latest_constants().clone();
+        let tx_event_limits =
+            EventLimits { max_n_emitted_events: max_n_events, ..latest_constants.tx_event_limits };
         Self {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
-            ..Self::latest_constants().clone()
+            tx_event_limits,
+            ..latest_constants
         }
     }
 
@@ -559,10 +564,10 @@ impl OsResources {
     /// i.e., the resources of the Starknet OS function `execute_syscalls`.
     fn get_additional_os_syscall_resources(
         &self,
-        syscall_counter: &SyscallCounter,
+        syscalls_usage: &SyscallUsageMap,
     ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
-        for (syscall_selector, count) in syscall_counter {
+        for (syscall_selector, syscall_usage) in syscalls_usage {
             if syscall_selector == &SyscallSelector::Keccak {
                 let keccak_base_resources =
                     self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
@@ -579,7 +584,13 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
+<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
             os_additional_resources += &(&syscall_resources.constant * *count);
+||||||| 46c9b5335:crates/blockifier/src/versioned_constants.rs
+            os_additional_resources += &(syscall_resources * *count);
+=======
+            os_additional_resources += &(syscall_resources * syscall_usage.call_count);
+>>>>>>> origin/main-v0.13.4:crates/blockifier/src/versioned_constants.rs
         }
 
         os_additional_resources
@@ -1218,6 +1229,7 @@ pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_n_events: usize,
 }
 
 impl Default for VersionedConstantsOverrides {
@@ -1227,6 +1239,7 @@ impl Default for VersionedConstantsOverrides {
             validate_max_n_steps: latest_versioned_constants.validate_max_n_steps,
             max_recursion_depth: latest_versioned_constants.max_recursion_depth,
             invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
+            max_n_events: latest_versioned_constants.tx_event_limits.max_n_emitted_events,
         }
     }
 }
@@ -1250,6 +1263,12 @@ impl SerializeConfig for VersionedConstantsOverrides {
                 "invoke_tx_max_n_steps",
                 &self.invoke_tx_max_n_steps,
                 "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_n_events",
+                &self.max_n_events,
+                "Maximum number of events that can be emitted from the transation.",
                 ParamPrivacyInput::Public,
             ),
         ])

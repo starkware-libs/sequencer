@@ -364,7 +364,7 @@ pub fn finalize_execution(
             }
             // Take into account the syscall resources of the current call.
             vm_resources_without_inner_calls += &versioned_constants
-                .get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+                .get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
             vm_resources_without_inner_calls
         }
         TrackedResource::SierraGas => ExecutionResources::default(),

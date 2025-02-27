@@ -253,7 +253,7 @@ pub fn finalize_execution(
     }
     // Take into account the syscall resources of the current call.
     vm_resources_without_inner_calls +=
-        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
 
     let vm_resources = &vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
