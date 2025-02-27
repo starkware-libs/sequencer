@@ -99,8 +99,12 @@ impl TransactionPool {
         self.capacity.remove_n(removed_txs.len());
     }
 
-    pub fn remove_txs_older_than(&mut self, duration: Duration) -> Vec<TransactionReference> {
-        let removed_txs = self.txs_by_submission_time.remove_txs_older_than(duration);
+    pub fn remove_txs_older_than(
+        &mut self,
+        duration: Duration,
+        exclude_txs: &HashMap<ContractAddress, Nonce>,
+    ) -> Vec<TransactionReference> {
+        let removed_txs = self.txs_by_submission_time.remove_txs_older_than(duration, exclude_txs);
 
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_account_mapping(&removed_txs);
@@ -330,19 +334,31 @@ impl TimedTransactionMap {
     }
 
     /// Removes all transactions that were submitted to the pool before the given duration.
-    #[allow(dead_code)]
-    pub fn remove_txs_older_than(&mut self, duration: Duration) -> Vec<TransactionReference> {
+    /// Transactions for accounts listed in exclude_txs with nonces lower than the specified nonce
+    /// are preserved.
+    pub fn remove_txs_older_than(
+        &mut self,
+        duration: Duration,
+        exclude_txs: &HashMap<ContractAddress, Nonce>,
+    ) -> Vec<TransactionReference> {
         let split_off_value = SubmissionID {
             submission_time: self.clock.now() - duration,
             tx_hash: Default::default(),
         };
-        let removed_txs: Vec<_> =
-            self.txs_by_submission_time.split_off(&split_off_value).into_values().collect();
+        let old_txs = self.txs_by_submission_time.split_off(&split_off_value);
 
-        for tx in removed_txs.iter() {
-            self.hash_to_submission_id.remove(&tx.tx_hash).expect(
-                "Transaction should have a submission ID if it is in the timed transaction map.",
-            );
+        let mut removed_txs = Vec::new();
+        for (submission_id, tx) in old_txs.into_iter() {
+            if exclude_txs.get(&tx.address).is_some_and(|nonce| tx.nonce < *nonce) {
+                // The transaction should be preserved. Add it back.
+                self.txs_by_submission_time.insert(submission_id, tx);
+            } else {
+                self.hash_to_submission_id.remove(&tx.tx_hash).expect(
+                    "Transaction should have a submission ID if it is in the timed transaction \
+                     map.",
+                );
+                removed_txs.push(tx);
+            }
         }
 
         removed_txs

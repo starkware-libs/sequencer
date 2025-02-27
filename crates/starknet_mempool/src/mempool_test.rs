@@ -1008,3 +1008,34 @@ fn get_txs_old_transactions_cleanup() {
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
 }
+
+#[rstest]
+fn expired_staged_txs_are_not_deleted() {
+    // Create a mempool with a fake clock.
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        fake_clock.clone(),
+    );
+
+    // Add 2 transactions to the mempool, and stage one.
+    let staged_tx =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 100);
+    let nonstaged_tx =
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &staged_tx);
+    add_tx(&mut mempool, &nonstaged_tx);
+    assert_eq!(mempool.get_txs(1).unwrap(), vec![staged_tx.tx.clone()]);
+
+    // Advance the clock beyond the TTL.
+    fake_clock.advance(mempool.config.transaction_ttl + Duration::from_secs(5));
+
+    // Add another transaction to trigger the cleanup, and verify the staged tx is still in the
+    // mempool. The non-staged tx should be removed.
+    let another_tx =
+        add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &another_tx);
+    let expected_mempool_content =
+        MempoolTestContentBuilder::new().with_pool([staged_tx.tx, another_tx.tx]).build();
+    expected_mempool_content.assert_eq(&mempool.content());
+}
