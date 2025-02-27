@@ -391,7 +391,8 @@ impl Mempool {
     }
 
     fn remove_expired_txs(&mut self) {
-        let removed_txs = self.tx_pool.remove_txs_older_than(self.config.transaction_ttl);
+        let removed_txs =
+            self.tx_pool.remove_txs_older_than(self.config.transaction_ttl, &self.state.staged);
         self.tx_queue.remove_txs(&removed_txs);
     }
 
