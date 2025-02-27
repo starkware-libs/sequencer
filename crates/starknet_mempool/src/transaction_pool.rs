@@ -8,6 +8,7 @@ use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
+use starknet_sequencer_metrics::metric_definitions::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
 
 use crate::mempool::TransactionReference;
 use crate::utils::{try_increment_nonce, Clock};
@@ -335,11 +336,11 @@ impl TimedTransactionMap {
     /// Returns the removed transaction reference if it exists in the mapping.
     fn remove(&mut self, tx_hash: TransactionHash) -> Option<TransactionReference> {
         let submission_id = self.hash_to_submission_id.remove(&tx_hash)?;
+        TRANSACTION_TIME_SPENT_IN_MEMPOOL.set(self.clock.now() - submission_id.submission_time);
         self.txs_by_submission_time.remove(&submission_id)
     }
 
     /// Removes all transactions that were submitted to the pool before the given duration.
-    #[allow(dead_code)]
     pub fn remove_txs_older_than(&mut self, duration: Duration) -> Vec<TransactionReference> {
         let split_off_value = SubmissionID {
             submission_time: self.clock.now() - duration,
@@ -349,9 +350,10 @@ impl TimedTransactionMap {
             self.txs_by_submission_time.split_off(&split_off_value).into_values().collect();
 
         for tx in removed_txs.iter() {
-            self.hash_to_submission_id.remove(&tx.tx_hash).expect(
+            let submission_id = self.hash_to_submission_id.remove(&tx.tx_hash).expect(
                 "Transaction should have a submission ID if it is in the timed transaction map.",
             );
+            TRANSACTION_TIME_SPENT_IN_MEMPOOL.set(self.clock.now() - submission_id.submission_time);
         }
 
         removed_txs

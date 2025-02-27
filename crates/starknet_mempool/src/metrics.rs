@@ -10,6 +10,7 @@ use starknet_sequencer_metrics::metric_definitions::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
 use strum::IntoEnumIterator;
 
@@ -122,4 +123,5 @@ pub(crate) fn register_metrics() {
     MEMPOOL_PRIORITY_QUEUE_SIZE.register();
     MEMPOOL_PENDING_QUEUE_SIZE.register();
     MEMPOOL_GET_TXS_SIZE.register();
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
 }
