@@ -22,6 +22,8 @@ pub enum OsHintError {
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error("Block number is probably < {stored_block_hash_buffer}.")]
+    TooSmallBlockNumber { stored_block_hash_buffer: Felt },
     #[error(transparent)]
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]

@@ -47,8 +47,8 @@ pub enum Ids {
     FullOutput,
     NCompiledClassFacts,
     NextAvailableAlias,
-    OldBlockNumber,
     OldBlockHash,
+    OldBlockNumber,
     PrevOffset,
     Sha256Ptr,
     StateUpdatesStart,
@@ -64,11 +64,11 @@ impl From<Ids> for &'static str {
             Ids::CompressedStart => "compressed_start",
             Ids::DictPtr => "dict_ptr",
             Ids::FullOutput => "full_output",
-            Ids::OsStateUpdate => "os_state_update",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
-            Ids::OldBlockNumber => "old_block_number",
             Ids::OldBlockHash => "old_block_hash",
+            Ids::OldBlockNumber => "old_block_number",
+            Ids::OsStateUpdate => "os_state_update",
             Ids::PrevOffset => "prev_offset",
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateUpdatesStart => "state_updates_start",
@@ -83,6 +83,7 @@ pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
     InitialAvailableAlias,
+    StoredBlockHashBuffer,
 }
 
 impl From<Const> for &'static str {
@@ -91,6 +92,7 @@ impl From<Const> for &'static str {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
+            Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
         }
     }
 }
