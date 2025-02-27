@@ -19,3 +19,5 @@ paste.workspace = true
 regex.workspace = true
 
 [dev-dependencies]
+strum.workspace = true
+strum_macros.workspace = true
