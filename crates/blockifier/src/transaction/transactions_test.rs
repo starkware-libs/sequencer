@@ -1197,8 +1197,6 @@ fn test_insufficient_new_resource_bounds_pre_validation(
     };
 
     // Max gas amount too low, new resource bounds.
-    // TODO(Aner): add a test for more than 1 insufficient resource amount, after error message
-    // contains all insufficient resources.
     for (insufficient_resource, resource_bounds) in [
         (L1Gas, default_resource_bounds.l1_gas),
         (L2Gas, default_resource_bounds.l2_gas),
@@ -1264,6 +1262,49 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             )
         );
     }
+
+    // Test several insufficient resources in the same transaction.
+    let mut invalid_resources = default_resource_bounds;
+    invalid_resources.l2_gas.max_amount.0 -= 1;
+    invalid_resources.l1_gas.max_price_per_unit.0 -= 1;
+    invalid_resources.l2_gas.max_price_per_unit.0 -= 1;
+    invalid_resources.l1_data_gas.max_price_per_unit.0 -= 1;
+    let invalid_v3_tx = invoke_tx_with_default_flags(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
+        nonce: nonce!(next_nonce),
+        ..valid_invoke_tx_args.clone()
+    });
+    let execution_error = invalid_v3_tx.execute(&mut state, &block_context).unwrap_err();
+    assert_matches!(
+        execution_error,
+        TransactionExecutionError::TransactionPreValidationError(
+            TransactionPreValidationError::TransactionFeeError(
+                TransactionFeeError::InsufficientResourceBounds{ errors }
+            )
+        ) => {
+            assert_eq!(errors.len(), 4);
+            assert_matches!(
+                errors[0],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == L1Gas
+            );
+            assert_matches!(
+                errors[1],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == L1DataGas
+            );
+            assert_matches!(
+                errors[2],
+                ResourceBoundsError::MaxGasAmountTooLow{resource,..}
+                if resource == L2Gas
+            );
+            assert_matches!(
+                errors[3],
+                ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                if resource == L2Gas
+            );
+        }
+    );
 }
 
 #[rstest]
