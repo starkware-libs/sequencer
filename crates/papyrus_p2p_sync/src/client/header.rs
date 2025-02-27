@@ -5,10 +5,10 @@ use papyrus_network::network_manager::ClientResponsesManager;
 use papyrus_protobuf::sync::{DataOrFin, SignedBlockHeader};
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
+use papyrus_sync::define_metrics::{SYNC_HEADER_LATENCY_SEC, SYNC_HEADER_MARKER};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::hash::StarkHash;
 use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_sequencer_metrics::metric_definitions::{SYNC_HEADER_LATENCY_SEC, SYNC_HEADER_MARKER};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::debug;
 
