@@ -4,9 +4,11 @@ use blockifier::context::ChainInfo;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::contract_class::VersionedCasm;
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -60,6 +62,7 @@ pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
     pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
+    // TODO(Nimrod): Remove these two field once they move to `CachedStateInput`.
     pub deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,
     _chain_info: ChainInfo,
@@ -76,4 +79,15 @@ pub struct StarknetOsInput {
     pub(crate) old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
     _debug_mode: bool,
     _full_output: bool,
+}
+
+#[derive(Default)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+pub struct CachedStateInput {
+    pub(crate) storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
+    pub(crate) address_to_class_hash: HashMap<ContractAddress, ClassHash>,
+    pub(crate) address_to_nonce: HashMap<ContractAddress, Nonce>,
+    pub(crate) class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub(crate) compiled_classes: HashMap<ClassHash, VersionedCasm>,
 }
