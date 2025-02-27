@@ -24,6 +24,7 @@ papyrus_config.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
+papyrus_sync.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
@@ -41,7 +42,6 @@ starknet_mempool.workspace = true
 starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
-starknet_sequencer_metrics.workspace = true
 starknet_sequencer_node = { workspace = true, features = ["testing"] }
 starknet_state_sync.workspace = true
 strum.workspace = true
