@@ -11,6 +11,8 @@ use crate::hints::vars::{Const, Ids};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsHintError {
+    #[error("Block number is probably < {stored_block_hash_buffer}.")]
+    BlockNumberTooSmall { stored_block_hash_buffer: Felt },
     #[error("{id:?} value {felt} is not a boolean.")]
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
