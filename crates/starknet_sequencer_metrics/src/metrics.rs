@@ -66,6 +66,9 @@ pub struct LabeledMetricCounter {
     name: &'static str,
     description: &'static str,
     initial_value: u64,
+    // TODO(Tsabary): use and remove annotation.
+    #[allow(dead_code)]
+    label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
 
 impl LabeledMetricCounter {
@@ -74,8 +77,9 @@ impl LabeledMetricCounter {
         name: &'static str,
         description: &'static str,
         initial_value: u64,
+        label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, initial_value }
+        Self { scope, name, description, initial_value, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
