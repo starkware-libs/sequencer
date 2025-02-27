@@ -30,6 +30,10 @@ use crate::utils::{try_increment_nonce, Clock};
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
+#[cfg(test)]
+#[path = "mempool_flow_tests.rs"]
+pub mod mempool_flow_tests;
+
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
 
 /// Represents the state tracked by the mempool.
