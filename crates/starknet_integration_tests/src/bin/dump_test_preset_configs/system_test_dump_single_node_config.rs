@@ -34,6 +34,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         Some(PathBuf::from(args.db_dir.clone())),
         Some(temp_dir_path),
+        false,
     )
     .await;
 
