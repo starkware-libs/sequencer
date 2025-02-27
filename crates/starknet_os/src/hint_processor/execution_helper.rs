@@ -1,10 +1,15 @@
-use blockifier::state::cached_state::CachedState;
+use std::collections::HashMap;
+
+use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::program::Program;
+use starknet_api::contract_class::SierraVersion;
 
-use crate::io::os_input::StarknetOsInput;
+use crate::errors::StarknetOsError;
+use crate::io::os_input::{CachedStateInput, StarknetOsInput};
 
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<S: StateReader> {
@@ -14,13 +19,61 @@ pub struct OsExecutionHelper<S: StateReader> {
 }
 
 impl<S: StateReader> OsExecutionHelper<S> {
-    pub fn new(os_input: StarknetOsInput, os_program: Program) -> Self {
-        Self { cached_state: Self::initialize_cached_state(&os_input), os_input, os_program }
+    pub fn new(
+        os_input: StarknetOsInput,
+        os_program: Program,
+        state_reader: S,
+        state_input: CachedStateInput,
+    ) -> Result<Self, StarknetOsError> {
+        Ok(Self {
+            cached_state: Self::initialize_cached_state(state_reader, state_input)?,
+            os_input,
+            os_program,
+        })
     }
 
-    // TODO(Dori): Create a cached state with all initial read values from the OS input.
-    fn initialize_cached_state(_os_input: &StarknetOsInput) -> CachedState<S> {
-        todo!()
+    fn initialize_cached_state(
+        state_reader: S,
+        state_input: CachedStateInput,
+    ) -> Result<CachedState<S>, StarknetOsError> {
+        let mut empty_cached_state = CachedState::new(state_reader);
+        let mut state_maps = StateMaps::default();
+        let mut contract_classes = HashMap::new();
+
+        // Insert contracts.
+        for (class_hash, deprecated_class) in state_input.deprecated_compiled_classes.into_iter() {
+            contract_classes
+                .insert(class_hash, RunnableCompiledClass::V0(deprecated_class.try_into()?));
+        }
+        // TODO(Nimrod): Fetch the actual sierra version somehow.
+        for (class_hash, class) in state_input.compiled_classes.into_iter() {
+            contract_classes.insert(
+                class_hash,
+                RunnableCompiledClass::V1((class, SierraVersion::LATEST).try_into()?),
+            );
+        }
+
+        // Insert storage.
+        for (contract_address, storage) in state_input.storage.into_iter() {
+            for (key, value) in storage.into_iter() {
+                state_maps.storage.insert((contract_address, key), value);
+            }
+        }
+        // Insert nonces.
+        state_maps.nonces = state_input.address_to_nonce;
+
+        // Insert class hashes.
+        state_maps.class_hashes = state_input.address_to_class_hash;
+
+        // Insert compiled class hashes.
+        state_maps.compiled_class_hashes = state_input.class_hash_to_compiled_class_hash;
+
+        // Insert anything to declared contracts???
+
+        // Update the cached state.
+        empty_cached_state.update_cache(&state_maps, contract_classes);
+
+        Ok(empty_cached_state)
     }
 }
 
