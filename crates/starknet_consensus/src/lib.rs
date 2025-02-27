@@ -32,6 +32,8 @@ pub use manager::run_consensus;
 pub mod simulation_network_receiver;
 pub mod stream_handler;
 
+mod metrics;
+
 mod manager;
 #[allow(missing_docs)]
 mod single_height_consensus;
