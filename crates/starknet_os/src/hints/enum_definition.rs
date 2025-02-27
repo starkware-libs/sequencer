@@ -186,7 +186,7 @@ use crate::hints::hint_implementation::stateful_compression::{
     update_alias_counter,
     write_next_alias_from_key,
 };
-use crate::hints::hint_implementation::stateless_compression::{
+use crate::hints::hint_implementation::stateless_compression::implementation::{
     compression_hint,
     dictionary_from_bucket,
     get_prev_offset,
