@@ -18,7 +18,7 @@ use crate::block_builder::{
     BlockBuilderResult,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
-    BlockExecutionMetadata,
+    BlockTransactionExecutionData,
 };
 use crate::transaction_provider::{NextTxs, TransactionProvider};
 
@@ -114,7 +114,7 @@ impl BlockExecutionArtifacts {
         // Use a non-empty commitment_state_diff to get a valuable test verification of the result.
         Self {
             execution_infos: indexed_execution_infos(),
-            metadata: BlockExecutionMetadata {
+            execution_data: BlockTransactionExecutionData {
                 rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
                 accepted_l1_handler_tx_hashes: Default::default(),
             },
