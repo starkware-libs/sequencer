@@ -4,14 +4,14 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricScope};
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
-use strum::{EnumVariantNames, IntoEnumIterator, VariantNames};
+use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
 define_metrics!(
     Mempool => {
         MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", init = 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0 },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0, labels = INTERNALRPCTRANSACTIONLABELVALUE_LABELS },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0, labels = DROPREASON_LABELS },
     },
 );
 
@@ -32,7 +32,7 @@ enum TransactionStatus {
 }
 
 #[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
-#[strum(serialize_all = "PascalCase")]
+#[strum(serialize_all = "snake_case")]
 pub(crate) enum DropReason {
     FailedAddTxChecks,
     Expired,
@@ -94,16 +94,6 @@ pub(crate) fn metric_count_committed_txs(committed_txs: usize) {
 
 pub(crate) fn register_metrics() {
     MEMPOOL_TRANSACTIONS_COMMITTED.register();
-
-    let mut tx_type_label_variations: Vec<Vec<(&'static str, &'static str)>> = Vec::new();
-    for tx_type in InternalRpcTransactionLabelValue::iter() {
-        tx_type_label_variations.push(vec![(LABEL_NAME_TX_TYPE, tx_type.into())]);
-    }
-    MEMPOOL_TRANSACTIONS_RECEIVED.register(&tx_type_label_variations);
-
-    let mut drop_reason_label_variations: Vec<Vec<(&'static str, &'static str)>> = Vec::new();
-    for drop_reason in DropReason::iter() {
-        drop_reason_label_variations.push(vec![(LABEL_NAME_DROP_REASON, drop_reason.into())]);
-    }
-    MEMPOOL_TRANSACTIONS_DROPPED.register(&drop_reason_label_variations);
+    MEMPOOL_TRANSACTIONS_RECEIVED.register();
+    MEMPOOL_TRANSACTIONS_DROPPED.register();
 }
