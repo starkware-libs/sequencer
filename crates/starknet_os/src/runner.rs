@@ -43,7 +43,7 @@ pub fn run_os<S: StateReader>(
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
     // Create execution helper.
-    let execution_helper = OsExecutionHelper::<S>::new(os_input);
+    let execution_helper = OsExecutionHelper::<S>::new(os_input, os_program);
 
     // Create syscall handlers.
     let syscall_handler = SyscallHintProcessor::new();
