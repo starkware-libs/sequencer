@@ -13,7 +13,7 @@ use starknet_mempool_types::mempool_types::{
     CommitBlockArgs,
     MempoolResult,
 };
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, trace};
 
 use crate::config::MempoolConfig;
 use crate::metrics::{
@@ -215,7 +215,9 @@ impl Mempool {
         self.remove_expired_txs();
 
         let AddTransactionArgs { tx, account_state } = args;
-        debug!("Adding transaction to mempool: {tx:#?}.");
+        debug!("Adding transaction to mempool: {:#?}.", tx.tx_hash);
+        trace!("Transaction: {:#?}", tx);
+
         let tx_reference = TransactionReference::new(&tx);
         self.validate_incoming_tx(tx_reference)?;
 
