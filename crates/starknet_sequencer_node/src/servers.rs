@@ -28,8 +28,9 @@ use starknet_sequencer_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
-use starknet_sequencer_infra::metrics::{LocalServerMetrics, RemoteServerMetrics};
-use starknet_sequencer_metrics::metric_definitions::{
+use starknet_sequencer_infra::metrics::{
+    LocalServerMetrics,
+    RemoteServerMetrics,
     BATCHER_LOCAL_MSGS_PROCESSED,
     BATCHER_LOCAL_MSGS_RECEIVED,
     BATCHER_LOCAL_QUEUE_DEPTH,

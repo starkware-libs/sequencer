@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use starknet_batcher::metrics::BATCHER_ALL_METRICS;
 use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
 use starknet_http_server::metrics::HTTP_SERVER_ALL_METRICS;
+use starknet_sequencer_infra::metrics::INFRA_ALL_METRICS;
 use starknet_sequencer_metrics::metric_definitions::{
-    INFRA_ALL_METRICS,
     NETWORK_ALL_METRICS,
     PAPYRUS_SYNC_ALL_METRICS,
 };
