@@ -1,5 +1,6 @@
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
+#[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::program::Program;
 
