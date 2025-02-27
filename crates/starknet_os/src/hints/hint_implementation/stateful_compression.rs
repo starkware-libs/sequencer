@@ -5,12 +5,14 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_manager::DictManager;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids, Scope};
+use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
@@ -25,9 +27,34 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
 }
 
 pub(crate) fn get_alias_entry_for_state_update<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, exec_scopes, hint_processor }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let aliases_contract_address = Const::AliasContractAddress.fetch(constants)?;
+    let nested_fields = vec!["contract_state_changes_end".to_string()];
+
+    let dict_ptr = get_address_of_nested_fields(
+        ids_data,
+        Ids::OsStateUpdate,
+        CairoStruct::OsStateUpdate,
+        vm,
+        ap_tracking,
+        &nested_fields,
+        &hint_processor.execution_helper.os_program,
+    )?;
+
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let alias_entry = dict_manager_borrowed
+        .get_tracker_mut(dict_ptr)?
+        .get_value(&aliases_contract_address.into())?;
+
+    Ok(insert_value_from_var_name(
+        Ids::AliasesEntry.into(),
+        alias_entry,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
