@@ -227,10 +227,10 @@ macro_rules! generate_permutation_labels {
     ($(($name:expr, $enum:ty)),* $(,)?) => {
         $crate::paste::paste! {
             // Generate permutations for the given enums
-            generate_permutations!($(($name, $enum)),*);
+            $crate::generate_permutations!($(($name, $enum)),*);
 
             // Convert the generated permutations into a slice and assign it a new constant with `_LABELS` suffix
-            convert_array!([<$($enum:upper _)* LABELS>], [<$($enum:upper _)* PERMUTATIONS>]);
+            $crate::convert_array!([<$($enum:upper _)* LABELS>], [<$($enum:upper _)* PERMUTATIONS>]);
         }
     };
 }
