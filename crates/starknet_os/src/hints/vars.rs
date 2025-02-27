@@ -82,6 +82,7 @@ impl From<Ids> for &'static str {
 pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
+    BlockHashContractAddress,
     InitialAvailableAlias,
     StoredBlockHashBuffer,
 }
@@ -91,6 +92,7 @@ impl From<Const> for &'static str {
         match constant {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
+            Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
             Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
         }

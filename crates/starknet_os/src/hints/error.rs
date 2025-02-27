@@ -5,6 +5,7 @@ use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use starknet_api::block::BlockNumber;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::vars::{Const, Ids};
@@ -24,6 +25,8 @@ pub enum OsHintError {
     StateError(#[from] StateError),
     #[error("Block number is probably < {stored_block_hash_buffer}.")]
     TooSmallBlockNumber { stored_block_hash_buffer: Felt },
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
