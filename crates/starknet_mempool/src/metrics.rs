@@ -14,9 +14,8 @@ define_metrics!(
     },
 );
 
-pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
-pub const LABEL_NAME_DROP_REASON: &str = "drop_reason";
-
+pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
+pub(crate) const LABEL_NAME_DROP_REASON: &str = "drop_reason";
 enum TransactionStatus {
     AddedToMempool,
     Dropped,
