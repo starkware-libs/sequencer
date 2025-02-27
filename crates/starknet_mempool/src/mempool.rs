@@ -20,7 +20,10 @@ use crate::metrics::{
     metric_count_committed_txs,
     metric_count_expired_txs,
     metric_count_rejected_txs,
+    metric_set_get_txs_size,
+    update_mempool_state_metrics,
     MempoolMetricHandle,
+    MempoolStateMetrics,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -150,6 +153,13 @@ impl Mempool {
         }
     }
 
+    pub fn priority_queue_len(&self) -> usize {
+        self.tx_queue.priority_queue_len()
+    }
+
+    pub fn pending_queue_len(&self) -> usize {
+        self.tx_queue.pending_queue_len()
+    }
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
@@ -183,6 +193,9 @@ impl Mempool {
             "Returned {} out of {n_txs} transactions, ready for sequencing.",
             eligible_tx_references.len()
         );
+
+        metric_set_get_txs_size(eligible_tx_references.len());
+        self.update_state_metrics();
 
         Ok(eligible_tx_references
             .iter()
@@ -231,6 +244,8 @@ impl Mempool {
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
+
+        self.update_state_metrics();
 
         Ok(())
     }
@@ -300,6 +315,8 @@ impl Mempool {
             // TTL.
         }
         debug!("Removed rejected transactions known to mempool.");
+
+        self.update_state_metrics();
     }
 
     pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
@@ -317,6 +334,7 @@ impl Mempool {
     /// Updates the gas price threshold for transactions that are eligible for sequencing.
     pub fn update_gas_price(&mut self, threshold: NonzeroGasPrice) {
         self.tx_queue.update_gas_price_threshold(threshold);
+        self.update_state_metrics();
     }
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
@@ -406,7 +424,9 @@ impl Mempool {
     fn remove_expired_txs(&mut self) {
         let removed_txs = self.tx_pool.remove_txs_older_than(self.config.transaction_ttl);
         self.tx_queue.remove_txs(&removed_txs);
+
         metric_count_expired_txs(removed_txs.len());
+        self.update_state_metrics();
     }
 
     /// Given a chunk of transactions, removes from the pool those that are old, and returns the
@@ -435,6 +455,14 @@ impl Mempool {
         }
 
         valid_txs
+    }
+
+    fn update_state_metrics(&self) {
+        update_mempool_state_metrics(MempoolStateMetrics {
+            pool_size: self.tx_pool.capacity(),
+            priority_queue_size: self.priority_queue_len(),
+            pending_queue_size: self.pending_queue_len(),
+        })
     }
 
     #[cfg(test)]
