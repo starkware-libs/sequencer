@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
+use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -23,6 +24,7 @@ async fn main() {
         args.n_distributed,
         Some(PathBuf::from(args.db_dir)),
         Some(PathBuf::from(args.configs_dir)),
+        TestIdentifier::PositiveFlowIntegrationTest,
     )
     .await;
 
