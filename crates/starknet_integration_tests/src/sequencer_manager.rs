@@ -493,7 +493,8 @@ pub async fn get_sequencer_setup_configs(
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
-            let node_execution_id = NodeExecutionId::new(node_index, executable_index);
+            let node_execution_id =
+                NodeExecutionId::new(node_index, executable_index);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
