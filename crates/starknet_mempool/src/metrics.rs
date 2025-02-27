@@ -9,8 +9,8 @@ use starknet_sequencer_metrics::metric_definitions::{
 };
 use strum::IntoEnumIterator;
 
-pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
-pub const LABEL_NAME_DROP_REASON: &str = "drop_reason";
+pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
+pub(crate) const LABEL_NAME_DROP_REASON: &str = "drop_reason";
 
 enum TransactionStatus {
     AddedToMempool,
