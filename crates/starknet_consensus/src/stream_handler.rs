@@ -182,40 +182,51 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
         (outbound_internal_sender, inbound_internal_receiver, handle)
     }
 
-    /// Listen for messages coming from the network and from the application.
+    /// Run the stream handler indefinitely.
+    pub async fn run(&mut self) {
+        loop {
+            self.handle_next_msg().await
+        }
+    }
+
+    /// Listen for a single message coming from the network or from an application.
     /// - Outbound messages are wrapped as StreamMessage and sent to the network directly.
     /// - Inbound messages are stripped of StreamMessage and buffered until they can be sent in the
     ///   correct order to the application.
-    #[instrument(skip_all)]
-    pub async fn run(&mut self) {
-        loop {
-            tokio::select!(
-                // Go over the channel receiver to see if there is a new channel.
-                Some((stream_id, receiver)) = self.outbound_channel_receiver.next() => {
-                    self.outbound_stream_receivers.insert(stream_id, receiver);
-                }
-                // Go over all existing outbound receivers to see if there are any messages.
-                output = self.outbound_stream_receivers.next() => {
-                    match output {
-                        Some((key, Some(message))) => {
-                            self.broadcast(key, message).await;
-                        }
-                        Some((key, None)) => {
-                            self.broadcast_fin(key).await;
-                        }
-                        None => {
-                            warn!(
-                                "StreamHashMap should not be closed! \
-                                 Usually only the individual channels are closed. "
-                            )
-                        }
-                    }
-                }
-                // Check if there is an inbound message from the network.
-                Some(message) = self.inbound_receiver.next() => {
-                    self.handle_message(message);
-                }
-            );
+    pub async fn handle_next_msg(&mut self) {
+        tokio::select!(
+            // New outbound stream.
+            Some((stream_id, receiver)) = self.outbound_channel_receiver.next() => {
+                self.outbound_stream_receivers.insert(stream_id, receiver);
+            }
+            // New message on an existing outbound stream.
+            output = self.outbound_stream_receivers.next() => {
+                self.handle_outbound_message(output).await
+            }
+            // New inbound message from the network.
+            Some(message) = self.inbound_receiver.next() => {
+                self.handle_inbound_message(message);
+            }
+        );
+    }
+
+    async fn handle_outbound_message(
+        &mut self,
+        message: Option<(StreamId, Option<StreamContent>)>,
+    ) {
+        match message {
+            Some((key, Some(msg))) => {
+                self.broadcast(key, msg).await;
+            }
+            Some((key, None)) => {
+                self.broadcast_fin(key).await;
+            }
+            None => {
+                warn!(
+                    "StreamHashMap should not be closed! Usually only the individual channels are \
+                     closed. "
+                )
+            }
         }
     }
 
@@ -295,7 +306,7 @@ impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
 
     // Handle a message that was received from the network.
     #[instrument(skip_all, level = "warn")]
-    fn handle_message(
+    fn handle_inbound_message(
         &mut self,
         message: (
             Result<StreamMessage<StreamContent, StreamId>, ProtobufConversionError>,
