@@ -1,14 +1,17 @@
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 use std::process::Stdio;
 
 use starknet_infra_utils::command::create_shell_command;
 use starknet_infra_utils::path::resolve_project_relative_path;
-use tokio::io::{AsyncWriteExt, BufReader};
+use tokio::fs::File;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info, instrument};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
+pub const TEMP_LOGS_DIR: &str = "integration_test_temporary_logs";
 
 pub struct NodeRunner {
     node_index: usize,
@@ -17,11 +20,17 @@ pub struct NodeRunner {
 
 impl NodeRunner {
     pub fn new(node_index: usize, executable_index: usize) -> Self {
+        create_dir_all(TEMP_LOGS_DIR).unwrap();
         Self { node_index, executable_index }
     }
 
     pub fn get_description(&self) -> String {
         format!("Node id {} part {}:", self.node_index, self.executable_index)
+    }
+
+    pub fn logs_file_path(&self) -> PathBuf {
+        PathBuf::from(TEMP_LOGS_DIR)
+            .join(format!("node_{}_part_{}.log", self.node_index, self.executable_index))
     }
 }
 
@@ -75,11 +84,33 @@ async fn spawn_node_child_process(
 
     // Spawn a task to connect the node stdout with the annotator stdin.
     tokio::spawn(async move {
-        // Copy data from node stdout to annotator stdin.
-        if let Err(e) =
-            tokio::io::copy(&mut BufReader::new(node_stdout), &mut annotator_stdin).await
-        {
-            error!("Error while copying from node stdout to annotator stdin: {}", e);
+        let mut reader = BufReader::new(node_stdout).lines();
+        info!("Writing node logs to file: {:?}", node_runner.logs_file_path());
+        let mut file =
+            File::create(node_runner.logs_file_path()).await.expect("Failed to create log file.");
+        while let Some(line) = reader.next_line().await.transpose() {
+            match line {
+                Ok(line) => {
+                    // Write to annotator stdin
+                    if let Err(e) = annotator_stdin.write_all(line.as_bytes()).await {
+                        error!("Failed to write to annotator stdin: {}", e);
+                    }
+                    if let Err(e) = annotator_stdin.write_all(b"\n").await {
+                        error!("Failed to write newline to annotator stdin: {}", e);
+                    }
+
+                    // Write to file
+                    if let Err(e) = file.write_all(line.as_bytes()).await {
+                        error!("Failed to write to file: {}", e);
+                    }
+                    if let Err(e) = file.write_all(b"\n").await {
+                        error!("Failed to write newline to file: {}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("Error while reading node stdout: {}", e);
+                }
+            }
         }
 
         // Close the annotator stdin when done.
