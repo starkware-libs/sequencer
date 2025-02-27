@@ -211,7 +211,7 @@ pub async fn create_node_components(
 
             // FIXME: make the integration/flow tests use `new` instead of this constructor,
             // once `Anvil` support is added there.
-            Some(
+            let _result = Some(
                 L1Scraper::new_at_l1_block(
                     L1BlockReference { number: 0, ..Default::default() },
                     l1_scraper_config,
@@ -221,7 +221,8 @@ pub async fn create_node_components(
                 )
                 .await
                 .unwrap(),
-            )
+            );
+            panic!("got here XXXXXXXXXXXXXXXXXXXXXXXX");
         }
         ActiveComponentExecutionMode::Disabled => None,
     };
