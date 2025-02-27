@@ -19,6 +19,7 @@ use starknet_infra_utils::test_utils::{
 };
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_node::config::config_utils::dump_json_data;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::join;
 use tokio::task::JoinHandle;
@@ -43,6 +44,9 @@ use crate::utils::{
 };
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
+
+pub const HTTP_PORT_ARG: &str = "http-port";
+pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 
 pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
@@ -97,6 +101,15 @@ impl NodeSetup {
         } else {
             panic!("Invalid executable index")
         }
+    }
+
+    pub fn generate_simulator_ports_json(&self, path: &str) {
+        let json_data = serde_json::json!({
+            HTTP_PORT_ARG: self.executables[self.http_server_index].config.http_server_config.port,
+            MONITORING_PORT_ARG: self.executables[self.batcher_index].config.monitoring_endpoint_config.port
+        });
+
+        dump_json_data(json_data, &PathBuf::from(path));
     }
 
     pub fn get_batcher_index(&self) -> usize {
@@ -177,6 +190,10 @@ impl IntegrationTestManager {
         let running_nodes = HashMap::new();
 
         Self { node_indices, idle_nodes, running_nodes, tx_generator }
+    }
+
+    pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
+        &self.idle_nodes
     }
 
     pub fn tx_generator(&self) -> &MultiAccountTransactionGenerator {
