@@ -584,13 +584,7 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
-            os_additional_resources += &(&syscall_resources.constant * *count);
-||||||| 46c9b5335:crates/blockifier/src/versioned_constants.rs
-            os_additional_resources += &(syscall_resources * *count);
-=======
-            os_additional_resources += &(syscall_resources * syscall_usage.call_count);
->>>>>>> origin/main-v0.13.4:crates/blockifier/src/versioned_constants.rs
+            os_additional_resources += &(&syscall_resources.constant * syscall_usage.call_count);
         }
 
         os_additional_resources

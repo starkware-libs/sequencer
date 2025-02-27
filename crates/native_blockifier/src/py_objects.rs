@@ -9,36 +9,10 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
 };
-<<<<<<< HEAD
-use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
-use blockifier::bouncer::{
-    builtins_to_sierra_gas,
-    BouncerConfig,
-    BouncerWeights,
-    BuiltinCounterMap,
-};
-||||||| 46c9b5335
-use blockifier::bouncer::{
-    builtins_to_sierra_gas,
-    BouncerConfig,
-    BouncerWeights,
-    BuiltinCounterMap,
-};
-=======
+use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
->>>>>>> origin/main-v0.13.4
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
-<<<<<<< HEAD
-use blockifier::utils::u64_from_usize;
-use cairo_vm::types::builtin_name::BuiltinName;
-||||||| 46c9b5335
-use blockifier::utils::u64_from_usize;
-use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
-use cairo_vm::types::builtin_name::BuiltinName;
-=======
-use blockifier::versioned_constants::VersionedConstantsOverrides;
->>>>>>> origin/main-v0.13.4
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
