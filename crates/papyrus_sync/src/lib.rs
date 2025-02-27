@@ -2,11 +2,11 @@
 // within this crate
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-#[cfg(test)]
-mod sync_test;
-
+pub mod define_metrics;
 mod pending_sync;
 pub mod sources;
+#[cfg(test)]
+mod sync_test;
 
 use std::cmp::min;
 use std::collections::BTreeMap;
@@ -41,7 +41,10 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{StateDiff, ThinStateDiff};
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use starknet_client::reader::PendingData;
-use starknet_sequencer_metrics::metric_definitions::{
+use tokio::sync::RwLock;
+use tracing::{debug, error, info, instrument, trace, warn};
+
+use crate::define_metrics::{
     SYNC_BASE_LAYER_MARKER,
     SYNC_BODY_MARKER,
     SYNC_CENTRAL_BLOCK_MARKER,
@@ -51,9 +54,6 @@ use starknet_sequencer_metrics::metric_definitions::{
     SYNC_PROCESSED_TRANSACTIONS,
     SYNC_STATE_MARKER,
 };
-use tokio::sync::RwLock;
-use tracing::{debug, error, info, instrument, trace, warn};
-
 use crate::pending_sync::sync_pending_data;
 use crate::sources::base_layer::{BaseLayerSourceTrait, EthereumBaseLayerSource};
 use crate::sources::central::{CentralError, CentralSource, CentralSourceTrait};

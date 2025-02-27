@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 indexmap = { workspace = true, features = ["serde"] }
+papyrus_sync.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet_batcher.workspace = true

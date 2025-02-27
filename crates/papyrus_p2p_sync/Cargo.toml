@@ -19,6 +19,7 @@ papyrus_network.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+papyrus_sync.workspace = true
 papyrus_test_utils.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
