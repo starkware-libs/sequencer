@@ -5,7 +5,7 @@
 //! The main benchmark function is `transfers_benchmark`, which measures the performance
 //! of transfers between randomly created accounts, which are iterated over round-robin.
 //!
-//! Run the benchmarks using `cargo bench --bench blockifier_bench`.
+//! Run the benchmarks using `cargo bench --bench blockifier`.
 
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType,
@@ -17,7 +17,7 @@ use starknet_infra_utils::set_global_allocator;
 
 // TODO(Arni): Consider how to run this benchmark both with and without setting the allocator. Maybe
 // hide this macro call under a feature, and run this benchmark regularly or with
-// `cargo bench --bench blockifier_bench --feature=specified_allocator`
+// `cargo bench --bench blockifier --feature=specified_allocator`
 set_global_allocator!();
 
 pub fn transfers_benchmark(c: &mut Criterion) {
