@@ -51,7 +51,7 @@ concurrency:
 
 jobs:
   test-without-features:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -60,7 +60,7 @@ jobs:
       - run: cargo build -p blockifier
 
   test-with-transaction-serde-feature:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -69,7 +69,7 @@ jobs:
       - run: cargo build -p blockifier --features transaction_serde
 
   test-with-cairo-native-feature:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

@@ -40,7 +40,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-latest-large
+    runs-on: starkware-ubuntu-24.04-large
 
     steps:
       - name: Checkout repository
