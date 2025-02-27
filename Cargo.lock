@@ -11523,7 +11523,10 @@ dependencies = [
  "starknet_api",
  "starknet_batcher",
  "starknet_gateway",
+ "starknet_http_server",
  "starknet_infra_utils",
+ "starknet_mempool",
+ "starknet_sequencer_infra",
  "starknet_sequencer_metrics",
 ]
 
@@ -11603,7 +11606,6 @@ dependencies = [
  "starknet_mempool_types",
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
  "starknet_sierra_multicompile",
  "starknet_sierra_multicompile_types",
  "starknet_state_sync",

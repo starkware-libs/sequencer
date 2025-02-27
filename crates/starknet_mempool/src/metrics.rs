@@ -2,12 +2,17 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,
 };
-use starknet_sequencer_metrics::metric_definitions::{
-    MEMPOOL_TRANSACTIONS_COMMITTED,
-    MEMPOOL_TRANSACTIONS_DROPPED,
-    MEMPOOL_TRANSACTIONS_RECEIVED,
-};
+use starknet_sequencer_metrics::define_metrics;
+use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricScope};
 use strum::IntoEnumIterator;
+
+define_metrics!(
+    Mempool => {
+        MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", 0 },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", 0 },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", 0 },
+    },
+);
 
 pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub const LABEL_NAME_DROP_REASON: &str = "drop_reason";

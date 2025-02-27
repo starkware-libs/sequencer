@@ -21,16 +21,19 @@ use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
-use starknet_sequencer_metrics::metric_definitions::{
-    MEMPOOL_TRANSACTIONS_COMMITTED,
-    MEMPOOL_TRANSACTIONS_DROPPED,
-    MEMPOOL_TRANSACTIONS_RECEIVED,
-};
 use strum::IntoEnumIterator;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
-use crate::metrics::{register_metrics, DropReason, LABEL_NAME_DROP_REASON, LABEL_NAME_TX_TYPE};
+use crate::metrics::{
+    register_metrics,
+    DropReason,
+    LABEL_NAME_DROP_REASON,
+    LABEL_NAME_TX_TYPE,
+    MEMPOOL_TRANSACTIONS_COMMITTED,
+    MEMPOOL_TRANSACTIONS_DROPPED,
+    MEMPOOL_TRANSACTIONS_RECEIVED,
+};
 use crate::test_utils::{
     add_tx,
     add_tx_expect_error,
