@@ -233,31 +233,19 @@ fn test_register_metrics() {
     let metrics = recorder.handle().render();
     for tx_type in RpcTransactionLabelValue::iter() {
         for source in SourceLabelValue::iter() {
+            let query: &[(&str, &str); 2] =
+                &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
+
             assert_eq!(
-                TRANSACTIONS_RECEIVED
-                    .parse_numeric_metric::<u64>(
-                        &metrics,
-                        &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
-                    )
-                    .unwrap(),
+                TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics, query).unwrap(),
                 0
             );
             assert_eq!(
-                TRANSACTIONS_FAILED
-                    .parse_numeric_metric::<u64>(
-                        &metrics,
-                        &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
-                    )
-                    .unwrap(),
+                TRANSACTIONS_FAILED.parse_numeric_metric::<u64>(&metrics, query).unwrap(),
                 0
             );
             assert_eq!(
-                TRANSACTIONS_SENT_TO_MEMPOOL
-                    .parse_numeric_metric::<u64>(
-                        &metrics,
-                        &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
-                    )
-                    .unwrap(),
+                TRANSACTIONS_SENT_TO_MEMPOOL.parse_numeric_metric::<u64>(&metrics, query).unwrap(),
                 0
             );
         }
