@@ -35,7 +35,7 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use strum::IntoEnumIterator;
+use strum::VariantNames;
 
 use crate::config::{
     GatewayConfig,
@@ -231,10 +231,10 @@ fn test_register_metrics() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_metrics();
     let metrics = recorder.handle().render();
-    for tx_type in RpcTransactionLabelValue::iter() {
-        for source in SourceLabelValue::iter() {
+    for tx_type in RpcTransactionLabelValue::VARIANTS {
+        for source in SourceLabelValue::VARIANTS {
             let query: &[(&str, &str); 2] =
-                &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into())];
+                &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
 
             assert_eq!(
                 TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics, query).unwrap(),
