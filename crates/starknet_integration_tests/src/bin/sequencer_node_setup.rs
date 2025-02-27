@@ -16,13 +16,13 @@ async fn main() {
 
     set_panic_hook();
 
-    info!("Generate config files under {:?}", args.configs_dir);
+    info!("Generate config and db files under {:?}", args.output_base_dir);
 
     IntegrationTestManager::new(
         args.n_consolidated,
         args.n_distributed,
-        Some(PathBuf::from(args.db_dir)),
-        Some(PathBuf::from(args.configs_dir)),
+        Some(PathBuf::from(args.output_base_dir.clone()).join("data")),
+        Some(PathBuf::from(args.output_base_dir.clone()).join("configs")),
     )
     .await;
 
@@ -39,8 +39,5 @@ struct Args {
     n_distributed: usize,
 
     #[arg(long)]
-    configs_dir: String,
-
-    #[arg(long)]
-    db_dir: String,
+    output_base_dir: String,
 }
