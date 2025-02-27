@@ -64,8 +64,6 @@ pub struct LabeledMetricCounter {
     name: &'static str,
     description: &'static str,
     initial_value: u64,
-    // TODO(Tsabary): use and remove annotation.
-    #[allow(dead_code)]
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
 
@@ -92,9 +90,9 @@ impl LabeledMetricCounter {
         self.description
     }
 
-    pub fn register(&self, label_variations: &[Vec<(&'static str, &'static str)>]) {
-        label_variations.iter().for_each(|labels| {
-            counter!(self.name, labels).absolute(self.initial_value);
+    pub fn register(&self) {
+        self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|labels| {
+            counter!(self.name, &labels).absolute(self.initial_value);
         });
         describe_counter!(self.name, self.description);
     }

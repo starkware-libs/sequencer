@@ -2,8 +2,8 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricScope};
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
-use strum::{EnumVariantNames, IntoEnumIterator, VariantNames};
-use strum_macros::{EnumIter, IntoStaticStr};
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::IntoStaticStr;
 
 pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub(crate) const LABEL_NAME_SOURCE: &str = "source";
@@ -21,7 +21,7 @@ define_metrics!(
     },
 );
 
-#[derive(Clone, Copy, Debug, IntoStaticStr, EnumIter, EnumVariantNames)]
+#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum SourceLabelValue {
     Http,
@@ -82,16 +82,7 @@ impl Drop for GatewayMetricHandle {
 }
 
 pub(crate) fn register_metrics() {
-    let mut label_variations: Vec<Vec<(&'static str, &'static str)>> = Vec::new();
-    for tx_type in RpcTransactionLabelValue::iter() {
-        for source in SourceLabelValue::iter() {
-            label_variations.push(vec![
-                (LABEL_NAME_TX_TYPE, tx_type.into()),
-                (LABEL_NAME_SOURCE, source.into()),
-            ]);
-        }
-    }
-    TRANSACTIONS_RECEIVED.register(&label_variations);
-    TRANSACTIONS_FAILED.register(&label_variations);
-    TRANSACTIONS_SENT_TO_MEMPOOL.register(&label_variations);
+    TRANSACTIONS_RECEIVED.register();
+    TRANSACTIONS_FAILED.register();
+    TRANSACTIONS_SENT_TO_MEMPOOL.register();
 }
