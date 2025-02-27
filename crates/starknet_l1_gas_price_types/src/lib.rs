@@ -13,7 +13,7 @@ pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
 pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
 pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
 
-pub type PriceInfo = (u128, u128);
+pub type PriceInfo = (u128, u128); // (base_fee_per_gas, blob_fee)
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
