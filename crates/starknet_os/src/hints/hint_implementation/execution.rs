@@ -1,7 +1,14 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_constant_from_var_name,
+    get_integer_from_var_name,
+    insert_value_from_var_name,
+};
+use starknet_api::block::BlockNumber;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
+use crate::hints::vars::{Const, Ids};
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -296,9 +303,36 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 }
 
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let os_input = &hint_processor.execution_helper.os_input;
+    let (old_block_number, old_block_hash) =
+        os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
+            stored_block_hash_buffer: *get_constant_from_var_name(
+                Const::StoredBlockHashBuffer.into(),
+                constants,
+            )?,
+        })?;
+
+    let ids_old_block_number = BlockNumber(
+        get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?
+            .try_into()
+            .expect("Block number should fit in u64"),
+    );
+    if old_block_number != ids_old_block_number {
+        return Err(OsHintError::InconsistentBlockNumber {
+            expected: old_block_number,
+            actual: ids_old_block_number,
+        });
+    }
+    insert_value_from_var_name(
+        Ids::OldBlockHash.into(),
+        old_block_hash.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn fetch_result<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
