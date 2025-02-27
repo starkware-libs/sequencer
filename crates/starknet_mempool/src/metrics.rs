@@ -19,7 +19,7 @@ enum TransactionStatus {
 
 #[derive(strum_macros::IntoStaticStr, strum_macros::EnumIter)]
 #[strum(serialize_all = "snake_case")]
-enum DropReason {
+pub enum DropReason {
     FailedAddTxChecks,
     Expired,
     Rejected,
