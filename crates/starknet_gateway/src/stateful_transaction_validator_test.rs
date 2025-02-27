@@ -62,7 +62,8 @@ fn stateful_validator() -> StatefulTransactionValidator {
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     Err(STATEFUL_VALIDATOR_FEE_ERROR)
 )]
-fn test_stateful_tx_validator(
+#[tokio::test]
+async fn test_stateful_tx_validator(
     #[case] executable_tx: AccountTransaction,
     #[case] expected_result: BlockifierStatefulValidatorResult<()>,
     stateful_validator: StatefulTransactionValidator,
@@ -84,14 +85,20 @@ fn test_stateful_tx_validator(
         Ok(false)
     });
     let mempool_client = Arc::new(mock_mempool_client);
+    let runtime = tokio::runtime::Handle::current();
 
-    let result = stateful_validator.run_validate(
-        &executable_tx,
-        account_nonce,
-        mempool_client,
-        mock_validator,
-    );
-    assert_eq!(result, expected_result_as_stateful_transaction_result);
+    tokio::task::spawn_blocking(move || {
+        let result = stateful_validator.run_validate(
+            &executable_tx,
+            account_nonce,
+            mempool_client,
+            mock_validator,
+            runtime
+        );
+        assert_eq!(result, expected_result_as_stateful_transaction_result);
+    })
+    .await
+    .unwrap();
 }
 
 #[rstest]
@@ -161,7 +168,8 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     false,
     false
 )]
-fn test_skip_stateful_validation(
+#[tokio::test]
+async fn test_skip_stateful_validation(
     #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
     #[case] contains_tx: bool,
@@ -176,11 +184,17 @@ fn test_skip_stateful_validation(
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client.expect_contains_tx_from().returning(move |_| Ok(contains_tx));
     let mempool_client = Arc::new(mock_mempool_client);
+    let runtime = tokio::runtime::Handle::current();
 
-    let _ = stateful_validator.run_validate(
-        &executable_tx,
-        sender_nonce,
-        mempool_client,
-        mock_validator,
-    );
+    tokio::task::spawn_blocking(move || {
+        let _ = stateful_validator.run_validate(
+            &executable_tx,
+            sender_nonce,
+            mempool_client,
+            mock_validator,
+            runtime,
+        );
+    })
+    .await
+    .unwrap();
 }

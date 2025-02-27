@@ -8,7 +8,6 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
-use futures::executor::block_on;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockInfo;
@@ -63,9 +62,10 @@ impl StatefulTransactionValidator {
         account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
         mut validator: V,
+        runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate =
-            skip_stateful_validations(executable_tx, account_nonce, mempool_client)?;
+            skip_stateful_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         let only_query = false;
         let charge_fee = enforce_fee(executable_tx, only_query);
         let execution_flags = ExecutionFlags { only_query, charge_fee, validate: !skip_validate };
@@ -112,6 +112,7 @@ fn skip_stateful_validations(
     tx: &ExecutableTransaction,
     account_nonce: Nonce,
     mempool_client: SharedMempoolClient,
+    runtime: tokio::runtime::Handle,
 ) -> StatefulTransactionValidatorResult<bool> {
     if let ExecutableTransaction::Invoke(ExecutableInvokeTransaction { tx, .. }) = tx {
         // check if the transaction nonce is 1, meaning it is post deploy_account, and the
@@ -121,7 +122,7 @@ fn skip_stateful_validations(
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
-            return block_on(mempool_client.contains_tx_from(tx.sender_address()))
+            return runtime.block_on(mempool_client.contains_tx_from(tx.sender_address()))
                 // TODO(Arni): consider using mempool_client_result_to_gw_spec_result for error handling.
                 .map_err(|err| GatewaySpecError::UnexpectedError { data: err.to_string() });
         }
