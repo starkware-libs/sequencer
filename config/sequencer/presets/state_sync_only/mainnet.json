@@ -19,11 +19,11 @@
     "state_sync_config.storage_config.mmap_file_config.max_size": 1099511627776,
     "base_layer_config.node_url": "http://unused",
     "base_layer_config.starknet_contract_address": "0x0000000000000000000000000000000000000000",
-    "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": "<complete-path-with-required-permissions>",
-    "class_manager_config.class_storage_config.persistent_root": "<complete-path-with-required-permissions>",
+    "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": "/data/class_manager/class_hash_storage",
+    "class_manager_config.class_storage_config.persistent_root": "/data/class_manager/classes",
     "eth_fee_token_address": "0x0",
     "recorder_url": "http://unused",
     "strk_fee_token_address": "0x0",
-    "state_sync_config.storage_config.db_config.path_prefix": "<complete-path-with-required-permissions>",
+    "state_sync_config.storage_config.db_config.path_prefix": "/data/state_sync",
     "validator_id": "0x0"
 }
