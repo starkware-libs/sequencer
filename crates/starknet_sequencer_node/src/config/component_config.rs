@@ -11,7 +11,7 @@ use crate::config::component_execution_config::{
 };
 
 /// The components configuration.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
     // Reactive component configs.
     #[validate]
@@ -60,6 +60,29 @@ impl SerializeConfig for ComponentConfig {
         ];
 
         sub_configs.into_iter().flatten().collect()
+    }
+}
+
+impl Default for ComponentConfig {
+    fn default() -> Self {
+        // The L1 scraper is disabled in to avoid running an instance of L1 in the
+        // 'docker-build-push' test.
+        // TODO(Arni): reenable the l1 scraper. Derive [Default] directly.
+        let l1_scraper = ActiveComponentExecutionConfig::disabled();
+        Self {
+            batcher: Default::default(),
+            class_manager: Default::default(),
+            gateway: Default::default(),
+            mempool: Default::default(),
+            mempool_p2p: Default::default(),
+            sierra_compiler: Default::default(),
+            state_sync: Default::default(),
+            l1_provider: Default::default(),
+            consensus_manager: Default::default(),
+            http_server: Default::default(),
+            l1_scraper,
+            monitoring_endpoint: Default::default(),
+        }
     }
 }
 
