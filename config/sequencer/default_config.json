@@ -424,6 +424,56 @@
     "privacy": "Public",
     "value": "Enabled"
   },
+  "components.l1_gas_price_provider.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.l1_gas_price_provider.ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.l1_gas_price_provider.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.l1_gas_price_provider.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.l1_gas_price_provider.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.l1_gas_price_provider.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.l1_gas_price_provider.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.l1_gas_price_provider.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.l1_gas_price_provider.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
+  },
+  "components.l1_gas_price_scraper.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Enabled"
+  },
   "components.l1_provider.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -958,6 +1008,51 @@
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080
+  },
+  "l1_gas_price_provider_config.lag_margin_seconds": {
+    "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
+    "privacy": "Public",
+    "value": 60
+  },
+  "l1_gas_price_provider_config.number_of_blocks_for_mean": {
+    "description": "Number of blocks to use for the mean gas price calculation",
+    "privacy": "Public",
+    "value": 300
+  },
+  "l1_gas_price_provider_config.storage_limit": {
+    "description": "Maximum number of L1 blocks to keep cached",
+    "privacy": "Public",
+    "value": 3000
+  },
+  "l1_gas_price_scraper_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "l1_gas_price_scraper_config.finality": {
+    "description": "Number of blocks to wait for finality in L1",
+    "privacy": "Public",
+    "value": 3
+  },
+  "l1_gas_price_scraper_config.number_of_blocks_for_mean": {
+    "description": "Number of blocks to use for the mean gas price calculation",
+    "privacy": "Public",
+    "value": 300
+  },
+  "l1_gas_price_scraper_config.polling_interval": {
+    "description": "The duration (seconds) between each scraping attempt of L1",
+    "privacy": "Public",
+    "value": 1
+  },
+  "l1_gas_price_scraper_config.starting_block": {
+    "description": "Starting block to scrape from",
+    "privacy": "Public",
+    "value": 0
+  },
+  "l1_gas_price_scraper_config.starting_block.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "l1_provider_config.bootstrap_catch_up_height": {
     "description": "Height at which the provider should catch up to the bootstrapper.",
