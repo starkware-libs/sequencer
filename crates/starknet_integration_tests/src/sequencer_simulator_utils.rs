@@ -9,7 +9,7 @@ use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use tracing::info;
 use url::Url;
 
-use crate::monitoring_utils;
+use crate::monitoring_utils::{self, get_batcher_latest_block_number};
 use crate::sequencer_manager::nonce_to_usize;
 use crate::utils::{send_account_txs, TestScenario};
 
@@ -51,8 +51,19 @@ impl SequencerSimulator {
         assert_eq!(tx_hashes.len(), test_scenario.n_txs());
     }
 
-    pub async fn await_execution(&self, expected_block_number: BlockNumber) {
+    pub async fn await_block_delta(&self, delta_blocks: u64) {
+        let batcher_latest_block = get_batcher_latest_block_number(&self.monitoring_client).await;
+        let expected_block_number = BlockNumber(batcher_latest_block.0 + delta_blocks);
         monitoring_utils::await_block(&self.monitoring_client, expected_block_number, 0, 0).await;
+    }
+
+    pub async fn await_txs_accepted(&self, sequencer_idx: usize, target_n_batched_txs: usize) {
+        monitoring_utils::await_txs_accepted(
+            &self.monitoring_client,
+            sequencer_idx,
+            target_n_batched_txs,
+        )
+        .await;
     }
 
     pub async fn verify_txs_accepted(

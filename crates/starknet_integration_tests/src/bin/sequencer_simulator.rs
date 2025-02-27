@@ -1,5 +1,4 @@
 use clap::Parser;
-use starknet_api::block::BlockNumber;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use starknet_integration_tests::utils::{
@@ -7,6 +6,7 @@ use starknet_integration_tests::utils::{
     BootstrapTxs,
     InvokeTxs,
     ACCOUNT_ID_0,
+    N_TXS_IN_FIRST_BLOCK,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::info;
@@ -14,8 +14,6 @@ use tracing::info;
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
     set_panic_hook();
-    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(10);
-    const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
     const N_TXS: usize = 50;
 
     let args = Args::parse();
@@ -32,11 +30,13 @@ async fn main() -> anyhow::Result<()> {
     info!("Sending bootstrap txs");
     sequencer_simulator.send_txs(&mut tx_generator, &BootstrapTxs, ACCOUNT_ID_0).await;
 
-    sequencer_simulator.await_execution(BLOCK_TO_WAIT_FOR_BOOTSTRAP).await;
+    // Wait for the bootstrap transaction to be accepted in a separate block.
+    sequencer_simulator.await_txs_accepted(0, N_TXS_IN_FIRST_BLOCK).await;
+    sequencer_simulator.await_block_delta(1).await;
 
     sequencer_simulator.send_txs(&mut tx_generator, &InvokeTxs(N_TXS), ACCOUNT_ID_0).await;
 
-    sequencer_simulator.await_execution(EXPECTED_BLOCK_NUMBER).await;
+    sequencer_simulator.await_txs_accepted(0, N_TXS + N_TXS_IN_FIRST_BLOCK).await;
 
     // TODO(Nadin): pass node index as an argument.
     sequencer_simulator.verify_txs_accepted(0, &mut tx_generator, ACCOUNT_ID_0).await;
