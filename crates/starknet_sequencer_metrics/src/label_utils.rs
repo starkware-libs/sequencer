@@ -132,6 +132,109 @@ macro_rules! generate_permutations {
     };
 }
 
+/// A macro that converts a **fixed-size 2D array** into a **slice of references**.
+///
+/// This allows the array to be used in contexts where a dynamically sized slice (`&[&[(&str,
+/// &str)]]`) is required instead of a statically sized array.
+///
+/// # Example Usage
+/// ```rust, ignore
+/// const INPUT: [[(&str, &str); 2]; 3] = [
+///     [("Color", "Red"), ("Size", "Small")],
+///     [("Color", "Blue"), ("Size", "Medium")],
+///     [("Color", "Green"), ("Size", "Large")],
+/// ];
+///
+/// convert_array!(PERMUTATION_SLICE, INPUT);
+/// ```
+///
+/// # Expected Output:
+/// ```rust, ignore
+/// const PERMUTATION_SLICE : &[&[(&str, &str)]] = &[
+///     [("Color", "Red"), ("Size", "Small")],
+///     [("Color", "Blue"), ("Size", "Medium")],
+///     [("Color", "Green"), ("Size", "Large")]
+/// ]
+/// ```
+#[macro_export]
+macro_rules! convert_array {
+    ($name:ident, $input:expr) => {
+        // A **slice reference** to the converted input array.
+        // This allows the macro to return a dynamically sized slice
+        // instead of a fixed-size array.
+        pub const $name: &[&[(&str, &str)]] = {
+            // A compile-time function to convert a fixed-size array into a slice of references.
+            //
+            // # Arguments
+            // * `input` - A reference to a 2D array of string tuples.
+            //
+            // # Returns
+            // A reference to an array of slices, where each slice represents a row in the input.
+            const fn build_refs<'a, const M: usize, const N: usize>(
+                input: &'a [[(&'a str, &'a str); N]; M],
+            ) -> [&'a [(&'a str, &'a str)]; M] {
+                // An array to hold the references to each row in the input.
+                let mut refs: [&[(&str, &str)]; M] = [&input[0]; M];
+
+                let mut i = 0;
+                while i < M {
+                    refs[i] = &input[i];
+                    i += 1;
+                }
+                refs
+            }
+
+            // Returns a reference to the slice representation of the input array.
+            &build_refs(&$input)
+        };
+    };
+}
+
+/// A macro that generates all possible permutations of enum variants,
+/// and then converts the result into a reference slice for easier use.
+///
+/// This macro first calls `generate_permutations!` to generate a 2D array of
+/// permutations. Then, it calls `convert_array!` to transform this into
+/// a reference slice, storing it in a constant with the `_LABELS` suffix.
+///
+/// # Example Usage
+/// ```rust, ignore
+/// #[derive(strum_macros::EnumVariantNames)]
+/// enum Color {
+///     Red,
+///     Blue,
+///     Green,
+/// }
+///
+/// #[derive(strum_macros::EnumVariantNames)]
+/// enum Size {
+///     Small,
+///     Medium,
+///     Large,
+/// }
+///
+/// generate_permutation_labels!(
+///     ("Color", Color),
+///     ("Size", Size)
+/// );
+/// ```
+///
+/// # Expected Generated Constants
+/// 1. **`COLOR_SIZE_PERMUTATIONS`** : The raw array of all permutations.
+/// 2. **`COLOR_SIZE_LABELS`** : A reference slice to `COLOR_SIZE_PERMUTATIONS`.
+#[macro_export]
+macro_rules! generate_permutation_labels {
+    ($(($name:expr, $enum:ty)),* $(,)?) => {
+        $crate::paste::paste! {
+            // Generate permutations for the given enums
+            generate_permutations!($(($name, $enum)),*);
+
+            // Convert the generated permutations into a slice and assign it a new constant with `_LABELS` suffix
+            convert_array!([<$($enum:upper _)* LABELS>], [<$($enum:upper _)* PERMUTATIONS>]);
+        }
+    };
+}
+
 #[cfg(test)]
 #[path = "label_utils_test.rs"]
 mod label_utils_test;
