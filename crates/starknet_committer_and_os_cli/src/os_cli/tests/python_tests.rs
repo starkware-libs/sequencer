@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use blockifier::execution::call_info::Retdata;
+use blockifier::retdata;
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
@@ -195,8 +197,13 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
+use cairo_vm::types::program::Program;
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+use starknet_os::hint_processor::snos_hint_processor::SnosHintProcessor;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
@@ -209,6 +216,7 @@ type OsPythonTestResult = PythonTestResult<OsSpecificTestError>;
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
     CompareOsHints,
+    RunDummyFunction,
 }
 
 // Implements conversion from a string to the test runner.
@@ -218,6 +226,7 @@ impl TryFrom<String> for OsPythonTestRunner {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
             "compare_os_hints" => Ok(Self::CompareOsHints),
+            "run_dummy_function" => Ok(Self::RunDummyFunction),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -225,7 +234,7 @@ impl TryFrom<String> for OsPythonTestRunner {
 
 #[derive(Debug, thiserror::Error, Display)]
 pub enum OsSpecificTestError {
-    PlaceHolder,
+    CairoRunnerError(#[from] CairoRunError),
 }
 
 impl PythonTestRunner for OsPythonTestRunner {
@@ -233,6 +242,7 @@ impl PythonTestRunner for OsPythonTestRunner {
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
+            Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
         }
     }
 }
@@ -261,6 +271,33 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
         rust_os_hints.difference(&python_os_hints).cloned().collect();
     only_in_rust.sort();
     Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
+}
+
+fn run_cairo_function(
+    program_str: &str,
+    function_name: &str,
+    args: &[MaybeRelocatable],
+    expected_retdata: &Retdata,
+) -> OsPythonTestResult {
+    let program_bytes = program_str.as_bytes();
+    let program = Program::from_bytes(program_bytes, None).unwrap();
+    let hint_processor = SnosHintProcessor::new_for_testing(None, None, Some(program.clone()));
+    let actual_retdata = run_cairo_0_entry_point(
+        &program,
+        function_name,
+        expected_retdata.0.len(),
+        args,
+        hint_processor,
+    )
+    .map_err(|error| {
+        PythonTestError::SpecificError(OsSpecificTestError::CairoRunnerError(error))
+    })?;
+    assert_eq!(expected_retdata, &actual_retdata);
+    Ok("".to_string())
+}
+
+fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
+    run_cairo_function(input, "dummy_function", &[], &retdata![1.into(), 2.into(), 3.into()])
 }
 
 fn vm_hints() -> HashSet<&'static str> {

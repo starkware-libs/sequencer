@@ -12,6 +12,8 @@ use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+// TODO(Nimrod): Remove the `Clone` derive when possible.
+#[derive(Debug, Clone)]
 pub struct CommitmentInfo {
     _previous_root: HashOutput,
     _updated_root: HashOutput,
@@ -22,6 +24,18 @@ pub struct CommitmentInfo {
     //   semantics of the values are unimportant for the OS commitments, we make do with a vector
     //   of field elements as values for now.
     _commitment_facts: HashMap<HashOutput, Vec<Felt>>,
+}
+
+#[cfg(any(feature = "testing", test))]
+impl Default for CommitmentInfo {
+    fn default() -> CommitmentInfo {
+        CommitmentInfo {
+            _previous_root: HashOutput::default(),
+            _updated_root: HashOutput::default(),
+            _tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+            _commitment_facts: HashMap::default(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
@@ -38,9 +52,10 @@ pub struct ContractClassComponentHashes {
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
 pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
-    _address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
+    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
     pub deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,

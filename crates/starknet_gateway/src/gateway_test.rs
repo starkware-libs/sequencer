@@ -15,7 +15,7 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
-    TxTypeLabelValue,
+    RpcTransactionLabelValue,
 };
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::{
@@ -35,11 +35,6 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use starknet_sequencer_metrics::metric_definitions::{
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
-};
 use strum::IntoEnumIterator;
 
 use crate::config::{
@@ -54,6 +49,9 @@ use crate::metrics::{
     SourceLabelValue,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
+    TRANSACTIONS_FAILED,
+    TRANSACTIONS_RECEIVED,
+    TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 
@@ -233,7 +231,7 @@ fn test_register_metrics() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_metrics();
     let metrics = recorder.handle().render();
-    for tx_type in TxTypeLabelValue::iter() {
+    for tx_type in RpcTransactionLabelValue::iter() {
         for source in SourceLabelValue::iter() {
             assert_eq!(
                 TRANSACTIONS_RECEIVED

@@ -14,7 +14,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
-testing = ["dep:strum", "dep:strum_macros"]
+testing = ["blockifier/testing", "dep:strum", "dep:strum_macros"]
 
 [dependencies]
 blockifier.workspace = true
@@ -22,6 +22,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
 indoc.workspace = true
 serde = { workspace = true, optional = true, features = ["derive"] }
+serde_json.workspace = true
 shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
@@ -31,6 +32,7 @@ strum_macros = { workspace = true, optional = true }
 thiserror.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 

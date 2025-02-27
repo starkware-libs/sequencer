@@ -1,13 +1,16 @@
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use starknet_api::rpc_transaction::{RpcTransaction, TxTypeLabelValue};
-use starknet_sequencer_metrics::metric_definitions::{
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
-};
-#[cfg(test)]
-use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
+use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
+use starknet_sequencer_metrics::define_metrics;
+use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricScope};
 use strum::IntoEnumIterator;
+
+define_metrics!(
+    Gateway => {
+        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", 0 },
+        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", 0 },
+        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", 0 },
+    },
+);
 
 pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub const LABEL_NAME_SOURCE: &str = "source";
@@ -25,7 +28,7 @@ enum TransactionStatus {
 }
 
 pub(crate) struct GatewayMetricHandle {
-    tx_type: TxTypeLabelValue,
+    tx_type: RpcTransactionLabelValue,
     source: SourceLabelValue,
     tx_status: TransactionStatus,
 }
@@ -35,7 +38,7 @@ impl GatewayMetricHandle {
         tx: &RpcTransaction,
         p2p_message_metadata: &Option<BroadcastedMessageMetadata>,
     ) -> Self {
-        let tx_type = TxTypeLabelValue::from(tx);
+        let tx_type = RpcTransactionLabelValue::from(tx);
         let source = match p2p_message_metadata {
             Some(_) => SourceLabelValue::P2p,
             None => SourceLabelValue::Http,
@@ -74,7 +77,7 @@ impl Drop for GatewayMetricHandle {
 
 pub(crate) fn register_metrics() {
     let mut label_variations: Vec<Vec<(&'static str, &'static str)>> = Vec::new();
-    for tx_type in TxTypeLabelValue::iter() {
+    for tx_type in RpcTransactionLabelValue::iter() {
         for source in SourceLabelValue::iter() {
             label_variations.push(vec![
                 (LABEL_NAME_TX_TYPE, tx_type.into()),

@@ -149,12 +149,21 @@
                 "n_memory_holes": 0
             },
             "Deploy": {
-                "n_steps": 1132,
-                "builtin_instance_counter": {
-                    "pedersen_builtin": 7,
-                    "range_check_builtin": 18
+                "constant": {
+                    "n_steps": 1132,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 7,
+                        "range_check_builtin": 18
+                    },
+                    "n_memory_holes": 0
                 },
-                "n_memory_holes": 0
+                "calldata_factor": {
+                    "n_steps": 15,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 1
+                    },
+                    "n_memory_holes": 0
+                }
             },
             "EmitEvent": {
                 "n_steps": 61,

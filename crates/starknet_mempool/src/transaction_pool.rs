@@ -90,13 +90,14 @@ impl TransactionPool {
         Ok(tx)
     }
 
-    pub fn remove_up_to_nonce(&mut self, address: ContractAddress, nonce: Nonce) {
+    pub fn remove_up_to_nonce(&mut self, address: ContractAddress, nonce: Nonce) -> usize {
         let removed_txs = self.txs_by_account.remove_up_to_nonce(address, nonce);
 
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_timed_mapping(&removed_txs);
 
         self.capacity.remove_n(removed_txs.len());
+        removed_txs.len()
     }
 
     pub fn remove_txs_older_than(&mut self, duration: Duration) -> Vec<TransactionReference> {
