@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::{
     combine_config_map_and_pointers,
     ConfigPointers,
@@ -40,6 +41,7 @@ use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
+use url::Url;
 
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{create_node_config, spawn_local_success_recorder};
@@ -175,6 +177,10 @@ impl ExecutableSetup {
             ..Default::default()
         };
 
+        let base_layer_config = EthereumBaseLayerConfig {
+            node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+            ..Default::default()
+        };
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
@@ -188,6 +194,7 @@ impl ExecutableSetup {
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
+            base_layer_config,
         );
 
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
