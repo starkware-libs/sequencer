@@ -472,7 +472,7 @@
   "components.l1_scraper.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
-    "value": "Enabled"
+    "value": "Disabled"
   },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
