@@ -15,6 +15,7 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::core::ChainId;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -63,6 +64,7 @@ impl FlowTestSetup {
     pub async fn new_from_tx_generator(
         tx_generator: &MultiAccountTransactionGenerator,
         test_unique_index: u16,
+        block_max_capacity_sierra_gas: GasAmount,
     ) -> Self {
         let chain_info = ChainInfo::create_for_testing();
         let mut available_ports = AvailablePorts::new(test_unique_index, 0);
@@ -101,6 +103,7 @@ impl FlowTestSetup {
             sequencer_0_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 1),
             sequencer_0_state_sync_config,
+            block_max_capacity_sierra_gas,
         )
         .await;
 
@@ -113,6 +116,7 @@ impl FlowTestSetup {
             sequencer_1_mempool_p2p_config,
             AvailablePorts::new(test_unique_index, 2),
             sequencer_1_state_sync_config,
+            block_max_capacity_sierra_gas,
         )
         .await;
 
@@ -165,6 +169,7 @@ impl FlowSequencerSetup {
         mempool_p2p_config: MempoolP2pConfig,
         mut available_ports: AvailablePorts,
         state_sync_config: StateSyncConfig,
+        block_max_capacity_sierra_gas: GasAmount,
     ) -> Self {
         let path = None;
         let StorageTestSetup {
@@ -205,6 +210,7 @@ impl FlowSequencerSetup {
             monitoring_endpoint_config,
             component_config,
             base_layer_config,
+            block_max_capacity_sierra_gas,
         );
 
         debug!("Sequencer config: {:#?}", node_config);

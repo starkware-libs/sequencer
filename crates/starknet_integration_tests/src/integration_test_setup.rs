@@ -15,6 +15,7 @@ use papyrus_config::{ParamPath, SerializedContent, SerializedParam};
 use papyrus_storage::StorageConfig;
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
@@ -181,6 +182,7 @@ impl ExecutableSetup {
             node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
             ..Default::default()
         };
+        let block_max_capacity_n_steps = GasAmount(17000000);
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
@@ -195,6 +197,7 @@ impl ExecutableSetup {
             monitoring_endpoint_config,
             component_config,
             base_layer_config,
+            block_max_capacity_n_steps,
         );
 
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
