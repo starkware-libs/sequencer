@@ -3,7 +3,7 @@ use starknet_batcher::metrics::{BATCHED_TRANSACTIONS, STORAGE_HEIGHT};
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
-use starknet_sequencer_metrics::metric_definitions::{
+use papyrus_sync::define_metrics::{
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
     SYNC_COMPILED_CLASS_MARKER,

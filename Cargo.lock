@@ -8044,6 +8044,7 @@ dependencies = [
  "papyrus_proc_macros",
  "papyrus_protobuf",
  "papyrus_storage",
+ "papyrus_sync",
  "papyrus_test_utils",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -11258,6 +11259,7 @@ dependencies = [
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_storage",
+ "papyrus_sync",
  "pretty_assertions",
  "rstest",
  "serde_json",
@@ -11518,6 +11520,7 @@ version = "0.0.0"
 dependencies = [
  "colored 3.0.0",
  "indexmap 2.7.0",
+ "papyrus_sync",
  "serde",
  "serde_json",
  "starknet_api",
