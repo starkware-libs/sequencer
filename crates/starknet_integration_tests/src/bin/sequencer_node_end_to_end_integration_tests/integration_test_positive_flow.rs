@@ -19,6 +19,8 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         None,
         None,
+        // TODO(yair): pass this as a parameter.
+        false, // Set to true in order to log each executable in a separate file.
     )
     .await;
 

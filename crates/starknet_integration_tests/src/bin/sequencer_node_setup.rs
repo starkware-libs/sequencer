@@ -23,6 +23,7 @@ async fn main() {
         args.n_distributed,
         Some(PathBuf::from(args.db_dir)),
         Some(PathBuf::from(args.configs_dir)),
+        false,
     )
     .await;
 

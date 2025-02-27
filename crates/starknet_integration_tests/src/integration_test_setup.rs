@@ -52,11 +52,12 @@ const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_change
 pub struct NodeExecutionId {
     node_index: usize,
     executable_index: usize,
+    log_to_file: bool,
 }
 
 impl NodeExecutionId {
-    pub fn new(node_index: usize, executable_index: usize) -> Self {
-        Self { node_index, executable_index }
+    pub fn new(node_index: usize, executable_index: usize, log_to_file: bool) -> Self {
+        Self { node_index, executable_index, log_to_file }
     }
     pub fn get_node_index(&self) -> usize {
         self.node_index
@@ -79,7 +80,15 @@ impl std::fmt::Display for NodeExecutionId {
 
 impl From<NodeExecutionId> for NodeRunner {
     fn from(val: NodeExecutionId) -> Self {
-        NodeRunner::new(val.node_index, val.executable_index)
+        let logs_file = if val.log_to_file {
+            Some(PathBuf::from(format!(
+                "node_{}_part_{}.log",
+                val.node_index, val.executable_index
+            )))
+        } else {
+            None
+        };
+        NodeRunner::new(val.node_index, val.executable_index, logs_file)
     }
 }
 
