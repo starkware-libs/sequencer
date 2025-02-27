@@ -1,4 +1,4 @@
-name: Sequencer-Docker-Publish
+name: Sequencer-Simulator-Docker-Publish
 
 on:
   workflow_dispatch:
@@ -6,22 +6,22 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
     paths:
-      - '.github/workflows/sequencer_docker-publish.yml'
+      - 'sequencer_simulator_docker-publish.yml'
       - 'crates/**'
       - 'config/sequencer/presets'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/sequencer/Dockerfile'
+      - 'deployments/images/sequencer/simulator.Dockerfile'
 
   pull_request:
     paths:
-      - '.github/workflows/sequencer_docker-publish.yml'
+      - 'sequencer_simulator_docker-publish.yml'
       - 'crates/**'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
       - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/sequencer/Dockerfile'
+      - 'deployments/images/sequencer/simulator.Dockerfile'
 
 permissions:
   contents: read
@@ -68,7 +68,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4.1.1
         with:
-          images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/sequencer
+          images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/sequencer_simulator
           tags: |
             type=semver,pattern={{raw}}
             type=semver,pattern={{version}}
@@ -86,31 +86,9 @@ jobs:
         uses: docker/build-push-action@v6.13.0
         with:
           context: .
-          file: deployments/images/sequencer/Dockerfile
+          file: deployments/images/sequencer/simulator.Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           load: true # Loads the build result to docker images. Required for "Run docker test" step to work.
           no-cache: true
-
-      - name: Run basic docker test
-        env:
-          TIMEOUT_DURATION: "30s"
-          SEQUENCER_CONFIG_PATH: "./config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json"
-        run: |
-          # converts steps.meta.outputs.tags array to bash array.
-          tags="${{ steps.meta.outputs.tags }}"
-          tags_array=($tags)
-          tag=${tags_array[0]}
-
-          timeout "$TIMEOUT_DURATION" docker run -e 'RUST_LOG=debug' -e 'RUST_BACKTRACE=full' "$tag" --config_file "$SEQUENCER_CONFIG_PATH" || exit_code="$?"
-
-          # Return code 124 from `timeout` process means timeout reached, which considered success for this test.
-          if (( $exit_code == 124 )); then
-            echo "Docker ran successfully for $TIMEOUT_DURATION!"
-            exit 0
-          # Any other return codes could be application or docker failure.
-          else
-            echo "Docker failed or exited prematurely with exit code $exit_code."
-            exit 1
-          fi
