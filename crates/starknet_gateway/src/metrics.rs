@@ -1,8 +1,9 @@
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use starknet_sequencer_metrics::define_metrics;
 use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricScope};
-use strum::IntoEnumIterator;
+use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels, paste};
+use strum::{EnumVariantNames, IntoEnumIterator, VariantNames};
+use strum_macros::{EnumIter, IntoStaticStr};
 
 define_metrics!(
     Gateway => {
@@ -15,8 +16,13 @@ define_metrics!(
 pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub(crate) const LABEL_NAME_SOURCE: &str = "source";
 
-#[derive(Clone, Copy, Debug, strum_macros::IntoStaticStr, strum_macros::EnumIter)]
-#[strum(serialize_all = "snake_case")]
+generate_permutation_labels! {
+    (LABEL_NAME_TX_TYPE, RpcTransactionLabelValue),
+    (LABEL_NAME_SOURCE, SourceLabelValue),
+}
+
+#[derive(Clone, Copy, Debug, IntoStaticStr, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "PascalCase")]
 pub enum SourceLabelValue {
     Http,
     P2p,

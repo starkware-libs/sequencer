@@ -234,7 +234,7 @@ fn test_register_metrics() {
     for tx_type in RpcTransactionLabelValue::iter() {
         for source in SourceLabelValue::iter() {
             let query: &[(&str, &str); 2] =
-                &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
+                &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into())];
 
             assert_eq!(
                 TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics, query).unwrap(),
