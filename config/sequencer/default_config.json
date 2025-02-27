@@ -69,6 +69,11 @@
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
@@ -79,15 +84,20 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
-  "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": {
-    "description": "Maximum number of events that can be emitted from the transation.",
-    "pointer_target": "versioned_constants_overrides.max_n_events",
-    "privacy": "Public"
-  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
     "value": 2000
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.contract_to_compile_natively": {
+    "description": "The contract to compile natively.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.contract_to_compile_natively.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
@@ -799,6 +809,11 @@
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
@@ -807,11 +822,6 @@
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
-    "privacy": "Public"
-  },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
-    "description": "Maximum number of events that can be emitted from the transation.",
-    "pointer_target": "versioned_constants_overrides.max_n_events",
     "privacy": "Public"
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
@@ -1174,6 +1184,11 @@
     "privacy": "TemporaryValue",
     "value": 10000000
   },
+  "versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "privacy": "TemporaryValue",
+    "value": 1000
+  },
   "versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "privacy": "TemporaryValue",
@@ -1183,10 +1198,5 @@
     "description": "Maximum number of steps the validation function is allowed to run.",
     "privacy": "TemporaryValue",
     "value": 1000000
-  },
-  "versioned_constants_overrides.max_n_events": {
-    "description": "Maximum number of events that can be emitted from the transation.",
-    "privacy": "TemporaryValue",
-    "value": 1000
   }
 }
