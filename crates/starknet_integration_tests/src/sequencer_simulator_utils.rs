@@ -1,7 +1,6 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::test_utils::HttpTestClient;
@@ -51,8 +50,13 @@ impl SequencerSimulator {
         assert_eq!(tx_hashes.len(), test_scenario.n_txs());
     }
 
-    pub async fn await_execution(&self, expected_block_number: BlockNumber) {
-        monitoring_utils::await_block(&self.monitoring_client, expected_block_number, 0, 0).await;
+    pub async fn await_txs_accepted(&self, sequencer_idx: usize, target_n_batched_txs: usize) {
+        monitoring_utils::await_txs_accepted(
+            &self.monitoring_client,
+            sequencer_idx,
+            target_n_batched_txs,
+        )
+        .await;
     }
 
     pub async fn verify_txs_accepted(
