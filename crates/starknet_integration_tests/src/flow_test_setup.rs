@@ -34,6 +34,7 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::clients::SequencerNodeClients;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_execution_config::ActiveComponentExecutionConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -214,7 +215,10 @@ impl FlowSequencerSetup {
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
-        let component_config = ComponentConfig::default();
+        let component_config = ComponentConfig {
+            l1_scraper: ActiveComponentExecutionConfig::enabled(),
+            ..Default::default()
+        };
 
         // Explicitly avoid collecting metrics in the monitoring endpoint; metrics are collected
         // using a global recorder, which fails when being set multiple times in the same
