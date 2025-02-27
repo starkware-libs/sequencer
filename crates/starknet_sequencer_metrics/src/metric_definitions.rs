@@ -11,7 +11,7 @@ macro_rules! define_metrics {
         $(
             $scope:ident => {
                 $(
-                    $type:ty { $name:ident, $key:expr, $desc:expr $(, $init:expr)? }
+                    $type:ty { $name:ident, $key:expr, $desc:expr $(, init = $init:expr)? $(, labels = $labels:expr)? }
                 ),*
                 $(,)?
             }
@@ -20,15 +20,19 @@ macro_rules! define_metrics {
     ) => {
         $(
             $(
-                pub const $name: $type = <$type>::new(
-                    MetricScope::$scope,
-                    $key,
-                    $desc
-                    $(, $init)?
-                );
+                $crate::paste::paste! {
+                    pub const $name: $type = <$type>::new(
+                        MetricScope::$scope,
+                        $key,
+                        $desc
+                        $(, $init)? // Only expands if `init = ...` is provided
+                        $(, $labels)? // Only expands if `labels = ...` is provided
+                    );
+                }
             )*
         )*
-        // TODO(Lev): change macro to output this only for cfg[(test,testing)
+
+        // TODO(Lev): change macro to output this only for cfg[(test,testing)].
         $(
             $crate::paste::paste! {
                 pub const [<$scope:snake:upper _ALL_METRICS>]: &[&'static str] = &[
@@ -50,10 +54,10 @@ define_metrics!(
         MetricGauge { STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_sync_num_active_inbound_sessions", "The number of inbound sessions to the state sync p2p component" },
         MetricGauge { STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_sync_num_active_outbound_sessions", "The number of outbound sessions to the state sync p2p component" },
         // Counters
-        MetricCounter { MEMPOOL_P2P_NUM_SENT_MESSAGES, "apollo_mempool_num_sent_messages", "The number of messages sent by the mempool p2p component", 0 },
-        MetricCounter { MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, "apollo_mempool_num_received_messages", "The number of messages received by the mempool p2p component", 0 },
-        MetricCounter { CONSENSUS_NUM_SENT_MESSAGES, "apollo_consensus_num_sent_messages", "The number of messages sent by the consensus p2p component", 0 },
-        MetricCounter { CONSENSUS_NUM_RECEIVED_MESSAGES, "apollo_consensus_num_received_messages", "The number of messages received by the consensus p2p component", 0 },
+        MetricCounter { MEMPOOL_P2P_NUM_SENT_MESSAGES, "apollo_mempool_num_sent_messages", "The number of messages sent by the mempool p2p component", init = 0 },
+        MetricCounter { MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, "apollo_mempool_num_received_messages", "The number of messages received by the mempool p2p component", init = 0 },
+        MetricCounter { CONSENSUS_NUM_SENT_MESSAGES, "apollo_consensus_num_sent_messages", "The number of messages sent by the consensus p2p component", init = 0 },
+        MetricCounter { CONSENSUS_NUM_RECEIVED_MESSAGES, "apollo_consensus_num_received_messages", "The number of messages received by the consensus p2p component", init = 0 },
     },
 );
 
@@ -70,6 +74,6 @@ define_metrics!(
         MetricGauge { SYNC_HEADER_LATENCY_SEC, "apollo_sync_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time sync stores the header" },
         // Counters
         // TODO(shahak): add to metric's dashboard
-        MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", 0 },
+        MetricCounter { SYNC_PROCESSED_TRANSACTIONS, "apollo_sync_processed_transactions", "The number of transactions processed by the sync component", init = 0 },
     },
 );
