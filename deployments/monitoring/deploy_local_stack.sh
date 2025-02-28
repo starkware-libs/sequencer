@@ -1,7 +1,11 @@
 #!/bin/bash
 
-monitoring_dir=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
+DOCKER_BUILDKIT=1
+COMPOSE_DOCKER_CLI_BUILD=1
+export DOCKER_BUILDKIT
+export COMPOSE_DOCKER_CLI_BUILD
 
+monitoring_dir=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
 export monitoring_dir
 
 if command -v docker compose &> /dev/null; then

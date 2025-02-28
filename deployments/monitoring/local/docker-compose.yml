@@ -21,15 +21,6 @@ services:
     networks:
       - sequencer-network
 
-  dummy_recorder:
-    build:
-      context: ../../../
-      dockerfile: ${monitoring_dir}/../images/sequencer/dummy_recorder.Dockerfile
-    ports:
-      - "8080:8080"
-    networks:
-      - sequencer-network
-
   sequencer_node_setup:
     build:
       context: ../../../
@@ -42,6 +33,17 @@ services:
     volumes:
       - data:/data2
       - config:/config2
+    networks:
+      - sequencer-network
+
+  dummy_recorder:
+    depends_on:
+      - sequencer_node_setup
+    build:
+      context: ../../../
+      dockerfile: ${monitoring_dir}/../images/sequencer/dummy_recorder.Dockerfile
+    ports:
+      - "8080:8080"
     networks:
       - sequencer-network
 

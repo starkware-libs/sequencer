@@ -1,5 +1,8 @@
+# deployments/images/base/Dockerfile
+
 # Dockerfile with multi-stage builds for efficient dependency caching and lightweight final image.
 # For more on Docker stages, visit: https://docs.docker.com/build/building/multi-stage/
+# We use dockerfile-x, for more information visit: https://github.com/devthefuture-org/dockerfile-x/blob/master/README.md
 
 FROM ubuntu:24.04 AS base
 
@@ -16,6 +19,7 @@ ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 RUN ./install_build_tools.sh
+RUN cargo install cargo-chef
 
 # Cleanup.
 RUN rm -f install_build_tools.sh dependencies.sh

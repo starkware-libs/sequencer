@@ -1,13 +1,25 @@
-#syntax = devthefuture/dockerfile-x
+# syntax = devthefuture/dockerfile-x
+# deployments/images/sequencer/dummy_recorder.Dockerfile
+
+# Dockerfile with multi-stage builds for efficient dependency caching and lightweight final image.
+# For more on Docker stages, visit: https://docs.docker.com/build/building/multi-stage/
+# We use dockerfile-x, for more information visit: https://github.com/devthefuture-org/dockerfile-x/blob/master/README.md
 
 INCLUDE deployments/images/base/Dockerfile
 
-FROM base AS builder
+FROM base AS planner
 WORKDIR /app
 COPY . .
-RUN cargo build --bin dummy_recorder
+RUN cargo chef prepare --recipe-path recipe.json
 
-FROM ubuntu:24.04
+FROM base AS builder
+WORKDIR /app
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
+COPY . .
+RUN cargo build
+
+FROM ubuntu:24.04 AS final_stage
 
 ENV ID=1001
 WORKDIR /app
