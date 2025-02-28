@@ -4,6 +4,7 @@ use clap::Parser;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use tokio::fs::create_dir_all;
 use tracing::info;
 
 #[tokio::main]
@@ -17,14 +18,21 @@ async fn main() {
     set_panic_hook();
 
     info!("Generate config and db files under {:?}", args.output_base_dir);
-
-    IntegrationTestManager::new(
+    let test_manager = IntegrationTestManager::new(
         args.n_consolidated,
         args.n_distributed,
         Some(PathBuf::from(args.output_base_dir.clone()).join("data")),
         Some(PathBuf::from(args.output_base_dir.clone()).join("configs")),
     )
     .await;
+
+    let simulator_ports_path = format!("{}/simulator_ports", args.output_base_dir);
+    info!("Generate simulator ports json files under {:?}", simulator_ports_path);
+    create_dir_all(&simulator_ports_path).await.unwrap();
+    for (node_index, node_setup) in test_manager.get_idle_nodes().iter() {
+        let path = format!("{}/node_{}", simulator_ports_path, node_index);
+        node_setup.generate_simulator_ports_json(&path);
+    }
 
     info!("Node setup completed");
 }

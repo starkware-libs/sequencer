@@ -119,7 +119,7 @@ pub struct ExecutableSetup {
     // Storage reader for the state sync.
     pub state_sync_storage_config: StorageConfig,
     // Config values.
-    config: SequencerNodeConfig,
+    pub config: SequencerNodeConfig,
     // Required param values.
     required_params: RequiredParams,
     // Configuration parameters that share the same value across multiple components.
