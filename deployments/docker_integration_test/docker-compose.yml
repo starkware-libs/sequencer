@@ -1,0 +1,85 @@
+services:
+  dummy_recorder:
+    build:
+      context: ../../
+      dockerfile: deployments/images/sequencer/dummy_recorder.Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - sequencer-network
+
+  sequencer_node_setup:
+    build:
+      context: ../../
+      dockerfile: deployments/images/sequencer/node_setup.Dockerfile
+    entrypoint: "/bin/bash -c"
+    command: >
+      "./target/debug/sequencer_node_setup --db-dir /data --configs-dir /config --n-distributed 0 --n-consolidated 1 &&
+      cp -r /data/node_0 /data2/ &&
+      cp -r /config/node_0 /config2/"
+    volumes:
+      - data:/data2
+      - config:/config2
+    networks:
+      - sequencer-network
+
+  config_injector:
+    depends_on:
+      - sequencer_node_setup
+    image: ubuntu:latest
+    entrypoint: "/bin/bash -c"
+    command: |
+      "apt update && \
+      apt install -y jq moreutils && \
+      echo 'Injecting config changes...' && \
+      jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
+      jq '.\"http_server_config.ip\" = \"0.0.0.0\"' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
+      jq '.\"http_server_config.port\" = 8081' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
+      jq '.\"monitoring_endpoint_config.port\" = 8082' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
+      echo 'Done'"
+    volumes:
+      - config:/config
+    networks:
+      - sequencer-network
+
+  sequencer_node:
+    depends_on:
+      - dummy_recorder
+      - sequencer_node_setup
+      - config_injector
+    build:
+      context: ../../
+      dockerfile: deployments/images/sequencer/Dockerfile
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+    entrypoint: "/bin/bash -c"
+    command: >
+      "sleep 20 &&
+      ./target/debug/starknet_sequencer_node --config_file /config/node_0/executable_0/node_integration_test_config_changes.json"
+    volumes:
+      - data:/data
+      - config:/config
+    networks:
+      - sequencer-network
+
+  sequencer_simulator:
+    depends_on:
+      - sequencer_node
+    build:
+      context: ../../
+      dockerfile: deployments/images/sequencer/simulator.Dockerfile
+    entrypoint: "/bin/bash -c"
+    command: >
+      "sleep 30 &&
+      ./target/debug/sequencer_simulator --http-url http://sequencer_node --http-port 8081 --monitoring-url http://sequencer_node --monitoring-port 8082"
+    networks:
+      - sequencer-network
+
+volumes:
+  data:
+  config:
+
+networks:
+  sequencer-network:
+    driver: bridge
