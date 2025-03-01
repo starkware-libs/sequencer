@@ -66,7 +66,7 @@ impl NativeClassManager {
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
-                cairo_native_run_config: config.cairo_native_run_config,
+                cairo_native_run_config,
                 cache,
                 sender: None,
                 compiler: None,
