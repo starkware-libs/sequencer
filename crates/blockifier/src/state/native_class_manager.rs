@@ -62,7 +62,7 @@ impl NativeClassManager {
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let cache = RawClassCache::new(config.contract_cache_size);
-        let cairo_native_run_config = config.cairo_native_run_config;
+        let cairo_native_run_config = config.cairo_native_run_config.clone();
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
@@ -195,12 +195,11 @@ impl NativeClassManager {
 
     /// Determines if a contract should be compiled natively based on the allowlist.
     /// `None` enables all, an empty list disables all, and listed contracts are compiled natively.
-    /// TODO(AvivG): implement for list, currently only one contract is supported.
     fn compile_with_native(&self, class_hash: ClassHash) -> bool {
         self.cairo_native_run_config
             .contract_to_compile_natively
             .as_ref()
-            .map_or(true, |contracts| contracts == &class_hash)
+            .map_or(true, |contracts| contracts.contains(&class_hash))
     }
 
     /// Clears the contract cache.

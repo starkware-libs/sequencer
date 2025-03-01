@@ -175,7 +175,7 @@ pub struct PyCairoNativeRunConfig {
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
     // TODO(AvivG): allow multiple contracts.
-    pub contract_to_compile_natively: Option<PyFelt>,
+    pub contract_to_compile_natively: Option<Vec<PyFelt>>,
 }
 
 impl Default for PyCairoNativeRunConfig {
@@ -191,8 +191,9 @@ impl Default for PyCairoNativeRunConfig {
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
-        let contract_to_compile_natively =
-            py_cairo_native_run_config.contract_to_compile_natively.map(|felt| ClassHash(felt.0));
+        let contract_to_compile_natively = py_cairo_native_run_config
+            .contract_to_compile_natively
+            .map(|felts| felts.into_iter().map(|felt| ClassHash(felt.0)).collect());
 
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,

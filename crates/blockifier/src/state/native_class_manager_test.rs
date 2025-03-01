@@ -62,9 +62,9 @@ fn create_faulty_request() -> CompilationRequest {
 fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation: bool) {
     let native_config =
         CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
-    let manager = NativeClassManager::create_for_testing(native_config);
+    let manager = NativeClassManager::create_for_testing(native_config.clone());
 
-    assert_eq!(manager.cairo_native_run_config, native_config);
+    assert_eq!(manager.cairo_native_run_config.clone(), native_config);
     if run_cairo_native {
         if wait_on_native_compilation {
             assert!(
