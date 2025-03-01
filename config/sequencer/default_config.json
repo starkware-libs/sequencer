@@ -89,6 +89,11 @@
     "privacy": "Public",
     "value": 2000
   },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+    "description": "Contracts for Cairo native compilation.",
+    "privacy": "Public",
+    "value": "All"
+  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
     "privacy": "Public",
