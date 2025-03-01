@@ -66,13 +66,12 @@ impl NativeClassManager {
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
-                cairo_native_run_config: config.cairo_native_run_config,
+                cairo_native_run_config,
                 cache,
                 sender: None,
                 compiler: None,
             };
         }
-
         let compiler_config = config.native_compiler_config.clone();
         let compiler = Arc::new(CommandLineCompiler::new(compiler_config));
         if cairo_native_run_config.wait_on_native_compilation {
