@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
+    CairoNativeClassesWhitelist,
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
@@ -15,10 +16,12 @@ use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
+use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
+use crate::py_utils::PyFelt;
 
 // From Rust to Python.
 
@@ -172,6 +175,8 @@ pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    // TODO(AvivG): allow multiple contracts.
+    pub native_classes_whitelist: Option<Vec<PyFelt>>,
 }
 
 impl Default for PyCairoNativeRunConfig {
@@ -180,16 +185,25 @@ impl Default for PyCairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            native_classes_whitelist: None,
         }
     }
 }
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
+        let native_classes_whitelist = match py_cairo_native_run_config.native_classes_whitelist {
+            Some(felts) => CairoNativeClassesWhitelist::Only(
+                felts.into_iter().map(|felt| ClassHash(felt.0)).collect(),
+            ),
+            None => CairoNativeClassesWhitelist::All,
+        };
+
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             channel_size: py_cairo_native_run_config.channel_size,
+            native_classes_whitelist,
         }
     }
 }

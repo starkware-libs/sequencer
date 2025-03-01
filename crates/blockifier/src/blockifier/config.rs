@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ClassHash;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
@@ -133,11 +134,18 @@ impl SerializeConfig for ContractClassManagerConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum CairoNativeClassesWhitelist {
+    All,
+    Only(Vec<ClassHash>),
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    pub native_classes_whitelist: CairoNativeClassesWhitelist,
 }
 
 impl Default for CairoNativeRunConfig {
@@ -146,6 +154,7 @@ impl Default for CairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            native_classes_whitelist: CairoNativeClassesWhitelist::All,
         }
     }
 }
@@ -169,6 +178,12 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "channel_size",
                 &self.channel_size,
                 "The size of the compilation request channel.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "native_classes_whitelist",
+                &self.native_classes_whitelist,
+                "Contracts for Cairo native compilation.",
                 ParamPrivacyInput::Public,
             ),
         ])
