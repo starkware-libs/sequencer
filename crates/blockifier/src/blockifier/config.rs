@@ -1,11 +1,6 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
-};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
@@ -139,13 +134,19 @@ impl SerializeConfig for ContractClassManagerConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum CairoNativeClassesWhitelist {
+    All,
+    Specific(Vec<ClassHash>),
+    None
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
-    pub contract_to_compile_with_native: Option<ClassHash>, /* if 'None' compile all contracts
-                                                             * natively. */
+    pub native_classes_whitelist: CairoNativeClassesWhitelist
 }
 
 impl Default for CairoNativeRunConfig {
@@ -154,14 +155,14 @@ impl Default for CairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
-            contract_to_compile_with_native: None,
+            native_classes_whitelist: CairoNativeClassesWhitelist::All,
         }
     }
 }
 
 impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([
+        BTreeMap::from_iter([
             ser_param(
                 "run_cairo_native",
                 &self.run_cairo_native,
@@ -180,14 +181,12 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "The size of the compilation request channel.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        dump.extend(ser_optional_param(
-            &self.contract_to_compile_with_native,
-            ClassHash::default(),
-            "contract_to_compile_with_native",
-            "The contract to compile using Cario native compilation.",
-            ParamPrivacyInput::Public,
-        ));
-        dump
+            ser_param(
+                "native_classes_whitelist",
+                &self.native_classes_whitelist,
+                "Contracts for Cairo native compilation.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }

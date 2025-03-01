@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
+    CairoNativeClassesWhitelist,
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
@@ -175,7 +176,7 @@ pub struct PyCairoNativeRunConfig {
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
     // TODO(AvivG): allow multiple contracts.
-    pub contract_to_compile_with_native: Option<PyFelt>,
+    pub native_classes_whitelist: Option<Vec<PyFelt>>,
 }
 
 impl Default for PyCairoNativeRunConfig {
@@ -184,22 +185,26 @@ impl Default for PyCairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
-            contract_to_compile_with_native: None,
+            native_classes_whitelist: None,
         }
     }
 }
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
-        let contract_to_compile_with_native = py_cairo_native_run_config
-            .contract_to_compile_with_native
-            .map(|felt| ClassHash(felt.0));
+        let native_classes_whitelist = match py_cairo_native_run_config.native_classes_whitelist {
+            Some(felts) if felts.is_empty() => CairoNativeClassesWhitelist::None,
+            Some(felts) => CairoNativeClassesWhitelist::Specific(
+                felts.into_iter().map(|felt| ClassHash(felt.0)).collect(),
+            ),
+            None => CairoNativeClassesWhitelist::All,
+        };
 
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             channel_size: py_cairo_native_run_config.channel_size,
-            contract_to_compile_with_native,
+            native_classes_whitelist,
         }
     }
 }
