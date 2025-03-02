@@ -1,0 +1,184 @@
+{
+    "prime": "0x800000000000011000000000000000000000000000000000000000000000001",
+    "data": [
+        "0x40780017fff7fff",
+        "0x0",
+        "0x480a7ffa7fff8000",
+        "0x480a7ffb7fff8000",
+        "0x480680017fff8000",
+        "0x315",
+        "0x480a7ffc7fff8000",
+        "0x480a7ffd7fff8000",
+        "0x208b7fff7fff7ffe"
+    ],
+    "builtins": [],
+    "hints": {},
+    "compiler_version": "0.14.0",
+    "main_scope": "__main__",
+    "identifiers": {
+        "__main__.dummy_function": {
+            "pc": 0,
+            "decorators": [],
+            "type": "function"
+        },
+        "__main__.dummy_function.Args": {
+            "full_name": "__main__.dummy_function.Args",
+            "members": {
+                "param_1": {
+                    "offset": 0,
+                    "cairo_type": "felt"
+                },
+                "param_2": {
+                    "offset": 1,
+                    "cairo_type": "felt"
+                }
+            },
+            "size": 2,
+            "type": "struct"
+        },
+        "__main__.dummy_function.param_1": {
+            "full_name": "__main__.dummy_function.param_1",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 0,
+                    "value": "[cast(fp + (-4), felt*)]",
+                    "ap_tracking_data": {
+                        "group": 0,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.dummy_function.param_2": {
+            "full_name": "__main__.dummy_function.param_2",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 0,
+                    "value": "[cast(fp + (-3), felt*)]",
+                    "ap_tracking_data": {
+                        "group": 0,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.dummy_function.ImplicitArgs": {
+            "full_name": "__main__.dummy_function.ImplicitArgs",
+            "members": {
+                "range_check_ptr": {
+                    "offset": 0,
+                    "cairo_type": "felt"
+                },
+                "compressed_dst": {
+                    "offset": 1,
+                    "cairo_type": "felt*"
+                }
+            },
+            "size": 2,
+            "type": "struct"
+        },
+        "__main__.dummy_function.range_check_ptr": {
+            "full_name": "__main__.dummy_function.range_check_ptr",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 0,
+                    "value": "[cast(fp + (-6), felt*)]",
+                    "ap_tracking_data": {
+                        "group": 0,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.dummy_function.compressed_dst": {
+            "full_name": "__main__.dummy_function.compressed_dst",
+            "cairo_type": "felt*",
+            "references": [
+                {
+                    "pc": 0,
+                    "value": "[cast(fp + (-5), felt**)]",
+                    "ap_tracking_data": {
+                        "group": 0,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.dummy_function.Return": {
+            "cairo_type": "(res1: felt, res2: felt, res3: felt)",
+            "type": "type_definition"
+        },
+        "__main__.dummy_function.SIZEOF_LOCALS": {
+            "value": 0,
+            "type": "const"
+        },
+        "__main__.dummy_function.var": {
+            "full_name": "__main__.dummy_function.var",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 2,
+                    "value": "cast(789, felt)",
+                    "ap_tracking_data": {
+                        "group": 0,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        }
+    },
+    "reference_manager": {
+        "references": [
+            {
+                "pc": 0,
+                "value": "[cast(fp + (-4), felt*)]",
+                "ap_tracking_data": {
+                    "group": 0,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 0,
+                "value": "[cast(fp + (-3), felt*)]",
+                "ap_tracking_data": {
+                    "group": 0,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 0,
+                "value": "[cast(fp + (-6), felt*)]",
+                "ap_tracking_data": {
+                    "group": 0,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 0,
+                "value": "[cast(fp + (-5), felt**)]",
+                "ap_tracking_data": {
+                    "group": 0,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 2,
+                "value": "cast(789, felt)",
+                "ap_tracking_data": {
+                    "group": 0,
+                    "offset": 0
+                }
+            }
+        ]
+    },
+    "attributes": [],
+    "debug_info": null
+}
