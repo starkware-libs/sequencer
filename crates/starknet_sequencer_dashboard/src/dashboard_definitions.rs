@@ -12,7 +12,25 @@ use starknet_consensus_manager::metrics::{
     CONSENSUS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_NUM_SENT_MESSAGES,
 };
+use starknet_gateway::metrics::{
+    LABEL_NAME_SOURCE,
+    LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
+    TRANSACTIONS_FAILED,
+    TRANSACTIONS_RECEIVED,
+    TRANSACTIONS_SENT_TO_MEMPOOL,
+};
 use starknet_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
+use starknet_mempool::metrics::{
+    LABEL_NAME_DROP_REASON,
+    LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
+    MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_TRANSACTIONS_COMMITTED,
+    MEMPOOL_TRANSACTIONS_DROPPED,
+    MEMPOOL_TRANSACTIONS_RECEIVED,
+};
 use starknet_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
@@ -138,6 +156,91 @@ const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
+    TRANSACTIONS_RECEIVED.get_name(),
+    TRANSACTIONS_RECEIVED.get_description(),
+    formatcp!("sum  by ({}) ({}) ", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_RECEIVED.get_name()),
+    PanelType::Stat,
+);
+
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
+    TRANSACTIONS_RECEIVED.get_name(),
+    TRANSACTIONS_RECEIVED.get_description(),
+    formatcp!("sum  by ({}) ({}) ", LABEL_NAME_SOURCE, TRANSACTIONS_RECEIVED.get_name()),
+    PanelType::Stat,
+);
+
+const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
+    TRANSACTIONS_FAILED.get_name(),
+    TRANSACTIONS_FAILED.get_description(),
+    formatcp!("sum  by ({}) ({})", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_FAILED.get_name()),
+    PanelType::Stat,
+);
+
+const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
+    TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
+    TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
+    formatcp!(
+        "sum  by ({}) ({})",
+        GATEWAY_LABEL_NAME_TX_TYPE,
+        TRANSACTIONS_SENT_TO_MEMPOOL.get_name()
+    ),
+    PanelType::Stat,
+);
+
+const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
+    MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),
+    MEMPOOL_TRANSACTIONS_RECEIVED.get_description(),
+    formatcp!(
+        "sum  by ({}) ({})",
+        MEMPOOL_LABEL_NAME_TX_TYPE,
+        MEMPOOL_TRANSACTIONS_RECEIVED.get_name()
+    ),
+    PanelType::Stat,
+);
+
+const PANEL_MEMPOOL_TRANSACTIONS_COMMITTED: Panel = Panel::new(
+    MEMPOOL_TRANSACTIONS_COMMITTED.get_name(),
+    MEMPOOL_TRANSACTIONS_COMMITTED.get_description(),
+    MEMPOOL_TRANSACTIONS_COMMITTED.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_MEMPOOL_TRANSACTIONS_DROPPED: Panel = Panel::new(
+    MEMPOOL_TRANSACTIONS_DROPPED.get_name(),
+    MEMPOOL_TRANSACTIONS_DROPPED.get_description(),
+    formatcp!("sum  by ({}) ({})", LABEL_NAME_DROP_REASON, MEMPOOL_TRANSACTIONS_DROPPED.get_name()),
+    PanelType::Stat,
+);
+
+const PANEL_MEMPOOL_POOL_SIZE: Panel = Panel::new(
+    MEMPOOL_POOL_SIZE.get_name(),
+    "The average size of the pool",
+    formatcp!("avg_over_time({}[2m])", MEMPOOL_POOL_SIZE.get_name()),
+    PanelType::Graph,
+);
+
+const PANEL_MEMPOOL_PRIORITY_QUEUE_SIZE: Panel = Panel::new(
+    MEMPOOL_PRIORITY_QUEUE_SIZE.get_name(),
+    "The average size of the priority queue",
+    formatcp!("avg_over_time({}[2m])", MEMPOOL_PRIORITY_QUEUE_SIZE.get_name()),
+    PanelType::Graph,
+);
+
+const PANEL_MEMPOOL_PENDING_QUEUE_SIZE: Panel = Panel::new(
+    MEMPOOL_PENDING_QUEUE_SIZE.get_name(),
+    "The average size of the pending queue",
+    formatcp!("avg_over_time({}[2m])", MEMPOOL_PENDING_QUEUE_SIZE.get_name()),
+    PanelType::Graph,
+);
+
+const PANEL_MEMPOOL_GET_TXS_SIZE: Panel = Panel::new(
+    MEMPOOL_GET_TXS_SIZE.get_name(),
+    "The average size of the get_txs",
+    formatcp!("avg_over_time({}[2m])", MEMPOOL_GET_TXS_SIZE.get_name()),
+    PanelType::Graph,
+);
+
 const MEMPOOL_P2P_ROW: Row<'_> = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
@@ -185,8 +288,41 @@ const HTTP_SERVER_ROW: Row<'_> = Row::new(
     &[PANEL_ADDED_TRANSACTIONS_TOTAL],
 );
 
+pub const GATEWAY_ROW: Row<'_> = Row::new(
+    "Gateway",
+    "Gateway metrics",
+    &[
+        PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
+        PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
+        PANEL_GATEWAY_TRANSACTIONS_FAILED,
+        PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+    ],
+);
+
+pub const MEMPOOL_ROW: Row<'_> = Row::new(
+    "Mempool",
+    "Mempool metrics",
+    &[
+        PANEL_MEMPOOL_TRANSACTIONS_RECEIVED,
+        PANEL_MEMPOOL_TRANSACTIONS_DROPPED,
+        PANEL_MEMPOOL_TRANSACTIONS_COMMITTED,
+        PANEL_MEMPOOL_POOL_SIZE,
+        PANEL_MEMPOOL_PRIORITY_QUEUE_SIZE,
+        PANEL_MEMPOOL_PENDING_QUEUE_SIZE,
+        PANEL_MEMPOOL_GET_TXS_SIZE,
+    ],
+);
+
 pub const SEQUENCER_DASHBOARD: Dashboard<'_> = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
-    &[BATCHER_ROW, HTTP_SERVER_ROW, MEMPOOL_P2P_ROW, CONSENSUS_P2P_ROW, STATE_SYNC_P2P_ROW],
+    &[
+        BATCHER_ROW,
+        HTTP_SERVER_ROW,
+        MEMPOOL_P2P_ROW,
+        CONSENSUS_P2P_ROW,
+        STATE_SYNC_P2P_ROW,
+        GATEWAY_ROW,
+        MEMPOOL_ROW,
+    ],
 );
