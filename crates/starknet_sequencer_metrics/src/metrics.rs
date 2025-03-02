@@ -12,6 +12,7 @@ pub enum MetricScope {
     HttpServer,
     Infra,
     Mempool,
+    MempoolP2p,
     Network,
     PapyrusSync,
 }

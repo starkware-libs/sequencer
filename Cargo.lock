@@ -11527,6 +11527,7 @@ dependencies = [
  "starknet_http_server",
  "starknet_infra_utils",
  "starknet_mempool",
+ "starknet_mempool_p2p",
  "starknet_sequencer_infra",
  "starknet_sequencer_metrics",
 ]
