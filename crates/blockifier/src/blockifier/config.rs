@@ -145,7 +145,6 @@ pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
-    // TODO(AvivG): implement `native_classes_whitelist` logic.
     pub native_classes_whitelist: CairoNativeClassesWhitelist,
 }
 
