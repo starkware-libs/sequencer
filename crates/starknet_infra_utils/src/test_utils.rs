@@ -2,10 +2,10 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use tracing::info;
 
-const PORTS_PER_INSTANCE: u16 = 60;
-pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 10;
+const PORTS_PER_INSTANCE: u16 = 90;
+pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 28;
 const MAX_NUMBER_OF_TESTS: u16 = 10;
-const BASE_PORT: u16 = 55000;
+const BASE_PORT: u16 = 40300;
 
 // Ensure available ports don't exceed u16::MAX.
 const _: () = {
