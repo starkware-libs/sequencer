@@ -23,6 +23,7 @@ async fn main() {
         args.n_distributed,
         Some(PathBuf::from(args.output_base_dir.clone()).join("data")),
         Some(PathBuf::from(args.output_base_dir.clone()).join("configs")),
+        false,
     )
     .await;
 

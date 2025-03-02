@@ -171,6 +171,7 @@ impl IntegrationTestManager {
         num_of_distributed_nodes: usize,
         path_to_db_base_dir: Option<PathBuf>,
         path_to_config_base_dir: Option<PathBuf>,
+        log_to_files: bool,
     ) -> Self {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
@@ -183,6 +184,7 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             path_to_db_base_dir,
             path_to_config_base_dir,
+            log_to_files,
         )
         .await;
 
@@ -431,6 +433,7 @@ pub async fn get_sequencer_setup_configs(
     num_of_distributed_nodes: usize,
     path_to_db_base_dir: Option<PathBuf>,
     path_to_config_base_dir: Option<PathBuf>,
+    log_to_files: bool,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
@@ -493,7 +496,8 @@ pub async fn get_sequencer_setup_configs(
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
-            let node_execution_id = NodeExecutionId::new(node_index, executable_index);
+            let node_execution_id =
+                NodeExecutionId::new(node_index, executable_index, log_to_files);
             let consensus_manager_config = consensus_manager_configs.remove(0);
             let mempool_p2p_config = mempool_p2p_configs.remove(0);
             let state_sync_config = state_sync_configs.remove(0);
