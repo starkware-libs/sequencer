@@ -36,9 +36,9 @@ use starknet_mempool_types::communication::{
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_metrics::metric_definitions::{
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
+    GATEWAY_TRANSACTIONS_FAILED,
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use strum::IntoEnumIterator;
 
@@ -185,11 +185,11 @@ async fn test_add_tx(
 
     let metric_counters_for_queries = GatewayMetricHandle::new(&rpc_tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
-    assert_eq!(metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
+    assert_eq!(metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics), 1);
     match expected_error {
         Some(expected_err) => {
             assert_eq!(
-                metric_counters_for_queries.get_metric_value(TRANSACTIONS_FAILED, &metrics),
+                metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
                 1
             );
             assert_eq!(result.unwrap_err(), expected_err);
@@ -197,7 +197,7 @@ async fn test_add_tx(
         None => {
             assert_eq!(
                 metric_counters_for_queries
-                    .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
+                    .get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
             assert_eq!(result.unwrap(), tx_hash);
@@ -236,7 +236,7 @@ fn test_register_metrics() {
     for tx_type in RpcTransactionLabelValue::iter() {
         for source in SourceLabelValue::iter() {
             assert_eq!(
-                TRANSACTIONS_RECEIVED
+                GATEWAY_TRANSACTIONS_RECEIVED
                     .parse_numeric_metric::<u64>(
                         &metrics,
                         &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
@@ -245,7 +245,7 @@ fn test_register_metrics() {
                 0
             );
             assert_eq!(
-                TRANSACTIONS_FAILED
+                GATEWAY_TRANSACTIONS_FAILED
                     .parse_numeric_metric::<u64>(
                         &metrics,
                         &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]
@@ -254,7 +254,7 @@ fn test_register_metrics() {
                 0
             );
             assert_eq!(
-                TRANSACTIONS_SENT_TO_MEMPOOL
+                GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL
                     .parse_numeric_metric::<u64>(
                         &metrics,
                         &[(LABEL_NAME_TX_TYPE, tx_type.into()), (LABEL_NAME_SOURCE, source.into()),]

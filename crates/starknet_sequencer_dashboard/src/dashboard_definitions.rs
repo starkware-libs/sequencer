@@ -4,6 +4,9 @@ use starknet_sequencer_metrics::metric_definitions::{
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_NUM_SENT_MESSAGES,
+    GATEWAY_TRANSACTIONS_FAILED,
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
@@ -118,6 +121,27 @@ const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED: Panel = Panel::new(
+    GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
+    GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
+    GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
+    GATEWAY_TRANSACTIONS_FAILED.get_name(),
+    GATEWAY_TRANSACTIONS_FAILED.get_description(),
+    GATEWAY_TRANSACTIONS_FAILED.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
+    PanelType::Stat,
+);
+
 const MEMPOOL_P2P_ROW: Row<'_> = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
@@ -168,4 +192,14 @@ pub const SEQUENCER_DASHBOARD: Dashboard<'_> = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
     &[BATCHER_ROW, HTTP_SERVER_ROW, MEMPOOL_P2P_ROW, CONSENSUS_P2P_ROW, STATE_SYNC_P2P_ROW],
+);
+
+pub const GATEWAY_ROW: Row<'_> = Row::new(
+    "Gateway",
+    "Gateway metrics",
+    &[
+        PANEL_GATEWAY_TRANSACTIONS_RECEIVED,
+        PANEL_GATEWAY_TRANSACTIONS_FAILED,
+        PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+    ],
 );

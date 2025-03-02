@@ -1,9 +1,9 @@
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use starknet_sequencer_metrics::metric_definitions::{
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
+    GATEWAY_TRANSACTIONS_FAILED,
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 #[cfg(test)]
 use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
@@ -48,7 +48,7 @@ impl GatewayMetricHandle {
     }
 
     pub fn count_transaction_received(&self) {
-        TRANSACTIONS_RECEIVED.increment(1, &self.label());
+        GATEWAY_TRANSACTIONS_RECEIVED.increment(1, &self.label());
     }
 
     pub fn transaction_sent_to_mempool(&mut self) {
@@ -65,9 +65,9 @@ impl Drop for GatewayMetricHandle {
     fn drop(&mut self) {
         match self.tx_status {
             TransactionStatus::SentToMempool => {
-                TRANSACTIONS_SENT_TO_MEMPOOL.increment(1, &self.label())
+                GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.increment(1, &self.label())
             }
-            TransactionStatus::Failed => TRANSACTIONS_FAILED.increment(1, &self.label()),
+            TransactionStatus::Failed => GATEWAY_TRANSACTIONS_FAILED.increment(1, &self.label()),
         }
     }
 }
@@ -82,7 +82,7 @@ pub(crate) fn register_metrics() {
             ]);
         }
     }
-    TRANSACTIONS_RECEIVED.register(&label_variations);
-    TRANSACTIONS_FAILED.register(&label_variations);
-    TRANSACTIONS_SENT_TO_MEMPOOL.register(&label_variations);
+    GATEWAY_TRANSACTIONS_RECEIVED.register(&label_variations);
+    GATEWAY_TRANSACTIONS_FAILED.register(&label_variations);
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register(&label_variations);
 }
