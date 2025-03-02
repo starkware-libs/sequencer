@@ -5,6 +5,7 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
+    get_bucket_offsets,
     BitLength,
     BitsArray,
     BucketElement,
@@ -13,6 +14,7 @@ use super::utils::{
     BucketElement62,
     BucketElementTrait,
     Buckets,
+    CompressionSet,
 };
 use crate::hints::error::OsHintError;
 
@@ -84,4 +86,45 @@ fn test_buckets() {
 
     assert_eq!(buckets.get_element_index(&bucket62_3), Some(&1_usize));
     assert_eq!(buckets.lengths(), [0, 0, 0, 2, 1, 0]);
+}
+
+#[test]
+fn test_get_bucket_offsets() {
+    let lengths = vec![2, 3, 5];
+    let offsets = get_bucket_offsets(&lengths);
+    assert_eq!(offsets, [0, 2, 5]);
+}
+
+#[rstest]
+#[case::unique_values(
+    vec![
+        Felt::from(42),                    // < 15 bits
+        Felt::from(12833943439439439_u64), // 54 bits
+        Felt::from(1283394343),            // 31 bits
+    ],
+    [0, 0, 0, 1, 1, 1],
+    0,
+    vec![],
+)]
+#[case::repeated_values(
+    vec![
+        Felt::from(43),
+        Felt::from(42),
+        Felt::from(42),
+        Felt::from(42),
+    ],
+    [0, 0, 0, 0, 0, 2],
+    2,
+    vec![1, 1],
+)]
+fn test_update_with_unique_values(
+    #[case] values: Vec<Felt>,
+    #[case] expected_unique_lengths: [usize; 6],
+    #[case] expected_n_repeating_values: usize,
+    #[case] expected_repeating_value_pointers: Vec<usize>,
+) {
+    let compression_set = CompressionSet::new(&values);
+    assert_eq!(expected_unique_lengths, compression_set.get_unique_value_bucket_lengths());
+    assert_eq!(expected_n_repeating_values, compression_set.n_repeating_values());
+    assert_eq!(expected_repeating_value_pointers, compression_set.get_repeating_value_pointers());
 }
