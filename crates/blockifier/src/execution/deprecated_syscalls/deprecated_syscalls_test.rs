@@ -460,7 +460,7 @@ fn test_tx_info(
     let mut test_contract_data: FeatureContractData = test_contract.into();
     if v1_bound_account {
         let optional_class_hash =
-            VersionedConstants::latest_constants().os_constants.v1_bound_accounts.first();
+            VersionedConstants::latest_constants().os_constants.v1_bound_accounts_cairo0.first();
         test_contract_data.class_hash =
             *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
     }

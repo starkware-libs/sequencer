@@ -855,7 +855,7 @@ pub struct OsConstants {
     pub os_contract_addresses: OsContractAddresses,
     pub validate_max_sierra_gas: GasAmount,
     pub execute_max_sierra_gas: GasAmount,
-    pub v1_bound_accounts: Vec<ClassHash>,
+    pub v1_bound_accounts_cairo0: Vec<ClassHash>,
 }
 
 impl OsConstants {
@@ -940,14 +940,14 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
                 .ok_or_else(|| OsConstantsSerdeError::KeyNotFoundInFile(key.to_string()))?
                 .clone(),
         )?);
-        let v1_bound_accounts = raw_json_data.v1_bound_accounts;
+        let v1_bound_accounts_cairo0 = raw_json_data.v1_bound_accounts_cairo0;
         let os_constants = OsConstants {
             gas_costs,
             validate_rounding_consts,
             os_contract_addresses,
             validate_max_sierra_gas,
             execute_max_sierra_gas,
-            v1_bound_accounts,
+            v1_bound_accounts_cairo0,
         };
         Ok(os_constants)
     }
@@ -988,7 +988,7 @@ struct OsConstantsRawJson {
     #[serde(default)]
     validate_rounding_consts: ValidateRoundingConsts,
     os_contract_addresses: OsContractAddresses,
-    v1_bound_accounts: Vec<ClassHash>,
+    v1_bound_accounts_cairo0: Vec<ClassHash>,
 }
 
 impl OsConstantsRawJson {

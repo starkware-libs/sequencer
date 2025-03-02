@@ -326,7 +326,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         let version = tx_context.tx_info.version();
         let versioned_constants = &tx_context.block_context.versioned_constants;
         // The set of v1-bound-accounts.
-        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts;
+        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo0;
 
         // If the transaction version is 3 and the account is in the v1-bound-accounts set,
         // the syscall should return transaction version 1 instead.
