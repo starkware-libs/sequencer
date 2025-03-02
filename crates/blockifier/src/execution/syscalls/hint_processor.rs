@@ -28,7 +28,11 @@ use thiserror::Error;
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    ExecutableCallEntryPoint,
+};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
     felt_from_ptr,
@@ -255,7 +259,7 @@ impl<'a> SyscallHintProcessor<'a> {
         state: &'a mut dyn State,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
-        call: CallEntryPoint,
+        call: ExecutableCallEntryPoint,
         hints: &'a HashMap<String, Hint>,
         read_only_segments: ReadOnlySegments,
     ) -> Self {
@@ -278,6 +282,10 @@ impl<'a> SyscallHintProcessor<'a> {
 
     pub fn caller_address(&self) -> ContractAddress {
         self.base.call.caller_address
+    }
+
+    pub fn class_hash(&self) -> ClassHash {
+        self.base.call.class_hash
     }
 
     pub fn entry_point_selector(&self) -> EntryPointSelector {

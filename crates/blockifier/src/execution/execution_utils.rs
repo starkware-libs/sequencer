@@ -125,12 +125,7 @@ pub fn execute_entry_point_call(
             )
         }
         RunnableCompiledClass::V1(compiled_class) => {
-            entry_point_execution::execute_entry_point_call(
-                call.into(),
-                compiled_class,
-                state,
-                context,
-            )
+            entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
@@ -138,14 +133,14 @@ pub fn execute_entry_point_call(
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).
                 entry_point_execution::execute_entry_point_call(
-                    call.into(),
+                    call,
                     compiled_class.casm(),
                     state,
                     context,
                 )
             } else {
                 native_entry_point_execution::execute_entry_point_call(
-                    call.into(),
+                    call,
                     compiled_class,
                     state,
                     context,
