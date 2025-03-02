@@ -36,7 +36,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
@@ -67,6 +67,7 @@ use crate::utils::{
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     ConsensusTxs,
+    DeclareTx,
     DeployAndInvokeTxs,
     TestScenario,
 };
@@ -74,6 +75,8 @@ use crate::utils::{
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(2);
+pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
+    BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 5);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
@@ -469,12 +472,17 @@ impl IntegrationTestManager {
         .await;
     }
 
+    #[instrument(skip(self))]
     pub async fn send_txs_and_verify(
         &mut self,
         n_invoke_txs: usize,
         n_l1_handler_txs: usize,
         wait_for_block: BlockNumber,
     ) {
+        info!(
+            "Sending {} invoke + {} l1handler txs and waiting for block {}.",
+            n_invoke_txs, n_l1_handler_txs, wait_for_block
+        );
         self.test_and_verify(
             ConsensusTxs { n_invoke_txs, n_l1_handler_txs },
             DEFAULT_SENDER_ACCOUNT,
@@ -503,6 +511,12 @@ impl IntegrationTestManager {
             localhost_url,
             config.monitoring_endpoint_config.port,
         )
+    }
+
+    #[instrument(skip(self))]
+    pub async fn send_declare_txs_and_verify(&mut self) {
+        info!("Sending a declare tx and waiting for block {}.", BLOCK_TO_WAIT_FOR_DECLARE);
+        self.test_and_verify(DeclareTx, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_DECLARE).await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
