@@ -93,6 +93,24 @@ pub enum CallType {
     Call = 0,
     Delegate = 1,
 }
+
+pub struct EntryPointTypeAndSelector {
+    pub entry_point_type: EntryPointType,
+    pub entry_point_selector: EntryPointSelector,
+}
+
+impl EntryPointTypeAndSelector {
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Represents a call to an entry point of a Starknet contract.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -220,16 +238,6 @@ impl CallEntryPoint {
         execution_result
     }
 
-    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
-        if self.entry_point_type == EntryPointType::Constructor
-            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            Err(PreExecutionError::InvalidConstructorEntryPointName)
-        } else {
-            Ok(())
-        }
-    }
-
     fn into_executable(self, class_hash: ClassHash) -> ExecutableCallEntryPoint {
         ExecutableCallEntryPoint {
             class_hash,
@@ -241,6 +249,15 @@ impl CallEntryPoint {
             caller_address: self.caller_address,
             call_type: self.call_type,
             initial_gas: self.initial_gas,
+        }
+    }
+}
+
+impl ExecutableCallEntryPoint {
+    pub fn type_and_selector(&self) -> EntryPointTypeAndSelector {
+        EntryPointTypeAndSelector {
+            entry_point_type: self.entry_point_type,
+            entry_point_selector: self.entry_point_selector,
         }
     }
 }

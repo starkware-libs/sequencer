@@ -4,9 +4,9 @@ use cairo_native::utils::BuiltinCosts;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
-    CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -15,12 +15,12 @@ use crate::state::state_api::State;
 
 // todo(rodrigo): add an `entry point not found` test for Native
 pub fn execute_entry_point_call(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: NativeCompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let entry_point = compiled_class.get_entry_point(&call)?;
+    let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
         NativeSyscallHandler::new(call, state, context);
@@ -87,7 +87,7 @@ fn create_callinfo(
     let vm_resources = CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
 
     Ok(CallInfo {
-        call: syscall_handler.base.call,
+        call: syscall_handler.base.call.into(),
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
             events: syscall_handler.base.events,
