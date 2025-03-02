@@ -53,9 +53,18 @@ pub fn run_cairo_0_entry_point(
     Ok(Retdata(
         return_values
             .iter()
-            .map(|m| {
-                m.get_int()
-                    .unwrap_or_else(|| panic!("Could not convert return data {} to integer.", m))
+            .map(|m| match m {
+                MaybeRelocatable::Int(i) => *i,
+                MaybeRelocatable::RelocatableValue(relocatable) => cairo_runner
+                    .vm
+                    .get_integer(*relocatable)
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Could not convert relocatable {:?} to integer. error: {:?}",
+                            relocatable, err
+                        )
+                    })
+                    .into_owned(),
             })
             .collect(),
     ))

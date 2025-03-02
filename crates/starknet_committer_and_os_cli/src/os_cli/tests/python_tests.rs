@@ -301,7 +301,12 @@ fn run_cairo_function(
 }
 
 fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
-    run_cairo_function(input, "dummy_function", &[], &retdata![1.into(), 2.into(), 3.into()])
+    run_cairo_function(
+        input,
+        "dummy_function",
+        &[MaybeRelocatable::from(123), MaybeRelocatable::from(456)],
+        &retdata![1.into(), 2.into(), 3.into()],
+    )
 }
 
 /// Deserialize the input string into an `Input` struct.
