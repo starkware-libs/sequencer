@@ -5,10 +5,6 @@ use crate::hints::types::HintArgs;
 
 // Hint implementations.
 
-pub(crate) fn load_class_inner<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {

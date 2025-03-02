@@ -26,6 +26,10 @@ pub(crate) fn iter_current_segment_info<S: StateReader>(
     todo!()
 }
 
+pub(crate) fn load_class_inner<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
