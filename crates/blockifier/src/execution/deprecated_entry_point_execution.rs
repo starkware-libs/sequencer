@@ -102,6 +102,7 @@ pub fn initialize_execution_context<'a>(
         initial_syscall_ptr,
         call.storage_address,
         call.caller_address,
+        call.class_hash.expect("Class hash must be resolved prior to call execution."),
     );
 
     Ok(VmExecutionContext { runner, syscall_handler, initial_syscall_ptr, entry_point_pc })

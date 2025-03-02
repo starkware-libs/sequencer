@@ -164,6 +164,7 @@ pub struct DeprecatedSyscallHintProcessor<'a> {
     pub context: &'a mut EntryPointExecutionContext,
     pub storage_address: ContractAddress,
     pub caller_address: ContractAddress,
+    pub class_hash: ClassHash,
 
     // Execution results.
     /// Inner calls invoked by the current execution.
@@ -195,12 +196,14 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         initial_syscall_ptr: Relocatable,
         storage_address: ContractAddress,
         caller_address: ContractAddress,
+        class_hash: ClassHash,
     ) -> Self {
         DeprecatedSyscallHintProcessor {
             state,
             context,
             storage_address,
             caller_address,
+            class_hash,
             inner_calls: vec![],
             events: vec![],
             l2_to_l1_messages: vec![],

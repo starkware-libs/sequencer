@@ -98,6 +98,7 @@ pub enum CallType {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallEntryPoint {
     // The class hash is not given if it can be deduced from the storage address.
+    // It is resolved prior to entry point's execution.
     pub class_hash: Option<ClassHash>,
     // Optional, since there is no address to the code implementation in a library call.
     // and for outermost calls (triggered by the transaction itself).
