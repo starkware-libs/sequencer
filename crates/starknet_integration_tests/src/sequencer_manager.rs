@@ -23,7 +23,7 @@ use starknet_sequencer_node::config::config_utils::dump_json_data;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::join;
 use tokio::task::JoinHandle;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
@@ -33,14 +33,7 @@ use crate::node_component_configs::{
     NodeComponentConfigs,
 };
 use crate::utils::{
-    create_consensus_manager_configs_from_network_configs,
-    create_integration_test_tx_generator,
-    create_mempool_p2p_configs,
-    create_state_sync_configs,
-    send_account_txs,
-    BootstrapTxs,
-    InvokeTxs,
-    TestScenario,
+    create_consensus_manager_configs_from_network_configs, create_integration_test_tx_generator, create_mempool_p2p_configs, create_state_sync_configs, send_account_txs, BootstrapTxs, DeclareTx, InvokeTxs, TestScenario
 };
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
@@ -325,8 +318,16 @@ impl IntegrationTestManager {
             .await;
     }
 
+    #[instrument(skip(self))]
     pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
+        info!("Sending {} invoke txs and waiting for block {}.", n_txs, wait_for_block);
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+    }
+
+    #[instrument(skip(self))]
+    pub async fn send_declare_txs_and_verify(&mut self, wait_for_block: BlockNumber) {
+        info!("Sending declare txs and waiting for block {}.", wait_for_block);
+        self.test_and_verify(DeclareTx, DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
