@@ -9,7 +9,7 @@ use strum::IntoEnumIterator;
 
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::CairoVersion;
 
@@ -41,7 +41,7 @@ pub fn fund_account(
 pub fn test_state_inner(
     chain_info: &ChainInfo,
     initial_balances: Fee,
-    contract_instances: &[(FeatureContract, u16)],
+    contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
     let mut class_hash_to_class = HashMap::new();
@@ -57,8 +57,8 @@ pub fn test_state_inner(
 
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
-        let class_hash = contract.get_class_hash();
-        class_hash_to_class.insert(class_hash, contract.get_runnable_class());
+        let class_hash = contract.class_hash;
+        class_hash_to_class.insert(class_hash, contract.runnable_class.clone());
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             address_to_class_hash.insert(instance_address, class_hash);
@@ -72,13 +72,8 @@ pub fn test_state_inner(
     for (contract, n_instances) in contract_instances.iter() {
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
-            match contract {
-                FeatureContract::AccountWithLongValidate(_)
-                | FeatureContract::AccountWithoutValidations(_)
-                | FeatureContract::FaultyAccount(_) => {
-                    fund_account(chain_info, instance_address, initial_balances, &mut state_reader);
-                }
-                _ => (),
+            if contract.require_funding {
+                fund_account(chain_info, instance_address, initial_balances, &mut state_reader);
             }
         }
     }
@@ -90,6 +85,18 @@ pub fn test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
+) -> CachedState<DictStateReader> {
+    let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
+        .iter()
+        .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
+        .collect();
+    test_state_ex(chain_info, initial_balances, &contract_instances_vec[..])
+}
+
+pub fn test_state_ex(
+    chain_info: &ChainInfo,
+    initial_balances: Fee,
+    contract_instances: &[(FeatureContractData, u16)],
 ) -> CachedState<DictStateReader> {
     test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
 }
