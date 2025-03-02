@@ -434,16 +434,15 @@ pub async fn get_sequencer_setup_configs(
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
-    // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
-    let mut available_ports =
-        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
-
     let node_component_configs: Vec<NodeComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
         combined.extend(create_distributed_node_configs(
-            &mut available_ports,
+            test_unique_id.into(),
+            MAX_NUMBER_OF_INSTANCES_PER_TEST
+                - <usize as std::convert::TryInto<u16>>::try_into(num_of_distributed_nodes + 1)
+                    .unwrap(),
             num_of_distributed_nodes,
         ));
         combined
@@ -452,11 +451,14 @@ pub async fn get_sequencer_setup_configs(
     info!("Creating node configurations.");
     let chain_info = ChainInfo::create_for_testing();
     let accounts = tx_generator.accounts();
+    // doesnt this need to be the number of distributed nodes instead of total number of configs?
     let n_distributed_sequencers = node_component_configs
-        .iter()
+        .iter() // iterating over all nodes
         .map(|node_component_config| node_component_config.len())
-        .sum();
+        .sum(); // summing the number of parts in each node, getting total number of configs
 
+    let mut available_ports =
+        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
     // TODO(Nadin): Refactor to avoid directly mutating vectors
 
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
