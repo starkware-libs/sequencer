@@ -22,8 +22,6 @@ use crate::hints::hint_implementation::block_context::{
     fee_token_address,
     get_block_mapping,
     is_leaf,
-    load_class,
-    load_class_inner,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -44,6 +42,8 @@ use crate::hints::hint_implementation::compiled_class::{
     assign_bytecode_segments,
     delete_memory_data,
     iter_current_segment_info,
+    load_class,
+    load_class_inner,
     set_ap_to_segment_hash,
     validate_compiled_class_facts_post_execution,
 };
