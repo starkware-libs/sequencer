@@ -12,7 +12,11 @@ use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
 use starknet_sierra_multicompile::SierraToNativeCompiler;
 use thiserror::Error;
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use crate::blockifier::config::{
+    CairoNativeClassesWhitelist,
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::global_cache::{CachedCairoNative, CachedClass, RawClassCache};
@@ -117,6 +121,13 @@ impl NativeClassManager {
         match compiled_class {
             CachedClass::V0(_) => self.cache.set(class_hash, compiled_class),
             CachedClass::V1(compiled_class_v1, sierra_contract_class) => {
+                if !self.compile_cairo_native(class_hash) {
+                    // Cache the V1 class.
+                    self.cache
+                        .set(class_hash, CachedClass::V1(compiled_class_v1, sierra_contract_class));
+                    return;
+                }
+
                 // TODO(Yoni): instead of these two flag, use an enum.
                 if self.wait_on_native_compilation() {
                     assert!(self.run_cairo_native(), "Native compilation is disabled.");
@@ -184,6 +195,15 @@ impl NativeClassManager {
 
     fn wait_on_native_compilation(&self) -> bool {
         self.cairo_native_run_config.wait_on_native_compilation
+    }
+
+    /// Determines if a contract should be compiled natively based on the allowlist.
+    /// `None` enables all, an empty list disables all, and listed contracts are compiled natively.
+    fn compile_cairo_native(&self, class_hash: ClassHash) -> bool {
+        match &self.cairo_native_run_config.native_classes_whitelist {
+            CairoNativeClassesWhitelist::All => true,
+            CairoNativeClassesWhitelist::Only(contracts) => contracts.contains(&class_hash),
+        }
     }
 
     /// Clears the contract cache.
