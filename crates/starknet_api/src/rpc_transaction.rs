@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
+use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::contract_class::EntryPointType;
@@ -51,7 +52,7 @@ use crate::{impl_deploy_transaction_trait, StarknetApiError};
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(RpcTransactionLabelValue),
-    derive(IntoStaticStr, EnumIter),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
     strum(serialize_all = "snake_case")
 )]
 #[serde(tag = "type")]
