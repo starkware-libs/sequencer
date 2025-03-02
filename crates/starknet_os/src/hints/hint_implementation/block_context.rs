@@ -1,14 +1,10 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 
-use crate::hints::error::{OsHintExtensionResult, OsHintResult};
+use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 
 // Hint implementations.
-
-pub(crate) fn load_class_inner<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
-}
 
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
@@ -56,13 +52,5 @@ pub(crate) fn is_leaf<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHin
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
-}
-
-// Hint extension implementations.
-
-pub(crate) fn load_class<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintExtensionResult {
     todo!()
 }
