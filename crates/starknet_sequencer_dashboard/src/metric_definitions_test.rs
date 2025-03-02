@@ -5,6 +5,7 @@ use starknet_batcher::metrics::BATCHER_ALL_METRICS;
 use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
 use starknet_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use starknet_mempool::metrics::MEMPOOL_ALL_METRICS;
+use starknet_mempool_p2p::metrics::MEMPOOL_P2P_ALL_METRICS;
 use starknet_sequencer_infra::metrics::INFRA_ALL_METRICS;
 use starknet_sequencer_metrics::metric_definitions::NETWORK_ALL_METRICS;
 
@@ -16,6 +17,7 @@ fn metric_names_no_duplications() {
         .chain(HTTP_SERVER_ALL_METRICS.iter())
         .chain(INFRA_ALL_METRICS.iter())
         .chain(MEMPOOL_ALL_METRICS.iter())
+        .chain(MEMPOOL_P2P_ALL_METRICS.iter())
         .chain(NETWORK_ALL_METRICS.iter())
         .chain(PAPYRUS_SYNC_ALL_METRICS.iter())
         .collect::<Vec<&&'static str>>();
