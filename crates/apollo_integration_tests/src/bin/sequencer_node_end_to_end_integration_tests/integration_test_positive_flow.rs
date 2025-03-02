@@ -31,6 +31,8 @@ async fn main() {
     // Run the first block scenario to deploy the accounts.
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
+    integration_test_manager.send_declare_txs_and_verify().await;
+
     // Run the test.
     integration_test_manager
         .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR)
