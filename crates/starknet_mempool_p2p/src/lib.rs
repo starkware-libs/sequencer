@@ -1,4 +1,5 @@
 pub mod config;
+pub mod metrics;
 pub mod propagator;
 pub mod runner;
 
@@ -9,13 +10,13 @@ use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::communication::SharedGatewayClient;
-use starknet_sequencer_metrics::metric_definitions::{
+
+use crate::config::MempoolP2pConfig;
+use crate::metrics::{
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-
-use crate::config::MempoolP2pConfig;
 use crate::propagator::MempoolP2pPropagator;
 use crate::runner::MempoolP2pRunner;
 

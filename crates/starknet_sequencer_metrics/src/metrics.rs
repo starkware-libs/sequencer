@@ -8,11 +8,13 @@ use regex::{escape, Regex};
 #[derive(Clone, Copy, Debug)]
 pub enum MetricScope {
     Batcher,
+    Consensus,
     Gateway,
     HttpServer,
     Infra,
     Mempool,
-    Network,
+    MempoolP2p,
+    StateSync,
     PapyrusSync,
 }
 

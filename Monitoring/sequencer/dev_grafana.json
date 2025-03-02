@@ -55,17 +55,17 @@
         "extra_params": {}
       },
       {
-        "title": "apollo_mempool_num_sent_messages",
+        "title": "apollo_mempool_p2p_num_sent_messages",
         "description": "The number of messages sent by the mempool p2p component",
         "type": "stat",
-        "expr": "apollo_mempool_num_sent_messages",
+        "expr": "apollo_mempool_p2p_num_sent_messages",
         "extra_params": {}
       },
       {
-        "title": "apollo_mempool_num_received_messages",
+        "title": "apollo_mempool_p2p_num_received_messages",
         "description": "The number of messages received by the mempool p2p component",
         "type": "stat",
-        "expr": "apollo_mempool_num_received_messages",
+        "expr": "apollo_mempool_p2p_num_received_messages",
         "extra_params": {}
       }
     ],

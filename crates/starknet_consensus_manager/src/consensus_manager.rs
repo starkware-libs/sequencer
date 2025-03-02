@@ -20,15 +20,15 @@ use starknet_consensus_orchestrator::cende::CendeAmbassador;
 use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_metrics::metric_definitions::{
-    CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_NUM_SENT_MESSAGES,
-};
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
+use crate::metrics::{
+    CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_NUM_SENT_MESSAGES,
+};
 
 #[derive(Clone)]
 pub struct ConsensusManager {

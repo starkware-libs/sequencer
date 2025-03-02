@@ -49,15 +49,15 @@ use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockO
 use starknet_client::reader::PendingData;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
-use starknet_sequencer_metrics::metric_definitions::{
-    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
-    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
-    STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-};
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::RwLock;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
+use crate::metrics::{
+    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+};
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
