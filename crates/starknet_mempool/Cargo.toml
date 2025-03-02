@@ -49,8 +49,3 @@ testing = ["mempool_test_utils", "pretty_assertions", "starknet-types-core"]
 
 [package.metadata.cargo-machete]
 ignored = ["starknet-types-core"]
-
-[[test]]
-name = "flow_test"
-path = "tests/flow_test.rs"
-required-features = ["testing"]
