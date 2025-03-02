@@ -1,0 +1,350 @@
+[2m2025-03-03T08:56:11.168677Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::trace_util[0m[2m:[0m Tracing has been successfully initialized.
+[2m2025-03-03T08:56:11.216279Z[0m [32m INFO[0m [2mpapyrus_config::loading[0m[2m:[0m Loading custom config file: "/tmp/.tmpnPFRNi/node_integration_test_config_changes.json"
+[2m2025-03-03T08:56:11.222950Z[0m [32m INFO[0m [1mload[0m: [2mpapyrus_config::loading[0m[2m:[0m config_map: {
+  "base_layer_config.node_url": "https://node_url/",
+  "base_layer_config.starknet_contract_address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": 17000000,
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": 4000,
+  "batcher_config.block_builder_config.chain_info.chain_id": "CHAIN_ID_SUBDIR",
+  "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": "0x1001",
+  "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": "0x1002",
+  "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": 64,
+  "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": true,
+  "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": 4,
+  "batcher_config.block_builder_config.execute_config.stack_size": 62914560,
+  "batcher_config.block_builder_config.tx_chunk_size": 100,
+  "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": 1000,
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": 50,
+  "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": 1000000,
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": 2000,
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": false,
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": false,
+  "batcher_config.contract_class_manager_config.contract_cache_size": 600,
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": 81920,
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": 20,
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": 5368709120,
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_native_bytecode_size": 15728640,
+  "batcher_config.contract_class_manager_config.native_compiler_config.optimization_level": 2,
+  "batcher_config.contract_class_manager_config.native_compiler_config.panic_on_compilation_failure": false,
+  "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path": null,
+  "batcher_config.input_stream_content_buffer_size": 400,
+  "batcher_config.max_l1_handler_txs_per_block_proposal": 3,
+  "batcher_config.outstream_content_buffer_size": 100,
+  "batcher_config.storage.db_config.chain_id": "CHAIN_ID_SUBDIR",
+  "batcher_config.storage.db_config.enforce_file_exists": false,
+  "batcher_config.storage.db_config.growth_step": 67108864,
+  "batcher_config.storage.db_config.max_size": 34359738368,
+  "batcher_config.storage.db_config.min_size": 1048576,
+  "batcher_config.storage.db_config.path_prefix": "/tmp/.tmp0v1DiO",
+  "batcher_config.storage.mmap_file_config.growth_step": 1048576,
+  "batcher_config.storage.mmap_file_config.max_object_size": 65536,
+  "batcher_config.storage.mmap_file_config.max_size": 16777216,
+  "batcher_config.storage.scope": "StateOnly",
+  "chain_id": "CHAIN_ID_SUBDIR",
+  "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": 100,
+  "class_manager_config.class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 100,
+  "class_manager_config.class_storage_config.class_hash_storage_config.enforce_file_exists": false,
+  "class_manager_config.class_storage_config.class_hash_storage_config.max_size": 1048576,
+  "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": "/tmp/.tmpFD2Hx3",
+  "class_manager_config.class_storage_config.persistent_root": "/tmp/.tmpevILDV",
+  "compiler_config.max_casm_bytecode_size": 81920,
+  "compiler_config.max_cpu_time": 20,
+  "compiler_config.max_memory_usage": 5368709120,
+  "compiler_config.max_native_bytecode_size": 15728640,
+  "compiler_config.optimization_level": 2,
+  "compiler_config.panic_on_compilation_failure": false,
+  "compiler_config.sierra_to_native_compiler_path": null,
+  "components.batcher.execution_mode": "LocalExecutionWithRemoteDisabled",
+  "components.batcher.ip": "0.0.0.0",
+  "components.batcher.local_server_config.channel_buffer_size": 32,
+  "components.batcher.max_concurrency": 10,
+  "components.batcher.port": 0,
+  "components.batcher.remote_client_config.idle_connections": 18446744073709551615,
+  "components.batcher.remote_client_config.idle_timeout": 90,
+  "components.batcher.remote_client_config.retries": 3,
+  "components.batcher.url": "localhost",
+  "components.class_manager.execution_mode": "Remote",
+  "components.class_manager.ip": "127.0.0.1",
+  "components.class_manager.local_server_config.channel_buffer_size": 32,
+  "components.class_manager.max_concurrency": 10,
+  "components.class_manager.port": 55549,
+  "components.class_manager.remote_client_config.idle_connections": 18446744073709551615,
+  "components.class_manager.remote_client_config.idle_timeout": 90,
+  "components.class_manager.remote_client_config.retries": 3,
+  "components.class_manager.url": "127.0.0.1",
+  "components.consensus_manager.execution_mode": "Enabled",
+  "components.gateway.execution_mode": "Remote",
+  "components.gateway.ip": "127.0.0.1",
+  "components.gateway.local_server_config.channel_buffer_size": 32,
+  "components.gateway.max_concurrency": 10,
+  "components.gateway.port": 55545,
+  "components.gateway.remote_client_config.idle_connections": 18446744073709551615,
+  "components.gateway.remote_client_config.idle_timeout": 90,
+  "components.gateway.remote_client_config.retries": 3,
+  "components.gateway.url": "127.0.0.1",
+  "components.http_server.execution_mode": "Disabled",
+  "components.l1_provider.execution_mode": "LocalExecutionWithRemoteDisabled",
+  "components.l1_provider.ip": "0.0.0.0",
+  "components.l1_provider.local_server_config.channel_buffer_size": 32,
+  "components.l1_provider.max_concurrency": 10,
+  "components.l1_provider.port": 0,
+  "components.l1_provider.remote_client_config.idle_connections": 18446744073709551615,
+  "components.l1_provider.remote_client_config.idle_timeout": 90,
+  "components.l1_provider.remote_client_config.retries": 3,
+  "components.l1_provider.url": "localhost",
+  "components.l1_scraper.execution_mode": "Disabled",
+  "components.mempool.execution_mode": "Remote",
+  "components.mempool.ip": "127.0.0.1",
+  "components.mempool.local_server_config.channel_buffer_size": 32,
+  "components.mempool.max_concurrency": 10,
+  "components.mempool.port": 55546,
+  "components.mempool.remote_client_config.idle_connections": 18446744073709551615,
+  "components.mempool.remote_client_config.idle_timeout": 90,
+  "components.mempool.remote_client_config.retries": 3,
+  "components.mempool.url": "127.0.0.1",
+  "components.mempool_p2p.execution_mode": "Remote",
+  "components.mempool_p2p.ip": "127.0.0.1",
+  "components.mempool_p2p.local_server_config.channel_buffer_size": 32,
+  "components.mempool_p2p.max_concurrency": 10,
+  "components.mempool_p2p.port": 55547,
+  "components.mempool_p2p.remote_client_config.idle_connections": 18446744073709551615,
+  "components.mempool_p2p.remote_client_config.idle_timeout": 90,
+  "components.mempool_p2p.remote_client_config.retries": 3,
+  "components.mempool_p2p.url": "127.0.0.1",
+  "components.monitoring_endpoint.execution_mode": "Enabled",
+  "components.sierra_compiler.execution_mode": "LocalExecutionWithRemoteDisabled",
+  "components.sierra_compiler.ip": "0.0.0.0",
+  "components.sierra_compiler.local_server_config.channel_buffer_size": 32,
+  "components.sierra_compiler.max_concurrency": 10,
+  "components.sierra_compiler.port": 0,
+  "components.sierra_compiler.remote_client_config.idle_connections": 18446744073709551615,
+  "components.sierra_compiler.remote_client_config.idle_timeout": 90,
+  "components.sierra_compiler.remote_client_config.retries": 3,
+  "components.sierra_compiler.url": "localhost",
+  "components.state_sync.execution_mode": "LocalExecutionWithRemoteEnabled",
+  "components.state_sync.ip": "127.0.0.1",
+  "components.state_sync.local_server_config.channel_buffer_size": 32,
+  "components.state_sync.max_concurrency": 10,
+  "components.state_sync.port": 55548,
+  "components.state_sync.remote_client_config.idle_connections": 18446744073709551615,
+  "components.state_sync.remote_client_config.idle_timeout": 90,
+  "components.state_sync.remote_client_config.retries": 3,
+  "components.state_sync.url": "127.0.0.1",
+  "consensus_manager_config.broadcast_buffer_size": 10000,
+  "consensus_manager_config.cende_config.recorder_url": "http://127.0.0.1:55360/",
+  "consensus_manager_config.cende_config.skip_write_height": 1,
+  "consensus_manager_config.consensus_config.future_height_limit": 10,
+  "consensus_manager_config.consensus_config.future_height_round_limit": 1,
+  "consensus_manager_config.consensus_config.future_round_limit": 10,
+  "consensus_manager_config.consensus_config.startup_delay": 15,
+  "consensus_manager_config.consensus_config.sync_retry_interval": 1.0,
+  "consensus_manager_config.consensus_config.timeouts.precommit_timeout": 3.0,
+  "consensus_manager_config.consensus_config.timeouts.prevote_timeout": 3.0,
+  "consensus_manager_config.consensus_config.timeouts.proposal_timeout": 9.0,
+  "consensus_manager_config.consensus_config.validator_id": "0x68",
+  "consensus_manager_config.context_config.block_timestamp_window": 1,
+  "consensus_manager_config.context_config.chain_id": "CHAIN_ID_SUBDIR",
+  "consensus_manager_config.context_config.l1_da_mode": true,
+  "consensus_manager_config.context_config.num_validators": 5,
+  "consensus_manager_config.context_config.proposal_buffer_size": 100,
+  "consensus_manager_config.immediate_active_height": 1,
+  "consensus_manager_config.network_config.advertised_multiaddr": null,
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/55550/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+  "consensus_manager_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+  "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+  "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+  "consensus_manager_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+  "consensus_manager_config.network_config.discovery_config.heartbeat_interval": 100,
+  "consensus_manager_config.network_config.idle_connection_timeout": 120,
+  "consensus_manager_config.network_config.peer_manager_config.malicious_timeout_seconds": 1,
+  "consensus_manager_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+  "consensus_manager_config.network_config.port": 55556,
+  "consensus_manager_config.network_config.secret_key": "",
+  "consensus_manager_config.network_config.session_timeout": 120,
+  "consensus_manager_config.proposals_topic": "consensus_proposals",
+  "consensus_manager_config.revert_config.revert_up_to_and_including": 18446744073709551615,
+  "consensus_manager_config.revert_config.should_revert": false,
+  "consensus_manager_config.votes_topic": "consensus_votes",
+  "eth_fee_token_address": "0x1001",
+  "gateway_config.chain_info.chain_id": "CHAIN_ID_SUBDIR",
+  "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": "0x1001",
+  "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": "0x1002",
+  "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": 1000,
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": 50,
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": 1000000,
+  "gateway_config.stateless_tx_validator_config.max_calldata_length": 10,
+  "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.major": 1,
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": 5,
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": 18446744073709551615,
+  "gateway_config.stateless_tx_validator_config.max_signature_length": 2,
+  "gateway_config.stateless_tx_validator_config.min_sierra_version.major": 1,
+  "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": 1,
+  "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": 0,
+  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_data_gas_fee": false,
+  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": true,
+  "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": false,
+  "http_server_config.ip": "127.0.0.1",
+  "http_server_config.port": 55362,
+  "l1_provider_config.bootstrap_catch_up_height": 0,
+  "l1_provider_config.provider_startup_height": 1,
+  "l1_provider_config.startup_sync_sleep_retry_interval": 0.0,
+  "l1_scraper_config.chain_id": "CHAIN_ID_SUBDIR",
+  "l1_scraper_config.finality": 0,
+  "l1_scraper_config.polling_interval": 1,
+  "l1_scraper_config.startup_rewind_time": 0,
+  "mempool_config.enable_fee_escalation": true,
+  "mempool_config.fee_escalation_percentage": 10,
+  "mempool_config.transaction_ttl": 300,
+  "mempool_p2p_config.network_buffer_size": 10000,
+  "mempool_p2p_config.network_config.advertised_multiaddr": null,
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/55564/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+  "mempool_p2p_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+  "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": 100,
+  "mempool_p2p_config.network_config.idle_connection_timeout": 120,
+  "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout_seconds": 1,
+  "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+  "mempool_p2p_config.network_config.port": 55570,
+  "mempool_p2p_config.network_config.secret_key": "",
+  "mempool_p2p_config.network_config.session_timeout": 120,
+  "monitoring_endpoint_config.collect_metrics": true,
+  "monitoring_endpoint_config.ip": "0.0.0.0",
+  "monitoring_endpoint_config.port": 55361,
+  "recorder_url": "http://127.0.0.1:55360/",
+  "revert_config.revert_up_to_and_including": 18446744073709551615,
+  "revert_config.should_revert": false,
+  "state_sync_config.central_sync_client_config": null,
+  "state_sync_config.network_config.advertised_multiaddr": null,
+  "state_sync_config.network_config.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/55557/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+  "state_sync_config.network_config.chain_id": "CHAIN_ID_SUBDIR",
+  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+  "state_sync_config.network_config.discovery_config.heartbeat_interval": 100,
+  "state_sync_config.network_config.idle_connection_timeout": 120,
+  "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": 1,
+  "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
+  "state_sync_config.network_config.port": 55563,
+  "state_sync_config.network_config.secret_key": "",
+  "state_sync_config.network_config.session_timeout": 120,
+  "state_sync_config.p2p_sync_client_config.buffer_size": 100000,
+  "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": 100,
+  "state_sync_config.p2p_sync_client_config.num_block_state_diffs_per_query": 100,
+  "state_sync_config.p2p_sync_client_config.num_block_transactions_per_query": 100,
+  "state_sync_config.p2p_sync_client_config.num_headers_per_query": 10000,
+  "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": 50,
+  "state_sync_config.p2p_sync_client_config.wait_period_for_other_protocol": 50,
+  "state_sync_config.revert_config.revert_up_to_and_including": 18446744073709551615,
+  "state_sync_config.revert_config.should_revert": false,
+  "state_sync_config.storage_config.db_config.chain_id": "CHAIN_ID_SUBDIR",
+  "state_sync_config.storage_config.db_config.enforce_file_exists": false,
+  "state_sync_config.storage_config.db_config.growth_step": 67108864,
+  "state_sync_config.storage_config.db_config.max_size": 34359738368,
+  "state_sync_config.storage_config.db_config.min_size": 1048576,
+  "state_sync_config.storage_config.db_config.path_prefix": "/tmp/.tmpJcrZwm",
+  "state_sync_config.storage_config.mmap_file_config.growth_step": 1048576,
+  "state_sync_config.storage_config.mmap_file_config.max_object_size": 65536,
+  "state_sync_config.storage_config.mmap_file_config.max_size": 16777216,
+  "state_sync_config.storage_config.scope": "FullArchive",
+  "strk_fee_token_address": "0x1002",
+  "validator_id": "0x68",
+  "versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
+  "versioned_constants_overrides.max_n_events": 1000,
+  "versioned_constants_overrides.max_recursion_depth": 50,
+  "versioned_constants_overrides.validate_max_n_steps": 1000000
+}
+[2m2025-03-03T08:56:11.224058Z[0m [32m INFO[0m [2mstarknet_sequencer_node::utils[0m[2m:[0m Finished loading configuration.
+[2m2025-03-03T08:56:11.224128Z[0m [32m INFO[0m [2mstarknet_sequencer_node::utils[0m[2m:[0m Finished validating configuration.
+[2m2025-03-03T08:56:11.224271Z[0m [32m INFO[0m [2mpapyrus_storage[0m[2m:[0m Opening storage: /tmp/.tmp0v1DiO
+[2m2025-03-03T08:56:11.238861Z[0m [32m INFO[0m [2mpapyrus_storage[0m[2m:[0m Opening storage: /tmp/.tmpJcrZwm
+[2m2025-03-03T08:56:11.252658Z[0m [32m INFO[0m [2mlibp2p_swarm[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWJ4hR2idaqZHuXdM61DxSkoRoQ7duGntC7942hhQrMYP3
+[2m2025-03-03T08:56:11.253141Z[0m [32m INFO[0m [2mstarknet_sequencer_node[0m[2m:[0m Starting components!
+[2m2025-03-03T08:56:11.253192Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting LocalComponentServer for StateSync.
+[2m2025-03-03T08:56:11.253201Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component StateSync with the default starter.
+[2m2025-03-03T08:56:11.253214Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting server for component StateSync
+[2m2025-03-03T08:56:11.253229Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting ConcurrentLocalComponentServer for SierraCompiler.
+[2m2025-03-03T08:56:11.253235Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component SierraCompiler with the default starter.
+[2m2025-03-03T08:56:11.253242Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting concurrent server for component SierraCompiler
+[2m2025-03-03T08:56:11.253252Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting LocalComponentServer for L1Provider.
+[2m2025-03-03T08:56:11.253258Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component L1Provider with the default starter.
+[2m2025-03-03T08:56:11.253264Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting server for component L1Provider
+[2m2025-03-03T08:56:11.253274Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting LocalComponentServer for Batcher.
+[2m2025-03-03T08:56:11.253283Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_definitions[0m[2m:[0m Starting component Batcher with the default starter.
+[2m2025-03-03T08:56:11.253407Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::local_component_server[0m[2m:[0m Starting server for component Batcher
+[2m2025-03-03T08:56:11.253483Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::empty_component_server[0m[2m:[0m Starting WrapperServer for StateSyncRunner.
+[2m2025-03-03T08:56:11.254247Z[0m [32m INFO[0m [2mpapyrus_p2p_sync::client[0m[2m:[0m Starting p2p sync client
+[2m2025-03-03T08:56:11.255000Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::empty_component_server[0m[2m:[0m Starting WrapperServer for MonitoringEndpoint.
+[2m2025-03-03T08:56:11.255044Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::monitoring_endpoint[0m[2m:[0m Starting component MonitoringEndpoint.
+[2m2025-03-03T08:56:11.255288Z[0m [32m INFO[0m [2mstarknet_monitoring_endpoint::monitoring_endpoint[0m[2m:[0m MonitoringEndpoint running using socket: 0.0.0.0:55361
+[2m2025-03-03T08:56:11.255386Z[0m [32m INFO[0m [2mstarknet_sequencer_infra::component_server::empty_component_server[0m[2m:[0m Starting WrapperServer for ConsensusManager.
+[2m2025-03-03T08:56:11.255433Z[0m [32m INFO[0m [2mstarknet_consensus_manager::consensus_manager[0m[2m:[0m Starting component ConsensusManager.
+[2m2025-03-03T08:56:11.257815Z[0m [32m INFO[0m [2mlibp2p_swarm[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWH33ZPDwM89pnJau9B6TNSsVAAYrC7ieMciEC9Hn3Tjxr
+[2m2025-03-03T08:56:11.258405Z[0m [33m WARN[0m [2mpapyrus_network::peer_manager::behaviour_impl[0m[2m:[0m Dial failure of an unknown peer. peer id: 12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
+[2m2025-03-03T08:56:11.258492Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Outgoing connection error. connection id: ConnectionId(2), requested peer id: Some(PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5")), error: Transport([(/ip4/127.0.0.1/tcp/55557/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5, Other(Custom { kind: Other, error: Other(Transport(Left(Left(Os { code: 111, kind: ConnectionRefused, message: "Connection refused" })))) }))])
+[2m2025-03-03T08:56:11.258694Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m No peers. Waiting for a new peer to be connected for OutboundSessionId { value: 0 }
+[2m2025-03-03T08:56:11.258734Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m No peers. Waiting for a new peer to be connected for OutboundSessionId { value: 1 }
+[2m2025-03-03T08:56:11.259090Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/192.168.12.36/tcp/55563
+[2m2025-03-03T08:56:11.259191Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/172.17.0.1/tcp/55563
+[2m2025-03-03T08:56:11.259284Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/172.18.0.1/tcp/55563
+[2m2025-03-03T08:56:11.259381Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/192.168.21.110/tcp/55563
+[2m2025-03-03T08:56:11.299399Z[0m [32m INFO[0m [1mrun_consensus[0m: [2mstarknet_consensus::manager[0m[2m:[0m Running consensus, start_active_height=1, start_observe_height=1, consensus_delay=15, timeouts=TimeoutsConfig { proposal_timeout: 9s, prevote_timeout: 3s, precommit_timeout: 3s } [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000068[0m
+[2m2025-03-03T08:56:11.300531Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/192.168.12.36/tcp/55556
+[2m2025-03-03T08:56:11.300593Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/172.17.0.1/tcp/55556
+[2m2025-03-03T08:56:11.300631Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/172.18.0.1/tcp/55556
+[2m2025-03-03T08:56:11.300652Z[0m [32m INFO[0m [2mpapyrus_network::network_manager::swarm_trait[0m[2m:[0m Found new external address of this node: /ip4/192.168.21.110/tcp/55556
+[2m2025-03-03T08:56:11.330367Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5"): [/ip4/127.0.0.1/tcp/55557/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5]
+[2m2025-03-03T08:56:11.330488Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5")
+[2m2025-03-03T08:56:11.340583Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5"): [/ip4/127.0.0.1/tcp/55550/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5]
+[2m2025-03-03T08:56:11.340746Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5")
+[2m2025-03-03T08:56:11.405797Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5"): [/ip4/192.168.21.110/tcp/55557, /ip4/172.17.0.1/tcp/55557, /ip4/192.168.12.36/tcp/55557, /ip4/172.18.0.1/tcp/55557]
+[2m2025-03-03T08:56:11.405993Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5"): [/ip4/192.168.21.110/tcp/55550, /ip4/172.17.0.1/tcp/55550, /ip4/192.168.12.36/tcp/55550, /ip4/172.18.0.1/tcp/55550]
+[2m2025-03-03T08:56:11.474159Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(9), local addr: /ip4/172.18.0.1/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40122, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.474322Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(11), local addr: /ip4/172.17.0.1/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40136, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.474471Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(10), local addr: /ip4/192.168.12.36/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40010, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.497409Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(15), local addr: /ip4/172.17.0.1/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40138, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.497585Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(13), local addr: /ip4/172.18.0.1/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40126, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.497692Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(14), local addr: /ip4/192.168.12.36/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40016, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.507068Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWRz1ZttZb1fpmYXaXBRwnU7n6KVvdQMeyw3M9y5DwMcUj"): [/ip4/172.17.0.1/tcp/55554, /ip4/192.168.21.110/tcp/55554, /ip4/192.168.12.36/tcp/55554, /ip4/172.18.0.1/tcp/55554]
+[2m2025-03-03T08:56:11.507355Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWRz1ZttZb1fpmYXaXBRwnU7n6KVvdQMeyw3M9y5DwMcUj")
+[2m2025-03-03T08:56:11.509992Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWD9pWEQ5BYBUNpKw53dxXaVnjVQdh8TH5BT7YQWUxZUBn"): [/ip4/172.17.0.1/tcp/55552, /ip4/192.168.12.36/tcp/55552, /ip4/172.18.0.1/tcp/55552, /ip4/192.168.21.110/tcp/55552]
+[2m2025-03-03T08:56:11.510324Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWD9pWEQ5BYBUNpKw53dxXaVnjVQdh8TH5BT7YQWUxZUBn")
+[2m2025-03-03T08:56:11.528696Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(19), local addr: /ip4/172.17.0.1/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40152, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.530589Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(18), local addr: /ip4/192.168.12.36/tcp/55563, send back addr: /ip4/192.168.12.36/tcp/40030, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.530662Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(16), local addr: /ip4/192.168.21.110/tcp/55563, send back addr: /ip4/192.168.21.110/tcp/40122, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.557343Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(23), local addr: /ip4/192.168.21.110/tcp/55556, send back addr: /ip4/192.168.21.110/tcp/40104, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.558683Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(26), local addr: /ip4/172.17.0.1/tcp/55556, send back addr: /ip4/192.168.12.36/tcp/40002, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.558815Z[0m [33m WARN[0m [2mpapyrus_network::network_manager[0m[2m:[0m Incoming connection error. connection id: ConnectionId(25), local addr: /ip4/192.168.12.36/tcp/55556, send back addr: /ip4/192.168.12.36/tcp/40148, error: Transport(Other(Custom { kind: Other, error: Other(Transport(Left(Right(Apply(Io(Os { code: 104, kind: ConnectionReset, message: "Connection reset by peer" })))))) }))
+[2m2025-03-03T08:56:11.588257Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWCMzdDQfuQyHqKZ2YKP2umgXSEfNqbsyEFRrvRRmwmmQN"): [/ip4/192.168.21.110/tcp/55559, /ip4/172.18.0.1/tcp/55559, /ip4/172.17.0.1/tcp/55559, /ip4/192.168.12.36/tcp/55559]
+[2m2025-03-03T08:56:11.588403Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWCMzdDQfuQyHqKZ2YKP2umgXSEfNqbsyEFRrvRRmwmmQN")
+[2m2025-03-03T08:56:11.591928Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWRJmNMtdGWN9NGJpghtx6wS7MhXAV3nhXNXs1bXzr8F7N"): [/ip4/172.18.0.1/tcp/55558, /ip4/192.168.12.36/tcp/55558, /ip4/172.17.0.1/tcp/55558, /ip4/192.168.21.110/tcp/55558]
+[2m2025-03-03T08:56:11.592089Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWRJmNMtdGWN9NGJpghtx6wS7MhXAV3nhXNXs1bXzr8F7N")
+[2m2025-03-03T08:56:11.592289Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWKn9oz4Kod2mJSM4XTS66ndzwRrwwMtzf8ygSEio1pmjk"): [/ip4/172.18.0.1/tcp/55561, /ip4/172.17.0.1/tcp/55561, /ip4/192.168.12.36/tcp/55561, /ip4/192.168.21.110/tcp/55561]
+[2m2025-03-03T08:56:11.592447Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWKn9oz4Kod2mJSM4XTS66ndzwRrwwMtzf8ygSEio1pmjk")
+[2m2025-03-03T08:56:11.610443Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWRJmNMtdGWN9NGJpghtx6wS7MhXAV3nhXNXs1bXzr8F7N"): [/ip4/192.168.21.110/tcp/55558, /ip4/172.17.0.1/tcp/55558, /ip4/192.168.12.36/tcp/55558, /ip4/172.18.0.1/tcp/55558]
+[2m2025-03-03T08:56:11.614341Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWKRoaEoUcRovt2oufFcJmstejgRRwJDmnGcHFMnBHQUZf"): [/ip4/172.18.0.1/tcp/55551, /ip4/172.17.0.1/tcp/55551, /ip4/192.168.21.110/tcp/55551, /ip4/192.168.12.36/tcp/55551]
+[2m2025-03-03T08:56:11.614502Z[0m [32m INFO[0m [2mpapyrus_network::peer_manager[0m[2m:[0m Peer Manager found new peer PeerId("12D3KooWKRoaEoUcRovt2oufFcJmstejgRRwJDmnGcHFMnBHQUZf")
+[2m2025-03-03T08:56:11.624637Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWKn9oz4Kod2mJSM4XTS66ndzwRrwwMtzf8ygSEio1pmjk"): [/ip4/192.168.12.36/tcp/55561, /ip4/172.17.0.1/tcp/55561, /ip4/172.18.0.1/tcp/55561, /ip4/192.168.21.110/tcp/55561]
+[2m2025-03-03T08:56:11.660986Z[0m [32m INFO[0m [2mpapyrus_network::discovery::kad_impl[0m[2m:[0m Adding new listen addresses to routing table for peer PeerId("12D3KooWKRoaEoUcRovt2oufFcJmstejgRRwJDmnGcHFMnBHQUZf"): [/ip4/192.168.21.110/tcp/55551, /ip4/172.18.0.1/tcp/55551, /ip4/192.168.12.36/tcp/55551, /ip4/172.17.0.1/tcp/55551]
+[2m2025-03-03T08:56:16.837055Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.838872Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.841348Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.842896Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.843765Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.844690Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.861554Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.917440Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:16.918715Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:17.306571Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:17.312478Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:17.317879Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:17.325054Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
+[2m2025-03-03T08:56:17.327791Z[0m [33m WARN[0m [2mstarknet_sequencer_infra::component_client::local_component_client[0m[2m:[0m Dropping LocalComponentClient<StateSyncRequest,StateSyncResponse>.
