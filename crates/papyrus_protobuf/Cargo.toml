@@ -28,8 +28,6 @@ papyrus_common.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
 papyrus_test_utils.workspace = true
-
-[build-dependencies]
 prost-build.workspace = true
 protoc-prebuilt.workspace = true
 
