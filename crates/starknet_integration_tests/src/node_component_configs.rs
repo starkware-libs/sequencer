@@ -56,10 +56,15 @@ impl IntoIterator for NodeComponentConfigs {
 /// each consisting of an HTTP component configuration and a non-HTTP component configuration.
 /// returns a vector of vectors, where each inner vector contains the two configurations.
 pub fn create_distributed_node_configs(
-    available_ports: &mut AvailablePorts,
+    test_unique_index: u16,
+    instance_index: u16,
     distributed_sequencers_num: usize,
 ) -> Vec<NodeComponentConfigs> {
+    let mut node_index = 0;
     std::iter::repeat_with(|| {
+        let mut available_ports =
+            AvailablePorts::new(test_unique_index, instance_index + node_index);
+        node_index += 1;
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
