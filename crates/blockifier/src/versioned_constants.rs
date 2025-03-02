@@ -17,7 +17,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
@@ -844,9 +844,9 @@ pub struct GasCosts {
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
 // `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
 // conversion into actual values.
-// TODO: consider encoding the * and + operations inside the json file, instead of hardcoded below
-// in the `try_from`.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
+// TODO(Dori): consider encoding the * and + operations inside the json file, instead of hardcoded
+// below in the `try_from`.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize)]
 #[serde(try_from = "OsConstantsRawJson")]
 pub struct OsConstants {
@@ -855,6 +855,7 @@ pub struct OsConstants {
     pub os_contract_addresses: OsContractAddresses,
     pub validate_max_sierra_gas: GasAmount,
     pub execute_max_sierra_gas: GasAmount,
+    pub v1_bound_accounts: Vec<ClassHash>,
 }
 
 impl OsConstants {
@@ -939,12 +940,14 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
                 .ok_or_else(|| OsConstantsSerdeError::KeyNotFoundInFile(key.to_string()))?
                 .clone(),
         )?);
+        let v1_bound_accounts = raw_json_data.v1_bound_accounts;
         let os_constants = OsConstants {
             gas_costs,
             validate_rounding_consts,
             os_contract_addresses,
             validate_max_sierra_gas,
             execute_max_sierra_gas,
+            v1_bound_accounts,
         };
         Ok(os_constants)
     }
@@ -985,6 +988,7 @@ struct OsConstantsRawJson {
     #[serde(default)]
     validate_rounding_consts: ValidateRoundingConsts,
     os_contract_addresses: OsContractAddresses,
+    v1_bound_accounts: Vec<ClassHash>,
 }
 
 impl OsConstantsRawJson {
