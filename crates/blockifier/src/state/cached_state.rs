@@ -31,7 +31,7 @@ pub struct CachedState<S: StateReader> {
     // Invariant: read/write access is managed by CachedState.
     // Using interior mutability to update caches during `State`'s immutable getters.
     pub(crate) cache: RefCell<StateCache>,
-    pub(crate) class_hash_to_class: RefCell<ContractClassMapping>,
+    pub class_hash_to_class: RefCell<ContractClassMapping>,
 }
 
 impl<S: StateReader> CachedState<S> {

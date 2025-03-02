@@ -13,13 +13,14 @@ use crate::hint_processor::snos_hint_processor::{
     SnosHintProcessor,
     SyscallHintProcessor,
 };
-use crate::io::os_input::StarknetOsInput;
+use crate::io::os_input::{CachedStateInput, StarknetOsInput};
 use crate::io::os_output::StarknetOsRunnerOutput;
 
 pub fn run_os<S: StateReader>(
     compiled_os: &[u8],
     layout: LayoutName,
     os_input: StarknetOsInput,
+    state_reader: S,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
     let cairo_run_config =
@@ -40,8 +41,12 @@ pub fn run_os<S: StateReader>(
     // Init the Cairo VM.
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
+    // TODO(Nimrod): Get `cached_state_input` as input.
+    let cached_state_input = CachedStateInput::default();
+
     // Create execution helper.
-    let execution_helper = OsExecutionHelper::<S>::new(os_input, os_program);
+    let execution_helper =
+        OsExecutionHelper::new(os_input, os_program, state_reader, cached_state_input)?;
 
     // Create syscall handlers.
     let syscall_handler = SyscallHintProcessor::new();
@@ -79,5 +84,5 @@ pub fn run_os_stateless(
     layout: LayoutName,
     os_input: StarknetOsInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    run_os::<PanickingStateReader>(compiled_os, layout, os_input)
+    run_os(compiled_os, layout, os_input, PanickingStateReader)
 }
