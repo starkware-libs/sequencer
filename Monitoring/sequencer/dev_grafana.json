@@ -123,6 +123,87 @@
         "expr": "apollo_sync_num_active_outbound_sessions",
         "extra_params": {}
       }
+    ],
+    "Gateway": [
+      {
+        "title": "gateway_transactions_received",
+        "description": "Counter of transactions received",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (gateway_transactions_received) ",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_received",
+        "description": "Counter of transactions received",
+        "type": "stat",
+        "expr": "sum  by (source) (gateway_transactions_received) ",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_failed",
+        "description": "Counter of failed transactions",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (gateway_transactions_failed)",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_sent_to_mempool",
+        "description": "Counter of transactions sent to the mempool",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (gateway_transactions_sent_to_mempool)",
+        "extra_params": {}
+      }
+    ],
+    "Mempool": [
+      {
+        "title": "mempool_transactions_received",
+        "description": "Counter of transactions received by the mempool",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (mempool_transactions_received)",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_txs_committed",
+        "description": "The number of transactions that were committed to block",
+        "type": "stat",
+        "expr": "mempool_txs_committed",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transactions_dropped",
+        "description": "Counter of transactions dropped from the mempool",
+        "type": "stat",
+        "expr": "sum  by (drop_reason) (mempool_transactions_dropped)",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_pool_size",
+        "description": "The average size of the pool",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_pool_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_priority_queue_size",
+        "description": "The average size of the priority queue",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_priority_queue_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_pending_queue_size",
+        "description": "The average size of the pending queue",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_pending_queue_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_get_txs_size",
+        "description": "The average size of the get_txs",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_get_txs_size[2m])",
+        "extra_params": {}
+      }
     ]
   }
 }
