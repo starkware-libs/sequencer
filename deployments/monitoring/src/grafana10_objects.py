@@ -21,7 +21,7 @@ empty_dashboard = {
   "links": [],
   "liveNow": False,
   "panels": [],
-  "refresh": "",
+  "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
   "tags": [],
