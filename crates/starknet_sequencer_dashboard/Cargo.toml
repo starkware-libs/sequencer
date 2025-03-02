@@ -16,6 +16,7 @@ papyrus_sync.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet_batcher.workspace = true
+starknet_consensus_manager.workspace = true
 starknet_gateway.workspace = true
 starknet_http_server.workspace = true
 starknet_mempool.workspace = true
