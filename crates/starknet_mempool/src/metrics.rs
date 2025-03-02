@@ -2,9 +2,10 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,
 };
-use starknet_sequencer_metrics::define_metrics;
 use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricScope};
-use strum::IntoEnumIterator;
+use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use strum::{EnumVariantNames, IntoEnumIterator, VariantNames};
+use strum_macros::{EnumIter, IntoStaticStr};
 
 define_metrics!(
     Mempool => {
@@ -16,14 +17,23 @@ define_metrics!(
 
 pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub(crate) const LABEL_NAME_DROP_REASON: &str = "drop_reason";
+
+generate_permutation_labels! {
+    (LABEL_NAME_TX_TYPE, InternalRpcTransactionLabelValue),
+}
+
+generate_permutation_labels! {
+    (LABEL_NAME_DROP_REASON, DropReason),
+}
+
 enum TransactionStatus {
     AddedToMempool,
     Dropped,
 }
 
-#[derive(strum_macros::IntoStaticStr, strum_macros::EnumIter)]
+#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
 #[strum(serialize_all = "snake_case")]
-pub enum DropReason {
+pub(crate) enum DropReason {
     FailedAddTxChecks,
     Expired,
     Rejected,
