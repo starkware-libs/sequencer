@@ -16,8 +16,8 @@ use tracing::info;
 #[tokio::main]
 async fn main() {
     integration_test_setup("revert").await;
-    const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(10);
-    const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(15);
+    const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(15);
+    const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(20);
     // can't use static assertion as comparison is non const.
     assert!(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE < BLOCK_TO_REVERT_FROM);
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
@@ -52,6 +52,9 @@ async fn main() {
 
     // Save a snapshot of the tx_generator so we can restore the state after reverting.
     let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
+
+    info!("Sending declare transactions and verifying state.");
+    integration_test_manager.send_declare_txs_and_verify().await;
 
     info!("Sending transactions and verifying state.");
     integration_test_manager
@@ -110,6 +113,7 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     info!("Sending transactions and verifying state.");
+    integration_test_manager.send_declare_txs_and_verify().await;
     integration_test_manager
         .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR_AFTER_REVERT)
         .await;
