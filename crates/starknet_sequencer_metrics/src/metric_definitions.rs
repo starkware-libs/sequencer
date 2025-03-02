@@ -1,5 +1,3 @@
-use crate::metrics::{MetricGauge, MetricScope};
-
 /// Macro to define all metric constants for specified scopes and store them in a collection.
 /// This generates:
 /// - Individual metric constant according to type: `MetricCounter`or `MetricGauge` or
@@ -44,12 +42,3 @@ macro_rules! define_metrics {
         )*
     };
 }
-
-define_metrics!(
-    Network => {
-        // Gauges
-        MetricGauge { STATE_SYNC_P2P_NUM_CONNECTED_PEERS, "apollo_sync_num_connected_peers", "The number of connected peers to the state sync p2p component" },
-        MetricGauge { STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_sync_num_active_inbound_sessions", "The number of inbound sessions to the state sync p2p component" },
-        MetricGauge { STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_sync_num_active_outbound_sessions", "The number of outbound sessions to the state sync p2p component" },
-    },
-);
