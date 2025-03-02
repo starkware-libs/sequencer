@@ -29,6 +29,7 @@ pub struct RequiredParams {
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
+    pub consensus_manager_config: ConsensusManagerRequiredParams,
 }
 
 impl SerializeConfig for RequiredParams {
@@ -60,10 +61,17 @@ impl SerializeConfig for RequiredParams {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        vec![members, append_sub_config_name(self.base_layer_config.dump(), "base_layer_config")]
-            .into_iter()
-            .flatten()
-            .collect()
+        vec![
+            members,
+            append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
+            append_sub_config_name(
+                self.consensus_manager_config.dump(),
+                "consensus_manager_config",
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
@@ -77,6 +85,11 @@ impl RequiredParams {
             recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+            },
+            consensus_manager_config: ConsensusManagerRequiredParams {
+                context_config: ContextConfigRequiredParams {
+                    builder_address: ContractAddress::from(4_u128),
+                },
             },
         }
     }
@@ -134,6 +147,33 @@ impl SerializeConfig for EthereumBaseLayerConfigRequiredParams {
         BTreeMap::from_iter([ser_param(
             "node_url",
             &self.node_url,
+            "Placeholder.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+#[derive(Serialize)]
+pub struct ConsensusManagerRequiredParams {
+    pub context_config: ContextConfigRequiredParams,
+}
+
+impl SerializeConfig for ConsensusManagerRequiredParams {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.context_config.dump(), "context_config")
+    }
+}
+
+#[derive(Serialize)]
+pub struct ContextConfigRequiredParams {
+    pub builder_address: ContractAddress,
+}
+
+impl SerializeConfig for ContextConfigRequiredParams {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "builder_address",
+            &self.builder_address,
             "Placeholder.",
             ParamPrivacyInput::Public,
         )])

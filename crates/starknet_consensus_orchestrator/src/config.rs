@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 use validator::Validate;
 
 /// Configuration for the Context struct.
@@ -20,6 +20,8 @@ pub struct ContextConfig {
     pub block_timestamp_window: u64,
     /// The data availability mode, true: Blob, false: Calldata.
     pub l1_da_mode: bool,
+    /// The address of the contract that builds the block.
+    pub builder_address: ContractAddress,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -56,6 +58,12 @@ impl SerializeConfig for ContextConfig {
                 "The data availability mode, true: Blob, false: Calldata.",
                 ParamPrivacyInput::Public,
             ),
+            ser_required_param(
+                "builder_address",
+                SerializationType::String,
+                "The address of the contract that builds the block.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -68,6 +76,7 @@ impl Default for ContextConfig {
             chain_id: ChainId::Mainnet,
             block_timestamp_window: 1,
             l1_da_mode: true,
+            builder_address: ContractAddress::default(),
         }
     }
 }

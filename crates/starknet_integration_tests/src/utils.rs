@@ -21,7 +21,7 @@ use papyrus_network::network_manager::test_utils::create_connected_network_confi
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
@@ -52,6 +52,8 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
+    ConsensusManagerRequiredParams,
+    ContextConfigRequiredParams,
     EthereumBaseLayerConfigRequiredParams,
     RequiredParams,
 };
@@ -187,6 +189,11 @@ pub fn create_node_config(
             recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: base_layer_endpoint_url,
+            },
+            consensus_manager_config: ConsensusManagerRequiredParams {
+                context_config: ContextConfigRequiredParams {
+                    builder_address: ContractAddress::from(4_u128),
+                },
             },
         },
     )
