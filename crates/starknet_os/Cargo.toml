@@ -20,6 +20,7 @@ testing = ["blockifier/testing"]
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
+indexmap.workspace = true
 indoc.workspace = true
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json.workspace = true
