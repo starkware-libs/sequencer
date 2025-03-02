@@ -3,7 +3,7 @@ use std::cmp::max;
 
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
-use strum_macros::{Display, EnumCount};
+use strum_macros::Display;
 
 use crate::hints::error::OsHintError;
 
@@ -13,7 +13,7 @@ pub(crate) const TOTAL_N_BUCKETS: usize = N_UNIQUE_BUCKETS + 1;
 
 pub(crate) const MAX_N_BITS: usize = 251;
 
-#[derive(Debug, Display, EnumCount)]
+#[derive(Debug, Display, strum_macros::EnumCount)]
 pub(crate) enum BitLength {
     Bits15,
     Bits31,
