@@ -269,9 +269,7 @@ fn test_get_execution_info(
         }
     };
 
-    let mut expected_version = version.0;
-    // TODO(lior): Uncomment the line below once version-bound accounts are supported.
-    //   let mut expected_version = if v1_bound_account { 1.into() } else { version.0 };
+    let mut expected_version = if v1_bound_account { 1.into() } else { version.0 };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         let query_version = simulate_version_base + version.0;
