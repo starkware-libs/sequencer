@@ -10,8 +10,8 @@ use strum_macros::{EnumIter, IntoStaticStr};
 define_metrics!(
     Mempool => {
         MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", init = 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0 },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0, labels = INTERNALRPCTRANSACTIONLABELVALUE_LABELS },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0, labels = DROPREASON_LABELS },
     },
 );
 
