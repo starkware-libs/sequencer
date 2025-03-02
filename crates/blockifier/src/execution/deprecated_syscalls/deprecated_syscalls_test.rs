@@ -22,7 +22,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     QUERY_VERSION_BASE,
 };
-use starknet_api::{calldata, felt, nonce, storage_key, tx_hash};
+use starknet_api::{calldata, class_hash, felt, nonce, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -34,8 +34,8 @@ use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+use crate::test_utils::initial_test_state::{test_state, test_state_ex};
 use crate::test_utils::{
     calldata_for_deploy_test,
     get_syscall_resources,
@@ -452,20 +452,36 @@ fn test_block_info_syscalls(
 }
 
 #[rstest]
-fn test_tx_info(#[values(false, true)] only_query: bool) {
+fn test_tx_info(
+    #[values(false, true)] only_query: bool,
+    #[values(false, true)] v1_bound_account: bool,
+) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
-    let mut version = felt!(1_u8);
+    let mut test_contract_data: FeatureContractData = test_contract.into();
+    if v1_bound_account {
+        // TODO(lior): Replace the constant with taking a class hash from the list encoded in
+        //   versioned_constants.
+        test_contract_data.class_hash =
+            class_hash!("0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f");
+    }
+
+    let mut state =
+        test_state_ex(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract_data, 1)]);
+    let mut version = felt!(3_u8);
+    // TODO(lior): Uncomment the following line once version bound accounts are supported.
+    //   let mut expected_version = if v1_bound_account { felt!(1_u8) } else { version };
+    let mut expected_version = version;
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
+        expected_version += simulate_version_base;
     }
     let tx_hash = tx_hash!(1991);
     let max_fee = Fee(0);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
     let expected_tx_info = calldata![
-        version,                                         // Transaction version.
+        expected_version,                                // Transaction version.
         *sender_address.0.key(),                         // Account address.
         felt!(max_fee.0),                                // Max fee.
         tx_hash.0,                                       // Transaction hash.
@@ -481,7 +497,7 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
     let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
         common_fields: CommonAccountFields {
             transaction_hash: tx_hash,
-            version: TransactionVersion::ONE,
+            version: TransactionVersion::THREE,
             nonce,
             sender_address,
             only_query,
