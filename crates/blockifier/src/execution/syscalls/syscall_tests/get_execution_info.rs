@@ -96,12 +96,8 @@ use crate::versioned_constants::VersionedConstants;
     TransactionVersion::ONE,
     false,
     false;
-<<<<<<< HEAD
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction V1."
-=======
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V1."
->>>>>>> 70ab0ccf7 (feat(blockifier): version bound accounts: add a failure test (#3836))
     )
 )]
 #[cfg_attr(
@@ -112,12 +108,8 @@ use crate::versioned_constants::VersionedConstants;
     TransactionVersion::THREE,
     false,
     false;
-<<<<<<< HEAD
-    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction V3."
-=======
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V3."
->>>>>>> 70ab0ccf7 (feat(blockifier): version bound accounts: add a failure test (#3836))
     )
 )]
 #[cfg_attr(
