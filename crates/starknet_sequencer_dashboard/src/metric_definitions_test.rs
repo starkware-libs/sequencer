@@ -8,7 +8,7 @@ use starknet_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use starknet_mempool::metrics::MEMPOOL_ALL_METRICS;
 use starknet_mempool_p2p::metrics::MEMPOOL_P2P_ALL_METRICS;
 use starknet_sequencer_infra::metrics::INFRA_ALL_METRICS;
-use starknet_sequencer_metrics::metric_definitions::NETWORK_ALL_METRICS;
+use starknet_state_sync::metrics::STATE_SYNC_ALL_METRICS;
 
 #[test]
 fn metric_names_no_duplications() {
@@ -20,8 +20,8 @@ fn metric_names_no_duplications() {
         .chain(INFRA_ALL_METRICS.iter())
         .chain(MEMPOOL_ALL_METRICS.iter())
         .chain(MEMPOOL_P2P_ALL_METRICS.iter())
-        .chain(NETWORK_ALL_METRICS.iter())
         .chain(PAPYRUS_SYNC_ALL_METRICS.iter())
+        .chain(STATE_SYNC_ALL_METRICS.iter())
         .collect::<Vec<&&'static str>>();
 
     let mut unique_metric_names: HashSet<&&'static str> = HashSet::new();
