@@ -27,6 +27,14 @@ use papyrus_storage::db::TransactionKind;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{open_storage, StorageReader, StorageTxn, StorageWriter};
+use papyrus_sync::define_metrics::{
+    SYNC_BODY_MARKER,
+    SYNC_CLASS_MANAGER_MARKER,
+    SYNC_COMPILED_CLASS_MARKER,
+    SYNC_HEADER_MARKER,
+    SYNC_PROCESSED_TRANSACTIONS,
+    SYNC_STATE_MARKER,
+};
 use papyrus_sync::sources::central::{CentralError, CentralSource};
 use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{
@@ -45,12 +53,6 @@ use starknet_sequencer_metrics::metric_definitions::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-    SYNC_BODY_MARKER,
-    SYNC_CLASS_MANAGER_MARKER,
-    SYNC_COMPILED_CLASS_MARKER,
-    SYNC_HEADER_MARKER,
-    SYNC_PROCESSED_TRANSACTIONS,
-    SYNC_STATE_MARKER,
 };
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::RwLock;

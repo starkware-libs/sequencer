@@ -1,14 +1,12 @@
 use std::collections::HashSet;
 
+use papyrus_sync::define_metrics::PAPYRUS_SYNC_ALL_METRICS;
 use starknet_batcher::metrics::BATCHER_ALL_METRICS;
 use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
 use starknet_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use starknet_mempool::metrics::MEMPOOL_ALL_METRICS;
 use starknet_sequencer_infra::metrics::INFRA_ALL_METRICS;
-use starknet_sequencer_metrics::metric_definitions::{
-    NETWORK_ALL_METRICS,
-    PAPYRUS_SYNC_ALL_METRICS,
-};
+use starknet_sequencer_metrics::metric_definitions::NETWORK_ALL_METRICS;
 
 #[test]
 fn metric_names_no_duplications() {
