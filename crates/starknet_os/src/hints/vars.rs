@@ -55,6 +55,8 @@ pub enum Ids {
     UseKzgDa,
     AliasesEntry,
     OsStateUpdate,
+    ContractStateChanges,
+    StateEntry,
 }
 
 impl From<Ids> for &'static str {
@@ -74,6 +76,8 @@ impl From<Ids> for &'static str {
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::UseKzgDa => "use_kzg_da",
             Ids::AliasesEntry => "aliases_entry",
+            Ids::ContractStateChanges => "contract_state_changes",
+            Ids::StateEntry => "state_entry",
         }
     }
 }
@@ -82,6 +86,7 @@ impl From<Ids> for &'static str {
 pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
+    BlockHashContractAddress,
     InitialAvailableAlias,
     StoredBlockHashBuffer,
 }
@@ -93,6 +98,7 @@ impl From<Const> for &'static str {
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
             Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
+            Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
         }
     }
 }
