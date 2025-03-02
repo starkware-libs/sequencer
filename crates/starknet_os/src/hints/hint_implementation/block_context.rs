@@ -1,9 +1,14 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_ptr_from_var_name,
+    insert_value_from_var_name,
+    insert_value_into_ap,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
+use crate::hints::vars::{Const, Ids};
 
 // Hint implementations.
 
@@ -66,8 +71,25 @@ pub(crate) fn sequencer_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
-pub(crate) fn get_block_mapping<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn get_block_mapping<S: StateReader>(
+    HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
+    let contract_state_changes_ptr =
+        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let block_hash_state_entry = dict_manager_borrowed
+        .get_tracker_mut(contract_state_changes_ptr)?
+        .get_value(&block_hash_contract_address.into())?;
+
+    Ok(insert_value_from_var_name(
+        Ids::StateEntry.into(),
+        block_hash_state_entry,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn is_leaf<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
