@@ -10,6 +10,7 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+const_format.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 papyrus_sync.workspace = true
 serde = { workspace = true, features = ["derive"] }

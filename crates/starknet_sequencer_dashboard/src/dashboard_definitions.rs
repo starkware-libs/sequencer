@@ -1,5 +1,8 @@
+use const_format::formatcp;
 use starknet_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    CLASS_CACHE_HITS,
+    CLASS_CACHE_MISSES,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
@@ -18,7 +21,6 @@ use starknet_sequencer_metrics::metric_definitions::{
 };
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
-
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
 mod dashboard_definitions_test;
@@ -55,6 +57,18 @@ const PANEL_BATCHED_TRANSACTIONS: Panel = Panel::new(
     BATCHED_TRANSACTIONS.get_description(),
     BATCHED_TRANSACTIONS.get_name(),
     PanelType::Stat,
+);
+
+const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(
+    "cairo_native_cache_miss_ratio",
+    "The ratio of cache misses in the Cairo native cache",
+    formatcp!(
+        "100 * ({} / clamp_min(({} + {}), 1))",
+        CLASS_CACHE_MISSES.get_name(),
+        CLASS_CACHE_MISSES.get_name(),
+        CLASS_CACHE_HITS.get_name()
+    ),
+    PanelType::Graph,
 );
 
 const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
@@ -158,6 +172,7 @@ const BATCHER_ROW: Row<'_> = Row::new(
         PANEL_PROPOSAL_SUCCEEDED,
         PANEL_PROPOSAL_FAILED,
         PANEL_BATCHED_TRANSACTIONS,
+        PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO,
     ],
 );
 const HTTP_SERVER_ROW: Row<'_> = Row::new(
