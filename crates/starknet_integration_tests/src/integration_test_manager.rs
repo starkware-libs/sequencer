@@ -39,7 +39,7 @@ use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path,
 use tempfile::TempDir;
 use tokio::join;
 use tokio::task::JoinHandle;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
@@ -68,6 +68,7 @@ use crate::utils::{
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     ConsensusTxs,
+    DeclareTx,
     DeployAndInvokeTxs,
     TestScenario,
 };
@@ -447,12 +448,14 @@ impl IntegrationTestManager {
         .await;
     }
 
+#[instrument(skip(self))]
     pub async fn send_txs_and_verify(
         &mut self,
         n_invoke_txs: usize,
         n_l1_handler_txs: usize,
         wait_for_block: BlockNumber,
     ) {
+        info!("Sending {} invoke + {} l1handler txs and waiting for block {}.", n_invoke_txs, n_l1_handler_txs, wait_for_block);
         self.test_and_verify(
             ConsensusTxs { n_invoke_txs, n_l1_handler_txs },
             DEFAULT_SENDER_ACCOUNT,
@@ -481,6 +484,12 @@ impl IntegrationTestManager {
             localhost_url,
             config.monitoring_endpoint_config.port,
         )
+    }
+
+    #[instrument(skip(self))]
+    pub async fn send_declare_txs_and_verify(&mut self, wait_for_block: BlockNumber) {
+        info!("Sending declare txs and waiting for block {}.", wait_for_block);
+        self.test_and_verify(DeclareTx, DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
