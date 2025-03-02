@@ -29,6 +29,8 @@ pub mod config;
 pub mod types;
 pub use manager::run_consensus;
 #[allow(missing_docs)]
+pub mod metrics;
+#[allow(missing_docs)]
 pub mod simulation_network_receiver;
 pub mod stream_handler;
 
