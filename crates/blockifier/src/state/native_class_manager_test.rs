@@ -224,3 +224,50 @@ fn test_process_compilation_request(
         );
     }
 }
+#[rstest]
+#[case::all_classes(CairoNativeClassesWhitelist::All, true, true)]
+#[case::only_class_hash(CairoNativeClassesWhitelist::Only(vec![create_test_request().0]), true, false)]
+#[case::only_empty(CairoNativeClassesWhitelist::Only(vec![]), false, false)]
+fn test_native_classes_whitelist(
+    #[case] whitelist: CairoNativeClassesWhitelist,
+    #[case] should_compile_test_request_to_native: bool,
+    #[case] should_compile_other_request_to_native: bool,
+) {
+    let native_config = CairoNativeRunConfig {
+        run_cairo_native: true,
+        wait_on_native_compilation: true,
+        channel_size: TEST_CHANNEL_SIZE,
+        native_classes_whitelist: whitelist,
+    };
+    let manager = NativeClassManager::create_for_testing(native_config);
+
+    let test_request = create_test_request();
+    let other_request = create_test_request_from_contract(
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    );
+
+    manager.set_and_compile(
+        test_request.0,
+        CachedClass::V1(test_request.2.clone(), test_request.1.clone()),
+    );
+    manager.set_and_compile(
+        other_request.0,
+        CachedClass::V1(other_request.2.clone(), other_request.1.clone()),
+    );
+
+    match should_compile_test_request_to_native {
+        true => assert_matches!(manager.cache.get(&test_request.0), Some(CachedClass::V1Native(_))),
+        false => {
+            assert_matches!(manager.cache.get(&test_request.0).unwrap(), CachedClass::V1(_, _))
+        }
+    }
+
+    match should_compile_other_request_to_native {
+        true => {
+            assert_matches!(manager.cache.get(&other_request.0), Some(CachedClass::V1Native(_)))
+        }
+        false => {
+            assert_matches!(manager.cache.get(&other_request.0).unwrap(), CachedClass::V1(_, _))
+        }
+    }
+}
