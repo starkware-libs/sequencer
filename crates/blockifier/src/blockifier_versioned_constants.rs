@@ -584,7 +584,8 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-            os_additional_resources += &(&syscall_resources.constant * syscall_usage.call_count);
+            os_additional_resources += &(&(&syscall_resources.constant * syscall_usage.call_count)
+                + &(&syscall_resources.calldata_factor * syscall_usage.linear_factor));
         }
 
         os_additional_resources
