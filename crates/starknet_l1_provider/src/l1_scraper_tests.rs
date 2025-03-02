@@ -3,15 +3,11 @@ use std::sync::Arc;
 use alloy::node_bindings::AnvilInstance;
 use alloy::primitives::U256;
 use mempool_test_utils::in_ci;
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
-};
+use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
 use papyrus_base_layer::test_utils::{
     anvil,
+    ethereum_base_layer_config,
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-    DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
 };
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
@@ -31,10 +27,7 @@ async fn scraper(
     anvil: &AnvilInstance,
 ) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
-    let config = EthereumBaseLayerConfig {
-        node_url: anvil.endpoint_url(),
-        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-    };
+    let config = ethereum_base_layer_config(anvil);
     let base_layer = EthereumBaseLayerContract::new(config);
 
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
