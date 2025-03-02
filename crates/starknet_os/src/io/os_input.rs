@@ -75,5 +75,5 @@ pub struct StarknetOsInput {
     // It is the hash that is going to be written by this OS run.
     pub(crate) old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
     _debug_mode: bool,
-    _full_output: bool,
+    pub(crate) full_output: bool,
 }
