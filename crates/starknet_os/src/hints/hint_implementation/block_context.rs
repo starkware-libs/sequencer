@@ -71,7 +71,11 @@ pub(crate) fn is_leaf<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHin
 }
 
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let use_kzg_da = hint_processor.execution_helper.os_input.block_info.use_kzg_da
+        && !hint_processor.execution_helper.os_input.full_output;
+
+    let use_kzg_da_felt = Felt::from(use_kzg_da);
+    Ok(vm.insert_value((vm.get_fp() + 24)?, use_kzg_da_felt)?)
 }
