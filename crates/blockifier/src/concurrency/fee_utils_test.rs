@@ -35,7 +35,7 @@ pub fn test_fill_sequencer_balance_reads(
         resource_bounds: default_all_resource_bounds,
     });
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], erc20_version);
+    let state = &mut test_state_inner(chain_info, BALANCE, &[(account.into(), 1)], erc20_version);
 
     let sequencer_balance = Fee(100);
     let sequencer_address = block_context.block_info.sequencer_address;

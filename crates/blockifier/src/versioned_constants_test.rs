@@ -88,6 +88,8 @@ fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
         "os_contract_addresses".to_string(),
         serde_json::to_value(OsContractAddresses::default()).unwrap(),
     );
+    json_data_raw.insert("v1_bound_accounts_cairo0".to_string(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_cairo1".to_string(), serde_json::Value::Array(vec![]));
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 
