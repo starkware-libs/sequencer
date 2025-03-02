@@ -22,7 +22,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     QUERY_VERSION_BASE,
 };
-use starknet_api::{calldata, class_hash, felt, nonce, storage_key, tx_hash};
+use starknet_api::{calldata, felt, nonce, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -459,18 +459,16 @@ fn test_tx_info(
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let mut test_contract_data: FeatureContractData = test_contract.into();
     if v1_bound_account {
-        // TODO(lior): Replace the constant with taking a class hash from the list encoded in
-        //   versioned_constants.
+        let optional_class_hash =
+            VersionedConstants::latest_constants().os_constants.v1_bound_accounts.first();
         test_contract_data.class_hash =
-            class_hash!("0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f");
+            *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
     }
 
     let mut state =
         test_state_ex(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract_data, 1)]);
     let mut version = felt!(3_u8);
-    // TODO(lior): Uncomment the following line once version bound accounts are supported.
-    //   let mut expected_version = if v1_bound_account { felt!(1_u8) } else { version };
-    let mut expected_version = version;
+    let mut expected_version = if v1_bound_account { felt!(1_u8) } else { version };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
