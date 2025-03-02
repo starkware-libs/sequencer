@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use itertools::Itertools;
+use mempool_test_utils::in_ci;
 use starknet_api::block::BlockNumber;
 use starknet_l1_provider::l1_provider::create_l1_provider;
 use starknet_l1_provider::test_utils::FakeL1ProviderClient;
