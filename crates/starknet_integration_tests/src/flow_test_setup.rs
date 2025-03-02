@@ -1,11 +1,17 @@
 use std::net::SocketAddr;
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
+use papyrus_base_layer::test_utils::{anvil, ethereum_base_layer_config};
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
@@ -35,7 +41,6 @@ use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
-use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
@@ -45,6 +50,7 @@ use crate::utils::{
     create_node_config,
     create_state_sync_configs,
     spawn_local_success_recorder,
+    StarknetL1Contract,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -54,6 +60,10 @@ const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 pub struct FlowTestSetup {
     pub sequencer_0: FlowSequencerSetup,
     pub sequencer_1: FlowSequencerSetup,
+
+    // Handle for L1 server: the server is dropped when handle is dropped.
+    pub l1_handle: AnvilInstance,
+    pub starknet_l1_contract: StarknetL1Contract,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels:
@@ -89,10 +99,14 @@ impl FlowTestSetup {
                 .try_into()
                 .unwrap();
 
-        let base_layer_config = EthereumBaseLayerConfig {
-            node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
-            ..Default::default()
-        };
+        let anvil = anvil(Some(available_ports.get_next_port()));
+        let base_layer_config = ethereum_base_layer_config(&anvil);
+        let ethereum_base_layer_contract =
+            EthereumBaseLayerContract::new(base_layer_config.clone());
+        let starknet_l1_contract =
+            Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone())
+                .await
+                .unwrap();
 
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
@@ -121,7 +135,13 @@ impl FlowTestSetup {
         )
         .await;
 
-        Self { sequencer_0, sequencer_1, consensus_proposals_channels }
+        Self {
+            sequencer_0,
+            sequencer_1,
+            l1_handle: anvil,
+            starknet_l1_contract,
+            consensus_proposals_channels,
+        }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
