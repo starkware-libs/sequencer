@@ -18,6 +18,7 @@ starknet_batcher.workspace = true
 starknet_gateway.workspace = true
 starknet_http_server.workspace = true
 starknet_mempool.workspace = true
+starknet_mempool_p2p.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true
 
