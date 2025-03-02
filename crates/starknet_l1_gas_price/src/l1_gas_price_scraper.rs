@@ -5,15 +5,13 @@ use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
 use papyrus_config::validators::validate_ascii;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
-use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;
+use starknet_l1_gas_price_types::errors::L1GasPriceClientError;
+use starknet_l1_gas_price_types::L1GasPriceProviderClient;
 use starknet_sequencer_infra::component_client::ClientError;
 use thiserror::Error;
 use tracing::error;
 use validator::Validate;
-
-use crate::l1_gas_price_provider::L1GasPriceProviderClient;
 
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
@@ -27,7 +25,7 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
     BaseLayerError(T::Error),
     #[error("Could not update gas price provider: {0}")]
-    GasPriceProviderError(L1GasPriceProviderError),
+    GasPriceClientError(L1GasPriceClientError),
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
@@ -94,24 +92,19 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         &mut self,
         mut block_num: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        loop {
-            let price_sample = self
-                .base_layer
-                .get_price_sample(block_num)
+        while let Some(sample) = self
+            .base_layer
+            .get_price_sample(block_num)
+            .await
+            .map_err(L1GasPriceScraperError::BaseLayerError)?
+        {
+            self.l1_gas_price_provider
+                .add_price_info(block_num, sample)
                 .await
-                .map_err(L1GasPriceScraperError::BaseLayerError)?;
-            match price_sample {
-                None => break,
-                Some(sample) => {
-                    self.l1_gas_price_provider
-                        .add_price_info(BlockNumber(block_num), sample)
-                        .map_err(L1GasPriceScraperError::GasPriceProviderError)?;
+                .map_err(L1GasPriceScraperError::GasPriceClientError)?;
 
-                    block_num += 1;
-                }
-            }
+            block_num += 1;
         }
-
         Ok(block_num)
     }
 }
