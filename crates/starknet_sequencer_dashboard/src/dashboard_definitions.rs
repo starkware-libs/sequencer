@@ -4,6 +4,11 @@ use starknet_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
 };
+use starknet_consensus_manager::metrics::{
+    CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_NUM_SENT_MESSAGES,
+};
 use starknet_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use starknet_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
@@ -11,9 +16,6 @@ use starknet_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
 use starknet_sequencer_metrics::metric_definitions::{
-    CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_NUM_SENT_MESSAGES,
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,

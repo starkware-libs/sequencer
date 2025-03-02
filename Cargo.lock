@@ -11523,6 +11523,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_batcher",
+ "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_http_server",
  "starknet_infra_utils",

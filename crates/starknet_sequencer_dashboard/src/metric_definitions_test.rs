@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use papyrus_sync::define_metrics::PAPYRUS_SYNC_ALL_METRICS;
 use starknet_batcher::metrics::BATCHER_ALL_METRICS;
+use starknet_consensus_manager::metrics::CONSENSUS_ALL_METRICS;
 use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
 use starknet_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use starknet_mempool::metrics::MEMPOOL_ALL_METRICS;
@@ -13,6 +14,7 @@ use starknet_sequencer_metrics::metric_definitions::NETWORK_ALL_METRICS;
 fn metric_names_no_duplications() {
     let all_metric_names = BATCHER_ALL_METRICS
         .iter()
+        .chain(CONSENSUS_ALL_METRICS.iter())
         .chain(GATEWAY_ALL_METRICS.iter())
         .chain(HTTP_SERVER_ALL_METRICS.iter())
         .chain(INFRA_ALL_METRICS.iter())
