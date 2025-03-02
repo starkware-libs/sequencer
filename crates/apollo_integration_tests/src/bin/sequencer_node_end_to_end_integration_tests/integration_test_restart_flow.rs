@@ -43,7 +43,7 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
-
+    integration_test_manager.send_declare_txs_and_verify().await;
     let mut nodes_accepted_txs_mapping =
         integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
 
