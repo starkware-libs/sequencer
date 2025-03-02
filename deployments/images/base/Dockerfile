@@ -8,6 +8,8 @@ FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .
+COPY rust-toolchain.toml .
+
 RUN apt update && apt -y install \
     bzip2 \
     curl \
@@ -19,6 +21,7 @@ ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 RUN ./install_build_tools.sh
+RUN rustup toolchain install
 RUN cargo install cargo-chef
 
 # Cleanup.

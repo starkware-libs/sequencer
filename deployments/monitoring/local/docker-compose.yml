@@ -27,12 +27,12 @@ services:
       dockerfile: ${monitoring_dir}/../images/sequencer/node_setup.Dockerfile
     entrypoint: "/bin/bash -c"
     command: >
-      "./target/debug/sequencer_node_setup --db-dir /data --configs-dir /config --n-distributed 0 --n-consolidated 1 &&
-      cp -r /data/node_0 /data2/ &&
-      cp -r /config/node_0 /config2/"
+      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-consolidated 1;
+      cp -r ./output/data/* /data && \
+      cp -r ./output/configs/* /config"
     volumes:
-      - data:/data2
-      - config:/config2
+      - data:/data
+      - config:/config
     networks:
       - sequencer-network
 
@@ -49,18 +49,19 @@ services:
 
   config_injector:
     depends_on:
-      - sequencer_node_setup
-    image: ubuntu:latest
+      sequencer_node_setup:
+        condition: service_completed_successfully
+    image: ubuntu:24.04
     entrypoint: "/bin/bash -c"
     command: |
       "DEBIAN_FRONTEND=noninteractive \
       apt update && \
       apt install -y jq moreutils && \
       echo 'Injecting config changes...' && \
-      jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
-      jq '.\"http_server_config.ip\" = \"0.0.0.0\"' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
-      jq '.\"http_server_config.port\" = 8081' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
-      jq '.\"monitoring_endpoint_config.port\" = 8082' /config/node_0/executable_0/node_integration_test_config_changes.json | sponge /config/node_0/executable_0/node_integration_test_config_changes.json && \
+      jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"http_server_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"http_server_config.port\" = ${SEQUENCER_HTTP_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       echo 'Done'"
     volumes:
       - config:/config
@@ -69,19 +70,21 @@ services:
 
   sequencer_node:
     depends_on:
-      - dummy_recorder
-      - sequencer_node_setup
-      - config_injector
+      config_injector:
+        condition: service_completed_successfully
+      dummy_recorder:
+        condition: service_started
+      sequencer_node_setup:
+        condition: service_completed_successfully
     build:
       context: ../../../
       dockerfile: ${monitoring_dir}/../images/sequencer/Dockerfile
     ports:
-      - "8081:8081"
-      - "8082:8082"
-    entrypoint: "/bin/bash -c"
-    command: >
-      "sleep 20 &&
-      ./target/debug/starknet_sequencer_node --config_file /config/node_0/executable_0/node_integration_test_config_changes.json"
+      - ${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}
+      - ${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}
+    command:
+      - "--config_file"
+      - "${SEQUENCER_CONFIG_PATH}"
     volumes:
       - data:/data
       - config:/config
@@ -94,10 +97,16 @@ services:
     build:
       context: ../../../
       dockerfile: ${monitoring_dir}/../images/sequencer/simulator.Dockerfile
-    entrypoint: "/bin/bash -c"
-    command: >
-      "sleep 30 &&
-      ./target/debug/sequencer_simulator --http-url http://sequencer_node --http-port 8081 --monitoring-url http://sequencer_node --monitoring-port 8082"
+    command:
+      - "--http-url"
+      - "http://sequencer_node"
+      - "--http-port"
+      - "${SEQUENCER_HTTP_PORT}"
+      - "--monitoring-url"
+      - "http://sequencer_node"
+      - "--monitoring-port"
+      - "${SEQUENCER_MONITORING_PORT}"
+      - "--run-forever"
     networks:
       - sequencer-network
 

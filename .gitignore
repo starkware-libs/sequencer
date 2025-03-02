@@ -28,6 +28,7 @@ tmp_venv/*
 /.idea
 __pycache__/
 .idea/
+**/.venv
 
 # Python artifacts.
 scripts/__pycache__

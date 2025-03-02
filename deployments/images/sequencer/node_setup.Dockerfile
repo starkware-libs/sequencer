@@ -32,8 +32,8 @@ COPY --from=builder /usr/bin/tini /usr/bin/tini
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \
     useradd --gid ${ID} --uid ${ID} --comment "" --create-home --home-dir /app sequencer; \
-    mkdir -p /data /data2 /config /config2; \
-    chown -R sequencer:sequencer /app /data /data2 /config /config2
+    mkdir -p /data /config; \
+    chown -R sequencer:sequencer /app /data /config
 
 # Switch to the new user.
 USER ${ID}

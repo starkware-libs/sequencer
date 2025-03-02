@@ -1,5 +1,9 @@
 # Local Monitoring Stack
 
+## Requirements:
+- Python3
+- docker >= 27.3.1 - https://docs.docker.com/engine/install/ubuntu/
+
 ## Deploy:
 ```bash
 python3 -m venv monitoring_venv
