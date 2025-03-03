@@ -656,11 +656,7 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-<<<<<<< HEAD:crates/blockifier/src/versioned_constants.rs
-            os_additional_resources += &(syscall_resources * syscall_usage.call_count);
-=======
-            os_additional_resources += &(&syscall_resources.constant * *count);
->>>>>>> 45dfaf8b2 (feat(blockifier): add deploy call data factor to vc (#4192)):crates/blockifier/src/blockifier_versioned_constants.rs
+            os_additional_resources += &(&syscall_resources.constant * syscall_usage.call_count);
         }
 
         os_additional_resources
