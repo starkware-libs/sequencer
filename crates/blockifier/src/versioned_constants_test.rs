@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
 
@@ -189,15 +190,25 @@ fn test_syscall_gas_cost_calculation() {
     let versioned_constants = VersionedConstants::latest_constants().clone();
 
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract).get_base_cost(),
         EXPECTED_CALL_CONTRACT_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul).get_base_cost(),
         EXPECTED_SECP256K1MUL_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
+        versioned_constants
+            .get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock)
+            .get_base_cost(),
         EXPECTED_SHA256PROCESSBLOCK_GAS_COST
     );
+}
+
+#[test]
+fn test_call_data_factor_gas_cost_calculation() {
+    assert_matches!(
+        VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.deploy,
+        SyscallGasCost::Linear { .. }
+    )
 }
