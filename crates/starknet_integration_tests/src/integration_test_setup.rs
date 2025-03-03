@@ -44,7 +44,14 @@ use tokio::fs::create_dir_all;
 use tracing::instrument;
 use url::Url;
 
-use crate::state_reader::StorageTestSetup;
+use crate::state_reader::{
+    StorageTestSetup,
+    BATCHER_DB_PATH_SUFFIX,
+    CLASSES_STORAGE_DB_PATH_SUFFIX,
+    CLASS_HASH_STORAGE_DB_PATH_SUFFIX,
+    CLASS_MANAGER_DB_PATH_SUFFIX,
+    STATE_SYNC_DB_PATH_SUFFIX,
+};
 use crate::utils::{create_node_config, spawn_local_success_recorder};
 
 // TODO(Tsabary): rename this module to `executable_setup`.
@@ -155,17 +162,29 @@ impl ExecutableSetup {
         component_config: ComponentConfig,
         db_path_dir: Option<PathBuf>,
         config_path_dir: Option<PathBuf>,
+        exec_data_prefix_dir: Option<PathBuf>,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
         let StorageTestSetup {
-            batcher_storage_config,
+            mut batcher_storage_config,
             batcher_storage_handle,
-            state_sync_storage_config,
+            mut state_sync_storage_config,
             state_sync_storage_handle,
-            class_manager_storage_config,
+            mut class_manager_storage_config,
             class_manager_storage_handles,
         } = StorageTestSetup::new(accounts, &chain_info, db_path_dir);
+
+        // Allow overriding the path with a custom prefix for Docker mode in system tests.
+        if let Some(ref prefix) = exec_data_prefix_dir {
+            batcher_storage_config.db_config.path_prefix = prefix.join(BATCHER_DB_PATH_SUFFIX);
+            state_sync_storage_config.db_config.path_prefix =
+                prefix.join(STATE_SYNC_DB_PATH_SUFFIX);
+            class_manager_storage_config.class_hash_storage_config.path_prefix =
+                prefix.join(CLASS_MANAGER_DB_PATH_SUFFIX).join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
+            class_manager_storage_config.persistent_root =
+                prefix.join(CLASS_MANAGER_DB_PATH_SUFFIX).join(CLASSES_STORAGE_DB_PATH_SUFFIX);
+        }
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
