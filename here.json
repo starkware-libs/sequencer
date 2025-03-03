@@ -1,0 +1,53 @@
+{
+  "name": "Sequencer Node Dashboard",
+  "description": "Monitoring of the decentralized sequencer node",
+  "rows": [
+    {
+      "name": "Batcher",
+      "description": "Batcher metrics including proposals and transactions",
+      "panels": [
+        {
+          "description": "Counter of proposals started",
+          "expr": "batcher_proposal_started",
+          "name": "batcher_proposal_started",
+          "panel_type": "Stat",
+          "position": 1
+        },
+        {
+          "description": "Counter of successful proposals",
+          "expr": "batcher_proposal_succeeded",
+          "name": "batcher_proposal_succeeded",
+          "panel_type": "Stat",
+          "position": 2
+        },
+        {
+          "description": "Counter of failed proposals",
+          "expr": "batcher_proposal_failed",
+          "name": "batcher_proposal_failed",
+          "panel_type": "Stat",
+          "position": 3
+        },
+        {
+          "description": "Counter of batched transactions",
+          "expr": "batcher_batched_transactions",
+          "name": "batcher_batched_transactions",
+          "panel_type": "Stat",
+          "position": 4
+        }
+      ]
+    },
+    {
+      "name": "Http Server",
+      "description": "Http Server metrics including added transactions",
+      "panels": [
+        {
+          "description": "Total number of transactions added",
+          "expr": "ADDED_TRANSACTIONS_TOTAL",
+          "name": "ADDED_TRANSACTIONS_TOTAL",
+          "panel_type": "Stat",
+          "position": 1
+        }
+      ]
+    }
+  ]
+}

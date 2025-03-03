@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
-use std::path::Path;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
@@ -196,27 +195,10 @@ impl SerializeConfig for SequencerNodeConfig {
 impl SequencerNodeConfig {
     /// Creates a config object. Selects the values from the default file and from resources with
     /// higher priority.
-    fn load_and_process_config_file(
-        args: Vec<String>,
-        config_file_name: Option<&str>,
-    ) -> Result<Self, ConfigError> {
-        let config_file_name = match config_file_name {
-            Some(file_name) => Path::new(file_name),
-            None => &resolve_project_relative_path(DEFAULT_CONFIG_PATH)?,
-        };
-
+    pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
+        let config_file_name = &resolve_project_relative_path(DEFAULT_CONFIG_PATH)?;
         let default_config_file = File::open(config_file_name)?;
         load_and_process_config(default_config_file, node_command(), args)
-    }
-
-    pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
-        Self::load_and_process_config_file(args, None)
-    }
-    pub fn load_and_process_file(
-        args: Vec<String>,
-        config_file_name: &str,
-    ) -> Result<Self, ConfigError> {
-        Self::load_and_process_config_file(args, Some(config_file_name))
     }
 }
 
