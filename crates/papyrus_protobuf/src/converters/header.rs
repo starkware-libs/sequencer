@@ -170,6 +170,9 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
             .into(),
         };
 
+        let l2_gas_consumed = value.l2_gas_consumed;
+        let next_l2_gas_price = value.next_l2_gas_price;
+
         let receipt_commitment = value
             .receipts
             .map(|receipts| receipts.try_into().map(ReceiptCommitment))
@@ -192,6 +195,8 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                     l1_gas_price,
                     l1_data_gas_price,
                     l2_gas_price,
+                    l2_gas_consumed,
+                    next_l2_gas_price,
                     state_root,
                     sequencer,
                     timestamp,
@@ -276,6 +281,8 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             l1_data_availability_mode: l1_data_availability_mode_to_enum_int(
                 header.block_header_without_hash.l1_da_mode,
             ),
+            l2_gas_consumed: header.block_header_without_hash.l2_gas_consumed,
+            next_l2_gas_price: header.block_header_without_hash.next_l2_gas_price,
             signatures: signatures.iter().map(|signature| (*signature).into()).collect(),
         }
     }

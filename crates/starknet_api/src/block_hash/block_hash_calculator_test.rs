@@ -36,12 +36,16 @@ use crate::{felt, tx_hash};
 /// results a change in the block hash.
 /// The macro clones the original header and commitments, modifies each specified field,
 /// and asserts that the block hash changes as a result.
+/// Allows excluding specific fields that aren't part of the hash.
 macro_rules! test_hash_changes {
     (
-        BlockHeaderWithoutHash { $($header_field:ident: $header_value:expr),* },
-        BlockHeaderCommitments { $($commitments_field:ident: $commitments_value:expr),* }
+        BlockHeaderWithoutHash { $($header_field:ident: $header_value:expr),* $(,)? },
+        BlockHeaderCommitments { $($commitments_field:ident: $commitments_value:expr),* $(,)? },
+        exclude_header_fields = [ $( $excluded_field:ident ),* $(,)? ]
     ) => {
         {
+            let excluded_fields = vec![$(stringify!($excluded_field)),*];
+
             let header = BlockHeaderWithoutHash {
                 l1_da_mode: L1DataAvailabilityMode::Blob,
                 starknet_version: BlockHashVersion::V0_13_4.into(),
@@ -53,11 +57,13 @@ macro_rules! test_hash_changes {
             let original_hash = calculate_block_hash(header.clone(), commitments.clone()).unwrap();
 
             $(
-                // Test changing the field in the header.
-                let mut modified_header = header.clone();
-                modified_header.$header_field = Default::default();
-                let new_hash = calculate_block_hash(modified_header, commitments.clone()).unwrap();
-                assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($header_field), " is modified"));
+                if !excluded_fields.contains(&stringify!($header_field)) {
+                    // Test changing the field in the header.
+                    let mut modified_header = header.clone();
+                    modified_header.$header_field = Default::default();
+                    let new_hash = calculate_block_hash(modified_header, commitments.clone()).unwrap();
+                    assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($header_field), " is modified"));
+                }
             )*
 
             $(
@@ -88,6 +94,8 @@ fn test_block_hash_regression(
             price_in_wei: 9_u8.into(),
         },
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
+        l2_gas_consumed: 13,
+        next_l2_gas_price: 14,
         starknet_version: block_hash_version.clone().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
@@ -161,6 +169,8 @@ fn change_field_of_hash_input() {
                 price_in_wei: 1_u8.into(),
             },
             l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
+            l2_gas_consumed: 1,
+            next_l2_gas_price: 1,
             state_root: GlobalRoot(Felt::ONE),
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
             timestamp: BlockTimestamp(1)
@@ -171,7 +181,10 @@ fn change_field_of_hash_input() {
             receipt_commitment: ReceiptCommitment(Felt::ONE),
             state_diff_commitment: StateDiffCommitment(PoseidonHash(Felt::ONE)),
             concatenated_counts: Felt::ONE
-        }
+        },
+        // Excluding l2_gas_consumed, l2_gas_consumed as they're not currently included in the
+        // block hash.
+        exclude_header_fields = [l2_gas_consumed, next_l2_gas_price]
     );
     // TODO(Aviv, 10/06/2024): add tests that changes the first hash input, and the const zero.
 }
