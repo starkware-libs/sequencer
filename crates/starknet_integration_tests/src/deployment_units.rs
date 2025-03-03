@@ -10,3 +10,10 @@ pub enum DeploymentUnitType {
     HttpServer,
     L1Provider,
 }
+
+pub struct DeploymentUnit {
+    pub config_path: String,
+    pub machine_type: String,
+    pub storage: bool,
+    pub replicas: usize,
+}
