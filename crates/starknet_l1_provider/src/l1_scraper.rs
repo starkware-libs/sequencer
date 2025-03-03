@@ -75,7 +75,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     #[instrument(skip(self), err)]
     pub async fn initialize(&mut self) -> L1ScraperResult<(), B> {
         let Some((latest_l1_block, events)) = self.fetch_events().await? else {
-            return Ok(());
+            return Err(
+                L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
+            );
         };
 
         // If this gets too high, send in batches.
@@ -264,6 +266,19 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     L1ReorgDetected { reason: String },
 }
 
+impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
+    pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
+        let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
+        let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
+            Ok(block_number) => block_number
+                .expect("Latest *L1* block without finality is assumed to always exist."),
+            Err(error) => return Self::BaseLayerError(error),
+        };
+
+        Self::FinalityTooHigh { finality, latest_l1_block_no_finality }
+    }
+}
+
 fn handle_client_error<B: BaseLayerContract + Send + Sync>(
     client_result: Result<(), L1ProviderClientError>,
 ) -> Result<(), L1ScraperError<B>> {
@@ -284,14 +299,6 @@ async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
 
     match latest_l1_block_number {
         Some(latest_l1_block_number) => Ok(latest_l1_block_number),
-        None => {
-            let latest_l1_block_no_finality = base_layer
-                .latest_l1_block_number(0)
-                .await
-                .map_err(L1ScraperError::BaseLayerError)?
-                .expect("Latest *L1* block without finality is assumed to always exist.");
-
-            Err(L1ScraperError::FinalityTooHigh { finality, latest_l1_block_no_finality })
-        }
+        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
     }
 }
