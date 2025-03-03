@@ -147,6 +147,8 @@ impl Const {
         Self::AliasContractAddress.fetch_as(constants)
     }
 }
+
+#[derive(Copy, Clone)]
 pub enum CairoStruct {
     CompiledClassFact,
     DeprecatedCompiledClass,
