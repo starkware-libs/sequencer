@@ -30,7 +30,7 @@ use crate::execution::syscalls::hint_processor::SyscallUsageMap;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::u64_from_usize;
+use crate::utils::get_gas_cost_from_vm_resources;
 
 #[cfg(test)]
 #[path = "versioned_constants_test.rs"]
@@ -381,34 +381,23 @@ impl VersionedConstants {
     }
 
     /// Calculates the syscall gas cost from the OS resources.
-    pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> u64 {
+    pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
         let gas_costs = &self.os_constants.gas_costs;
-        let constant_execution_resources = &self
+        let execution_resources_params = &self
             .os_resources
             .execute_syscalls
             .get(syscall_selector)
-            .expect("Fetching the execution resources of a syscall should not fail.")
-            .constant;
-        let n_steps = u64_from_usize(constant_execution_resources.n_steps);
-        let n_memory_holes = u64_from_usize(constant_execution_resources.n_memory_holes);
-        let total_builtin_gas_cost: u64 = constant_execution_resources
-            .builtin_instance_counter
-            .iter()
-            .map(|(builtin, amount)| {
-                let builtin_cost = gas_costs
-                    .builtins
-                    .get_builtin_gas_cost(builtin)
-                    .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
-                builtin_cost * u64_from_usize(*amount)
-            })
-            .sum();
+            .expect("Fetching the execution resources of a syscall should not fail.");
+
+        let base_cost_from_vm_resources =
+            get_gas_cost_from_vm_resources(&execution_resources_params.constant, gas_costs);
+
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
-        std::cmp::max(
-            n_steps * gas_costs.base.step_gas_cost
-                + n_memory_holes * gas_costs.base.memory_hole_gas_cost
-                + total_builtin_gas_cost,
-            gas_costs.base.syscall_base_gas_cost,
-        )
+        let base_gas_cost =
+            std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_cost_from_vm_resources);
+        let linear_gas_cost =
+            get_gas_cost_from_vm_resources(&execution_resources_params.calldata_factor, gas_costs);
+        SyscallGasCost { base_cost: base_gas_cost, linear_factor: linear_gas_cost }
     }
 }
 
@@ -707,37 +696,52 @@ impl<'de> Deserialize<'de> for OsResources {
     }
 }
 
+#[derive(Deserialize, PartialEq, Debug, Clone, Copy, Serialize, Default)]
+pub struct SyscallGasCost {
+    pub base_cost: u64,
+    pub linear_factor: u64,
+}
+
+impl SyscallGasCost {
+    pub fn new_from_base_cost(base_cost: u64) -> Self {
+        Self { base_cost, linear_factor: 0 }
+    }
+}
+
 #[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct SyscallGasCosts {
-    pub call_contract: u64,
-    pub deploy: u64,
-    pub get_block_hash: u64,
-    pub get_execution_info: u64,
-    pub library_call: u64,
-    pub replace_class: u64,
-    pub storage_read: u64,
-    pub storage_write: u64,
-    pub get_class_hash_at: u64,
-    pub emit_event: u64,
-    pub send_message_to_l1: u64,
-    pub secp256k1_add: u64,
-    pub secp256k1_get_point_from_x: u64,
-    pub secp256k1_get_xy: u64,
-    pub secp256k1_mul: u64,
-    pub secp256k1_new: u64,
-    pub secp256r1_add: u64,
-    pub secp256r1_get_point_from_x: u64,
-    pub secp256r1_get_xy: u64,
-    pub secp256r1_mul: u64,
-    pub secp256r1_new: u64,
-    pub keccak: u64,
-    pub keccak_round_cost: u64,
-    pub sha256_process_block: u64,
+    pub call_contract: SyscallGasCost,
+    pub deploy: SyscallGasCost,
+    pub get_block_hash: SyscallGasCost,
+    pub get_execution_info: SyscallGasCost,
+    pub library_call: SyscallGasCost,
+    pub replace_class: SyscallGasCost,
+    pub storage_read: SyscallGasCost,
+    pub storage_write: SyscallGasCost,
+    pub get_class_hash_at: SyscallGasCost,
+    pub emit_event: SyscallGasCost,
+    pub send_message_to_l1: SyscallGasCost,
+    pub secp256k1_add: SyscallGasCost,
+    pub secp256k1_get_point_from_x: SyscallGasCost,
+    pub secp256k1_get_xy: SyscallGasCost,
+    pub secp256k1_mul: SyscallGasCost,
+    pub secp256k1_new: SyscallGasCost,
+    pub secp256r1_add: SyscallGasCost,
+    pub secp256r1_get_point_from_x: SyscallGasCost,
+    pub secp256r1_get_xy: SyscallGasCost,
+    pub secp256r1_mul: SyscallGasCost,
+    pub secp256r1_new: SyscallGasCost,
+    pub keccak: SyscallGasCost,
+    pub keccak_round_cost: SyscallGasCost,
+    pub sha256_process_block: SyscallGasCost,
 }
 
 impl SyscallGasCosts {
-    pub fn get_syscall_gas_cost(&self, selector: &SyscallSelector) -> Result<u64, GasCostsError> {
+    pub fn get_syscall_gas_cost(
+        &self,
+        selector: &SyscallSelector,
+    ) -> Result<SyscallGasCost, GasCostsError> {
         let gas_cost = match *selector {
             SyscallSelector::CallContract => self.call_contract,
             SyscallSelector::Deploy => self.deploy,
@@ -1019,7 +1023,7 @@ impl OsConstantsRawJson {
         &self,
         base: &BaseGasCosts,
         builtins: &BuiltinGasCosts,
-    ) -> Result<IndexMap<String, u64>, OsConstantsSerdeError> {
+    ) -> Result<IndexMap<String, SyscallGasCost>, OsConstantsSerdeError> {
         let mut gas_costs = IndexMap::new();
         let key = "syscall_gas_costs";
         let syscalls: IndexMap<String, Value> = serde_json::from_value(
@@ -1126,7 +1130,7 @@ impl OsConstantsRawJson {
         &self,
         key: &str,
         value: &Value,
-        syscalls: &mut IndexMap<String, u64>,
+        syscalls: &mut IndexMap<String, SyscallGasCost>,
         base: &BaseGasCosts,
         builtins: &BuiltinGasCosts,
     ) -> Result<(), OsConstantsSerdeError> {
@@ -1163,14 +1167,14 @@ impl OsConstantsRawJson {
                         })?;
                     cost += inner_value * factor;
                 }
-                syscalls.insert(key.to_string(), cost);
+                syscalls.insert(key.to_string(), SyscallGasCost::new_from_base_cost(cost));
             }
             Value::Number(n) => {
                 cost = n.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRange {
                     key: key.to_string(),
                     value: n.clone(),
                 })?;
-                syscalls.insert(key.to_string(), cost);
+                syscalls.insert(key.to_string(), SyscallGasCost::new_from_base_cost(cost));
             }
             _ => return Err(OsConstantsSerdeError::UnhandledValueType(value.clone())),
         }
