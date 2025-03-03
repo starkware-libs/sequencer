@@ -11,20 +11,17 @@ use tracing::{error, info, instrument};
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
 pub struct NodeRunner {
-    description: String,
     node_index: usize,
+    executable_index: usize,
 }
 
 impl NodeRunner {
     pub fn new(node_index: usize, executable_index: usize) -> Self {
-        Self {
-            description: format! {"Node id {} part {}:", node_index, executable_index},
-            node_index,
-        }
+        Self { node_index, executable_index }
     }
 
     pub fn get_description(&self) -> String {
-        self.description.clone()
+        format!("Node id {} part {}:", self.node_index, self.executable_index)
     }
 }
 
