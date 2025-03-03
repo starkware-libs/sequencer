@@ -162,6 +162,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.build_proposal_margin": {
+    "description": "Safety margin to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
+    "value": true,
+    "privacy": "Public"
+  },
   "context.builder_address": {
     "description": "A required param! The address of the contract that builds the block.",
     "param_type": "String",
@@ -189,6 +194,11 @@ expression: dumped_default_config
     "value": {
       "$serde_json::private::Number": "100"
     },
+    "privacy": "Public"
+  },
+  "context.validate_proposal_margin": {
+    "description": "Safety margin to allow the batcher to successfully validate a proposal.",
+    "value": true,
     "privacy": "Public"
   },
   "monitoring_gateway.collect_metrics": {

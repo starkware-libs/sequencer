@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::time::Duration;
 
 use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
@@ -22,6 +23,14 @@ pub struct ContextConfig {
     pub l1_da_mode: bool,
     /// The address of the contract that builds the block.
     pub builder_address: ContractAddress,
+    /// Safety margin to make sure that the batcher completes building the proposal with enough
+    /// time for the Fin to be checked by validators.
+    pub build_proposal_margin: Duration,
+    // When validating a proposal the Context is responsible for timeout handling. The Batcher
+    // though has a timeout as a defensive measure to make sure the proposal doesn't live
+    // forever if the Context crashes or has a bug.
+    /// Safety margin to allow the batcher to successfully validate a proposal.
+    pub validate_proposal_margin: Duration,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -64,6 +73,19 @@ impl SerializeConfig for ContextConfig {
                 "The address of the contract that builds the block.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "build_proposal_margin",
+                &self.l1_da_mode,
+                "Safety margin to make sure that the batcher completes building the proposal with \
+                 enough time for the Fin to be checked by validators.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_proposal_margin",
+                &self.l1_da_mode,
+                "Safety margin to allow the batcher to successfully validate a proposal.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -77,6 +99,8 @@ impl Default for ContextConfig {
             block_timestamp_window: 1,
             l1_da_mode: true,
             builder_address: ContractAddress::default(),
+            build_proposal_margin: Duration::from_secs(1),
+            validate_proposal_margin: Duration::from_secs(10),
         }
     }
 }
