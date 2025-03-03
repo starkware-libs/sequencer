@@ -18,21 +18,15 @@ pub fn run_cairo_0_entry_point(
     let trace_enabled = true;
     let mut cairo_runner =
         CairoRunner::new(program, LayoutName::all_cairo, proof_mode, trace_enabled).unwrap();
-    cairo_runner.initialize_function_runner()?;
+    cairo_runner.initialize_builtins(false).unwrap();
+    cairo_runner.initialize_segments(None);
 
-    // Implicit args.
     let mut entrypoint_args: Vec<CairoArg> = vec![
         MaybeRelocatable::from(Felt252::from(2_i128)).into(), // this is the entry point selector
         // this would be the output_ptr for example if our cairo function uses it
         MaybeRelocatable::from((2, 0)).into(),
     ];
-    // Explicit args.
-    let calldata_start = cairo_runner.vm.add_memory_segment();
-    let calldata_end = cairo_runner.vm.load_data(calldata_start, args).unwrap();
-    entrypoint_args.extend([
-        MaybeRelocatable::from(calldata_start).into(),
-        MaybeRelocatable::from(calldata_end).into(),
-    ]);
+    entrypoint_args.extend(args.iter().map(|arg| CairoArg::from(arg.clone())));
     let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
     let verify_secure = true;
     let program_segment_size: Option<usize> = None;
@@ -53,9 +47,18 @@ pub fn run_cairo_0_entry_point(
     Ok(Retdata(
         return_values
             .iter()
-            .map(|m| {
-                m.get_int()
-                    .unwrap_or_else(|| panic!("Could not convert return data {} to integer.", m))
+            .map(|m| match m {
+                MaybeRelocatable::Int(i) => *i,
+                MaybeRelocatable::RelocatableValue(relocatable) => cairo_runner
+                    .vm
+                    .get_integer(*relocatable)
+                    .unwrap_or_else(|err| {
+                        panic!(
+                            "Could not convert relocatable {:?} to integer. error: {:?}",
+                            relocatable, err
+                        )
+                    })
+                    .into_owned(),
             })
             .collect(),
     ))
