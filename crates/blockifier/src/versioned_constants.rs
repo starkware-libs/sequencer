@@ -19,7 +19,7 @@ use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::transaction::fields::GasVectorComputationMode;
+use starknet_api::transaction::fields::{GasVectorComputationMode, Tip};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use strum::IntoEnumIterator;
 use thiserror::Error;
@@ -872,6 +872,7 @@ pub struct OsConstants {
     pub execute_max_sierra_gas: GasAmount,
     pub v1_bound_accounts_cairo0: Vec<ClassHash>,
     pub v1_bound_accounts_cairo1: Vec<ClassHash>,
+    pub v1_bound_accounts_max_tip: Tip,
 }
 
 impl OsConstants {
@@ -958,6 +959,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
         )?);
         let v1_bound_accounts_cairo0 = raw_json_data.v1_bound_accounts_cairo0;
         let v1_bound_accounts_cairo1 = raw_json_data.v1_bound_accounts_cairo1;
+        let v1_bound_accounts_max_tip = raw_json_data.v1_bound_accounts_max_tip;
         let os_constants = OsConstants {
             gas_costs,
             validate_rounding_consts,
@@ -966,6 +968,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
             execute_max_sierra_gas,
             v1_bound_accounts_cairo0,
             v1_bound_accounts_cairo1,
+            v1_bound_accounts_max_tip,
         };
         Ok(os_constants)
     }
@@ -1008,6 +1011,7 @@ struct OsConstantsRawJson {
     os_contract_addresses: OsContractAddresses,
     v1_bound_accounts_cairo0: Vec<ClassHash>,
     v1_bound_accounts_cairo1: Vec<ClassHash>,
+    v1_bound_accounts_max_tip: Tip,
 }
 
 impl OsConstantsRawJson {
