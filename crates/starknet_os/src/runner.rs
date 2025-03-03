@@ -21,6 +21,7 @@ pub fn run_os<S: StateReader>(
     layout: LayoutName,
     os_input: StarknetOsInput,
     state_reader: S,
+    cached_state_input: CachedStateInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
     let cairo_run_config =
@@ -40,9 +41,6 @@ pub fn run_os<S: StateReader>(
 
     // Init the Cairo VM.
     let end = cairo_runner.initialize(allow_missing_builtins)?;
-
-    // TODO(Nimrod): Get `cached_state_input` as input.
-    let cached_state_input = CachedStateInput::default();
 
     // Create execution helper.
     let execution_helper =
@@ -83,6 +81,7 @@ pub fn run_os_stateless(
     compiled_os: &[u8],
     layout: LayoutName,
     os_input: StarknetOsInput,
+    cached_state_input: CachedStateInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    run_os(compiled_os, layout, os_input, PanickingStateReader)
+    run_os(compiled_os, layout, os_input, PanickingStateReader, cached_state_input)
 }

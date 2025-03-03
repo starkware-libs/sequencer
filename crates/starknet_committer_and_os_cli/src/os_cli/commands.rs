@@ -3,7 +3,7 @@ use std::path::Path;
 
 use cairo_vm::types::layout_name::LayoutName;
 use serde::Deserialize;
-use starknet_os::io::os_input::StarknetOsInput;
+use starknet_os::io::os_input::{CachedStateInput, StarknetOsInput};
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
 
@@ -17,10 +17,11 @@ pub(crate) struct Input {
     pub compiled_os_path: String,
     pub layout: LayoutName,
     pub os_input: StarknetOsInput,
+    pub cached_state_input: CachedStateInput,
 }
 
 pub fn parse_and_run_os(input_path: String, _output_path: String) {
-    let Input { compiled_os_path, layout, os_input } = load_input(input_path);
+    let Input { compiled_os_path, layout, os_input, cached_state_input } = load_input(input_path);
     assert!(
         os_input._transactions.len() == os_input._tx_execution_infos.len(),
         "The number of transactions and execution infos should be equal"
@@ -31,5 +32,5 @@ pub fn parse_and_run_os(input_path: String, _output_path: String) {
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
-    let _ = run_os_stateless(&compiled_os, layout, os_input);
+    let _ = run_os_stateless(&compiled_os, layout, os_input, cached_state_input);
 }
