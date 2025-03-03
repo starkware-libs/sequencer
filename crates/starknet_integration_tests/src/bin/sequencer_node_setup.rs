@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
-use starknet_integration_tests::sequencer_manager::IntegrationTestManager;
+use starknet_integration_tests::sequencer_manager::{CustomPaths, IntegrationTestManager};
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tokio::fs::create_dir_all;
 use tracing::info;
@@ -18,14 +18,16 @@ async fn main() {
     set_panic_hook();
 
     info!("Generate config and db files under {:?}", args.output_base_dir);
-    let test_manager = IntegrationTestManager::new(
-        args.n_consolidated,
-        args.n_distributed,
+
+    let custom_paths = CustomPaths::new(
         Some(PathBuf::from(args.output_base_dir.clone()).join("data")),
         Some(PathBuf::from(args.output_base_dir.clone()).join("configs")),
         args.data_prefix_path.map(PathBuf::from),
-    )
-    .await;
+    );
+
+    let test_manager =
+        IntegrationTestManager::new(args.n_consolidated, args.n_distributed, Some(custom_paths))
+            .await;
 
     let simulator_ports_path = format!("{}/simulator_ports", args.output_base_dir);
     info!("Generate simulator ports json files under {:?}", simulator_ports_path);

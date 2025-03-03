@@ -165,13 +165,38 @@ pub struct IntegrationTestManager {
     tx_generator: MultiAccountTransactionGenerator,
 }
 
+pub struct CustomPaths {
+    db_base: Option<PathBuf>,
+    config_base: Option<PathBuf>,
+    data_prefix_base: Option<PathBuf>,
+}
+
+impl CustomPaths {
+    pub fn new(
+        db_base: Option<PathBuf>,
+        config_base: Option<PathBuf>,
+        data_prefix_base: Option<PathBuf>,
+    ) -> Self {
+        Self { db_base, config_base, data_prefix_base }
+    }
+    pub fn get_db_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
+        self.db_base.as_ref().map(|p| node_execution_id.build_path(p))
+    }
+
+    pub fn get_config_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
+        self.config_base.as_ref().map(|p| node_execution_id.build_path(p))
+    }
+
+    pub fn get_data_prefix_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
+        self.data_prefix_base.as_ref().map(|p| node_execution_id.build_path(p))
+    }
+}
+
 impl IntegrationTestManager {
     pub async fn new(
         num_of_consolidated_nodes: usize,
         num_of_distributed_nodes: usize,
-        path_to_db_base_dir: Option<PathBuf>,
-        path_to_config_base_dir: Option<PathBuf>,
-        path_to_data_prefix_base_dir: Option<PathBuf>,
+        custom_paths: Option<CustomPaths>,
     ) -> Self {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
@@ -182,9 +207,7 @@ impl IntegrationTestManager {
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
-            path_to_db_base_dir,
-            path_to_config_base_dir,
-            path_to_data_prefix_base_dir,
+            custom_paths,
         )
         .await;
 
@@ -431,9 +454,7 @@ pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
-    path_to_db_base_dir: Option<PathBuf>,
-    path_to_config_base_dir: Option<PathBuf>,
-    path_to_data_prefix_base_dir: Option<PathBuf>,
+    custom_paths: Option<CustomPaths>,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
@@ -502,11 +523,12 @@ pub async fn get_sequencer_setup_configs(
             let state_sync_config = state_sync_configs.remove(0);
             let chain_info = chain_info.clone();
             let exec_db_path =
-                path_to_db_base_dir.as_ref().map(|p| node_execution_id.build_path(p));
+                custom_paths.as_ref().and_then(|paths| paths.get_db_path(&node_execution_id));
             let exec_config_path =
-                path_to_config_base_dir.as_ref().map(|p| node_execution_id.build_path(p));
-            let exec_data_prefix_dir =
-                path_to_data_prefix_base_dir.as_ref().map(|p| node_execution_id.build_path(p));
+                custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
+            let exec_data_prefix_dir = custom_paths
+                .as_ref()
+                .and_then(|paths| paths.get_data_prefix_path(&node_execution_id));
 
             executables.push(
                 ExecutableSetup::new(
