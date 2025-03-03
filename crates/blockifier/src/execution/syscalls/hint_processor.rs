@@ -80,7 +80,7 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::versioned_constants::GasCosts;
+use crate::versioned_constants::{GasCosts, SyscallGasCost};
 
 #[derive(Clone, Debug, Default)]
 pub struct SyscallUsage {
@@ -476,7 +476,7 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
         execute_callback: ExecuteCallback,
-        syscall_gas_cost: u64,
+        syscall_gas_cost: SyscallGasCost,
     ) -> HintExecutionResult
     where
         Request: SyscallRequest + std::fmt::Debug,
@@ -490,7 +490,7 @@ impl<'a> SyscallHintProcessor<'a> {
     {
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas =
-            syscall_gas_cost - self.base.context.gas_costs().base.syscall_base_gas_cost;
+            syscall_gas_cost.base - self.base.context.gas_costs().base.syscall_base_gas_cost;
 
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
