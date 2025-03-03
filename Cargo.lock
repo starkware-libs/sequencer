@@ -11467,7 +11467,6 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
- "cairo-lang-starknet-classes",
  "cairo-vm",
  "indoc 2.0.5",
  "rstest",

@@ -18,7 +18,6 @@ testing = ["blockifier/testing"]
 
 [dependencies]
 blockifier.workspace = true
-cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
 indoc.workspace = true
 serde = { workspace = true, optional = true, features = ["derive"] }
