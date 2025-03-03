@@ -21,14 +21,9 @@ async fn main() {
     const NODE_2: usize = 2;
 
     // Get the sequencer configurations.
-    let mut integration_test_manager = IntegrationTestManager::new(
-        N_CONSOLIDATED_SEQUENCERS,
-        N_DISTRIBUTED_SEQUENCERS,
-        None,
-        None,
-        None,
-    )
-    .await;
+    let mut integration_test_manager =
+        IntegrationTestManager::new(N_CONSOLIDATED_SEQUENCERS, N_DISTRIBUTED_SEQUENCERS, None)
+            .await;
 
     let mut node_indices = integration_test_manager.get_node_indices();
 
