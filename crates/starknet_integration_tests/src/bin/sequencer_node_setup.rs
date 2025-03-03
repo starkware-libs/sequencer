@@ -23,6 +23,7 @@ async fn main() {
         args.n_distributed,
         Some(PathBuf::from(args.output_base_dir.clone()).join("data")),
         Some(PathBuf::from(args.output_base_dir.clone()).join("configs")),
+        args.data_prefix_path.map(PathBuf::from),
     )
     .await;
 
@@ -48,4 +49,7 @@ struct Args {
 
     #[arg(long)]
     output_base_dir: String,
+
+    #[arg(long)]
+    data_prefix_path: Option<String>,
 }
