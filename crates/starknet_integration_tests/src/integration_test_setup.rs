@@ -155,17 +155,27 @@ impl ExecutableSetup {
         component_config: ComponentConfig,
         db_path_dir: Option<PathBuf>,
         config_path_dir: Option<PathBuf>,
+        exec_data_prefix_dir: Option<PathBuf>,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
         let StorageTestSetup {
-            batcher_storage_config,
+            mut batcher_storage_config,
             batcher_storage_handle,
-            state_sync_storage_config,
+            mut state_sync_storage_config,
             state_sync_storage_handle,
-            class_manager_storage_config,
+            mut class_manager_storage_config,
             class_manager_storage_handles,
         } = StorageTestSetup::new(accounts, &chain_info, db_path_dir);
+
+        // This is for cases where we want the data prefix to be different from the actual creation
+        // path.
+        if let Some(ref prefix) = exec_data_prefix_dir {
+            batcher_storage_config.db_config.path_prefix = prefix.join("batcher");
+            state_sync_storage_config.db_config.path_prefix = prefix.join("state_sync");
+            class_manager_storage_config.class_hash_storage_config.path_prefix =
+                prefix.join("class_manager");
+        }
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
