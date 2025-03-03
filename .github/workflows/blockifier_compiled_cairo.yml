@@ -51,10 +51,10 @@ jobs:
           repository: 'starkware-libs/sequencer'
           path: 'sequencer'
 
-      - name: "Bootstrap sequencer"
-        uses: ./.github/actions/bootstrap
-        with:
-          target_dirs: 'sequencer/target'
+      # - name: "Bootstrap sequencer"
+      #   uses: ./.github/actions/bootstrap
+      #   with:
+      #     target_dirs: 'sequencer/target'
 
       - name: checkout cairo1 repo in order to compile cairo1 contracts.
         uses: actions/checkout@v4
