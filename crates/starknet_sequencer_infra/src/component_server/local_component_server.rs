@@ -46,7 +46,7 @@ where
     component: Component,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     _max_concurrency: usize,
-    metrics: Arc<LocalServerMetrics>,
+    metrics: LocalServerMetrics,
 }
 
 impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
@@ -62,7 +62,7 @@ where
         metrics: LocalServerMetrics,
     ) -> Self {
         metrics.register();
-        Self { component, rx, _max_concurrency: max_concurrency, metrics: Arc::new(metrics) }
+        Self { component, rx, _max_concurrency: max_concurrency, metrics }
     }
 }
 
@@ -88,7 +88,7 @@ where
     async fn start(&mut self) {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await;
-        request_response_loop(&mut self.rx, &mut self.component, self.metrics.clone()).await;
+        request_response_loop(&mut self.rx, &mut self.component, &self.metrics).await;
         panic!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
     }
 }
@@ -96,7 +96,7 @@ where
 async fn request_response_loop<Request, Response, Component>(
     rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     component: &mut Component,
-    metrics: Arc<LocalServerMetrics>,
+    metrics: &LocalServerMetrics,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
     Request: Send + Debug,
