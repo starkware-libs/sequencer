@@ -11300,15 +11300,19 @@ name = "starknet_l1_gas_price"
 version = "0.0.0"
 dependencies = [
  "mockall",
+ "mockito 1.6.1",
  "papyrus_base_layer",
  "papyrus_config",
+ "reqwest 0.11.27",
  "serde",
+ "serde_json",
  "starknet_api",
  "starknet_l1_gas_price_types",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "url",
  "validator",
 ]
 

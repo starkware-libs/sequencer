@@ -9,17 +9,21 @@ license.workspace = true
 mockall = { workspace = true, optional = true }
 papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
+reqwest.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 starknet_api.workspace = true
 starknet_l1_gas_price_types.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+url.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
+mockito.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 
 [lints]
