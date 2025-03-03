@@ -9,23 +9,23 @@ use crate::hints::error::OsHintError;
 
 #[derive(Copy, Clone)]
 pub(crate) enum Scope {
+    CommitmentInfoByAddress,
     CompiledClassFacts,
     DeprecatedClassHashes,
     DictManager,
     DictTracker,
     InitialDict,
     UseKzgDa,
-    CommitmentInfoByAddress,
 }
 
 impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
+            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::CompiledClassFacts => "compiled_class_facts",
             Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
-            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::InitialDict => "initial_dict",
             Scope::UseKzgDa => "use_kzg_da",
         }
@@ -41,27 +41,31 @@ impl std::fmt::Display for Scope {
 
 #[derive(Debug)]
 pub enum Ids {
+    AliasesEntry,
     BucketIndex,
     CompressedStart,
+    ContractStateChanges,
     DictPtr,
     FullOutput,
     NCompiledClassFacts,
     NextAvailableAlias,
     OldBlockHash,
     OldBlockNumber,
+    OsStateUpdate,
     PrevOffset,
     Sha256Ptr,
+    StateEntry,
     StateUpdatesStart,
     UseKzgDa,
-    AliasesEntry,
-    OsStateUpdate,
 }
 
 impl From<Ids> for &'static str {
     fn from(ids: Ids) -> &'static str {
         match ids {
+            Ids::AliasesEntry => "aliases_entry",
             Ids::BucketIndex => "bucket_index",
             Ids::CompressedStart => "compressed_start",
+            Ids::ContractStateChanges => "contract_state_changes",
             Ids::DictPtr => "dict_ptr",
             Ids::FullOutput => "full_output",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
@@ -71,9 +75,9 @@ impl From<Ids> for &'static str {
             Ids::OsStateUpdate => "os_state_update",
             Ids::PrevOffset => "prev_offset",
             Ids::Sha256Ptr => "sha256_ptr",
+            Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::UseKzgDa => "use_kzg_da",
-            Ids::AliasesEntry => "aliases_entry",
         }
     }
 }
@@ -82,6 +86,7 @@ impl From<Ids> for &'static str {
 pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
+    BlockHashContractAddress,
     InitialAvailableAlias,
     StoredBlockHashBuffer,
 }
@@ -91,6 +96,7 @@ impl From<Const> for &'static str {
         match constant {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
+            Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
             Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
         }
