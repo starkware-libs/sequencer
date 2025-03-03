@@ -1,6 +1,7 @@
 use std::fs::read_to_string;
 
 use clap::Parser;
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use serde_json::Value;
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
@@ -56,6 +57,26 @@ fn get_ports(args: &Args) -> (u16, u16) {
     }
 }
 
+async fn run_simulation(
+    sequencer_simulator: &SequencerSimulator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    run_forever: bool,
+) {
+    const N_TXS: usize = 50;
+
+    let mut i = 1;
+    loop {
+        sequencer_simulator.send_txs(tx_generator, &InvokeTxs(N_TXS), ACCOUNT_ID_0).await;
+        sequencer_simulator.await_txs_accepted(0, i * N_TXS + N_TXS_IN_FIRST_BLOCK).await;
+
+        if !run_forever {
+            break;
+        }
+
+        i += 1;
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "sequencer_simulator", about = "Run sequencer simulator.")]
 struct Args {
@@ -73,13 +94,15 @@ struct Args {
 
     #[arg(long)]
     monitoring_port: Option<u16>,
+
+    #[arg(long, help = "Run the simulator in an infinite loop")]
+    run_forever: bool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
     set_panic_hook();
-    const N_TXS: usize = 50;
 
     let args = Args::parse();
 
@@ -96,9 +119,7 @@ async fn main() -> anyhow::Result<()> {
     // Wait for the bootstrap transaction to be accepted in a separate block.
     sequencer_simulator.await_txs_accepted(0, N_TXS_IN_FIRST_BLOCK).await;
 
-    sequencer_simulator.send_txs(&mut tx_generator, &InvokeTxs(N_TXS), ACCOUNT_ID_0).await;
-
-    sequencer_simulator.await_txs_accepted(0, N_TXS + N_TXS_IN_FIRST_BLOCK).await;
+    run_simulation(&sequencer_simulator, &mut tx_generator, args.run_forever).await;
 
     // TODO(Nadin): pass node index as an argument.
     sequencer_simulator.verify_txs_accepted(0, &mut tx_generator, ACCOUNT_ID_0).await;
