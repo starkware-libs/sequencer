@@ -119,7 +119,6 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
 }
 
 /// Inserts a value to a nested field of a cairo variable given a base address.
-#[allow(dead_code)]
 pub(crate) fn insert_value_to_nested_field<IG: IdentifierGetter, T: Into<MaybeRelocatable>>(
     base_address: Relocatable,
     var_type: CairoStruct,

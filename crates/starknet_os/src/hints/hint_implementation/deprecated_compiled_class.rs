@@ -11,6 +11,7 @@ use cairo_vm::hint_processor::hint_processor_definition::{
 use cairo_vm::serde::deserialize_program::{HintParams, ReferenceManager};
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
+use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
@@ -19,7 +20,11 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{
+    get_address_of_nested_fields,
+    insert_value_to_nested_field,
+    IdentifierGetter,
+};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
@@ -125,20 +130,48 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     Ok(hint_extension)
 }
 
+struct VectorFields {
+    vector: String,
+    length: String,
+}
+
 #[allow(dead_code)]
-fn insert_vector_data_to_struct_fields(
-    _class_base: Relocatable,
-    _deprecated_class: &ContractClass,
-    _entry_point_type: &EntryPointType,
-    _vector_field: &str,
-    _vector_length_field: &str,
-) -> Vec<MaybeRelocatable> {
+fn insert_vector_data_to_struct_fields<IG: IdentifierGetter>(
+    deprecated_class: &ContractClass,
+    entry_point_type: &EntryPointType,
+    class_base: Relocatable,
+    var_type: CairoStruct,
+    vm: &mut VirtualMachine,
+    identifier_getter: &IG,
+    vector_fields: VectorFields,
+) -> OsHintResult {
     let mut vector: Vec<MaybeRelocatable> = Vec::new();
     for elem in
-        _deprecated_class.entry_points_by_type.get(_entry_point_type).unwrap_or(&Vec::new()).iter()
+        deprecated_class.entry_points_by_type.get(entry_point_type).unwrap_or(&Vec::new()).iter()
     {
         vector.push(MaybeRelocatable::from(elem.selector.0));
         vector.push(MaybeRelocatable::from(Felt::from(elem.offset.0)));
     }
-    vector
+
+    insert_value_to_nested_field(
+        class_base,
+        var_type,
+        vm,
+        &[vector_fields.length],
+        identifier_getter,
+        Felt::from(vector.len() / 2),
+    )?;
+
+    let vector_base = vm.add_memory_segment();
+    vm.load_data(vector_base, &vector)?;
+    insert_value_to_nested_field(
+        class_base,
+        var_type,
+        vm,
+        &[vector_fields.vector],
+        identifier_getter,
+        vector_base,
+    )?;
+
+    Ok(())
 }
