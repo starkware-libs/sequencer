@@ -123,16 +123,6 @@ enum HandledProposalPart {
     Failed(String),
 }
 
-// Safety margin to make sure that the batcher completes building the proposal with enough time for
-// the Fin to be checked by validators.
-//
-// TODO(Guy): Move this to the context config.
-const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
-// When validating a proposal the Context is responsible for timeout handling. The Batcher though
-// has a timeout as a defensive measure to make sure the proposal doesn't live forever if the
-// Context crashes or has a bug.
-const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
-
 pub struct SequencerConsensusContext {
     config: ContextConfig,
     // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
@@ -223,7 +213,7 @@ impl SequencerConsensusContext {
 }
 
 struct ProposalBuildArguments {
-    timeout: Duration,
+    timeout_minus_margin: Duration,
     proposal_init: ProposalInit,
     l1_da_mode: L1DataAvailabilityMode,
     proposal_sender: mpsc::Sender<ProposalPart>,
@@ -242,6 +232,7 @@ struct ProposalValidateArguments {
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     timeout: Duration,
+    margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
@@ -273,7 +264,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        assert!(timeout > BUILD_PROPOSAL_MARGIN);
+        assert!(timeout > self.config.build_proposal_margin);
         let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
@@ -286,10 +277,11 @@ impl ConsensusContext for SequencerConsensusContext {
         let builder_address = self.config.builder_address;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
+        let timeout_minus_margin = timeout - self.config.build_proposal_margin;
         let handle = tokio::spawn(
             async move {
                 build_proposal(ProposalBuildArguments {
-                    timeout,
+                    timeout_minus_margin,
                     proposal_init,
                     l1_da_mode,
                     proposal_sender,
@@ -353,6 +345,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_info_validation,
                     proposal_init.proposer,
                     timeout,
+                    self.config.validate_proposal_margin,
                     content_receiver,
                     fin_sender,
                 )
@@ -611,6 +604,7 @@ impl ConsensusContext for SequencerConsensusContext {
             block_info_validation,
             validator,
             timeout,
+            self.config.validate_proposal_margin,
             content,
             fin_sender,
         )
@@ -624,6 +618,7 @@ impl SequencerConsensusContext {
         block_info_validation: BlockInfoValidation,
         proposer: ValidatorId,
         timeout: Duration,
+        margin: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
     ) {
@@ -636,7 +631,6 @@ impl SequencerConsensusContext {
         self.proposal_id += 1;
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
-
         let handle = tokio::spawn(
             async move {
                 validate_proposal(ProposalValidateArguments {
@@ -644,6 +638,7 @@ impl SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     timeout,
+                    margin,
                     valid_proposals,
                     content_receiver,
                     fin_sender,
@@ -674,7 +669,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
         args.proposal_id,
         &args.proposal_init,
         args.l1_da_mode,
-        args.timeout,
+        args.timeout_minus_margin,
         args.batcher.as_ref(),
         args.gas_prices,
         args.builder_address,
@@ -725,12 +720,12 @@ async fn initiate_build(
     proposal_id: ProposalId,
     proposal_init: &ProposalInit,
     l1_da_mode: L1DataAvailabilityMode,
-    timeout: Duration,
+    timeout_minus_margin: Duration,
     batcher: &dyn BatcherClient,
     gas_prices: GasPrices,
     builder_address: ContractAddress,
 ) -> BatcherClientResult<ConsensusBlockInfo> {
-    let batcher_timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
+    let batcher_timeout = chrono::Duration::from_std(timeout_minus_margin)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     // TODO(Asmaa): change this to the real values.
@@ -874,7 +869,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.batcher.as_ref(),
         block_info.clone(),
         args.proposal_id,
-        args.timeout,
+        args.timeout + args.margin,
     )
     .await
     {
@@ -996,9 +991,9 @@ async fn initiate_validation(
     batcher: &dyn BatcherClient,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
-    timeout: Duration,
+    timeout_plus_margin: Duration,
 ) -> BatcherClientResult<()> {
-    let chrono_timeout = chrono::Duration::from_std(timeout + VALIDATE_PROPOSAL_MARGIN)
+    let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     let input = ValidateBlockInput {
