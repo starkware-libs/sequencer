@@ -24,7 +24,8 @@ pub enum CachedClass {
     V1Native(CachedCairoNative),
 }
 impl CachedClass {
-    pub fn to_runnable(&self) -> RunnableCompiledClass {
+    pub fn to_runnable(&self, run_class_with_cairo_native: bool) -> RunnableCompiledClass {
+        let _ = run_class_with_cairo_native;
         match self {
             CachedClass::V0(compiled_class_v0) => {
                 RunnableCompiledClass::V0(compiled_class_v0.clone())
@@ -35,7 +36,11 @@ impl CachedClass {
             #[cfg(feature = "cairo_native")]
             CachedClass::V1Native(cached_cairo_native) => match cached_cairo_native {
                 CachedCairoNative::Compiled(native_compiled_class_v1) => {
-                    RunnableCompiledClass::V1Native(native_compiled_class_v1.clone())
+                    if !run_class_with_cairo_native {
+                        RunnableCompiledClass::V1(native_compiled_class_v1.casm())
+                    } else {
+                        RunnableCompiledClass::V1Native(native_compiled_class_v1.clone())
+                    }
                 }
                 CachedCairoNative::CompilationFailed(compiled_class_v1) => {
                     RunnableCompiledClass::V1(compiled_class_v1.clone())

@@ -26,7 +26,7 @@ pub mod trivial_class_manager {
         }
 
         pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-            Some(self.get(class_hash)?.to_runnable())
+            Some(self.get(class_hash)?.to_runnable(false))
         }
 
         pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CachedClass) {
