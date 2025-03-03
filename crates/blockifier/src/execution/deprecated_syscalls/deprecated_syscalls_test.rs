@@ -17,7 +17,7 @@ use starknet_api::test_utils::{
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, Tip};
 use starknet_api::transaction::{
     EventContent,
     EventData,
@@ -45,11 +45,7 @@ use crate::test_utils::{
     get_syscall_resources,
     trivial_external_entry_point_new,
 };
-use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
-};
+use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, TransactionInfo};
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 #[test]
@@ -466,6 +462,8 @@ fn test_block_info_syscalls(
 fn test_tx_info(
     #[values(false, true)] only_query: bool,
     #[values(false, true)] v1_bound_account: bool,
+    // Whether the tip is larger than `v1_bound_accounts_max_tip`.
+    #[values(false, true)] high_tip: bool,
 ) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let mut test_contract_data: FeatureContractData = test_contract.into();
@@ -479,7 +477,7 @@ fn test_tx_info(
     let mut state =
         test_state_ex(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract_data, 1)]);
     let mut version = felt!(3_u8);
-    let mut expected_version = if v1_bound_account { felt!(1_u8) } else { version };
+    let mut expected_version = if v1_bound_account && !high_tip { felt!(1_u8) } else { version };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
@@ -503,7 +501,12 @@ fn test_tx_info(
         calldata: expected_tx_info,
         ..trivial_external_entry_point_new(test_contract)
     };
-    let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+
+    // Transaction tip.
+    let tip = Tip(VersionedConstants::latest_constants().os_constants.v1_bound_accounts_max_tip.0
+        + if high_tip { 1 } else { 0 });
+
+    let tx_info = TransactionInfo::Current(CurrentTransactionInfo {
         common_fields: CommonAccountFields {
             transaction_hash: tx_hash,
             version: TransactionVersion::THREE,
@@ -512,7 +515,8 @@ fn test_tx_info(
             only_query,
             ..Default::default()
         },
-        max_fee,
+        tip,
+        ..CurrentTransactionInfo::create_for_testing()
     });
     let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
     let result = entry_point_call

@@ -48,6 +48,7 @@ use crate::transaction::objects::{
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false,
+        false,
         false;
         "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
     )
@@ -58,6 +59,7 @@ use crate::transaction::objects::{
         FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
+        false,
         false,
         false;
         "Native: Execute execution mode: block info should be as usual. Transaction V1."
@@ -70,6 +72,7 @@ use crate::transaction::objects::{
         ExecutionMode::Validate,
         TransactionVersion::THREE,
         false,
+        false,
         false;
         "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
     )
@@ -81,6 +84,7 @@ use crate::transaction::objects::{
         ExecutionMode::Execute,
         TransactionVersion::THREE,
         false,
+        false,
         false;
         "Native: Execute execution mode: block info should be as usual. Transaction V3."
     )
@@ -91,6 +95,7 @@ use crate::transaction::objects::{
     FeatureContract::LegacyTestContract,
     ExecutionMode::Execute,
     TransactionVersion::ONE,
+    false,
     false,
     false;
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
@@ -104,6 +109,7 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false,
+    false,
     false;
     "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
     V3."
@@ -116,6 +122,7 @@ use crate::transaction::objects::{
         ExecutionMode::Execute,
         TransactionVersion::THREE,
         true,
+        false,
         false;
         "Native: Execute execution mode: block info should be as usual. Transaction V3. Query"
     )
@@ -127,7 +134,8 @@ use crate::transaction::objects::{
         ExecutionMode::Execute,
         TransactionVersion::THREE,
         false,
-        true;
+        true,
+        false;
         "Native: V1 bound account: execute"
     )
 )]
@@ -138,7 +146,8 @@ use crate::transaction::objects::{
         ExecutionMode::Execute,
         TransactionVersion::THREE,
         true,
-        true;
+        true,
+        false;
         "Native: V1 bound account: query"
     )
 )]
@@ -147,12 +156,14 @@ use crate::transaction::objects::{
     ExecutionMode::Validate,
     TransactionVersion::ONE,
     false,
+    false,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::ONE,
+    false,
     false,
     false;
     "Execute execution mode: block info should be as usual. Transaction V1.")]
@@ -161,12 +172,14 @@ use crate::transaction::objects::{
     ExecutionMode::Validate,
     TransactionVersion::THREE,
     false,
+    false,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
+    false,
     false,
     false;
     "Execute execution mode: block info should be as usual. Transaction V3.")]
@@ -175,12 +188,14 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::ONE,
     false,
+    false,
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
     FeatureContract::LegacyTestContract,
     ExecutionMode::Execute,
     TransactionVersion::THREE,
+    false,
     false,
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
@@ -189,6 +204,7 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     true,
+    false,
     false;
     "Execute execution mode: block info should be as usual. Transaction V3. Query.")]
 #[test_case(
@@ -196,14 +212,24 @@ use crate::transaction::objects::{
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false,
-    true;
+    true,
+    false;
     "V1 bound account: execute")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
+    false,
     true,
     true;
+    "V1 bound account: execute, high tip")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    true,
+    true,
+    false;
     "V1 bound account: query")]
 fn test_get_execution_info(
     test_contract: FeatureContract,
@@ -211,6 +237,8 @@ fn test_get_execution_info(
     mut version: TransactionVersion,
     only_query: bool,
     v1_bound_account: bool,
+    // Whether the tip is larger than `v1_bound_accounts_max_tip`.
+    high_tip: bool,
 ) {
     let mut test_contract_data: FeatureContractData = test_contract.into();
     if v1_bound_account {
@@ -238,6 +266,11 @@ fn test_get_execution_info(
 
     let test_contract_address = test_contract.get_instance_address(0);
 
+    // Transaction tip.
+    let tip = Tip(VersionedConstants::latest_constants().os_constants.v1_bound_accounts_max_tip.0
+        + if high_tip { 1 } else { 0 });
+    let expected_tip = if version == TransactionVersion::THREE { tip } else { Tip(0) };
+
     let expected_unsupported_fields = match test_contract {
         FeatureContract::LegacyTestContract => {
             // Read and parse file content.
@@ -257,16 +290,16 @@ fn test_get_execution_info(
         }
         _ => {
             vec![
-                Felt::ZERO, // Tip.
-                Felt::ZERO, // Paymaster data.
-                Felt::ZERO, // Nonce DA.
-                Felt::ZERO, // Fee DA.
-                Felt::ZERO, // Account data.
+                expected_tip.into(), // Tip.
+                Felt::ZERO,          // Paymaster data.
+                Felt::ZERO,          // Nonce DA.
+                Felt::ZERO,          // Fee DA.
+                Felt::ZERO,          // Account data.
             ]
         }
     };
 
-    let mut expected_version = if v1_bound_account { 1.into() } else { version.0 };
+    let mut expected_version = if v1_bound_account && !high_tip { 1.into() } else { version.0 };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         let query_version = simulate_version_base + version.0;
@@ -348,7 +381,7 @@ fn test_get_execution_info(
                 max_amount,
                 max_price_per_unit,
             }),
-            tip: Tip::default(),
+            tip,
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),

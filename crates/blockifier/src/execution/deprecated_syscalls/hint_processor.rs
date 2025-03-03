@@ -72,6 +72,7 @@ use crate::execution::hint_code;
 use crate::execution::syscalls::hint_processor::{EmitEventError, SyscallUsageMap};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
+use crate::transaction::objects::TransactionInfo;
 
 #[derive(Debug, Error)]
 pub enum DeprecatedSyscallExecutionError {
@@ -332,11 +333,19 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         // the syscall should return transaction version 1 instead.
         // In such a case, `self.tx_info_start_ptr` is not used.
         if version == TransactionVersion::THREE && v1_bound_accounts.contains(&self.class_hash) {
-            let modified_version = signed_tx_version(
-                &TransactionVersion::ONE,
-                &TransactionOptions { only_query: tx_context.tx_info.only_query() },
-            );
-            return self.allocate_tx_info_segment(vm, Some(modified_version));
+            let tip = match &tx_context.tx_info {
+                TransactionInfo::Current(transaction_info) => transaction_info.tip,
+                TransactionInfo::Deprecated(_) => {
+                    panic!("Transaction info variant doesn't match transaction version")
+                }
+            };
+            if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
+                let modified_version = signed_tx_version(
+                    &TransactionVersion::ONE,
+                    &TransactionOptions { only_query: tx_context.tx_info.only_query() },
+                );
+                return self.allocate_tx_info_segment(vm, Some(modified_version));
+            }
         }
 
         match self.tx_info_start_ptr {
