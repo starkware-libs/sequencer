@@ -158,7 +158,7 @@ impl BlockContext {
         execute_max_gas: Option<GasAmount>,
         validate_max_gas: Option<GasAmount>,
     ) {
-        let mut new_os_constants = *self.versioned_constants.os_constants.clone();
+        let mut new_os_constants = (*self.versioned_constants.os_constants).clone();
         if let Some(execute_max_gas) = execute_max_gas {
             new_os_constants.execute_max_sierra_gas = execute_max_gas;
         }

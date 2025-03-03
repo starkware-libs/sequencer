@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -28,7 +29,11 @@ use thiserror::Error;
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    ExecutableCallEntryPoint,
+};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
     felt_from_ptr,
@@ -255,7 +260,7 @@ impl<'a> SyscallHintProcessor<'a> {
         state: &'a mut dyn State,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
-        call: CallEntryPoint,
+        call: ExecutableCallEntryPoint,
         hints: &'a HashMap<String, Hint>,
         read_only_segments: ReadOnlySegments,
     ) -> Self {
@@ -278,6 +283,10 @@ impl<'a> SyscallHintProcessor<'a> {
 
     pub fn caller_address(&self) -> ContractAddress {
         self.base.call.caller_address
+    }
+
+    pub fn class_hash(&self) -> ClassHash {
+        self.base.call.class_hash
     }
 
     pub fn entry_point_selector(&self) -> EntryPointSelector {
@@ -413,10 +422,19 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> SyscallResult<Relocatable> {
+        let returned_version = self.base.tx_version_for_get_execution_info();
+        let original_version = self.base.context.tx_context.tx_info.signed_version();
+
+        // If the transaction version was overridden, `self.execution_info_ptr` cannot be used.
+        if returned_version != original_version {
+            return self.allocate_execution_info_segment(vm, returned_version);
+        }
+
         match self.execution_info_ptr {
             Some(execution_info_ptr) => Ok(execution_info_ptr),
             None => {
-                let execution_info_ptr = self.allocate_execution_info_segment(vm)?;
+                let execution_info_ptr =
+                    self.allocate_execution_info_segment(vm, original_version)?;
                 self.execution_info_ptr = Some(execution_info_ptr);
                 Ok(execution_info_ptr)
             }
@@ -541,9 +559,10 @@ impl<'a> SyscallHintProcessor<'a> {
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
+        tx_version_override: TransactionVersion,
     ) -> SyscallResult<Relocatable> {
         let block_info_ptr = self.allocate_block_info_segment(vm)?;
-        let tx_info_ptr = self.allocate_tx_info_segment(vm)?;
+        let tx_info_ptr = self.allocate_tx_info_segment(vm, tx_version_override)?;
 
         let additional_info: Vec<MaybeRelocatable> = vec![
             block_info_ptr.into(),
@@ -589,13 +608,17 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok((data_segment_start_ptr, data_segment_end_ptr))
     }
 
-    fn allocate_tx_info_segment(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Relocatable> {
+    fn allocate_tx_info_segment(
+        &mut self,
+        vm: &mut VirtualMachine,
+        tx_version_override: TransactionVersion,
+    ) -> SyscallResult<Relocatable> {
         let tx_info = &self.base.context.tx_context.clone().tx_info;
         let (tx_signature_start_ptr, tx_signature_end_ptr) =
             &self.allocate_data_segment(vm, &tx_info.signature().0)?;
 
         let mut tx_data: Vec<MaybeRelocatable> = vec![
-            tx_info.signed_version().0.into(),
+            tx_version_override.0.into(),
             tx_info.sender_address().0.key().into(),
             Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_start_ptr.into(),

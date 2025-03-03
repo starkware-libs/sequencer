@@ -93,12 +93,35 @@ pub enum CallType {
     Call = 0,
     Delegate = 1,
 }
+
+pub struct EntryPointTypeAndSelector {
+    pub entry_point_type: EntryPointType,
+    pub entry_point_selector: EntryPointSelector,
+}
+
+impl EntryPointTypeAndSelector {
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 /// Represents a call to an entry point of a Starknet contract.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
-pub struct CallEntryPoint {
-    // The class hash is not given if it can be deduced from the storage address.
-    pub class_hash: Option<ClassHash>,
+pub struct CallEntryPointVariant<TClassHash> {
+    /// The class hash of the entry point.
+    /// The type is `ClassHash` in the case of [ExecutableCallEntryPoint] and `Option<ClassHash>`
+    /// in the case of [CallEntryPoint].
+    ///
+    /// The class hash is not given if it can be deduced from the storage address.
+    /// It is resolved prior to entry point's execution.
+    pub class_hash: TClassHash,
     // Optional, since there is no address to the code implementation in a library call.
     // and for outermost calls (triggered by the transaction itself).
     // TODO: BACKWARD-COMPATIBILITY.
@@ -111,6 +134,25 @@ pub struct CallEntryPoint {
     pub call_type: CallType,
     // We can assume that the initial gas is less than 2^64.
     pub initial_gas: u64,
+}
+
+pub type CallEntryPoint = CallEntryPointVariant<Option<ClassHash>>;
+pub type ExecutableCallEntryPoint = CallEntryPointVariant<ClassHash>;
+
+impl From<ExecutableCallEntryPoint> for CallEntryPoint {
+    fn from(call: ExecutableCallEntryPoint) -> Self {
+        Self {
+            class_hash: Some(call.class_hash),
+            code_address: call.code_address,
+            entry_point_type: call.entry_point_type,
+            entry_point_selector: call.entry_point_selector,
+            calldata: call.calldata,
+            storage_address: call.storage_address,
+            caller_address: call.caller_address,
+            call_type: call.call_type,
+            initial_gas: call.initial_gas,
+        }
+    }
 }
 
 impl CallEntryPoint {
@@ -158,7 +200,13 @@ impl CallEntryPoint {
         ));
 
         // This is the last operation of this function.
-        execute_entry_point_call_wrapper(self, compiled_class, state, context, remaining_gas)
+        execute_entry_point_call_wrapper(
+            self.into_executable(class_hash),
+            compiled_class,
+            state,
+            context,
+            remaining_gas,
+        )
     }
 
     /// Similar to `execute`, but returns an error if the outer call is reverted.
@@ -190,13 +238,26 @@ impl CallEntryPoint {
         execution_result
     }
 
-    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
-        if self.entry_point_type == EntryPointType::Constructor
-            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            Err(PreExecutionError::InvalidConstructorEntryPointName)
-        } else {
-            Ok(())
+    fn into_executable(self, class_hash: ClassHash) -> ExecutableCallEntryPoint {
+        ExecutableCallEntryPoint {
+            class_hash,
+            code_address: self.code_address,
+            entry_point_type: self.entry_point_type,
+            entry_point_selector: self.entry_point_selector,
+            calldata: self.calldata,
+            storage_address: self.storage_address,
+            caller_address: self.caller_address,
+            call_type: self.call_type,
+            initial_gas: self.initial_gas,
+        }
+    }
+}
+
+impl ExecutableCallEntryPoint {
+    pub fn type_and_selector(&self) -> EntryPointTypeAndSelector {
+        EntryPointTypeAndSelector {
+            entry_point_type: self.entry_point_type,
+            entry_point_selector: self.entry_point_selector,
         }
     }
 }
