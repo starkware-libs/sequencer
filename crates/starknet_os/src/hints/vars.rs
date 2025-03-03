@@ -10,7 +10,9 @@ use crate::hints::error::OsHintError;
 #[derive(Copy, Clone)]
 pub(crate) enum Scope {
     CommitmentInfoByAddress,
+    CompiledClass,
     CompiledClassFacts,
+    CompiledClassHash,
     DeprecatedClassHashes,
     DictManager,
     DictTracker,
@@ -22,7 +24,9 @@ impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
             Scope::CommitmentInfoByAddress => "commitment_info_by_address",
+            Scope::CompiledClass => "compiled_class",
             Scope::CompiledClassFacts => "compiled_class_facts",
+            Scope::CompiledClassHash => "compiled_class_hash",
             Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
@@ -43,6 +47,8 @@ impl std::fmt::Display for Scope {
 pub enum Ids {
     AliasesEntry,
     BucketIndex,
+    CompiledClass,
+    CompiledClassFact,
     CompressedStart,
     ContractStateChanges,
     DictPtr,
@@ -64,6 +70,8 @@ impl From<Ids> for &'static str {
         match ids {
             Ids::AliasesEntry => "aliases_entry",
             Ids::BucketIndex => "bucket_index",
+            Ids::CompiledClass => "compiled_class",
+            Ids::CompiledClassFact => "compiled_class_fact",
             Ids::CompressedStart => "compressed_start",
             Ids::ContractStateChanges => "contract_state_changes",
             Ids::DictPtr => "dict_ptr",
@@ -138,6 +146,8 @@ impl Const {
     }
 }
 pub enum CairoStruct {
+    DeprecatedCompiledClass,
+    DeprecatedCompiledClassFact,
     DictAccess,
     OsStateUpdate,
 }
@@ -145,6 +155,14 @@ pub enum CairoStruct {
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
+            CairoStruct::DeprecatedCompiledClass => {
+                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+                 DeprecatedCompiledClass"
+            }
+            CairoStruct::DeprecatedCompiledClassFact => {
+                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+                 DeprecatedCompiledClassFact"
+            }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
         }

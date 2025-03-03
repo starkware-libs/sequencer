@@ -4,6 +4,7 @@ use cairo_vm::serde::deserialize_program::Identifier;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
@@ -11,6 +12,8 @@ use crate::hints::vars::{Const, Ids};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsHintError {
+    #[error("Assertion failed: {message}")]
+    AssertionFailed { message: String },
     #[error("Block number is probably < {stored_block_hash_buffer}.")]
     BlockNumberTooSmall { stored_block_hash_buffer: Felt },
     #[error("{id:?} value {felt} is not a boolean.")]
@@ -22,8 +25,12 @@ pub enum OsHintError {
          is probably out of sync."
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
+    #[error("{error:?} for json value {value}.")]
+    SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error(transparent)]
+    VmError(#[from] VirtualMachineError),
     #[error(transparent)]
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
