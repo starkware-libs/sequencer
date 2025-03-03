@@ -148,7 +148,8 @@ impl StateReader for PapyrusReader {
             // Edge case that should not be happen if the cache size is big enough.
             // TODO(Yoni) consider having an atomic set-and-get.
             log::error!("Class is missing immediately after being cached.");
-            cached_class.to_runnable()
+            let run_native = false;
+            cached_class.to_runnable(run_native)
         }))
     }
 
