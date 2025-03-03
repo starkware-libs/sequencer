@@ -15,6 +15,41 @@ use starknet_integration_tests::utils::{
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::info;
 
+fn read_ports_from_file(path: &str) -> (u16, u16) {
+    // Read the file content
+    let file_content = read_to_string(path).unwrap();
+
+    // Parse JSON
+    let json: Value = serde_json::from_str(&file_content).unwrap();
+
+    let http_port: u16 = json[HTTP_PORT_ARG]
+        .as_u64()
+        .unwrap_or_else(|| panic!("http port should be available in {}", path))
+        .try_into()
+        .expect("http port should be within the valid range for u16");
+
+    let monitoring_port: u16 = json[MONITORING_PORT_ARG]
+        .as_u64()
+        .unwrap_or_else(|| panic!("monitoring port should be available in {}", path))
+        .try_into()
+        .expect("monitoring port should be within the valid range for u16");
+
+    (http_port, monitoring_port)
+}
+
+#[derive(Parser, Debug)]
+#[command(name = "sequencer_simulator", about = "Run sequencer simulator.")]
+struct Args {
+    #[arg(long, default_value = "http://127.0.0.1")]
+    http_url: String,
+
+    #[arg(long, default_value = "http://127.0.0.1")]
+    monitoring_url: String,
+
+    #[arg(long)]
+    simulator_ports_path: String,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
@@ -46,39 +81,4 @@ async fn main() -> anyhow::Result<()> {
     info!("Simulation completed successfully");
 
     Ok(())
-}
-
-#[derive(Parser, Debug)]
-#[command(name = "sequencer_simulator", about = "Run sequencer simulator.")]
-struct Args {
-    #[arg(long, default_value = "http://127.0.0.1")]
-    http_url: String,
-
-    #[arg(long, default_value = "http://127.0.0.1")]
-    monitoring_url: String,
-
-    #[arg(long)]
-    simulator_ports_path: String,
-}
-
-fn read_ports_from_file(path: &str) -> (u16, u16) {
-    // Read the file content
-    let file_content = read_to_string(path).unwrap();
-
-    // Parse JSON
-    let json: Value = serde_json::from_str(&file_content).unwrap();
-
-    let http_port: u16 = json[HTTP_PORT_ARG]
-        .as_u64()
-        .unwrap_or_else(|| panic!("http port should be available in {}", path))
-        .try_into()
-        .expect("http port should be within the valid range for u16");
-
-    let monitoring_port: u16 = json[MONITORING_PORT_ARG]
-        .as_u64()
-        .unwrap_or_else(|| panic!("monitoring port should be available in {}", path))
-        .try_into()
-        .expect("monitoring port should be within the valid range for u16");
-
-    (http_port, monitoring_port)
 }
