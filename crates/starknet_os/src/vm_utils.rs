@@ -4,7 +4,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_v
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::{ApTracking, Identifier};
 use cairo_vm::types::program::Program;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
@@ -41,7 +41,13 @@ pub(crate) fn get_address_of_nested_fields<IG: IdentifierGetter>(
     identifier_getter: &IG,
 ) -> Result<Relocatable, OsHintError> {
     let base_address = get_ptr_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
-    get_address_of_nested_fields_from_base_address(base_address, var_type, vm, nested_fields, identifier_getter)
+    get_address_of_nested_fields_from_base_address(
+        base_address,
+        var_type,
+        vm,
+        nested_fields,
+        identifier_getter,
+    )
 }
 
 /// Fetches the address of nested fields of a cairo variable, given a base address.
@@ -110,4 +116,24 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
         identifier_getter,
         vm,
     )
+}
+
+/// Inserts a value to a nested field of a cairo variable given a base address.
+#[allow(dead_code)]
+pub(crate) fn insert_value_to_nested_field<IG: IdentifierGetter, T: Into<MaybeRelocatable>>(
+    base_address: Relocatable,
+    var_type: CairoStruct,
+    vm: &mut VirtualMachine,
+    nested_fields: &[String],
+    identifier_getter: &IG,
+    val: T,
+) -> Result<(), OsHintError> {
+    let nested_field_addr = get_address_of_nested_fields_from_base_address(
+        base_address,
+        var_type,
+        vm,
+        nested_fields,
+        identifier_getter,
+    )?;
+    Ok(vm.insert_value(nested_field_addr, val)?)
 }
