@@ -19,6 +19,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         None,
         None,
+        None,
     )
     .await;
 

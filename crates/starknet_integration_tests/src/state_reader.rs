@@ -54,6 +54,12 @@ type ContractClassesMap = (
     Vec<(ClassHash, (SierraContractClass, CasmContractClass))>,
 );
 
+pub(crate) const BATCHER_DB_PATH_SUFFIX: &str = "batcher";
+pub(crate) const CLASS_MANAGER_DB_PATH_SUFFIX: &str = "class_manager";
+pub(crate) const CLASS_HASH_STORAGE_DB_PATH_SUFFIX: &str = "class_hash_storage";
+pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
+pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
+
 pub struct StorageTestSetup {
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: Option<TempDir>,
@@ -73,7 +79,7 @@ impl StorageTestSetup {
         // TODO(yair): Avoid cloning.
         let classes = TestClasses::new(&test_defined_accounts, preset_test_contracts.clone());
 
-        let batcher_db_path = path.as_ref().map(|p| p.join("batcher"));
+        let batcher_db_path = path.as_ref().map(|p| p.join(BATCHER_DB_PATH_SUFFIX));
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_handle) =
             TestStorageBuilder::new(batcher_db_path)
                 .scope(StorageScope::StateOnly)
@@ -87,7 +93,7 @@ impl StorageTestSetup {
             &classes,
         );
 
-        let state_sync_db_path = path.as_ref().map(|p| p.join("state_sync"));
+        let state_sync_db_path = path.as_ref().map(|p| p.join(STATE_SYNC_DB_PATH_SUFFIX));
         let (
             (_, mut state_sync_storage_writer),
             state_sync_storage_config,
@@ -104,11 +110,12 @@ impl StorageTestSetup {
             &classes,
         );
 
-        let fs_class_storage_db_path = path.as_ref().map(|p| p.join("class_manager"));
+        let fs_class_storage_db_path = path.as_ref().map(|p| p.join(CLASS_MANAGER_DB_PATH_SUFFIX));
         let mut fs_class_storage_builder = FsClassStorageBuilderForTesting::default();
         if let Some(class_manager_path) = fs_class_storage_db_path.as_ref() {
-            let class_hash_storage_path_prefix = class_manager_path.join("class_hash_storage");
-            let persistent_root = class_manager_path.join("classes");
+            let class_hash_storage_path_prefix =
+                class_manager_path.join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
+            let persistent_root = class_manager_path.join(CLASSES_STORAGE_DB_PATH_SUFFIX);
             // The paths will be created in the first time the storage is opened (passing
             // `enforce_file_exists: false`).
             fs_class_storage_builder = fs_class_storage_builder

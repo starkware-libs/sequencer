@@ -34,6 +34,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         Some(PathBuf::from(args.db_dir.clone())),
         Some(temp_dir_path),
+        args.data_prefix_path.map(PathBuf::from),
     )
     .await;
 
@@ -55,4 +56,7 @@ struct Args {
 
     #[arg(long,  default_value_t = DB_DIR.to_string())]
     db_dir: String,
+
+    #[arg(long)]
+    data_prefix_path: Option<String>,
 }
