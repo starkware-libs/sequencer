@@ -9,8 +9,9 @@ use cairo_vm::hint_processor::hint_processor_definition::{
     HintReference,
 };
 use cairo_vm::serde::deserialize_program::{HintParams, ReferenceManager};
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
@@ -122,4 +123,22 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     }
 
     Ok(hint_extension)
+}
+
+#[allow(dead_code)]
+fn insert_vector_data_to_struct_fields(
+    _class_base: Relocatable,
+    _deprecated_class: &ContractClass,
+    _entry_point_type: &EntryPointType,
+    _vector_field: &str,
+    _vector_length_field: &str,
+) -> Vec<MaybeRelocatable> {
+    let mut vector: Vec<MaybeRelocatable> = Vec::new();
+    for elem in
+        _deprecated_class.entry_points_by_type.get(_entry_point_type).unwrap_or(&Vec::new()).iter()
+    {
+        vector.push(MaybeRelocatable::from(elem.selector.0));
+        vector.push(MaybeRelocatable::from(Felt::from(elem.offset.0)));
+    }
+    vector
 }
