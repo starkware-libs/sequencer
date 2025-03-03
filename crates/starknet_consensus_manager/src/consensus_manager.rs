@@ -83,7 +83,7 @@ impl ConsensusManager {
             broadcast_topic_client: outbound_network_sender,
         } = proposals_broadcast_channels;
 
-        let (outbound_internal_sender, inbound_internal_receiver, mut stream_handler_task_handle) =
+        let (outbound_internal_sender, inbound_internal_receiver, stream_handler) =
             StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
         let observer_height =
@@ -114,8 +114,9 @@ impl ConsensusManager {
             )),
         );
 
-        let mut network_handle = tokio::task::spawn(network_manager.run());
-        let consensus_task = starknet_consensus::run_consensus(
+        let network_task = tokio::spawn(network_manager.run());
+        let stream_handler_task = tokio::spawn(stream_handler.run());
+        let consensus_fut = starknet_consensus::run_consensus(
             context,
             active_height,
             observer_height,
@@ -128,16 +129,16 @@ impl ConsensusManager {
         );
 
         tokio::select! {
-            consensus_result = consensus_task => {
+            consensus_result = consensus_fut => {
                 match consensus_result {
                     Ok(_) => panic!("Consensus task finished unexpectedly"),
                     Err(e) => Err(e),
                 }
             },
-            network_result = &mut network_handle => {
+            network_result = network_task => {
                 panic!("Consensus' network task finished unexpectedly: {:?}", network_result);
             }
-            stream_handler_result = &mut stream_handler_task_handle => {
+            stream_handler_result = stream_handler_task => {
                 panic!("Consensus' stream handler task finished unexpectedly: {:?}", stream_handler_result);
             }
         }
