@@ -125,7 +125,7 @@ fn fs_storage_partial_write_no_atomic_marker() {
     let class_id = ClassHash(felt!("0x1234"));
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
     let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
-    storage.write_class_atomically(class_id, class, executable_class).unwrap();
+    storage.write_classes(class_id, class, executable_class).unwrap();
     assert_eq!(storage.get_executable_class_hash(class_id), Ok(None));
 
     // Query class, should be considered non-existent.
