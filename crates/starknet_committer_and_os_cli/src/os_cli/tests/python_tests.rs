@@ -203,7 +203,7 @@ use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use starknet_os::hint_processor::snos_hint_processor::SnosHintProcessor;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point;
+use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point_v2;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
@@ -282,7 +282,7 @@ fn run_cairo_function(
     let program_bytes = program_str.as_bytes();
     let program = Program::from_bytes(program_bytes, None).unwrap();
     let hint_processor = SnosHintProcessor::new_for_testing(None, None, Some(program.clone()));
-    let actual_retdata = run_cairo_0_entry_point(
+    let actual_retdata = run_cairo_0_entry_point_v2(
         &program,
         function_name,
         expected_retdata.0.len(),
