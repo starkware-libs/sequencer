@@ -83,6 +83,9 @@ const PANEL_CONSENSUS_BLOCK_NUMBER: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_CONSENSUS_ROUND: Panel =
+    Panel::new("consensus_round", "The round of the consensus", "consensus_round", PanelType::Stat);
+
 const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
     MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name(),
     MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_description(),
@@ -191,7 +194,7 @@ const BATCHER_ROW: Row<'_> = Row::new(
 const CONSENSUS_ROW: Row<'_> = Row::new(
     "Consensus",
     "Consensus metrics including block number, round, and so on.",
-    &[PANEL_CONSENSUS_BLOCK_NUMBER],
+    &[PANEL_CONSENSUS_BLOCK_NUMBER, PANEL_CONSENSUS_ROUND],
 );
 
 const HTTP_SERVER_ROW: Row<'_> = Row::new(

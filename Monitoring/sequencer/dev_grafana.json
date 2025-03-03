@@ -44,6 +44,13 @@
         "type": "stat",
         "expr": "consensus_block_number",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_round",
+        "description": "The round of the consensus",
+        "type": "stat",
+        "expr": "consensus_round",
+        "extra_params": {}
       }
     ],
     "Http Server": [
