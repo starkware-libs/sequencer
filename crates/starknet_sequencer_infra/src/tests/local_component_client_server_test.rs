@@ -75,11 +75,10 @@ async fn local_client_server() {
     let component_a = ComponentA::new(Box::new(b_client.clone()));
     let component_b = ComponentB::new(setup_value, Box::new(a_client.clone()));
 
-    let max_concurrency = 1;
     let mut component_a_server =
-        LocalComponentServer::new(component_a, rx_a, max_concurrency, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_a, rx_a, TEST_LOCAL_SERVER_METRICS);
     let mut component_b_server =
-        LocalComponentServer::new(component_b, rx_b, max_concurrency, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_b, rx_b, TEST_LOCAL_SERVER_METRICS);
 
     task::spawn(async move {
         let _ = component_a_server.start().await;
