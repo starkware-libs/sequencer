@@ -1,6 +1,7 @@
 {
   "base_layer_config.node_url": "https://node_url/",
   "chain_id": "CHAIN_ID_SUBDIR",
+  "consensus_manager_config.context_config.builder_address": "0x4",
   "eth_fee_token_address": "0x2",
   "recorder_url": "https://recorder_url/",
   "strk_fee_token_address": "0x3",
