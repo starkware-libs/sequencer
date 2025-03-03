@@ -224,3 +224,41 @@ fn test_process_compilation_request(
         );
     }
 }
+
+#[rstest]
+#[case::all_classes(NativeClassesWhitelist::All, true)]
+#[case::only_selected_class_hash(NativeClassesWhitelist::Limited(vec![create_test_request().0]), true)]
+#[case::no_allowed_classes(NativeClassesWhitelist::Limited(vec![]), false)]
+// Test the config that allows us to run only limited selection of class hashes in native.
+fn test_native_classes_whitelist(
+    #[case] whitelist: NativeClassesWhitelist,
+    #[case] allow_run_native: bool,
+) {
+    let native_config = CairoNativeRunConfig {
+        run_cairo_native: true,
+        wait_on_native_compilation: true,
+        channel_size: TEST_CHANNEL_SIZE,
+        native_classes_whitelist: whitelist,
+    };
+    let manager = NativeClassManager::create_for_testing(native_config);
+
+    let test_request = create_test_request();
+
+    manager.set_and_compile(
+        test_request.0,
+        CachedClass::V1(test_request.2.clone(), test_request.1.clone()),
+    );
+
+    match allow_run_native {
+        true => assert_matches!(
+            manager.get_runnable(&test_request.0),
+            Some(RunnableCompiledClass::V1Native(_))
+        ),
+        false => {
+            assert_matches!(
+                manager.get_runnable(&test_request.0).unwrap(),
+                RunnableCompiledClass::V1(_)
+            )
+        }
+    }
+}
