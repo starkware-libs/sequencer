@@ -766,10 +766,14 @@ async fn get_proposal_content(
         // We currently want one part of the node failing to cause all components to fail. If this
         // changes, we can simply return None and consider this as a failed proposal which consensus
         // should support.
-        let response = batcher
-            .get_proposal_content(GetProposalContentInput { proposal_id })
-            .await
-            .expect("Failed to get proposal content");
+        let response = batcher.get_proposal_content(GetProposalContentInput { proposal_id }).await;
+        let response = match response {
+            Ok(resp) => resp,
+            Err(e) => {
+                error!("Failed to get proposal content. {e:?}");
+                return None;
+            }
+        };
 
         match response.content {
             GetProposalContent::Txs(txs) => {
@@ -788,7 +792,6 @@ async fn get_proposal_content(
                 .collect::<Result<Vec<_>, _>>()
                 // TODO(shahak): Don't panic here.
                 .expect("Failed converting consensus transaction to external representation");
-                debug!("Converted transactions to external representation.");
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 proposal_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
