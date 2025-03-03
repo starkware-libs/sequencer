@@ -6,6 +6,7 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS builder
 WORKDIR /app
 COPY . .
+RUN rustup toolchain install
 RUN cargo build --bin sequencer_simulator
 
 FROM ubuntu:24.04 as final_stage

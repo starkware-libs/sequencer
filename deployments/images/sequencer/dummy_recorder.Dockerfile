@@ -5,6 +5,7 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS builder
 WORKDIR /app
 COPY . .
+RUN rustup toolchain install
 RUN cargo build --bin dummy_recorder
 
 FROM ubuntu:24.04
