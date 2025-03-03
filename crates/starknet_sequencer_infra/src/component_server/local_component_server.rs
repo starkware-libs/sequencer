@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -37,9 +36,44 @@ use crate::metrics::LocalServerMetrics;
 /// - `rx`: A receiver that receives incoming requests along with a sender to send back the
 ///   responses. This receiver is of type ` Receiver<ComponentRequestAndResponseSender<Request,
 ///   Response>>`.
-pub type LocalComponentServer<Component, Request, Response> =
-    BaseLocalComponentServer<Component, Request, Response, BlockingLocalServerType>;
-pub struct BlockingLocalServerType {}
+/// - `metrics`: The metrics for the server.
+pub struct LocalComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    component: Component,
+    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    metrics: LocalServerMetrics,
+}
+
+impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    pub fn new(
+        component: Component,
+        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+        metrics: LocalServerMetrics,
+    ) -> Self {
+        metrics.register();
+        Self { component, rx, metrics }
+    }
+}
+
+impl<Component, Request, Response> Drop for LocalComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    fn drop(&mut self) {
+        warn!("Dropping {}.", short_type_name::<Self>());
+    }
+}
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
@@ -52,14 +86,103 @@ where
     async fn start(&mut self) {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
         self.component.start().await;
-        request_response_loop(&mut self.rx, &mut self.component, self.metrics.clone()).await;
+        request_response_loop(&mut self.rx, &mut self.component, &self.metrics).await;
         panic!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
     }
 }
 
-pub type ConcurrentLocalComponentServer<Component, Request, Response> =
-    BaseLocalComponentServer<Component, Request, Response, NonBlockingLocalServerType>;
-pub struct NonBlockingLocalServerType {}
+async fn request_response_loop<Request, Response, Component>(
+    rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    component: &mut Component,
+    metrics: &LocalServerMetrics,
+) where
+    Component: ComponentRequestHandler<Request, Response> + Send,
+    Request: Send + Debug,
+    Response: Send + Debug,
+{
+    info!("Starting server for component {}", short_type_name::<Component>());
+
+    while let Some(request_and_res_tx) = rx.recv().await {
+        let request = request_and_res_tx.request;
+        let tx = request_and_res_tx.tx;
+        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
+
+        metrics.increment_received();
+        metrics.set_queue_depth(rx.len());
+
+        process_request(component, request, tx).await;
+
+        metrics.increment_processed();
+    }
+
+    error!("Stopping server for component {}", short_type_name::<Component>());
+}
+
+/// The `ConcurrentLocalComponentServer` struct is a generic server that handles concurrent requests
+/// and responses for a specified component. It receives requests, processes them concurrently by
+/// running the provided component in a task, with returning response back form the task. The server
+/// needs to be started using the `start` function, which runs indefinitely.
+///
+/// # Type Parameters
+///
+/// - `Component`: The type of the component that will handle the requests. This type must implement
+///   the `ComponentRequestHandler` trait, which defines how the component processes requests and
+///   generates responses. In order to handle concurrent requests, the component must also implement
+///   the `Clone` trait and the `Send`.
+/// - `Request`: The type of requests that the component will handle. This type must implement the
+///   `Send` trait to ensure safe concurrency.
+/// - `Response`: The type of responses that the component will generate. This type must implement
+///   the `Send` trait to ensure safe concurrency.
+///
+/// # Fields
+///
+/// - `component`: The component responsible for handling the requests and generating responses.
+/// - `rx`: A receiver that receives incoming requests along with a sender to send back the
+///   responses. This receiver is of type ` Receiver<ComponentRequestAndResponseSender<Request,
+///   Response>>`.
+/// - `max_concurrency`: The maximum number of concurrent requests that the server can handle.
+/// - `metrics`: The metrics for the server wrapped in Arc so it could be used concurrently.
+pub struct ConcurrentLocalComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    component: Component,
+    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    max_concurrency: usize,
+    metrics: Arc<LocalServerMetrics>,
+}
+
+impl<Component, Request, Response> ConcurrentLocalComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    pub fn new(
+        component: Component,
+        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+        max_concurrency: usize,
+        metrics: LocalServerMetrics,
+    ) -> Self {
+        metrics.register();
+        Self { component, rx, max_concurrency, metrics: Arc::new(metrics) }
+    }
+}
+
+// TODO(Lev,Itay): Find a way to avoid duplicity, maybe by a blanket implementation.
+impl<Component, Request, Response> Drop
+    for ConcurrentLocalComponentServer<Component, Request, Response>
+where
+    Component: ComponentRequestHandler<Request, Response>,
+    Request: Send,
+    Response: Send,
+{
+    fn drop(&mut self) {
+        warn!("Dropping {}.", short_type_name::<Self>());
+    }
+}
 
 #[async_trait]
 impl<Component, Request, Response> ComponentServerStarter
@@ -82,85 +205,6 @@ where
         .await;
         panic!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
     }
-}
-
-pub struct BaseLocalComponentServer<Component, Request, Response, LocalServerType>
-where
-    Component: ComponentRequestHandler<Request, Response>,
-    Request: Send,
-    Response: Send,
-{
-    component: Component,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    // TODO(Itay, Lev): find the way to provide max_concurrency only for non-blocking server.
-    max_concurrency: usize,
-    metrics: Arc<LocalServerMetrics>,
-    _local_server_type: PhantomData<LocalServerType>,
-}
-
-// TODO(Itay, Lev): separate the base struct into two distinguished blocking and non blocking
-// servers, and modify their constructors accordingly.
-impl<Component, Request, Response, LocalServerType>
-    BaseLocalComponentServer<Component, Request, Response, LocalServerType>
-where
-    Component: ComponentRequestHandler<Request, Response>,
-    Request: Send,
-    Response: Send,
-{
-    pub fn new(
-        component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-        max_concurrency: usize,
-        metrics: LocalServerMetrics,
-    ) -> Self {
-        metrics.register();
-        Self {
-            component,
-            rx,
-            max_concurrency,
-            metrics: Arc::new(metrics),
-            _local_server_type: PhantomData,
-        }
-    }
-}
-
-impl<Component, Request, Response, LocalServerType> Drop
-    for BaseLocalComponentServer<Component, Request, Response, LocalServerType>
-where
-    Component: ComponentRequestHandler<Request, Response>,
-    Request: Send,
-    Response: Send,
-{
-    fn drop(&mut self) {
-        warn!("Dropping {}.", short_type_name::<Self>());
-    }
-}
-
-async fn request_response_loop<Request, Response, Component>(
-    rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    component: &mut Component,
-    metrics: Arc<LocalServerMetrics>,
-) where
-    Component: ComponentRequestHandler<Request, Response> + Send,
-    Request: Send + Debug,
-    Response: Send + Debug,
-{
-    info!("Starting server for component {}", short_type_name::<Component>());
-
-    while let Some(request_and_res_tx) = rx.recv().await {
-        let request = request_and_res_tx.request;
-        let tx = request_and_res_tx.tx;
-        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
-
-        metrics.increment_received();
-        metrics.set_queue_depth(rx.len());
-
-        process_request(component, request, tx).await;
-
-        metrics.increment_processed();
-    }
-
-    error!("Stopping server for component {}", short_type_name::<Component>());
 }
 
 // TODO(Itay): clean some code duplications here.
