@@ -37,6 +37,25 @@ fn read_ports_from_file(path: &str) -> (u16, u16) {
     (http_port, monitoring_port)
 }
 
+fn get_ports(args: &Args) -> (u16, u16) {
+    match (args.http_port, args.monitoring_port) {
+        (Some(http), Some(monitoring)) => (http, monitoring),
+        (None, None) => {
+            if let Some(ref path) = args.simulator_ports_path {
+                read_ports_from_file(path)
+            } else {
+                panic!(
+                    "Either both --http-port and --monitoring-port should be supplied, or a \
+                     --simulator-ports-path should be provided."
+                );
+            }
+        }
+        _ => panic!(
+            "Either supply both --http-port and --monitoring-port, or use --simulator-ports-path."
+        ),
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "sequencer_simulator", about = "Run sequencer simulator.")]
 struct Args {
@@ -47,7 +66,13 @@ struct Args {
     monitoring_url: String,
 
     #[arg(long)]
-    simulator_ports_path: String,
+    simulator_ports_path: Option<String>,
+
+    #[arg(long)]
+    http_port: Option<u16>,
+
+    #[arg(long)]
+    monitoring_port: Option<u16>,
 }
 
 #[tokio::main]
@@ -60,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
 
     let mut tx_generator = create_integration_test_tx_generator();
 
-    let (http_port, monitoring_port) = read_ports_from_file(&args.simulator_ports_path);
+    let (http_port, monitoring_port) = get_ports(&args);
 
     let sequencer_simulator =
         SequencerSimulator::new(args.http_url, http_port, args.monitoring_url, monitoring_port);
