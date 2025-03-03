@@ -44,7 +44,7 @@ env:
 
 jobs:
   native-blockifier-artifacts-push:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
 

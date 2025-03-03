@@ -7,6 +7,8 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS builder
 WORKDIR /app
 COPY . .
+# Installing rust version in rust-toolchain.toml
+RUN rustup toolchain install
 RUN cargo build --bin starknet_sequencer_node
 
 FROM ubuntu:24.04

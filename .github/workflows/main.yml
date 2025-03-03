@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   code_style:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       # Environment setup.
       - uses: actions/checkout@v4
@@ -96,14 +96,14 @@ jobs:
         run: cargo machete
 
   run-workspace-tests:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: starkware-ubuntu-latest-large
+    runs-on: starkware-ubuntu-24.04-large
     steps:
       - uses: actions/checkout@v4
         with:
