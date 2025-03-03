@@ -20,5 +20,7 @@ ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 COPY install_build_tools.sh .
 COPY dependencies.sh .
+COPY ../rust-toolchain.toml .
 
 RUN ./install_build_tools.sh
+RUN rustup toolchain install

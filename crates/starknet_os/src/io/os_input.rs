@@ -80,7 +80,7 @@ pub struct StarknetOsInput {
     pub(crate) full_output: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 pub struct CachedStateInput {
     pub(crate) storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
