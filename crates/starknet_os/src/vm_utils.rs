@@ -41,6 +41,17 @@ pub(crate) fn get_address_of_nested_fields<IG: IdentifierGetter>(
     identifier_getter: &IG,
 ) -> Result<Relocatable, OsHintError> {
     let base_address = get_ptr_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
+    get_address_of_nested_fields_from_base_address(base_address, var_type, vm, nested_fields, identifier_getter)
+}
+
+/// Fetches the address of nested fields of a cairo variable, given a base address.
+pub(crate) fn get_address_of_nested_fields_from_base_address<IG: IdentifierGetter>(
+    base_address: Relocatable,
+    var_type: CairoStruct,
+    vm: &VirtualMachine,
+    nested_fields: &[String],
+    identifier_getter: &IG,
+) -> Result<Relocatable, OsHintError> {
     let var_type_str = var_type.into();
     let base_struct = identifier_getter.get_identifier(var_type_str)?;
 
