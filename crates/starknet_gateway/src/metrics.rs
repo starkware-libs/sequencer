@@ -9,15 +9,16 @@ pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub(crate) const LABEL_NAME_SOURCE: &str = "source";
 
 generate_permutation_labels! {
+    TRANSACTION_TYPE_AND_SOURCE_LABELS,
     (LABEL_NAME_TX_TYPE, RpcTransactionLabelValue),
     (LABEL_NAME_SOURCE, SourceLabelValue),
 }
 
 define_metrics!(
     Gateway => {
-        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = RPCTRANSACTIONLABELVALUE_SOURCELABELVALUE_LABELS},
-        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = RPCTRANSACTIONLABELVALUE_SOURCELABELVALUE_LABELS},
-        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = RPCTRANSACTIONLABELVALUE_SOURCELABELVALUE_LABELS},
+        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
     },
 );
 

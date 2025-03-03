@@ -10,8 +10,8 @@ use strum_macros::{EnumIter, IntoStaticStr};
 define_metrics!(
     Mempool => {
         MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", init = 0 },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0, labels = INTERNALRPCTRANSACTIONLABELVALUE_LABELS },
-        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0, labels = DROPREASON_LABELS },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0, labels = INTERNAL_RPC_TRANSACTION_LABELS },
+        LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0, labels = DROP_REASON_LABELS },
     },
 );
 
@@ -19,10 +19,12 @@ pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub(crate) const LABEL_NAME_DROP_REASON: &str = "drop_reason";
 
 generate_permutation_labels! {
+    INTERNAL_RPC_TRANSACTION_LABELS,
     (LABEL_NAME_TX_TYPE, InternalRpcTransactionLabelValue),
 }
 
 generate_permutation_labels! {
+    DROP_REASON_LABELS,
     (LABEL_NAME_DROP_REASON, DropReason),
 }
 
