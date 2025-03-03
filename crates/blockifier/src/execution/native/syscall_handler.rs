@@ -40,7 +40,7 @@ use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_G
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
-use crate::versioned_constants::GasCosts;
+use crate::versioned_constants::{GasCosts, SyscallGasCost};
 
 pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
 pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
@@ -72,7 +72,7 @@ impl<'state> NativeSyscallHandler<'state> {
     fn pre_execute_syscall(
         &mut self,
         remaining_gas: &mut u64,
-        syscall_gas_cost: u64,
+        syscall_gas_cost: SyscallGasCost,
     ) -> SyscallResult<()> {
         if self.unrecoverable_error.is_some() {
             // An unrecoverable error was found in a previous syscall, we return immediately to
@@ -80,7 +80,8 @@ impl<'state> NativeSyscallHandler<'state> {
             return Err(vec![]);
         }
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas = syscall_gas_cost - self.gas_costs().base.syscall_base_gas_cost;
+        let required_gas =
+            syscall_gas_cost.get_base_cost() - self.gas_costs().base.syscall_base_gas_cost;
 
         if *remaining_gas < required_gas {
             // Out of gas failure.
