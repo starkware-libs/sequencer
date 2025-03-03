@@ -6,6 +6,7 @@ INCLUDE deployments/images/base/Dockerfile
 # Compile the papyrus_node crate in release mode, ensuring dependencies are locked.
 FROM base AS builder
 COPY . .
+RUN rustup install
 RUN cargo build --release --package papyrus_node
 
 FROM ubuntu:24.04 as final_stage
