@@ -74,9 +74,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
     #[instrument(skip(self), err)]
     pub async fn initialize(&mut self) -> L1ScraperResult<(), B> {
-        let Some((latest_l1_block, events)) = self.fetch_events().await? else {
-            return Ok(());
-        };
+        let (latest_l1_block, events) = self.fetch_events().await?;
 
         // If this gets too high, send in batches.
         let initialize_result = self.l1_provider_client.initialize(events).await;
@@ -90,9 +88,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
         self.assert_no_l1_reorgs().await?;
 
-        let Some((latest_l1_block, events)) = self.fetch_events().await? else {
-            return Ok(());
-        };
+        let (latest_l1_block, events) = self.fetch_events().await?;
 
         // If this gets too high, send in batches.
         let add_events_result = self.l1_provider_client.add_events(events).await;
@@ -103,7 +99,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
-    async fn fetch_events(&self) -> L1ScraperResult<Option<(L1BlockReference, Vec<Event>)>, B> {
+    async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
         let latest_l1_block = self
             .base_layer
             .latest_l1_block(self.config.finality)
@@ -111,8 +107,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .map_err(L1ScraperError::BaseLayerError)?;
 
         let Some(latest_l1_block) = latest_l1_block else {
-            error!("Failed to get latest L1 block number, finality too high.");
-            return Ok(None);
+            return Err(
+                L1ScraperError::finality_too_high(self.config.finality, &self.base_layer).await
+            );
         };
 
         let scraping_start_number = self.last_l1_block_processed.number + 1;
@@ -127,7 +124,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .map(|event| self.event_from_raw_l1_event(event))
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
 
-        Ok(Some((latest_l1_block, events)))
+        Ok((latest_l1_block, events))
     }
 
     #[instrument(skip(self), err)]
@@ -264,6 +261,19 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     L1ReorgDetected { reason: String },
 }
 
+impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
+    pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
+        let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
+        let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
+            Ok(block_number) => block_number
+                .expect("Latest *L1* block without finality is assumed to always exist."),
+            Err(error) => return Self::BaseLayerError(error),
+        };
+
+        Self::FinalityTooHigh { finality, latest_l1_block_no_finality }
+    }
+}
+
 fn handle_client_error<B: BaseLayerContract + Send + Sync>(
     client_result: Result<(), L1ProviderClientError>,
 ) -> Result<(), L1ScraperError<B>> {
@@ -284,14 +294,6 @@ async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
 
     match latest_l1_block_number {
         Some(latest_l1_block_number) => Ok(latest_l1_block_number),
-        None => {
-            let latest_l1_block_no_finality = base_layer
-                .latest_l1_block_number(0)
-                .await
-                .map_err(L1ScraperError::BaseLayerError)?
-                .expect("Latest *L1* block without finality is assumed to always exist.");
-
-            Err(L1ScraperError::FinalityTooHigh { finality, latest_l1_block_no_finality })
-        }
+        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
     }
 }
