@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use tracing::{info, trace};
 
+use crate::metrics::CONSENSUS_ROUND;
 use crate::types::{ProposalCommitment, Round, ValidatorId};
 
 /// Events which the state machine sends/receives.
@@ -334,6 +335,8 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
+        CONSENSUS_ROUND.set(round as f64);
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
