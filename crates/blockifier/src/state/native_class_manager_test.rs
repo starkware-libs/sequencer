@@ -4,10 +4,11 @@ use std::thread::sleep;
 
 use assert_matches::assert_matches;
 use rstest::rstest;
+use starknet_api::core::ClassHash;
 use starknet_sierra_multicompile::config::DEFAULT_MAX_CPU_TIME;
 use starknet_sierra_multicompile::errors::CompilationUtilError;
 
-use crate::blockifier::config::CairoNativeRunConfig;
+use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
     CachedCairoNative,
@@ -39,6 +40,10 @@ fn create_test_request_from_contract(test_contract: FeatureContract) -> Compilat
     let casm = get_casm(test_contract);
 
     (class_hash, sierra, casm)
+}
+
+fn get_test_contract_class_hash() -> ClassHash {
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class_hash()
 }
 
 fn create_test_request() -> CompilationRequest {
@@ -222,5 +227,40 @@ fn test_process_compilation_request(
             manager.cache.get(&request.0).unwrap(),
             CachedClass::V1Native(CachedCairoNative::CompilationFailed(_))
         );
+    }
+}
+
+#[rstest]
+#[case::all_classes(NativeClassesWhitelist::All, true)]
+#[case::only_selected_class_hash(NativeClassesWhitelist::Limited(vec![get_test_contract_class_hash()]), true)]
+#[case::no_allowed_classes(NativeClassesWhitelist::Limited(vec![]), false)]
+// Test the config that allows us to run only limited selection of class hashes in native.
+fn test_native_classes_whitelist(
+    #[case] whitelist: NativeClassesWhitelist,
+    #[case] allow_run_native: bool,
+) {
+    let native_config = CairoNativeRunConfig {
+        run_cairo_native: true,
+        wait_on_native_compilation: true,
+        channel_size: TEST_CHANNEL_SIZE,
+        native_classes_whitelist: whitelist,
+    };
+    let manager = NativeClassManager::create_for_testing(native_config);
+
+    let (class_hash, sierra, casm) = create_test_request();
+
+    manager.set_and_compile(class_hash, CachedClass::V1(casm, sierra));
+
+    match allow_run_native {
+        true => assert_matches!(
+            manager.get_runnable(&class_hash),
+            Some(RunnableCompiledClass::V1Native(_))
+        ),
+        false => {
+            assert_matches!(
+                manager.get_runnable(&class_hash).unwrap(),
+                RunnableCompiledClass::V1(_)
+            )
+        }
     }
 }
