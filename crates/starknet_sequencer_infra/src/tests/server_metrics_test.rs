@@ -116,9 +116,8 @@ fn basic_test_setup() -> BasicSetup {
 async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
     let BasicSetup { component, local_client, rx, test_sem } = basic_test_setup();
 
-    let max_concurrency = 1;
     let mut local_server =
-        LocalComponentServer::new(component, rx, max_concurrency, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component, rx, TEST_LOCAL_SERVER_METRICS);
     task::spawn(async move {
         let _ = local_server.start().await;
     });

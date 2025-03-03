@@ -45,7 +45,6 @@ where
 {
     component: Component,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    _max_concurrency: usize,
     metrics: LocalServerMetrics,
 }
 
@@ -58,11 +57,10 @@ where
     pub fn new(
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-        max_concurrency: usize,
         metrics: LocalServerMetrics,
     ) -> Self {
         metrics.register();
-        Self { component, rx, _max_concurrency: max_concurrency, metrics }
+        Self { component, rx, metrics }
     }
 }
 

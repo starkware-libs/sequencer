@@ -204,14 +204,16 @@ macro_rules! create_remote_server {
 ///
 /// # Arguments
 ///
+/// * $server_type - the type of the server, one of string literals REGULAR_LOCAL_SERVER or
+///   CONCURRENT_LOCAL_SERVER.
 /// * $execution_mode - A reference to the component's execution mode, i.e., type
 ///   &ReactiveComponentExecutionMode.
 /// * $component - The component that will be taken to initialize the server if the execution mode
 ///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
 /// * $receiver - receiver side for the server.
-/// * $max_concurrency - the maximum number of concurrent requests the server will handle.
-/// * $server_type - the type of the server, one of string literals REGULAR_LOCAL_SERVER or
-///   CONCURRENT_LOCAL_SERVER.
+/// * $server_metrics - The metrics for the server.
+/// * $max_concurrency - The maximum number of concurrent requests the server will handle. Only
+///   required for the CONCURRENT_LOCAL_SERVER.
 ///
 /// # Returns
 ///
@@ -224,12 +226,11 @@ macro_rules! create_remote_server {
 ///
 /// ```rust,ignore
 /// let batcher_server = create_local_server!(
+///     REGULAR_LOCAL_SERVER,
 ///     &config.components.batcher.execution_mode,
 ///     components.batcher,
 ///     communication.take_batcher_rx(),
-///     config.components.batcher.max_concurrency,
-///     batcher_metrics,
-///     REGULAR_LOCAL_SERVER,
+///     batcher_metrics
 /// );
 /// match batcher_server {
 ///     Some(server) => println!("Server created: {:?}", server),
@@ -237,7 +238,7 @@ macro_rules! create_remote_server {
 /// }
 /// ```
 macro_rules! create_local_server {
-    ($execution_mode:expr, $component:expr, $receiver:expr, $max_concurrency:expr, $server_metrics:expr, $server_type:tt) => {
+    ($server_type:tt, $execution_mode:expr, $component:expr, $receiver:expr, $server_metrics:expr  $(, $max_concurrency:expr)? ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -246,7 +247,7 @@ macro_rules! create_local_server {
                         .take()
                         .expect(concat!(stringify!($component), " is not initialized.")),
                     $receiver,
-                    $max_concurrency,
+                    $( $max_concurrency,)?
                     $server_metrics,
                 )))
             }
@@ -316,12 +317,11 @@ fn create_local_servers(
         &BATCHER_LOCAL_QUEUE_DEPTH,
     );
     let batcher_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.batcher.execution_mode,
         &mut components.batcher,
         communication.take_batcher_rx(),
-        config.components.batcher.max_concurrency,
-        batcher_metrics,
-        REGULAR_LOCAL_SERVER
+        batcher_metrics
     );
 
     let class_manager_metrics = LocalServerMetrics::new(
@@ -330,12 +330,11 @@ fn create_local_servers(
         &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
     );
     let class_manager_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
         communication.take_class_manager_rx(),
-        config.components.class_manager.max_concurrency,
-        class_manager_metrics,
-        REGULAR_LOCAL_SERVER
+        class_manager_metrics
     );
 
     let gateway_metrics = LocalServerMetrics::new(
@@ -344,12 +343,11 @@ fn create_local_servers(
         &GATEWAY_LOCAL_QUEUE_DEPTH,
     );
     let gateway_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
-        config.components.gateway.max_concurrency,
-        gateway_metrics,
-        REGULAR_LOCAL_SERVER
+        gateway_metrics
     );
 
     let l1_provider_metrics = LocalServerMetrics::new(
@@ -358,12 +356,11 @@ fn create_local_servers(
         &L1_PROVIDER_LOCAL_QUEUE_DEPTH,
     );
     let l1_provider_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.l1_provider.execution_mode,
         &mut components.l1_provider,
         communication.take_l1_provider_rx(),
-        config.components.l1_provider.max_concurrency,
-        l1_provider_metrics,
-        REGULAR_LOCAL_SERVER
+        l1_provider_metrics
     );
 
     let mempool_metrics = LocalServerMetrics::new(
@@ -372,12 +369,11 @@ fn create_local_servers(
         &MEMPOOL_LOCAL_QUEUE_DEPTH,
     );
     let mempool_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.mempool.execution_mode,
         &mut components.mempool,
         communication.take_mempool_rx(),
-        config.components.mempool.max_concurrency,
-        mempool_metrics,
-        REGULAR_LOCAL_SERVER
+        mempool_metrics
     );
 
     let mempool_p2p_metrics = LocalServerMetrics::new(
@@ -386,12 +382,11 @@ fn create_local_servers(
         &MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
     );
     let mempool_p2p_propagator_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.mempool_p2p.execution_mode,
         &mut components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx(),
-        config.components.mempool_p2p.max_concurrency,
-        mempool_p2p_metrics,
-        REGULAR_LOCAL_SERVER
+        mempool_p2p_metrics
     );
 
     let sierra_compiler_metrics = LocalServerMetrics::new(
@@ -400,12 +395,12 @@ fn create_local_servers(
         &SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
     );
     let sierra_compiler_server = create_local_server!(
+        CONCURRENT_LOCAL_SERVER,
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
-        config.components.sierra_compiler.max_concurrency,
         sierra_compiler_metrics,
-        CONCURRENT_LOCAL_SERVER
+        config.components.sierra_compiler.max_concurrency
     );
 
     let state_sync_metrics = LocalServerMetrics::new(
@@ -414,12 +409,11 @@ fn create_local_servers(
         &STATE_SYNC_LOCAL_QUEUE_DEPTH,
     );
     let state_sync_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
-        config.components.state_sync.max_concurrency,
-        state_sync_metrics,
-        REGULAR_LOCAL_SERVER
+        state_sync_metrics
     );
 
     LocalServers {
