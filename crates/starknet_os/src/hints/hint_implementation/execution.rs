@@ -10,7 +10,8 @@ use starknet_api::state::StorageKey;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids};
+use crate::hints::vars::{CairoStruct, Const, Ids};
+use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -308,10 +309,59 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     Ok(())
 }
 
+// pub const CACHE_CONTRACT_STORAGE_REQUEST_KEY: &str = indoc! {r#"
+// 	# Make sure the value is cached (by reading it), to be used later on for the
+// 	# commitment computation.
+// 	value = execution_helper.storage_by_address[ids.contract_address].read(key=ids.request.key)
+// 	assert ids.value == value, "Inconsistent storage value.""#
+// };
+
+// pub fn cache_contract_storage_request_key<PCS>(
+//     vm: &mut VirtualMachine,
+//     exec_scopes: &mut ExecutionScopes,
+//     ids_data: &HashMap<String, HintReference>,
+//     ap_tracking: &ApTracking,
+//     _constants: &HashMap<String, Felt252>,
+// ) -> Result<(), HintError>
+// where
+//     PCS: PerContractStorage + 'static,
+// {
+//     let request_ptr = get_ptr_from_var_name(vars::ids::REQUEST, vm, ids_data, ap_tracking)?;
+//     let key = vm.get_integer((request_ptr +
+// new_syscalls::StorageReadRequest::key_offset())?)?.into_owned();
+
+//     execute_coroutine(cache_contract_storage::<PCS>(key, vm, exec_scopes, ids_data,
+// ap_tracking))? }
+
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let contract_address = ContractAddress(
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
+            .try_into()?,
+    );
+
+    let key_ptr = get_address_of_nested_fields(
+        ids_data,
+        Ids::Request,
+        CairoStruct::DictAccess,
+        vm,
+        ap_tracking,
+        &["key".to_string()],
+        &hint_processor.execution_helper.os_program,
+    )?;
+
+    let key = StorageKey(PatriciaKey::try_from(vm.get_integer(key_ptr)?.into_owned())?);
+
+    let value =
+        hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
+
+    let ids_value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
+
+    if value != ids_value {
+        return Err(OsHintError::InconsistentValue { expected: value, actual: ids_value });
+    }
+    Ok(())
 }
 
 pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
