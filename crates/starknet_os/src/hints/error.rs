@@ -29,6 +29,8 @@ pub enum OsHintError {
     #[error("{error:?} for json value {value}.")]
     SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
+    #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]
     VmError(#[from] VirtualMachineError),
