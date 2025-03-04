@@ -57,6 +57,7 @@ use crate::utils::{create_node_config, spawn_local_success_recorder};
 // TODO(Tsabary): rename this module to `executable_setup`.
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
+const LOGS_DIR: &str = "integration_test_temporary_logs";
 
 #[derive(Debug, Copy, Clone)]
 pub struct NodeExecutionId {
@@ -89,7 +90,7 @@ impl std::fmt::Display for NodeExecutionId {
 
 impl From<NodeExecutionId> for NodeRunner {
     fn from(val: NodeExecutionId) -> Self {
-        NodeRunner::new(val.node_index, val.executable_index)
+        NodeRunner::new(val.node_index, val.executable_index, LOGS_DIR.into())
     }
 }
 
