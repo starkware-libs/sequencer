@@ -103,7 +103,7 @@ pub fn decompress(compressed: &mut impl Iterator<Item = Felt>) -> Vec<Felt> {
     let n_repeating_values = &header[2 + N_UNIQUE_BUCKETS];
 
     let mut unique_values = Vec::new();
-    unique_values.extend(unpack_chunk::<252>(compressed, unique_value_bucket_lengths[0]));
+    unique_values.extend(compressed.take(unique_value_bucket_lengths[0]));
     unique_values.extend(unpack_chunk::<125>(compressed, unique_value_bucket_lengths[1]));
     unique_values.extend(unpack_chunk::<83>(compressed, unique_value_bucket_lengths[2]));
     unique_values.extend(unpack_chunk::<62>(compressed, unique_value_bucket_lengths[3]));
