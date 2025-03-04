@@ -42,7 +42,6 @@ use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
-use url::Url;
 
 use crate::state_reader::{
     StorageTestSetup,
@@ -160,6 +159,7 @@ impl ExecutableSetup {
         state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
+        base_layer_config: EthereumBaseLayerConfig,
         db_path_dir: Option<PathBuf>,
         config_path_dir: Option<PathBuf>,
         exec_data_prefix_dir: Option<PathBuf>,
@@ -197,11 +197,7 @@ impl ExecutableSetup {
             ..Default::default()
         };
 
-        let base_layer_config = EthereumBaseLayerConfig {
-            node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
-            ..Default::default()
-        };
-        let block_max_capacity_n_steps = GasAmount(17000000);
+        let block_max_capacity_n_steps = GasAmount(35000000);
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_node_config(
             &mut available_ports,
