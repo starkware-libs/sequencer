@@ -118,9 +118,9 @@ impl TestScenario for ConsensusTxs {
     }
 }
 
-pub struct BootstrapTxs;
+pub struct DeployAndInvokeTxs;
 
-impl TestScenario for BootstrapTxs {
+impl TestScenario for DeployAndInvokeTxs {
     fn create_txs(
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,

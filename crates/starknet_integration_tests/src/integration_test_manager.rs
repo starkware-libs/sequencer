@@ -67,8 +67,8 @@ use crate::utils::{
     set_validator_id,
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
-    BootstrapTxs,
     ConsensusTxs,
+    DeployAndInvokeTxs,
     TestScenario,
 };
 
@@ -438,9 +438,13 @@ impl IntegrationTestManager {
         });
     }
 
-    pub async fn send_bootstrap_txs_and_verify(&mut self) {
-        self.test_and_verify(BootstrapTxs, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
-            .await;
+    pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
+        self.test_and_verify(
+            DeployAndInvokeTxs,
+            DEFAULT_SENDER_ACCOUNT,
+            BLOCK_TO_WAIT_FOR_BOOTSTRAP,
+        )
+        .await;
     }
 
     pub async fn send_txs_and_verify(
