@@ -50,6 +50,7 @@ pub enum Ids {
     CompiledClass,
     CompiledClassFact,
     CompressedStart,
+    ContractAddress,
     ContractStateChanges,
     DictPtr,
     FullOutput,
@@ -60,10 +61,12 @@ pub enum Ids {
     OldBlockNumber,
     OsStateUpdate,
     PrevOffset,
+    Request,
     Sha256Ptr,
     StateEntry,
     StateUpdatesStart,
     UseKzgDa,
+    Value,
 }
 
 impl From<Ids> for &'static str {
@@ -74,6 +77,7 @@ impl From<Ids> for &'static str {
             Ids::CompiledClass => "compiled_class",
             Ids::CompiledClassFact => "compiled_class_fact",
             Ids::CompressedStart => "compressed_start",
+            Ids::ContractAddress => "contract_address",
             Ids::ContractStateChanges => "contract_state_changes",
             Ids::DictPtr => "dict_ptr",
             Ids::FullOutput => "full_output",
@@ -84,10 +88,12 @@ impl From<Ids> for &'static str {
             Ids::OldBlockNumber => "old_block_number",
             Ids::OsStateUpdate => "os_state_update",
             Ids::PrevOffset => "prev_offset",
+            Ids::Request => "request",
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::UseKzgDa => "use_kzg_da",
+            Ids::Value => "value",
         }
     }
 }
@@ -155,6 +161,7 @@ pub enum CairoStruct {
     DeprecatedCompiledClassFact,
     DictAccess,
     OsStateUpdate,
+    StorageReadRequestPtr,
 }
 
 impl From<CairoStruct> for &'static str {
@@ -173,6 +180,9 @@ impl From<CairoStruct> for &'static str {
             }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
+            CairoStruct::StorageReadRequestPtr => {
+                "starkware.starknet.core.os.storage.StorageReadRequest*"
+            }
         }
     }
 }
