@@ -2,7 +2,7 @@
 macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
         #[cfg_attr(any(test, feature = "testing"), derive(Default, strum_macros::EnumIter))]
-        #[derive(Debug, PartialEq)]
+        #[derive(Debug, Eq, PartialEq, Hash)]
         pub enum $enum_name {
             // Make first variant the default variant for testing (iteration) purposes.
             #[cfg_attr(any(test, feature = "testing"), default)]
