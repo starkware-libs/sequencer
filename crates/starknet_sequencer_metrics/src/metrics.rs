@@ -221,6 +221,64 @@ impl MetricHistogram {
     }
 }
 
+pub struct LabeledMetricHistogram {
+    scope: MetricScope,
+    name: &'static str,
+    description: &'static str,
+    label_permutations: &'static [&'static [(&'static str, &'static str)]],
+}
+
+impl LabeledMetricHistogram {
+    pub const fn new(
+        scope: MetricScope,
+        name: &'static str,
+        description: &'static str,
+        label_permutations: &'static [&'static [(&'static str, &'static str)]],
+    ) -> Self {
+        Self { scope, name, description, label_permutations }
+    }
+
+    pub const fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    pub const fn get_scope(&self) -> MetricScope {
+        self.scope
+    }
+
+    pub const fn get_description(&self) -> &'static str {
+        self.description
+    }
+
+    pub fn register(&self) {
+        self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|labels| {
+            let _ = histogram!(self.name, &labels);
+        });
+        describe_histogram!(self.name, self.description);
+    }
+
+    pub fn record<T: IntoF64>(&self, value: T, labels: &[(&'static str, &'static str)]) {
+        histogram!(self.name, labels).record(value.into_f64());
+    }
+
+    pub fn record_many<T: IntoF64>(
+        &self,
+        value: T,
+        count: usize,
+        labels: &[(&'static str, &'static str)],
+    ) {
+        histogram!(self.name, labels).record_many(value.into_f64(), count);
+    }
+
+    pub fn parse_histogram_metric(
+        &self,
+        metrics_as_string: &str,
+        labels: &[(&'static str, &'static str)],
+    ) -> Option<HistogramValue> {
+        parse_histogram_metric(metrics_as_string, self.get_name(), Some(labels))
+    }
+}
+
 /// Parses a specific numeric metric value from a metrics string.
 ///
 /// # Arguments
@@ -291,6 +349,7 @@ pub fn parse_histogram_metric(
     labels: Option<&[(&'static str, &'static str)]>,
 ) -> Option<HistogramValue> {
     // Construct a regex pattern to match the labels if provided.
+    let mut quantile_labels_pattern = format!(r#"\{{"#);
     let mut labels_pattern = "".to_string();
     if let Some(labels) = labels {
         let inner_pattern = labels
@@ -298,12 +357,15 @@ pub fn parse_histogram_metric(
             .map(|(k, v)| format!(r#"{}="{}""#, escape(k), escape(v)))
             .collect::<Vec<_>>()
             .join(r",");
+        quantile_labels_pattern = format!(r#"\{{{},"#, inner_pattern);
         labels_pattern = format!(r#"\{{{}\}}"#, inner_pattern);
     }
-
     // Define regex patterns for quantiles, sum, and count.
-    let quantile_pattern =
-        format!(r#"{}{}\{{quantile="([^"]+)"\}}\s+([\d\.]+)"#, escape(metric_name), labels_pattern);
+    let quantile_pattern = format!(
+        r#"{}{}quantile="([^"]+)"\}}\s+([\d\.]+)"#,
+        escape(metric_name),
+        quantile_labels_pattern
+    );
     let sum_pattern = format!(r#"{}_sum{}\s+([\d\.]+)"#, escape(metric_name), labels_pattern);
     let count_pattern = format!(r#"{}_count{}\s+(\d+)"#, escape(metric_name), labels_pattern);
 
@@ -320,7 +382,7 @@ pub fn parse_histogram_metric(
         histogram.insert(quantile, value);
     }
 
-    // If merics wasn't found, return None.
+    // If no quantiles were found, return None.
     if histogram.is_empty() {
         return None;
     }
