@@ -217,6 +217,7 @@ type OsPythonTestResult = PythonTestResult<OsSpecificTestError>;
 
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
+    AliasesTest,
     CompareOsHints,
     InputDeserialization,
     RunDummyFunction,
@@ -231,6 +232,7 @@ impl TryFrom<String> for OsPythonTestRunner {
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "run_dummy_function" => Ok(Self::RunDummyFunction),
             "input_deserialization" => Ok(Self::InputDeserialization),
+            "aliases_test" => Ok(Self::AliasesTest),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -248,6 +250,7 @@ impl PythonTestRunner for OsPythonTestRunner {
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
+            Self::AliasesTest => aliases_test(Self::non_optional_input(input)?),
         }
     }
 }
@@ -309,6 +312,30 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
         "dummy_function",
         &[MaybeRelocatable::from(param_1).into(), MaybeRelocatable::from(param_2).into()],
         &retdata![(789 + param_1).into(), param_1.into(), param_2.into()],
+    )
+}
+
+// TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
+fn aliases_test(input: &str) -> OsPythonTestResult {
+    test_constants(input)?;
+    Ok("".to_string())
+}
+
+fn test_constants(input: &str) -> OsPythonTestResult {
+    let max_non_compressed_contract_address = 15;
+    let alias_counter_storage_key = 0;
+    let initial_available_alias = 128;
+    let alias_contract_address = 2;
+    run_cairo_function(
+        input,
+        "test_constants",
+        &[
+            MaybeRelocatable::from(max_non_compressed_contract_address).into(),
+            MaybeRelocatable::from(alias_counter_storage_key).into(),
+            MaybeRelocatable::from(initial_available_alias).into(),
+            MaybeRelocatable::from(alias_contract_address).into(),
+        ],
+        &retdata![],
     )
 }
 
