@@ -26,7 +26,6 @@ use crate::config::node_config::{
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
-    DEFAULT_PRESET_CONFIG_PATH,
 };
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
@@ -127,27 +126,6 @@ fn default_config_file_is_up_to_date() {
         "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
     );
     assert_json_eq(&from_default_config_file, &from_code, error_message);
-}
-
-/// Test that the default preset config file is up to date.
-#[test]
-fn default_preset_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-    let from_default_preset_file: serde_json::Value =
-        serde_json::from_reader(File::open(DEFAULT_PRESET_CONFIG_PATH).unwrap()).unwrap();
-
-    let current_preset_config: RequiredParams = RequiredParams::create_for_testing();
-    let error_message = format!(
-        "{}\n{}",
-        "Default preset config file doesn't match the default RequiredParams. Please update it \
-         using the sequencer_dump_preset_config binary."
-            .purple()
-            .bold(),
-        "Diffs shown below (default preset config file <<>> dump of \
-         RequiredParams::create_for_testing())."
-    );
-    assert_json_eq(&from_default_preset_file, &current_preset_config.as_json(), error_message);
 }
 
 /// Tests parsing a node config without additional args.

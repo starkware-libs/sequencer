@@ -39,7 +39,6 @@ use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
 pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
-pub const DEFAULT_PRESET_CONFIG_PATH: &str = "config/sequencer/presets/config.json";
 
 // Configuration parameters that share the same value across multiple components.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
