@@ -31,36 +31,15 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-<<<<<<< HEAD
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::test_state_ex;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
-||||||| f39b2b272
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    trivial_external_entry_point_with_address,
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
-};
-=======
-use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
-use crate::test_utils::initial_test_state::test_state_ex;
-use crate::test_utils::{
-    trivial_external_entry_point_with_address,
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
-};
->>>>>>> origin/main-v0.13.5
 use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
-use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(
     feature = "cairo_native",
@@ -325,7 +304,6 @@ fn test_get_execution_info(
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
         expected_tx_info = vec![
-<<<<<<< HEAD
             expected_version,                     // Transaction version.
             *sender_address.0.key(),              // Account address.
             felt!(max_fee.0),                     // Max fee.
@@ -333,25 +311,6 @@ fn test_get_execution_info(
             tx_hash.0,                            // Transaction hash.
             felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
             nonce.0,                              // Nonce.
-||||||| f39b2b272
-            version.0,                                       /* Transaction
-                                                              * version. */
-            *sender_address.0.key(), // Account address.
-            felt!(max_fee.0),        // Max fee.
-            Felt::ZERO,              // Signature.
-            tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-            nonce.0,                 // Nonce.
-=======
-            expected_version,                                /* Transaction
-                                                              * version. */
-            *sender_address.0.key(), // Account address.
-            felt!(max_fee.0),        // Max fee.
-            Felt::ZERO,              // Signature.
-            tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-            nonce.0,                 // Nonce.
->>>>>>> origin/main-v0.13.5
         ];
 
         tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
@@ -367,7 +326,6 @@ fn test_get_execution_info(
         });
     } else {
         expected_tx_info = vec![
-<<<<<<< HEAD
             expected_version,                     // Transaction version.
             *sender_address.0.key(),              // Account address.
             Felt::ZERO,                           // Max fee.
@@ -375,25 +333,6 @@ fn test_get_execution_info(
             tx_hash.0,                            // Transaction hash.
             felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
             nonce.0,                              // Nonce.
-||||||| f39b2b272
-            version.0,                                       /* Transaction
-                                                              * version. */
-            *sender_address.0.key(), // Account address.
-            Felt::ZERO,              // Max fee.
-            Felt::ZERO,              // Signature.
-            tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-            nonce.0,                 // Nonce.
-=======
-            expected_version,                                /* Transaction
-                                                              * version. */
-            *sender_address.0.key(), // Account address.
-            Felt::ZERO,              // Max fee.
-            Felt::ZERO,              // Signature.
-            tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
-            nonce.0,                 // Nonce.
->>>>>>> origin/main-v0.13.5
         ];
 
         tx_info = TransactionInfo::Current(CurrentTransactionInfo {
