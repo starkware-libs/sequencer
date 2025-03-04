@@ -11576,6 +11576,7 @@ dependencies = [
 name = "starknet_sequencer_metrics"
 version = "0.0.0"
 dependencies = [
+ "indexmap 2.7.0",
  "metrics 0.24.1",
  "num-traits",
  "paste",
