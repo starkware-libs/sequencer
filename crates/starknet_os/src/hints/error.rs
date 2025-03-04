@@ -33,8 +33,6 @@ pub enum OsHintError {
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
-    StarknetApi(#[from] StarknetApiError),
-    #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]
     VmError(#[from] VirtualMachineError),
