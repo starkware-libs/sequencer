@@ -85,6 +85,7 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
             for (tag_and_tool_chain, feature_contracts) in
                 FeatureContract::cairo1_feature_contracts_by_tag()
             {
+                info!("Testing {tag_and_tool_chain:?}.");
                 prepare_group_tag_compiler_deps(&tag_and_tool_chain);
 
                 let mut task_set = tokio::task::JoinSet::new();
