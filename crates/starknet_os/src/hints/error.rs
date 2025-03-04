@@ -7,6 +7,7 @@ use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use starknet_api::block::BlockNumber;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::vars::{Const, Ids};
@@ -38,6 +39,8 @@ pub enum OsHintError {
     MemoryError(#[from] MemoryError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     StateError(#[from] StateError),
     #[error("Convert {n_bits} bits for {type_name}.")]
