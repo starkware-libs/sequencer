@@ -17,6 +17,9 @@ pub struct MempoolConfig {
     // Transactions older than this value will be lazily removed.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub transaction_ttl: Duration,
+    // Time to wait before allowing a Declare transaction to be returned in `get_txs`.
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub declare_delay: Duration,
 }
 
 impl Default for MempoolConfig {
@@ -25,6 +28,7 @@ impl Default for MempoolConfig {
             enable_fee_escalation: true,
             fee_escalation_percentage: 10,
             transaction_ttl: Duration::from_secs(60), // 1 minute.
+            declare_delay: Duration::from_secs(5),
         }
     }
 }
@@ -48,6 +52,12 @@ impl SerializeConfig for MempoolConfig {
                 "transaction_ttl",
                 &self.transaction_ttl.as_secs(),
                 "Time-to-live for transactions in the mempool, in seconds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "declare_delay",
+                &self.declare_delay.as_secs(),
+                "Time to wait before allowing a Declare transaction to be returned, in seconds.",
                 ParamPrivacyInput::Public,
             ),
         ])
