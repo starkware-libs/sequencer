@@ -61,9 +61,6 @@ pub struct StarknetOsInput {
     _contract_state_commitment_info: CommitmentInfo,
     pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
-    // TODO(Nimrod): Remove these two field once they move to `CachedStateInput`.
-    pub deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    _compiled_classes: HashMap<ClassHash, CasmContractClass>,
     pub(crate) chain_info: ChainInfo,
     pub _transactions: Vec<Transaction>,
     pub _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
