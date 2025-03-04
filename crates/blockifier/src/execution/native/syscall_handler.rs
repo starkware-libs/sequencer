@@ -40,6 +40,7 @@ use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_G
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::{GasCosts, SyscallGasCost};
 
 pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
@@ -73,6 +74,7 @@ impl<'state> NativeSyscallHandler<'state> {
         &mut self,
         remaining_gas: &mut u64,
         syscall_gas_cost: SyscallGasCost,
+        linear_coefficient_cost_param: Option<u64>,
     ) -> SyscallResult<()> {
         if self.unrecoverable_error.is_some() {
             // An unrecoverable error was found in a previous syscall, we return immediately to
@@ -80,8 +82,23 @@ impl<'state> NativeSyscallHandler<'state> {
             return Err(vec![]);
         }
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas =
-            syscall_gas_cost.get_base_cost() - self.gas_costs().base.syscall_base_gas_cost;
+        let actual_syscall_gas_cost = match syscall_gas_cost {
+            SyscallGasCost::Constant(base_cost) => {
+                assert!(
+                    linear_coefficient_cost_param.is_none(),
+                    "Unexpected linear coefficient cost param for constant gas cost"
+                );
+                base_cost
+            }
+            SyscallGasCost::Linear { base_cost, linear_factor } => {
+                assert!(
+                    linear_coefficient_cost_param.is_some(),
+                    "Missing linear coefficient cost param for linear gas cost"
+                );
+                base_cost + linear_coefficient_cost_param.unwrap() * linear_factor
+            }
+        };
+        let required_gas = actual_syscall_gas_cost - self.gas_costs().base.syscall_base_gas_cost;
 
         if *remaining_gas < required_gas {
             // Out of gas failure.
@@ -239,7 +256,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         block_number: u64,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Felt> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.get_block_hash)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.get_block_hash, None)?;
 
         match self.base.get_block_hash(block_number) {
             Ok(value) => Ok(value),
@@ -248,7 +265,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
     }
 
     fn get_execution_info(&mut self, remaining_gas: &mut u64) -> SyscallResult<ExecutionInfo> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.get_execution_info)?;
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.get_execution_info,
+            None,
+        )?;
 
         Ok(ExecutionInfo {
             block_info: self.get_block_info(),
@@ -264,7 +285,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         contract_address: Felt,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Felt> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.get_class_hash_at)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.get_class_hash_at, None)?;
         let request = ContractAddress::try_from(contract_address)
             .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
 
@@ -276,7 +297,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
     }
 
     fn get_execution_info_v2(&mut self, remaining_gas: &mut u64) -> SyscallResult<ExecutionInfoV2> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.get_execution_info)?;
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.get_execution_info,
+            None,
+        )?;
 
         Ok(ExecutionInfoV2 {
             block_info: self.get_block_info(),
@@ -295,7 +320,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         deploy_from_zero: bool,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(Felt, Vec<Felt>)> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.deploy)?;
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.deploy,
+            Some(u64_from_usize(calldata.len())),
+        )?;
 
         let (deployed_contract_address, call_info) = self
             .base
@@ -314,7 +343,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok((Felt::from(deployed_contract_address), constructor_retdata))
     }
     fn replace_class(&mut self, class_hash: Felt, remaining_gas: &mut u64) -> SyscallResult<()> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.replace_class)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.replace_class, None)?;
 
         self.base
             .replace_class(ClassHash(class_hash))
@@ -329,7 +358,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         calldata: &[Felt],
         remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.library_call)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.library_call, None)?;
 
         let class_hash = ClassHash(class_hash);
 
@@ -370,7 +399,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         calldata: &[Felt],
         remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.call_contract)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.call_contract, None)?;
 
         let contract_address = ContractAddress::try_from(address)
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
@@ -423,7 +452,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         address: Felt,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Felt> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.storage_read)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.storage_read, None)?;
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
@@ -445,7 +474,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         value: Felt,
         remaining_gas: &mut u64,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.storage_write)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.storage_write, None)?;
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
@@ -466,7 +495,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         data: &[Felt],
         remaining_gas: &mut u64,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.emit_event)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.emit_event, None)?;
 
         let event = EventContent {
             keys: keys.iter().copied().map(EventKey).collect(),
@@ -483,7 +512,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         payload: &[Felt],
         remaining_gas: &mut u64,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.send_message_to_l1)?;
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.send_message_to_l1,
+            None,
+        )?;
 
         let to_address = EthAddress::try_from(to_address)
             .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
@@ -493,7 +526,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
     }
 
     fn keccak(&mut self, input: &[u64], remaining_gas: &mut u64) -> SyscallResult<U256> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.keccak)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.keccak, None)?;
 
         match self.base.keccak(input, remaining_gas) {
             Ok((state, _n_rounds)) => Ok(U256 {
@@ -510,7 +543,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         y: U256,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Option<Secp256k1Point>> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_new)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_new, None)?;
 
         Secp256Point::new(x, y)
             .map(|op| op.map(|p| p.into()))
@@ -523,7 +556,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         p1: Secp256k1Point,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256k1Point> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_add)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_add, None)?;
 
         Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
@@ -534,7 +567,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         m: U256,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256k1Point> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_mul)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_mul, None)?;
 
         Ok(Secp256Point::mul(p.into(), m).into())
     }
@@ -548,6 +581,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         self.pre_execute_syscall(
             remaining_gas,
             self.gas_costs().syscalls.secp256k1_get_point_from_x,
+            None,
         )?;
 
         Secp256Point::get_point_from_x(x, y_parity)
@@ -560,7 +594,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         p: Secp256k1Point,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(U256, U256)> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_get_xy)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256k1_get_xy, None)?;
 
         Ok((p.x, p.y))
     }
@@ -571,7 +605,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         y: U256,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Option<Secp256r1Point>> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_new)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_new, None)?;
 
         Secp256Point::new(x, y)
             .map(|option| option.map(|p| p.into()))
@@ -584,7 +618,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         p1: Secp256r1Point,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256r1Point> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_add)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_add, None)?;
         Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
@@ -594,7 +628,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         m: U256,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256r1Point> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_mul)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_mul, None)?;
 
         Ok(Secp256Point::mul(p.into(), m).into())
     }
@@ -608,6 +642,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         self.pre_execute_syscall(
             remaining_gas,
             self.gas_costs().syscalls.secp256r1_get_point_from_x,
+            None,
         )?;
 
         Secp256Point::get_point_from_x(x, y_parity)
@@ -620,7 +655,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         p: Secp256r1Point,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(U256, U256)> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_get_xy)?;
+        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.secp256r1_get_xy, None)?;
 
         Ok((p.x, p.y))
     }
@@ -631,7 +666,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         current_block: &[u32; 16],
         remaining_gas: &mut u64,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(remaining_gas, self.gas_costs().syscalls.sha256_process_block)?;
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.gas_costs().syscalls.sha256_process_block,
+            None,
+        )?;
 
         let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
             current_block.iter().flat_map(|x| x.to_be_bytes()),
