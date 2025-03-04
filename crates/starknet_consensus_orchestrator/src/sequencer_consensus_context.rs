@@ -134,11 +134,11 @@ const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(1000);
 const VALIDATE_PROPOSAL_MARGIN: Duration = Duration::from_secs(10);
 
 pub struct SequencerConsensusContext {
+    config: ContextConfig,
     // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
     transaction_converter: TransactionConverter,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
-    proposal_buffer_size: usize,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
@@ -166,9 +166,7 @@ pub struct SequencerConsensusContext {
     // validating proposals.
     l2_gas_price: u64,
     l1_da_mode: L1DataAvailabilityMode,
-    block_timestamp_window: u64,
     last_block_timestamp: Option<u64>,
-    builder_address: ContractAddress,
 }
 
 impl SequencerConsensusContext {
@@ -181,6 +179,7 @@ impl SequencerConsensusContext {
         vote_broadcast_client: BroadcastTopicClient<Vote>,
         cende_ambassador: Arc<dyn CendeContext>,
     ) -> Self {
+        let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
             L1DataAvailabilityMode::Blob
@@ -188,13 +187,10 @@ impl SequencerConsensusContext {
             L1DataAvailabilityMode::Calldata
         };
         Self {
-            transaction_converter: TransactionConverter::new(
-                class_manager_client,
-                config.chain_id.clone(),
-            ),
+            config,
+            transaction_converter: TransactionConverter::new(class_manager_client, chain_id),
             state_sync_client,
             batcher,
-            proposal_buffer_size: config.proposal_buffer_size,
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
@@ -210,10 +206,7 @@ impl SequencerConsensusContext {
             cende_ambassador,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
-            block_timestamp_window: config.block_timestamp_window,
             last_block_timestamp: None,
-            // TODO(guyn): consider saving the config in self, instead of individual fields.
-            builder_address: config.builder_address,
         }
     }
 
@@ -281,7 +274,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
-        let (proposal_sender, proposal_receiver) = mpsc::channel(self.proposal_buffer_size);
+        let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         self.outbound_proposal_sender
@@ -290,7 +283,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Failed to send proposal receiver");
         let gas_prices = self.gas_prices();
         let transaction_converter = self.transaction_converter.clone();
-        let builder_address = self.builder_address;
+        let builder_address = self.config.builder_address;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let handle = tokio::spawn(
@@ -352,7 +345,7 @@ impl ConsensusContext for SequencerConsensusContext {
             std::cmp::Ordering::Equal => {
                 let block_info_validation = BlockInfoValidation {
                     height: proposal_init.height,
-                    block_timestamp_window: self.block_timestamp_window,
+                    block_timestamp_window: self.config.block_timestamp_window,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
                 };
@@ -384,7 +377,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let transaction_converter = self.transaction_converter.clone();
         let mut outbound_proposal_sender = self.outbound_proposal_sender.clone();
-        let channel_size = self.proposal_buffer_size;
+        let channel_size = self.config.proposal_buffer_size;
         tokio::spawn(
             async move {
                 let (mut proposal_sender, proposal_receiver) = mpsc::channel(channel_size);
@@ -586,7 +579,7 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let block_info_validation = BlockInfoValidation {
             height,
-            block_timestamp_window: self.block_timestamp_window,
+            block_timestamp_window: self.config.block_timestamp_window,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
         };
