@@ -1,5 +1,5 @@
 # syntax = devthefuture/dockerfile-x
-# deployments/images/sequencer/Dockerfile
+# deployments/images/sequencer/node_setup.Dockerfile
 
 # Dockerfile with multi-stage builds for efficient dependency caching and lightweight final image.
 # For more on Docker stages, visit: https://docs.docker.com/build/building/multi-stage/
@@ -10,7 +10,6 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS planner
 WORKDIR /app
 COPY . .
-# Installing rust version in rust-toolchain.toml
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM base AS builder
@@ -24,25 +23,20 @@ FROM ubuntu:24.04 AS final_stage
 
 ENV ID=1001
 WORKDIR /app
-COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
-COPY --from=builder /app/target/debug/shared_executables/starknet-sierra-compile ./target/debug/shared_executables/starknet-sierra-compile
+# Required crate for sequencer_node_setup to work
+COPY --from=builder /app/crates/blockifier_test_utils/resources ./crates/blockifier_test_utils/resources
+COPY --from=builder /app/target/debug/sequencer_node_setup ./target/debug/sequencer_node_setup
 COPY --from=builder /usr/bin/tini /usr/bin/tini
-
-# Copy sequencer config
-COPY config/sequencer config/sequencer
 
 # Create a new user "sequencer".
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \
     useradd --gid ${ID} --uid ${ID} --comment "" --create-home --home-dir /app sequencer; \
-    mkdir /data; \
-    chown -R sequencer:sequencer /app /data
-
-# Expose RPC and monitoring ports.
-EXPOSE 8080 8081 8082
+    mkdir -p /data /config; \
+    chown -R sequencer:sequencer /app /data /config
 
 # Switch to the new user.
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process.
-ENTRYPOINT ["tini", "--", "/app/target/debug/starknet_sequencer_node"]
+ENTRYPOINT ["tini", "--", "/app/target/debug/sequencer_node_setup"]

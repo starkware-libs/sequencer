@@ -2,9 +2,11 @@ services:
   prometheus:
     image: prom/prometheus
     ports:
-      - 9090:9090
+      - "9090:9090"
     volumes:
       - ${monitoring_dir}/local/config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - sequencer-network
 
   grafana:
     image: grafana/grafana:10.4.14-ubuntu
@@ -13,14 +15,105 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_DISABLE_LOGIN_FORM=true
     ports:
-      - 3000:3000
+      - "3000:3000"
     volumes:
       - ${monitoring_dir}/local/config/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - sequencer-network
 
-  node:
+  sequencer_node_setup:
+    build:
+      context: ../../../
+      dockerfile: ${monitoring_dir}/../images/sequencer/node_setup.Dockerfile
+    entrypoint: "/bin/bash -c"
+    command: >
+      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-consolidated 1;
+      cp -r ./output/data/* /data && \
+      cp -r ./output/configs/* /config"
+    volumes:
+      - data:/data
+      - config:/config
+    networks:
+      - sequencer-network
+
+  dummy_recorder:
+    depends_on:
+      - sequencer_node_setup
+    build:
+      context: ../../../
+      dockerfile: ${monitoring_dir}/../images/sequencer/dummy_recorder.Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - sequencer-network
+
+  config_injector:
+    depends_on:
+      sequencer_node_setup:
+        condition: service_completed_successfully
+    image: ubuntu:24.04
+    entrypoint: "/bin/bash -c"
+    command: |
+      "DEBIAN_FRONTEND=noninteractive \
+      apt update && \
+      apt install -y jq moreutils && \
+      echo 'Injecting config changes...' && \
+      jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"http_server_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"http_server_config.port\" = ${SEQUENCER_HTTP_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      echo 'Done'"
+    volumes:
+      - config:/config
+    networks:
+      - sequencer-network
+
+  sequencer_node:
+    depends_on:
+      config_injector:
+        condition: service_completed_successfully
+      dummy_recorder:
+        condition: service_started
+      sequencer_node_setup:
+        condition: service_completed_successfully
     build:
       context: ../../../
       dockerfile: ${monitoring_dir}/../images/sequencer/Dockerfile
+    ports:
+      - ${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}
+      - ${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}
     command:
-      - --config_file
-      - /app/config/sequencer/presets/config.json
+      - "--config_file"
+      - "${SEQUENCER_CONFIG_PATH}"
+    volumes:
+      - data:/data
+      - config:/config
+    networks:
+      - sequencer-network
+
+  sequencer_simulator:
+    depends_on:
+      - sequencer_node
+    build:
+      context: ../../../
+      dockerfile: ${monitoring_dir}/../images/sequencer/simulator.Dockerfile
+    command:
+      - "--http-url"
+      - "http://sequencer_node"
+      - "--http-port"
+      - "${SEQUENCER_HTTP_PORT}"
+      - "--monitoring-url"
+      - "http://sequencer_node"
+      - "--monitoring-port"
+      - "${SEQUENCER_MONITORING_PORT}"
+      - "--run-forever"
+    networks:
+      - sequencer-network
+
+volumes:
+  data:
+  config:
+
+networks:
+  sequencer-network:
+    driver: bridge
