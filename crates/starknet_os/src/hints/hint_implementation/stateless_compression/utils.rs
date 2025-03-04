@@ -28,8 +28,6 @@ pub(crate) enum BitLength {
 }
 
 impl BitLength {
-    const MAX: usize = 252;
-
     const fn n_bits(&self) -> usize {
         match self {
             Self::Bits15 => 15,
@@ -94,11 +92,11 @@ pub(crate) type BucketElement31 = BitsArray<31>;
 pub(crate) type BucketElement62 = BitsArray<62>;
 pub(crate) type BucketElement83 = BitsArray<83>;
 pub(crate) type BucketElement125 = BitsArray<125>;
-pub(crate) type BucketElement252 = BitsArray<252>;
+pub(crate) type BucketElement252 = Felt;
 
-/// Panics in case the length is 252 bits and the value is larger than max Felt.
-fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
-    if bits.len() > BitLength::MAX {
+/// Returns an error in case the length is not guaranteed to fit in Felt (more than 251 bits).
+pub(crate) fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
+    if bits.len() > MAX_N_BITS {
         return Err(OsHintError::StatelessCompressionOverflow {
             n_bits: bits.len(),
             type_name: type_name::<Felt>().to_string(),
@@ -119,37 +117,32 @@ fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
 }
 
 pub(crate) trait BucketElementTrait: Sized {
-    fn to_bit_length() -> BitLength;
-
-    fn as_bool_ref(&self) -> &[bool];
-
-    fn pack_in_felts(elms: &[Self]) -> Vec<Felt> {
-        elms.chunks(Self::to_bit_length().n_elems_in_felt())
-            .map(|chunk| {
-                felt_from_bits_le(
-                    &(chunk.iter().flat_map(Self::as_bool_ref).copied().collect::<Vec<_>>()),
-                )
-                .unwrap_or_else(|_| {
-                    panic!(
-                        "Chunks of size {}, each of bit length {}, fit in felts.",
-                        Self::to_bit_length().n_elems_in_felt(),
-                        Self::to_bit_length()
-                    )
-                })
-            })
-            .collect()
-    }
+    fn pack_in_felts(elms: &[Self]) -> Vec<Felt>;
 }
 
 macro_rules! impl_bucket_element_trait {
     ($bucket_element:ident, $bit_length:ident) => {
         impl BucketElementTrait for $bucket_element {
-            fn to_bit_length() -> BitLength {
-                BitLength::$bit_length
-            }
-
-            fn as_bool_ref(&self) -> &[bool] {
-                &self.0.as_ref()
+            fn pack_in_felts(elms: &[Self]) -> Vec<Felt> {
+                let bit_length = BitLength::$bit_length;
+                elms.chunks(bit_length.n_elems_in_felt())
+                    .map(|chunk| {
+                        felt_from_bits_le(
+                            &(chunk
+                                .iter()
+                                .flat_map(|elem| elem.0.as_ref())
+                                .copied()
+                                .collect::<Vec<_>>()),
+                        )
+                        .unwrap_or_else(|_| {
+                            panic!(
+                                "Chunks of size {}, each of bit length {}, fit in felts.",
+                                bit_length.n_elems_in_felt(),
+                                bit_length
+                            )
+                        })
+                    })
+                    .collect()
             }
         }
     };
@@ -160,7 +153,12 @@ impl_bucket_element_trait!(BucketElement31, Bits31);
 impl_bucket_element_trait!(BucketElement62, Bits62);
 impl_bucket_element_trait!(BucketElement83, Bits83);
 impl_bucket_element_trait!(BucketElement125, Bits125);
-impl_bucket_element_trait!(BucketElement252, Bits252);
+
+impl BucketElementTrait for BucketElement252 {
+    fn pack_in_felts(elms: &[Self]) -> Vec<Felt> {
+        elms.to_vec()
+    }
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum BucketElement {
@@ -170,19 +168,6 @@ pub(crate) enum BucketElement {
     BucketElement83(BucketElement83),
     BucketElement125(BucketElement125),
     BucketElement252(BucketElement252),
-}
-
-impl BucketElement {
-    pub(crate) fn as_bool_ref(&self) -> &[bool] {
-        match self {
-            BucketElement::BucketElement15(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
-            BucketElement::BucketElement31(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
-            BucketElement::BucketElement62(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
-            BucketElement::BucketElement83(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
-            BucketElement::BucketElement125(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
-            BucketElement::BucketElement252(sized_bits_vec) => sized_bits_vec.as_bool_ref(),
-        }
-    }
 }
 
 impl From<Felt> for BucketElement {
@@ -203,9 +188,7 @@ impl From<Felt> for BucketElement {
             BitLength::Bits125 => {
                 BucketElement::BucketElement125(felt.try_into().expect("Up to 125 bits"))
             }
-            BitLength::Bits252 => {
-                BucketElement::BucketElement252(felt.try_into().expect("Up to 252 bits"))
-            }
+            BitLength::Bits252 => BucketElement::BucketElement252(felt),
         }
     }
 }
