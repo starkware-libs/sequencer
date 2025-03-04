@@ -41,6 +41,7 @@ pub(crate) fn get_address_of_nested_fields<IG: IdentifierGetter>(
     identifier_getter: &IG,
 ) -> Result<Relocatable, OsHintError> {
     let base_address = get_ptr_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
+
     get_address_of_nested_fields_from_base_address(
         base_address,
         var_type,
@@ -58,10 +59,30 @@ pub(crate) fn get_address_of_nested_fields_from_base_address<IG: IdentifierGette
     nested_fields: &[String],
     identifier_getter: &IG,
 ) -> Result<Relocatable, OsHintError> {
-    let var_type_str = var_type.into();
-    let base_struct = identifier_getter.get_identifier(var_type_str)?;
+    let (actual_type, actual_base_address) =
+        deref_type_and_address_if_ptr(var_type.into(), base_address, vm)?;
+    let base_struct = identifier_getter.get_identifier(actual_type)?;
 
-    fetch_nested_fields_address(base_address, base_struct, nested_fields, identifier_getter, vm)
+    fetch_nested_fields_address(
+        actual_base_address,
+        base_struct,
+        nested_fields,
+        identifier_getter,
+        vm,
+    )
+}
+
+/// Returns the actual type and the actual address of variable or a field, depending on whether or
+/// not the type is a pointer.
+fn deref_type_and_address_if_ptr<'a>(
+    cairo_type: &'a str,
+    base_address: Relocatable,
+    vm: &VirtualMachine,
+) -> Result<(&'a str, Relocatable), OsHintError> {
+    Ok(match cairo_type.strip_suffix("*") {
+        Some(actual_cairo_type) => (actual_cairo_type, vm.get_relocatable(base_address)?),
+        None => (cairo_type, base_address),
+    })
 }
 
 /// Helper function to fetch the address of nested fields.
@@ -98,10 +119,8 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
 
     // If the field is a pointer, we remove the asterisk to know the exact type and
     // recursively fetch the address of the field.
-    let (cairo_type, new_base_address) = match field_member.cairo_type.strip_suffix("*") {
-        Some(actual_cairo_type) => (actual_cairo_type, vm.get_relocatable(new_base_address)?),
-        None => (field_member.cairo_type.as_str(), new_base_address),
-    };
+    let (cairo_type, new_base_address) =
+        deref_type_and_address_if_ptr(&field_member.cairo_type, new_base_address, vm)?;
 
     if nested_fields.len() == 1 {
         return Ok(new_base_address);
