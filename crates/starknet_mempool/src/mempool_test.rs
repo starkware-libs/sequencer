@@ -1,7 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
+use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -17,7 +18,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, nonce};
+use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
@@ -146,6 +147,7 @@ impl MempoolTestContentBuilder {
     fn build_full_mempool(self) -> Mempool {
         Mempool {
             config: self.config,
+            delayed_declares: VecDeque::new(),
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
             tx_queue: TransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
@@ -168,7 +170,7 @@ impl FromIterator<InternalRpcTransaction> for TransactionPool {
     }
 }
 
-fn _declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
+fn declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
     let tx = internal_rpc_declare_tx(args);
     let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
 
@@ -1166,4 +1168,59 @@ fn expired_staged_txs_are_not_deleted() {
     let expected_mempool_content =
         MempoolTestContentBuilder::new().with_pool([staged_tx.tx, another_tx.tx]).build();
     expected_mempool_content.assert_eq(&mempool.content());
+}
+
+#[rstest]
+fn delay_declare_txs() {
+    // Create a mempool with a fake clock.
+    let fake_clock = Arc::new(FakeClock::default());
+    let declare_delay = Duration::from_secs(5);
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            transaction_ttl: Duration::from_secs(60),
+            declare_delay,
+            // Always accept fee escalation to test only the delayed declare duplicate nonce.
+            enable_fee_escalation: true,
+            fee_escalation_percentage: 0,
+        },
+        fake_clock.clone(),
+    );
+    let first_declare = declare_add_tx_input(
+        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x0"), tx_hash: tx_hash!(0)),
+    );
+    add_tx(&mut mempool, &first_declare);
+
+    fake_clock.advance(Duration::from_secs(1));
+    let second_declare = declare_add_tx_input(
+        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x1"), tx_hash: tx_hash!(1)),
+    );
+    add_tx(&mut mempool, &second_declare);
+
+    assert_eq!(mempool.get_txs(2).unwrap(), vec![]);
+
+    // Complete the first declare's delay.
+    fake_clock.advance(declare_delay - Duration::from_secs(1));
+    // Add another declare transaction to trigger `add_ready_declares`, and to verify the first
+    // declare of the same account cannot be front run.
+    add_tx_expect_error(
+        &mut mempool,
+        &second_declare,
+        MempoolError::DuplicateNonce {
+            address: second_declare.tx.contract_address(),
+            nonce: second_declare.tx.nonce(),
+        },
+    );
+
+    // Assert only the first declare is in the mempool.
+    assert_eq!(mempool.get_txs(2).unwrap(), vec![first_declare.tx]);
+
+    // Complete the second declare's delay.
+    fake_clock.advance(Duration::from_secs(1));
+    // Add another declare transaction to trigger `add_ready_declares`
+    let another_tx =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 5, account_nonce: 0, tip: 100);
+    add_tx(&mut mempool, &another_tx);
+
+    // Assert the second declare was also added to the mempool.
+    assert_eq!(mempool.get_txs(2).unwrap(), vec![second_declare.tx]);
 }
