@@ -21,6 +21,10 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error("The identifier {0:?} has no full name.")]
+    IdentifierHasNoFullName(Box<Identifier>),
+    #[error("The identifier {0:?} has no members.")]
+    IdentifierHasNoMembers(Box<Identifier>),
     #[error(
         "Inconsistent block numbers: {actual}, {expected}. The constant STORED_BLOCK_HASH_BUFFER \
          is probably out of sync."
@@ -28,28 +32,24 @@ pub enum OsHintError {
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
     InconsistentValue { actual: Felt, expected: Felt },
+    #[error(transparent)]
+    MathError(#[from] MathError),
+    #[error(transparent)]
+    MemoryError(#[from] MemoryError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error("Convert {n_bits} bits for {type_name}.")]
+    StatelessCompressionOverflow { n_bits: usize, type_name: String },
     #[error(transparent)]
     VmError(#[from] VirtualMachineError),
     #[error(transparent)]
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
-    #[error("The identifier {0:?} has no full name.")]
-    IdentifierHasNoFullName(Box<Identifier>),
-    #[error("The identifier {0:?} has no members.")]
-    IdentifierHasNoMembers(Box<Identifier>),
-    #[error(transparent)]
-    MathError(#[from] MathError),
-    #[error(transparent)]
-    MemoryError(#[from] MemoryError),
-    #[error("Convert {n_bits} bits for {type_name}.")]
-    StatelessCompressionOverflow { n_bits: usize, type_name: String },
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
