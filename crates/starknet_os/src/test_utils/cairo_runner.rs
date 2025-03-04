@@ -2,10 +2,9 @@ use blockifier::execution::call_info::Retdata;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
-use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
-use cairo_vm::Felt252;
 
 pub fn run_cairo_0_entry_point(
     program: &Program,
@@ -18,24 +17,16 @@ pub fn run_cairo_0_entry_point(
     let trace_enabled = true;
     let mut cairo_runner =
         CairoRunner::new(program, LayoutName::all_cairo, proof_mode, trace_enabled).unwrap();
-    cairo_runner.initialize_function_runner()?;
-
-    // Implicit args.
-    let mut entrypoint_args: Vec<CairoArg> = vec![
-        MaybeRelocatable::from(Felt252::from(2_i128)).into(), // this is the entry point selector
-        // this would be the output_ptr for example if our cairo function uses it
-        MaybeRelocatable::from((2, 0)).into(),
-    ];
-    // Explicit args.
-    let calldata_start = cairo_runner.vm.add_memory_segment();
-    let calldata_end = cairo_runner.vm.load_data(calldata_start, args).unwrap();
-    entrypoint_args.extend([
-        MaybeRelocatable::from(calldata_start).into(),
-        MaybeRelocatable::from(calldata_end).into(),
-    ]);
+    let allow_missing_builtins = false;
+    cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
+    let program_base: Option<Relocatable> = None;
+    cairo_runner.initialize_segments(program_base);
+    let entrypoint_args: Vec<CairoArg> =
+        args.iter().map(|arg| CairoArg::from(arg.clone())).collect();
     let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
     let verify_secure = true;
     let program_segment_size: Option<usize> = None;
+    // TODO(Amos): Pass implicit args to the cairo runner.
     cairo_runner.run_from_entrypoint(
         program
             .get_identifier(&format!("__main__.{}", entrypoint))
@@ -52,8 +43,9 @@ pub fn run_cairo_0_entry_point(
     let return_values = cairo_runner.vm.get_return_values(n_expected_return_values).unwrap();
     Ok(Retdata(
         return_values
-            .iter()
+            .into_iter()
             .map(|m| {
+                // TODO(Amos): Support returning types other than felts.
                 m.get_int()
                     .unwrap_or_else(|| panic!("Could not convert return data {} to integer.", m))
             })
