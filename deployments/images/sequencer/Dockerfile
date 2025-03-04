@@ -16,6 +16,7 @@ FROM ubuntu:24.04 as final_stage
 ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
+COPY --from=builder /app/target/debug/shared_executables/starknet-sierra-compile ./target/debug/shared_executables/starknet-sierra-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
