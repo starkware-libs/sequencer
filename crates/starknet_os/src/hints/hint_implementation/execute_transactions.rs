@@ -1,5 +1,7 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use cairo_vm::types::relocatable::Relocatable;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
@@ -18,9 +20,20 @@ pub(crate) fn log_remaining_txs<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>
 }
 
 pub(crate) fn fill_holes_in_rc96_segment<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let rc96_ptr = get_ptr_from_var_name(Ids::RangeCheck96Ptr.into(), vm, ids_data, ap_tracking)?;
+    let segment_size = rc96_ptr.offset;
+    let base = Relocatable::from((rc96_ptr.segment_index, 0));
+
+    for i in 0..segment_size {
+        let address = (base + i)?;
+        if vm.get_maybe(&address).is_none() {
+            vm.insert_value(address, Felt::ZERO)?;
+        }
+    }
+
+    Ok(())
 }
 
 pub(crate) fn set_component_hashes<S: StateReader>(
