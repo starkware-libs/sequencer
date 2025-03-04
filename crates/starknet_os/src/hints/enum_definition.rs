@@ -47,7 +47,7 @@ use crate::hints::hint_implementation::compiled_class::{
     set_ap_to_segment_hash,
     validate_compiled_class_facts_post_execution,
 };
-use crate::hints::hint_implementation::deprecated_compiled_class::{
+use crate::hints::hint_implementation::deprecated_compiled_class::implementation::{
     load_deprecated_class,
     load_deprecated_class_facts,
     load_deprecated_class_inner,
