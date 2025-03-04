@@ -86,14 +86,15 @@ fn test_string_inside_composed_field() {
 
 fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
     let mut json_data_raw: IndexMap<String, Value> = serde_json::from_str(json_data).unwrap();
-    json_data_raw.insert("validate_block_number_rounding".to_string(), 0.into());
-    json_data_raw.insert("validate_timestamp_rounding".to_string(), 0.into());
+    json_data_raw.insert("validate_block_number_rounding".into(), 0.into());
+    json_data_raw.insert("validate_timestamp_rounding".into(), 0.into());
     json_data_raw.insert(
-        "os_contract_addresses".to_string(),
+        "os_contract_addresses".into(),
         serde_json::to_value(OsContractAddresses::default()).unwrap(),
     );
-    json_data_raw.insert("v1_bound_accounts_cairo0".to_string(), serde_json::Value::Array(vec![]));
-    json_data_raw.insert("v1_bound_accounts_cairo1".to_string(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_cairo0".into(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_cairo1".into(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_max_tip".into(), "0x0".into());
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 

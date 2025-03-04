@@ -123,7 +123,8 @@
         ],
         "v1_bound_accounts_cairo1": [
             "0x04c6d6cf894f8bc96bb9c525e6853e5483177841f7388f74a46cfda6f028c755"
-        ]
+        ],
+        "v1_bound_accounts_max_tip": "0x1000"
     },
     "os_resources": {
         "execute_syscalls": {
