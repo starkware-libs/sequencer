@@ -1,0 +1,26 @@
+{
+  "chain_id": "SN_MAIN",
+  "services": [
+    {
+      "name": "Batcher",
+      "config_path": "",
+      "ingress": false,
+      "replicas": "Single",
+      "storage": 500
+    },
+    {
+      "name": "Gateway",
+      "config_path": "",
+      "ingress": false,
+      "replicas": "Multiple",
+      "storage": null
+    },
+    {
+      "name": "Mempool",
+      "config_path": "",
+      "ingress": false,
+      "replicas": "Single",
+      "storage": null
+    }
+  ]
+}
