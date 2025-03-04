@@ -30,7 +30,7 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
     info!("Running all nodes");
 
-    integration_test_manager.send_bootstrap_txs_and_verify().await;
+    integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
     integration_test_manager.send_invoke_txs_and_verify(N_TXS, BLOCK_TO_SHUTDOWN_AT).await;
 
