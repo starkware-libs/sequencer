@@ -45,6 +45,7 @@ define_versioned_constants!(
     (V0_13_2_1, "../resources/blockifier_versioned_constants_0_13_2_1.json"),
     (V0_13_3, "../resources/blockifier_versioned_constants_0_13_3.json"),
     (V0_13_4, "../resources/blockifier_versioned_constants_0_13_4.json"),
+    (V0_13_5, "../resources/blockifier_versioned_constants_0_13_5.json"),
     (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
 );
 
