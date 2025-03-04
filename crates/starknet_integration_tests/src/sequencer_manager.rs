@@ -198,9 +198,6 @@ impl IntegrationTestManager {
         num_of_distributed_nodes: usize,
         custom_paths: Option<CustomPaths>,
     ) -> Self {
-        info!("Checking that the sequencer node executable is present.");
-        get_node_executable_path();
-
         let tx_generator = create_integration_test_tx_generator();
 
         let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
@@ -230,6 +227,8 @@ impl IntegrationTestManager {
     }
 
     pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
+        info!("Checking that the sequencer node executable is present.");
+        get_node_executable_path();
         info!("Running specified nodes.");
 
         nodes_to_run.into_iter().for_each(|index| {
