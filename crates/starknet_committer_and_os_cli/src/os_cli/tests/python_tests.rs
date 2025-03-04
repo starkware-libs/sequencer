@@ -200,6 +200,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+use cairo_vm::vm::runners::cairo_runner::CairoArg;
 use starknet_os::hint_processor::snos_hint_processor::SnosHintProcessor;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
@@ -280,7 +281,7 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
 fn run_cairo_function(
     program_str: &str,
     function_name: &str,
-    args: &[MaybeRelocatable],
+    args: &[CairoArg],
     expected_retdata: &Retdata,
 ) -> OsPythonTestResult {
     let program_bytes = program_str.as_bytes();
@@ -306,7 +307,7 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
     run_cairo_function(
         input,
         "dummy_function",
-        &[param_1.into(), param_2.into()],
+        &[MaybeRelocatable::from(param_1).into(), MaybeRelocatable::from(param_2).into()],
         &retdata![(789 + param_1).into(), param_1.into(), param_2.into()],
     )
 }
