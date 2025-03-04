@@ -31,7 +31,17 @@ async fn main() {
     integration_test_manager.send_bootstrap_txs_and_verify().await;
 
     // Run the test.
+    tracing::info!("running the balk part of the test.");
     integration_test_manager.send_invoke_txs_and_verify(N_TXS, BLOCK_TO_WAIT_FOR).await;
+
+    // Run the L1 handler test.
+    // tracing::info!("running the L1 handler part of the test.");
+    // integration_test_manager
+    //     .send_l1_handler_txs_and_verify(
+    //         2,
+    //         BLOCK_TO_WAIT_FOR.unchecked_next().unchecked_next().unchecked_next(),
+    //     )
+    //     .await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);

@@ -1,6 +1,7 @@
 {
-  "base_layer_config.node_url": "https://node_url/",
-  "base_layer_config.starknet_contract_address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+  "base_layer_config.port": 59143,
+  "base_layer_config.node_url": "http://localhost:59143/",
+  "base_layer_config.starknet_contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,

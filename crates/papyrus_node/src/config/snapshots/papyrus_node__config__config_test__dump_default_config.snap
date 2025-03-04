@@ -8,6 +8,11 @@ expression: dumped_default_config
     "param_type": "String",
     "privacy": "Private"
   },
+  "base_layer.port": {
+    "description": "A required param! The port used to connect to the Ethereum node.",
+    "param_type": "PositiveInteger",
+    "privacy": "Private"
+  },
   "base_layer.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "value": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",

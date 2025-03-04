@@ -4,6 +4,11 @@
     "param_type": "String",
     "privacy": "Private"
   },
+  "base_layer_config.port": {
+    "description": "A required param! The port used to connect to the Ethereum node.",
+    "param_type": "PositiveInteger",
+    "privacy": "Private"
+  },
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "privacy": "Public",
