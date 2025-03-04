@@ -320,7 +320,7 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     let key_ptr = get_address_of_nested_fields(
         ids_data,
         Ids::Request,
-        CairoStruct::DictAccess,
+        CairoStruct::StorageReadRequestPtr,
         vm,
         ap_tracking,
         &["key".to_string()],

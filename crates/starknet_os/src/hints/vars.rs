@@ -161,6 +161,7 @@ pub enum CairoStruct {
     DeprecatedCompiledClassFact,
     DictAccess,
     OsStateUpdate,
+    StorageReadRequestPtr,
 }
 
 impl From<CairoStruct> for &'static str {
@@ -179,6 +180,9 @@ impl From<CairoStruct> for &'static str {
             }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
+            CairoStruct::StorageReadRequestPtr => {
+                "starkware.starknet.core.os.storage.StorageReadRequest*"
+            }
         }
     }
 }
