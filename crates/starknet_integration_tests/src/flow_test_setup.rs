@@ -108,6 +108,7 @@ impl FlowTestSetup {
 
         let base_layer_config =
             ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
+        // TODO(Arni): Share this code.
         let anvil = anvil_instance_from_config(&base_layer_config);
         let ethereum_base_layer_contract =
             EthereumBaseLayerContract::new(base_layer_config.clone());
