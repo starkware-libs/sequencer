@@ -285,10 +285,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.base.call.caller_address
     }
 
-    pub fn class_hash(&self) -> ClassHash {
-        self.base.call.class_hash
-    }
-
     pub fn entry_point_selector(&self) -> EntryPointSelector {
         self.base.call.entry_point_selector
     }

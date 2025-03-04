@@ -396,7 +396,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
 
     /// Allocates and populates a segment with the transaction info.
     ///
-    /// If `tx_version` is given, it will be used instead of the real value.
+    /// If `tx_version_override` is given, it will be used instead of the real value.
     fn allocate_tx_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
