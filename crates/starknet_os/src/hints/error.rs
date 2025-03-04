@@ -39,6 +39,10 @@ pub enum OsHintError {
     MemoryError(#[from] MemoryError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
+    #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
+    InconsistentValue { actual: Felt, expected: Felt },
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
