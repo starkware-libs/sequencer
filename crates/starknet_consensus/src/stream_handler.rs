@@ -116,6 +116,9 @@ pub struct StreamHandler<StreamContent, StreamId, InboundReceiverT, OutboundSend
 where
     StreamContent: StreamContentTrait,
     StreamId: StreamIdTrait,
+    InboundReceiverT: Unpin
+        + StreamExt<Item = ReceivedBroadcastedMessage<StreamMessage<StreamContent, StreamId>>>,
+    OutboundSenderT: BroadcastTopicClientTrait<StreamMessage<StreamContent, StreamId>>,
 {
     // For each stream ID from the network, send the application a Receiver
     // that will receive the messages in order. This allows sending such Receivers.
