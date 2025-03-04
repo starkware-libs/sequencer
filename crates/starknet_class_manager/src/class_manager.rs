@@ -5,7 +5,7 @@ use starknet_sequencer_infra::component_definitions::{
     default_component_start_fn,
     ComponentStarter,
 };
-use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricScope};
+use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use starknet_sierra_multicompile_types::{
     RawClass,

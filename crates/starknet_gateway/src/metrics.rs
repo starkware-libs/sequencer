@@ -1,6 +1,6 @@
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricScope};
+use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
