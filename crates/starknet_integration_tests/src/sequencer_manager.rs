@@ -457,16 +457,15 @@ pub async fn get_sequencer_setup_configs(
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
-    // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
-    let mut available_ports =
-        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
-
     let node_component_configs: Vec<NodeComponentConfigs> = {
         let mut combined = Vec::new();
+        let available_ports_index: u16 = (num_of_distributed_nodes + 1).try_into().unwrap();
+        let instance_index = MAX_NUMBER_OF_INSTANCES_PER_TEST - available_ports_index;
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
         combined.extend(create_distributed_node_configs(
-            &mut available_ports,
+            test_unique_id.into(),
+            instance_index,
             num_of_distributed_nodes,
         ));
         combined
@@ -480,6 +479,8 @@ pub async fn get_sequencer_setup_configs(
         .map(|node_component_config| node_component_config.len())
         .sum();
 
+    let mut available_ports =
+        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
     // TODO(Nadin): Refactor to avoid directly mutating vectors
 
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
