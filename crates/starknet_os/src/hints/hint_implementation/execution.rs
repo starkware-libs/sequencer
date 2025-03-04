@@ -309,30 +309,6 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     Ok(())
 }
 
-// pub const CACHE_CONTRACT_STORAGE_REQUEST_KEY: &str = indoc! {r#"
-// 	# Make sure the value is cached (by reading it), to be used later on for the
-// 	# commitment computation.
-// 	value = execution_helper.storage_by_address[ids.contract_address].read(key=ids.request.key)
-// 	assert ids.value == value, "Inconsistent storage value.""#
-// };
-
-// pub fn cache_contract_storage_request_key<PCS>(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     let request_ptr = get_ptr_from_var_name(vars::ids::REQUEST, vm, ids_data, ap_tracking)?;
-//     let key = vm.get_integer((request_ptr +
-// new_syscalls::StorageReadRequest::key_offset())?)?.into_owned();
-
-//     execute_coroutine(cache_contract_storage::<PCS>(key, vm, exec_scopes, ids_data,
-// ap_tracking))? }
-
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
