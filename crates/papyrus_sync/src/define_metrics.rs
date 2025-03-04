@@ -2,7 +2,7 @@
 // libs.rs
 
 use starknet_sequencer_metrics::define_metrics;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricScope};
+use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
 define_metrics!(
     PapyrusSync => {

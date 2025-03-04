@@ -1,5 +1,5 @@
 use starknet_sequencer_metrics::define_metrics;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricScope};
+use starknet_sequencer_metrics::metrics::MetricCounter;
 use tracing::info;
 
 #[cfg(test)]

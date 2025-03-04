@@ -20,7 +20,7 @@ macro_rules! define_metrics {
             $(
                 $crate::paste::paste! {
                     pub const $name: $type = <$type>::new(
-                        MetricScope::$scope,
+                        $crate::metrics::MetricScope::$scope,
                         $key,
                         $desc
                         $(, $init)? // Only expands if `init = ...` is provided
