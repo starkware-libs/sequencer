@@ -399,6 +399,33 @@ impl FsClassStorage {
         Ok(self.class_hash_storage.set_executable_class_hash(class_id, executable_class_hash)?)
     }
 
+    fn write_class(
+        &self,
+        class_id: ClassId,
+        class: RawClass,
+        executable_class: RawExecutableClass,
+    ) -> FsClassStorageResult<()> {
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        class.write_to_file(concat_sierra_filename(&persistent_dir))?;
+        executable_class.write_to_file(concat_executable_filename(&persistent_dir))?;
+
+        Ok(())
+    }
+
+    fn write_deprecated_class(
+        &self,
+        class_id: ClassId,
+        class: RawExecutableClass,
+    ) -> FsClassStorageResult<()> {
+        let persistent_dir = self.get_persistent_dir_with_create(class_id)?;
+        class.write_to_file(concat_deprecated_executable_filename(&persistent_dir))?;
+
+        Ok(())
+    }
+
+    // TODO(Elin): restore use of `write_[deprecated_]class_atomically`, but tmpdir
+    // should be located inside the PVC to prevent linking errors.
+    #[allow(dead_code)]
     fn write_class_atomically(
         &self,
         class_id: ClassId,
@@ -418,6 +445,7 @@ impl FsClassStorage {
         Ok(())
     }
 
+    #[allow(dead_code)]
     fn write_deprecated_class_atomically(
         &self,
         class_id: ClassId,
@@ -451,8 +479,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_class_atomically(class_id, class, executable_class)?;
-
+        self.write_class(class_id, class, executable_class)?;
         self.mark_class_id_as_existent(class_id, executable_class_hash)?;
 
         Ok(())
@@ -505,7 +532,7 @@ impl ClassStorage for FsClassStorage {
             return Ok(());
         }
 
-        self.write_deprecated_class_atomically(class_id, class)?;
+        self.write_deprecated_class(class_id, class)?;
 
         Ok(())
     }
