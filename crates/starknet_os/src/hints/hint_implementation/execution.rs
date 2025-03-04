@@ -17,8 +17,18 @@ pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> 
     todo!()
 }
 
+// pub const EXIT_TX: &str = "exit_tx()";
+// pub fn exit_tx(
+//     _vm: &mut VirtualMachine,
+//     _exec_scopes: &mut ExecutionScopes,
+//     _ids_data: &HashMap<String, HintReference>,
+//     _ap_tracking: &ApTracking,
+//     _constants: &HashMap<String, Felt252>,
+// ) -> Result<(), HintError> { // TODO: add logger Ok(())
+// }
+
 pub(crate) fn exit_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+    Ok(())
 }
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
