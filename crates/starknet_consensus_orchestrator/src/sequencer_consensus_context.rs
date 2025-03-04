@@ -535,13 +535,32 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
-        let sync_block = self.state_sync_client.get_block(height).await;
-        if let Ok(Some(sync_block)) = sync_block {
-            self.interrupt_active_proposal().await;
-            self.batcher.add_sync_block(sync_block).await.unwrap();
-            return true;
+        let Ok(Some(sync_block)) = self.state_sync_client.get_block(height).await else {
+            return false;
+        };
+        // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
+        let block_number = sync_block.block_header_without_hash.block_number;
+        let timestamp = sync_block.block_header_without_hash.timestamp;
+        let now: u64 =
+            chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
+        if !(block_number == height
+            && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
+            && timestamp.0 <= now + self.block_timestamp_window)
+        {
+            warn!(
+                "Invalid block info: expected block number {}, got {}, expected timestamp range \
+                 [{}, {}], got {}",
+                height,
+                block_number,
+                self.last_block_timestamp.unwrap_or(0),
+                now + self.block_timestamp_window,
+                timestamp.0,
+            );
+            return false;
         }
-        false
+        self.interrupt_active_proposal().await;
+        self.batcher.add_sync_block(sync_block).await.unwrap();
+        true
     }
 
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
