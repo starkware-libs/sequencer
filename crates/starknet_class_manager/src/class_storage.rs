@@ -368,8 +368,8 @@ impl FsClassStorage {
     /// └── b2c3.../
     fn get_class_dir(&self, class_id: ClassId) -> PathBuf {
         let class_id = hex::encode(class_id.to_bytes_be());
-        let (first_msb_byte, rest_of_bytes) = class_id.split_at(2);
-        PathBuf::from(first_msb_byte).join(rest_of_bytes)
+        let (first_msb_byte, _rest_of_bytes) = class_id.split_at(2);
+        PathBuf::from(first_msb_byte).join(class_id)
     }
 
     fn get_persistent_dir(&self, class_id: ClassId) -> PathBuf {
