@@ -11,7 +11,13 @@ use strum::IntoEnumIterator;
 
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
+<<<<<<< HEAD
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
+||||||| f39b2b272
+use crate::test_utils::contracts::FeatureContract;
+=======
+use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+>>>>>>> origin/main-v0.13.5
 use crate::test_utils::dict_state_reader::DictStateReader;
 
 /// Utility to fund an account.

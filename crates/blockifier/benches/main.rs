@@ -5,18 +5,33 @@
 //! The main benchmark function is `transfers_benchmark`, which measures the performance
 //! of transfers between randomly created accounts, which are iterated over round-robin.
 //!
+<<<<<<< HEAD:crates/blockifier/benches/main.rs
 //! Run the benchmarks using `cargo bench --bench blockifier`.
 //!
 //! For Cairo Native compilation run the benchmarks using:
 //! `cargo bench --bench blockifier --features "cairo_native"`.
+||||||| f39b2b272:crates/blockifier/bench/blockifier_bench.rs
+//! Run the benchmarks using `cargo bench --bench blockifier_bench`.
+=======
+//! Run the benchmarks using `cargo bench --bench blockifier_bench`.
+//!
+//! For Cairo Native compilation run the benchmarks using:
+//! `cargo bench --bench blockifier_bench --features "cairo_native"`.
+>>>>>>> origin/main-v0.13.5:crates/blockifier/bench/blockifier_bench.rs
 
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType,
     TransfersGenerator,
     TransfersGeneratorConfig,
 };
+<<<<<<< HEAD:crates/blockifier/benches/main.rs
 #[cfg(feature = "cairo_native")]
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+||||||| f39b2b272:crates/blockifier/bench/blockifier_bench.rs
+=======
+#[cfg(feature = "cairo_native")]
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+>>>>>>> origin/main-v0.13.5:crates/blockifier/bench/blockifier_bench.rs
 use criterion::{criterion_group, criterion_main, Criterion};
 use starknet_infra_utils::set_global_allocator;
 

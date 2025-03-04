@@ -50,8 +50,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+<<<<<<< HEAD
   test-without-features:
     runs-on: starkware-ubuntu-24.04-medium
+||||||| f39b2b272
+  feature-combo-builds:
+    runs-on: starkware-ubuntu-latest-medium
+=======
+  feature-combo-builds:
+    runs-on: starkware-ubuntu-24.04-medium
+>>>>>>> origin/main-v0.13.5
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

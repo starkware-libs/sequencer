@@ -413,8 +413,13 @@ auto_storage_serde! {
         V0_13_2_1 = 17,
         V0_13_3 = 18,
         V0_13_4 = 19,
+<<<<<<< HEAD
         V0_13_5 = 20,
         V0_14_0 = 21,
+||||||| f39b2b272
+=======
+        V0_13_5 = 20,
+>>>>>>> origin/main-v0.13.5
     }
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);
