@@ -1,6 +1,15 @@
 use std::str::FromStr;
 
-use metrics::{counter, describe_counter, describe_gauge, gauge, IntoF64};
+use indexmap::IndexMap;
+use metrics::{
+    counter,
+    describe_counter,
+    describe_gauge,
+    describe_histogram,
+    gauge,
+    histogram,
+    IntoF64,
+};
 use num_traits::Num;
 use regex::{escape, Regex};
 
@@ -160,6 +169,53 @@ impl MetricGauge {
     }
 }
 
+pub struct MetricHistogram {
+    scope: MetricScope,
+    name: &'static str,
+    description: &'static str,
+}
+
+pub struct HistogramValue {
+    pub sum: f64,
+    pub count: u64,
+    pub histogram: IndexMap<String, f64>,
+}
+
+impl MetricHistogram {
+    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
+        Self { scope, name, description }
+    }
+
+    pub const fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    pub const fn get_scope(&self) -> MetricScope {
+        self.scope
+    }
+
+    pub const fn get_description(&self) -> &'static str {
+        self.description
+    }
+
+    pub fn register(&self) {
+        let _ = histogram!(self.name);
+        describe_histogram!(self.name, self.description);
+    }
+
+    pub fn record<T: IntoF64>(&self, value: T) {
+        histogram!(self.name).record(value.into_f64());
+    }
+
+    pub fn record_many<T: IntoF64>(&self, value: T, count: usize) {
+        histogram!(self.name).record_many(value.into_f64(), count);
+    }
+
+    pub fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
+        parse_histogram_metric(metrics_as_string, self.get_name(), None)
+    }
+}
+
 /// Parses a specific numeric metric value from a metrics string.
 ///
 /// # Arguments
@@ -210,4 +266,73 @@ pub fn parse_numeric_metric<T: Num + FromStr>(
     }
     // If no match is found, return None.
     None
+}
+
+/// Parses a histogram metric from a metrics string.
+///
+/// # Arguments
+///
+/// - `metrics_as_string`: A string containing the rendered metrics data.
+/// - `metric_name`: The name of the metric to search for.
+/// - `labels`: Optional labels to match the metric.
+///
+/// # Returns
+///
+/// - `Option<HistogramValue>`: Returns `Some(HistogramValue)` if the metric is found and
+///   successfully parsed. Returns `None` if the metric is not found or if parsing fails.
+pub fn parse_histogram_metric(
+    metrics_as_string: &str,
+    metric_name: &str,
+    labels: Option<&[(&'static str, &'static str)]>,
+) -> Option<HistogramValue> {
+    // Construct a regex pattern to match the labels if provided.
+    let mut labels_pattern = "".to_string();
+    if let Some(labels) = labels {
+        let inner_pattern = labels
+            .iter()
+            .map(|(k, v)| format!(r#"{}="{}""#, escape(k), escape(v)))
+            .collect::<Vec<_>>()
+            .join(r",");
+        labels_pattern = format!(r#"\{{{}\}}"#, inner_pattern);
+    }
+
+    // Define regex patterns for quantiles, sum, and count.
+    let quantile_pattern =
+        format!(r#"{}{}\{{quantile="([^"]+)"\}}\s+([\d\.]+)"#, escape(metric_name), labels_pattern);
+    let sum_pattern = format!(r#"{}_sum{}\s+([\d\.]+)"#, escape(metric_name), labels_pattern);
+    let count_pattern = format!(r#"{}_count{}\s+(\d+)"#, escape(metric_name), labels_pattern);
+
+    // Compile the regex patterns.
+    let quantile_re = Regex::new(&quantile_pattern).expect("Invalid regex for quantiles");
+    let sum_re = Regex::new(&sum_pattern).expect("Invalid regex for sum");
+    let count_re = Regex::new(&count_pattern).expect("Invalid regex for count");
+
+    // Parse quantiles and insert them into the histogram.
+    let mut histogram = IndexMap::new();
+    for captures in quantile_re.captures_iter(metrics_as_string) {
+        let quantile = captures.get(1)?.as_str().to_string();
+        let value = captures.get(2)?.as_str().parse::<f64>().ok()?;
+        histogram.insert(quantile, value);
+    }
+
+    // If merics wasn't found, return None.
+    if histogram.is_empty() {
+        return None;
+    }
+
+    // Parse the sum value.
+    let sum = sum_re
+        .captures(metrics_as_string)
+        .and_then(|cap| cap.get(1))
+        .and_then(|m| m.as_str().parse::<f64>().ok())
+        .unwrap_or(0.0);
+
+    // Parse the count value.
+    let count = count_re
+        .captures(metrics_as_string)
+        .and_then(|cap| cap.get(1))
+        .and_then(|m| m.as_str().parse::<u64>().ok())
+        .unwrap_or(0);
+
+    Some(HistogramValue { sum, count, histogram })
 }
