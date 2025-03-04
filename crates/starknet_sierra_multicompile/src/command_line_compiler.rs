@@ -7,6 +7,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
+use tracing::info;
 
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
@@ -30,6 +31,8 @@ pub struct CommandLineCompiler {
 impl CommandLineCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_starknet_sierra_compile_binary = binary_path(out_dir(), CAIRO_LANG_BINARY_NAME);
+        info!("Using Sierra compiler binary at: {:?}", path_to_starknet_sierra_compile_binary);
+
         #[cfg(feature = "cairo_native")]
         let path_to_starknet_native_compile_binary = match &config.sierra_to_native_compiler_path {
             Some(path) => path.clone(),
