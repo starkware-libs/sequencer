@@ -35,6 +35,7 @@ thiserror.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
+num-bigint.workspace = true
 rstest.workspace = true
 
 [lints]

@@ -11476,6 +11476,7 @@ dependencies = [
  "cairo-vm",
  "indexmap 2.7.0",
  "indoc 2.0.5",
+ "num-bigint 0.4.6",
  "rstest",
  "serde",
  "serde_json",
