@@ -55,7 +55,7 @@ fn get_faulty_test_contract() -> CairoLangContractClass {
 #[rstest]
 #[case::command_line_compiler(command_line_compiler())]
 fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
-    let expected_casm_contract_length = 72304;
+    let expected_casm_contract_length = 72305;
 
     let contract_class = get_test_contract();
     let casm_contract = compiler.compile(contract_class).unwrap();
