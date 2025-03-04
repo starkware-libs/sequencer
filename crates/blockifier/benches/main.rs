@@ -16,7 +16,7 @@ use blockifier::test_utils::transfers_generator::{
     TransfersGeneratorConfig,
 };
 #[cfg(feature = "cairo_native")]
-use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::{CairoVersion, RunnableCairo1};
 use criterion::{criterion_group, criterion_main, Criterion};
 use starknet_infra_utils::set_global_allocator;
 
