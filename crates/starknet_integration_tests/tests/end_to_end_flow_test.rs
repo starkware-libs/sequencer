@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use futures::StreamExt;
 use mempool_test_utils::in_ci;
@@ -160,10 +161,12 @@ async fn end_to_end_flow(
         .expect("listen to broadcasted messages should finish in time");
     }
 
+    // Wait for all sequencer to commit the last tested block.
+    tokio::time::sleep(Duration::from_millis(2000)).await;
     for sequencer in sequencers {
         let height = sequencer.batcher_height().await;
         assert!(
-            height >= expected_last_height,
+            height >= expected_last_height.unchecked_next(),
             "Sequencer {} didn't reach last height.",
             sequencer.node_index
         );
