@@ -82,7 +82,7 @@ use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
 use crate::versioned_constants::GasCosts;
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SyscallUsage {
     pub call_count: usize,
     #[allow(dead_code)]
