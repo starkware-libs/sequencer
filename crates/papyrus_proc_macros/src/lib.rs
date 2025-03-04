@@ -238,7 +238,7 @@ impl syn::parse::Parse for HandleAllResponseVariantsMacroInput {
 /// let response = self.send(request).await;
 /// match response? {
 ///     MempoolResponse::GetTransactions(Ok(boxed_resp)) => {
-///         let resr = *boxed_resp;
+///         let resp = *boxed_resp;
 ///         Ok(resp)
 ///     }
 ///     MempoolResponse::GetTransactions(Err(resp)) => {
