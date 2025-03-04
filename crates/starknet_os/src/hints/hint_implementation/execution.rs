@@ -1,4 +1,3 @@
-use blockifier::abi::constants;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
