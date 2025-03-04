@@ -156,7 +156,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
     #[instrument(skip_all, fields(height=%height.0), level = "error")]
-    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn run_height(
         &mut self,
         context: &mut ContextT,
@@ -166,6 +165,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        if context.try_sync(height).await {
+            return Ok(RunHeightRes::Sync);
+        }
+
         let validators = context.validators(height).await;
         let is_observer = must_observer || !validators.contains(&self.validator_id);
         info!(
