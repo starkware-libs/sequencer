@@ -9,6 +9,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::enum_definition::AllHints;
 use crate::hints::vars::{Const, Ids};
 
 #[derive(Debug, thiserror::Error)]
@@ -36,6 +37,8 @@ pub enum OsHintError {
     MathError(#[from] MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
+    #[error("Hint {hint:?} has no nondet offset.")]
+    MissingOffsetForHint { hint: AllHints },
     #[error("{error:?} for json value {value}.")]
     SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
