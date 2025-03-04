@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
     get_maybe_relocatable_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
@@ -62,7 +63,18 @@ pub(crate) fn compression_hint<S: StateReader>(
 }
 
 pub(crate) fn set_decompressed_dst<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let decompressed_dst =
+        get_ptr_from_var_name(Ids::DecompressedDst.into(), vm, ids_data, ap_tracking)?;
+
+    let packed_felt = get_integer_from_var_name(Ids::PackedFelt.into(), vm, ids_data, ap_tracking)?;
+    let elm_bound = get_integer_from_var_name(Ids::ElmBound.into(), vm, ids_data, ap_tracking)?;
+
+    vm.insert_value(
+        decompressed_dst,
+        packed_felt.div_rem(&elm_bound.try_into().expect("elm_bound is zero")).1,
+    )?;
+
+    Ok(())
 }
