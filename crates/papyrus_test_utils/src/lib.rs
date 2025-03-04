@@ -494,7 +494,12 @@ auto_impl_get_test_instance! {
         V0_13_2_1 = 17,
         V0_13_3 = 18,
         V0_13_4 = 19,
+<<<<<<< HEAD
         V0_14_0 = 20,
+||||||| f39b2b272
+=======
+        V0_13_5 = 20,
+>>>>>>> origin/main-v0.13.5
     }
 
     pub struct Calldata(pub Arc<Vec<Felt>>);

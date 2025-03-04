@@ -18,13 +18,19 @@ use crate::blockifier::transaction_executor::{TransactionExecutor, DEFAULT_STACK
 use crate::context::{BlockContext, ChainInfo};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
+<<<<<<< HEAD
 use crate::test_utils::{BALANCE, MAX_FEE};
+||||||| f39b2b272
+use crate::test_utils::{CairoVersion, BALANCE, MAX_FEE};
+=======
+use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE, MAX_FEE};
+>>>>>>> origin/main-v0.13.5
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transaction_execution::Transaction;
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
-const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
+const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo1(RunnableCairo1::Casm);
 const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
 
