@@ -11,7 +11,10 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerContract,
     Starknet,
 };
-use papyrus_base_layer::test_utils::{anvil, ethereum_base_layer_config};
+use papyrus_base_layer::test_utils::{
+    anvil_instance_from_config,
+    create_ethereum_base_layer_config as anvil_config,
+};
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::test_utils::{
     create_connected_network_configs,
@@ -65,7 +68,8 @@ pub struct FlowTestSetup {
     pub sequencer_1: FlowSequencerSetup,
 
     // Handle for L1 server: the server is dropped when handle is dropped.
-    pub l1_handle: AnvilInstance,
+    #[allow(dead_code)]
+    l1_handle: AnvilInstance,
     starknet_l1_contract: StarknetL1Contract,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
@@ -102,8 +106,9 @@ impl FlowTestSetup {
                 .try_into()
                 .unwrap();
 
-        let anvil = anvil(Some(available_ports.get_next_port()));
-        let base_layer_config = ethereum_base_layer_config(&anvil);
+        let base_layer_config = anvil_config(Some(available_ports.get_next_port()));
+        // TODO(Arni): Share this code.
+        let anvil = anvil_instance_from_config(&base_layer_config);
         let ethereum_base_layer_contract =
             EthereumBaseLayerContract::new(base_layer_config.clone());
         let starknet_l1_contract =
