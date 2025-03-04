@@ -97,16 +97,14 @@ services:
     build:
       context: ../../../
       dockerfile: ${monitoring_dir}/../images/sequencer/simulator.Dockerfile
-    command:
-      - "--http-url"
-      - "http://sequencer_node"
-      - "--http-port"
-      - "${SEQUENCER_HTTP_PORT}"
-      - "--monitoring-url"
-      - "http://sequencer_node"
-      - "--monitoring-port"
-      - "${SEQUENCER_MONITORING_PORT}"
-      - "--run-forever"
+    entrypoint: "/bin/bash -c"
+    command: >
+      "./target/debug/sequencer_simulator \
+      --http-url http://sequencer_node \
+      --http-port ${SEQUENCER_HTTP_PORT} \
+      --monitoring-url http://sequencer_node \
+      --monitoring-port ${SEQUENCER_MONITORING_PORT} \
+      ${SIMULATOR_RUN_FOREVER:+--run-forever}"
     networks:
       - sequencer-network
 
