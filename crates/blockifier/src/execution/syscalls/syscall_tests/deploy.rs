@@ -122,9 +122,16 @@ fn with_constructor(runnable_version: RunnableCairo1) {
     .unwrap();
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+
+    // TODO(Aviv): This is a temporary until next PR.
+    let gas_consumed = match runnable_version {
+        RunnableCairo1::Casm => 174910,
+        RunnableCairo1::Native => 186010,
+    };
+
     assert_eq!(
         deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 174910, ..CallExecution::default() }
+        CallExecution { retdata: retdata![], gas_consumed, ..CallExecution::default() }
     );
 
     let constructor_call = &deploy_call.inner_calls[0];
