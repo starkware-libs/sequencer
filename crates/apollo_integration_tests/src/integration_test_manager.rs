@@ -66,14 +66,14 @@ use crate::utils::{
     set_validator_id,
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
-    BootstrapTxs,
     ConsensusTxs,
+    DeployAndInvokeTxs,
     TestScenario,
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
-pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
+pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(2);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
@@ -440,9 +440,13 @@ impl IntegrationTestManager {
         });
     }
 
-    pub async fn send_bootstrap_txs_and_verify(&mut self) {
-        self.test_and_verify(BootstrapTxs, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
-            .await;
+    pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
+        self.test_and_verify(
+            DeployAndInvokeTxs,
+            DEFAULT_SENDER_ACCOUNT,
+            BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE,
+        )
+        .await;
     }
 
     pub async fn send_txs_and_verify(

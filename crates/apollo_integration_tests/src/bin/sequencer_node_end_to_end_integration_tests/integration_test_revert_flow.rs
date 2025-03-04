@@ -4,7 +4,7 @@ use std::time::Duration;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::{
     IntegrationTestManager,
-    BLOCK_TO_WAIT_FOR_BOOTSTRAP,
+    BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_sequencer_node::config::definitions::ConfigPointersMap;
@@ -19,7 +19,7 @@ async fn main() {
     const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(10);
     const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(15);
     // can't use static assertion as comparison is non const.
-    assert!(BLOCK_TO_WAIT_FOR_BOOTSTRAP < BLOCK_TO_REVERT_FROM);
+    assert!(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE < BLOCK_TO_REVERT_FROM);
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
 
     const N_TXS: usize = 50;
@@ -46,8 +46,8 @@ async fn main() {
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
-    info!("Sending bootstrap transactions and verifying state.");
-    integration_test_manager.send_bootstrap_txs_and_verify().await;
+    info!("Sending deploy and invoke together transactions and verifying state.");
+    integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
     // Save a snapshot of the tx_generator so we can restore the state after reverting.
     let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
@@ -60,9 +60,9 @@ async fn main() {
 
     info!(
         "Changing revert config for all nodes to revert from block {BLOCK_TO_REVERT_FROM} back to \
-         block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}."
+         block {BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE}."
     );
-    let revert_up_to_and_including = Some(BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next());
+    let revert_up_to_and_including = Some(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.unchecked_next());
     modify_revert_config_idle_nodes(
         &mut integration_test_manager,
         node_indices.clone(),
@@ -71,17 +71,17 @@ async fn main() {
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
-    info!("Awaiting for all running nodes to revert back to block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}.");
+    info!("Awaiting for all running nodes to revert back to block {BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE}.");
     integration_test_manager
         .await_revert_all_running_nodes(
-            BLOCK_TO_WAIT_FOR_BOOTSTRAP,
+            BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE,
             AWAIT_REVERT_TIMEOUT_DURATION,
             AWAIT_REVERT_INTERVAL_MS,
             MAX_ATTEMPTS,
         )
         .await;
 
-    info!("All nodes reverted to block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}. Shutting down nodes.");
+    info!("All nodes reverted to block {BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE}. Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices.clone());
 
     // Restore the tx generator state.
@@ -89,10 +89,10 @@ async fn main() {
 
     info!(
         "Modifying revert config for all nodes and resume sequencing from block \
-         {BLOCK_TO_WAIT_FOR_BOOTSTRAP}."
+         {BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE}."
     );
     modify_revert_config_idle_nodes(&mut integration_test_manager, node_indices.clone(), None);
-    let node_start_height = BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next();
+    let node_start_height = BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.unchecked_next();
     modify_height_configs_idle_nodes(
         &mut integration_test_manager,
         node_indices.clone(),
