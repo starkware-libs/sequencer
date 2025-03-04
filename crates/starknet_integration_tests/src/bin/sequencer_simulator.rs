@@ -8,8 +8,8 @@ use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
-    BootstrapTxs,
     ConsensusTxs,
+    DeployAndInvokeTxs,
     ACCOUNT_ID_0,
     N_TXS_IN_FIRST_BLOCK,
 };
@@ -126,8 +126,8 @@ async fn main() -> anyhow::Result<()> {
     let sequencer_simulator =
         SequencerSimulator::new(args.http_url, http_port, args.monitoring_url, monitoring_port);
 
-    info!("Sending bootstrap txs");
-    sequencer_simulator.send_txs(&mut tx_generator, &BootstrapTxs, ACCOUNT_ID_0).await;
+    info!("Sending deploy and invoke txs");
+    sequencer_simulator.send_txs(&mut tx_generator, &DeployAndInvokeTxs, ACCOUNT_ID_0).await;
 
     // Wait for the bootstrap transaction to be accepted in a separate block.
     sequencer_simulator.await_txs_accepted(0, N_TXS_IN_FIRST_BLOCK).await;

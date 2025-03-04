@@ -47,7 +47,7 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     info!("Sending bootstrap transactions and verifying state.");
-    integration_test_manager.send_bootstrap_txs_and_verify().await;
+    integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
     // Save a snapshot of the tx_generator so we can restore the state after reverting.
     let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
