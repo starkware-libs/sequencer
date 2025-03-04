@@ -9,6 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
+use super::utils::compress;
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::stateless_compression::utils::TOTAL_N_BUCKETS;
 use crate::hints::types::HintArgs;
@@ -41,8 +42,23 @@ pub(crate) fn get_prev_offset<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn compression_hint<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn compression_hint<S: StateReader>(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let data_start = get_ptr_from_var_name(Ids::DataStart.into(), vm, ids_data, ap_tracking)?;
+    let data_end = get_ptr_from_var_name(Ids::DataEnd.into(), vm, ids_data, ap_tracking)?;
+    let data_size = (data_end - data_start)?;
+
+    let compressed_dst =
+        get_ptr_from_var_name(Ids::CompressedDst.into(), vm, ids_data, ap_tracking)?;
+    let data =
+        vm.get_integer_range(data_start, data_size)?.into_iter().map(|f| *f).collect::<Vec<_>>();
+    let compress_result =
+        compress(&data).into_iter().map(MaybeRelocatable::Int).collect::<Vec<_>>();
+
+    vm.write_arg(compressed_dst, &compress_result)?;
+
+    Ok(())
 }
 
 pub(crate) fn set_decompressed_dst<S: StateReader>(
