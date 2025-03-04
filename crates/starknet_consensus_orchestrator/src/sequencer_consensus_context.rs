@@ -475,6 +475,12 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to get state diff.");
 
+        let next_l2_gas_price = calculate_next_base_gas_price(
+            self.l2_gas_price,
+            l2_gas_used.0,
+            VersionedConstants::latest_constants().max_block_size / 2,
+        );
+
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
         // TODO(Asmaa/Eitan): update with the correct values.
@@ -482,14 +488,17 @@ impl ConsensusContext for SequencerConsensusContext {
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
         let l1_data_gas_price =
             GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
-        let l2_gas_price =
-            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
         let sequencer = SequencerContractAddress(ContractAddress::from(123_u128));
         let block_header_without_hash = BlockHeaderWithoutHash {
             block_number: BlockNumber(height),
             l1_gas_price,
             l1_data_gas_price,
-            l2_gas_price,
+            l2_gas_price: GasPricePerToken {
+                price_in_fri: GasPrice(1),
+                price_in_wei: GasPrice(self.l2_gas_price.into()),
+            },
+            l2_gas_consumed: l2_gas_used.0,
+            next_l2_gas_price,
             sequencer,
             ..Default::default()
         };
@@ -502,11 +511,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
-        self.l2_gas_price = calculate_next_base_gas_price(
-            self.l2_gas_price,
-            l2_gas_used.0,
-            VersionedConstants::latest_constants().max_block_size / 2,
-        );
+        self.l2_gas_price = next_l2_gas_price;
 
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
