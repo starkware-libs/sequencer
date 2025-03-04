@@ -53,6 +53,7 @@ pub enum Ids {
     ContractStateChanges,
     DictPtr,
     FullOutput,
+    Hash,
     NCompiledClassFacts,
     NextAvailableAlias,
     OldBlockHash,
@@ -76,6 +77,7 @@ impl From<Ids> for &'static str {
             Ids::ContractStateChanges => "contract_state_changes",
             Ids::DictPtr => "dict_ptr",
             Ids::FullOutput => "full_output",
+            Ids::Hash => "hash",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NextAvailableAlias => "next_available_alias",
             Ids::OldBlockHash => "old_block_hash",
@@ -146,6 +148,7 @@ impl Const {
     }
 }
 pub enum CairoStruct {
+    CompiledClassFact,
     DeprecatedCompiledClass,
     DeprecatedCompiledClassFact,
     DictAccess,
@@ -155,6 +158,9 @@ pub enum CairoStruct {
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
+            CairoStruct::CompiledClassFact => {
+                "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
+            }
             CairoStruct::DeprecatedCompiledClass => {
                 "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
                  DeprecatedCompiledClass"
