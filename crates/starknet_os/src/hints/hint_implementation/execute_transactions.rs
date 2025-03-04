@@ -1,5 +1,8 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    get_ptr_from_var_name,
+};
 use cairo_vm::types::relocatable::Relocatable;
 use starknet_types_core::felt::Felt;
 
@@ -15,8 +18,12 @@ pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn log_remaining_txs<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn log_remaining_txs<S: StateReader>(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let n_txs = get_integer_from_var_name(Ids::NTxs.into(), vm, ids_data, ap_tracking)?;
+    log::debug!("execute_transactions_inner: {n_txs} transactions remaining.");
+    Ok(())
 }
 
 pub(crate) fn fill_holes_in_rc96_segment<S: StateReader>(

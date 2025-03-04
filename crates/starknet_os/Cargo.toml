@@ -21,6 +21,7 @@ blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
 indoc.workspace = true
+log.workspace = true
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true
