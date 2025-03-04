@@ -57,11 +57,11 @@ pub struct ContractClassComponentHashes {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct StarknetOsInput {
-    pub contract_state_commitment_info: CommitmentInfo,
-    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
-    _contract_class_commitment_info: CommitmentInfo,
+    pub(crate) contract_state_commitment_info: CommitmentInfo,
+    pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     // TODO(Nimrod): Remove these two field once they move to `CachedStateInput`.
-    pub deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub(crate) contract_class_commitment_info: CommitmentInfo,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     _compiled_classes: HashMap<ClassHash, CasmContractClass>,
     pub(crate) chain_info: ChainInfo,
     pub _transactions: Vec<Transaction>,
