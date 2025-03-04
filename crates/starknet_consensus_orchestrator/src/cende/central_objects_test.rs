@@ -130,7 +130,7 @@ pub const CENTRAL_DECLARE_TX_JSON_PATH: &str = "central_declare_tx.json";
 pub const CENTRAL_L1_HANDLER_TX_JSON_PATH: &str = "central_l1_handler_tx.json";
 pub const CENTRAL_BOUNCER_WEIGHTS_JSON_PATH: &str = "central_bouncer_weights.json";
 pub const CENTRAL_FEE_MARKET_INFO_JSON_PATH: &str = "central_fee_market_info.json";
-pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_sierra_contract_class.json";
+pub const CENTRAL_SIERRA_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.sierra.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_JSON_PATH: &str = "central_contract_class.casm.json";
 pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
     "central_contract_class_default_optionals.casm.json";

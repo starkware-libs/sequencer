@@ -29,6 +29,8 @@ on:
       - 'crates/papyrus_storage/**'
       - 'crates/starknet_api/**'
       - 'crates/starknet_sierra_multicompile/**'
+      - 'crates/starknet_consensus_orchestrator/resources/**'
+      - 'crates/starknet_consensus_orchestrator/src/cende/**'
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
