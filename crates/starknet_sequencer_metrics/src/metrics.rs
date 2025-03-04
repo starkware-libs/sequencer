@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "metrics_test.rs"]
+mod metrics_tests;
+
 use std::str::FromStr;
 
 use indexmap::IndexMap;
@@ -175,6 +179,7 @@ pub struct MetricHistogram {
     description: &'static str,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct HistogramValue {
     pub sum: f64,
     pub count: u64,
