@@ -3,13 +3,25 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use pretty_assertions::assert_eq;
-use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
 use crate::mempool::Mempool;
+use crate::metrics::{
+    DropReason,
+    LABEL_NAME_DROP_REASON,
+    LABEL_NAME_TX_TYPE,
+    MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_TRANSACTIONS_COMMITTED,
+    MEMPOOL_TRANSACTIONS_DROPPED,
+    MEMPOOL_TRANSACTIONS_RECEIVED,
+};
 use crate::utils::Clock;
 
 /// Creates an executable invoke transaction with the given field subset (the rest receive default
@@ -88,6 +100,23 @@ macro_rules! tx {
     };
     () => {
         tx!(tx_hash: 0, address: "0x0", tx_nonce: 0)
+    };
+}
+
+// TODO(Yael): Consider moving to a more general place.
+/// Compares a metric, by it's name and label if exists, from a metrics str with an expected value
+/// and asserts fi false.
+#[macro_export]
+macro_rules! assert_metric_eq {
+    ($metrics:expr, $expected:expr, $metric:ident $(, $labels:expr)?) => {
+        let return_value = $metric.parse_numeric_metric::<u64>($metrics $(, $labels)?).unwrap();
+        assert_eq!(
+            return_value,
+            $expected,
+            "Metric {} did not match expected value. expected value: {}, returned value: {}",
+            stringify!($metric), $expected, return_value
+
+        );
     };
 }
 
@@ -284,5 +313,57 @@ impl FakeClock {
 impl Clock for FakeClock {
     fn now(&self) -> Instant {
         *self.now.lock().unwrap()
+    }
+}
+
+#[derive(Default)]
+pub struct MempoolMetrics {
+    pub txs_received_invoke: u64,
+    pub txs_committed: u64,
+    pub txs_dropped_expired: u64,
+    pub txs_dropped_failed_add_tx_checks: u64,
+    pub txs_dropped_rejected: u64,
+    pub pool_size: u64,
+    pub priority_queue_size: u64,
+    pub pending_queue_size: u64,
+    pub get_txs_size: u64,
+}
+
+impl MempoolMetrics {
+    pub fn verify_metrics(&self, metrics: &str) {
+        assert_metric_eq!(
+            metrics,
+            self.txs_received_invoke,
+            MEMPOOL_TRANSACTIONS_RECEIVED,
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())]
+        );
+
+        assert_metric_eq!(metrics, self.txs_committed, MEMPOOL_TRANSACTIONS_COMMITTED);
+
+        assert_metric_eq!(
+            metrics,
+            self.txs_dropped_expired,
+            MEMPOOL_TRANSACTIONS_DROPPED,
+            &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())]
+        );
+
+        assert_metric_eq!(
+            metrics,
+            self.txs_dropped_failed_add_tx_checks,
+            MEMPOOL_TRANSACTIONS_DROPPED,
+            &[(LABEL_NAME_DROP_REASON, DropReason::FailedAddTxChecks.into())]
+        );
+
+        assert_metric_eq!(
+            metrics,
+            self.txs_dropped_rejected,
+            MEMPOOL_TRANSACTIONS_DROPPED,
+            &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())]
+        );
+
+        assert_metric_eq!(metrics, self.pool_size, MEMPOOL_POOL_SIZE);
+        assert_metric_eq!(metrics, self.priority_queue_size, MEMPOOL_PRIORITY_QUEUE_SIZE);
+        assert_metric_eq!(metrics, self.pending_queue_size, MEMPOOL_PENDING_QUEUE_SIZE);
+        assert_metric_eq!(metrics, self.get_txs_size, MEMPOOL_GET_TXS_SIZE);
     }
 }
