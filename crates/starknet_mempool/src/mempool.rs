@@ -448,12 +448,13 @@ impl Mempool {
     ) -> Vec<TransactionReference> {
         // Divide the chunk into transactions that are old and no longer valid and those that
         // remain valid.
+        let submission_cutoff_time = self.clock.now() - self.config.transaction_ttl;
         let (old_txs, valid_txs): (Vec<_>, Vec<_>) = txs.into_iter().partition(|tx| {
             let tx_submission_time = self
                 .tx_pool
                 .get_submission_time(tx.tx_hash)
                 .expect("Transaction hash from queue must appear in pool.");
-            self.clock.now() - tx_submission_time > self.config.transaction_ttl
+            tx_submission_time < submission_cutoff_time
         });
 
         // Remove old transactions from the pool.
