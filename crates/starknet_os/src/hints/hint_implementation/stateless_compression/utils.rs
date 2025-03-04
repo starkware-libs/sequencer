@@ -1,6 +1,8 @@
 use std::any::type_name;
 use std::cmp::max;
+use std::hash::Hash;
 
+use indexmap::IndexMap;
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
 use strum_macros::Display;
@@ -203,5 +205,41 @@ impl From<Felt> for BucketElement {
                 BucketElement::BucketElement252(felt.try_into().expect("Up to 252 bits"))
             }
         }
+    }
+}
+
+/// Holds IndexMap of unique values of the same size in bits.
+#[derive(Default, Clone, Debug)]
+struct UniqueValueBucket<SizedElement: BucketElementTrait> {
+    value_to_index: IndexMap<SizedElement, usize>,
+}
+
+impl<SizedElement: BucketElementTrait + Clone + Eq + Hash> UniqueValueBucket<SizedElement> {
+    fn new() -> Self {
+        Self { value_to_index: Default::default() }
+    }
+
+    fn len(&self) -> usize {
+        self.value_to_index.len()
+    }
+
+    fn contains(&self, value: &SizedElement) -> bool {
+        self.value_to_index.contains_key(value)
+    }
+
+    fn add(&mut self, value: SizedElement) {
+        if !self.contains(&value) {
+            let next_index = self.value_to_index.len();
+            self.value_to_index.insert(value, next_index);
+        }
+    }
+
+    fn get_index(&self, value: &SizedElement) -> Option<&usize> {
+        self.value_to_index.get(value)
+    }
+
+    fn pack_in_felts(self) -> Vec<Felt> {
+        let values = self.value_to_index.into_keys().collect::<Vec<_>>();
+        SizedElement::pack_in_felts(&values)
     }
 }
