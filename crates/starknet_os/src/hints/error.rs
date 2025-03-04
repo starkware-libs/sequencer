@@ -2,6 +2,7 @@ use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::serde::deserialize_program::Identifier;
 use cairo_vm::types::errors::math_errors::MathError;
+use cairo_vm::vm::errors::exec_scope_errors::ExecScopeError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
@@ -20,31 +21,33 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversionError { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error(transparent)]
+    ExecutionScopes(#[from] ExecScopeError),
+    #[error("The identifier {0:?} has no full name.")]
+    IdentifierHasNoFullName(Box<Identifier>),
+    #[error("The identifier {0:?} has no members.")]
+    IdentifierHasNoMembers(Box<Identifier>),
     #[error(
         "Inconsistent block numbers: {actual}, {expected}. The constant STORED_BLOCK_HASH_BUFFER \
          is probably out of sync."
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
+    #[error(transparent)]
+    MathError(#[from] MathError),
+    #[error(transparent)]
+    MemoryError(#[from] MemoryError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonError { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error("Convert {n_bits} bits for {type_name}.")]
+    StatelessCompressionOverflow { n_bits: usize, type_name: String },
     #[error(transparent)]
     VmError(#[from] VirtualMachineError),
     #[error(transparent)]
     VmHintError(#[from] VmHintError),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
-    #[error("The identifier {0:?} has no full name.")]
-    IdentifierHasNoFullName(Box<Identifier>),
-    #[error("The identifier {0:?} has no members.")]
-    IdentifierHasNoMembers(Box<Identifier>),
-    #[error(transparent)]
-    MathError(#[from] MathError),
-    #[error(transparent)]
-    MemoryError(#[from] MemoryError),
-    #[error("Convert {n_bits} bits for {type_name}.")]
-    StatelessCompressionOverflow { n_bits: usize, type_name: String },
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution

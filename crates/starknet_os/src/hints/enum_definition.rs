@@ -362,6 +362,19 @@ define_hint_enum!(
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
     ),
     (
+        LoadClass,
+        load_class,
+        indoc! {r#"
+    vm_exit_scope()
+
+    computed_hash = ids.hash
+    expected_hash = ids.compiled_class_fact.hash
+    assert computed_hash == expected_hash, (
+        "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
+        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
+        }
+    ),
+    (
         LoadClassInner,
         load_class_inner,
         indoc! {r#"
@@ -1760,19 +1773,6 @@ if da_path is not None:
 
 define_hint_extension_enum!(
     HintExtension,
-    (
-        LoadClass,
-        load_class,
-        indoc! {r#"
-    vm_exit_scope()
-
-    computed_hash = ids.hash
-    expected_hash = ids.compiled_class_fact.hash
-    assert computed_hash == expected_hash, (
-        "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
-        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
-        }
-    ),
     (
         LoadDeprecatedClass,
         load_deprecated_class,
