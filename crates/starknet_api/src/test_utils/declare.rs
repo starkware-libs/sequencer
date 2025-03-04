@@ -6,10 +6,18 @@ use crate::executable_transaction::{
     AccountTransaction,
     DeclareTransaction as ExecutableDeclareTransaction,
 };
-use crate::rpc_transaction::{RpcDeclareTransaction, RpcDeclareTransactionV3, RpcTransaction};
+use crate::rpc_transaction::{
+    InternalRpcDeclareTransactionV3,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcTransaction,
+};
 use crate::state::SierraContractClass;
 use crate::transaction::fields::{
     AccountDeploymentData,
+    AllResourceBounds,
     Fee,
     PaymasterData,
     Tip,
@@ -141,10 +149,7 @@ pub fn executable_declare_tx(
     AccountTransaction::Declare(declare_tx)
 }
 
-pub fn rpc_declare_tx(
-    declare_tx_args: DeclareTxArgs,
-    contract_class: SierraContractClass,
-) -> RpcTransaction {
+fn verify_args(declare_tx_args: &DeclareTxArgs) -> AllResourceBounds {
     if declare_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
     }
@@ -152,6 +157,14 @@ pub fn rpc_declare_tx(
     let ValidResourceBounds::AllResources(resource_bounds) = declare_tx_args.resource_bounds else {
         panic!("Unsupported resource bounds type: {:?}.", declare_tx_args.resource_bounds)
     };
+    resource_bounds
+}
+
+pub fn rpc_declare_tx(
+    declare_tx_args: DeclareTxArgs,
+    contract_class: SierraContractClass,
+) -> RpcTransaction {
+    let resource_bounds = verify_args(&declare_tx_args);
 
     RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
         contract_class,
@@ -166,4 +179,27 @@ pub fn rpc_declare_tx(
         nonce: declare_tx_args.nonce,
         compiled_class_hash: declare_tx_args.compiled_class_hash,
     }))
+}
+
+pub fn internal_rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> InternalRpcTransaction {
+    let resource_bounds = verify_args(&declare_tx_args);
+
+    let declare_tx = InternalRpcDeclareTransactionV3 {
+        signature: declare_tx_args.signature,
+        sender_address: declare_tx_args.sender_address,
+        resource_bounds,
+        tip: declare_tx_args.tip,
+        nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
+        fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
+        paymaster_data: declare_tx_args.paymaster_data,
+        account_deployment_data: declare_tx_args.account_deployment_data,
+        nonce: declare_tx_args.nonce,
+        compiled_class_hash: declare_tx_args.compiled_class_hash,
+        class_hash: declare_tx_args.class_hash,
+    };
+
+    InternalRpcTransaction {
+        tx: InternalRpcTransactionWithoutTxHash::Declare(declare_tx),
+        tx_hash: declare_tx_args.tx_hash,
+    }
 }

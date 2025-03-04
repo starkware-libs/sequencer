@@ -15,12 +15,13 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     RpcTransactionLabelValue,
 };
+use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::AddTransactionArgs;
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use strum::IntoEnumIterator;
 
 use crate::communication::MempoolCommunicationWrapper;
@@ -165,6 +166,13 @@ impl FromIterator<InternalRpcTransaction> for TransactionPool {
         }
         pool
     }
+}
+
+fn _declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
+    let tx = internal_rpc_declare_tx(args);
+    let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
+
+    AddTransactionArgs { tx, account_state }
 }
 
 #[track_caller]
