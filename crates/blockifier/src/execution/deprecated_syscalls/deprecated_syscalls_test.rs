@@ -38,8 +38,16 @@ use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::state::state_api::StateReader;
+<<<<<<< HEAD
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::{test_state, test_state_ex};
+||||||| f39b2b272
+use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::initial_test_state::test_state;
+=======
+use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+use crate::test_utils::initial_test_state::{test_state, test_state_ex};
+>>>>>>> origin/main-v0.13.5
 use crate::test_utils::{
     calldata_for_deploy_test,
     get_syscall_resources,
@@ -490,12 +498,28 @@ fn test_tx_info(
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
     let expected_tx_info = calldata![
+<<<<<<< HEAD
         expected_version,                     // Transaction version.
         *sender_address.0.key(),              // Account address.
         felt!(max_fee.0),                     // Max fee.
         tx_hash.0,                            // Transaction hash.
         felt!(&*CHAIN_ID_FOR_TESTS.as_hex()), // Chain ID.
         nonce.0                               // Nonce.
+||||||| f39b2b272
+        version,                                         // Transaction version.
+        *sender_address.0.key(),                         // Account address.
+        felt!(max_fee.0),                                // Max fee.
+        tx_hash.0,                                       // Transaction hash.
+        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
+        nonce.0                                          // Nonce.
+=======
+        expected_version,                                // Transaction version.
+        *sender_address.0.key(),                         // Account address.
+        felt!(max_fee.0),                                // Max fee.
+        tx_hash.0,                                       // Transaction hash.
+        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
+        nonce.0                                          // Nonce.
+>>>>>>> origin/main-v0.13.5
     ];
     let entry_point_selector = selector_from_name("test_get_tx_info");
     let entry_point_call = CallEntryPoint {

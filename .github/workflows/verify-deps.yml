@@ -10,7 +10,15 @@ env:
 jobs:
   latest_deps:
     name: Latest Dependencies
+<<<<<<< HEAD
     runs-on: starkware-ubuntu-24.04-medium
+||||||| f39b2b272
+    runs-on: starkware-ubuntu-latest-medium
+    continue-on-error: true
+=======
+    runs-on: starkware-ubuntu-24.04-medium
+    continue-on-error: true
+>>>>>>> origin/main-v0.13.5
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

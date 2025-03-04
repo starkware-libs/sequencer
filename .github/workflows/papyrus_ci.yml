@@ -98,6 +98,7 @@ jobs:
         env:
           SEED: 0
 
+<<<<<<< HEAD
   # TODO(DanB): Re-enable this job when necessary.
   # Note that currently the `papyrus_load_test` build fails.
   # build-papyrus-utilities-image:
@@ -112,6 +113,40 @@ jobs:
   #         push: false
   #         context: .
   #         file: papyrus_utilities.Dockerfile
+||||||| f39b2b272
+
+  build-papyrus-utilities-image:
+    runs-on: starkware-ubuntu-latest-medium
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Papyrus utilites docker image
+        uses: docker/build-push-action@v3.2.0
+        continue-on-error: true # ignore the failure of a step and avoid terminating the job.
+        with:
+          push: false
+          context: .
+          file: papyrus_utilities.Dockerfile
+          cache-from: type=gha,scope=buildkit-ci
+          cache-to: type=gha,mode=max,scope=buildkit-ci
+=======
+  build-papyrus-utilities-image:
+    runs-on: starkware-ubuntu-24.04-medium
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build Papyrus utilites docker image
+        uses: docker/build-push-action@v3.2.0
+        continue-on-error: true # ignore the failure of a step and avoid terminating the job.
+        with:
+          push: false
+          context: .
+          file: papyrus_utilities.Dockerfile
+          cache-from: type=gha,scope=buildkit-ci
+          cache-to: type=gha,mode=max,scope=buildkit-ci
+>>>>>>> origin/main-v0.13.5
 
   random-table-test:
     runs-on: starkware-ubuntu-24.04-medium

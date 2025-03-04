@@ -10,8 +10,16 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS planner
 WORKDIR /app
 COPY . .
+<<<<<<< HEAD
 # Installing rust version in rust-toolchain.toml
 RUN cargo chef prepare --recipe-path recipe.json
+||||||| f39b2b272
+RUN cargo build --bin starknet_sequencer_node
+=======
+# Installing rust version in rust-toolchain.toml
+RUN rustup toolchain install
+RUN cargo build --bin starknet_sequencer_node
+>>>>>>> origin/main-v0.13.5
 
 FROM base AS builder
 WORKDIR /app

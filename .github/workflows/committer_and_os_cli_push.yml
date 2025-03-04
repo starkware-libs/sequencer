@@ -60,7 +60,13 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
+<<<<<<< HEAD:.github/workflows/committer_and_os_cli_push.yml
         run: ./build_native_in_docker.sh rustup toolchain install && cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
+||||||| f39b2b272:.github/workflows/committer_cli_push.yml
+        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+=======
+        run: ./build_native_in_docker.sh rustup toolchain install && cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+>>>>>>> origin/main-v0.13.5:.github/workflows/committer_cli_push.yml
 
       - id: auth
         uses: "google-github-actions/auth@v2"
