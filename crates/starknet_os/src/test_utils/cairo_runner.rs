@@ -10,20 +10,20 @@ pub fn run_cairo_0_entry_point(
     program: &Program,
     entrypoint: &str,
     n_expected_return_values: usize,
-    args: &[MaybeRelocatable],
+    args: &[CairoArg],
     mut hint_processor: impl HintProcessor,
 ) -> Result<Retdata, CairoRunError> {
     let proof_mode = false;
     let trace_enabled = true;
     let mut cairo_runner =
         CairoRunner::new(program, LayoutName::all_cairo, proof_mode, trace_enabled).unwrap();
+
     let allow_missing_builtins = false;
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
-    let entrypoint_args: Vec<CairoArg> =
-        args.iter().map(|arg| CairoArg::from(arg.clone())).collect();
-    let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
+
+    let entrypoint_args: Vec<&CairoArg> = args.iter().collect();
     let verify_secure = true;
     let program_segment_size: Option<usize> = None;
     // TODO(Amos): Pass implicit args to the cairo runner.
