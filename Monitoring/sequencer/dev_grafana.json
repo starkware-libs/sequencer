@@ -37,6 +37,15 @@
         "extra_params": {}
       }
     ],
+    "Consensus": [
+      {
+        "title": "consensus_height",
+        "description": "The height of the state machine",
+        "type": "stat",
+        "expr": "consensus_height",
+        "extra_params": {}
+      }
+    ],
     "Http Server": [
       {
         "title": "http_server_added_transactions_total",
