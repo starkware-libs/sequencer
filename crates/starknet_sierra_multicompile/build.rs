@@ -15,7 +15,8 @@ fn main() {
     install_starknet_native_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
+// TODO(Elin): test version alignment with Cargo.
+const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.1";
 #[cfg(feature = "cairo_native")]
 const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.3.1";
 
