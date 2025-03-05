@@ -8,14 +8,13 @@ def argument_parser():
         "--namespace",
         required=True,
         type=str,
-        help="Required: Specify the Kubernetes namespace."
+        help="Kubernetes namespace."
     )
     parser.add_argument(
-        "--config-file",
+        "--deployment-config-file",
         required=True,
         type=str,
-        action='append',
-        help="Optional: Path to sequencer configuration file. Can be used multiple times."
+        help="Path to deployment config file."
     )
 
     return parser.parse_args()

@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "properties": {
+    "chain_id": {"type": "string"},
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "config_path": {"type": "string"},
+          "ingress": {"type": "boolean"},
+          "replicas": {"type": "integer", "minimum":  1},
+          "autoscale": {"type": "boolean"},
+          "storage": {
+            "anyOf": [
+              {"type": "integer", "minimum": 1},
+              {"type": "null"}
+            ]
+          }
+        },
+        "required": ["name", "config_path", "ingress", "replicas", "autoscale", "storage"]
+      }
+    }
+  },
+  "required": ["chain_id", "services"]
+}
