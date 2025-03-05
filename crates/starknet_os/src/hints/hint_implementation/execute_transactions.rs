@@ -1,7 +1,9 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 
+use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
+use crate::hints::nondet_offsets::fetch_offset;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
@@ -54,9 +56,11 @@ pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHi
 }
 
 pub(crate) fn os_input_transactions<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let num_txns = hint_processor.execution_helper.os_input.transactions.len();
+    let offset = fetch_offset(AllHints::OsHint(OsHint::OsInputTransactions))?;
+    Ok(vm.insert_value((vm.get_fp() + offset)?, num_txns)?)
 }
 
 pub(crate) fn segments_add<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {

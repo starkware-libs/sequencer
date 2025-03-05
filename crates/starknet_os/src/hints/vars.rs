@@ -133,7 +133,7 @@ impl Const {
         <T as TryFrom<Felt>>::Error: std::fmt::Debug,
     {
         let self_felt = self.fetch(constants)?;
-        T::try_from(*self_felt).map_err(|error| OsHintError::ConstConversionError {
+        T::try_from(*self_felt).map_err(|error| OsHintError::ConstConversion {
             variant: *self,
             felt: *self_felt,
             ty: std::any::type_name::<T>().into(),
