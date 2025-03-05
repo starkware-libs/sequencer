@@ -13,18 +13,12 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
-    read_execution_retdata,
-    write_felt,
+    Args, ReadOnlySegments, SEGMENT_ARENA_BUILTIN_SIZE, read_execution_retdata, write_felt,
     write_maybe_relocatable,
-    Args,
-    ReadOnlySegments,
-    SEGMENT_ARENA_BUILTIN_SIZE,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
@@ -95,17 +89,33 @@ pub fn execute_entry_point_call(
     )?)
 }
 
-pub fn initialize_execution_context<'a>(
+struct ExecutionRunnerConfig {
+    pub proof_mode: bool,
+    pub trace_enabled: bool,
+}
+
+impl ExecutionRunnerConfig {
+    fn starknet() -> Self {
+        Self { proof_mode: false, trace_enabled: false }
+    }
+
+    fn testing() -> Self {
+        Self { proof_mode: false, trace_enabled: true }
+    }
+}
+
+pub fn initialize_execution_context_with_runner_config<'a>(
     call: CallEntryPoint,
     compiled_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
+    execution_runner_config: ExecutionRunnerConfig,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
     let entry_point = compiled_class.get_entry_point(&call)?;
 
     // Instantiate Cairo runner.
-    let proof_mode = false;
-    let trace_enabled = false;
+    let proof_mode = execution_runner_config.proof_mode;
+    let trace_enabled = execution_runner_config.trace_enabled;
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
@@ -140,6 +150,21 @@ pub fn initialize_execution_context<'a>(
         entry_point,
         program_extra_data_length,
     })
+}
+
+pub fn initialize_execution_context<'a>(
+    call: CallEntryPoint,
+    compiled_class: &'a CompiledClassV1,
+    state: &'a mut dyn State,
+    context: &'a mut EntryPointExecutionContext,
+) -> Result<VmExecutionContext<'a>, PreExecutionError> {
+    initialize_execution_context_with_runner_config(
+        call,
+        compiled_class,
+        state,
+        context,
+        ExecutionRunnerConfig::starknet(),
+    )
 }
 
 fn prepare_program_extra_data(
