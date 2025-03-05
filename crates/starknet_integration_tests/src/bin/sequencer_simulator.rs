@@ -24,6 +24,7 @@ fn read_ports_from_file(path: &str) -> (u16, u16) {
     // Parse JSON
     let json: Value = serde_json::from_str(&file_content).unwrap();
 
+    // Test2.
     let http_port: u16 = json[HTTP_PORT_ARG]
         .as_u64()
         .unwrap_or_else(|| panic!("http port should be available in {}", path))
