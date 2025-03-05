@@ -201,7 +201,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
         let l1_gas_price_wei = value.l1_gas_price_wei.ok_or(missing("l1_gas_price_wei"))?.into();
         let l1_data_gas_price_wei =
             value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into();
-        let eth_to_strk_rate = value.eth_to_strk_rate;
+        let eth_to_fri_rate = value.eth_to_fri_rate.ok_or(missing("eth_to_fri_rate"))?.into();
         Ok(ConsensusBlockInfo {
             height: BlockNumber(height),
             timestamp,
@@ -210,7 +210,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             l2_gas_price_fri,
             l1_gas_price_wei,
             l1_data_gas_price_wei,
-            eth_to_strk_rate,
+            eth_to_fri_rate,
         })
     }
 }
@@ -225,7 +225,7 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
             l1_gas_price_wei: Some(value.l1_gas_price_wei.into()),
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.into()),
             l2_gas_price_fri: Some(value.l2_gas_price_fri.into()),
-            eth_to_strk_rate: value.eth_to_strk_rate,
+            eth_to_fri_rate: Some(value.eth_to_fri_rate.into()),
         }
     }
 }

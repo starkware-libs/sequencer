@@ -742,7 +742,7 @@ async fn initiate_build(
         l2_gas_price_fri: gas_prices.strk_gas_prices.l2_gas_price.get().0,
         l1_gas_price_wei: gas_prices.eth_gas_prices.l1_gas_price.get().0,
         l1_data_gas_price_wei: gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
-        eth_to_strk_rate: 1,
+        eth_to_fri_rate: 1,
     };
     let build_proposal_input = ProposeBlockInput {
         proposal_id,
@@ -1089,12 +1089,11 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
 }
 
 fn convert_to_sn_api_block_info(block_info: ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price = NonzeroGasPrice::new(GasPrice(
-        block_info.l1_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
-    ))
-    .unwrap();
+    let l1_gas_price =
+        NonzeroGasPrice::new(GasPrice(block_info.l1_gas_price_wei * block_info.eth_to_fri_rate))
+            .unwrap();
     let l1_data_gas_price = NonzeroGasPrice::new(GasPrice(
-        block_info.l1_data_gas_price_wei * u128::from(block_info.eth_to_strk_rate),
+        block_info.l1_data_gas_price_wei * block_info.eth_to_fri_rate,
     ))
     .unwrap();
     let l2_gas_price = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
