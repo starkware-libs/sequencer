@@ -696,13 +696,22 @@ impl<'de> Deserialize<'de> for OsResources {
 
 #[derive(Deserialize, PartialEq, Debug, Clone, Copy, Serialize, Default)]
 pub struct SyscallGasCost {
-    pub base: u64,
-    pub linear_factor: u64,
+    base: u64,
+    linear_factor: u64,
 }
 
 impl SyscallGasCost {
     pub fn new_from_base_cost(base: u64) -> Self {
         Self { base, linear_factor: 0 }
+    }
+
+    pub fn get_syscall_cost(&self, linear_length: u64) -> u64 {
+        self.base + self.linear_factor * linear_length
+    }
+
+    pub fn get_base_syscall_cost(&self) -> u64 {
+        assert!(self.linear_factor == 0, "The syscall has a linear factor cost to be considered.");
+        self.base
     }
 }
 
