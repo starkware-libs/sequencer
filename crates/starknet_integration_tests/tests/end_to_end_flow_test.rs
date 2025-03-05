@@ -214,7 +214,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_two_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x4f290184c08e4d9dcc529e369050c15f4ecff67402141e8efe6d3daa59200f6",
+                "0x7d740c26e2c198f74f1622ac7049a1ec536fc98c3a498f4b4b5f3f4f93f372",
             ),
         ),
         (
