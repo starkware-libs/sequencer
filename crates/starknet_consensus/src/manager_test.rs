@@ -2,7 +2,7 @@ use std::time::Duration;
 use std::vec;
 
 use futures::channel::{mpsc, oneshot};
-use futures::SinkExt;
+use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -272,4 +272,46 @@ async fn test_timeouts() {
     send(&mut sender, precommit(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;
 
     manager_handle.await.unwrap();
+}
+
+#[tokio::test]
+async fn timely_message_handling() {
+    // TODO(matan): Make run_height more generic so don't need mock network?
+    // Check that, even when sync is immediately ready, consensus still handles queued messages.
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().returning(|_| true);
+
+    // Send messages
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(0);
+    let (mut content_sender, content_receiver) = mpsc::channel(0);
+    content_sender.try_send(TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))).unwrap();
+    proposal_receiver_sender.try_send(content_receiver).unwrap();
+
+    // Fill up the sender.
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut subscriber_channels = subscriber_channels.into();
+    let mut vote_sender = mock_network.broadcasted_messages_sender;
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    let vote = prevote(Some(Felt::TWO), 1, 0, *PROPOSER_ID);
+    // Fill up the buffer.
+    while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
+
+    let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let res = manager
+        .run_height(
+            &mut context,
+            BlockNumber(1),
+            false,
+            SYNC_RETRY_INTERVAL,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await;
+    assert_eq!(res, Ok(RunHeightRes::Sync));
+
+    // Try sending another proposal, to check that, even though sync was known at the beginning of
+    // the height and so consensus was not actually run, the inbound channels are cleared.
+    proposal_receiver_sender.try_send(mpsc::channel(1).1).unwrap();
+    assert!(vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some());
 }
