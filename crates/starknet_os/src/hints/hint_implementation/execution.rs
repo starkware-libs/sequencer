@@ -278,74 +278,6 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     todo!()
 }
 
-// pub const WRITE_SYSCALL_RESULT: &str = indoc! {r#"
-//     storage = execution_helper.storage_by_address[ids.contract_address]
-//     ids.prev_value = storage.read(key=ids.request.key)
-//     storage.write(key=ids.request.key, value=ids.request.value)
-
-//     # Fetch a state_entry in this hint and validate it in the update that comes next.
-//     ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-//     ids.new_state_entry = segments.add()"#
-// };
-
-// pub async fn write_syscall_result_async<PCS>(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     let mut execution_helper: ExecutionHelperWrapper<PCS> =
-// exec_scopes.get(vars::scopes::EXECUTION_HELPER)?;
-
-//     let contract_address = get_integer_from_var_name(vars::ids::CONTRACT_ADDRESS, vm, ids_data,
-// ap_tracking)?;     let request = get_ptr_from_var_name(vars::ids::REQUEST, vm, ids_data,
-// ap_tracking)?;     let storage_write_address = *vm.get_integer((request +
-// new_syscalls::StorageWriteRequest::key_offset())?)?;     let storage_write_value =
-//         vm.get_integer((request +
-// new_syscalls::StorageWriteRequest::value_offset())?)?.into_owned();
-
-//     // ids.prev_value = storage.read(key=ids.request.key)
-//     let prev_value =
-//         execution_helper.read_storage_for_address(contract_address,
-// storage_write_address).await.unwrap_or_default();
-//     insert_value_from_var_name(vars::ids::PREV_VALUE, prev_value, vm, ids_data, ap_tracking)?;
-
-//     // storage.write(key=ids.request.key, value=ids.request.value)
-//     execution_helper
-//         .write_storage_for_address(contract_address, storage_write_address, storage_write_value)
-//         .await
-//         .map_err(|e| custom_hint_error(format!("Failed to write storage for contract {}: {e}",
-// contract_address)))?;
-
-//     let contract_state_changes = get_ptr_from_var_name(vars::ids::CONTRACT_STATE_CHANGES, vm,
-// ids_data, ap_tracking)?;     get_state_entry_and_set_new_state_entry(
-//         contract_state_changes,
-//         contract_address,
-//         vm,
-//         exec_scopes,
-//         ids_data,
-//         ap_tracking,
-//     )?;
-
-//     Ok(())
-// }
-
-// pub fn write_syscall_result<PCS>(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     execute_coroutine(write_syscall_result_async::<PCS>(vm, exec_scopes, ids_data, ap_tracking))?
-// }
-
 pub(crate) fn write_syscall_result<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
@@ -370,9 +302,9 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     let prev_value =
         hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
 
-    insert_value_from_var_name(Ids::Value.into(), prev_value, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(Ids::PrevValue.into(), prev_value, vm, ids_data, ap_tracking)?;
 
-    let ids_request_value = vm
+    let request_value = vm
         .get_integer(get_address_of_nested_fields(
             ids_data,
             Ids::Request,
@@ -387,7 +319,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     hint_processor.execution_helper.cached_state.set_storage_at(
         contract_address,
         key,
-        ids_request_value,
+        request_value,
     )?;
 
     // Fetch a state_entry in this hint and validate it in the update that comes next.
@@ -403,14 +335,6 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     insert_value_from_var_name(
         Ids::StateEntry.into(),
         contract_address_state_entry,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-
-    insert_value_from_var_name(
-        Ids::NewStateEntry.into(),
-        vm.add_memory_segment(),
         vm,
         ids_data,
         ap_tracking,
