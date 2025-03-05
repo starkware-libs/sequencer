@@ -22,7 +22,7 @@ use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
+use crate::integration_test_setup::{ConfigPointersMap, ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
 use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
@@ -277,6 +277,29 @@ impl IntegrationTestManager {
             node_setup.executables.iter_mut().for_each(|executable| {
                 info!("Modifying {} config.", executable.node_execution_id);
                 executable.modify_config(modify_config_fn);
+            });
+        });
+    }
+
+    // TODO(noamsp): Remove this once the function below is used.
+    #[allow(dead_code)]
+    fn modify_config_pointers_idle_nodes<F>(
+        &mut self,
+        nodes_to_modify_config_pointers: HashSet<usize>,
+        modify_config_pointers_fn: F,
+    ) where
+        F: Fn(&mut ConfigPointersMap) + Copy,
+    {
+        info!("Modifying specified nodes config pointers.");
+
+        nodes_to_modify_config_pointers.into_iter().for_each(|node_index| {
+            let node_setup = self
+                .idle_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
+            node_setup.executables.iter_mut().for_each(|executable| {
+                info!("Modifying {} config pointers.", executable.node_execution_id);
+                executable.modify_config_pointers(modify_config_pointers_fn);
             });
         });
     }

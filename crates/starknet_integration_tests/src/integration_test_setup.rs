@@ -94,14 +94,14 @@ impl From<NodeExecutionId> for NodeRunner {
 }
 
 #[derive(Clone)]
-struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
+pub struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
 
 impl ConfigPointersMap {
     fn new(config_pointers: ConfigPointers) -> Self {
         ConfigPointersMap(config_pointers.into_iter().map(|((k, v), p)| (k, (v, p))).collect())
     }
 
-    fn change_target_value(&mut self, target: &str, value: Value) {
+    pub fn change_target_value(&mut self, target: &str, value: Value) {
         assert!(self.0.contains_key(target));
         self.0.entry(target.to_owned()).and_modify(|(param, _)| {
             param.content = SerializedContent::DefaultValue(value);
@@ -130,10 +130,10 @@ pub struct ExecutableSetup {
     pub state_sync_storage_config: StorageConfig,
     // Config values.
     pub config: SequencerNodeConfig,
+    // Configuration parameters that share the same value across multiple components.
+    pub config_pointers_map: ConfigPointersMap,
     // Required param values.
     required_params: RequiredParams,
-    // Configuration parameters that share the same value across multiple components.
-    config_pointers_map: ConfigPointersMap,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -244,8 +244,8 @@ impl ExecutableSetup {
             batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage.clone(),
             config: config.clone(),
-            required_params,
             config_pointers_map: ConfigPointersMap::new(CONFIG_POINTERS.clone()),
+            required_params,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,
@@ -294,6 +294,14 @@ impl ExecutableSetup {
         F: Fn(&mut SequencerNodeConfig),
     {
         modify_config_fn(&mut self.config);
+        self.dump_config_file_changes();
+    }
+
+    pub fn modify_config_pointers<F>(&mut self, modify_config_pointers_fn: F)
+    where
+        F: Fn(&mut ConfigPointersMap),
+    {
+        modify_config_pointers_fn(&mut self.config_pointers_map);
         self.dump_config_file_changes();
     }
 
