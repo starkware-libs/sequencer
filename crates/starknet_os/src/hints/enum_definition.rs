@@ -37,7 +37,7 @@ use crate::hints::hint_implementation::cairo1_revert::{
     read_storage_key_for_revert,
     write_storage_key_for_revert,
 };
-use crate::hints::hint_implementation::compiled_class::{
+use crate::hints::hint_implementation::compiled_class::implementation::{
     assert_end_of_bytecode_segments,
     assign_bytecode_segments,
     delete_memory_data,
