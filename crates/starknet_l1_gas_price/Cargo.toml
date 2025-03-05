@@ -23,6 +23,7 @@ validator.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true
+mockito.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 
 [lints]
