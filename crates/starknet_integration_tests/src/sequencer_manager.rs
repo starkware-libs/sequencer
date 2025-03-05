@@ -26,7 +26,7 @@ use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{ExecutableSetup, NodeExecutionId};
+use crate::integration_test_setup::{ConfigPointersMap, ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils;
 use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
@@ -279,6 +279,27 @@ impl IntegrationTestManager {
             node_setup.executables.iter_mut().for_each(|executable| {
                 info!("Updating {} config.", executable.node_execution_id);
                 executable.change_config(change_config_fn);
+            });
+        });
+    }
+
+    pub fn change_config_pointers_idle_nodes<F>(
+        &mut self,
+        nodes_to_change_config_pointers: HashSet<usize>,
+        change_config_pointers_fn: F,
+    ) where
+        F: Fn(&mut ConfigPointersMap) + Copy,
+    {
+        info!("Updating specified nodes config pointers.");
+
+        nodes_to_change_config_pointers.into_iter().for_each(|node_index| {
+            let node_setup = self
+                .idle_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
+            node_setup.executables.iter_mut().for_each(|executable| {
+                info!("Updating {} config pointers.", executable.node_execution_id);
+                executable.change_config_pointers(change_config_pointers_fn);
             });
         });
     }
