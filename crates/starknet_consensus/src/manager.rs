@@ -110,6 +110,7 @@ where
 
 /// Run height can end either when consensus reaches a decision or when we learn, via sync, of the
 /// decision.
+#[derive(Debug, PartialEq)]
 pub enum RunHeightRes {
     /// Decision reached.
     Decision(Decision),
@@ -165,6 +166,44 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        let res = self
+            .run_height_inner(
+                context,
+                height,
+                must_observer,
+                sync_retry_interval,
+                broadcast_channels,
+                proposal_receiver,
+            )
+            .await?;
+
+        // Networking layer assumes messages are handled in a timely fashion, otherwise we may build
+        // up a backlog of useless messages. Similarly we don't want to waste space on old messages.
+        // This is particularly important when there is a significant lag and we continually finish
+        // heights immediately due to sync.
+        self.get_current_height_votes(height);
+        while let Some(message) =
+            broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
+        {
+            self.handle_vote(context, height, None, message, broadcast_channels).await?;
+        }
+        self.get_current_height_proposals(height);
+        while let Ok(content_receiver) = proposal_receiver.try_next() {
+            self.handle_proposal(context, height, None, content_receiver).await?;
+        }
+
+        Ok(res)
+    }
+
+    async fn run_height_inner(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        must_observer: bool,
+        sync_retry_interval: Duration,
+        broadcast_channels: &mut BroadcastVoteChannel,
+        proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+    ) -> Result<RunHeightRes, ConsensusError> {
         if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
         }
@@ -198,10 +237,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             let shc_return = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
                     self.handle_vote(
-                        context, height, &mut shc, message, broadcast_channels).await?
+                        context, height, Some(&mut shc), message, broadcast_channels).await?
                 },
                 content_receiver = proposal_receiver.next() => {
-                    self.handle_proposal(context, height, &mut shc, content_receiver).await?
+                    self.handle_proposal(context, height, Some(&mut shc), content_receiver).await?
                 },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
@@ -264,11 +303,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 
     // Handle a new proposal receiver from the network.
+    // shc - None if the height was just completed and we should drop the message.
     async fn handle_proposal(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        shc: &mut SingleHeightConsensus,
+        shc: Option<&mut SingleHeightConsensus>,
         content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<ShcReturn, ConsensusError> {
         // Get the first message to verify the init was sent.
@@ -304,18 +344,23 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 trace!("Drop proposal from past height. {:?}", proposal_init);
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
-            std::cmp::Ordering::Equal => {
-                shc.handle_proposal(context, proposal_init, content_receiver).await
-            }
+            std::cmp::Ordering::Equal => match shc {
+                Some(shc) => shc.handle_proposal(context, proposal_init, content_receiver).await,
+                None => {
+                    trace!("Drop proposal from just completed height. {:?}", proposal_init);
+                    Ok(ShcReturn::Tasks(Vec::new()))
+                }
+            },
         }
     }
 
     // Handle a single consensus message.
+    // shc - None if the height was just completed and we should drop the message.
     async fn handle_vote(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        shc: &mut SingleHeightConsensus,
+        shc: Option<&mut SingleHeightConsensus>,
         vote: Option<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
         broadcast_channels: &mut BroadcastVoteChannel,
     ) -> Result<ShcReturn, ConsensusError> {
@@ -362,7 +407,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 trace!("Drop message from past height. {:?}", message);
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
-            std::cmp::Ordering::Equal => shc.handle_vote(context, message).await,
+            std::cmp::Ordering::Equal => match shc {
+                Some(shc) => shc.handle_vote(context, message).await,
+                None => {
+                    trace!("Drop message from just completed height. {:?}", message);
+                    Ok(ShcReturn::Tasks(Vec::new()))
+                }
+            },
         }
     }
 
