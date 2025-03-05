@@ -93,7 +93,7 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         l2_gas_price_fri: 1,
         l1_gas_price_wei: 1,
         l1_data_gas_price_wei: 1,
-        eth_to_strk_rate: 1,
+        eth_to_fri_rate: 1,
     }
 }
 // Structs which aren't utilized but should not be dropped.

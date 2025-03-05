@@ -57,7 +57,7 @@ message BlockInfo {
     Uint128 l2_gas_price_fri = 5;
     Uint128 l1_gas_price_wei = 6;
     Uint128 l1_data_gas_price_wei = 7;
-    uint64 eth_to_strk_rate = 8;
+    Uint128 eth_to_fri_rate = 8;
 }
 
 message TransactionBatch {
