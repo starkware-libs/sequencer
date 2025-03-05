@@ -85,7 +85,7 @@ use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
-    get_syscall_resources,
+    get_const_syscall_resources,
     get_tx_resources,
     CairoVersion,
     CompilerBasedVersion,
@@ -1211,7 +1211,7 @@ fn test_max_fee_to_max_steps_conversion(
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
     let actual_gas_used: GasAmount = u64_from_usize(
-        get_syscall_resources(SyscallSelector::CallContract).n_steps
+        get_const_syscall_resources(SyscallSelector::CallContract).n_steps
             + get_tx_resources(TransactionType::InvokeFunction).n_steps
             + 1751,
     )
