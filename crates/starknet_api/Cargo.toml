@@ -7,10 +7,9 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
-testing = ["dep:assert-json-diff", "starknet_infra_utils"]
+testing = ["starknet_infra_utils"]
 
 [dependencies]
-assert-json-diff = { workspace = true, optional = true }
 bitvec.workspace = true
 cached.workspace = true
 cairo-lang-runner.workspace = true
@@ -35,7 +34,6 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-assert-json-diff.workspace = true
 assert_matches.workspace = true
 rstest.workspace = true
 starknet_infra_utils.workspace = true

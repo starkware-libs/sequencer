@@ -17,8 +17,8 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
-use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::test_utils::assert_json_eq;
 use tempfile::NamedTempFile;
 use validator::Validate;
 

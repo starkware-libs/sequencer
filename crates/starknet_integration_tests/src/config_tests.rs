@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use serde_json::{from_reader, Value};
-use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::test_utils::assert_json_eq;
 use tempfile::NamedTempFile;
 
 use crate::consts::SINGLE_NODE_CONFIG_PATH;

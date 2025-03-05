@@ -10829,7 +10829,6 @@ dependencies = [
 name = "starknet_api"
 version = "0.0.0"
 dependencies = [
- "assert-json-diff",
  "assert_matches",
  "bitvec",
  "cached",
@@ -11235,9 +11234,11 @@ dependencies = [
 name = "starknet_infra_utils"
 version = "0.0.0"
 dependencies = [
+ "assert-json-diff",
  "nix 0.20.2",
  "pretty_assertions",
  "rstest",
+ "serde",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -11534,7 +11535,6 @@ dependencies = [
  "papyrus_sync",
  "serde",
  "serde_json",
- "starknet_api",
  "starknet_batcher",
  "starknet_consensus_manager",
  "starknet_gateway",
