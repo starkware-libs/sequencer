@@ -20,6 +20,7 @@ use starknet_infra_utils::test_utils::{
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::config_utils::dump_json_data;
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::join;
 use tokio::task::JoinHandle;
@@ -257,6 +258,27 @@ impl IntegrationTestManager {
         self.idle_nodes.values_mut().for_each(|idle_node| {
             idle_node.executables.iter_mut().for_each(|executable| {
                 executable.update_revert_config(value);
+            });
+        });
+    }
+
+    pub fn change_config_idle_nodes<F>(
+        &mut self,
+        nodes_to_change_config: HashSet<usize>,
+        change_config_fn: F,
+    ) where
+        F: Fn(&mut SequencerNodeConfig) + Copy,
+    {
+        info!("Updating specified nodes config.");
+
+        nodes_to_change_config.into_iter().for_each(|node_index| {
+            let node_setup = self
+                .idle_nodes
+                .get_mut(&node_index)
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
+            node_setup.executables.iter_mut().for_each(|executable| {
+                info!("Updating {} config.", executable.node_execution_id);
+                executable.change_config(change_config_fn);
             });
         });
     }
