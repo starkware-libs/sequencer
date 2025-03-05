@@ -21,7 +21,7 @@ on:
       - '.github/workflows/blockifier_ci.yml'
       - '.github/workflows/upload_artifacts_workflow.yml'
       - 'build_native_in_docker.sh'
-      - 'ci/images/sequencer-ci.Dockerfile'
+      - 'docker-ci/images/sequencer-ci.Dockerfile'
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'

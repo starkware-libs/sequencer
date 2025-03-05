@@ -1,5 +1,5 @@
 # syntax = devthefuture/dockerfile-x
-# ci/images/sequencer-ci.Dockerfile
+# docker-ci/images/sequencer-ci.Dockerfile
 
 # Dockerfile with multi-stage builds for efficient dependency caching and lightweight final image.
 # For more on Docker stages, visit: https://docs.docker.com/build/building/multi-stage/
