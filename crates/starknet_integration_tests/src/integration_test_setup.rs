@@ -262,16 +262,17 @@ impl ExecutableSetup {
 
     // TODO(noamsp): Change this into change_config once we need to change other values in the
     // config.
-    pub fn update_revert_config(&mut self, value: Option<BlockNumber>) {
-        match value {
-            Some(value) => {
+    pub fn modify_revert_config(&mut self, revert_up_to_and_including: Option<BlockNumber>) {
+        match revert_up_to_and_including {
+            Some(revert_up_to_and_including) => {
                 self.config_pointers_map.change_target_value(
                     "revert_config.revert_up_to_and_including",
-                    Value::from(value.0),
+                    Value::from(revert_up_to_and_including.0),
                 );
-                self.config.state_sync_config.revert_config.revert_up_to_and_including = value;
+                self.config.state_sync_config.revert_config.revert_up_to_and_including =
+                    revert_up_to_and_including;
                 self.config.consensus_manager_config.revert_config.revert_up_to_and_including =
-                    value;
+                    revert_up_to_and_including;
 
                 self.config_pointers_map
                     .change_target_value("revert_config.should_revert", Value::from(true));
