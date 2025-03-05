@@ -488,12 +488,21 @@ impl<'a> SyscallHintProcessor<'a> {
             &mut u64, // Remaining gas.
         ) -> SyscallResult<Response>,
     {
-        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas =
-            syscall_gas_cost.base - self.base.context.gas_costs().base.syscall_base_gas_cost;
-
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
+
+        let syscall_gas_cost = syscall_gas_cost.base
+            + syscall_gas_cost.linear_factor * request.get_linear_factor_length();
+        let syscall_base_cost = self.base.context.gas_costs().base.syscall_base_gas_cost;
+
+        // Sanity check for preventing underflow.
+        assert!(
+            syscall_gas_cost >= syscall_base_cost,
+            "Syscall gas cost must be greater than base syscall gas cost"
+        );
+
+        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
+        let required_gas = syscall_gas_cost - syscall_base_cost;
 
         if gas_counter < required_gas {
             //  Out of gas failure.
