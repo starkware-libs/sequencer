@@ -7,6 +7,9 @@ class ServiceType(str, Enum):
     LOAD_BALANCER = "LoadBalancer"
     NODE_PORT = "NodePort"
 
+IMAGE = "ghcr.io/starkware-libs/sequencer/sequencer:dev"
+
+CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
 
 CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
 

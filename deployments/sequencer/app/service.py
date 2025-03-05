@@ -20,8 +20,13 @@ class ServiceApp(Construct):
 
         self.namespace = namespace
         self.labels = {
+<<<<<<< HEAD
             "app": "sequencer",
             "service": Names.to_label_value(self, include_hash=False),
+=======
+            "app": "sequencer-node",
+            "service": Names.to_label_value(self, include_hash=False)
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
         }
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
@@ -48,7 +53,11 @@ class ServiceApp(Construct):
             "deployment",
             metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.DeploymentSpec(
+<<<<<<< HEAD
                 replicas=self.service_topology.replicas,
+=======
+                replicas=1,
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                 selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.labels),
@@ -64,9 +73,13 @@ class ServiceApp(Construct):
                                 args=const.CONTAINER_ARGS,
                                 ports=self._get_container_ports(),
                                 startup_probe=self._get_http_probe(),
+<<<<<<< HEAD
                                 readiness_probe=self._get_http_probe(
                                     path=const.PROBE_MONITORING_READY_PATH
                                 ),
+=======
+                                readiness_probe=self._get_http_probe(path=const.PROBE_MONITORING_READY_PATH),
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                                 liveness_probe=self._get_http_probe(),
                                 volume_mounts=self._get_volume_mounts(),
                             )
@@ -85,24 +98,45 @@ class ServiceApp(Construct):
         if self.service_topology.autoscale:
             self.hpa = self._get_hpa()
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
     def _get_hpa(self) -> k8s.KubeHorizontalPodAutoscalerV2:
         return k8s.KubeHorizontalPodAutoscalerV2(
             self,
             "hpa",
             metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.HorizontalPodAutoscalerSpecV2(
+<<<<<<< HEAD
                 min_replicas=self.service_topology.replicas,
                 max_replicas=const.HPA_MAX_REPLICAS,
                 scale_target_ref=k8s.CrossVersionObjectReferenceV2(
                     api_version="v1", kind="Deployment", name=self.deployment.name
+=======
+                min_replicas=const.HPA_MIN_REPLICAS,
+                max_replicas=const.HPA_MAX_REPLICAS,
+                scale_target_ref=k8s.CrossVersionObjectReferenceV2(
+                    api_version="v1",
+                    kind="Deployment",
+                    name=self.deployment.name
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                 ),
                 metrics=[
                     k8s.MetricSpecV2(
                         type="Resource",
                         resource=k8s.ResourceMetricSourceV2(
                             name="cpu",
+<<<<<<< HEAD
                             target=k8s.MetricTargetV2(type="Utilization", average_utilization=50),
                         ),
+=======
+                            target=k8s.MetricTargetV2(
+                                type="Utilization",
+                                average_utilization=50
+                            )
+                        )
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                     )
                 ],
                 behavior=k8s.HorizontalPodAutoscalerBehaviorV2(
@@ -113,12 +147,20 @@ class ServiceApp(Construct):
                             k8s.HpaScalingPolicyV2(
                                 type="Pods",
                                 value=2,  # Add 2 pods per scaling action
+<<<<<<< HEAD
                                 period_seconds=60,  # Scaling happens at most once per minute
+=======
+                                period_seconds=60  # Scaling happens at most once per minute
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                             )
                         ],
                     ),
                 ),
+<<<<<<< HEAD
             ),
+=======
+            )
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
         )
 
     def _get_ingress(self) -> k8s.KubeIngress:
@@ -150,9 +192,13 @@ class ServiceApp(Construct):
                 access_modes=const.PVC_ACCESS_MODE,
                 volume_mode=const.PVC_VOLUME_MODE,
                 resources=k8s.ResourceRequirements(
+<<<<<<< HEAD
                     requests={
                         "storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")
                     }
+=======
+                    requests={"storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")}
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                 ),
             ),
         )
@@ -195,11 +241,20 @@ class ServiceApp(Construct):
         ]
 
     def _get_http_probe(
+<<<<<<< HEAD
         self,
         period_seconds: int = const.PROBE_PERIOD_SECONDS,
         failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
         timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
         path: str = const.PROBE_MONITORING_ALIVE_PATH,
+=======
+            self,
+            period_seconds: int = const.PROBE_PERIOD_SECONDS,
+            failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
+            timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
+            path: str = const.PROBE_MONITORING_ALIVE_PATH
+
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
     ) -> k8s.Probe:
         port = self._get_config_attr("monitoring_endpoint_config.port")
 
@@ -225,6 +280,14 @@ class ServiceApp(Construct):
                 if self.service_topology.storage
                 else None
             ),
+<<<<<<< HEAD
+=======
+            k8s.VolumeMount(
+                name=f"{self.node.id}-data",
+                mount_path="/data",
+                read_only=False
+            ) if self.service_topology.storage else None
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
         ]
 
         return [vm for vm in volume_mounts if vm is not None]
@@ -269,7 +332,16 @@ class ServiceApp(Construct):
         ]
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
+<<<<<<< HEAD
         return [k8s.IngressTls(hosts=[self.host], secret_name=f"{self.node.id}-tls")]
+=======
+        return [
+            k8s.IngressTls(
+                hosts=[self.host],
+                secret_name=f"{self.node.id}-tls"
+            )
+        ]
+>>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
 
     @staticmethod
     def _get_container_env() -> typing.List[k8s.EnvVar]:

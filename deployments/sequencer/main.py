@@ -5,7 +5,19 @@ from constructs import Construct
 from cdk8s import App, Chart, YamlOutputType
 
 from app.service import ServiceApp
-from services import topology, helpers, config
+from services import topology, helpers
+from config.sequencer import SequencerDevConfig
+
+
+@dataclasses.dataclass
+class SystemStructure:
+    topology: str = "mesh"
+    replicas: str = "2"
+    size: str = "small"
+    config: Optional[Config] = None
+
+    def __post_init__(self):
+        self.config.validate()
 
 
 class SequencerNode(Chart):
@@ -26,22 +38,17 @@ def main():
     args = helpers.argument_parser()
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 
-    preset = config.DeploymentConfig(args.deployment_config_file)
+    preset = topology.DeploymentConfig(args.deployment_config_file)
     services = preset.get_services()
-    image = preset.get_image()
-    application_config_subdir = preset.get_application_config_subdir()
 
     for svc in services:
         SequencerNode(
             scope=app,
-            name=f'sequencer-{svc["name"].lower()}',
+            name=svc["name"].lower(),
             namespace=args.namespace,
             service_topology=topology.ServiceTopology(
-                config=config.SequencerConfig(
-                    config_subdir=application_config_subdir, config_path=svc["config_path"]
-                ),
-                image=image,
-                replicas=svc["replicas"],
+                config=SequencerDevConfig(config_file_path=svc["config_path"]),
+                image=preset.get_image(),
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
                 storage=svc["storage"],
