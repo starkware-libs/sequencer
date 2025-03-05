@@ -6,6 +6,8 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
+
+use crate::sequencer_manager::AvailablePortsGenerator;
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -56,10 +58,13 @@ impl IntoIterator for NodeComponentConfigs {
 /// each consisting of an HTTP component configuration and a non-HTTP component configuration.
 /// returns a vector of vectors, where each inner vector contains the two configurations.
 pub fn create_distributed_node_configs(
-    available_ports: &mut AvailablePorts,
+    available_ports_generator: &mut AvailablePortsGenerator,
     distributed_sequencers_num: usize,
 ) -> Vec<NodeComponentConfigs> {
     std::iter::repeat_with(|| {
+        let mut available_ports = available_ports_generator
+            .next()
+            .expect("Failed to get an AvailablePorts instance for distributed node configs");
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
