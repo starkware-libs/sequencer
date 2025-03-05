@@ -11590,6 +11590,7 @@ dependencies = [
  "num-traits",
  "paste",
  "regex",
+ "rstest",
  "strum 0.25.0",
  "strum_macros 0.25.3",
 ]

@@ -1,19 +1,55 @@
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
+use rstest::rstest;
+use strum::VariantNames;
+use strum_macros::EnumVariantNames;
 
+use crate::generate_permutation_labels;
 use crate::metrics::{HistogramValue, LabeledMetricHistogram, MetricHistogram, MetricScope};
 
 const HISTOGRAM_TEST_METRIC: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "histogram_test_metric", "Histogram test metrics");
 
-const LABEL1: &[(&str, &str)] = &[("label1", "value1")];
-const LABEL2: &[(&str, &str)] = &[("label1", "value2")];
+const LABEL_TYPE_NAME: &str = "label";
+const VALUE_TYPE_NAME: &str = "value";
 
-const LABELED_HISTOGRAM_TEST_METRIC: LabeledMetricHistogram = LabeledMetricHistogram::new(
+#[allow(dead_code)]
+#[derive(Debug, EnumVariantNames, Clone, Copy)]
+enum TestLabelType {
+    Label1,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, EnumVariantNames, Clone, Copy)]
+enum TestLabelValue {
+    Value1,
+    Value2,
+}
+
+// Create a labeled histogram metric with a single key-value pair.
+generate_permutation_labels! {
+    SINGLE_KEY_VALUE_PAIR_LABELS,
+    (VALUE_TYPE_NAME, TestLabelValue),
+}
+
+const SINGLE_KEY_VALUE_PAIR_LABELED_HISTOGRAM_METRIC: LabeledMetricHistogram = LabeledMetricHistogram::new(
     MetricScope::Infra,
     "labeled_histogram_test_metric",
     "Labeled histogram test metrics",
-    &[LABEL1, LABEL2],
+    SINGLE_KEY_VALUE_PAIR_LABELS,
+);
+
+generate_permutation_labels! {
+    TWO_KEY_VALUE_PAIR_LABELS,
+    (LABEL_TYPE_NAME, TestLabelType),
+    (VALUE_TYPE_NAME, TestLabelValue),
+}
+
+const TWO_KEY_VALUE_PAIR_LABELED_HISTOGRAM_METRIC: LabeledMetricHistogram = LabeledMetricHistogram::new(
+    MetricScope::Infra,
+    "multi_labeled_histogram_test_metric",
+    "Multi labeled histogram test metrics",
+    TWO_KEY_VALUE_PAIR_LABELS,
 );
 
 #[test]
@@ -51,18 +87,21 @@ fn histogram_run_and_parse() {
     );
 }
 
+#[rstest]
+#[case::single_key_value_pair(SINGLE_KEY_VALUE_PAIR_LABELED_HISTOGRAM_METRIC, SINGLE_KEY_VALUE_PAIR_LABELS)]
+#[case::two_key_value_pair(TWO_KEY_VALUE_PAIR_LABELED_HISTOGRAM_METRIC, TWO_KEY_VALUE_PAIR_LABELS)]
 #[test]
-fn labeled_histogram_run_and_parse() {
+fn labeled_histogram_run_and_parse(#[case] labeled_histogram_metric: LabeledMetricHistogram,#[case] labels: &'static [&[(&str, &str)]]) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
 
-    // Let perform some actions for the histogram metric with LABEL1.
-    LABELED_HISTOGRAM_TEST_METRIC.register();
-    LABELED_HISTOGRAM_TEST_METRIC.record(1, LABEL1);
-    LABELED_HISTOGRAM_TEST_METRIC.record(100, LABEL1);
-    LABELED_HISTOGRAM_TEST_METRIC.record(80, LABEL1);
-    LABELED_HISTOGRAM_TEST_METRIC.record(50, LABEL1);
-    LABELED_HISTOGRAM_TEST_METRIC.record_many(93, 1, LABEL1);
+    // Let perform some actions for the histogram metric with labels[0].
+    labeled_histogram_metric.register();
+    labeled_histogram_metric.record(1, labels[0]);
+    labeled_histogram_metric.record(100, labels[0]);
+    labeled_histogram_metric.record(80, labels[0]);
+    labeled_histogram_metric.record(50, labels[0]);
+    labeled_histogram_metric.record_many(93, 1, labels[0]);
 
     let metrics_as_string = recorder.handle().render();
 
@@ -82,11 +121,11 @@ fn labeled_histogram_run_and_parse() {
     };
 
     assert_eq!(
-        LABELED_HISTOGRAM_TEST_METRIC.parse_histogram_metric(&metrics_as_string, LABEL1).unwrap(),
+        labeled_histogram_metric.parse_histogram_metric(&metrics_as_string, labels[0]).unwrap(),
         label1_expected_histogram
     );
 
-    // The histogram metric with LABEL2 should be empty.
+    // The histogram metric with labels[1] should be empty.
     let label2_quantiles = vec![
         ("0".to_string(), 0.0),
         ("0.5".to_string(), 0.0),
@@ -103,22 +142,22 @@ fn labeled_histogram_run_and_parse() {
     };
 
     assert_eq!(
-        LABELED_HISTOGRAM_TEST_METRIC.parse_histogram_metric(&metrics_as_string, LABEL2).unwrap(),
+        labeled_histogram_metric.parse_histogram_metric(&metrics_as_string, labels[1]).unwrap(),
         label2_expected_histogram
     );
 
-    // Let perform some actions for the histogram metric with LABEL2.
-    LABELED_HISTOGRAM_TEST_METRIC.record(1, LABEL2);
-    LABELED_HISTOGRAM_TEST_METRIC.record(10, LABEL2);
-    LABELED_HISTOGRAM_TEST_METRIC.record(20, LABEL2);
-    LABELED_HISTOGRAM_TEST_METRIC.record(30, LABEL2);
-    LABELED_HISTOGRAM_TEST_METRIC.record_many(80, 2, LABEL2);
+    // Let perform some actions for the histogram metric with labels[1].
+    labeled_histogram_metric.record(1, labels[1]);
+    labeled_histogram_metric.record(10, labels[1]);
+    labeled_histogram_metric.record(20, labels[1]);
+    labeled_histogram_metric.record(30, labels[1]);
+    labeled_histogram_metric.record_many(80, 2, labels[1]);
 
     let metrics_as_string = recorder.handle().render();
 
-    // The histogram metric with LABEL1 should be the same.
+    // The histogram metric with labels[0] should be the same.
     assert_eq!(
-        LABELED_HISTOGRAM_TEST_METRIC.parse_histogram_metric(&metrics_as_string, LABEL1).unwrap(),
+        labeled_histogram_metric.parse_histogram_metric(&metrics_as_string, labels[0]).unwrap(),
         label1_expected_histogram
     );
 
@@ -137,9 +176,9 @@ fn labeled_histogram_run_and_parse() {
         histogram: label2_quantiles.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
     };
 
-    // Check the histogram metric with LABEL2.
+    // Check the histogram metric with labels[1].
     assert_eq!(
-        LABELED_HISTOGRAM_TEST_METRIC.parse_histogram_metric(&metrics_as_string, LABEL2).unwrap(),
+        labeled_histogram_metric.parse_histogram_metric(&metrics_as_string, labels[1]).unwrap(),
         label2_expected_histogram
     );
 }
