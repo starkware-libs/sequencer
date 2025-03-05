@@ -24,7 +24,7 @@
 //! assert_eq!(loaded_config.dur.as_secs(), 1);
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use serde::de::Error;
@@ -132,4 +132,22 @@ where
         vector.push(byte);
     }
     Ok(Some(vector))
+}
+
+/// Deserializes a string to a BTreeMap. The string is expected to be a list of key-value pairs
+/// separated by spaces, with the key and value separated by a colon.
+pub fn deserialize_string_to_btreemap<'de, D>(de: D) -> Result<BTreeMap<String, String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(de)?;
+    let mut map = BTreeMap::new();
+
+    for pair in s.split_whitespace() {
+        if let Some((key, value)) = pair.split_once(":") {
+            map.insert(key.trim().to_string(), value.trim().to_string());
+        }
+    }
+
+    Ok(map)
 }

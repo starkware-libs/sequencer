@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 
+use papyrus_config::converters::deserialize_string_to_btreemap;
+use papyrus_config::dumping::{ser_required_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use url::Url;
 
@@ -19,6 +23,33 @@ fn btreemap_to_headermap(btree_map: BTreeMap<String, String>) -> HeaderMap {
     }
 
     header_map
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct PriceOracleConfig {
+    pub base_url: Url,
+    #[serde(deserialize_with = "deserialize_string_to_btreemap")]
+    pub headers: BTreeMap<String, String>,
+}
+
+impl SerializeConfig for PriceOracleConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_required_param(
+                "base_url",
+                SerializationType::String,
+                "The base URL of the Price Oracle API. This must end with 'timestamp=' as the API \
+                 requires appending a UNIX timestamp.",
+                ParamPrivacyInput::Private,
+            ),
+            ser_required_param(
+                "headers",
+                SerializationType::String,
+                "HTTP headers required for requests, typically containing authentication details.",
+                ParamPrivacyInput::Private,
+            ),
+        ])
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
