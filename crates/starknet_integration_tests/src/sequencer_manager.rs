@@ -250,21 +250,7 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
-    pub fn modify_revert_config_to_all_idle_nodes(
-        &mut self,
-        revert_up_to_and_including: Option<BlockNumber>,
-    ) {
-        info!("Updating revert config to all idle nodes.");
-        self.idle_nodes.values_mut().for_each(|idle_node| {
-            idle_node.executables.iter_mut().for_each(|executable| {
-                executable.modify_revert_config(revert_up_to_and_including);
-            });
-        });
-    }
-
-    // TODO(noamsp): Remove this once the function below is used.
-    #[allow(dead_code)]
-    fn modify_config_idle_nodes<F>(
+    pub fn modify_config_idle_nodes<F>(
         &mut self,
         nodes_to_modify_config: HashSet<usize>,
         modify_config_fn: F,
@@ -285,9 +271,7 @@ impl IntegrationTestManager {
         });
     }
 
-    // TODO(noamsp): Remove this once the function below is used.
-    #[allow(dead_code)]
-    fn modify_config_pointers_idle_nodes<F>(
+    pub fn modify_config_pointers_idle_nodes<F>(
         &mut self,
         nodes_to_modify_config_pointers: HashSet<usize>,
         modify_config_pointers_fn: F,
