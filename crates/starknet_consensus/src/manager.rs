@@ -205,7 +205,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     self.handle_vote(
                         context, height, &mut shc, message, broadcast_channels).await?
                 },
-                Some(content_receiver) = proposal_receiver.next() => {
+                content_receiver = proposal_receiver.next() => {
                     self.handle_proposal(context, height, &mut shc, content_receiver).await?
                 },
                 Some(shc_event) = shc_events.next() => {
@@ -274,11 +274,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
-        mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+        content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<ShcReturn, ConsensusError> {
         // Get the first message to verify the init was sent.
-        // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
-        // the first message (message_id=0) has arrived.
+        let Some(mut content_receiver) = content_receiver else {
+            return Err(ConsensusError::InternalNetworkError(
+                "proposal receiver should never be closed".to_string(),
+            ));
+        };
         let Some(first_part) = content_receiver.try_next().map_err(|_| {
             ConsensusError::InternalNetworkError(
                 "Stream handler must fill the first message before sending the stream".to_string(),
