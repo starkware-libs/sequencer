@@ -1,10 +1,12 @@
-use blockifier::state::state_api::StateReader;
+use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
     get_integer_from_var_name,
     insert_value_from_var_name,
 };
 use starknet_api::block::BlockNumber;
+use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::state::StorageKey;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
@@ -285,9 +287,25 @@ pub(crate) fn gen_class_hash_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S
 }
 
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let execution_helper = &mut hint_processor.execution_helper;
+
+    let block_hash_contract_address =
+        get_constant_from_var_name(Const::BlockHashContractAddress.into(), constants)?;
+    let old_block_number =
+        get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?;
+    let old_block_hash =
+        get_integer_from_var_name(Ids::OldBlockHash.into(), vm, ids_data, ap_tracking)?;
+
+    log::debug!("writing block number: {} -> block hash: {}", old_block_number, old_block_hash);
+
+    execution_helper.cached_state.set_storage_at(
+        ContractAddress(PatriciaKey::try_from(*block_hash_contract_address)?),
+        StorageKey(PatriciaKey::try_from(old_block_number)?),
+        old_block_hash,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
