@@ -12,11 +12,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::Nonce;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_infra_utils::test_utils::{
-    AvailablePorts,
-    TestIdentifier,
-    MAX_NUMBER_OF_INSTANCES_PER_TEST,
-};
+use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::config_utils::dump_json_data;
@@ -449,6 +445,27 @@ pub fn nonce_to_usize(nonce: Nonce) -> usize {
     usize::from_str_radix(unprefixed_hex, 16).unwrap()
 }
 
+pub struct AvailablePortsGenerator {
+    test_unique_id: u16,
+    instance_index: u16,
+}
+
+impl AvailablePortsGenerator {
+    pub fn new(test_unique_id: u16) -> Self {
+        Self { test_unique_id, instance_index: 0 }
+    }
+}
+
+impl Iterator for AvailablePortsGenerator {
+    type Item = AvailablePorts;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let res = Some(AvailablePorts::new(self.test_unique_id, self.instance_index));
+        self.instance_index += 1;
+        res
+    }
+}
+
 pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     num_of_consolidated_nodes: usize,
@@ -457,16 +474,14 @@ pub async fn get_sequencer_setup_configs(
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let test_unique_id = TestIdentifier::EndToEndIntegrationTest;
 
-    // TODO(Nadin): Assign a dedicated set of available ports to each sequencer.
-    let mut available_ports =
-        AvailablePorts::new(test_unique_id.into(), MAX_NUMBER_OF_INSTANCES_PER_TEST - 1);
+    let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
     let node_component_configs: Vec<NodeComponentConfigs> = {
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
         combined.extend(create_distributed_node_configs(
-            &mut available_ports,
+            &mut available_ports_generator,
             num_of_distributed_nodes,
         ));
         combined
@@ -482,8 +497,11 @@ pub async fn get_sequencer_setup_configs(
 
     // TODO(Nadin): Refactor to avoid directly mutating vectors
 
+    let mut p2p_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for p2p configs");
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
-        create_connected_network_configs(available_ports.get_next_ports(n_distributed_sequencers)),
+        create_connected_network_configs(p2p_ports.get_next_ports(n_distributed_sequencers)),
         node_component_configs.len(),
         &chain_info.chain_id,
     );
@@ -494,19 +512,18 @@ pub async fn get_sequencer_setup_configs(
     // the ExecutableSetup
     let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
-        available_ports.get_next_ports(n_distributed_sequencers),
+        p2p_ports.get_next_ports(n_distributed_sequencers),
     );
 
     let mut mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
-        available_ports.get_next_ports(n_distributed_sequencers),
+        p2p_ports.get_next_ports(n_distributed_sequencers),
     );
 
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
     let mut nodes = Vec::new();
-    let mut global_index = 0;
 
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
@@ -537,7 +554,11 @@ pub async fn get_sequencer_setup_configs(
                     consensus_manager_config,
                     mempool_p2p_config,
                     state_sync_config,
-                    AvailablePorts::new(test_unique_id.into(), global_index.try_into().unwrap()),
+                    // AvailablePorts::new(test_unique_id.into(),
+                    // global_index.try_into().unwrap()),
+                    available_ports_generator
+                        .next()
+                        .expect("Failed to get an AvailablePorts instance for executable configs"),
                     executable_component_config.clone(),
                     exec_db_path,
                     exec_config_path,
@@ -545,7 +566,6 @@ pub async fn get_sequencer_setup_configs(
                 )
                 .await,
             );
-            global_index += 1;
         }
         nodes.push(NodeSetup::new(executables, batcher_index, http_server_index));
     }
