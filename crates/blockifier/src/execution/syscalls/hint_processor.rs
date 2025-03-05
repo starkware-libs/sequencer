@@ -491,8 +491,8 @@ impl<'a> SyscallHintProcessor<'a> {
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
 
-        let syscall_gas_cost = syscall_gas_cost.base
-            + syscall_gas_cost.linear_factor * u64_from_usize(request.get_linear_factor_length());
+        let syscall_gas_cost =
+            syscall_gas_cost.get_syscall_cost(u64_from_usize(request.get_linear_factor_length()));
         let syscall_base_cost = self.base.context.gas_costs().base.syscall_base_gas_cost;
 
         // Sanity check for preventing underflow.
