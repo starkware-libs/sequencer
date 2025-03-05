@@ -2,8 +2,8 @@ use std::env;
 use std::fs::File;
 
 use colored::Colorize;
-use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::test_utils::assert_json_eq;
 
 use crate::dashboard_definitions::{DEV_JSON_PATH, SEQUENCER_DASHBOARD};
 
