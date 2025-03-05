@@ -6,6 +6,10 @@ use crate::deployment::{Deployment, Replicas, Service, ServiceName};
 
 // TODO(Tsabary): fill and order these.
 
+#[cfg(test)]
+#[path = "deployment_definitions_test.rs"]
+mod deployment_definitions_test;
+
 pub const MAIN_DEPLOYMENT_PRESET_PATH: &str = "config/sequencer/presets/main.json";
 
 const BATCHER_MAIN: Service =
