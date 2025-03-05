@@ -25,6 +25,7 @@ use starknet_state_sync::metrics::{
 };
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
+
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
 mod dashboard_definitions_test;
