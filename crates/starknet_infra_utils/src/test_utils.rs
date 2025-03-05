@@ -1,5 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
+use serde::Serialize;
 use tracing::info;
 
 const PORTS_PER_INSTANCE: u16 = 60;
@@ -87,5 +89,20 @@ impl AvailablePorts {
 
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
+    }
+}
+
+/// Compare two JSON values for an exact match.
+///
+/// Extends the functionality of [`assert_json_diff::assert_json_eq`] by also adding a customizable
+/// error message print. Uses [`assert_json_matches_no_panic`].
+pub fn assert_json_eq<Lhs, Rhs>(lhs: &Lhs, rhs: &Rhs, message: String)
+where
+    Lhs: Serialize,
+    Rhs: Serialize,
+{
+    if let Err(error) = assert_json_matches_no_panic(lhs, rhs, Config::new(CompareMode::Strict)) {
+        let printed_error = format!("\n\n{}\n{}\n\n", message, error);
+        panic!("{}", printed_error);
     }
 }

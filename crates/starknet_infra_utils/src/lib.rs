@@ -1,5 +1,6 @@
 pub mod command;
 pub mod global_allocator;
+pub mod json_utils;
 pub mod path;
 pub mod run_until;
 pub mod tasks;
