@@ -1,6 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
+use papyrus_config::converters::{deserialize_optional_map, serialize_optional_map};
+use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use url::Url;
 
@@ -21,6 +25,33 @@ fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap 
         }
     }
     header_map
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct PriceOracleConfig {
+    pub base_url: Url,
+    #[serde(deserialize_with = "deserialize_optional_map")]
+    pub headers: Option<HashMap<String, String>>,
+}
+
+impl SerializeConfig for PriceOracleConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_required_param(
+                "base_url",
+                SerializationType::String,
+                "This must end with the query parameter `timestamp=` as we append a UNIX \
+                 timestamp.",
+                ParamPrivacyInput::Private,
+            ),
+            ser_param(
+                "headers",
+                &serialize_optional_map(&self.headers),
+                "Headers for the price oracle client, formatted as 'k1:v1 k2:v2 ...'.",
+                ParamPrivacyInput::Private,
+            ),
+        ])
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
