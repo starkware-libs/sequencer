@@ -33,6 +33,7 @@ use papyrus_sync::define_metrics::{
     SYNC_COMPILED_CLASS_MARKER,
     SYNC_HEADER_MARKER,
     SYNC_PROCESSED_TRANSACTIONS,
+    SYNC_REVERTED_TRANSACTIONS,
     SYNC_STATE_MARKER,
 };
 use papyrus_sync::sources::central::{CentralError, CentralSource};
@@ -121,8 +122,17 @@ impl StateSyncRunner {
                 .expect("Should have a header marker");
 
             let revert_block_fn = move |current_block_number| {
+                let n_reverted_txs = storage_writer
+                    .begin_rw_txn()
+                    .unwrap()
+                    .get_block_transactions_count(current_block_number)
+                    .unwrap()
+                    .unwrap_or(0)
+                    .try_into()
+                    .expect("Failed to convert usize to u64");
                 revert_block(&mut storage_writer, current_block_number);
                 set_metrics(&storage_writer.begin_rw_txn().unwrap());
+                SYNC_REVERTED_TRANSACTIONS.increment(n_reverted_txs);
                 async {}
             };
 
@@ -337,6 +347,7 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_CLASS_MANAGER_MARKER.register();
     SYNC_COMPILED_CLASS_MARKER.register();
     SYNC_PROCESSED_TRANSACTIONS.register();
+    SYNC_REVERTED_TRANSACTIONS.register();
     set_metrics(txn);
 }
 
