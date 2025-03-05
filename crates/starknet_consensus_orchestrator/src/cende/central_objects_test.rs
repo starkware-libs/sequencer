@@ -81,7 +81,6 @@ use starknet_api::state::{
     StorageKey,
     ThinStateDiff,
 };
-use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -104,6 +103,7 @@ use starknet_api::transaction::{
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
 use starknet_class_manager_types::MockClassManagerClient;
+use starknet_infra_utils::test_utils::assert_json_eq;
 use starknet_types_core::felt::Felt;
 
 use super::{

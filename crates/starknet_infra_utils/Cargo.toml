@@ -7,12 +7,14 @@ license-file.workspace = true
 description = "Infrastructure utility."
 
 [features]
-testing = []
+testing = ["dep:assert-json-diff", "serde"]
 
 [lints]
 workspace = true
 
 [dependencies]
+assert-json-diff = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 tracing.workspace = true
 

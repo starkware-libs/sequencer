@@ -9,10 +9,10 @@ use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
-use starknet_api::test_utils::json_utils::assert_json_eq;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_infra_utils::path::resolve_project_relative_path;
+use starknet_infra_utils::test_utils::assert_json_eq;
 use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
 use validator::Validate;
 

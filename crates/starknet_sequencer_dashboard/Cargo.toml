@@ -26,5 +26,4 @@ starknet_state_sync.workspace = true
 
 [dev-dependencies]
 colored.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
-starknet_infra_utils.workspace = true
+starknet_infra_utils = { workspace = true, features = ["testing"] }

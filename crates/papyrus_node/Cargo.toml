@@ -50,15 +50,15 @@ validator = { workspace = true, features = ["derive"] }
 futures-util = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 
-
 [dev-dependencies]
 colored.workspace = true
 insta = { workspace = true, features = ["json"] }
 metrics-exporter-prometheus.workspace = true
 papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
-starknet_infra_utils.workspace = true
+starknet_infra_utils = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
+
 
 [lints]
 workspace = true
