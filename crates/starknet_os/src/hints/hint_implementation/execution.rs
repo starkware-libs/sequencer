@@ -309,25 +309,28 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
+fn assert_value_cached_by_reading<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    cairo_struct_type: CairoStruct,
+    nested_fields: &[String],
 ) -> OsHintResult {
+    let key = StorageKey(PatriciaKey::try_from(
+        vm.get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::Request,
+            cairo_struct_type,
+            vm,
+            ap_tracking,
+            nested_fields,
+            &hint_processor.execution_helper.os_program,
+        )?)?
+        .into_owned(),
+    )?);
+
     let contract_address = ContractAddress(
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
             .try_into()?,
     );
-
-    let key_ptr = get_address_of_nested_fields(
-        ids_data,
-        Ids::Request,
-        CairoStruct::StorageReadRequestPtr,
-        vm,
-        ap_tracking,
-        &["key".to_string()],
-        &hint_processor.execution_helper.os_program,
-    )?;
-
-    let key = StorageKey(PatriciaKey::try_from(vm.get_integer(key_ptr)?.into_owned())?);
 
     let value =
         hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
@@ -340,35 +343,24 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
+    hint_args: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let contract_address = ContractAddress(
-        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
-            .try_into()?,
-    );
-
-    let key_ptr = get_address_of_nested_fields(
-        ids_data,
-        Ids::SyscallPtr,
+    assert_value_cached_by_reading(
+        hint_args,
         CairoStruct::StorageReadRequestPtr,
-        vm,
-        ap_tracking,
+        &["key".to_string()],
+    )
+}
+
+pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
+    hint_args: HintArgs<'_, S>,
+) -> OsHintResult {
+    assert_value_cached_by_reading(
+        hint_args,
+        CairoStruct::StorageReadPtr,
         &["request".to_string(), "key".to_string()],
-        &hint_processor.execution_helper.os_program,
-    )?;
-
-    let key = StorageKey(PatriciaKey::try_from(vm.get_integer(key_ptr)?.into_owned())?);
-
-    let value =
-        hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
-
-    let ids_value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
-
-    if value != ids_value {
-        return Err(OsHintError::InconsistentValue { expected: value, actual: ids_value });
-    }
-    Ok(())
+    )
 }
 
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
