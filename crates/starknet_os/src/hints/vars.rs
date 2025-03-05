@@ -65,6 +65,7 @@ pub enum Ids {
     Sha256Ptr,
     StateEntry,
     StateUpdatesStart,
+    SyscallPtr,
     UseKzgDa,
     Value,
 }
@@ -92,6 +93,7 @@ impl From<Ids> for &'static str {
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
+            Ids::SyscallPtr => "syscall_ptr",
             Ids::UseKzgDa => "use_kzg_da",
             Ids::Value => "value",
         }
