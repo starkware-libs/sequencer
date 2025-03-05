@@ -46,6 +46,12 @@ pub type SyscallSelector = DeprecatedSyscallSelector;
 
 pub trait SyscallRequest: Sized {
     fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallResult<Self>;
+
+    /// Returns the linear factor's length for the syscall.
+    /// If no factor exists, it returns 0.
+    fn get_linear_factor_length(&self) -> usize {
+        0
+    }
 }
 
 pub trait SyscallResponse {
@@ -217,6 +223,10 @@ impl SyscallRequest for DeployRequest {
                 "The deploy_from_zero field in the deploy system call must be 0 or 1.",
             )?,
         })
+    }
+
+    fn get_linear_factor_length(&self) -> usize {
+        self.constructor_calldata.0.len()
     }
 }
 
