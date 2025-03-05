@@ -1,6 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
-use starknet_infra_utils::test_utils::AvailablePorts;
+use starknet_infra_utils::test_utils::{AvailablePorts, AvailablePortsGenerator};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -56,10 +56,13 @@ impl IntoIterator for NodeComponentConfigs {
 /// each consisting of an HTTP component configuration and a non-HTTP component configuration.
 /// returns a vector of vectors, where each inner vector contains the two configurations.
 pub fn create_distributed_node_configs(
-    available_ports: &mut AvailablePorts,
+    available_ports_generator: &mut AvailablePortsGenerator,
     distributed_sequencers_num: usize,
 ) -> Vec<NodeComponentConfigs> {
     std::iter::repeat_with(|| {
+        let mut available_ports = available_ports_generator
+            .next()
+            .expect("Failed to get an AvailablePorts instance for distributed node configs");
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();

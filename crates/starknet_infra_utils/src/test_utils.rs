@@ -89,3 +89,24 @@ impl AvailablePorts {
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
     }
 }
+
+pub struct AvailablePortsGenerator {
+    test_unique_id: u16,
+    instance_index: u16,
+}
+
+impl AvailablePortsGenerator {
+    pub fn new(test_unique_id: u16) -> Self {
+        Self { test_unique_id, instance_index: 0 }
+    }
+}
+
+impl Iterator for AvailablePortsGenerator {
+    type Item = AvailablePorts;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let res = Some(AvailablePorts::new(self.test_unique_id, self.instance_index));
+        self.instance_index += 1;
+        res
+    }
+}
