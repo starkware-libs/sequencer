@@ -281,10 +281,10 @@ pub fn create_nodes_deployment_units_configs(
                 get_consensus_manager_config(
                     batcher_remote_config,
                     class_manager_remote_config,
-                    state_sync_remote_config,
+                    state_sync_remote_config.clone(),
                 ),
                 get_http_server_config(gateway_remote_config),
-                get_l1_provider_config(l1_provider_socket),
+                get_l1_provider_config(l1_provider_socket, state_sync_remote_config),
             ],
             0,
             7,
@@ -420,7 +420,10 @@ fn get_http_server_config(
     config
 }
 
-fn get_l1_provider_config(l1_provider_socket: SocketAddr) -> ComponentConfig {
+fn get_l1_provider_config(
+    l1_provider_socket: SocketAddr,
+    state_sync_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.l1_provider = ReactiveComponentExecutionConfig::local_with_remote_enabled(
         Ipv4Addr::LOCALHOST.to_string(),
@@ -428,6 +431,7 @@ fn get_l1_provider_config(l1_provider_socket: SocketAddr) -> ComponentConfig {
         l1_provider_socket.port(),
     );
     config.l1_scraper = ActiveComponentExecutionConfig::default();
+    config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
