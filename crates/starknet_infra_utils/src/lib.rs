@@ -1,4 +1,5 @@
 pub mod command;
+pub mod dumping;
 pub mod global_allocator;
 pub mod json_utils;
 pub mod path;
