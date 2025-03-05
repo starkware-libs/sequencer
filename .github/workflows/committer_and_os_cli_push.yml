@@ -25,6 +25,8 @@ on:
       - 'crates/starknet_os/**'
       - 'crates/starknet_patricia/**'
       - 'scripts/dependencies.sh'
+      - 'build_native_in_docker.sh'
+      - 'ci/images/sequencer-ci.Dockerfile'
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
