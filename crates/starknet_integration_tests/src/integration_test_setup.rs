@@ -14,7 +14,6 @@ use papyrus_config::dumping::{
 use papyrus_config::{ParamPath, SerializedContent, SerializedParam};
 use papyrus_storage::StorageConfig;
 use serde_json::Value;
-use starknet_api::block::BlockNumber;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -258,35 +257,6 @@ impl ExecutableSetup {
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
-    }
-
-    // TODO(noamsp): Change this into change_config once we need to change other values in the
-    // config.
-    pub fn update_revert_config(&mut self, value: Option<BlockNumber>) {
-        match value {
-            Some(value) => {
-                self.config_pointers_map.change_target_value(
-                    "revert_config.revert_up_to_and_including",
-                    Value::from(value.0),
-                );
-                self.config.state_sync_config.revert_config.revert_up_to_and_including = value;
-                self.config.consensus_manager_config.revert_config.revert_up_to_and_including =
-                    value;
-
-                self.config_pointers_map
-                    .change_target_value("revert_config.should_revert", Value::from(true));
-                self.config.state_sync_config.revert_config.should_revert = true;
-                self.config.consensus_manager_config.revert_config.should_revert = true;
-            }
-            // If should revert is false, the revert_up_to_and_including value is irrelevant.
-            None => {
-                self.config_pointers_map
-                    .change_target_value("revert_config.should_revert", Value::from(false));
-                self.config.state_sync_config.revert_config.should_revert = false;
-                self.config.consensus_manager_config.revert_config.should_revert = false;
-            }
-        }
-        self.dump_config_file_changes();
     }
 
     pub fn change_config<F>(&mut self, change_config_fn: F)

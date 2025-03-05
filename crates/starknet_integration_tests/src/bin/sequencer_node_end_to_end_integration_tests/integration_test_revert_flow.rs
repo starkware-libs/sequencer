@@ -1,12 +1,15 @@
 use std::time::Duration;
 
+use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_infra_utils::test_utils::TestIdentifier;
+use starknet_integration_tests::integration_test_setup::ConfigPointersMap;
 use starknet_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_integration_tests::sequencer_manager::{
     IntegrationTestManager,
     BLOCK_TO_WAIT_FOR_BOOTSTRAP,
 };
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use tracing::info;
 
 #[tokio::main]
@@ -50,8 +53,26 @@ async fn main() {
         "Changing revert config for all nodes to revert from block {BLOCK_TO_REVERT_FROM} back to \
          block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}."
     );
+    let revert_block_marker = BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next();
+    let enable_revert_config_pointers_fn = |config_pointers: &mut ConfigPointersMap| {
+        config_pointers.change_target_value(
+            "revert_config.revert_up_to_and_including",
+            Value::from(revert_block_marker.0),
+        );
+        config_pointers.change_target_value("revert_config.should_revert", Value::from(true));
+    };
     integration_test_manager
-        .update_revert_config_to_all_idle_nodes(Some(BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next()));
+        .change_config_pointers_idle_nodes(node_indices.clone(), enable_revert_config_pointers_fn);
+    let enable_revert_config_fn = |config: &mut SequencerNodeConfig| {
+        config.state_sync_config.revert_config.revert_up_to_and_including = revert_block_marker;
+        config.consensus_manager_config.revert_config.revert_up_to_and_including =
+            revert_block_marker;
+
+        config.state_sync_config.revert_config.should_revert = true;
+        config.consensus_manager_config.revert_config.should_revert = true;
+    };
+    integration_test_manager
+        .change_config_idle_nodes(node_indices.clone(), enable_revert_config_fn);
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
 

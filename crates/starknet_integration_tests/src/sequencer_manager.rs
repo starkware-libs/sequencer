@@ -253,15 +253,6 @@ impl IntegrationTestManager {
         self.await_alive(5000, 50).await;
     }
 
-    pub fn update_revert_config_to_all_idle_nodes(&mut self, value: Option<BlockNumber>) {
-        info!("Updating revert config to all idle nodes.");
-        self.idle_nodes.values_mut().for_each(|idle_node| {
-            idle_node.executables.iter_mut().for_each(|executable| {
-                executable.update_revert_config(value);
-            });
-        });
-    }
-
     pub fn change_config_idle_nodes<F>(
         &mut self,
         nodes_to_change_config: HashSet<usize>,
