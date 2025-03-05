@@ -176,6 +176,27 @@ pub(crate) fn insert_value_to_nested_field<IG: IdentifierGetter, T: Into<MaybeRe
     Ok(vm.insert_value(nested_field_addr, val)?)
 }
 
+/// Inserts each value to nested fields of a cairo variable given a base address.
+pub(crate) fn insert_values_to_nested_fields<IG: IdentifierGetter>(
+    base_address: Relocatable,
+    var_type: CairoStruct,
+    vm: &mut VirtualMachine,
+    nested_fields_and_value: &[(&[String], MaybeRelocatable)],
+    identifier_getter: &IG,
+) -> OsHintResult {
+    for (nested_fields, value) in nested_fields_and_value {
+        insert_value_to_nested_field(
+            base_address,
+            var_type,
+            vm,
+            nested_fields,
+            identifier_getter,
+            value,
+        )?;
+    }
+    Ok(())
+}
+
 impl<IG: IdentifierGetter, T: LoadCairoObject<IG> + CairoSized<IG>> LoadCairoObject<IG> for Vec<T> {
     fn load_into(
         &self,
