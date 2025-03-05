@@ -215,6 +215,12 @@ pub fn create_nodes_deployment_units_configs(
         let state_sync_socket = available_ports.get_next_local_host_socket();
         let l1_provider_socket = available_ports.get_next_local_host_socket();
 
+        let batcher_remote_config = ReactiveComponentExecutionConfig::remote(
+            Ipv4Addr::LOCALHOST.to_string(),
+            batcher_socket.ip(),
+            batcher_socket.port(),
+        );
+
         let class_manager_remote_config = ReactiveComponentExecutionConfig::remote(
             Ipv4Addr::LOCALHOST.to_string(),
             class_manager_socket.ip(),
@@ -265,7 +271,7 @@ pub fn create_nodes_deployment_units_configs(
                 get_sierra_compiler_config(sierra_compiler_socket),
                 get_state_sync_config(state_sync_socket, class_manager_remote_config.clone()),
                 get_consensus_manager_config(
-                    batcher_socket,
+                    batcher_remote_config,
                     class_manager_remote_config,
                     state_sync_remote_config,
                 ),
@@ -379,17 +385,13 @@ fn get_state_sync_config(
 }
 
 fn get_consensus_manager_config(
-    batcher_socket: SocketAddr,
+    batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::default();
-    config.batcher = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        batcher_socket.ip(),
-        batcher_socket.port(),
-    );
+    config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
