@@ -10,7 +10,7 @@ use validator::Validate;
 /// Configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
-    /// The buffer size for streaming outbound proposals.
+    /// Buffer size for streaming outbound proposals.
     pub proposal_buffer_size: usize,
     /// The number of validators.
     pub num_validators: u64,
