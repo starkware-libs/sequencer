@@ -21,6 +21,8 @@ pub struct MempoolConfig {
     // Declare transactions are delayed to allow other nodes sufficient time to compile them.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub declare_delay: Duration,
+    // TODO: comment
+    pub state_retention_blocks: usize,
 }
 
 impl Default for MempoolConfig {
@@ -30,6 +32,7 @@ impl Default for MempoolConfig {
             fee_escalation_percentage: 10,
             transaction_ttl: Duration::from_secs(60), // 1 minute.
             declare_delay: Duration::from_secs(5),
+            state_retention_blocks: 100,
         }
     }
 }
@@ -59,6 +62,12 @@ impl SerializeConfig for MempoolConfig {
                 "declare_delay",
                 &self.declare_delay.as_secs(),
                 "Time to wait before allowing a Declare transaction to be returned, in seconds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "state_retention_blocks",
+                &self.state_retention_blocks,
+                "Number of most recent committed blocks for which account state is retained.",
                 ParamPrivacyInput::Public,
             ),
         ])

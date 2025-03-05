@@ -141,7 +141,7 @@ impl MempoolTestContentBuilder {
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
             ),
-            state: MempoolState::default(),
+            state: MempoolState::new(10),
             clock: Arc::new(FakeClock::default()),
         }
     }
@@ -534,6 +534,50 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // TODO(AlonH): currently hash comparison tie-breaks the two. Once more robust tie-breaks are
     // added replace this assertion with a dedicated test.
     expected_mempool_content.assert_eq(&mempool.content());
+}
+
+#[rstest]
+#[case::account_nonce_older_than_committed_nonce(0)]
+#[case::equal_account_nonce_and_committed_nonce(1)]
+fn add_tx_with_committed_nonce(mut mempool: Mempool, #[case] account_nonce: u64) {
+    // Setup: commit a block with account nonce 1.
+    commit_block(&mut mempool, [("0x0", 1)], []);
+
+    // Add a transaction with nonce 0. Should be rejected with NonceTooOld.
+    let input =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: account_nonce);
+    add_tx_expect_error(
+        &mut mempool,
+        &input,
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    // Add a transaction with nonce 1. Should be accepted.
+    let input =
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: account_nonce);
+    add_tx(&mut mempool, &input);
+}
+
+#[rstest]
+fn add_tx_with_old_committed_nonce(mut mempool: Mempool) {
+    // TODO: better define the behavior of the mempool in these cases.
+    // This case can happen only if the mempool is not updated with the latest committed block.
+
+    // Setup: commit a block with a account nonce 1.
+    commit_block(&mut mempool, [("0x0", 1)], []);
+
+    // Add a transaction with nonce 1 and account nonce 2. Since the account nonce is higher than
+    // the committed nonce, the transaction should be rejected.
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 2);
+    add_tx_expect_error(
+        &mut mempool,
+        &input,
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    // Add a transaction with nonce 2 and account nonce 2. Should be accepted.
+    let input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 2, account_nonce: 2);
+    add_tx(&mut mempool, &input);
 }
 
 #[rstest]

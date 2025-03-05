@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 use starknet_api::block::NonzeroGasPrice;
@@ -37,12 +37,34 @@ pub mod mempool_flow_tests;
 
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(Clone))]
+struct CommitHistory {
+    events: VecDeque<AddressToNonce>,
+    capacity: usize,
+}
+
+impl CommitHistory {
+    fn new(capacity: usize) -> Self {
+        CommitHistory { events: VecDeque::with_capacity(capacity), capacity }
+    }
+
+    fn push(&mut self, event: AddressToNonce) -> Option<AddressToNonce> {
+        let removed =
+            if self.events.len() == self.capacity { self.events.pop_front() } else { None };
+        self.events.push_back(event);
+        removed
+    }
+}
+
 /// Represents the state tracked by the mempool.
 /// It is partitioned into categories, each serving a distinct role in the lifecycle of transaction
 /// management.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[cfg_attr(test, derive(Clone))]
 pub struct MempoolState {
+    /// Records recent commit_block events to preserve the committed nonces of the latest blocks.
+    commit_history: CommitHistory,
     /// Finalized nonces committed in blocks.
     committed: AddressToNonce,
     /// Provisionally incremented nonces during block creation.
@@ -50,6 +72,14 @@ pub struct MempoolState {
 }
 
 impl MempoolState {
+    fn new(commit_history_size: usize) -> Self {
+        MempoolState {
+            commit_history: CommitHistory::new(commit_history_size),
+            committed: HashMap::new(),
+            staged: HashMap::new(),
+        }
+    }
+
     fn resolve_nonce(&self, address: ContractAddress, incoming_account_nonce: Nonce) -> Nonce {
         self.staged
             .get(&address)
@@ -83,8 +113,19 @@ impl MempoolState {
             .copied()
             .collect();
 
-        self.committed.extend(address_to_nonce);
+        self.committed.extend(address_to_nonce.clone());
         self.staged.clear();
+
+        // Add the commit event to the history.
+        // If an old event has been removed (due to history size limit), delete the associated
+        // committed nonces.
+        if let Some(removed_commit) = self.commit_history.push(address_to_nonce) {
+            for (address, nonce) in removed_commit {
+                if self.committed.get(&address) == Some(&nonce) {
+                    self.committed.remove(&address);
+                }
+            }
+        }
 
         addresses_to_rewind
     }
@@ -133,10 +174,10 @@ pub struct Mempool {
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
-            config,
+            config: config.clone(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
-            state: MempoolState::default(),
+            state: MempoolState::new(config.state_retention_blocks),
             clock,
         }
     }
