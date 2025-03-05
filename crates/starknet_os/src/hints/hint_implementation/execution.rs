@@ -2,6 +2,7 @@ use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
     get_integer_from_var_name,
+    get_ptr_from_var_name,
     insert_value_from_var_name,
 };
 use starknet_api::block::BlockNumber;
@@ -277,10 +278,145 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     todo!()
 }
 
+// pub const WRITE_SYSCALL_RESULT: &str = indoc! {r#"
+//     storage = execution_helper.storage_by_address[ids.contract_address]
+//     ids.prev_value = storage.read(key=ids.request.key)
+//     storage.write(key=ids.request.key, value=ids.request.value)
+
+//     # Fetch a state_entry in this hint and validate it in the update that comes next.
+//     ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
+//     ids.new_state_entry = segments.add()"#
+// };
+
+// pub async fn write_syscall_result_async<PCS>(
+//     vm: &mut VirtualMachine,
+//     exec_scopes: &mut ExecutionScopes,
+//     ids_data: &HashMap<String, HintReference>,
+//     ap_tracking: &ApTracking,
+// ) -> Result<(), HintError>
+// where
+//     PCS: PerContractStorage + 'static,
+// {
+//     let mut execution_helper: ExecutionHelperWrapper<PCS> =
+// exec_scopes.get(vars::scopes::EXECUTION_HELPER)?;
+
+//     let contract_address = get_integer_from_var_name(vars::ids::CONTRACT_ADDRESS, vm, ids_data,
+// ap_tracking)?;     let request = get_ptr_from_var_name(vars::ids::REQUEST, vm, ids_data,
+// ap_tracking)?;     let storage_write_address = *vm.get_integer((request +
+// new_syscalls::StorageWriteRequest::key_offset())?)?;     let storage_write_value =
+//         vm.get_integer((request +
+// new_syscalls::StorageWriteRequest::value_offset())?)?.into_owned();
+
+//     // ids.prev_value = storage.read(key=ids.request.key)
+//     let prev_value =
+//         execution_helper.read_storage_for_address(contract_address,
+// storage_write_address).await.unwrap_or_default();
+//     insert_value_from_var_name(vars::ids::PREV_VALUE, prev_value, vm, ids_data, ap_tracking)?;
+
+//     // storage.write(key=ids.request.key, value=ids.request.value)
+//     execution_helper
+//         .write_storage_for_address(contract_address, storage_write_address, storage_write_value)
+//         .await
+//         .map_err(|e| custom_hint_error(format!("Failed to write storage for contract {}: {e}",
+// contract_address)))?;
+
+//     let contract_state_changes = get_ptr_from_var_name(vars::ids::CONTRACT_STATE_CHANGES, vm,
+// ids_data, ap_tracking)?;     get_state_entry_and_set_new_state_entry(
+//         contract_state_changes,
+//         contract_address,
+//         vm,
+//         exec_scopes,
+//         ids_data,
+//         ap_tracking,
+//     )?;
+
+//     Ok(())
+// }
+
+// pub fn write_syscall_result<PCS>(
+//     vm: &mut VirtualMachine,
+//     exec_scopes: &mut ExecutionScopes,
+//     ids_data: &HashMap<String, HintReference>,
+//     ap_tracking: &ApTracking,
+//     _constants: &HashMap<String, Felt252>,
+// ) -> Result<(), HintError>
+// where
+//     PCS: PerContractStorage + 'static,
+// {
+//     execute_coroutine(write_syscall_result_async::<PCS>(vm, exec_scopes, ids_data, ap_tracking))?
+// }
+
 pub(crate) fn write_syscall_result<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key = StorageKey(PatriciaKey::try_from(
+        vm.get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::Request,
+            CairoStruct::StorageReadRequestPtr,
+            vm,
+            ap_tracking,
+            &["key".to_string()],
+            &hint_processor.execution_helper.os_program,
+        )?)?
+        .into_owned(),
+    )?);
+
+    let contract_address = ContractAddress(
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
+            .try_into()?,
+    );
+
+    let prev_value =
+        hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
+
+    insert_value_from_var_name(Ids::Value.into(), prev_value, vm, ids_data, ap_tracking)?;
+
+    let ids_request_value = vm
+        .get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::Request,
+            CairoStruct::StorageReadRequestPtr,
+            vm,
+            ap_tracking,
+            &["value".to_string()],
+            &hint_processor.execution_helper.os_program,
+        )?)?
+        .into_owned();
+
+    hint_processor.execution_helper.cached_state.set_storage_at(
+        contract_address,
+        key,
+        ids_request_value,
+    )?;
+
+    // Fetch a state_entry in this hint and validate it in the update that comes next.
+
+    let contract_state_changes_ptr =
+        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let contract_address_state_entry = dict_manager_borrowed
+        .get_tracker_mut(contract_state_changes_ptr)?
+        .get_value(&contract_address.key().into())?;
+
+    insert_value_from_var_name(
+        Ids::StateEntry.into(),
+        contract_address_state_entry,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    insert_value_from_var_name(
+        Ids::NewStateEntry.into(),
+        vm.add_memory_segment(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 pub(crate) fn gen_class_hash_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
