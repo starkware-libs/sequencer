@@ -189,15 +189,24 @@ fn test_syscall_gas_cost_calculation() {
     let versioned_constants = VersionedConstants::latest_constants().clone();
 
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract).base,
         EXPECTED_CALL_CONTRACT_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul).base,
         EXPECTED_SECP256K1MUL_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock).base,
         EXPECTED_SHA256PROCESSBLOCK_GAS_COST
     );
+}
+
+/// Linear gas cost factor of deploy syscall should not be trivial.
+#[test]
+fn test_call_data_factor_gas_cost_calculation() {
+    assert!(
+        VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.deploy.linear_factor
+            > 0
+    )
 }
