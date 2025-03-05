@@ -267,7 +267,12 @@ pub fn create_nodes_deployment_units_configs(
                     mempool_remote_config,
                     state_sync_remote_config.clone(),
                 ),
-                get_mempool_config(mempool_socket, mempool_p2p_socket),
+                get_mempool_config(
+                    mempool_socket,
+                    mempool_p2p_socket,
+                    class_manager_remote_config.clone(),
+                    gateway_remote_config.clone(),
+                ),
                 get_sierra_compiler_config(sierra_compiler_socket),
                 get_state_sync_config(state_sync_socket, class_manager_remote_config.clone()),
                 get_consensus_manager_config(
@@ -342,6 +347,8 @@ fn get_gateway_config(
 fn get_mempool_config(
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
+    gateway_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
@@ -354,6 +361,8 @@ fn get_mempool_config(
         mempool_p2p_socket.ip(),
         mempool_p2p_socket.port(),
     );
+    config.class_manager = class_manager_remote_config;
+    config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
     config
 }
