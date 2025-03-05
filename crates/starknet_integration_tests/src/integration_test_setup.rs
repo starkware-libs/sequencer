@@ -289,6 +289,14 @@ impl ExecutableSetup {
         self.dump_config_file_changes();
     }
 
+    pub fn modify_config<F>(&mut self, modify_config_fn: F)
+    where
+        F: Fn(&mut SequencerNodeConfig),
+    {
+        modify_config_fn(&mut self.config);
+        self.dump_config_file_changes();
+    }
+
     /// Creates a config file for the sequencer node for an integration test.
     pub fn dump_config_file_changes(&self) {
         // Create the entire mapping of the config and the pointers, without the required params.
