@@ -34,6 +34,8 @@ pub enum OsHintError {
          is probably out of sync."
     )]
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
+    #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
+    InconsistentValue { actual: Felt, expected: Felt },
     #[error(transparent)]
     MathError(#[from] MathError),
     #[error(transparent)]
