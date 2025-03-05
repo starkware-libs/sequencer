@@ -4,6 +4,10 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json;
 use url::Url;
 
+#[cfg(test)]
+#[path = "price_oracle_test.rs"]
+pub mod price_oracle_test;
+
 fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
     if let Some(map) = hash_map {
