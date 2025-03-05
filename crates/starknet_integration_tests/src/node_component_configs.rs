@@ -68,6 +68,7 @@ pub fn create_distributed_node_configs(
         let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
         let class_manager_socket = available_ports.get_next_local_host_socket();
+        let batcher_socket = available_ports.get_next_local_host_socket();
 
         NodeComponentConfigs::new(
             vec![
@@ -77,6 +78,7 @@ pub fn create_distributed_node_configs(
                     mempool_p2p_socket,
                     state_sync_socket,
                     class_manager_socket,
+                    batcher_socket,
                 ),
                 get_non_http_container_config(
                     gateway_socket,
@@ -84,6 +86,7 @@ pub fn create_distributed_node_configs(
                     mempool_p2p_socket,
                     state_sync_socket,
                     class_manager_socket,
+                    batcher_socket,
                 ),
             ],
             // batcher is in executable index 1.
@@ -120,6 +123,7 @@ pub fn create_consolidated_sequencer_configs(
 // TODO(Nadin/Tsabary): find a better name for this function.
 fn get_http_container_config(
     gateway_socket: SocketAddr,
+    batcher_socket: SocketAddr,
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
     state_sync_socket: SocketAddr,
@@ -131,6 +135,12 @@ fn get_http_container_config(
         Ipv4Addr::LOCALHOST.to_string(),
         gateway_socket.ip(),
         gateway_socket.port(),
+    );
+    config.consensus_manager = ActiveComponentExecutionConfig::default();
+    config.batcher = ReactiveComponentExecutionConfig::remote(
+        Ipv4Addr::LOCALHOST.to_string(),
+        batcher_socket.ip(),
+        batcher_socket.port(),
     );
     config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
         Ipv4Addr::LOCALHOST.to_string(),
@@ -159,6 +169,7 @@ fn get_http_container_config(
 
 fn get_non_http_container_config(
     gateway_socket: SocketAddr,
+    batcher_socket: SocketAddr,
     mempool_socket: SocketAddr,
     mempool_p2p_socket: SocketAddr,
     state_sync_socket: SocketAddr,
@@ -166,6 +177,12 @@ fn get_non_http_container_config(
 ) -> ComponentConfig {
     ComponentConfig {
         http_server: ActiveComponentExecutionConfig::disabled(),
+        consensus_manager: ActiveComponentExecutionConfig::disabled(),
+        batcher: ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            Ipv4Addr::LOCALHOST.to_string(),
+            batcher_socket.ip(),
+            batcher_socket.port(),
+        ),
         monitoring_endpoint: Default::default(),
         gateway: ReactiveComponentExecutionConfig::remote(
             Ipv4Addr::LOCALHOST.to_string(),
