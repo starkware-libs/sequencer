@@ -51,7 +51,7 @@ async fn main() {
          block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}."
     );
     integration_test_manager
-        .update_revert_config_to_all_idle_nodes(Some(BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next()));
+        .modify_revert_config_to_all_idle_nodes(Some(BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next()));
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
