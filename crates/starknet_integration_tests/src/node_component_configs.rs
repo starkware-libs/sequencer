@@ -1,6 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
-use starknet_infra_utils::test_utils::{AvailablePorts, AvailablePortsGenerator};
+use starknet_infra_utils::test_utils::AvailablePortsGenerator;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -202,10 +202,13 @@ fn get_non_http_container_config(
 
 // TODO(alonl): use enums to represent the different types of units distributions.
 pub fn create_nodes_deployment_units_configs(
-    available_ports: &mut AvailablePorts,
+    available_ports_generator: &mut AvailablePortsGenerator,
     distributed_sequencers_num: usize,
 ) -> Vec<NodeComponentConfigs> {
     std::iter::repeat_with(|| {
+        let mut available_ports = available_ports_generator
+            .next()
+            .expect("Failed to get an AvailablePorts instance for distributed node configs");
         let batcher_socket = available_ports.get_next_local_host_socket();
         let class_manager_socket = available_ports.get_next_local_host_socket();
         let gateway_socket = available_ports.get_next_local_host_socket();
