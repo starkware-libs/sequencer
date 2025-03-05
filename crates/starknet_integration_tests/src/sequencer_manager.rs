@@ -43,7 +43,7 @@ use crate::utils::{
     TestScenario,
 };
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
+pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
@@ -231,6 +231,7 @@ impl IntegrationTestManager {
     pub async fn run_nodes(&mut self, nodes_to_run: HashSet<usize>) {
         info!("Checking that the sequencer node executable is present.");
         get_node_executable_path();
+        // TODO(noamsp): Add size of nodes_to_run to the log.
         info!("Running specified nodes.");
 
         nodes_to_run.into_iter().for_each(|index| {
