@@ -492,12 +492,19 @@ impl<'a> SyscallHintProcessor<'a> {
             &mut u64, // Remaining gas.
         ) -> SyscallResult<Response>,
     {
-        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas = syscall_gas_cost.get_base_cost()
-            - self.base.context.gas_costs().base.syscall_base_gas_cost;
-
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
+
+        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
+        let syscall_gas_cost = match syscall_gas_cost {
+            SyscallGasCost::Constant(call_cost) => call_cost,
+            SyscallGasCost::Linear { base_cost, linear_factor } => {
+                base_cost + linear_factor * request.get_linear_param_cost()
+            }
+        };
+
+        let required_gas =
+            syscall_gas_cost - self.base.context.gas_costs().base.syscall_base_gas_cost;
 
         if gas_counter < required_gas {
             //  Out of gas failure.

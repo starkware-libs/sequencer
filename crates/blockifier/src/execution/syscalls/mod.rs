@@ -31,6 +31,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
@@ -46,6 +47,12 @@ pub type SyscallSelector = DeprecatedSyscallSelector;
 
 pub trait SyscallRequest: Sized {
     fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallResult<Self>;
+
+    /// Returns the linear param cost of the syscall.
+    /// If no such a cost exists, returns 0.
+    fn get_linear_param_cost(&self) -> u64 {
+        0
+    }
 }
 
 pub trait SyscallResponse {
@@ -217,6 +224,10 @@ impl SyscallRequest for DeployRequest {
                 "The deploy_from_zero field in the deploy system call must be 0 or 1.",
             )?,
         })
+    }
+
+    fn get_linear_param_cost(&self) -> u64 {
+        u64_from_usize(self.constructor_calldata.0.len())
     }
 }
 
