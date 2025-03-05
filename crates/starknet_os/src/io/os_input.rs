@@ -62,6 +62,9 @@ pub struct StarknetOsInput {
     pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     _contract_class_commitment_info: CommitmentInfo,
     pub(crate) chain_info: ChainInfo,
+    // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
+    // field. This field is needed by the blockifier, but not used in the OS, so it is expected
+    // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
     pub transactions: Vec<Transaction>,
     pub _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
