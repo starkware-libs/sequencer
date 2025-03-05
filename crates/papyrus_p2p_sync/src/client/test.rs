@@ -255,11 +255,7 @@ fn create_random_sync_block(
 
     let mut transaction_hashes = vec![];
     for _ in 0..transaction_hashes_len {
-        let mut transaction_hash = vec![];
-        for _ in 0..32 {
-            transaction_hash.push(rng.gen::<u8>());
-        }
-        transaction_hashes.push(TransactionHash::from(transaction_hash));
+        transaction_hashes.push(TransactionHash::random(&mut rng));
     }
     let BlockHeaderWithoutHash {
         block_number: _,

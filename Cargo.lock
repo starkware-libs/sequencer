@@ -10843,6 +10843,7 @@ dependencies = [
  "num-traits",
  "pretty_assertions",
  "primitive-types",
+ "rand 0.8.5",
  "rstest",
  "semver 1.0.24",
  "serde",
