@@ -21,24 +21,21 @@ class ServiceApp(Construct):
         super().__init__(scope, id)
 
         self.namespace = namespace
-        self.labels = {"app": Names.to_label_value(self, include_hash=False)}
-        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
+        self.labels = {
+            "app": "sequencer-node",
+            "service": Names.to_label_value(self, include_hash=False)
+        }
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
 
-        k8s.KubeNamespace(
-            self,
-            "namespace",
-            metadata=k8s.ObjectMeta(name=self.namespace))
-
-        k8s.KubeConfigMap(
+        self.config_map = k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
             data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
         )
 
-        k8s.KubeService(
+        self.service = k8s.KubeService(
             self,
             "service",
             spec=k8s.ServiceSpec(
@@ -48,12 +45,12 @@ class ServiceApp(Construct):
             ),
         )
 
-        k8s.KubeDeployment(
+        self.deployment = k8s.KubeDeployment(
             self,
             "deployment",
             metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.DeploymentSpec(
-                replicas=self.service_topology.deployment.replicas,
+                replicas=1,
                 selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.labels),
@@ -63,7 +60,7 @@ class ServiceApp(Construct):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=self.service_topology.images["dev"],
+                                image=self.service_topology.image,
                                 image_pull_policy="Always",
                                 # command=["sleep", "infinity"],
                                 env=self._get_container_env(),
@@ -80,7 +77,61 @@ class ServiceApp(Construct):
             ),
         )
 
-        k8s.KubeIngress(
+        if self.service_topology.ingress:
+            self.ingress = self._get_ingress()
+
+        if self.service_topology.storage is not None:
+            self.pvc = self._get_persistent_volume_claim()
+
+        if self.service_topology.autoscale:
+            self.hpa = self._get_hpa()
+
+
+    def _get_hpa(self) -> k8s.KubeHorizontalPodAutoscalerV2:
+        return k8s.KubeHorizontalPodAutoscalerV2(
+            self,
+            "hpa",
+            metadata=k8s.ObjectMeta(labels=self.labels),
+            spec=k8s.HorizontalPodAutoscalerSpecV2(
+                min_replicas=1,
+                max_replicas=100,
+                scale_target_ref=k8s.CrossVersionObjectReferenceV2(
+                    api_version="v1",
+                    kind="Deployment",
+                    name=self.deployment.name
+                ),
+                metrics=[
+                    k8s.MetricSpecV2(
+                        type="Resource",
+                        resource=k8s.ResourceMetricSourceV2(
+                            name="cpu",
+                            target=k8s.MetricTargetV2(
+                                type="Utilization",
+                                average_utilization=50
+                            )
+                        )
+                    )
+                ],
+                behavior=k8s.HorizontalPodAutoscalerBehaviorV2(
+                    scale_up=k8s.HpaScalingRulesV2(
+                        select_policy="Max",  # Choose the highest scaling policy
+                        stabilization_window_seconds=300,
+                        policies=[
+                            k8s.HpaScalingPolicyV2(
+                                type="Pods",
+                                value=2,  # Add 2 pods per scaling action
+                                period_seconds=60  # Scaling happens at most once per minute
+                            )
+                        ],
+                    ),
+                ),
+            )
+        )
+
+
+    def _get_ingress(self) -> k8s.KubeIngress:
+        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
+        return k8s.KubeIngress(
             self,
             "ingress",
             metadata=k8s.ObjectMeta(
@@ -100,20 +151,20 @@ class ServiceApp(Construct):
             ),
         )
 
-        k8s.KubePersistentVolumeClaim(
+    def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
+        return k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.labels),
             spec=k8s.PersistentVolumeClaimSpec(
-                storage_class_name=self.service_topology.pvc.storage_class_name,
-                access_modes=self.service_topology.pvc.access_modes,
-                volume_mode=self.service_topology.pvc.volume_mode,
+                storage_class_name=const.PVC_STORAGE_CLASS_NAME,
+                access_modes=const.PVC_ACCESS_MODE,
+                volume_mode=const.PVC_VOLUME_MODE,
                 resources=k8s.ResourceRequirements(
-                    requests={"storage": k8s.Quantity.from_string(self.service_topology.pvc.storage)}
+                    requests={"storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")}
                 ),
             ),
         )
-
 
     def _get_config_attr(self, attr: str) -> str | int:
         config_attr = self.node_config.get(attr)
@@ -175,8 +226,9 @@ class ServiceApp(Construct):
             timeout_seconds=timeout_seconds,
         )
 
+
     def _get_volume_mounts(self) -> typing.List[k8s.VolumeMount]:
-        return [
+        volume_mounts = [
             k8s.VolumeMount(
                 name=f"{self.node.id}-config",
                 mount_path="/config/sequencer/presets/",
@@ -186,8 +238,10 @@ class ServiceApp(Construct):
                 name=f"{self.node.id}-data",
                 mount_path="/data",
                 read_only=False
-            )
+            ) if self.service_topology.storage else None
         ]
+
+        return [vm for vm in volume_mounts if vm is not None]
 
     def _get_volumes(self) -> typing.List[k8s.Volume]:
         return [

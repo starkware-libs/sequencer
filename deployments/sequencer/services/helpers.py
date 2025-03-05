@@ -12,10 +12,16 @@ def argument_parser():
     )
     parser.add_argument(
         "--config-file",
-        required=True,
+        required=False,
         type=str,
         action='append',
-        help="Optional: Path to sequencer configuration file. Can be used multiple times."
+        help="Path to sequencer configuration file."
+    )
+    parser.add_argument(
+        "--preset-file",
+        required=False,
+        type=str,
+        help="Path to topology file."
     )
 
     return parser.parse_args()

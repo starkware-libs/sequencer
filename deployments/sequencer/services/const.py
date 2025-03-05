@@ -6,6 +6,9 @@ class ServiceType(str, Enum):
     LOAD_BALANCER = "LoadBalancer"
     NODE_PORT = "NodePort"
 
+IMAGE = "ghcr.io/starkware-libs/sequencer/sequencer:dev"
+
+CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
 
 # k8s container ports
 HTTP_CONTAINER_PORT = 8080
@@ -21,4 +24,6 @@ PROBE_FAILURE_THRESHOLD = 5
 PROBE_PERIOD_SECONDS = 10
 PROBE_TIMEOUT_SECONDS = 5
 
-CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
+PVC_STORAGE_CLASS_NAME = "premium-rwo"
+PVC_VOLUME_MODE = "Filesystem"
+PVC_ACCESS_MODE = ["ReadWriteOnce"]
