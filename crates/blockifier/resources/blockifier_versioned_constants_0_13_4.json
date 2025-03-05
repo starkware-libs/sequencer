@@ -365,144 +365,70 @@
         },
         "execute_txs_inner": {
             "Declare": {
-                "deprecated_resources": {
-                    "constant": {
-                        "n_steps": 3203,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 16,
-                            "range_check_builtin": 56,
-                            "poseidon_builtin": 4
-                        },
-                        "n_memory_holes": 0
+                "constant": {
+                    "n_steps": 3203,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 16,
+                        "range_check_builtin": 56,
+                        "poseidon_builtin": 4
                     },
-                    "calldata_factor": {
-                        "n_steps": 0,
-                        "builtin_instance_counter": {},
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 },
-                "resources": {
-                    "constant": {
-                        "n_steps": 3346,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 4,
-                            "range_check_builtin": 64,
-                            "poseidon_builtin": 14
-                        },
-                        "n_memory_holes": 0
-                    },
-                    "calldata_factor": {
-                        "n_steps": 0,
-                        "builtin_instance_counter": {},
-                        "n_memory_holes": 0
-                    }
+                "calldata_factor": {
+                    "n_steps": 0,
+                    "builtin_instance_counter": {},
+                    "n_memory_holes": 0
                 }
             },
             "DeployAccount": {
-                "deprecated_resources": {
-                    "constant": {
-                        "n_steps": 4161,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 23,
-                            "range_check_builtin": 72
-                        },
-                        "n_memory_holes": 0
+                "constant": {
+                    "n_steps": 4161,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 23,
+                        "range_check_builtin": 72
                     },
-                    "calldata_factor": {
-                        "n_steps": 21,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 2
-                        },
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 },
-                "resources": {
-                    "constant": {
-                        "n_steps": 4321,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 11,
-                            "range_check_builtin": 80,
-                            "poseidon_builtin": 10
-                        },
-                        "n_memory_holes": 0
+                "calldata_factor": {
+                    "n_steps": 21,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 2
                     },
-                    "calldata_factor": {
-                        "n_steps": 21,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 2
-                        },
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 }
             },
             "InvokeFunction": {
-                "deprecated_resources": {
-                    "constant": {
-                        "n_steps": 3918,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 14,
-                            "range_check_builtin": 69
-                        },
-                        "n_memory_holes": 0
+                "constant": {
+                    "n_steps": 3918,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 14,
+                        "range_check_builtin": 69
                     },
-                    "calldata_factor": {
-                        "n_steps": 8,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 1
-                        },
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 },
-                "resources": {
-                    "constant": {
-                        "n_steps": 4102,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 4,
-                            "range_check_builtin": 77,
-                            "poseidon_builtin": 11
-                        },
-                        "n_memory_holes": 0
+                "calldata_factor": {
+                    "n_steps": 8,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 1
                     },
-                    "calldata_factor": {
-                        "n_steps": 8,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 1
-                        },
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 }
             },
             "L1Handler": {
-                "deprecated_resources": {
-                    "constant": {
-                        "n_steps": 1279,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 11,
-                            "range_check_builtin": 16
-                        },
-                        "n_memory_holes": 0
+                "constant": {
+                    "n_steps": 1279,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 11,
+                        "range_check_builtin": 16
                     },
-                    "calldata_factor": {
-                        "n_steps": 13,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 1
-                        },
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 },
-                "resources": {
-                    "constant": {
-                        "n_steps": 0,
-                        "builtin_instance_counter": {},
-                        "n_memory_holes": 0
+                "calldata_factor": {
+                    "n_steps": 13,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 1
                     },
-                    "calldata_factor": {
-                        "n_steps": 13,
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 1
-                        },
-                        "n_memory_holes": 0
-                    }
+                    "n_memory_holes": 0
                 }
             }
         },
