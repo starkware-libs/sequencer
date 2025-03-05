@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -433,11 +434,11 @@ impl IntegrationTestManager {
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
-        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            monitoring_utils::await_txs_accepted(monitoring_client, *sequencer_idx, target_n_txs)
-        });
-        futures::future::join_all(futures).await;
+            monitoring_utils::await_txs_accepted(monitoring_client, sequencer_idx, target_n_txs)
+        })
+        .await;
     }
 
     /// This function tests and verifies the integration of the transaction flow.
@@ -537,6 +538,18 @@ impl IntegrationTestManager {
             expected_n_accepted_txs,
         )
         .await;
+    }
+
+    async fn perform_action_on_all_running_nodes<'a, F, Fut>(&'a self, f: F)
+    where
+        F: Fn(usize, &'a RunningNode) -> Fut,
+        Fut: Future<Output = ()> + 'a,
+    {
+        let futures = self
+            .running_nodes
+            .iter()
+            .map(|(sequencer_idx, running_node)| f(*sequencer_idx, running_node));
+        join_all(futures).await;
     }
 
     pub fn chain_id(&self) -> ChainId {
