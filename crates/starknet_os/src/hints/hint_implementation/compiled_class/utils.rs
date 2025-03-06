@@ -82,3 +82,43 @@ impl<IG: IdentifierGetter> CairoSized<IG> for BuiltinName {
         1
     }
 }
+
+#[allow(dead_code)]
+/// Inserts a list of `EntryPointV1` to the VM at the given address.
+fn insert_compiled_class_entry_point_list_to_vm<IG: IdentifierGetter>(
+    vm: &mut VirtualMachine,
+    entry_points: &Vec<EntryPointV1>,
+    identifier_getter: &IG,
+    list_base_address: &Relocatable,
+    list_field_name: String,
+    list_len_field_name: String,
+    base_struct_address: &Relocatable,
+) -> OsHintResult {
+    let compiled_class_entry_point_size: usize = 4; // Better way to get this? Maybe add `fn size()` under `CairoStruct`? It doesn't appear in the identifiers.
+    let mut cur_address = *list_base_address;
+    for entry_point in entry_points {
+        cur_address += compiled_class_entry_point_size;
+        insert_compiled_entry_point_class_to_vm(vm, entry_point, identifier_getter, &cur_address)?;
+    }
+    // Insert the list.
+    insert_value_to_nested_field(
+        *base_struct_address,
+        CairoStruct::CompiledClass,
+        vm,
+        &[list_field_name],
+        identifier_getter,
+        list_base_address,
+    )?;
+
+    // Insert the list length.
+    insert_value_to_nested_field(
+        *base_struct_address,
+        CairoStruct::CompiledClass,
+        vm,
+        &[list_len_field_name],
+        identifier_getter,
+        entry_points.len(),
+    )?;
+
+    Ok(())
+}
