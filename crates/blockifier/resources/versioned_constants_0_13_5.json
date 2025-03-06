@@ -167,7 +167,7 @@
                     "n_memory_holes": 0
                 },
                 "calldata_factor": {
-                    "n_steps": 15,
+                    "n_steps": 8,
                     "builtin_instance_counter": {
                         "pedersen_builtin": 1
                     },

@@ -125,7 +125,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 
     assert_eq!(
         deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 186010, ..CallExecution::default() }
+        CallExecution { retdata: retdata![], gas_consumed: 184610, ..CallExecution::default() }
     );
 
     let constructor_call = &deploy_call.inner_calls[0];
