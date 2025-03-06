@@ -33,6 +33,7 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
+use crate::transaction::objects::TransactionInfo;
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
@@ -192,13 +193,21 @@ impl<'state> SyscallHandlerBase<'state> {
         // If the transaction version is 3 and the account is in the v1-bound-accounts set,
         // the syscall should return transaction version 1 instead.
         if version == TransactionVersion::THREE && v1_bound_accounts.contains(class_hash) {
-            signed_tx_version(
-                &TransactionVersion::ONE,
-                &TransactionOptions { only_query: tx_context.tx_info.only_query() },
-            )
-        } else {
-            tx_context.tx_info.signed_version()
+            let tip = match &tx_context.tx_info {
+                TransactionInfo::Current(transaction_info) => transaction_info.tip,
+                TransactionInfo::Deprecated(_) => {
+                    panic!("Transaction info variant doesn't match transaction version")
+                }
+            };
+            if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
+                return signed_tx_version(
+                    &TransactionVersion::ONE,
+                    &TransactionOptions { only_query: tx_context.tx_info.only_query() },
+                );
+            }
         }
+
+        tx_context.tx_info.signed_version()
     }
 
     pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
