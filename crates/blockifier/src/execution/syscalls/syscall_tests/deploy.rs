@@ -1,11 +1,16 @@
+use std::collections::HashMap;
+
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::calculate_contract_address;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
@@ -18,6 +23,7 @@ use crate::test_utils::{
     CairoVersion,
     RunnableCairo1,
 };
+use crate::versioned_constants::ResourcesParams;
 
 #[test_case(RunnableCairo1::Casm;"VM")]
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
@@ -168,4 +174,97 @@ fn to_unavailable_address(runnable_version: RunnableCairo1) {
     let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
 
     assert!(error.contains("Deployment failed:"));
+}
+
+// Test that call data length affected the call info resources.
+/// Specifcly every argument in call data add 1 pederson builtin.
+#[test_case(RunnableCairo1::Casm;"VM")]
+fn call_data_length(runnable_version: RunnableCairo1) {
+    // - deployer_contract: (constructor gets 2 arguments)
+    let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    // - account_contract: (constructor gets 1 argument)
+    let account_contract = FeatureContract::FaultyAccount(CairoVersion::Cairo1(runnable_version));
+    // Empty contract.
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
+
+    let class_hash_account = account_contract.get_class_hash();
+    let class_hash_test_contract = deployer_contract.get_class_hash();
+    let class_hash_empty_contract = empty_contract.get_class_hash();
+
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        Fee(0),
+        &[(deployer_contract, 1), (account_contract, 0), (empty_contract, 0)],
+    );
+
+    // Use the maximum sierra version to avoid sierra gas.
+    let max_sierra_version = SierraVersion::new(u64::MAX, u64::MAX, u64::MAX);
+    let mut block_context = BlockContext::create_for_testing();
+    block_context.versioned_constants.min_sierra_version_for_sierra_gas = max_sierra_version;
+
+    // Deploy account contract.
+    let constructor_account_contract_calldata = vec![felt!(0_u8)];
+    let calldata_to_deploy_account_contract =
+        calldata_for_deploy_test(class_hash_account, &constructor_account_contract_calldata, true);
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_deploy"),
+        calldata: calldata_to_deploy_account_contract,
+        ..trivial_external_entry_point_new(deployer_contract)
+    };
+    let deploy_account_call = &entry_point_call
+        .execute_directly_given_block_context(&mut state, block_context.clone())
+        .unwrap();
+
+    // Deploy test contract.
+    let constructor_test_contract_calldata = vec![felt!(1_u8), felt!(1_u8)];
+    let calldata_to_deploy_test_contract = calldata_for_deploy_test(
+        class_hash_test_contract,
+        &constructor_test_contract_calldata,
+        true,
+    );
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_deploy"),
+        calldata: calldata_to_deploy_test_contract,
+        ..trivial_external_entry_point_new(deployer_contract)
+    };
+    let deploy_test_call = entry_point_call
+        .execute_directly_given_block_context(&mut state, block_context.clone())
+        .unwrap();
+
+    // Deploy empty contract.
+    let calldata_to_deploy_empty_contract =
+        calldata_for_deploy_test(class_hash_empty_contract, &[], true);
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_deploy"),
+        calldata: calldata_to_deploy_empty_contract,
+        ..trivial_external_entry_point_new(deployer_contract)
+    };
+    let deploy_empty_call =
+        entry_point_call.execute_directly_given_block_context(&mut state, block_context).unwrap();
+
+    // Extract pedersen counter from each call.
+    let deploy_empty_call_pedersen = deploy_empty_call
+        .resources
+        .builtin_instance_counter
+        .get(&BuiltinName::pedersen)
+        .copied()
+        .unwrap();
+
+    let deploy_account_pedersen = deploy_account_call
+        .resources
+        .builtin_instance_counter
+        .get(&BuiltinName::pedersen)
+        .copied()
+        .unwrap();
+    let deploy_test_pedersen = deploy_test_call
+        .resources
+        .builtin_instance_counter
+        .get(&BuiltinName::pedersen)
+        .copied()
+        .unwrap();
+
+    // Verify that the pedersen counter is higher for the test contract.
+    assert!(deploy_account_pedersen + 1 == deploy_test_pedersen);
+    assert!(deploy_empty_call_pedersen + 1 == deploy_account_pedersen);
+    assert!(deploy_empty_call_pedersen == 7);
 }
