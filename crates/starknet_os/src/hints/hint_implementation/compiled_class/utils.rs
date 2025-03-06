@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
@@ -119,5 +120,41 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
         )?;
 
         Ok(())
+    }
+}
+
+pub(crate) struct CompiledClassFact<'a> {
+    pub(crate) class_hash: &'a ClassHash,
+    pub(crate) compiled_class: &'a CasmContractClass,
+}
+
+impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
+    fn load_into(
+        &self,
+        vm: &mut VirtualMachine,
+        identifier_getter: &IG,
+        address: Relocatable,
+        constants: &HashMap<String, Felt>,
+    ) -> OsHintResult {
+        let compiled_class_address = vm.add_memory_segment();
+        self.compiled_class.load_into(vm, identifier_getter, compiled_class_address, constants)?;
+        let nested_fields_and_value = [
+            ("class_hash".to_string(), self.class_hash.0.into()),
+            ("compiled_class".to_string(), compiled_class_address.into()),
+        ];
+        insert_values_to_fields(
+            address,
+            CairoStruct::CompiledClassFact,
+            vm,
+            &nested_fields_and_value,
+            identifier_getter,
+        )
+    }
+}
+
+impl<IG: IdentifierGetter> CairoSized<IG> for CompiledClassFact<'_> {
+    fn size(_identifier_getter: &IG) -> usize {
+        // TODO(Nimrod): Fetch from IG after we upgrade the VM.
+        2
     }
 }

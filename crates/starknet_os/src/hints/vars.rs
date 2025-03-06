@@ -51,6 +51,7 @@ impl std::fmt::Display for Scope {
 pub enum Ids {
     AliasesEntry,
     BucketIndex,
+    BuiltinCosts,
     CompiledClass,
     CompiledClassFact,
     CompressedDst,
@@ -92,6 +93,7 @@ impl From<Ids> for &'static str {
         match ids {
             Ids::AliasesEntry => "aliases_entry",
             Ids::BucketIndex => "bucket_index",
+            Ids::BuiltinCosts => "builtin_costs",
             Ids::CompiledClass => "compiled_class",
             Ids::CompiledClassFact => "compiled_class_fact",
             Ids::CompressedDst => "compressed_dst",
