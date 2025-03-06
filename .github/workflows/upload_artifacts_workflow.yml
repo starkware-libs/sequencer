@@ -21,6 +21,10 @@ on:
       - '.github/workflows/blockifier_ci.yml'
       - '.github/workflows/upload_artifacts_workflow.yml'
       - 'build_native_in_docker.sh'
+      - 'docker-ci/images/sequencer-ci.Dockerfile'
+      - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
+      - 'scripts/install_build_tools.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
       - 'crates/blockifier/**'
@@ -29,10 +33,6 @@ on:
       - 'crates/papyrus_storage/**'
       - 'crates/starknet_api/**'
       - 'crates/starknet_sierra_multicompile/**'
-      - 'scripts/build_native_blockifier.sh'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'scripts/sequencer-ci.Dockerfile'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
