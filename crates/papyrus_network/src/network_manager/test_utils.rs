@@ -85,7 +85,7 @@ where
     )
 }
 
-const CHANNEL_BUFFER_SIZE: usize = 10000;
+const CHANNEL_BUFFER_SIZE: usize = 1000;
 
 /// Mock register subscriber for a given topic. BroadcastNetworkMock is used to send and catch
 /// messages broadcasted by and to the subscriber respectively.
