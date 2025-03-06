@@ -984,10 +984,10 @@ pub type BroadcastTopicServer<T> =
 pub type ReceivedBroadcastedMessage<Message> =
     (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageMetadata);
 
-type BroadcastReceivedMessagesConverterFn<T> =
-    fn((Bytes, BroadcastedMessageMetadata)) -> ReceivedBroadcastedMessage<T>;
-
 pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
     pub broadcasted_messages_receiver: BroadcastTopicServer<T>,
     pub broadcast_topic_client: BroadcastTopicClient<T>,
 }
+
+type BroadcastReceivedMessagesConverterFn<T> =
+    fn((Bytes, BroadcastedMessageMetadata)) -> ReceivedBroadcastedMessage<T>;
