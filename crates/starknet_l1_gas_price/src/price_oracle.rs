@@ -52,6 +52,15 @@ impl SerializeConfig for PriceOracleConfig {
     }
 }
 
+impl Default for PriceOracleConfig {
+    fn default() -> Self {
+        Self {
+            base_url: Url::parse("https://example.com/api?timestamp=").unwrap(),
+            headers: BTreeMap::new(),
+        }
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum PriceOracleClientError {
     #[error(transparent)]
