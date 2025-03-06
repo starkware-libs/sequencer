@@ -26,7 +26,7 @@ use crate::integration_test_setup::{ConfigPointersMap, ExecutableSetup, NodeExec
 use crate::monitoring_utils;
 use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
-    create_distributed_node_configs,
+    create_nodes_deployment_units_configs,
     NodeComponentConfigs,
 };
 use crate::utils::{
@@ -204,7 +204,8 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             custom_paths,
             test_unique_id,
-            create_distributed_node_configs,
+            // create_distributed_node_configs,
+            create_nodes_deployment_units_configs,
         )
         .await;
 
@@ -530,11 +531,13 @@ pub async fn get_sequencer_setup_configs(
 
     // TODO(Nadin): Refactor to avoid directly mutating vectors
 
-    let mut p2p_ports = available_ports_generator
+    let mut consensus_manager_ports = available_ports_generator
         .next()
-        .expect("Failed to get an AvailablePorts instance for p2p configs");
+        .expect("Failed to get an AvailablePorts instance for consensus manager configs");
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
-        create_connected_network_configs(p2p_ports.get_next_ports(n_distributed_sequencers)),
+        create_connected_network_configs(
+            consensus_manager_ports.get_next_ports(n_distributed_sequencers),
+        ),
         node_component_configs.len(),
         &chain_info.chain_id,
     );
@@ -543,14 +546,20 @@ pub async fn get_sequencer_setup_configs(
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
     // the ExecutableSetup
+    let mut state_sync_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for state sync configs");
     let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
-        p2p_ports.get_next_ports(n_distributed_sequencers),
+        state_sync_ports.get_next_ports(n_distributed_sequencers),
     );
 
+    let mut mempool_p2p_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for mempool p2p configs");
     let mut mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
-        p2p_ports.get_next_ports(n_distributed_sequencers),
+        mempool_p2p_ports.get_next_ports(n_distributed_sequencers),
     );
 
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
