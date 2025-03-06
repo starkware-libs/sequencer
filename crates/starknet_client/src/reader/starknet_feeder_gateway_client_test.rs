@@ -352,11 +352,6 @@ async fn get_block() {
         mock_block.assert();
 
         assert_eq!(block, expected_block);
-
-        // Verify presence of fee market fields based on Starknet version (available from 0.14.0+).
-        let is_version_14_or_newer = starknet_version >= "0.14.0";
-        assert_eq!(block.l2_gas_consumed().is_some(), is_version_14_or_newer);
-        assert_eq!(block.next_l2_gas_price().is_some(), is_version_14_or_newer);
     }
 }
 

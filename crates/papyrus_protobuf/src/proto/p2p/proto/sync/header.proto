@@ -30,6 +30,8 @@ message SignedBlockHeader {
     // for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     repeated ConsensusSignature signatures = 19;
     // can be more explicit here about the signature structure as this is not part of account abstraction
+    uint64 l2_gas_consumed = 20;
+    uint64 next_l2_gas_price = 21;
 }
 
 // sent to all peers (except the ones this was received from, if any).
