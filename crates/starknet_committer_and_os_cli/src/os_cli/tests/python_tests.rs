@@ -197,13 +197,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
-use cairo_vm::types::program::Program;
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::CairoArg;
-use starknet_os::hint_processor::snos_hint_processor::SnosHintProcessor;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point;
+use starknet_os::test_utils::cairo_runner::{run_cairo_0_entry_point, ImplicitArg};
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
@@ -285,17 +284,15 @@ fn run_cairo_function(
     program_str: &str,
     function_name: &str,
     explicit_args: &[CairoArg],
+    implicit_args: &[ImplicitArg],
     expected_retdata: &Retdata,
 ) -> OsPythonTestResult {
-    let program_bytes = program_str.as_bytes();
-    let program = Program::from_bytes(program_bytes, None).unwrap();
-    let hint_processor = SnosHintProcessor::new_for_testing(None, None, Some(program.clone()));
     let actual_retdata = run_cairo_0_entry_point(
-        &program,
+        program_str,
         function_name,
         expected_retdata.0.len(),
         explicit_args,
-        hint_processor,
+        implicit_args,
     )
     .map_err(|error| {
         PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunnerError(error))
@@ -311,6 +308,11 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
         input,
         "dummy_function",
         &[MaybeRelocatable::from(param_1).into(), MaybeRelocatable::from(param_2).into()],
+        &[
+            ImplicitArg::Builtin(BuiltinName::output),
+            ImplicitArg::Builtin(BuiltinName::pedersen),
+            ImplicitArg::Builtin(BuiltinName::range_check),
+        ],
         &retdata![(789 + param_1).into(), param_1.into(), param_2.into()],
     )
 }
@@ -335,6 +337,7 @@ fn test_constants(input: &str) -> OsPythonTestResult {
             MaybeRelocatable::from(initial_available_alias).into(),
             MaybeRelocatable::from(alias_contract_address).into(),
         ],
+        &[],
         &retdata![],
     )
 }
