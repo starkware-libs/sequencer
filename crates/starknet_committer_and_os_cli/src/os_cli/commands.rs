@@ -1,8 +1,12 @@
 use std::fs;
 use std::path::Path;
 
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
+use rand_distr::num_traits::Zero;
 use serde::Deserialize;
+use starknet_api::contract_class::ContractClass;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::io::os_input::{CachedStateInput, StarknetOsInput};
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
@@ -20,15 +24,41 @@ pub(crate) struct Input {
     pub cached_state_input: CachedStateInput,
 }
 
-pub fn parse_and_run_os(input_path: String, _output_path: String) {
-    let Input { compiled_os_path, layout, os_input, cached_state_input } = load_input(input_path);
+/// Validate the os_input.
+pub fn validate_input(os_input: &StarknetOsInput) {
     assert!(
         os_input.transactions.len() == os_input._tx_execution_infos.len(),
         "The number of transactions and execution infos should be equal"
     );
+
+    // The CasmContractClass in Declare transactions should hold invalid data to mark it should not
+    // be used.
+    assert!(
+        os_input
+            .transactions
+            .iter()
+            .filter_map(|tx| {
+                if let Transaction::Account(AccountTransaction::Declare(declare_tx)) = tx {
+                    Some(&declare_tx.class_info.contract_class)
+                } else {
+                    None
+                }
+            })
+            .map(|contract_class| match contract_class {
+                ContractClass::V0(_) => false,
+                ContractClass::V1((CasmContractClass { prime, .. }, _)) => prime.is_zero(),
+            })
+            .all(|v| v),
+        "All declare transactions should be of V1 and should have contract class with prime=0"
+    );
+}
+
+pub fn parse_and_run_os(input_path: String, _output_path: String) {
+    let Input { compiled_os_path, layout, os_input, cached_state_input } = load_input(input_path);
+    validate_input(&os_input);
     info!("Parsed OS input successfully for block number: {}", os_input.block_info.block_number);
 
-    // Load the compiled_os from the compiled_os_path
+    // Load the compiled_os from the compiled_os_path.
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
