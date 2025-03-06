@@ -374,45 +374,6 @@ define_hint_enum!(
         }
     ),
     (
-        LoadClassInner,
-        load_class_inner,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-        create_bytecode_segment_structure,
-        get_compiled_class_struct,
-    )
-
-    ids.n_compiled_class_facts = len(os_input.compiled_classes)
-    ids.compiled_class_facts = (compiled_class_facts_end := segments.add())
-    for i, (compiled_class_hash, compiled_class) in enumerate(
-        os_input.compiled_classes.items()
-    ):
-        # Load the compiled class.
-        cairo_contract = get_compiled_class_struct(
-            identifiers=ids._context.identifiers,
-            compiled_class=compiled_class,
-            # Load the entire bytecode - the unaccessed segments will be overriden and skipped
-            # after the execution, in `validate_compiled_class_facts_post_execution`.
-            bytecode=compiled_class.bytecode,
-        )
-        segments.load_data(
-            ptr=ids.compiled_class_facts[i].address_,
-            data=(compiled_class_hash, segments.gen_arg(cairo_contract))
-        )
-
-        bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
-        # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
-        # the builtin costs.
-        segments.load_data(
-            ptr=bytecode_ptr + cairo_contract.bytecode_length,
-            data=[0x208b7fff7fff7ffe, ids.builtin_costs]
-        )
-
-        # Load hints and debug info.
-        vm_load_program(
-            compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)"#}
-    ),
-    (
         BytecodeSegmentStructure,
         bytecode_segment_structure,
         indoc! {r#"
@@ -1781,5 +1742,44 @@ define_hint_extension_enum!(
 
     vm_load_program(compiled_class.program, ids.compiled_class.bytecode_ptr)"#
         }
+    ),
+    (
+        LoadClassInner,
+        load_class_inner,
+        indoc! {r#"
+    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
+        create_bytecode_segment_structure,
+        get_compiled_class_struct,
     )
+
+    ids.n_compiled_class_facts = len(os_input.compiled_classes)
+    ids.compiled_class_facts = (compiled_class_facts_end := segments.add())
+    for i, (compiled_class_hash, compiled_class) in enumerate(
+        os_input.compiled_classes.items()
+    ):
+        # Load the compiled class.
+        cairo_contract = get_compiled_class_struct(
+            identifiers=ids._context.identifiers,
+            compiled_class=compiled_class,
+            # Load the entire bytecode - the unaccessed segments will be overriden and skipped
+            # after the execution, in `validate_compiled_class_facts_post_execution`.
+            bytecode=compiled_class.bytecode,
+        )
+        segments.load_data(
+            ptr=ids.compiled_class_facts[i].address_,
+            data=(compiled_class_hash, segments.gen_arg(cairo_contract))
+        )
+
+        bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
+        # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
+        # the builtin costs.
+        segments.load_data(
+            ptr=bytecode_ptr + cairo_contract.bytecode_length,
+            data=[0x208b7fff7fff7ffe, ids.builtin_costs]
+        )
+
+        # Load hints and debug info.
+        vm_load_program(
+            compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)"#}
+    ),
 );
