@@ -154,12 +154,10 @@ impl MetricGauge {
         describe_gauge!(self.name, self.description);
     }
 
-    /// Increments the gauge.
     pub fn increment<T: IntoF64>(&self, value: T) {
         gauge!(self.name).increment(value.into_f64());
     }
 
-    /// Decrements the gauge.
     pub fn decrement<T: IntoF64>(&self, value: T) {
         gauge!(self.name).decrement(value.into_f64());
     }
@@ -170,6 +168,63 @@ impl MetricGauge {
 
     pub fn set<T: IntoF64>(&self, value: T) {
         gauge!(self.name).set(value.into_f64());
+    }
+}
+
+pub struct LabeledMetricGauge {
+    scope: MetricScope,
+    name: &'static str,
+    description: &'static str,
+    label_permutations: &'static [&'static [(&'static str, &'static str)]],
+}
+
+impl LabeledMetricGauge {
+    pub const fn new(
+        scope: MetricScope,
+        name: &'static str,
+        description: &'static str,
+        label_permutations: &'static [&'static [(&'static str, &'static str)]],
+    ) -> Self {
+        Self { scope, name, description, label_permutations }
+    }
+
+    pub const fn get_name(&self) -> &'static str {
+        self.name
+    }
+
+    pub const fn get_scope(&self) -> MetricScope {
+        self.scope
+    }
+
+    pub const fn get_description(&self) -> &'static str {
+        self.description
+    }
+
+    pub fn register(&self) {
+        self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|labels| {
+            let _ = gauge!(self.name, &labels);
+        });
+        describe_gauge!(self.name, self.description);
+    }
+
+    pub fn increment<T: IntoF64>(&self, value: T, labels: &[(&'static str, &'static str)]) {
+        gauge!(self.name, labels).increment(value);
+    }
+
+    pub fn decrement<T: IntoF64>(&self, value: T, labels: &[(&'static str, &'static str)]) {
+        gauge!(self.name, labels).decrement(value.into_f64());
+    }
+
+    pub fn parse_numeric_metric<T: Num + FromStr>(
+        &self,
+        metrics_as_string: &str,
+        labels: &[(&'static str, &'static str)],
+    ) -> Option<T> {
+        parse_numeric_metric::<T>(metrics_as_string, self.get_name(), Some(labels))
+    }
+
+    pub fn set<T: IntoF64>(&self, value: T, labels: &[(&'static str, &'static str)]) {
+        gauge!(self.name, labels).set(value.into_f64());
     }
 }
 
