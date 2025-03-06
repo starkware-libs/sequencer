@@ -100,21 +100,9 @@ pub fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<NodeComponentConfigs> {
     // Both batcher and http server are in executable index 0.
-    std::iter::repeat_with(|| {
-        NodeComponentConfigs::new(
-            vec![ComponentConfig {
-                // The L1 scraper is disabled in to avoid running an instance of L1 in the
-                // 'docker-build-push' test.
-                // TODO(Arni): reenable the l1 scraper.
-                l1_scraper: ActiveComponentExecutionConfig::disabled(),
-                ..ComponentConfig::default()
-            }],
-            0,
-            0,
-        )
-    })
-    .take(num_of_consolidated_nodes)
-    .collect()
+    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0))
+        .take(num_of_consolidated_nodes)
+        .collect()
 }
 
 // TODO(Nadin/Tsabary): find a better name for this function.
@@ -192,10 +180,6 @@ fn get_non_http_container_config(
             class_manager_socket.ip(),
             class_manager_socket.port(),
         ),
-        // The L1 scraper is disabled in to avoid running an instance of L1 in the
-        // 'docker-build-push' test.
-        // TODO(Arni): reenable the l1 scraper.
-        l1_scraper: ActiveComponentExecutionConfig::disabled(),
         ..ComponentConfig::default()
     }
 }

@@ -85,6 +85,7 @@ impl RequiredParams {
             recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
+                port: 8545,
             },
             consensus_manager_config: ConsensusManagerRequiredParams {
                 context_config: ContextConfigRequiredParams {
@@ -140,16 +141,15 @@ pub fn create_test_config_load_args(required_params: RequiredParams) -> Vec<Stri
 #[derive(Serialize)]
 pub struct EthereumBaseLayerConfigRequiredParams {
     pub node_url: Url,
+    pub port: u16,
 }
 
 impl SerializeConfig for EthereumBaseLayerConfigRequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "node_url",
-            &self.node_url,
-            "Placeholder.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param("node_url", &self.node_url, "Placeholder.", ParamPrivacyInput::Public),
+            ser_param("port", &self.port, "Placeholder", ParamPrivacyInput::Public),
+        ])
     }
 }
 
