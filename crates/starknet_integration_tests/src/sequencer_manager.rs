@@ -204,7 +204,6 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             custom_paths,
             test_unique_id,
-            // create_distributed_node_configs,
             create_nodes_deployment_units_configs,
         )
         .await;

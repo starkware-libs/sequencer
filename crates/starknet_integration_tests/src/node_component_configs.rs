@@ -218,7 +218,7 @@ pub fn create_nodes_deployment_units_configs(
         let state_sync_socket = available_ports.get_next_local_host_socket();
         let l1_provider_socket = available_ports.get_next_local_host_socket();
 
-        let batcher_remote_config = ReactiveComponentExecutionConfig::remote(
+        let _batcher_remote_config = ReactiveComponentExecutionConfig::remote(
             Ipv4Addr::LOCALHOST.to_string(),
             batcher_socket.ip(),
             batcher_socket.port(),
@@ -257,11 +257,13 @@ pub fn create_nodes_deployment_units_configs(
 
         NodeComponentConfigs::new(
             vec![
-                get_batcher_config(
+                // TODO(alonl): separate batcher and consensus_manager to different configs
+                get_batcher_and_consensus_manager_config(
                     batcher_socket,
                     class_manager_remote_config.clone(),
                     l1_provider_remote_config,
                     mempool_remote_config.clone(),
+                    state_sync_remote_config.clone(),
                 ),
                 get_class_manager_config(class_manager_socket, sierra_compiler_remote_config),
                 get_gateway_config(
@@ -278,23 +280,18 @@ pub fn create_nodes_deployment_units_configs(
                 ),
                 get_sierra_compiler_config(sierra_compiler_socket),
                 get_state_sync_config(state_sync_socket, class_manager_remote_config.clone()),
-                get_consensus_manager_config(
-                    batcher_remote_config,
-                    class_manager_remote_config,
-                    state_sync_remote_config.clone(),
-                ),
                 get_http_server_config(gateway_remote_config),
                 get_l1_provider_config(l1_provider_socket, state_sync_remote_config),
             ],
             0,
-            7,
+            6,
         )
     })
     .take(distributed_sequencers_num)
     .collect()
 }
 
-fn get_batcher_config(
+fn _get_batcher_config(
     batcher_socket: SocketAddr,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
@@ -309,7 +306,7 @@ fn get_batcher_config(
     config.class_manager = class_manager_remote_config;
     config.l1_provider = l1_provider_remote_config;
     config.mempool = mempool_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -324,7 +321,7 @@ fn get_class_manager_config(
         class_manager_socket.port(),
     );
     config.sierra_compiler = sierra_compiler_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -343,7 +340,7 @@ fn get_gateway_config(
     config.class_manager = class_manager_remote_config;
     config.mempool = mempool_remote_config;
     config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -366,7 +363,7 @@ fn get_mempool_config(
     );
     config.class_manager = class_manager_remote_config;
     config.gateway = gateway_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -377,7 +374,7 @@ fn get_sierra_compiler_config(sierra_compiler_socket: SocketAddr) -> ComponentCo
         sierra_compiler_socket.ip(),
         sierra_compiler_socket.port(),
     );
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -392,21 +389,21 @@ fn get_state_sync_config(
         state_sync_socket.port(),
     );
     config.class_manager = class_manager_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
-fn get_consensus_manager_config(
+fn _get_consensus_manager_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
-    config.consensus_manager = ActiveComponentExecutionConfig::default();
+    config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
     config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -414,9 +411,9 @@ fn get_http_server_config(
     gateway_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
-    config.http_server = ActiveComponentExecutionConfig::default();
+    config.http_server = ActiveComponentExecutionConfig::enabled();
     config.gateway = gateway_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
 
@@ -430,8 +427,33 @@ fn get_l1_provider_config(
         l1_provider_socket.ip(),
         l1_provider_socket.port(),
     );
-    config.l1_scraper = ActiveComponentExecutionConfig::default();
+    // The L1 scraper is disabled in to avoid running an instance of L1 in the
+    // 'docker-build-push' test.
+    // TODO(Arni): reenable the l1 scraper.
+    config.l1_scraper = ActiveComponentExecutionConfig::disabled();
     config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
+fn get_batcher_and_consensus_manager_config(
+    batcher_socket: SocketAddr,
+    class_manager_remote_config: ReactiveComponentExecutionConfig,
+    l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    mempool_remote_config: ReactiveComponentExecutionConfig,
+    state_sync_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.consensus_manager = ActiveComponentExecutionConfig::enabled();
+    config.batcher = ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        Ipv4Addr::LOCALHOST.to_string(),
+        batcher_socket.ip(),
+        batcher_socket.port(),
+    );
+    config.class_manager = class_manager_remote_config;
+    config.l1_provider = l1_provider_remote_config;
+    config.mempool = mempool_remote_config;
+    config.state_sync = state_sync_remote_config;
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
