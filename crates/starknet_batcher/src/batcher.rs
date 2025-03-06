@@ -441,8 +441,9 @@ impl Batcher {
         Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
     }
 
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self, sync_block), err)]
     pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+        trace!("Received sync block: {:?}", sync_block);
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
             state_diff,
