@@ -103,6 +103,7 @@ async fn manager_multiple_heights_unordered() {
 
     let mut context = MockTestContext::new();
     // Run the manager for height 1.
+    context.expect_try_sync().returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
