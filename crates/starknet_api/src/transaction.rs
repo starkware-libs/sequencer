@@ -891,6 +891,20 @@ impl std::fmt::Display for TransactionHash {
     }
 }
 
+// Use this in tests to get a randomly generate transaction hash.
+// Note that get_test_instance uses StarkHash::default, not a random value.
+#[cfg(any(feature = "testing", test))]
+impl TransactionHash {
+    pub fn random(rng: &mut impl rand::Rng) -> Self {
+        let mut byte_vec = vec![];
+        for _ in 0..32 {
+            byte_vec.push(rng.gen::<u8>());
+        }
+        let byte_array = byte_vec.try_into().expect("Expected a Vec of length 32");
+        TransactionHash(StarkHash::from_bytes_be(&byte_array))
+    }
+}
+
 // TODO(guyn): this is only used for conversion of transactions->executable transactions
 // It should be removed once we integrate a proper way to calculate executable transaction hashes
 impl From<TransactionHash> for Vec<u8> {
