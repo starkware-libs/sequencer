@@ -25,6 +25,7 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
+use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER};
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -71,7 +72,7 @@ where
          start_observe_height={start_observe_height}, consensus_delay={}, timeouts={timeouts:?}",
         consensus_delay.as_secs(),
     );
-
+    register_metrics();
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(consensus_delay).await;
     assert!(start_observe_height <= start_active_height);
@@ -175,6 +176,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
              {validators:?}"
         );
+        // TODO(guyn, Tsabary): use int metrics so `as f64` may be removed.
+        #[allow(clippy::as_conversions)]
+        CONSENSUS_BLOCK_NUMBER.set(height.0 as f64);
+
         let mut shc = SingleHeightConsensus::new(
             height,
             is_observer,
