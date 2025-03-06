@@ -42,6 +42,7 @@ use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use tracing::{debug, instrument};
+use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
@@ -298,6 +299,8 @@ pub fn create_consensus_manager_configs_and_channels(
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
         config.context_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
+        config.price_oracle_config.base_url =
+            Url::parse("https://price_oracle_url").expect("Should be a valid URL");
     }
 
     let broadcast_channels = network_config_into_broadcast_channels(

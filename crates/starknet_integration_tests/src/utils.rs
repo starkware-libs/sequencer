@@ -61,6 +61,7 @@ use starknet_sequencer_node::config::config_utils::{
     ConsensusManagerRequiredParams,
     ContextConfigRequiredParams,
     EthereumBaseLayerConfigRequiredParams,
+    PriceOracleConfigRequiredParams,
     RequiredParams,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
@@ -204,6 +205,10 @@ pub fn create_node_config(
             consensus_manager_config: ConsensusManagerRequiredParams {
                 context_config: ContextConfigRequiredParams {
                     builder_address: ContractAddress::from(4_u128),
+                },
+                price_oracle_config: PriceOracleConfigRequiredParams {
+                    base_url: Url::parse("https://price_oracle_url")
+                        .expect("Should be a valid URL"),
                 },
             },
         },
