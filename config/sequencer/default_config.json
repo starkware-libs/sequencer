@@ -849,6 +849,16 @@
     "privacy": "Public",
     "value": 120
   },
+  "consensus_manager_config.price_oracle_config.base_url": {
+    "description": "A required param! The base URL of the Price Oracle API. This must end with 'timestamp=' as the API requires appending a UNIX timestamp.",
+    "param_type": "String",
+    "privacy": "Private"
+  },
+  "consensus_manager_config.price_oracle_config.headers": {
+    "description": "A required param! HTTP headers required for requests, typically containing authentication details.",
+    "param_type": "String",
+    "privacy": "Private"
+  },
   "consensus_manager_config.proposals_topic": {
     "description": "The topic for consensus proposals.",
     "privacy": "Public",
