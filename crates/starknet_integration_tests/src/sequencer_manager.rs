@@ -204,6 +204,7 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             custom_paths,
             test_unique_id,
+            create_distributed_node_configs,
         )
         .await;
 
@@ -501,6 +502,10 @@ pub async fn get_sequencer_setup_configs(
     num_of_distributed_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
+    distributed_configs_creation_function: fn(
+        &mut AvailablePortsGenerator,
+        usize,
+    ) -> Vec<NodeComponentConfigs>,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
@@ -508,7 +513,7 @@ pub async fn get_sequencer_setup_configs(
         let mut combined = Vec::new();
         // Create elements in place.
         combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
-        combined.extend(create_distributed_node_configs(
+        combined.extend(distributed_configs_creation_function(
             &mut available_ports_generator,
             num_of_distributed_nodes,
         ));
