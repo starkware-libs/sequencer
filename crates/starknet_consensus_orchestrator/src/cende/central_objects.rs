@@ -3,7 +3,6 @@ use std::str::FromStr;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use cairo_lang_starknet_classes::NestedIntList;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
 use starknet_api::block::{
@@ -434,11 +433,7 @@ impl From<CasmContractClass> for CentralCasmContractClass {
     fn from(compiled_class: CasmContractClass) -> CentralCasmContractClass {
         CentralCasmContractClass {
             compiled_class: CasmContractClass {
-                // The rust object allows these fields to be none, while in python they are
-                // mandatory.
-                bytecode_segment_lengths: Some(
-                    compiled_class.bytecode_segment_lengths.unwrap_or(NestedIntList::Node(vec![])),
-                ),
+                // This field is mandatory in the python object.
                 pythonic_hints: Some(compiled_class.pythonic_hints.unwrap_or_default()),
                 ..compiled_class
             },
