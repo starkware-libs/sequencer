@@ -15,6 +15,24 @@ use crate::hints::vars::{CairoStruct, Ids};
 #[path = "vm_utils_test.rs"]
 pub mod vm_utils_test;
 
+#[allow(dead_code)]
+pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
+    /// Inserts the cairo 0 representation of `self` into the VM at the given address.
+    fn load_into(
+        &self,
+        vm: &mut VirtualMachine,
+        identifier_getter: &IG,
+        address: Relocatable,
+    ) -> OsHintResult;
+}
+
+#[allow(dead_code)]
+pub(crate) trait CairoSized<IG: IdentifierGetter>: LoadCairoObject<IG> {
+    /// Returns the size of the cairo object.
+    // TODO(Nimrod): Figure out how to compare the size to the actual size on cairo.
+    fn size() -> usize;
+}
+
 pub(crate) trait IdentifierGetter {
     fn get_identifier(&self, identifier_name: &str) -> Result<&Identifier, OsHintError>;
 }
@@ -154,4 +172,20 @@ pub(crate) fn insert_value_to_nested_field<IG: IdentifierGetter, T: Into<MaybeRe
         identifier_getter,
     )?;
     Ok(vm.insert_value(nested_field_addr, val)?)
+}
+
+impl<IG: IdentifierGetter, T: LoadCairoObject<IG> + CairoSized<IG>> LoadCairoObject<IG> for Vec<T> {
+    fn load_into(
+        &self,
+        vm: &mut VirtualMachine,
+        identifier_getter: &IG,
+        address: Relocatable,
+    ) -> OsHintResult {
+        let mut next_address = address;
+        for t in self.iter() {
+            t.load_into(vm, identifier_getter, next_address)?;
+            next_address += T::size();
+        }
+        Ok(())
+    }
 }
