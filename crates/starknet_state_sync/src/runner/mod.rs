@@ -131,7 +131,7 @@ impl StateSyncRunner {
                     .try_into()
                     .expect("Failed to convert usize to u64");
                 revert_block(&mut storage_writer, current_block_number);
-                set_metrics(&storage_writer.begin_rw_txn().unwrap());
+                update_marker_metrics(&storage_writer.begin_rw_txn().unwrap());
                 SYNC_REVERTED_TRANSACTIONS.increment(n_reverted_txs);
                 async {}
             };
@@ -348,11 +348,11 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_COMPILED_CLASS_MARKER.register();
     SYNC_PROCESSED_TRANSACTIONS.register();
     SYNC_REVERTED_TRANSACTIONS.register();
-    set_metrics(txn);
+    update_marker_metrics(txn);
 }
 
 #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-fn set_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
+fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_HEADER_MARKER.set(txn.get_header_marker().expect("Should have a header marker").0 as f64);
     SYNC_BODY_MARKER.set(txn.get_body_marker().expect("Should have a body marker").0 as f64);
     SYNC_STATE_MARKER.set(txn.get_state_marker().expect("Should have a state marker").0 as f64);
