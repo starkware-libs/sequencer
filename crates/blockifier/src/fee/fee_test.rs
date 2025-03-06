@@ -360,22 +360,31 @@ fn test_get_fee_by_gas_vector_overflow(
 #[rstest]
 #[case::default(
     VersionedConstants::create_for_account_testing().initial_gas_no_user_l2_bound().0,
-    GasVectorComputationMode::NoL2Gas
+    GasVectorComputationMode::NoL2Gas,
+    true
 )]
-#[case::from_l2_gas(4321, GasVectorComputationMode::All)]
+#[case::default(
+    VersionedConstants::create_for_account_testing().initial_gas_no_user_l2_bound().0,
+    GasVectorComputationMode::NoL2Gas,
+    false
+)]
+#[case::from_l2_gas(VersionedConstants::create_for_account_testing().initial_gas_no_user_l2_bound().0, GasVectorComputationMode::All, true)]
+#[case::from_l2_gas(4321, GasVectorComputationMode::All, false)]
+
 fn test_initial_sierra_gas(
     #[case] expected: u64,
     #[case] gas_mode: GasVectorComputationMode,
+    #[case] trivial_resources: bool,
     block_context: BlockContext,
 ) {
     let resource_bounds = match gas_mode {
         GasVectorComputationMode::NoL2Gas => ValidResourceBounds::L1Gas(ResourceBounds {
-            max_amount: GasAmount(1234),
+            max_amount: GasAmount(if trivial_resources { 0 } else { 1234 }),
             max_price_per_unit: GasPrice(56),
         }),
         GasVectorComputationMode::All => ValidResourceBounds::AllResources(AllResourceBounds {
             l2_gas: ResourceBounds {
-                max_amount: GasAmount(expected),
+                max_amount: GasAmount(if trivial_resources { 0 } else { expected }),
                 max_price_per_unit: GasPrice(1),
             },
             ..Default::default()

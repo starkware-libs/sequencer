@@ -55,7 +55,12 @@ impl TransactionContext {
             TransactionInfo::Current(CurrentTransactionInfo {
                 resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
                 ..
-            }) => l2_gas.max_amount,
+            }) => {
+                if !self.tx_info.enforce_fee() {
+                    return self.block_context.versioned_constants.initial_gas_no_user_l2_bound();
+                }
+                l2_gas.max_amount
+            }
         }
     }
 }
