@@ -160,6 +160,7 @@ impl Const {
 
 #[derive(Copy, Clone)]
 pub enum CairoStruct {
+    CompiledClassEntryPoint,
     CompiledClassFact,
     DeprecatedCompiledClass,
     DeprecatedCompiledClassFact,
@@ -171,6 +172,9 @@ pub enum CairoStruct {
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
+            CairoStruct::CompiledClassEntryPoint => {
+                "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint"
+            }
             CairoStruct::CompiledClassFact => {
                 "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
             }
