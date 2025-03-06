@@ -5,8 +5,8 @@ use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
 
-pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
-pub(crate) const LABEL_NAME_SOURCE: &str = "source";
+pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
+pub const LABEL_NAME_SOURCE: &str = "source";
 
 generate_permutation_labels! {
     TRANSACTION_TYPE_AND_SOURCE_LABELS,

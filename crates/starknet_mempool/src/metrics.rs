@@ -21,8 +21,8 @@ define_metrics!(
     },
 );
 
-pub(crate) const LABEL_NAME_TX_TYPE: &str = "tx_type";
-pub(crate) const LABEL_NAME_DROP_REASON: &str = "drop_reason";
+pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
+pub const LABEL_NAME_DROP_REASON: &str = "drop_reason";
 
 generate_permutation_labels! {
     INTERNAL_RPC_TRANSACTION_LABELS,
