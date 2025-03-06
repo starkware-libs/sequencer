@@ -169,6 +169,7 @@ impl Mempool {
     // TODO(AlonH): Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
+        self.add_ready_declares();
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
@@ -223,34 +224,32 @@ impl Mempool {
 
         // First remove old transactions from the pool.
         self.remove_expired_txs();
-        self.add_ready_declares(&mut metric_handle);
+        self.add_ready_declares();
 
         let tx_reference = TransactionReference::new(&args.tx);
         self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
         self.handle_fee_escalation(&args.tx)?;
 
+        metric_handle.transaction_inserted();
+
         if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
             self.delayed_declares.push_back((self.clock.now(), args));
-            return Ok(());
+        } else {
+            self.add_tx_inner(args);
         }
 
-        self.add_tx_inner(args, &mut metric_handle)
+        self.update_state_metrics();
+        Ok(())
     }
 
-    fn add_tx_inner(
-        &mut self,
-        args: AddTransactionArgs,
-        metric_handle: &mut MempoolMetricHandle,
-    ) -> MempoolResult<()> {
+    fn add_tx_inner(&mut self, args: AddTransactionArgs) {
         let AddTransactionArgs { tx, account_state } = args;
         info!("Adding transaction to mempool.");
         trace!("{tx:#?}");
 
         let tx_reference = TransactionReference::new(&tx);
 
-        self.tx_pool.insert(tx)?;
-
-        metric_handle.transaction_inserted();
+        self.tx_pool.insert(tx).expect("Duplicate transactions should error in validation stage.");
 
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
         let account_nonce = self.state.resolve_nonce(address, incoming_account_nonce);
@@ -258,13 +257,9 @@ impl Mempool {
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
-
-        self.update_state_metrics();
-
-        Ok(())
     }
 
-    fn add_ready_declares(&mut self, metric_handle: &mut MempoolMetricHandle) {
+    fn add_ready_declares(&mut self) {
         let now = self.clock.now();
         while let Some((submission_time, _args)) = self.delayed_declares.front() {
             if now - *submission_time < self.config.declare_delay {
@@ -272,9 +267,7 @@ impl Mempool {
             }
             let (_submission_time, args) =
                 self.delayed_declares.pop_front().expect("Delay declare should exist.");
-            let _ = self
-                .add_tx_inner(args, metric_handle)
-                .map_err(|err| info!("Failed to add declare tx after delay: {err}."));
+            self.add_tx_inner(args);
         }
     }
 
@@ -357,6 +350,9 @@ impl Mempool {
         tx_reference: TransactionReference,
         incoming_account_nonce: Nonce,
     ) -> MempoolResult<()> {
+        if self.tx_pool.get_by_tx_hash(tx_reference.tx_hash).is_ok() {
+            return Err(MempoolError::DuplicateTransaction { tx_hash: tx_reference.tx_hash });
+        }
         self.state.validate_incoming_tx(tx_reference, incoming_account_nonce)
     }
 
