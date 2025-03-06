@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use metrics::counter;
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
@@ -22,7 +22,7 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockNumber;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
 use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER};
@@ -327,13 +327,26 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             )),
             Some((Ok(msg), metadata)) => {
                 // TODO(matan): Hold onto report_sender for use in later errors by SHC.
-                let _ =
-                    broadcast_channels.broadcast_topic_client.continue_propagation(&metadata).await;
+                if broadcast_channels
+                    .broadcast_topic_client
+                    .continue_propagation(&metadata)
+                    .now_or_never()
+                    .is_none()
+                {
+                    error!("Unable to send continue_propogation. {:?}", metadata);
+                }
                 Ok(msg)
             }
             Some((Err(e), metadata)) => {
                 // Failed to parse consensus message
-                let _ = broadcast_channels.broadcast_topic_client.report_peer(metadata).await;
+                if broadcast_channels
+                    .broadcast_topic_client
+                    .report_peer(metadata.clone())
+                    .now_or_never()
+                    .is_none()
+                {
+                    error!("Unable to send report_peer. {:?}", metadata)
+                }
                 Err(e.into())
             }
         }?;
