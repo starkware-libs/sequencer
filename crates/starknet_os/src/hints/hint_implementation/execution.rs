@@ -18,7 +18,8 @@ pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> 
 }
 
 pub(crate) fn exit_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+    // TODO(Aner): implement OsLogger
+    Ok(())
 }
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
