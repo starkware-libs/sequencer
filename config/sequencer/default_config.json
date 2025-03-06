@@ -1029,6 +1029,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "mempool_config.declare_delay": {
+    "description": "Time to wait before allowing a Declare transaction to be returned, in seconds.",
+    "privacy": "Public",
+    "value": 5
+  },
   "mempool_config.enable_fee_escalation": {
     "description": "If true, transactions can be replaced with higher fee transactions.",
     "privacy": "Public",
