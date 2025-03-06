@@ -656,7 +656,7 @@ fn test_fee_escalation_valid_replacement(
     ];
     for increased_value in increased_values {
         // Setup.
-        let tx = tx!(tip: 90, max_l2_gas_price: 90);
+        let tx = tx!(tx_hash: 0, tip: 90, max_l2_gas_price: 90);
 
         let mut builder = builder_with_queue(in_priority_queue, in_pending_queue, &tx)
             .with_fee_escalation_percentage(10);
@@ -667,8 +667,7 @@ fn test_fee_escalation_valid_replacement(
 
         let mempool = builder.with_pool([tx]).build_full_mempool();
 
-        let valid_replacement_input =
-            add_tx_input!(tip: increased_value, max_l2_gas_price: u128::from(increased_value));
+        let valid_replacement_input = add_tx_input!(tx_hash: 1, tip: increased_value, max_l2_gas_price: u128::from(increased_value));
 
         // Test and assert.
         add_tx_and_verify_replacement(
@@ -746,21 +745,22 @@ fn fee_escalation_queue_removal() {
 fn test_fee_escalation_valid_replacement_minimum_values() {
     // Setup.
     let min_gas_price = 1;
-    let tx = tx!(tip: 0, max_l2_gas_price: min_gas_price);
+    let tx = tx!(tx_hash: 0, tip: 0, max_l2_gas_price: min_gas_price);
     let mempool = MempoolTestContentBuilder::new()
         .with_pool([tx])
         .with_fee_escalation_percentage(0) // Always replace.
         .build_full_mempool();
 
     // Test and assert: replacement with maximum values.
-    let valid_replacement_input = add_tx_input!(tip: 0, max_l2_gas_price: min_gas_price);
+    let valid_replacement_input =
+        add_tx_input!(tx_hash: 1, tip: 0, max_l2_gas_price: min_gas_price);
     add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
 #[rstest]
 fn test_fee_escalation_valid_replacement_maximum_values() {
     // Setup.
-    let tx = tx!(tip: u64::MAX / 100, max_l2_gas_price: u128::MAX / 100 );
+    let tx = tx!(tx_hash: 0, tip: u64::MAX / 100, max_l2_gas_price: u128::MAX / 100 );
     let mempool = MempoolTestContentBuilder::new()
         .with_pool([tx])
         .with_fee_escalation_percentage(100)
@@ -768,7 +768,7 @@ fn test_fee_escalation_valid_replacement_maximum_values() {
 
     // Test and assert: replacement with maximum values.
     let valid_replacement_input =
-        add_tx_input!(tip: u64::MAX / 50 , max_l2_gas_price: u128::MAX / 50);
+        add_tx_input!(tx_hash: 1, tip: u64::MAX / 50 , max_l2_gas_price: u128::MAX / 50);
     add_tx_and_verify_replacement_in_pool(mempool, valid_replacement_input);
 }
 
@@ -786,14 +786,15 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
         (u64::MAX, u128::MAX),
     ];
     for (tip, max_l2_gas_price) in initial_values {
-        let existing_tx = tx!(tip: tip, max_l2_gas_price: max_l2_gas_price);
+        let existing_tx = tx!(tx_hash: 0, tip: tip, max_l2_gas_price: max_l2_gas_price);
         let mempool = MempoolTestContentBuilder::new()
             .with_pool([existing_tx.clone()])
             .with_fee_escalation_percentage(10)
             .build_full_mempool();
 
         // Test and assert: overflow gracefully handled.
-        let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
+        let invalid_replacement_input =
+            add_tx_input!(tx_hash: 1, tip: u64::MAX, max_l2_gas_price: u128::MAX);
         add_txs_and_verify_no_replacement_in_pool(
             mempool,
             existing_tx,
@@ -804,14 +805,15 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
     // Large percentage.
 
     // Setup.
-    let existing_tx = tx!(tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1);
+    let existing_tx = tx!(tx_hash: 0, tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1);
     let mempool = MempoolTestContentBuilder::new()
         .with_pool([existing_tx.clone()])
         .with_fee_escalation_percentage(200)
         .build_full_mempool();
 
     // Test and assert: overflow gracefully handled.
-    let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
+    let invalid_replacement_input =
+        add_tx_input!(tx_hash: 1, tip: u64::MAX, max_l2_gas_price: u128::MAX);
     add_txs_and_verify_no_replacement_in_pool(mempool, existing_tx, [invalid_replacement_input]);
 }
 
