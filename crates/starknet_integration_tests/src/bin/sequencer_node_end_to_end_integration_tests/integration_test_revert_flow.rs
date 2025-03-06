@@ -1,12 +1,16 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
+use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_infra_utils::test_utils::TestIdentifier;
+use starknet_integration_tests::integration_test_setup::ConfigPointersMap;
 use starknet_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_integration_tests::sequencer_manager::{
     IntegrationTestManager,
     BLOCK_TO_WAIT_FOR_BOOTSTRAP,
 };
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use tracing::info;
 
 #[tokio::main]
@@ -50,8 +54,12 @@ async fn main() {
         "Changing revert config for all nodes to revert from block {BLOCK_TO_REVERT_FROM} back to \
          block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}."
     );
-    integration_test_manager
-        .modify_revert_config_to_all_idle_nodes(Some(BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next()));
+    let revert_up_to_and_including = Some(BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next());
+    modify_revert_config_idle_nodes(
+        &mut integration_test_manager,
+        node_indices.clone(),
+        revert_up_to_and_including,
+    );
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
@@ -72,4 +80,58 @@ async fn main() {
     // revert completed.
 
     info!("Revert flow integration test completed successfully!");
+}
+
+// Modifies the revert config state in the given config. If `revert_up_to_and_including` is
+// `None`, the revert config is disabled. Otherwise, the revert config is enabled and set
+// to revert up to and including the given block number.
+fn modify_revert_config_idle_nodes(
+    integration_test_manager: &mut IntegrationTestManager,
+    node_indices: HashSet<usize>,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    integration_test_manager.modify_config_pointers_idle_nodes(
+        node_indices.clone(),
+        |config_pointers| {
+            modify_revert_config_pointers(config_pointers, revert_up_to_and_including)
+        },
+    );
+    integration_test_manager.modify_config_idle_nodes(node_indices, |config_pointers| {
+        modify_revert_config(config_pointers, revert_up_to_and_including)
+    });
+}
+
+fn modify_revert_config_pointers(
+    config_pointers: &mut ConfigPointersMap,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    let should_revert = revert_up_to_and_including.is_some();
+    config_pointers.change_target_value("revert_config.should_revert", Value::from(should_revert));
+
+    // If should revert is false, the revert_up_to_and_including value is irrelevant.
+    if should_revert {
+        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
+        config_pointers.change_target_value(
+            "revert_config.revert_up_to_and_including",
+            Value::from(revert_up_to_and_including.0),
+        );
+    }
+}
+
+fn modify_revert_config(
+    config: &mut SequencerNodeConfig,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    let should_revert = revert_up_to_and_including.is_some();
+    config.state_sync_config.revert_config.should_revert = should_revert;
+    config.consensus_manager_config.revert_config.should_revert = should_revert;
+
+    // If should revert is false, the revert_up_to_and_including value is irrelevant.
+    if should_revert {
+        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
+        config.state_sync_config.revert_config.revert_up_to_and_including =
+            revert_up_to_and_including;
+        config.consensus_manager_config.revert_config.revert_up_to_and_including =
+            revert_up_to_and_including;
+    }
 }
