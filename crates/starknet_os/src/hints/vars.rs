@@ -207,7 +207,6 @@ impl From<CairoStruct> for &'static str {
                  DeprecatedCompiledClassFact"
             }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
-
             CairoStruct::ExecutionContext => {
                 "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
             }
