@@ -107,6 +107,7 @@ pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
     BlockHashContractAddress,
+    CompiledClassVersion,
     InitialAvailableAlias,
     StoredBlockHashBuffer,
 }
@@ -117,6 +118,7 @@ impl From<Const> for &'static str {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
             Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
+            Const::CompiledClassVersion => "COMPILED_CLASS_VERSION",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
             Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
         }
@@ -160,6 +162,7 @@ impl Const {
 
 #[derive(Copy, Clone)]
 pub enum CairoStruct {
+    CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
     DeprecatedCompiledClass,
@@ -172,6 +175,9 @@ pub enum CairoStruct {
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
+            CairoStruct::CompiledClass => {
+                "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"
+            }
             CairoStruct::CompiledClassEntryPoint => {
                 "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint"
             }
