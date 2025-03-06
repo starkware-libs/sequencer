@@ -43,7 +43,7 @@ use papyrus_sync::{
     StateSyncError as CentralStateSyncError,
     GENESIS_HASH,
 };
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
@@ -349,6 +349,7 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_PROCESSED_TRANSACTIONS.register();
     SYNC_REVERTED_TRANSACTIONS.register();
     update_marker_metrics(txn);
+    replay_processed_transactions_metric(txn);
 }
 
 #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -363,6 +364,22 @@ fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_COMPILED_CLASS_MARKER.set(
         txn.get_compiled_class_marker().expect("Should have a compiled class marker").0 as f64,
     );
+}
+
+fn replay_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
+    let block_marker = txn.get_body_marker().expect("Should have a body marker");
+
+    let mut current_block_number = BlockNumber(0);
+
+    while current_block_number < block_marker {
+        let current_block_tx_count = txn
+            .get_block_transactions_count(current_block_number)
+            .expect("Should have block transactions count")
+            .expect("Unexpected None");
+        SYNC_PROCESSED_TRANSACTIONS
+            .increment(current_block_tx_count.try_into().expect("Failed to convert usize to u64"));
+        current_block_number = current_block_number.unchecked_next();
+    }
 }
 
 pub type StateSyncRunnerServer = WrapperServer<StateSyncRunner>;
