@@ -2,14 +2,14 @@
 
 use std::cmp::Ordering;
 use std::collections::hash_map::Entry::{Occupied, Vacant};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
 use papyrus_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
-use papyrus_network::utils::StreamHashMap;
+use papyrus_network::utils::StreamMap;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -46,6 +46,7 @@ pub trait StreamIdTrait:
     + Display
     + Debug
     + Send
+    + Ord
 {
 }
 impl<StreamId> StreamIdTrait for StreamId where
@@ -58,6 +59,7 @@ impl<StreamId> StreamIdTrait for StreamId where
         + Display
         + Debug
         + Send
+        + Ord
 {
 }
 
@@ -116,7 +118,7 @@ where
     // be sent out to the network.
     outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
     // A map where the abovementioned Receivers are stored.
-    outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<StreamContent>>,
+    outbound_stream_receivers: StreamMap<StreamId, mpsc::Receiver<StreamContent>>,
     // A network sender that allows sending StreamMessages to peers.
     outbound_sender: OutboundSenderT,
     // For each stream, keep track of the message_id of the last message sent.
@@ -145,7 +147,7 @@ where
             inbound_stream_data: HashMap::new(),
             outbound_channel_receiver,
             outbound_sender,
-            outbound_stream_receivers: StreamHashMap::new(HashMap::new()),
+            outbound_stream_receivers: StreamMap::new(BTreeMap::new()),
             outbound_stream_number: HashMap::new(),
         }
     }
