@@ -58,6 +58,13 @@
         "type": "stat",
         "expr": "consesnus_max_cached_height",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_cached_messages",
+        "description": "The number of messages cached when starting a new height",
+        "type": "stat",
+        "expr": "consensus_cached_messages",
+        "extra_params": {}
       }
     ],
     "Http Server": [
