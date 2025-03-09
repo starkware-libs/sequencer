@@ -86,10 +86,6 @@ async fn end_to_end_flow(
     #[case] block_max_capacity_sierra_gas: GasAmount,
     #[case] expected_last_height: BlockNumber,
 ) {
-    // TODO(yair): Remove once sporadic error in CI is solved.
-    if in_ci() {
-        std::env::set_var("RUST_LOG", "starknet=debug,infra=off");
-    }
     configure_tracing().await;
 
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
