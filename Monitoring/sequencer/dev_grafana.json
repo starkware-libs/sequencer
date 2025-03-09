@@ -58,6 +58,13 @@
         "type": "stat",
         "expr": "consensus_max_cached_block_number",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_cached_votes",
+        "description": "How many vote messages are cached when starting to work on a new block number",
+        "type": "stat",
+        "expr": "consensus_cached_votes",
+        "extra_params": {}
       }
     ],
     "Http Server": [

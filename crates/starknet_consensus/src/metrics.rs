@@ -5,7 +5,8 @@ define_metrics!(
     Consensus => {
         MetricGauge { CONSENSUS_BLOCK_NUMBER, "consensus_block_number", "The block number consensus is working to decide" },
         MetricGauge { CONSENSUS_ROUND, "consensus_round", "The round of the state machine"},
-        MetricGauge { CONSENSUS_MAX_CACHED_BLOCK_NUMBER, "consensus_max_cached_block_number", "How many blocks after current are cached"}
+        MetricGauge { CONSENSUS_MAX_CACHED_BLOCK_NUMBER, "consensus_max_cached_block_number", "How many blocks after current are cached"},
+        MetricGauge { CONSENSUS_CACHED_VOTES, "consensus_cached_votes", "How many vote messages are cached when starting to work on a new block number" },
     },
 );
 
@@ -13,4 +14,5 @@ pub(crate) fn register_metrics() {
     CONSENSUS_BLOCK_NUMBER.register();
     CONSENSUS_ROUND.register();
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER.register();
+    CONSENSUS_CACHED_VOTES.register();
 }
