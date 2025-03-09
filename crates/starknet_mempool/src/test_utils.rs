@@ -9,6 +9,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
+use starknet_sequencer_metrics::metrics::HistogramValue;
 
 use crate::mempool::Mempool;
 use crate::metrics::{
@@ -23,6 +24,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
 use crate::utils::Clock;
 
@@ -107,7 +109,7 @@ macro_rules! tx {
 
 // TODO(Yael): Consider moving to a more general place.
 /// Compares a metric, by it's name and label if exists, from a metrics str with an expected value
-/// and asserts fi false.
+/// and asserts if false.
 #[macro_export]
 macro_rules! assert_metric_eq {
     ($metrics:expr, $expected:expr, $metric:ident $(, $labels:expr)?) => {
@@ -118,6 +120,33 @@ macro_rules! assert_metric_eq {
             "Metric {} did not match expected value. expected value: {}, returned value: {}",
             stringify!($metric $(, $labels)?), $expected, return_value
 
+        );
+    };
+}
+
+/// Compares a histogram metric value to the expected value. Only the sum and count values are
+/// compared, not the quantiles.
+#[macro_export]
+macro_rules! assert_metric_histogram_eq {
+    ($metrics:expr, $expected:expr, $metric:ident) => {
+        let return_value = $metric.parse_histogram_metric($metrics).unwrap();
+        assert_eq!(
+            return_value.sum,
+            $expected.sum,
+            "Histogram {} sum did not match expected value. expected value: {:?}, returned value: \
+             {:?}",
+            stringify!($metric),
+            $expected.sum,
+            return_value.sum
+        );
+        assert_eq!(
+            return_value.count,
+            $expected.count,
+            "Histogram {} count did not match expected value. expected value: {:?}, returned \
+             value: {:?}",
+            stringify!($metric),
+            $expected.count,
+            return_value.count
         );
     };
 }
@@ -332,6 +361,7 @@ pub struct MempoolMetrics {
     pub pending_queue_size: u64,
     pub get_txs_size: u64,
     pub delayed_declares_size: u64,
+    pub transaction_time_spent_in_mempool: HistogramValue,
 }
 
 impl MempoolMetrics {
@@ -384,5 +414,10 @@ impl MempoolMetrics {
         assert_metric_eq!(metrics, self.pending_queue_size, MEMPOOL_PENDING_QUEUE_SIZE);
         assert_metric_eq!(metrics, self.get_txs_size, MEMPOOL_GET_TXS_SIZE);
         assert_metric_eq!(metrics, self.delayed_declares_size, MEMPOOL_DELAYED_DECLARES_SIZE);
+        assert_metric_histogram_eq!(
+            metrics,
+            self.transaction_time_spent_in_mempool,
+            TRANSACTION_TIME_SPENT_IN_MEMPOOL
+        );
     }
 }

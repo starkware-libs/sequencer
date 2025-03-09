@@ -263,7 +263,7 @@ pub struct MetricHistogram {
     description: &'static str,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Default, Debug, PartialEq)]
 pub struct HistogramValue {
     pub sum: f64,
     pub count: u64,
