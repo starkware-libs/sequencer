@@ -6,7 +6,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::patricia::utils::DecodeNodeCase;
+use crate::hints::hint_implementation::patricia::utils::{DecodeNodeCase, PreimageMap};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
@@ -65,9 +65,23 @@ pub(crate) fn split_descend<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) ->
 }
 
 pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
+
+    let answer = if height == Felt::ZERO {
+        Felt::ONE
+    } else {
+        let node = get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?;
+        let preimage_map: PreimageMap = exec_scopes.get(Scope::Preimage.into())?;
+        let preimage_value =
+            preimage_map.get(node.as_ref()).ok_or(OsHintError::MissingPreimage(node))?;
+        Felt::from(preimage_value.length() == 2)
+    };
+
+    insert_value_into_ap(vm, answer)?;
+
+    Ok(())
 }
 
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
