@@ -1,7 +1,9 @@
 use blockifier::state::state_api::StateReader;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::hint_implementation::patricia::utils::DecodeNodeCase;
 use crate::hints::types::HintArgs;
+use crate::hints::vars::Scope;
 
 pub(crate) fn set_siblings<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -20,9 +22,13 @@ pub(crate) fn set_ap_to_descend<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>
 }
 
 pub(crate) fn assert_case_is_right<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
+    match case {
+        DecodeNodeCase::Right => Ok(()),
+        _ => Err(OsHintError::AssertionFailed { message: "case != 'right".to_string() }),
+    }
 }
 
 pub(crate) fn write_case_not_left_to_ap<S: StateReader>(

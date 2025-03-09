@@ -9,6 +9,7 @@ use crate::hints::error::OsHintError;
 
 #[derive(Copy, Clone)]
 pub(crate) enum Scope {
+    Case,
     CommitmentInfoByAddress,
     CompiledClass,
     CompiledClassFacts,
@@ -23,6 +24,7 @@ pub(crate) enum Scope {
 impl From<Scope> for &'static str {
     fn from(scope: Scope) -> &'static str {
         match scope {
+            Scope::Case => "case",
             Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::CompiledClass => "compiled_class",
             Scope::CompiledClassFacts => "compiled_class_facts",
