@@ -13,6 +13,7 @@ use tracing::{error, info, instrument};
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 const TEMP_LOGS_DIR: &str = "integration_test_temporary_logs";
 
+#[derive(Debug, Clone)]
 pub struct NodeRunner {
     node_index: usize,
     executable_index: usize,
@@ -39,11 +40,11 @@ pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> Joi
         info!("Running the node from its spawned task.");
         // Obtain both handles, as the processes are terminated when their handles are dropped.
         let (mut node_handle, _annotator_handle) =
-            spawn_node_child_process(node_config_path, node_runner).await;
+            spawn_node_child_process(node_config_path, node_runner.clone()).await;
         let _node_run_result = node_handle.
             wait(). // Runs the node until completion, should be running indefinitely.
             await; // Awaits the completion of the node.
-        panic!("Node stopped unexpectedly.");
+        panic!("Node {:?} stopped unexpectedly.", node_runner);
     })
 }
 
