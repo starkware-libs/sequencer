@@ -18,7 +18,8 @@ pub struct Service {
     name: ServiceName,
     config_path: &'static str,
     ingress: bool,
-    replicas: Replicas,
+    autoscale: bool,
+    replicas: usize,
     storage: Option<usize>,
 }
 
@@ -27,17 +28,12 @@ impl Service {
         name: ServiceName,
         config_path: &'static str,
         ingress: bool,
-        replicas: Replicas,
+        autoscale: bool,
+        replicas: usize,
         storage: Option<usize>,
     ) -> Self {
-        Self { name, config_path, ingress, replicas, storage }
+        Self { name, config_path, ingress, autoscale, replicas, storage }
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum Replicas {
-    Single,
-    Multiple,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]

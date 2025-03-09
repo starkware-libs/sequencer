@@ -5,21 +5,24 @@
       "name": "Batcher",
       "config_path": "",
       "ingress": false,
-      "replicas": "Single",
+      "autoscale": false,
+      "replicas": 1,
       "storage": 500
     },
     {
       "name": "Gateway",
       "config_path": "",
       "ingress": false,
-      "replicas": "Multiple",
+      "autoscale": true,
+      "replicas": 1,
       "storage": null
     },
     {
       "name": "Mempool",
       "config_path": "",
       "ingress": false,
-      "replicas": "Single",
+      "autoscale": false,
+      "replicas": 1,
       "storage": null
     }
   ]
