@@ -18,6 +18,7 @@ pub(crate) enum Scope {
     DictTracker,
     InitialDict,
     IsDeprecated,
+    Preimage,
     UseKzgDa,
 }
 
@@ -33,6 +34,7 @@ impl From<Scope> for &'static str {
             Scope::DictTracker => "dict_tracker",
             Scope::InitialDict => "initial_dict",
             Scope::IsDeprecated => "is_deprecated",
+            Scope::Preimage => "preimage",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -61,8 +63,10 @@ pub enum Ids {
     DictPtr,
     ElmBound,
     ExecutionContext,
+    FinalRoot,
     FullOutput,
     Hash,
+    InitialRoot,
     NCompiledClassFacts,
     NTxs,
     NextAvailableAlias,
@@ -98,8 +102,10 @@ impl From<Ids> for &'static str {
             Ids::DictPtr => "dict_ptr",
             Ids::ElmBound => "elm_bound",
             Ids::ExecutionContext => "execution_context",
+            Ids::FinalRoot => "final_root",
             Ids::FullOutput => "full_output",
             Ids::Hash => "hash",
+            Ids::InitialRoot => "initial_root",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NTxs => "n_txs",
             Ids::NextAvailableAlias => "next_available_alias",
@@ -127,6 +133,7 @@ pub enum Const {
     BlockHashContractAddress,
     CompiledClassVersion,
     InitialAvailableAlias,
+    MerkleHeight,
     StoredBlockHashBuffer,
 }
 
@@ -138,6 +145,7 @@ impl From<Const> for &'static str {
             Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
             Const::CompiledClassVersion => "COMPILED_CLASS_VERSION",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
+            Const::MerkleHeight => "MERKLE_HEIGHT",
             Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
         }
     }
