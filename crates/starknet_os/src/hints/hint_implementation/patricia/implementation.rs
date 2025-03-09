@@ -52,9 +52,12 @@ pub(crate) fn assert_case_is_right<S: StateReader>(
 }
 
 pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
+    let value = Felt::from(case != DecodeNodeCase::Left);
+    insert_value_into_ap(vm, value)?;
+    Ok(())
 }
 
 pub(crate) fn split_descend<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
