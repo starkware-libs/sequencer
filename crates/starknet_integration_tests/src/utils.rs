@@ -93,9 +93,15 @@ pub type StarknetL1Contract = Starknet::StarknetInstance<Http<Client>, RootProvi
 pub trait TestScenario {
     fn create_txs(
         &self,
-        tx_generator: &mut MultiAccountTransactionGenerator,
-        account_id: AccountId,
-    ) -> Vec<RpcTransaction>;
+        _tx_generator: &mut MultiAccountTransactionGenerator,
+        _account_id: AccountId,
+    ) -> Vec<RpcTransaction> {
+        vec![]
+    }
+
+    fn create_l1_txs(&self) -> Vec<L1HandlerTransaction> {
+        vec![]
+    }
 
     fn n_txs(&self) -> usize;
 }
@@ -111,8 +117,12 @@ impl TestScenario for InvokeTxs {
         create_invoke_txs(tx_generator, account_id, self.0)
     }
 
+    fn create_l1_txs(&self) -> Vec<L1HandlerTransaction> {
+        vec![create_l1_handler_tx("0x1234567890", "0x567")]
+    }
+
     fn n_txs(&self) -> usize {
-        self.0
+        self.0 + 1
     }
 }
 
@@ -137,6 +147,20 @@ impl TestScenario for BootstrapTxs {
 
     fn n_txs(&self) -> usize {
         N_TXS_IN_FIRST_BLOCK
+    }
+}
+
+pub struct L1HandlerTxs(pub usize);
+
+impl TestScenario for L1HandlerTxs {
+    fn create_l1_txs(&self) -> Vec<L1HandlerTransaction> {
+        (0x10000000..0x10000000 + self.0)
+            .map(|index| create_l1_handler_tx(&index.to_string(), "0x123"))
+            .collect()
+    }
+
+    fn n_txs(&self) -> usize {
+        self.0
     }
 }
 
@@ -384,7 +408,7 @@ pub fn create_invoke_txs(
 
 /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
 /// [TestContract](FeatureContract::TestContract). Used for flow test.
-pub fn create_l1_handler_tx() -> L1HandlerTransaction {
+pub fn create_l1_handler_tx(key: &str, value: &str) -> L1HandlerTransaction {
     // TODO(Arni): Get test contract from test setup.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
@@ -392,14 +416,18 @@ pub fn create_l1_handler_tx() -> L1HandlerTransaction {
         contract_address: test_contract.get_instance_address(0),
         // TODO(Arni): Consider saving this value as a lazy constant.
         entry_point_selector: selector_from_name("l1_handler_set_value"),
-        calldata: calldata![
-            DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-            // Arbitrary key and value.
-            felt!("0x876"), // key
-            felt!("0x44")   // value
-        ],
+        calldata: calldata![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!(key), felt!(value)],
         ..Default::default()
     }
+}
+
+pub async fn send_message_to_l2_and_calculate_tx_hash(
+    l1_handler: L1HandlerTransaction,
+    starknet_l1_contract: &StarknetL1Contract,
+    chain_id: &ChainId,
+) -> TransactionHash {
+    send_message_to_l2(&l1_handler, starknet_l1_contract).await;
+    l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
 }
 
 /// Converts a given [L1 handler transaction](L1HandlerTransaction) to match the interface of the
@@ -492,20 +520,29 @@ pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHas
 }
 
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
-pub async fn send_account_txs<'a, Fut>(
+pub async fn send_account_txs<'a, 'b, Fut, FutB>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     test_scenario: &impl TestScenario,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
+    send_l1_handler_tx_fn: &'b mut dyn Fn(L1HandlerTransaction) -> FutB,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
+    FutB: Future<Output = TransactionHash> + 'b,
 {
     let n_txs = test_scenario.n_txs();
     info!("Sending {n_txs} txs.");
 
     let rpc_txs = test_scenario.create_txs(tx_generator, account_id);
-    let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    let l1_txs = test_scenario.create_l1_txs();
+    let mut tx_hashes = Vec::new();
+    for l1_handler in l1_txs {
+        let tx_hash = send_l1_handler_tx_fn(l1_handler).await;
+        tracing::info!("Sent L1 handler transaction with the hash: {tx_hash}");
+        tx_hashes.push(tx_hash);
+    }
+    tx_hashes.extend(send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
     assert_eq!(tx_hashes.len(), n_txs);
     tx_hashes
 }

@@ -2,15 +2,22 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Duration;
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
+use papyrus_base_layer::test_utils::{
+    anvil_instance_from_config,
+    ethereum_base_layer_config_for_anvil,
+};
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::Nonce;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -35,8 +42,11 @@ use crate::utils::{
     create_mempool_p2p_configs,
     create_state_sync_configs,
     send_account_txs,
+    send_message_to_l2_and_calculate_tx_hash,
     BootstrapTxs,
     InvokeTxs,
+    L1HandlerTxs,
+    StarknetL1Contract,
     TestScenario,
 };
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
@@ -160,6 +170,10 @@ pub struct IntegrationTestManager {
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
+    // Handle for L1 server: the server is dropped when handle is dropped.
+    #[allow(dead_code)]
+    l1_handle: AnvilInstance,
+    starknet_l1_contract: StarknetL1Contract,
 }
 
 pub struct CustomPaths {
@@ -208,10 +222,31 @@ impl IntegrationTestManager {
         )
         .await;
 
+        let base_layer_config = &sequencers_setup[0].executables[0].config.base_layer_config;
+        tracing::info!("Trying to spawn anvil.");
+        // This is somewhat of a problem. Whenever the test panics, this instance keeps running. I
+        // kill it with:
+        // ps aux | grep anvil
+        // kill <pid>
+        let anvil = anvil_instance_from_config(base_layer_config);
+        let ethereum_base_layer_contract =
+            EthereumBaseLayerContract::new(base_layer_config.clone());
+        let starknet_l1_contract =
+            Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone())
+                .await
+                .unwrap();
+
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator }
+        Self {
+            node_indices,
+            idle_nodes,
+            running_nodes,
+            tx_generator,
+            l1_handle: anvil,
+            starknet_l1_contract,
+        }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -392,12 +427,20 @@ impl IntegrationTestManager {
     }
 
     pub async fn send_bootstrap_txs_and_verify(&mut self) {
-        self.test_and_verify(BootstrapTxs, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
+        self.test_and_verify(BootstrapTxs, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP, 0)
             .await;
     }
 
     pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
-        self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+        self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block, 1).await;
+    }
+
+    pub async fn send_l1_handler_txs_and_verify(
+        &mut self,
+        n_txs: usize,
+        wait_for_block: BlockNumber,
+    ) {
+        self.test_and_verify(L1HandlerTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block, 1).await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
@@ -427,12 +470,13 @@ impl IntegrationTestManager {
         test_scenario: impl TestScenario,
         sender_account: AccountId,
         wait_for_block: BlockNumber,
+        number_of_non_account_txs: usize,
     ) {
         // Verify the initial state
-        self.verify_txs_accepted(sender_account).await;
+        self.verify_txs_accepted(sender_account, 0).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_block(wait_for_block).await;
-        self.verify_txs_accepted(sender_account).await;
+        self.verify_txs_accepted(sender_account, number_of_non_account_txs).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -455,13 +499,26 @@ impl IntegrationTestManager {
         sender_account: AccountId,
     ) {
         info!("Running integration test simulator.");
+        let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
+            send_message_to_l2_and_calculate_tx_hash(
+                l1_handler_tx,
+                &self.starknet_l1_contract,
+                &CHAIN_ID_FOR_TESTS,
+            )
+        };
         let send_rpc_tx_fn = &mut |rpc_tx| async {
             let node_0 = self.running_nodes.get(&0).expect("Node 0 should be running.");
             node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
         };
 
-        send_account_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
-            .await;
+        send_account_txs(
+            &mut self.tx_generator,
+            sender_account,
+            test_scenario,
+            send_rpc_tx_fn,
+            send_l1_handler_tx_fn,
+        )
+        .await;
     }
 
     async fn await_block(&self, expected_block_number: BlockNumber) {
@@ -477,10 +534,15 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn verify_txs_accepted(&self, sender_account: AccountId) {
+    async fn verify_txs_accepted(
+        &self,
+        sender_account: AccountId,
+        number_of_non_account_txs: usize,
+    ) {
         let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_batched_txs = nonce_to_usize(account.get_nonce());
+        let expected_n_batched_txs =
+            nonce_to_usize(account.get_nonce()) + number_of_non_account_txs;
         monitoring_utils::verify_txs_accepted(
             monitoring_client,
             sequencer_idx,
@@ -553,6 +615,11 @@ pub async fn get_sequencer_setup_configs(
         p2p_ports.get_next_ports(n_distributed_sequencers),
     );
 
+    // TODO(Arni): Should this be a port belonging to some other category? Should p2p_port should be
+    // "shared ports" - non-node-specific ports?
+    let base_layer_config_port = p2p_ports.get_next_port();
+    let base_layer_config = ethereum_base_layer_config_for_anvil(Some(base_layer_config_port));
+
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
@@ -591,6 +658,7 @@ pub async fn get_sequencer_setup_configs(
                         .next()
                         .expect("Failed to get an AvailablePorts instance for executable configs"),
                     executable_component_config.clone(),
+                    base_layer_config.clone(),
                     exec_db_path,
                     exec_config_path,
                     exec_data_prefix_dir,
