@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -19,6 +20,7 @@ const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
 const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
 const DEFAULT_IDLE_TIMEOUT: u64 = 90;
+const DEFAULT_RETRY_INTERVAL: Duration = Duration::from_secs(3);
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -110,6 +112,7 @@ pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout: u64,
+    pub retry_interval: Duration,
 }
 
 impl Default for RemoteClientConfig {
@@ -118,6 +121,7 @@ impl Default for RemoteClientConfig {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout: DEFAULT_IDLE_TIMEOUT,
+            retry_interval: DEFAULT_RETRY_INTERVAL,
         }
     }
 }

@@ -178,6 +178,13 @@ where
                 error!("Request failed on attempt {}: {:?}", attempt + 1, res);
                 return res;
             }
+            error!(
+                "Request failed on attempt {}: {:?}. sleeping for {:?}",
+                attempt + 1,
+                res,
+                self.config.retry_interval
+            );
+            tokio::time::sleep(self.config.retry_interval).await;
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
     }
