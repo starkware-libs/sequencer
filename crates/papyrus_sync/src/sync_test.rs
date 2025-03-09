@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use assert_matches::assert_matches;
@@ -195,6 +195,7 @@ fn store_base_layer_block_test() {
         writer,
         sequencer_pub_key: None,
         class_manager_client: None,
+        first_block_to_compile_from: Arc::new(OnceLock::new()),
     };
 
     // Trying to store a block without a header in the storage.
