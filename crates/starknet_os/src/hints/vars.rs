@@ -73,6 +73,7 @@ pub enum Ids {
     Sha256Ptr,
     StateEntry,
     StateUpdatesStart,
+    SyscallPtr,
     UseKzgDa,
     Value,
 }
@@ -108,6 +109,7 @@ impl From<Ids> for &'static str {
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
+            Ids::SyscallPtr => "syscall_ptr",
             Ids::UseKzgDa => "use_kzg_da",
             Ids::Value => "value",
         }
@@ -178,6 +180,7 @@ pub enum CairoStruct {
     DeprecatedCompiledClassFact,
     DictAccess,
     OsStateUpdate,
+    StorageReadPtr,
     StorageReadRequestPtr,
 }
 
@@ -200,6 +203,7 @@ impl From<CairoStruct> for &'static str {
             }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
+            CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
                 "starkware.starknet.core.os.storage.StorageReadRequest*"
             }
