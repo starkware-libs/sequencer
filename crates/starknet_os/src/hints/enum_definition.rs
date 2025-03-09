@@ -146,7 +146,7 @@ use crate::hints::hint_implementation::output::{
     set_state_updates_start,
     set_tree_structure,
 };
-use crate::hints::hint_implementation::patricia::{
+use crate::hints::hint_implementation::patricia::implementation::{
     assert_case_is_right,
     build_descent_map,
     height_is_zero_or_len_node_preimage_is_two,
