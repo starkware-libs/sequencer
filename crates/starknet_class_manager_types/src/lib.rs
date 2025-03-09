@@ -68,6 +68,16 @@ pub trait ClassManagerClient: Send + Sync {
         class_id: ClassId,
         class: DeprecatedClass,
     ) -> ClassManagerClientResult<()>;
+
+    // This method should only be used through state sync.
+    // It acts as a writer to the class storage, and bypasses compilation - thus unsafe.
+    async fn add_class_unsafe(
+        &self,
+        class_id: ClassId,
+        class: Class,
+        executable_class_id: ExecutableClassHash,
+        executable_class: ExecutableClass,
+    ) -> ClassManagerClientResult<()>;
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
@@ -126,6 +136,7 @@ pub enum ClassManagerClientError {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerRequest {
     AddClass(Class),
+    AddClassUnsafe(ClassId, Class, ExecutableClassHash, ExecutableClass),
     AddDeprecatedClass(ClassId, DeprecatedClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
@@ -134,6 +145,7 @@ pub enum ClassManagerRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ClassHashes>),
+    AddClassUnsafe(ClassManagerResult<()>),
     AddDeprecatedClass(ClassManagerResult<()>),
     GetExecutable(ClassManagerResult<Option<ExecutableClass>>),
     GetSierra(ClassManagerResult<Option<Class>>),
@@ -194,6 +206,28 @@ where
             Direct
         )
     }
+
+    async fn add_class_unsafe(
+        &self,
+        class_id: ClassId,
+        class: Class,
+        executable_class_id: ExecutableClassHash,
+        executable_class: ExecutableClass,
+    ) -> ClassManagerClientResult<()> {
+        let request = ClassManagerRequest::AddClassUnsafe(
+            class_id,
+            class,
+            executable_class_id,
+            executable_class,
+        );
+        handle_all_response_variants!(
+            ClassManagerResponse,
+            AddClassUnsafe,
+            ClassManagerClientError,
+            ClassManagerError,
+            Direct
+        )
+    }
 }
 
 pub struct EmptyClassManagerClient;
@@ -221,5 +255,15 @@ impl ClassManagerClient for EmptyClassManagerClient {
 
     async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
         Ok(Some(Default::default()))
+    }
+
+    async fn add_class_unsafe(
+        &self,
+        _class_id: ClassId,
+        _class: Class,
+        _executable_class_id: ExecutableClassHash,
+        _executable_class: ExecutableClass,
+    ) -> ClassManagerClientResult<()> {
+        Ok(())
     }
 }

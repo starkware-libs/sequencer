@@ -20,6 +20,15 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
             ClassManagerRequest::AddClass(class) => {
                 ClassManagerResponse::AddClass(self.0.add_class(class.try_into().unwrap()).await)
             }
+            ClassManagerRequest::AddClassUnsafe(
+                _class_id,
+                _class,
+                _executable_class_id,
+                _executable_class,
+            ) => {
+                // TODO(Elin): complete flow.
+                ClassManagerResponse::AddClassUnsafe(Ok(()))
+            }
             ClassManagerRequest::AddDeprecatedClass(class_id, class) => {
                 let class = ContractClass::V0(class).try_into().unwrap();
                 ClassManagerResponse::AddDeprecatedClass(
