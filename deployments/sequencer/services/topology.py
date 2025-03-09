@@ -30,13 +30,16 @@ class DeploymentConfig:
         with open(self.deployment_config_file_path) as f:
             return json.loads(f.read())
 
-    def get_chain_id(self):
+    @property
+    def chain_id(self):
         return self._deployment_config_data.get("chain_id")
 
-    def get_image(self):
+    @property
+    def image(self):
         return self._deployment_config_data.get("image")
 
-    def get_services(self):
+    @property
+    def services(self):
         return [service for service in self._deployment_config_data.get("services", [])]
 
 
@@ -45,6 +48,7 @@ class ServiceTopology:
     config: typing.Optional[objects.Config]
     image: str
     ingress: bool
+    replicas: bool
     autoscale: bool
     storage: int | None
 
