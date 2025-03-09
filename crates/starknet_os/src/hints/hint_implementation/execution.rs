@@ -1,16 +1,20 @@
+use std::collections::HashSet;
+
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
     get_integer_from_var_name,
     insert_value_from_var_name,
+    insert_value_into_ap,
 };
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Const, Ids};
+use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
@@ -79,13 +83,39 @@ pub(crate) fn get_contract_address_state_entry_and_set_new_state_entry<S: StateR
 }
 
 pub(crate) fn check_is_deprecated<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let class_hash = ClassHash(
+        *vm.get_integer(
+            get_address_of_nested_fields(
+                ids_data,
+                Ids::ExecutionContext,
+                CairoStruct::ExecutionContext,
+                vm,
+                ap_tracking,
+                &["class_hash".to_string()],
+                &hint_processor.execution_helper.os_program,
+            )?
+            .to_owned(),
+        )?,
+    );
+
+    exec_scopes.insert_value(
+        Scope::IsDeprecated.into(),
+        Felt::from(
+            exec_scopes
+                .get::<HashSet<ClassHash>>(Scope::DeprecatedClassHashes.into())?
+                .contains(&class_hash),
+        ),
+    );
+
+    Ok(())
 }
 
-pub(crate) fn is_deprecated<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn is_deprecated<S: StateReader>(
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    Ok(insert_value_into_ap(vm, exec_scopes.get::<Felt>(Scope::IsDeprecated.into())?)?)
 }
 
 pub(crate) fn enter_syscall_scopes<S: StateReader>(

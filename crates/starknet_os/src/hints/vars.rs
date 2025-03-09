@@ -17,6 +17,7 @@ pub(crate) enum Scope {
     DictManager,
     DictTracker,
     InitialDict,
+    IsDeprecated,
     UseKzgDa,
 }
 
@@ -31,6 +32,7 @@ impl From<Scope> for &'static str {
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
             Scope::InitialDict => "initial_dict",
+            Scope::IsDeprecated => "is_deprecated",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -58,6 +60,7 @@ pub enum Ids {
     DecompressedDst,
     DictPtr,
     ElmBound,
+    ExecutionContext,
     FullOutput,
     Hash,
     NCompiledClassFacts,
@@ -94,6 +97,7 @@ impl From<Ids> for &'static str {
             Ids::DecompressedDst => "decompressed_dst",
             Ids::DictPtr => "dict_ptr",
             Ids::ElmBound => "elm_bound",
+            Ids::ExecutionContext => "execution_context",
             Ids::FullOutput => "full_output",
             Ids::Hash => "hash",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
@@ -179,6 +183,7 @@ pub enum CairoStruct {
     DeprecatedCompiledClass,
     DeprecatedCompiledClassFact,
     DictAccess,
+    ExecutionContext,
     OsStateUpdate,
     StorageReadPtr,
     StorageReadRequestPtr,
@@ -202,6 +207,9 @@ impl From<CairoStruct> for &'static str {
                  DeprecatedCompiledClassFact"
             }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
+            CairoStruct::ExecutionContext => {
+                "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
+            }
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
             CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
