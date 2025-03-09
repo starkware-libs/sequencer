@@ -4,6 +4,7 @@ use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
     get_integer_from_var_name,
+    get_ptr_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
@@ -309,9 +310,68 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
 }
 
 pub(crate) fn write_syscall_result<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key = StorageKey(PatriciaKey::try_from(
+        vm.get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::Request,
+            CairoStruct::StorageReadRequestPtr,
+            vm,
+            ap_tracking,
+            &["key".to_string()],
+            &hint_processor.execution_helper.os_program,
+        )?)?
+        .into_owned(),
+    )?);
+
+    let contract_address = ContractAddress(
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
+            .try_into()?,
+    );
+
+    let prev_value =
+        hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
+
+    insert_value_from_var_name(Ids::PrevValue.into(), prev_value, vm, ids_data, ap_tracking)?;
+
+    let request_value = vm
+        .get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::Request,
+            CairoStruct::StorageReadRequestPtr,
+            vm,
+            ap_tracking,
+            &["value".to_string()],
+            &hint_processor.execution_helper.os_program,
+        )?)?
+        .into_owned();
+
+    hint_processor.execution_helper.cached_state.set_storage_at(
+        contract_address,
+        key,
+        request_value,
+    )?;
+
+    // Fetch a state_entry in this hint and validate it in the update that comes next.
+
+    let contract_state_changes_ptr =
+        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let contract_address_state_entry = dict_manager_borrowed
+        .get_tracker_mut(contract_state_changes_ptr)?
+        .get_value(&contract_address.key().into())?;
+
+    insert_value_from_var_name(
+        Ids::StateEntry.into(),
+        contract_address_state_entry,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 pub(crate) fn gen_class_hash_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
