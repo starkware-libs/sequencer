@@ -19,6 +19,7 @@ const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
 const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
 const DEFAULT_IDLE_TIMEOUT: u64 = 90;
+const DEFAULT_RETRY_INTERVAL: u64 = 3;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -110,6 +111,7 @@ pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout: u64,
+    pub retry_interval: u64,
 }
 
 impl Default for RemoteClientConfig {
@@ -118,6 +120,7 @@ impl Default for RemoteClientConfig {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout: DEFAULT_IDLE_TIMEOUT,
+            retry_interval: DEFAULT_RETRY_INTERVAL,
         }
     }
 }
@@ -141,6 +144,12 @@ impl SerializeConfig for RemoteClientConfig {
                 "idle_timeout",
                 &self.idle_timeout,
                 "The duration in seconds to keep an idle connection open before closing.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "retry_interval",
+                &self.retry_interval,
+                "The duration in seconds to wait between remote connection retries.",
                 ParamPrivacyInput::Public,
             ),
         ])
