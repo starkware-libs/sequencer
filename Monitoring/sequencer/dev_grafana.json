@@ -51,6 +51,13 @@
         "type": "stat",
         "expr": "consensus_round",
         "extra_params": {}
+      },
+      {
+        "title": "consesnus_max_cached_height",
+        "description": "How many heights above current are cached",
+        "type": "stat",
+        "expr": "consesnus_max_cached_height",
+        "extra_params": {}
       }
     ],
     "Http Server": [
