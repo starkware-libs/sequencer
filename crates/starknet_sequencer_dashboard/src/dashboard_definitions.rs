@@ -31,6 +31,7 @@ use starknet_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
 use starknet_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
@@ -249,6 +250,13 @@ const PANEL_MEMPOOL_GET_TXS_SIZE: Panel = Panel::new(
     PanelType::Graph,
 );
 
+const PANEL_MEMPOOL_TRANSACTION_TIME_SPENT: Panel = Panel::new(
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name(),
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_description(),
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name(),
+    PanelType::Stat,
+);
+
 const MEMPOOL_P2P_ROW: Row<'_> = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
@@ -325,6 +333,7 @@ pub const MEMPOOL_ROW: Row<'_> = Row::new(
         PANEL_MEMPOOL_PRIORITY_QUEUE_SIZE,
         PANEL_MEMPOOL_PENDING_QUEUE_SIZE,
         PANEL_MEMPOOL_GET_TXS_SIZE,
+        PANEL_MEMPOOL_TRANSACTION_TIME_SPENT,
     ],
 );
 

@@ -203,6 +203,13 @@
         "type": "graph",
         "expr": "avg_over_time(mempool_get_txs_size[2m])",
         "extra_params": {}
+      },
+      {
+        "title": "mempool_transaction_time_spent",
+        "description": "The time (secs) that a transaction spent in the mempool",
+        "type": "stat",
+        "expr": "mempool_transaction_time_spent",
+        "extra_params": {}
       }
     ]
   }

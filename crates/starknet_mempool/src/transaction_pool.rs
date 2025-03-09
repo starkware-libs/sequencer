@@ -10,6 +10,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
+use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
 use crate::utils::{try_increment_nonce, Clock};
 
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
@@ -339,6 +340,8 @@ impl TimedTransactionMap {
     /// Returns the removed transaction reference if it exists in the mapping.
     fn remove(&mut self, tx_hash: TransactionHash) -> Option<TransactionReference> {
         let submission_id = self.hash_to_submission_id.remove(&tx_hash)?;
+        TRANSACTION_TIME_SPENT_IN_MEMPOOL
+            .record((self.clock.now() - submission_id.submission_time).as_secs_f64());
         self.txs_by_submission_time.remove(&submission_id)
     }
 
@@ -362,11 +365,14 @@ impl TimedTransactionMap {
                 // The transaction should be preserved. Add it back.
                 self.txs_by_submission_time.insert(submission_id, tx);
             } else {
-                self.hash_to_submission_id.remove(&tx.tx_hash).expect(
+                let submission_id = self.hash_to_submission_id.remove(&tx.tx_hash).expect(
                     "Transaction should have a submission ID if it is in the timed transaction \
                      map.",
                 );
                 removed_txs.push(tx);
+
+                TRANSACTION_TIME_SPENT_IN_MEMPOOL
+                    .record((self.clock.now() - submission_id.submission_time).as_secs_f64());
             }
         }
 

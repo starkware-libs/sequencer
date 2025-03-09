@@ -18,6 +18,7 @@ use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_sequencer_metrics::metrics::HistogramValue;
 use strum::IntoEnumIterator;
 
 use crate::communication::MempoolCommunicationWrapper;
@@ -34,6 +35,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
 use crate::test_utils::{
     add_tx,
@@ -45,7 +47,7 @@ use crate::test_utils::{
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
-use crate::{add_tx_input, assert_metric_eq, tx};
+use crate::{add_tx_input, assert_metric_eq, assert_metric_histogram_eq, tx};
 
 // Utils.
 
@@ -977,6 +979,7 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
         txs_committed: 1,
         pool_size: 1,
         get_txs_size: 4,
+        transaction_time_spent_in_mempool: HistogramValue { count: 3, ..Default::default() },
         ..Default::default()
     };
     expected_metrics.verify_metrics(&metrics);
@@ -1109,6 +1112,11 @@ fn get_txs_old_transactions_cleanup() {
         txs_dropped_expired: 1,
         pool_size: 1,
         get_txs_size: 1,
+        transaction_time_spent_in_mempool: HistogramValue {
+            sum: 65.0,
+            count: 1,
+            ..Default::default()
+        },
         ..Default::default()
     };
     expected_metrics.verify_metrics(&metrics);
@@ -1149,6 +1157,13 @@ fn test_register_metrics() {
     assert_metric_eq!(&metrics, 0, MEMPOOL_PRIORITY_QUEUE_SIZE);
     assert_metric_eq!(&metrics, 0, MEMPOOL_PENDING_QUEUE_SIZE);
     assert_metric_eq!(&metrics, 0, MEMPOOL_GET_TXS_SIZE);
+
+    // Assert: histogram metrics.
+    assert_metric_histogram_eq!(
+        &metrics,
+        HistogramValue::default(),
+        TRANSACTION_TIME_SPENT_IN_MEMPOOL
+    );
 }
 
 #[rstest]
