@@ -8,6 +8,7 @@ use ethers::utils::{Ganache, GanacheInstance};
 use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
+use url::Url;
 
 use crate::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 
@@ -99,9 +100,28 @@ pub fn anvil(port: Option<u16>) -> AnvilInstance {
     })
 }
 
+pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLayerConfig {
+    // Use the specified port if provided; otherwise, default to Anvil's standard port (8545).
+    let non_optional_port = port.unwrap_or(8545);
+    let endpoint = format!("http://localhost:{}", non_optional_port);
+    EthereumBaseLayerConfig {
+        node_url: Url::parse(&endpoint).unwrap(),
+        port: non_optional_port,
+        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+    }
+}
+
+pub fn anvil_instance_from_config(config: &EthereumBaseLayerConfig) -> AnvilInstance {
+    let anvil = anvil(Some(config.port));
+    assert_eq!(config.node_url, anvil.endpoint_url(), "Unexpected config for Anvil instance.");
+    anvil
+}
+
 pub fn ethereum_base_layer_config(anvil: &AnvilInstance) -> EthereumBaseLayerConfig {
     EthereumBaseLayerConfig {
+        // The node URL includes the port, see the implementation of this method.
         node_url: anvil.endpoint_url(),
+        port: anvil.port(),
         starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
     }
 }

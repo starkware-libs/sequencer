@@ -184,7 +184,13 @@ pub enum EthereumBaseLayerError {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
+    // TODO(Arni): solve the redundancy of port with the node_url.
+    pub port: u16,
     pub starknet_contract_address: EthereumContractAddress,
+}
+
+impl EthereumBaseLayerConfig {
+    pub const DEFAULT_BASE_LAYER_PORT: u16 = 8545;
 }
 
 impl SerializeConfig for EthereumBaseLayerConfig {
@@ -195,6 +201,12 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 SerializationType::String,
                 "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
                 ParamPrivacyInput::Private,
+            ),
+            ser_param(
+                "port",
+                &self.port,
+                "The port used to connect to the Ethereum node.",
+                ParamPrivacyInput::Public,
             ),
             ser_param(
                 "starknet_contract_address",
@@ -213,6 +225,7 @@ impl Default for EthereumBaseLayerConfig {
 
         Self {
             node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
+            port: Self::DEFAULT_BASE_LAYER_PORT,
             starknet_contract_address,
         }
     }
