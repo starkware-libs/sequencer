@@ -1,4 +1,5 @@
 import dataclasses
+import json
 from typing import Dict, Any
 
 
@@ -20,3 +21,11 @@ class Config:
 
     def validate(self):
         pass
+
+@dataclasses.dataclass
+class GrafanaDashboard:
+    dashboard_path: str
+
+    def get(self):
+        with open(self.dashboard_path, "r") as dashboard_file:
+            return json.load(dashboard_file)

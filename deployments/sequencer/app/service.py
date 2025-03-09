@@ -2,7 +2,7 @@ import json
 import typing
 
 from constructs import Construct
-from cdk8s import Names, Duration, ApiObjectMetadata
+from cdk8s import Names
 from imports import k8s
 from services import topology, const
 

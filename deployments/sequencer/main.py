@@ -10,6 +10,8 @@ from config.sequencer import Config
 from app.service import ServiceApp
 from services import topology, helpers
 from config.sequencer import SequencerDevConfig
+from app.monitoring import MonitoringApp
+from services.objects import GrafanaDashboard
 
 
 @dataclasses.dataclass
@@ -35,6 +37,18 @@ class SequencerNode(Chart):
         self.service = ServiceApp(self, name, namespace=namespace, service_topology=service_topology)
 
 
+class SequencerDashboard(Chart):
+    def __init__(
+        self,
+        scope: Construct,
+        name: str,
+        namespace: str,
+        grafana_dashboard: GrafanaDashboard,
+    ):
+        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
+        self.dashboard = MonitoringApp(self, name, namespace=namespace, grafana_dashboard=grafana_dashboard)
+
+
 def main():
     args = helpers.argument_parser()
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
@@ -55,6 +69,13 @@ def main():
                 storage=svc["storage"],
             ),
         )
+
+    SequencerDashboard(
+        scope=app,
+        name="dashboard",
+        namespace=args.namespace,
+        grafana_dashboard=GrafanaDashboard("dashboard/dashboard.json")
+    )
 
     app.synth()
 
