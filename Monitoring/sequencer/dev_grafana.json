@@ -140,6 +140,13 @@
         "extra_params": {}
       },
       {
+        "title": "gateway_trasactions_received_rate (TPS)",
+        "description": "the rate of transactions received by the gateway",
+        "type": "graph",
+        "expr": "sum(rate(gateway_transactions_received[20m]))",
+        "extra_params": {}
+      },
+      {
         "title": "gateway_transactions_failed",
         "description": "Counter of failed transactions",
         "type": "stat",
@@ -160,6 +167,13 @@
         "description": "Counter of transactions received by the mempool",
         "type": "stat",
         "expr": "sum  by (tx_type) (mempool_transactions_received)",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_trasactions_received_rate (TPS)",
+        "description": "the rate of transactions received by the mempool",
+        "type": "graph",
+        "expr": "sum(rate(mempool_transactions_received[20m]))",
         "extra_params": {}
       },
       {
