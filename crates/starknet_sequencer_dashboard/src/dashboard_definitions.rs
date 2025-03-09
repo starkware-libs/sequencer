@@ -178,6 +178,13 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
+    "gateway_trasactions_received_rate (TPS)",
+    "The rate of transactions received by the gateway during the last 20 minutes",
+    formatcp!("sum(rate({}[20m]))", TRANSACTIONS_RECEIVED.get_name()),
+    PanelType::Graph,
+);
+
 const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
     TRANSACTIONS_FAILED.get_name(),
     TRANSACTIONS_FAILED.get_description(),
@@ -205,6 +212,13 @@ const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
         MEMPOOL_TRANSACTIONS_RECEIVED.get_name()
     ),
     PanelType::Stat,
+);
+
+const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
+    "mempool_trasactions_received_rate (TPS)",
+    "The rate of transactions received by the mempool during the last 20 minutes",
+    formatcp!("sum(rate({}[20m]))", MEMPOOL_TRANSACTIONS_RECEIVED.get_name()),
+    PanelType::Graph,
 );
 
 const PANEL_MEMPOOL_TRANSACTIONS_COMMITTED: Panel = Panel::new(
@@ -309,6 +323,7 @@ pub const GATEWAY_ROW: Row<'_> = Row::new(
     &[
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
+        PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE,
         PANEL_GATEWAY_TRANSACTIONS_FAILED,
         PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     ],
@@ -319,6 +334,7 @@ pub const MEMPOOL_ROW: Row<'_> = Row::new(
     "Mempool metrics",
     &[
         PANEL_MEMPOOL_TRANSACTIONS_RECEIVED,
+        PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE,
         PANEL_MEMPOOL_TRANSACTIONS_DROPPED,
         PANEL_MEMPOOL_TRANSACTIONS_COMMITTED,
         PANEL_MEMPOOL_POOL_SIZE,
