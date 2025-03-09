@@ -70,8 +70,8 @@ pub struct StarknetOsInput {
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
     _declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
     pub block_info: BlockInfo,
-    _prev_block_hash: BlockHash,
-    _new_block_hash: BlockHash,
+    pub(crate) prev_block_hash: BlockHash,
+    pub(crate) new_block_hash: BlockHash,
     // The block number and block hash of the (current_block_number - buffer) block, where
     // buffer=STORED_BLOCK_HASH_BUFFER.
     // It is the hash that is going to be written by this OS run.
