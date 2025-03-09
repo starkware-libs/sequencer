@@ -25,7 +25,16 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
+<<<<<<< HEAD
 use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER, CONSENSUS_MAX_CACHED_BLOCK_NUMBER};
+=======
+use crate::metrics::{
+    register_metrics,
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_CACHED_MESSAGES,
+    CONSENSUS_MAX_CACHED_HEIGHT,
+};
+>>>>>>> c53cb062b (chore(consensus): add metric for consensus number of cached messages)
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -240,6 +249,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
     ) -> Result<ShcReturn, ConsensusError> {
+        CONSENSUS_CACHED_MESSAGES.set_lossy(self.future_votes.entry(height.0).or_default().len());
         let mut tasks = match shc.start(context).await? {
             decision @ ShcReturn::Decision(_) => {
                 // Start should generate either TimeoutProposal (validator) or GetProposal
