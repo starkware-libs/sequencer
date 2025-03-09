@@ -1,4 +1,5 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
@@ -28,15 +29,17 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let os_input = &hint_processor.execution_helper.os_input;
+    Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
 }
 
 pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let os_input = &hint_processor.execution_helper.os_input;
+    Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 
 pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
