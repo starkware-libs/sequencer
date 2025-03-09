@@ -2,8 +2,18 @@ import json
 import typing
 
 from constructs import Construct
-from cdk8s import Names
+from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1 as ExternalSecret,
+    ExternalSecretV1Beta1Spec as ExternalSecretSpec,
+    ExternalSecretV1Beta1SpecData as ExternalSecretSpecData,
+    ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget,
+    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
+    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
+    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
+    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+)
 from services import topology, const
 
 
@@ -19,21 +29,40 @@ class ServiceApp(Construct):
         super().__init__(scope, id)
 
         self.namespace = namespace
+        self.service_topology = service_topology
+        self.node_config = service_topology.config.get_config()
         self.labels = {
             "app": "sequencer-node",
             "service": Names.to_label_value(self, include_hash=False)
         }
-        self.service_topology = service_topology
-        self.node_config = service_topology.config.get_config()
 
-        self.config_map = k8s.KubeConfigMap(
+        self.config_map = self._get_configmap()
+
+        self.service = self._get_service()
+
+        self.deployment = self._get_deployment()
+
+        if self.service_topology.ingress:
+            self.ingress = self._get_ingress()
+
+        if self.service_topology.storage is not None:
+            self.pvc = self._get_persistent_volume_claim()
+
+        if self.service_topology.autoscale:
+            self.hpa = self._get_hpa()
+
+        self.external_secret = self._get_external_secret()
+
+    def _get_configmap(self):
+        return k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
             data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
         )
 
-        self.service = k8s.KubeService(
+    def _get_service(self):
+        return k8s.KubeService(
             self,
             "service",
             spec=k8s.ServiceSpec(
@@ -43,12 +72,13 @@ class ServiceApp(Construct):
             ),
         )
 
-        self.deployment = k8s.KubeDeployment(
+    def _get_deployment(self):
+        return k8s.KubeDeployment(
             self,
             "deployment",
             metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.DeploymentSpec(
-                replicas=1,
+                replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.labels),
@@ -58,7 +88,7 @@ class ServiceApp(Construct):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=self.service_topology.image,
+                                image=const.IMAGE,
                                 image_pull_policy="Always",
                                 env=self._get_container_env(),
                                 args=const.CONTAINER_ARGS,
@@ -74,15 +104,42 @@ class ServiceApp(Construct):
             ),
         )
 
-        if self.service_topology.ingress:
-            self.ingress = self._get_ingress()
+    def _get_ingress(self) -> k8s.KubeIngress:
+        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
+        return k8s.KubeIngress(
+            self,
+            "ingress",
+            metadata=k8s.ObjectMeta(
+                name=f"{self.node.id}-ingress",
+                labels=self.labels,
+                annotations={
+                    "kubernetes.io/tls-acme": "true",
+                    "cert-manager.io/common-name": self.host,
+                    "cert-manager.io/issue-temporary-certificate": "true",
+                    "cert-manager.io/issuer": "letsencrypt-prod",
+                    "acme.cert-manager.io/http01-edit-in-place": "true",
+                },
+            ),
+            spec=k8s.IngressSpec(
+                tls=self._get_ingress_tls(),
+                rules=self._get_ingress_rules()
+            ),
+        )
 
-        if self.service_topology.storage is not None:
-            self.pvc = self._get_persistent_volume_claim()
-
-        if self.service_topology.autoscale:
-            self.hpa = self._get_hpa()
-
+    def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
+        return k8s.KubePersistentVolumeClaim(
+            self,
+            "pvc",
+            metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.labels),
+            spec=k8s.PersistentVolumeClaimSpec(
+                storage_class_name=const.PVC_STORAGE_CLASS_NAME,
+                access_modes=const.PVC_ACCESS_MODE,
+                volume_mode=const.PVC_VOLUME_MODE,
+                resources=k8s.ResourceRequirements(
+                    requests={"storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")}
+                ),
+            ),
+        )
 
     def _get_hpa(self) -> k8s.KubeHorizontalPodAutoscalerV2:
         return k8s.KubeHorizontalPodAutoscalerV2(
@@ -125,41 +182,30 @@ class ServiceApp(Construct):
             )
         )
 
-    def _get_ingress(self) -> k8s.KubeIngress:
-        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
-        return k8s.KubeIngress(
+    def _get_external_secret(self) -> ExternalSecret:
+        return ExternalSecret(
             self,
-            "ingress",
-            metadata=k8s.ObjectMeta(
-                name=f"{self.node.id}-ingress",
-                labels=self.labels,
-                annotations={
-                    "kubernetes.io/tls-acme": "true",
-                    "cert-manager.io/common-name": self.host,
-                    "cert-manager.io/issue-temporary-certificate": "true",
-                    "cert-manager.io/issuer": "letsencrypt-prod",
-                    "acme.cert-manager.io/http01-edit-in-place": "true",
-                },
-            ),
-            spec=k8s.IngressSpec(
-                tls=self._get_ingress_tls(),
-                rules=self._get_ingress_rules()
-            ),
-        )
-
-    def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
-        return k8s.KubePersistentVolumeClaim(
-            self,
-            "pvc",
-            metadata=k8s.ObjectMeta(name=f"{self.node.id}-data", labels=self.labels),
-            spec=k8s.PersistentVolumeClaimSpec(
-                storage_class_name=const.PVC_STORAGE_CLASS_NAME,
-                access_modes=const.PVC_ACCESS_MODE,
-                volume_mode=const.PVC_VOLUME_MODE,
-                resources=k8s.ResourceRequirements(
-                    requests={"storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")}
+        "external-secret",
+            metadata=ApiObjectMetadata(labels=self.labels),
+            spec=ExternalSecretSpec(
+                secret_store_ref=ExternalSecretSpecSecretStoreRef(
+                    kind=ExternalSecretSpecSecretStoreRefKind.CLUSTER_SECRET_STORE,
+                    name="external-secrets"
                 ),
-            ),
+                refresh_interval="1m",
+                target=ExternalSecretSpecTarget(
+                    name=f"{self.node.id}-secret",
+                ),
+                data=[
+                    ExternalSecretSpecData(
+                        secret_key="secrets.json",
+                        remote_ref=ExternalSecretSpecDataRemoteRef(
+                            key=f"{self.node.id}-{self.namespace}",
+                            conversion_strategy=ExternalSecretSpecDataRemoteRefConversionStrategy.DEFAULT,
+                        )
+                    ),
+                ]
+            )
         )
 
     def _get_config_attr(self, attr: str) -> str | int:
@@ -219,38 +265,74 @@ class ServiceApp(Construct):
             timeout_seconds=timeout_seconds,
         )
 
+    def _get_configmap_volume_mount(self) -> k8s.VolumeMount:
+        return k8s.VolumeMount(
+            name=f"{self.node.id}-config",
+            mount_path="/config/sequencer/presets/",
+            read_only=True
+        )
+
+    def _get_data_volume_mount(self) -> k8s.VolumeMount:
+        return k8s.VolumeMount(
+            name=f"{self.node.id}-data",
+            mount_path="/data",
+            read_only=False
+        ) if self.service_topology.storage else None
+
+    def _get_secret_volume_mount(self) -> k8s.VolumeMount:
+        return k8s.VolumeMount(
+            name=f"{self.node.id}-secret",
+            mount_path="/etc/secrets",
+            read_only=True,
+        )
+
     def _get_volume_mounts(self) -> typing.List[k8s.VolumeMount]:
         volume_mounts = [
-            k8s.VolumeMount(
-                name=f"{self.node.id}-config",
-                mount_path="/config/sequencer/presets/",
-                read_only=True
-            ),
-            k8s.VolumeMount(
-                name=f"{self.node.id}-data",
-                mount_path="/data",
-                read_only=False
-            ) if self.service_topology.storage else None
+            self._get_configmap_volume_mount(),
+            self._get_data_volume_mount(),
+            self._get_secret_volume_mount(),
         ]
-
         return [vm for vm in volume_mounts if vm is not None]
 
-    def _get_volumes(self) -> typing.List[k8s.Volume]:
-        return [
-            k8s.Volume(
+    def _get_configmap_volume(self) -> k8s.Volume:
+        return k8s.Volume(
+            name=f"{self.node.id}-config",
+            config_map=k8s.ConfigMapVolumeSource(
                 name=f"{self.node.id}-config",
-                config_map=k8s.ConfigMapVolumeSource(
-                    name=f"{self.node.id}-config"
-                )
-            ),
-            k8s.Volume(
-                name=f"{self.node.id}-data",
-                persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
-                    claim_name=f"{self.node.id}-data",
-                    read_only=False
-                )
             )
+        )
+
+    def _get_data_volume(self) -> k8s.Volume:
+        return k8s.Volume(
+            name=f"{self.node.id}-data",
+            persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
+                claim_name=f"{self.node.id}-data",
+                read_only=False
+            )
+        ) if self.service_topology.storage else None
+
+    def _get_secret_volume(self) -> k8s.Volume:
+        return k8s.Volume(
+            name=f"{self.node.id}-secret",
+            secret=k8s.SecretVolumeSource(
+                secret_name=f"{self.node.id}-secret",
+                default_mode=400,
+                items=[
+                    k8s.KeyToPath(
+                        key="secrets.json",
+                        path="secrets.json",
+                    )
+                ]
+            )
+        )
+
+    def _get_volumes(self) -> typing.List[k8s.Volume]:
+        volumes = [
+            self._get_configmap_volume(),
+            self._get_data_volume(),
+            self._get_secret_volume(),
         ]
+        return [v for v in volumes if v is not None]
 
     def _get_ingress_rules(self) -> typing.List[k8s.IngressRule]:
         return [
