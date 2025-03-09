@@ -9,7 +9,12 @@ class ServiceType(str, Enum):
 
 IMAGE = "ghcr.io/starkware-libs/sequencer/sequencer:dev"
 
-CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
+CONTAINER_ARGS = [
+    "--config_file",
+    "/config/sequencer/presets/config",
+    "--config_file",
+    "/etc/secrets/secrets.json"
+]
 
 CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
 
@@ -30,3 +35,5 @@ PVC_ACCESS_MODE = ["ReadWriteOnce"]
 
 HPA_MIN_REPLICAS = 1
 HPA_MAX_REPLICAS = 100
+
+GCSM_SECRET_NAME = "idan-sequencer-test"

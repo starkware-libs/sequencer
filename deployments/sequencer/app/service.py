@@ -2,8 +2,18 @@ import json
 import typing
 
 from constructs import Construct
-from cdk8s import Names
+from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1 as ExternalSecret,
+    ExternalSecretV1Beta1Spec as ExternalSecretSpec,
+    ExternalSecretV1Beta1SpecData as ExternalSecretSpecData,
+    ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget,
+    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
+    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
+    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
+    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+)
 from services import topology, const
 
 
@@ -19,26 +29,40 @@ class ServiceApp(Construct):
         super().__init__(scope, id)
 
         self.namespace = namespace
-        self.labels = {
-<<<<<<< HEAD
-            "app": "sequencer",
-            "service": Names.to_label_value(self, include_hash=False),
-=======
-            "app": "sequencer-node",
-            "service": Names.to_label_value(self, include_hash=False)
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
-        }
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
+        self.labels = {
+            "app": "sequencer-node",
+            "service": Names.to_label_value(self, include_hash=False)
+        }
 
-        self.config_map = k8s.KubeConfigMap(
+        self.config_map = self._get_configmap()
+
+        self.service = self._get_service()
+
+        self.deployment = self._get_deployment()
+
+        if self.service_topology.ingress:
+            self.ingress = self._get_ingress()
+
+        if self.service_topology.storage is not None:
+            self.pvc = self._get_persistent_volume_claim()
+
+        if self.service_topology.autoscale:
+            self.hpa = self._get_hpa()
+
+        self.external_secret = self._get_external_secret()
+
+    def _get_configmap(self):
+        return k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
             data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
         )
 
-        self.service = k8s.KubeService(
+    def _get_service(self):
+        return k8s.KubeService(
             self,
             "service",
             spec=k8s.ServiceSpec(
@@ -48,16 +72,13 @@ class ServiceApp(Construct):
             ),
         )
 
-        self.deployment = k8s.KubeDeployment(
+    def _get_deployment(self):
+        return k8s.KubeDeployment(
             self,
             "deployment",
             metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.DeploymentSpec(
-<<<<<<< HEAD
-                replicas=self.service_topology.replicas,
-=======
                 replicas=1,
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                 selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.labels),
@@ -67,19 +88,13 @@ class ServiceApp(Construct):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=self.service_topology.image,
+                                image=const.IMAGE,
                                 image_pull_policy="Always",
                                 env=self._get_container_env(),
                                 args=const.CONTAINER_ARGS,
                                 ports=self._get_container_ports(),
                                 startup_probe=self._get_http_probe(),
-<<<<<<< HEAD
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
-                                ),
-=======
                                 readiness_probe=self._get_http_probe(path=const.PROBE_MONITORING_READY_PATH),
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                                 liveness_probe=self._get_http_probe(),
                                 volume_mounts=self._get_volume_mounts(),
                             )
@@ -98,45 +113,30 @@ class ServiceApp(Construct):
         if self.service_topology.autoscale:
             self.hpa = self._get_hpa()
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
     def _get_hpa(self) -> k8s.KubeHorizontalPodAutoscalerV2:
         return k8s.KubeHorizontalPodAutoscalerV2(
             self,
             "hpa",
             metadata=k8s.ObjectMeta(labels=self.labels),
             spec=k8s.HorizontalPodAutoscalerSpecV2(
-<<<<<<< HEAD
-                min_replicas=self.service_topology.replicas,
-                max_replicas=const.HPA_MAX_REPLICAS,
-                scale_target_ref=k8s.CrossVersionObjectReferenceV2(
-                    api_version="v1", kind="Deployment", name=self.deployment.name
-=======
                 min_replicas=const.HPA_MIN_REPLICAS,
                 max_replicas=const.HPA_MAX_REPLICAS,
                 scale_target_ref=k8s.CrossVersionObjectReferenceV2(
                     api_version="v1",
                     kind="Deployment",
                     name=self.deployment.name
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                 ),
                 metrics=[
                     k8s.MetricSpecV2(
                         type="Resource",
                         resource=k8s.ResourceMetricSourceV2(
                             name="cpu",
-<<<<<<< HEAD
-                            target=k8s.MetricTargetV2(type="Utilization", average_utilization=50),
-                        ),
-=======
                             target=k8s.MetricTargetV2(
                                 type="Utilization",
                                 average_utilization=50
                             )
                         )
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                     )
                 ],
                 behavior=k8s.HorizontalPodAutoscalerBehaviorV2(
@@ -147,25 +147,16 @@ class ServiceApp(Construct):
                             k8s.HpaScalingPolicyV2(
                                 type="Pods",
                                 value=2,  # Add 2 pods per scaling action
-<<<<<<< HEAD
-                                period_seconds=60,  # Scaling happens at most once per minute
-=======
                                 period_seconds=60  # Scaling happens at most once per minute
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                             )
                         ],
                     ),
                 ),
-<<<<<<< HEAD
-            ),
-=======
             )
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
         )
 
-    def _get_ingress(self) -> k8s.KubeIngress:
-        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
-        return k8s.KubeIngress(
+    def _get_external_secret(self) -> ExternalSecret:
+        return ExternalSecret(
             self,
             "ingress",
             metadata=k8s.ObjectMeta(
@@ -179,7 +170,10 @@ class ServiceApp(Construct):
                     "acme.cert-manager.io/http01-edit-in-place": "true",
                 },
             ),
-            spec=k8s.IngressSpec(tls=self._get_ingress_tls(), rules=self._get_ingress_rules()),
+            spec=k8s.IngressSpec(
+                tls=self._get_ingress_tls(),
+                rules=self._get_ingress_rules()
+            ),
         )
 
     def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
@@ -192,13 +186,7 @@ class ServiceApp(Construct):
                 access_modes=const.PVC_ACCESS_MODE,
                 volume_mode=const.PVC_VOLUME_MODE,
                 resources=k8s.ResourceRequirements(
-<<<<<<< HEAD
-                    requests={
-                        "storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")
-                    }
-=======
                     requests={"storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")}
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
                 ),
             ),
         )
@@ -241,20 +229,12 @@ class ServiceApp(Construct):
         ]
 
     def _get_http_probe(
-<<<<<<< HEAD
-        self,
-        period_seconds: int = const.PROBE_PERIOD_SECONDS,
-        failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
-        timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
-        path: str = const.PROBE_MONITORING_ALIVE_PATH,
-=======
             self,
             period_seconds: int = const.PROBE_PERIOD_SECONDS,
             failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
             timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
             path: str = const.PROBE_MONITORING_ALIVE_PATH
 
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
     ) -> k8s.Probe:
         port = self._get_config_attr("monitoring_endpoint_config.port")
 
@@ -280,14 +260,6 @@ class ServiceApp(Construct):
                 if self.service_topology.storage
                 else None
             ),
-<<<<<<< HEAD
-=======
-            k8s.VolumeMount(
-                name=f"{self.node.id}-data",
-                mount_path="/data",
-                read_only=False
-            ) if self.service_topology.storage else None
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
         ]
 
         return [vm for vm in volume_mounts if vm is not None]
@@ -332,16 +304,12 @@ class ServiceApp(Construct):
         ]
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
-<<<<<<< HEAD
-        return [k8s.IngressTls(hosts=[self.host], secret_name=f"{self.node.id}-tls")]
-=======
         return [
             k8s.IngressTls(
                 hosts=[self.host],
                 secret_name=f"{self.node.id}-tls"
             )
         ]
->>>>>>> 0ab2e75ec (refactor(deployment): cdk8s presets instead of configs)
 
     @staticmethod
     def _get_container_env() -> typing.List[k8s.EnvVar]:
