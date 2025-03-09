@@ -211,7 +211,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 continue;
             }
 
-            let mut executor_input_chunk = vec![];
+            let mut executor_input_chunk = Vec::with_capacity(next_tx_chunk.len());
             for tx in &next_tx_chunk {
                 // TODO(yair): Avoid this clone.
                 let executable_tx = match tx {
