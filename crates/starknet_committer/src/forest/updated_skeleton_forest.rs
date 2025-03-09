@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
@@ -13,7 +13,7 @@ use crate::block_committer::input::contract_address_into_node_index;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::original_skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{ClassHash, Nonce};
+use crate::patricia_merkle_tree::types::Nonce;
 
 pub(crate) struct UpdatedSkeletonForest {
     pub(crate) classes_trie: UpdatedSkeletonTreeImpl,
