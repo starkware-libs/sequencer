@@ -44,6 +44,8 @@ pub enum OsHintError {
     Memory(#[from] MemoryError),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
+    #[error("No preimage found for value {0:?}.")]
+    MissingPreimage(Felt),
     #[error("{error:?} for json value {value}.")]
     SerdeJson { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
