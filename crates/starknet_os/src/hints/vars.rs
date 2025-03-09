@@ -64,6 +64,7 @@ pub enum Ids {
     DataStart,
     DecompressedDst,
     DictPtr,
+    Edge,
     ElmBound,
     ExecutionContext,
     FinalRoot,
@@ -73,6 +74,7 @@ pub enum Ids {
     InitialRoot,
     NCompiledClassFacts,
     NTxs,
+    NewLength,
     NextAvailableAlias,
     NewStateEntry,
     Node,
@@ -108,6 +110,7 @@ impl From<Ids> for &'static str {
             Ids::DataStart => "data_start",
             Ids::DecompressedDst => "decompressed_dst",
             Ids::DictPtr => "dict_ptr",
+            Ids::Edge => "edge",
             Ids::ElmBound => "elm_bound",
             Ids::ExecutionContext => "execution_context",
             Ids::FinalRoot => "final_root",
@@ -117,6 +120,7 @@ impl From<Ids> for &'static str {
             Ids::InitialRoot => "initial_root",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NTxs => "n_txs",
+            Ids::NewLength => "new_length",
             Ids::NextAvailableAlias => "next_available_alias",
             Ids::NewStateEntry => "new_state_entry",
             Ids::Node => "node",
@@ -207,6 +211,7 @@ pub enum CairoStruct {
     DeprecatedCompiledClassFact,
     DictAccess,
     ExecutionContext,
+    NodeEdge,
     OsStateUpdate,
     StorageReadPtr,
     StorageReadRequestPtr,
@@ -236,6 +241,7 @@ impl From<CairoStruct> for &'static str {
             CairoStruct::ExecutionContext => {
                 "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
             }
+            CairoStruct::NodeEdge => "starkware.cairo.common.patricia_utils.NodeEdge",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
             CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
