@@ -1,4 +1,5 @@
 use core::panic;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -49,6 +50,7 @@ use crate::{
     StateSyncError,
     StateSyncResult,
     SyncConfig,
+    INITIAL_FIRST_BLOCK_TO_COMPILE_FROM,
 };
 
 const SYNC_SLEEP_DURATION: Duration = Duration::from_millis(100); // 100ms
@@ -133,7 +135,12 @@ async fn run_sync(
         reader,
         writer,
         sequencer_pub_key: None,
+        // TODO(shahak): Add test with mock class manager client.
         class_manager_client,
+        // TODO(shahak): Add test with post 0.14.0 block and mock class manager client and see that
+        // up until that block we call add_class_and_executable_unsafe and from that block we call
+        // add_class.
+        first_block_to_compile_from: Arc::new(AtomicU64::new(INITIAL_FIRST_BLOCK_TO_COMPILE_FROM)),
     };
 
     state_sync.run().await?;

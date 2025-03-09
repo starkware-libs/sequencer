@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -41,6 +42,7 @@ use crate::{
     SyncConfig,
     SyncEvent,
     GENESIS_HASH,
+    INITIAL_FIRST_BLOCK_TO_COMPILE_FROM,
 };
 
 // TODO(anatg): Add a test to check that the sync calls the sort_state_diff function
@@ -195,6 +197,7 @@ fn store_base_layer_block_test() {
         writer,
         sequencer_pub_key: None,
         class_manager_client: None,
+        first_block_to_compile_from: Arc::new(AtomicU64::new(INITIAL_FIRST_BLOCK_TO_COMPILE_FROM)),
     };
 
     // Trying to store a block without a header in the storage.
