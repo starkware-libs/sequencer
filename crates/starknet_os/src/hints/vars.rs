@@ -18,6 +18,7 @@ pub(crate) enum Scope {
     DictManager,
     DictTracker,
     InitialDict,
+    Preimage,
     UseKzgDa,
 }
 
@@ -33,6 +34,7 @@ impl From<Scope> for &'static str {
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
             Scope::InitialDict => "initial_dict",
+            Scope::Preimage => "preimage",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -63,9 +65,11 @@ pub enum Ids {
     ElmBound,
     FullOutput,
     Hash,
+    Height,
     NCompiledClassFacts,
     NTxs,
     NextAvailableAlias,
+    Node,
     OldBlockHash,
     OldBlockNumber,
     OsStateUpdate,
@@ -100,9 +104,11 @@ impl From<Ids> for &'static str {
             Ids::ElmBound => "elm_bound",
             Ids::FullOutput => "full_output",
             Ids::Hash => "hash",
+            Ids::Height => "height",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NTxs => "n_txs",
             Ids::NextAvailableAlias => "next_available_alias",
+            Ids::Node => "node",
             Ids::OldBlockHash => "old_block_hash",
             Ids::OldBlockNumber => "old_block_number",
             Ids::OsStateUpdate => "os_state_update",

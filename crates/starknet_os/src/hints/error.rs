@@ -42,6 +42,8 @@ pub enum OsHintError {
     Memory(#[from] MemoryError),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
+    #[error("Out of bounds: vector {vec_name:?} doesn't have index {index:?}.")]
+    OutOfBounds { vec_name: String, index: Felt },
     #[error("{error:?} for json value {value}.")]
     SerdeJson { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
