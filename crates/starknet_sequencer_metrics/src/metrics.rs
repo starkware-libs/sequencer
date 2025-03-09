@@ -4,7 +4,7 @@ mod metrics_tests;
 
 use std::str::FromStr;
 
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use metrics::{
     counter,
     describe_counter,
@@ -184,6 +184,24 @@ pub struct HistogramValue {
     pub sum: f64,
     pub count: u64,
     pub histogram: IndexMap<String, f64>,
+}
+
+impl Default for HistogramValue {
+    fn default() -> Self {
+        Self {
+            sum: 0.0,
+            count: 0,
+            histogram: indexmap![
+                "0".to_string() => 0.0,
+                "0.5".to_string() => 0.0,
+                "0.9".to_string() => 0.0,
+                "0.95".to_string() => 0.0,
+                "0.99".to_string() => 0.0,
+                "0.999".to_string() => 0.0,
+                "1".to_string() => 0.0,
+            ],
+        }
+    }
 }
 
 impl MetricHistogram {
