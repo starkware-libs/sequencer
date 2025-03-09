@@ -6,8 +6,8 @@ use papyrus_storage::body::{BodyStorageReader, BodyStorageWriter};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use papyrus_sync::define_metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
-use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockBody, BlockNumber};
+use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
@@ -102,17 +102,18 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
         sync_block: SyncBlock,
     ) -> (BlockBody, BlockNumber) {
         let num_transactions = sync_block.transaction_hashes.len();
-        let mut rng = get_rng();
         let block_body = BlockBody {
             transaction_hashes: sync_block.transaction_hashes,
             transaction_outputs: std::iter::repeat_with(|| {
-                TransactionOutput::get_test_instance(&mut rng)
+                TransactionOutput::Invoke(Default::default())
             })
             .take(num_transactions)
             .collect::<Vec<_>>(),
-            transactions: std::iter::repeat_with(|| Transaction::get_test_instance(&mut rng))
-                .take(num_transactions)
-                .collect::<Vec<_>>(),
+            transactions: std::iter::repeat_with(|| {
+                Transaction::Invoke(invoke_tx(InvokeTxArgs::default()))
+            })
+            .take(num_transactions)
+            .collect::<Vec<_>>(),
         };
         (block_body, block_number)
     }
