@@ -62,8 +62,12 @@ use crate::serde_utils::SerdeWrapper;
 ///     // Instantiate the client.
 ///     let url = "127.0.0.1".to_string();
 ///     let port: u16 = 8080;
-///     let config =
-///         RemoteClientConfig { retries: 3, idle_connections: usize::MAX, idle_timeout: 90 };
+///     let config = RemoteClientConfig {
+///         retries: 3,
+///         idle_connections: usize::MAX,
+///         idle_timeout: 90,
+///         retry_interval: 3,
+///     };
 ///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config, &url, port);
 ///
 ///     // Instantiate a request.
@@ -174,10 +178,12 @@ where
                 debug!("Request successful on attempt {}: {:?}", attempt + 1, res);
                 return res;
             }
+            error!("Request failed on attempt {}: {:?}", attempt + 1, res);
             if attempt == max_attempts - 1 {
-                error!("Request failed on attempt {}: {:?}", attempt + 1, res);
                 return res;
             }
+            error!("sleeping for {:?}", self.config.retry_interval);
+            tokio::time::sleep(Duration::from_secs(self.config.retry_interval)).await;
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
     }

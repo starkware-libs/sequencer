@@ -339,6 +339,7 @@ async fn retry_request() {
         retries: 1,
         idle_connections: MAX_IDLE_CONNECTION,
         idle_timeout: IDLE_TIMEOUT,
+        ..Default::default()
     };
     let a_client_retry =
         ComponentAClient::new(retry_config, &socket.ip().to_string(), socket.port());
@@ -349,6 +350,7 @@ async fn retry_request() {
         retries: 0,
         idle_connections: MAX_IDLE_CONNECTION,
         idle_timeout: IDLE_TIMEOUT,
+        ..Default::default()
     };
     let a_client_no_retry =
         ComponentAClient::new(no_retry_config, &socket.ip().to_string(), socket.port());
