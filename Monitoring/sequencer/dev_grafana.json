@@ -58,6 +58,13 @@
         "type": "stat",
         "expr": "consesnus_max_cached_height",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_cached_messages",
+        "description": "How many messages are cached when starting to work on a new block number",
+        "type": "stat",
+        "expr": "consensus_cached_messages",
+        "extra_params": {}
       }
     ],
     "Http Server": [
