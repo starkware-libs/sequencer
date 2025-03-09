@@ -9,6 +9,8 @@ use tempfile::NamedTempFile;
 
 use crate::consts::SINGLE_NODE_CONFIG_PATH;
 
+/// Test that the single node preset is up to date. To update it, run:
+/// cargo run --bin system_test_dump_single_node_config -q
 #[test]
 fn single_node_preset_is_up_to_date() {
     let config_path: PathBuf = resolve_project_relative_path(SINGLE_NODE_CONFIG_PATH).unwrap();
