@@ -19,27 +19,11 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     todo!()
 }
 
-// pub const WRITE_FULL_OUTPUT_TO_MEM: &str = indoc! {r#"memory[fp + 19] =
-// to_felt_or_relocatable(os_input.full_output)"#};
-
-// pub fn write_full_output_to_mem(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     _ids_data: &HashMap<String, HintReference>,
-//     _ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError> { let os_input: Rc<StarknetOsInput> =
-//   exec_scopes.get(vars::scopes::OS_INPUT)?; let full_output = os_input.full_output;
-
-//     vm.insert_value((vm.get_fp() + 19)?, Felt252::from(full_output)).map_err(HintError::Memory)
-// }
-
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let os_input = &hint_processor.execution_helper.os_input;
     let full_output = Felt::from(os_input.full_output);
-    // TODO(Aner): the offsets don't match - here it's 16, in Moonsong it's 19.
     let offset = fetch_offset(AllHints::OsHint(OsHint::WriteFullOutputToMemory))?;
     // TODO(Aner): maybe consider get_fp_with_offset(offset) instead of get_fp + offset? Or maybe
     // even insert_value_to_fp_with_offset?
