@@ -25,7 +25,7 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
-use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER};
+use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER, CONSENSUS_MAX_CACHED_BLOCK_NUMBER};
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -190,7 +190,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let mut shc_events = FuturesUnordered::new();
 
         match self.start_height(context, height, &mut shc).await? {
-            ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
+            ShcReturn::Decision(decision) => {
+                self.report_max_cached_block_number_metric(height);
+                return Ok(RunHeightRes::Decision(decision));
+            }
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
                     shc_events.push(task.run());
@@ -200,6 +203,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         // Loop over incoming proposals, messages, and self generated events.
         loop {
+            self.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
                     self.handle_vote(
@@ -415,5 +419,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             }
         }
+    }
+
+    fn report_max_cached_block_number_metric(&self, height: BlockNumber) {
+        // If nothing is cached use current height as "max".
+        let max_cached_block_number = self.cached_proposals.keys().max().unwrap_or(&height.0);
+        CONSENSUS_MAX_CACHED_BLOCK_NUMBER.set_lossy(*max_cached_block_number);
     }
 }
