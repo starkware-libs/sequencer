@@ -29,7 +29,6 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -37,6 +36,7 @@ use starknet_batcher_types::batcher_types::ProposalCommitment;
 use starknet_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterError,
+    TransactionConverterResult,
     TransactionConverterTrait,
 };
 use starknet_class_manager_types::SharedClassManagerClient;
@@ -211,22 +211,11 @@ impl BlockBuilderTrait for BlockBuilder {
                 continue;
             }
 
-            let mut executor_input_chunk = Vec::with_capacity(next_tx_chunk.len());
-            for tx in &next_tx_chunk {
-                // TODO(yair): Avoid this clone.
-                let executable_tx = match tx {
-                    InternalConsensusTransaction::RpcTransaction(tx) => Transaction::Account(
-                        self.transaction_converter
-                            .convert_internal_rpc_tx_to_executable_tx(tx.clone())
-                            .await?,
-                    ),
-                    InternalConsensusTransaction::L1Handler(tx) => {
-                        Transaction::L1Handler(tx.clone())
-                    }
-                };
-                let executable_tx = BlockifierTransaction::new_for_sequencing(executable_tx);
-                executor_input_chunk.push(executable_tx);
-            }
+            let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
+                convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
+            });
+            let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
+
             // Execute the transactions on a separate thread pool to avoid blocking the executor
             // while waiting on `block_on` calls.
             let executor = self.executor.clone();
@@ -234,7 +223,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 executor
                     .try_lock() // Acquire the lock in a sync manner.
                     .expect("Only a single task should use the executor.")
-                    .add_txs_to_block(&executor_input_chunk)
+                    .add_txs_to_block(executor_input_chunk.as_slice())
             })
             .await
             .expect("Failed to spawn blocking executor task.");
@@ -259,6 +248,15 @@ impl BlockBuilderTrait for BlockBuilder {
             l2_gas_used,
         })
     }
+}
+
+async fn convert_to_executable_blockifier_tx(
+    transaction_converter: &TransactionConverter,
+    tx: InternalConsensusTransaction,
+) -> TransactionConverterResult<BlockifierTransaction> {
+    let executable_tx =
+        transaction_converter.convert_internal_consensus_tx_to_executable_tx(tx).await?;
+    Ok(BlockifierTransaction::new_for_sequencing(executable_tx))
 }
 
 /// Returns true if the block is full and should be closed, false otherwise.
