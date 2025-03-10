@@ -467,8 +467,8 @@ impl<
             .append_block_signature(block_number, signature)?
             .append_body(block_number, block.body)?
             .commit()?;
-        SYNC_HEADER_MARKER.set(block_number.unchecked_next().0 as f64);
-        SYNC_BODY_MARKER.set(block_number.unchecked_next().0 as f64);
+        SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
+        SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
         SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
         let time_delta = Utc::now()
             - Utc
@@ -478,7 +478,7 @@ impl<
         let header_latency = time_delta.num_seconds();
         debug!("Header latency: {}.", header_latency);
         if header_latency >= 0 {
-            SYNC_HEADER_LATENCY_SEC.set(header_latency as f64);
+            SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
         }
 
         if block.header.block_header_without_hash.starknet_version
@@ -491,7 +491,6 @@ impl<
 
     #[latency_histogram("sync_store_state_diff_latency_seconds", false)]
     #[instrument(skip(self, state_diff, deployed_contract_class_definitions), level = "debug", err)]
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     async fn store_state_diff(
         &mut self,
         block_number: BlockNumber,
@@ -548,8 +547,8 @@ impl<
                 .commit()?;
         }
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-        SYNC_STATE_MARKER.set(block_number.unchecked_next().0 as f64);
-        SYNC_COMPILED_CLASS_MARKER.set(compiled_class_marker.0 as f64);
+        SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
+        SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
 
         // Info the user on syncing the block once all the data is stored.
         info!("Added block {} with hash {:#064x}.", block_number, block_hash.0);
@@ -568,12 +567,10 @@ impl<
         let txn = self.writer.begin_rw_txn()?;
         // TODO(Yair): verifications - verify casm corresponds to a class on storage.
         match txn.append_casm(&class_hash, &compiled_class) {
-            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(txn) => {
                 txn.commit()?;
                 let compiled_class_marker =
                     self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-
                 // Write class and casm to class manager.
                 if let Some(class_manager_client) = &self.class_manager_client {
                     let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
@@ -592,8 +589,7 @@ impl<
                         .await
                         .expect("Failed adding class and compiled class to class manager.");
                 }
-
-                SYNC_COMPILED_CLASS_MARKER.set(compiled_class_marker.0 as f64);
+                SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
                 debug!("Added compiled class.");
                 Ok(())
             }
@@ -631,11 +627,10 @@ impl<
                 l2_hash: expected_hash,
             });
         }
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
             info!("Verified block {block_number} hash against base layer.");
             txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
-            SYNC_BASE_LAYER_MARKER.set(block_number.unchecked_next().0 as f64);
+            SYNC_BASE_LAYER_MARKER.set_lossy(block_number.unchecked_next().0);
         }
         Ok(())
     }
@@ -761,15 +756,14 @@ fn stream_new_blocks<
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-        loop {
+            loop {
             let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
                 BlockNumber::default(), |block_hash_and_number| block_hash_and_number.number.unchecked_next()
             );
-            SYNC_CENTRAL_BLOCK_MARKER.set(central_block_marker.0 as f64);
+            SYNC_CENTRAL_BLOCK_MARKER.set_lossy(central_block_marker.0);
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
                 if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{
@@ -790,7 +784,7 @@ fn stream_new_blocks<
                 };
                 continue;
             }
-            let up_to = min(central_block_marker, BlockNumber(header_marker.0 + max_stream_size as u64));
+            let up_to = min(central_block_marker, BlockNumber(header_marker.0 + u64::from(max_stream_size)));
             debug!("Downloading blocks [{} - {}).", header_marker, up_to);
             let block_stream =
                 central_source.stream_new_blocks(header_marker, up_to).fuse();
