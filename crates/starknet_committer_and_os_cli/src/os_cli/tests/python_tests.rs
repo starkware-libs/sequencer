@@ -199,12 +199,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
 };
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::runners::cairo_runner::CairoArg;
 use starknet_os::hint_processor::snos_hint_processor::SnosHintProcessor;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
 use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point;
+use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
@@ -240,7 +240,7 @@ impl TryFrom<String> for OsPythonTestRunner {
 
 #[derive(Debug, thiserror::Error, Display)]
 pub enum OsSpecificTestError {
-    CairoRunnerError(#[from] CairoRunError),
+    Cairo0EntryPointRunner(#[from] Cairo0EntryPointRunnerError),
 }
 
 impl PythonTestRunner for OsPythonTestRunner {
@@ -284,7 +284,7 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
 fn run_cairo_function(
     program_str: &str,
     function_name: &str,
-    args: &[CairoArg],
+    explicit_args: &[CairoArg],
     expected_retdata: &Retdata,
 ) -> OsPythonTestResult {
     let program_bytes = program_str.as_bytes();
@@ -294,11 +294,11 @@ fn run_cairo_function(
         &program,
         function_name,
         expected_retdata.0.len(),
-        args,
+        explicit_args,
         hint_processor,
     )
     .map_err(|error| {
-        PythonTestError::SpecificError(OsSpecificTestError::CairoRunnerError(error))
+        PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunner(error))
     })?;
     assert_eq!(expected_retdata, &actual_retdata);
     Ok("".to_string())
