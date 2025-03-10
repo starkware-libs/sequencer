@@ -96,10 +96,8 @@ impl LocalServerMetrics {
             .expect("processed_msgs metrics should be available")
     }
 
-    #[allow(clippy::as_conversions)]
     pub fn set_queue_depth(&self, value: usize) {
-        // TODO(Itay,Lev): Enhance the gauge interface to support taking usize args.
-        self.queue_depth.set(value as f64);
+        self.queue_depth.set_lossy(value);
     }
 
     pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> usize {
