@@ -2379,9 +2379,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78f96608eec61866aa3a4202a567dfb7910e8b9c2dd46ab0896fe4edc67e364e"
+checksum = "86f01f2d137aa49e0f23166a2452d10296b3d79d3e1315f6adfbf450a9b73586"
 dependencies = [
  "anyhow",
  "aquamarine",
