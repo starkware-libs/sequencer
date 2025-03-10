@@ -3,6 +3,8 @@ use std::process::Command;
 
 use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy::primitives::Address as EthereumContractAddress;
+use alloy::providers::RootProvider;
+use alloy::transports::http::{Client, Http};
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use starknet_api::hash::StarkHash;
@@ -10,7 +12,11 @@ use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use url::Url;
 
-use crate::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use crate::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
@@ -26,6 +32,10 @@ pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
     StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 // This address is commonly used as the L1 address of the Starknet core contract.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+
+/// An interface that plays the role of the starknet L1 contract. It is able to create messages to
+/// L2 from this contract, which appear on the corresponding base layer.
+pub type StarknetL1Contract = Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>>;
 
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A
@@ -113,11 +123,17 @@ pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLa
     }
 }
 
-pub fn anvil_instance_from_config(config: &EthereumBaseLayerConfig) -> AnvilInstance {
+pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
+    config: &EthereumBaseLayerConfig,
+) -> (AnvilInstance, StarknetL1Contract) {
     let port = config.node_url.port();
     let anvil = anvil(port);
     assert_eq!(config.node_url, anvil.endpoint_url(), "Unexpected config for Anvil instance.");
-    anvil
+    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config.clone());
+    let starknet_l1_contract =
+        Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
+
+    (anvil, starknet_l1_contract)
 }
 
 pub fn ethereum_base_layer_config(anvil: &AnvilInstance) -> EthereumBaseLayerConfig {
