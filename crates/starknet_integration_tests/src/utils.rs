@@ -11,6 +11,7 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     AccountTransactionGenerator,
