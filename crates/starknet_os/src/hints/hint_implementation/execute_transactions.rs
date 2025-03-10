@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
-use crate::hints::nondet_offsets::fetch_offset;
+use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
@@ -79,8 +79,7 @@ pub(crate) fn os_input_transactions<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let num_txns = hint_processor.execution_helper.os_input.transactions.len();
-    let offset = fetch_offset(AllHints::OsHint(OsHint::OsInputTransactions))?;
-    Ok(vm.insert_value((vm.get_fp() + offset)?, num_txns)?)
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
 }
 
 pub(crate) fn segments_add<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
