@@ -11281,7 +11281,6 @@ dependencies = [
  "clap",
  "futures",
  "indexmap 2.7.0",
- "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_base_layer",
  "papyrus_network",

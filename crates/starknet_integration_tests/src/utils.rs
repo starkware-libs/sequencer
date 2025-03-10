@@ -84,7 +84,6 @@ pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTr
 pub type CreateL1HandlerTxsFn =
     fn(&mut MultiAccountTransactionGenerator) -> Vec<L1HandlerTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
-pub type ExpectedContentId = Felt;
 
 pub trait TestScenario {
     fn create_txs(
@@ -544,8 +543,7 @@ pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHas
         "Unexpected number of transactions sent in the test scenario. Found {} transactions",
         tx_hashes.len()
     );
-    // Only 12 transactions make it into the block (because the block is full).
-    tx_hashes[..12].to_vec()
+    tx_hashes.to_vec()
 }
 
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
@@ -660,44 +658,39 @@ pub struct AccumulatedTransactions {
 }
 
 impl AccumulatedTransactions {
-    pub fn add_transactions(
-        &mut self,
-        height: BlockNumber,
-        round: u32,
-        tx_hashes: &[TransactionHash],
-    ) {
+    pub fn start_round(&mut self, height: BlockNumber, round: u32) {
         self.validate_coherent_height_and_round(height, round);
         if self.latest_block_number < height {
             info!(
-                "New height started, total {} txs streamed from block {}.",
+                "Starting height {}, total {} txs streamed from block {}.",
+                height,
                 self.current_round_tx_hashes.len(),
                 self.latest_block_number
             );
             self.latest_block_number = height;
             self.round = round;
             self.accumulated_tx_hashes.append(&mut self.current_round_tx_hashes);
-            self.current_round_tx_hashes = tx_hashes.to_vec();
         } else if self.latest_block_number == height && self.round < round {
             info!(
-                "New round started ({}). Dropping {} txs of round {}. Adding {} pending txs to \
-                 block {})",
+                "New round started ({}). Dropping {} txs of round {} (height {}).",
                 round,
                 self.current_round_tx_hashes.len(),
                 self.round,
-                tx_hashes.len(),
                 height,
             );
             self.round = round;
-            self.current_round_tx_hashes = tx_hashes.to_vec();
-        } else {
-            info!(
-                "Adding {} streamed txs in block {} round {}.",
-                tx_hashes.len(),
-                self.latest_block_number,
-                self.round
-            );
-            self.current_round_tx_hashes.extend_from_slice(tx_hashes);
+            self.current_round_tx_hashes.clear();
         }
+    }
+
+    pub fn add_transactions(&mut self, tx_hashes: &[TransactionHash]) {
+        info!(
+            "Adding {} txs to the current round: {}, height: {}.",
+            tx_hashes.len(),
+            self.round,
+            self.latest_block_number
+        );
+        self.current_round_tx_hashes.extend_from_slice(tx_hashes);
     }
 
     fn validate_coherent_height_and_round(&self, height: BlockNumber, round: u32) {
