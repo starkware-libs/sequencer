@@ -349,7 +349,7 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     SYNC_PROCESSED_TRANSACTIONS.register();
     SYNC_REVERTED_TRANSACTIONS.register();
     update_marker_metrics(txn);
-    replay_processed_transactions_metric(txn);
+    reconstruct_processed_transactions_metric(txn);
 }
 
 #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -366,19 +366,16 @@ fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     );
 }
 
-fn replay_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
+fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
     let block_marker = txn.get_body_marker().expect("Should have a body marker");
 
-    let mut current_block_number = BlockNumber(0);
-
-    while current_block_number < block_marker {
+    for current_block_number in 0..block_marker.0 {
         let current_block_tx_count = txn
-            .get_block_transactions_count(current_block_number)
+            .get_block_transactions_count(BlockNumber(current_block_number))
             .expect("Should have block transactions count")
-            .expect("Unexpected None");
+            .expect("Missing block body with block number smaller than body marker");
         SYNC_PROCESSED_TRANSACTIONS
             .increment(current_block_tx_count.try_into().expect("Failed to convert usize to u64"));
-        current_block_number = current_block_number.unchecked_next();
     }
 }
 
