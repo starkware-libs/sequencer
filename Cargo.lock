@@ -10866,6 +10866,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "chrono",
+ "futures",
  "indexmap 2.7.0",
  "mempool_test_utils",
  "metrics 0.24.1",
