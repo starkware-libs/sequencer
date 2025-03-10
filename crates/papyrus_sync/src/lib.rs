@@ -934,7 +934,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                     break;
                 }
             }
-            debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
+            info!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();
             pin_mut!(compiled_classes_stream);
