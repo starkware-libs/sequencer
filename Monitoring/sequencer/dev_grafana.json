@@ -107,6 +107,20 @@
         "type": "stat",
         "expr": "consensus_proposals_invalid",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_build_proposal_total",
+        "description": "The total number of proposals built",
+        "type": "stat",
+        "expr": "consensus_build_proposal_total",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_build_proposal_failed",
+        "description": "The number of proposals that failed to be built",
+        "type": "stat",
+        "expr": "consensus_build_proposal_failed",
+        "extra_params": {}
       }
     ],
     "Http Server": [

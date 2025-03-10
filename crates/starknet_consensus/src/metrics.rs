@@ -9,10 +9,13 @@ define_metrics!(
         MetricGauge { CONSENSUS_CACHED_VOTES, "consensus_cached_votes", "How many votes are cached when starting to work on a new block number" },
         MetricCounter { CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, "consensus_decisions_reached_by_consensus", "The total number of decisions reached by way of consensus", init=0},
         MetricCounter { CONSENSUS_DECISIONS_REACHED_BY_SYNC, "consensus_decisions_reached_by_sync", "The total number of decisions reached by way of sync", init=0},
+
         MetricCounter { CONSENSUS_PROPOSALS_RECEIVED, "consensus_proposals_received", "The total number of proposals received", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_VALID_INIT, "consensus_proposals_valid_init", "The total number of proposals received with a valid init", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_VALIDATED, "consensus_proposals_validated", "The total number of complete, valid proposals received", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_INVALID, "consensus_proposals_invalid", "The total number of proposals that failed validation", init=0},
+        MetricCounter { CONSENSUS_BUILD_PROPOSAL_TOTAL, "consensus_build_proposal_total", "The total number of proposals built", init=0},
+        MetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILED, "consensus_build_proposal_failed", "The number of proposals that failed to be built", init=0},
     },
 );
 
@@ -27,4 +30,6 @@ pub(crate) fn register_metrics() {
     CONSENSUS_PROPOSALS_VALID_INIT.register();
     CONSENSUS_PROPOSALS_VALIDATED.register();
     CONSENSUS_PROPOSALS_INVALID.register();
+    CONSENSUS_BUILD_PROPOSAL_TOTAL.register();
+    CONSENSUS_BUILD_PROPOSAL_FAILED.register();
 }

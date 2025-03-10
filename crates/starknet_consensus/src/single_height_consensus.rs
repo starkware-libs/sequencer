@@ -23,6 +23,8 @@ use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
 use crate::metrics::{
+    CONSENSUS_BUILD_PROPOSAL_FAILED,
+    CONSENSUS_BUILD_PROPOSAL_TOTAL,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
@@ -343,6 +345,9 @@ impl SingleHeightConsensus {
                 self.handle_state_machine_events(context, sm_events).await
             }
             ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round)) => {
+                if proposal_id.is_none() {
+                    CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
+                }
                 let old = self.proposals.insert(round, proposal_id);
                 assert!(old.is_none(), "There should be no entry for round {round} when proposing");
                 assert_eq!(
@@ -482,8 +487,11 @@ impl SingleHeightConsensus {
 
         // TODO(Matan): Figure out how to handle failed proposal building. I believe this should be
         // handled by applying timeoutPropose when we are the leader.
+        // TODO(guyn): need to figure out where we can report a failed proposal build (e.g., for
+        // metrics).
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
+        CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
         let fin_receiver = context.build_proposal(init, self.timeouts.proposal_timeout).await;
         vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
