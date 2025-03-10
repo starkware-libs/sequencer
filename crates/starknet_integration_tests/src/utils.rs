@@ -587,3 +587,65 @@ pub fn create_state_sync_configs(
         })
         .collect()
 }
+
+/// Stores tx hashes streamed so far.
+/// Assumes that rounds are monotonically increasing and that the last round is the chosen one.
+#[derive(Debug, Default)]
+pub struct AccumulatedTransactions {
+    pub latest_block_number: BlockNumber,
+    pub round: u32,
+    pub accumulated_tx_hashes: Vec<TransactionHash>,
+    // Will be added when next height starts.
+    current_round_tx_hashes: Vec<TransactionHash>,
+}
+
+impl AccumulatedTransactions {
+    pub fn add_transactions(
+        &mut self,
+        height: BlockNumber,
+        round: u32,
+        tx_hashes: &[TransactionHash],
+    ) {
+        self.validate_coherent_height_and_round(height, round);
+        if self.latest_block_number < height {
+            info!(
+                "New height started, total {} txs streamed from block {}.",
+                self.current_round_tx_hashes.len(),
+                self.latest_block_number
+            );
+            self.latest_block_number = height;
+            self.round = round;
+            self.accumulated_tx_hashes.append(&mut self.current_round_tx_hashes);
+            self.current_round_tx_hashes = tx_hashes.to_vec();
+        } else if self.latest_block_number == height && self.round < round {
+            info!(
+                "New round started ({}). Dropping {} txs of round {}. Adding {} pending txs to \
+                 block {})",
+                round,
+                self.current_round_tx_hashes.len(),
+                self.round,
+                tx_hashes.len(),
+                height,
+            );
+            self.round = round;
+            self.current_round_tx_hashes = tx_hashes.to_vec();
+        } else {
+            info!(
+                "Adding {} streamed txs in block {} round {}.",
+                tx_hashes.len(),
+                self.latest_block_number,
+                self.round
+            );
+            self.current_round_tx_hashes.extend_from_slice(tx_hashes);
+        }
+    }
+
+    fn validate_coherent_height_and_round(&self, height: BlockNumber, round: u32) {
+        if self.latest_block_number > height {
+            panic!("Expected height to be greater or equal to the last height with transactions.");
+        }
+        if self.latest_block_number == height && self.round > round {
+            panic!("Expected round to be greater or equal to the last round.");
+        }
+    }
+}
