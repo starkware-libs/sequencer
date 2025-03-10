@@ -6,7 +6,7 @@ use starknet_api::felt;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
-use crate::test_utils::{anvil, ethereum_base_layer_config, get_test_ethereum_node};
+use crate::test_utils::get_test_ethereum_node;
 use crate::BaseLayerContract;
 
 fn ethereum_base_layer_contract(
@@ -55,8 +55,7 @@ async fn get_proved_block_at_unknown_block_number() {
         return;
     }
 
-    let anvil = anvil(None);
-    let config = ethereum_base_layer_config(&anvil);
+    let config = EthereumBaseLayerConfig::default();
     let contract = ethereum_base_layer_contract(config.node_url, config.starknet_contract_address);
 
     assert!(

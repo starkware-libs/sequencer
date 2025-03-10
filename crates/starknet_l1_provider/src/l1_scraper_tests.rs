@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use alloy::node_bindings::AnvilInstance;
 use alloy::primitives::U256;
 use mempool_test_utils::in_ci;
-use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
-use papyrus_base_layer::test_utils::{
-    anvil,
-    ethereum_base_layer_config,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
 };
+use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
@@ -24,11 +23,10 @@ use crate::test_utils::FakeL1ProviderClient;
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
 async fn scraper(
-    anvil: &AnvilInstance,
+    base_layer_config: EthereumBaseLayerConfig,
 ) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
-    let config = ethereum_base_layer_config(anvil);
-    let base_layer = EthereumBaseLayerContract::new(config);
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
 
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
@@ -52,9 +50,9 @@ async fn txs_happy_flow() {
         return;
     }
 
-    let anvil = anvil(None);
+    let base_layer_config = EthereumBaseLayerConfig::default();
     // Setup.
-    let (mut scraper, fake_client) = scraper(&anvil).await;
+    let (mut scraper, fake_client) = scraper(base_layer_config).await;
 
     // Test.
     // Scrape multiple events.
