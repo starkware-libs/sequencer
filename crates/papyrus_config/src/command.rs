@@ -41,7 +41,9 @@ fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<A
             .short('f')
             .value_delimiter(',')
             .help("Optionally sets a config file to use")
-            .value_parser(value_parser!(PathBuf)),
+            .value_parser(value_parser!(PathBuf))
+            .num_args(1..) // Allow multiple values
+            .action(clap::ArgAction::Append), // Collect multiple occurrences
     ];
 
     for (param_path, serialized_param) in config_map.iter() {
