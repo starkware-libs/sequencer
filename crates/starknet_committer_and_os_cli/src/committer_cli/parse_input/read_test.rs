@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
+use starknet_api::core::ContractAddress;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
-    ContractAddress,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -95,20 +95,22 @@ fn test_simple_input_parsing() {
 
     let expected_address_to_class_hash = HashMap::from([
         (
-            ContractAddress(Felt::from_bytes_be_slice(&[
+            ContractAddress::try_from(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
                 0, 0, 0, 0, 0,
-            ])),
+            ]))
+            .unwrap(),
             ClassHash(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
             ])),
         ),
         (
-            ContractAddress(Felt::from_bytes_be_slice(&[
+            ContractAddress::try_from(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
                 0, 0, 0, 0, 0,
-            ])),
+            ]))
+            .unwrap(),
             ClassHash(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
@@ -118,20 +120,22 @@ fn test_simple_input_parsing() {
 
     let expected_address_to_nonce = HashMap::from([
         (
-            ContractAddress(Felt::from_bytes_be_slice(&[
+            ContractAddress::try_from(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
                 0, 0, 0, 0, 0,
-            ])),
+            ]))
+            .unwrap(),
             Nonce(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 14, 0, 0, 0, 45, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
             ])),
         ),
         (
-            ContractAddress(Felt::from_bytes_be_slice(&[
+            ContractAddress::try_from(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 98, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
                 0, 0, 0, 0, 0,
-            ])),
+            ]))
+            .unwrap(),
             Nonce(Felt::from_bytes_be_slice(&[
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
@@ -163,10 +167,11 @@ fn test_simple_input_parsing() {
     ]);
 
     let expected_storage_updates = HashMap::from([(
-        ContractAddress(Felt::from_bytes_be_slice(&[
+        ContractAddress::try_from(Felt::from_bytes_be_slice(&[
             0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0, 0,
             0, 0, 0, 0, 0,
-        ])),
+        ]))
+        .unwrap(),
         HashMap::from([
             (
                 StarknetStorageKey(Felt::from_bytes_be_slice(&[
@@ -277,7 +282,7 @@ fn test_input_parsing_with_mapping_key_duplicate() {
 
 "#;
     let expected_error =
-        "address to class hash: ContractAddress(0x5000000000001005900000000000000)";
+        "address to class hash: ContractAddress(PatriciaKey(0x5000000000001005900000000000000))";
     assert_matches!(
         parse_input(input).unwrap_err(),
         DeserializationError::KeyDuplicate(key) if key ==  expected_error

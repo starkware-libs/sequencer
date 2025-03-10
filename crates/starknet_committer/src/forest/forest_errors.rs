@@ -1,10 +1,9 @@
+use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use thiserror::Error;
 use tokio::task::JoinError;
-
-use crate::block_committer::input::ContractAddress;
 
 pub(crate) type ForestResult<T> = Result<T, ForestError>;
 
