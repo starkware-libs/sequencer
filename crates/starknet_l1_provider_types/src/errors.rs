@@ -7,6 +7,8 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1ProviderError {
+    #[error("Could not initialize the provider: {0}")]
+    InitializationError(String),
     #[error("`get_txs` while in `Validate` state")]
     GetTransactionConsensusBug,
     // This is likely due to a crash, restart block proposal.

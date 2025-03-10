@@ -39,7 +39,7 @@ sol!(
     "resources/Starknet-0.10.3.4.json"
 );
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
     pub config: EthereumBaseLayerConfig,
     pub contract: Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,

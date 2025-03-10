@@ -13,6 +13,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
+use tracing::{instrument, warn};
 
 use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
@@ -190,13 +191,37 @@ impl L1Provider {
 
 impl ComponentStarter for L1Provider {}
 
-pub fn create_l1_provider(
+/// Initializes L1Provider at specified height (≤ scraper's last state update height).
+/// Bootstrap catch-up height defaults to current sync height.
+#[instrument(skip(l1_provider_client, sync_client), err)]
+pub async fn create_l1_provider(
     config: L1ProviderConfig,
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
-) -> L1Provider {
+    scraper_synced_startup_height: BlockNumber,
+) -> L1ProviderResult<L1Provider> {
+    let sync_height = sync_client
+        .get_latest_block_number()
+        .await
+        // FIXME: once we decide how to handle infra client errors globally, remove the string cast.
+        .map_err(|err| L1ProviderError::InitializationError(err.to_string()))?
+        .expect("State sync should be initialized before initializing the l1 provider (likely a dependency injection bug)");
+    let catch_up_height = config
+        .bootstrap_catch_up_height_override
+        .inspect(|&catch_up_height_override| {
+            assert!(
+                catch_up_height_override >= sync_height,
+                "Catch-up height must be at least the current sync height, otherwise the \
+                 bootstrapper will not sync high enough and never complete"
+            );
+            warn!(
+                "Initializing L1Provider with overridden catch-up height: \
+                 {catch_up_height_override}"
+            );
+        })
+        .unwrap_or(sync_height);
     let bootstrapper = Bootstrapper {
-        catch_up_height: config.bootstrap_catch_up_height,
+        catch_up_height,
         commit_block_backlog: Default::default(),
         l1_provider_client,
         sync_client,
@@ -204,9 +229,24 @@ pub fn create_l1_provider(
         sync_retry_interval: config.startup_sync_sleep_retry_interval,
     };
 
-    L1Provider {
-        current_height: config.provider_startup_height,
+    let startup_height = config
+        .provider_startup_height_override
+        .inspect(|&startup_height_override| {
+            assert!(
+                startup_height_override <= scraper_synced_startup_height,
+                "L2 Reorgs possible: during startup, the l1 provider height should not exceed the \
+                 scraper's last known LogStateUpdate (scraper_synced_startup_height) since at \
+                 startup it has no way of checking if a given l1 handler has already been \
+                 committed"
+            );
+            warn!(
+                "Initializing L1Provider with overridden startup height: {startup_height_override}"
+            );
+        })
+        .unwrap_or(scraper_synced_startup_height);
+    Ok(L1Provider {
+        current_height: startup_height,
         tx_manager: TransactionManager::default(),
         state: ProviderState::Bootstrap(bootstrapper),
-    }
+    })
 }
