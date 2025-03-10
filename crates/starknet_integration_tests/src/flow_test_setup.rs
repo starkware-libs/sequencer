@@ -6,14 +6,11 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
-};
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
+    spawn_anvil_and_deploy_starknet_l1_contract,
+    StarknetL1Contract,
 };
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::test_utils::{
@@ -55,7 +52,6 @@ use crate::utils::{
     create_state_sync_configs,
     send_message_to_l2,
     spawn_local_success_recorder,
-    StarknetL1Contract,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -108,13 +104,8 @@ impl FlowTestSetup {
 
         let base_layer_config =
             ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
-        let anvil = anvil_instance_from_config(&base_layer_config);
-        let ethereum_base_layer_contract =
-            EthereumBaseLayerContract::new(base_layer_config.clone());
-        let starknet_l1_contract =
-            Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone())
-                .await
-                .unwrap();
+        let (anvil, starknet_l1_contract) =
+            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
 
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
