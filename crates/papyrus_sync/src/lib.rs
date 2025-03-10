@@ -380,7 +380,9 @@ impl<
         };
         // TODO(dvir): try use interval instead of stream.
         // TODO(DvirYo): fix the bug and remove this check.
-        let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
+        let check_sync_progress =
+            check_sync_progress(self.reader.clone(), self.first_block_to_compile_from.clone())
+                .fuse();
         pin_mut!(
             block_stream,
             state_diff_stream,
@@ -987,6 +989,7 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
 // TODO(dvir): add a test for this scenario.
 fn check_sync_progress(
     reader: StorageReader,
+    first_block_to_compile_from: Arc<OnceLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         let mut txn=reader.begin_ro_txn()?;
@@ -1000,7 +1003,11 @@ fn check_sync_progress(
             let new_header_marker=txn.get_header_marker()?;
             let new_state_marker=txn.get_state_marker()?;
             let new_casm_marker=txn.get_compiled_class_marker()?;
-            if header_marker==new_header_marker || state_marker==new_state_marker || casm_marker==new_casm_marker{
+            let is_casm_stuck = casm_marker == new_casm_marker &&
+                first_block_to_compile_from.get().is_none_or(
+                    |first_block_to_compile_from| new_casm_marker < *first_block_to_compile_from
+                );
+            if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event.");
                 yield SyncEvent::NoProgress;
             }
