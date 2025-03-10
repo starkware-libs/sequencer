@@ -29,6 +29,8 @@ use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_CACHED_VOTES,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
@@ -103,10 +105,12 @@ where
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
                 info!("Decision reached. {:?}", decision);
+                CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
                 context.decision_reached(decision.block, decision.precommits).await?;
             }
             RunHeightRes::Sync => {
                 info!(height = current_height.0, "Decision learned via sync protocol.");
+                CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
                 counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
             }
         }

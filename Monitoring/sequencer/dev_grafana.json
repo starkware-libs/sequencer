@@ -65,6 +65,20 @@
         "type": "stat",
         "expr": "consensus_cached_votes",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_decisions_reached_by_consensus",
+        "description": "The total number of decisions reached by way of consensus",
+        "type": "stat",
+        "expr": "consensus_decisions_reached_by_consensus",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_decisions_reached_by_sync",
+        "description": "The total number of decisions reached by way of sync",
+        "type": "stat",
+        "expr": "consensus_decisions_reached_by_sync",
+        "extra_params": {}
       }
     ],
     "Http Server": [
