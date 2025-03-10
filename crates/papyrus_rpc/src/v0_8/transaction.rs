@@ -1251,7 +1251,7 @@ impl L1HandlerMsgHash for starknet_client::reader::objects::transaction::L1Handl
 }
 
 /// Calculating the message hash of  L1 -> L2 message.
-/// `<For more info: https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/messaging-mechanism/#structure_and_hashing_l1-l2>`
+/// `<For more info: https://docs.starknet.io/architecture-and-concepts/network-architecture/messaging-mechanism/#l1_l2_message_structure>`
 fn l1_handler_message_hash(
     contract_address: &ContractAddress,
     nonce: Nonce,

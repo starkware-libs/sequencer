@@ -170,7 +170,7 @@
     "value": 100
   },
   "batcher_config.storage.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -220,7 +220,7 @@
     "value": "StateOnly"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
@@ -845,7 +845,7 @@
     "value": true
   },
   "consensus_manager_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -1050,7 +1050,7 @@
     "value": 0.0
   },
   "l1_scraper_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -1115,7 +1115,7 @@
     "value": true
   },
   "mempool_p2p_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -1310,7 +1310,7 @@
     "value": true
   },
   "state_sync_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
@@ -1415,7 +1415,7 @@
     "privacy": "Public"
   },
   "state_sync_config.storage_config.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "description": "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
