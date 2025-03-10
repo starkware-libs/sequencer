@@ -18,6 +18,10 @@ async fn main() {
     integration_test_setup("revert").await;
     const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(10);
     const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(15);
+    // can't use static assertion as comparison is non const.
+    assert!(BLOCK_TO_WAIT_FOR_BOOTSTRAP < BLOCK_TO_REVERT_FROM);
+    assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
+
     const N_TXS: usize = 50;
     /// The number of consolidated local sequencers that participate in the test.
     // TODO(noamsp): increase N_CONSOLIDATED_SEQUENCERS to 5 once restart flow test passes.
@@ -77,7 +81,7 @@ async fn main() {
         )
         .await;
 
-    info!("Shutting down nodes.");
+    info!("All nodes reverted to block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}. Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices.clone());
 
     // Restore the tx generator state.
