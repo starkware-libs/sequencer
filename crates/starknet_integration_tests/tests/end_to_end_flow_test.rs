@@ -183,7 +183,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         (
             |_| vec![],
-            vec![create_l1_handler_tx()],
+            vec![create_l1_handler_tx("0x876", "0x44")],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
                 "0x32a9c3b503e51b4330fe735b73975a62df996d6d6ebfe6cd1514ba2a68797cb",
