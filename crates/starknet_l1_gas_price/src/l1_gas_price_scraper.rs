@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -66,13 +66,7 @@ impl Default for L1GasPriceScraperConfig {
 
 impl SerializeConfig for L1GasPriceScraperConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "starting_block",
-                &self.starting_block,
-                "Starting block to scrape from",
-                ParamPrivacyInput::Public,
-            ),
+        let mut config = BTreeMap::from([
             ser_param(
                 "chain_id",
                 &self.chain_id,
@@ -97,7 +91,15 @@ impl SerializeConfig for L1GasPriceScraperConfig {
                 "Number of blocks to use for the mean gas price calculation",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        config.extend(ser_optional_param(
+            &self.starting_block,
+            0, // This value is never used, since #is_none turns it to a None.
+            "starting_block",
+            "Starting block to scrape from",
+            ParamPrivacyInput::Public,
+        ));
+        config
     }
 }
 
