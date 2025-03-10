@@ -335,8 +335,7 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-        CONSENSUS_ROUND.set(round as f64);
+        CONSENSUS_ROUND.set(round);
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
