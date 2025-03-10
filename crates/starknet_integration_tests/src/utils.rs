@@ -587,3 +587,42 @@ pub fn create_state_sync_configs(
         })
         .collect()
 }
+
+/// Stores tx hashes streamed so far.
+/// Assumes that rounds are monotonically increasing and that the last round is the chosen one.
+#[derive(Debug, Default)]
+pub struct AggregatedTransactions {
+    pub latest_block_number: BlockNumber,
+    pub round: u32,
+    pub tx_hashes: Vec<TransactionHash>,
+    // To remove from tx_hashes when a new round replaces the last round.
+    last_round_tx_hashes: Vec<TransactionHash>,
+}
+
+impl AggregatedTransactions {
+    pub fn add_transactions(
+        &mut self,
+        height: BlockNumber,
+        round: u32,
+        tx_hashes: &[TransactionHash],
+    ) {
+        self.validate_coherent_height_and_round(height, round);
+        if self.latest_block_number == height && self.round < round {
+            self.tx_hashes.retain(|tx_hash| !self.last_round_tx_hashes.contains(tx_hash));
+            self.last_round_tx_hashes = tx_hashes.to_vec();
+        }
+        self.latest_block_number = height;
+        self.round = round;
+        self.tx_hashes.extend_from_slice(tx_hashes);
+        self.last_round_tx_hashes.extend_from_slice(tx_hashes);
+    }
+
+    fn validate_coherent_height_and_round(&mut self, height: BlockNumber, round: u32) {
+        if self.latest_block_number > height {
+            panic!("Expected height to be greater or equal to the last height with transactions.");
+        }
+        if self.latest_block_number == height && self.round > round {
+            panic!("Expected round to be greater or equal to the last round.");
+        }
+    }
+}
