@@ -260,33 +260,15 @@ impl ExecutableSetup {
         self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 
-    // TODO(noamsp): Change this into change_config once we need to change other values in the
-    // config.
-    pub fn update_revert_config(&mut self, value: Option<BlockNumber>) {
-        match value {
-            Some(value) => {
-                self.config_pointers_map.change_target_value(
-                    "revert_config.revert_up_to_and_including",
-                    Value::from(value.0),
-                );
-                self.config.state_sync_config.revert_config.revert_up_to_and_including = value;
-                self.config.consensus_manager_config.revert_config.revert_up_to_and_including =
-                    value;
-
-                self.config_pointers_map
-                    .change_target_value("revert_config.should_revert", Value::from(true));
-                self.config.state_sync_config.revert_config.should_revert = true;
-                self.config.consensus_manager_config.revert_config.should_revert = true;
-            }
-            // If should revert is false, the revert_up_to_and_including value is irrelevant.
-            None => {
-                self.config_pointers_map
-                    .change_target_value("revert_config.should_revert", Value::from(false));
-                self.config.state_sync_config.revert_config.should_revert = false;
-                self.config.consensus_manager_config.revert_config.should_revert = false;
-            }
-        }
-        self.dump_config_file_changes();
+    // TODO(noamsp): Move this to integration_test_revert_flow.
+    /// Modifies the revert config state in the given config. If `revert_up_to_and_including` is
+    /// `None`, the revert config is disabled. Otherwise, the revert config is enabled and set
+    /// to revert up to and including the given block number.
+    pub fn modify_revert_config(&mut self, revert_up_to_and_including: Option<BlockNumber>) {
+        self.modify_config_pointers(|config_pointers| {
+            modify_revert_config_pointers(config_pointers, revert_up_to_and_including)
+        });
+        self.modify_config(|config| modify_revert_config(config, revert_up_to_and_including));
     }
 
     pub fn modify_config<F>(&mut self, modify_config_fn: F)
@@ -364,5 +346,40 @@ fn add_required_params_to_preset(preset: &mut Value, required_params: Value) {
         }
     } else {
         panic!("Expecting JSON object dictionary objects");
+    }
+}
+
+fn modify_revert_config_pointers(
+    config_pointers: &mut ConfigPointersMap,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    let should_revert = revert_up_to_and_including.is_some();
+    config_pointers.change_target_value("revert_config.should_revert", Value::from(should_revert));
+
+    // If should revert is false, the revert_up_to_and_including value is irrelevant.
+    if should_revert {
+        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
+        config_pointers.change_target_value(
+            "revert_config.revert_up_to_and_including",
+            Value::from(revert_up_to_and_including.0),
+        );
+    }
+}
+
+fn modify_revert_config(
+    config: &mut SequencerNodeConfig,
+    revert_up_to_and_including: Option<BlockNumber>,
+) {
+    let should_revert = revert_up_to_and_including.is_some();
+    config.state_sync_config.revert_config.should_revert = should_revert;
+    config.consensus_manager_config.revert_config.should_revert = should_revert;
+
+    // If should revert is false, the revert_up_to_and_including value is irrelevant.
+    if should_revert {
+        let revert_up_to_and_including = revert_up_to_and_including.unwrap();
+        config.state_sync_config.revert_config.revert_up_to_and_including =
+            revert_up_to_and_including;
+        config.consensus_manager_config.revert_config.revert_up_to_and_including =
+            revert_up_to_and_including;
     }
 }
