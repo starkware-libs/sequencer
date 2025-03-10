@@ -80,7 +80,6 @@ const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
-pub type ExpectedContentId = Felt;
 
 pub trait TestScenario {
     fn create_txs(
@@ -617,12 +616,7 @@ pub struct AccumulatedTransactions {
 }
 
 impl AccumulatedTransactions {
-    pub fn add_transactions(
-        &mut self,
-        height: BlockNumber,
-        round: u32,
-        tx_hashes: &[TransactionHash],
-    ) {
+    pub fn start_round(&mut self, height: BlockNumber, round: u32) {
         self.validate_coherent_height_and_round(height, round);
         if self.latest_block_number < height {
             info!(
@@ -633,28 +627,22 @@ impl AccumulatedTransactions {
             self.latest_block_number = height;
             self.round = round;
             self.accumulated_tx_hashes.append(&mut self.current_round_tx_hashes);
-            self.current_round_tx_hashes = tx_hashes.to_vec();
         } else if self.latest_block_number == height && self.round < round {
             info!(
-                "New round started ({}). Dropping {} txs of round {}. Adding {} pending txs to \
-                 block {})",
+                "New round started ({}). Dropping {} txs of round {} (block {}).",
                 round,
                 self.current_round_tx_hashes.len(),
                 self.round,
-                tx_hashes.len(),
                 height,
             );
             self.round = round;
-            self.current_round_tx_hashes = tx_hashes.to_vec();
-        } else {
-            info!(
-                "Adding {} streamed txs in block {} round {}.",
-                tx_hashes.len(),
-                self.latest_block_number,
-                self.round
-            );
-            self.current_round_tx_hashes.extend_from_slice(tx_hashes);
+            self.current_round_tx_hashes.clear();
         }
+    }
+
+    pub fn add_transactions(&mut self, tx_hashes: &[TransactionHash]) {
+        info!("Adding {} txs to the current round.", tx_hashes.len());
+        self.current_round_tx_hashes.extend_from_slice(tx_hashes);
     }
 
     fn validate_coherent_height_and_round(&self, height: BlockNumber, round: u32) {
