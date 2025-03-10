@@ -15,6 +15,7 @@ define_metrics!(
         MetricCounter { CONSENSUS_PROPOSALS_FAILED, "consensus_proposals_failed", "The total number of proposals failed to be validated by the consensus", init=0},
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_TOTAL, "consensus_build_proposal_total", "The total number of proposals built", init=0},
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILED, "consensus_build_proposal_failed", "The number of proposals that failed to be built", init=0},
+        MetricCounter { CONSENSUS_REPROPOSALS, "consensus_reproposals", "The number of proposals that were re-proposed", init=0},
     },
 );
 
@@ -31,4 +32,5 @@ pub(crate) fn register_metrics() {
     CONSENSUS_PROPOSALS_FAILED.register();
     CONSENSUS_BUILD_PROPOSAL_TOTAL.register();
     CONSENSUS_BUILD_PROPOSAL_FAILED.register();
+    CONSENSUS_REPROPOSALS.register();
 }
