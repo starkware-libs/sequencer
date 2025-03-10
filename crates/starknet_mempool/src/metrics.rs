@@ -100,17 +100,15 @@ pub(crate) fn metric_count_committed_txs(committed_txs: usize) {
         .increment(committed_txs.try_into().expect("The number of committed_txs should fit u64"));
 }
 
-#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 pub(crate) fn metric_set_get_txs_size(size: usize) {
-    MEMPOOL_GET_TXS_SIZE.set(size as f64);
+    MEMPOOL_GET_TXS_SIZE.set_lossy(size);
 }
 
-#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 impl Mempool {
     pub(crate) fn update_state_metrics(&self) {
-        MEMPOOL_POOL_SIZE.set(self.tx_pool_len() as f64);
-        MEMPOOL_PRIORITY_QUEUE_SIZE.set(self.priority_queue_len() as f64);
-        MEMPOOL_PENDING_QUEUE_SIZE.set(self.pending_queue_len() as f64);
+        MEMPOOL_POOL_SIZE.set_lossy(self.tx_pool_len());
+        MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.priority_queue_len());
+        MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.pending_queue_len());
     }
 }
 
