@@ -32,6 +32,8 @@ use crate::metrics::{
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_HEIGHT,
+    CONSENSUS_PROPOSALS_RECEIVED,
+    CONSENSUS_PROPOSALS_VALID_INIT,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
@@ -296,6 +298,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
         mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
+        CONSENSUS_PROPOSALS_RECEIVED.increment(1);
         // Get the first message to verify the init was sent.
         // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
         // the first message (message_id=0) has arrived.
@@ -310,6 +313,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             ));
         };
         let proposal_init: ProposalInit = first_part.try_into()?;
+        CONSENSUS_PROPOSALS_VALID_INIT.increment(1);
 
         match proposal_init.height.cmp(&height) {
             std::cmp::Ordering::Greater => {
