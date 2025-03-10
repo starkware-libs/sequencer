@@ -29,7 +29,7 @@ impl Default for MempoolConfig {
             enable_fee_escalation: true,
             fee_escalation_percentage: 10,
             transaction_ttl: Duration::from_secs(60), // 1 minute.
-            declare_delay: Duration::from_secs(5),
+            declare_delay: Duration::from_secs(1),
         }
     }
 }

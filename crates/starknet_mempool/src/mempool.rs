@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
+use std::time::Instant;
 
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
@@ -122,7 +123,9 @@ impl MempoolState {
 pub struct Mempool {
     config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
-    // All transactions currently held in the mempool.
+    // Declare transactions that are waiting to be added to the tx pool after a delay.
+    delayed_declares: VecDeque<(Instant, AddTransactionArgs)>,
+    // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
@@ -134,6 +137,7 @@ impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
             config,
+            delayed_declares: VecDeque::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::default(),
@@ -219,15 +223,31 @@ impl Mempool {
 
         // First remove old transactions from the pool.
         self.remove_expired_txs();
+        self.add_ready_declares(&mut metric_handle);
 
+        let tx_reference = TransactionReference::new(&args.tx);
+        self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
+        self.handle_fee_escalation(&args.tx)?;
+
+        if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
+            self.delayed_declares.push_back((self.clock.now(), args));
+            return Ok(());
+        }
+
+        self.add_tx_inner(args, &mut metric_handle)
+    }
+
+    fn add_tx_inner(
+        &mut self,
+        args: AddTransactionArgs,
+        metric_handle: &mut MempoolMetricHandle,
+    ) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
         info!("Adding transaction to mempool.");
         trace!("{tx:#?}");
 
         let tx_reference = TransactionReference::new(&tx);
-        self.validate_incoming_tx(tx_reference, account_state.nonce)?;
 
-        self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
         metric_handle.transaction_inserted();
@@ -242,6 +262,20 @@ impl Mempool {
         self.update_state_metrics();
 
         Ok(())
+    }
+
+    fn add_ready_declares(&mut self, metric_handle: &mut MempoolMetricHandle) {
+        let now = self.clock.now();
+        while let Some((submission_time, _args)) = self.delayed_declares.front() {
+            if now - *submission_time < self.config.declare_delay {
+                break;
+            }
+            let (_submission_time, args) =
+                self.delayed_declares.pop_front().expect("Delay declare should exist.");
+            let _ = self
+                .add_tx_inner(args, metric_handle)
+                .map_err(|err| info!("Failed to add declare tx after delay: {err}."));
+        }
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
@@ -326,6 +360,24 @@ impl Mempool {
         self.state.validate_incoming_tx(tx_reference, incoming_account_nonce)
     }
 
+    /// Validates that the given transaction does not front run a delayed declare. This means in
+    /// particular that no fee escalation can occur to a declare that is being delayed.
+    fn validate_no_delayed_declare_front_run(
+        &self,
+        tx_reference: TransactionReference,
+    ) -> MempoolResult<()> {
+        if self.delayed_declares.iter().any(|(_, tx_args)| {
+            let tx = &tx_args.tx;
+            tx.contract_address() == tx_reference.address && tx.nonce() == tx_reference.nonce
+        }) {
+            return Err(MempoolError::DuplicateNonce {
+                address: tx_reference.address,
+                nonce: tx_reference.nonce,
+            });
+        }
+        Ok(())
+    }
+
     fn validate_commitment(&self, address: ContractAddress, next_nonce: Nonce) {
         self.state.validate_commitment(address, next_nonce);
     }
@@ -354,6 +406,8 @@ impl Mempool {
     fn handle_fee_escalation(&mut self, incoming_tx: &InternalRpcTransaction) -> MempoolResult<()> {
         let incoming_tx_reference = TransactionReference::new(incoming_tx);
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
+
+        self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
 
         if !self.config.enable_fee_escalation {
             if self.tx_pool.get_by_address_and_nonce(address, nonce).is_some() {
