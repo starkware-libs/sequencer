@@ -352,18 +352,15 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     reconstruct_processed_transactions_metric(txn);
 }
 
-#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
-    SYNC_HEADER_MARKER.set(txn.get_header_marker().expect("Should have a header marker").0 as f64);
-    SYNC_BODY_MARKER.set(txn.get_body_marker().expect("Should have a body marker").0 as f64);
-    SYNC_STATE_MARKER.set(txn.get_state_marker().expect("Should have a state marker").0 as f64);
-    SYNC_CLASS_MANAGER_MARKER.set(
-        txn.get_class_manager_block_marker().expect("Should have a class manager block marker").0
-            as f64,
+    SYNC_HEADER_MARKER.set_lossy(txn.get_header_marker().expect("Should have a header marker").0);
+    SYNC_BODY_MARKER.set_lossy(txn.get_body_marker().expect("Should have a body marker").0);
+    SYNC_STATE_MARKER.set_lossy(txn.get_state_marker().expect("Should have a state marker").0);
+    SYNC_CLASS_MANAGER_MARKER.set_lossy(
+        txn.get_class_manager_block_marker().expect("Should have a class manager block marker").0,
     );
-    SYNC_COMPILED_CLASS_MARKER.set(
-        txn.get_compiled_class_marker().expect("Should have a compiled class marker").0 as f64,
-    );
+    SYNC_COMPILED_CLASS_MARKER
+        .set_lossy(txn.get_compiled_class_marker().expect("Should have a compiled class marker").0);
 }
 
 fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
