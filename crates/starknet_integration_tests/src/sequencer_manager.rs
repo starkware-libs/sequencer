@@ -6,6 +6,7 @@ use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use papyrus_base_layer::test_utils::ethereum_base_layer_config_for_anvil;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -39,6 +40,7 @@ use crate::utils::{
     InvokeTxs,
     TestScenario,
 };
+
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
@@ -549,6 +551,12 @@ pub async fn get_sequencer_setup_configs(
         mempool_p2p_ports.get_next_ports(n_distributed_sequencers),
     );
 
+    let mut base_layer_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for base layer config");
+    let base_layer_config =
+        ethereum_base_layer_config_for_anvil(Some(base_layer_ports.get_next_port()));
+
     // TODO(Nadin/Tsabary): There are redundant p2p configs here, as each distributed node
     // needs only one of them, but the current setup creates one per part. Need to refactor.
 
@@ -587,6 +595,7 @@ pub async fn get_sequencer_setup_configs(
                         .next()
                         .expect("Failed to get an AvailablePorts instance for executable configs"),
                     executable_component_config.clone(),
+                    base_layer_config.clone(),
                     exec_db_path,
                     exec_config_path,
                     exec_data_prefix_dir,
