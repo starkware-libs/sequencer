@@ -17,6 +17,11 @@ use tracing::info;
 async fn main() {
     integration_test_setup("revert").await;
     const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(10);
+    const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(15);
+    // can't use static assertion as comparison is non const.
+    assert!(BLOCK_TO_WAIT_FOR_BOOTSTRAP < BLOCK_TO_REVERT_FROM);
+    assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
+
     const N_TXS: usize = 50;
     /// The number of consolidated local sequencers that participate in the test.
     // TODO(noamsp): increase N_CONSOLIDATED_SEQUENCERS to 5 once restart flow test passes.
@@ -43,6 +48,9 @@ async fn main() {
 
     info!("Sending bootstrap transactions and verifying state.");
     integration_test_manager.send_bootstrap_txs_and_verify().await;
+
+    // Save a snapshot of the tx_generator so we can restore the state after reverting.
+    let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
 
     info!("Sending transactions and verifying state.");
     integration_test_manager.send_invoke_txs_and_verify(N_TXS, BLOCK_TO_REVERT_FROM).await;
@@ -73,11 +81,32 @@ async fn main() {
         )
         .await;
 
-    info!("Shutting down nodes.");
+    info!("All nodes reverted to block {BLOCK_TO_WAIT_FOR_BOOTSTRAP}. Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices.clone());
 
-    // TODO(noamsp): Rerun nodes with revert turned off, send and verify transactions after the
-    // revert completed.
+    // Restore the tx generator state.
+    *integration_test_manager.tx_generator_mut() = tx_generator_snapshot;
+
+    info!(
+        "Modifying revert config for all nodes and resume sequencing from block \
+         {BLOCK_TO_WAIT_FOR_BOOTSTRAP}."
+    );
+    modify_revert_config_idle_nodes(&mut integration_test_manager, node_indices.clone(), None);
+    let node_start_height = BLOCK_TO_WAIT_FOR_BOOTSTRAP.unchecked_next();
+    modify_height_configs_idle_nodes(
+        &mut integration_test_manager,
+        node_indices.clone(),
+        node_start_height,
+    );
+
+    integration_test_manager.run_nodes(node_indices.clone()).await;
+
+    info!("Sending transactions and verifying state.");
+    integration_test_manager
+        .send_invoke_txs_and_verify(N_TXS, BLOCK_TO_WAIT_FOR_AFTER_REVERT)
+        .await;
+
+    integration_test_manager.shutdown_nodes(node_indices);
 
     info!("Revert flow integration test completed successfully!");
 }
@@ -134,4 +163,19 @@ fn modify_revert_config(
         config.consensus_manager_config.revert_config.revert_up_to_and_including =
             revert_up_to_and_including;
     }
+}
+
+fn modify_height_configs_idle_nodes(
+    integration_test_manager: &mut IntegrationTestManager,
+    node_indices: HashSet<usize>,
+    node_start_height: BlockNumber,
+) {
+    integration_test_manager.modify_config_idle_nodes(node_indices, |config| {
+        // TODO(noamsp): Change these values point to a single config value and refactor this
+        // function accordingly.
+        config.consensus_manager_config.immediate_active_height = node_start_height;
+        config.consensus_manager_config.cende_config.skip_write_height = Some(node_start_height);
+        config.l1_provider_config.bootstrap_catch_up_height = node_start_height.prev().unwrap();
+        config.l1_provider_config.provider_startup_height = node_start_height;
+    });
 }
