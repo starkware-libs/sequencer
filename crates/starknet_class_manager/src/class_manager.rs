@@ -1,6 +1,12 @@
 use async_trait::async_trait;
 use starknet_api::state::SierraContractClass;
-use starknet_class_manager_types::{ClassHashes, ClassId, ClassManagerError, ClassManagerResult};
+use starknet_class_manager_types::{
+    ClassHashes,
+    ClassId,
+    ClassManagerError,
+    ClassManagerResult,
+    ExecutableClassHash,
+};
 use starknet_sequencer_infra::component_definitions::{
     default_component_start_fn,
     ComponentStarter,
@@ -87,6 +93,17 @@ impl<S: ClassStorage> ClassManager<S> {
     ) -> ClassManagerResult<()> {
         self.classes.set_deprecated_class(class_id, class)?;
         Ok(())
+    }
+
+    #[instrument(skip(self, class, executable_class), ret, err)]
+    pub fn add_class_and_executable_unsafe(
+        &mut self,
+        class_id: ClassId,
+        class: RawClass,
+        executable_class_id: ExecutableClassHash,
+        executable_class: RawExecutableClass,
+    ) -> ClassManagerResult<()> {
+        Ok(self.classes.set_class(class_id, class, executable_class_id, executable_class)?)
     }
 }
 
