@@ -18,7 +18,6 @@ use crate::hints::hint_implementation::block_context::{
     block_timestamp,
     bytecode_segment_structure,
     chain_id,
-    deprecated_fee_token_address,
     fee_token_address,
     get_block_mapping,
     is_leaf,
@@ -440,11 +439,6 @@ define_hint_enum!(
         FeeTokenAddress,
         fee_token_address,
         "memory[ap] = to_felt_or_relocatable(os_input.general_config.fee_token_address)"
-    ),
-    (
-        DeprecatedFeeTokenAddress,
-        deprecated_fee_token_address,
-        "memory[ap] = to_felt_or_relocatable(os_input.general_config.deprecated_fee_token_address)"
     ),
     (
         SequencerAddress,

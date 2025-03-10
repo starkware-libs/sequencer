@@ -50,18 +50,6 @@ pub(crate) fn fee_token_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 
-pub(crate) fn deprecated_fee_token_address<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    let eth_fee_token_address = hint_processor
-        .execution_helper
-        .os_input
-        .chain_info
-        .fee_token_addresses
-        .eth_fee_token_address;
-    Ok(insert_value_into_ap(vm, eth_fee_token_address.0.key())?)
-}
-
 pub(crate) fn sequencer_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
