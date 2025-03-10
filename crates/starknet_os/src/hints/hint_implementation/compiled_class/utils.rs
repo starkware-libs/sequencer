@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use blockifier::execution::contract_class::{ContractClassV1Inner, EntryPointV1};
-use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
@@ -10,22 +9,27 @@ use crate::hints::error::OsHintResult;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{insert_values_to_fields, CairoSized, IdentifierGetter, LoadCairoObject};
 
-impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV1 {
+impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
     fn load_into(
         &self,
         vm: &mut VirtualMachine,
         identifier_getter: &IG,
         address: Relocatable,
-        constants: &HashMap<String, Felt>,
+        _constants: &HashMap<String, Felt>,
     ) -> OsHintResult {
         // Allocate a segment for the builtin list.
         let builtin_list_base = vm.add_memory_segment();
+        let mut next_builtin_address = builtin_list_base;
         // Insert the builtin list.
-        self.builtins.load_into(vm, identifier_getter, builtin_list_base, constants)?;
+        for builtin in self.builtins.iter() {
+            let builtin_as_felt = Felt::from_bytes_be_slice(builtin.as_bytes());
+            vm.insert_value(next_builtin_address, builtin_as_felt)?;
+            next_builtin_address += 1;
+        }
         // Insert the fields.
         let nested_fields_and_value = [
-            ("selector".to_string(), self.selector.0.into()),
-            ("offset".to_string(), self.offset.0.into()),
+            ("selector".to_string(), Felt::from(&self.selector).into()),
+            ("offset".to_string(), self.offset.into()),
             ("n_builtins".to_string(), self.builtins.len().into()),
             ("builtin_list".to_string(), builtin_list_base.into()),
         ];
@@ -41,33 +45,14 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV1 {
     }
 }
 
-impl<IG: IdentifierGetter> CairoSized<IG> for EntryPointV1 {
+impl<IG: IdentifierGetter> CairoSized<IG> for CasmContractEntryPoint {
     fn size(_identifier_getter: &IG) -> usize {
         // TODO(Nimrod): Fetch from IG after we upgrade the VM.
         4
     }
 }
 
-impl<IG: IdentifierGetter> LoadCairoObject<IG> for BuiltinName {
-    fn load_into(
-        &self,
-        vm: &mut VirtualMachine,
-        _identifier_getter: &IG,
-        address: Relocatable,
-        _constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
-        Ok(vm.insert_value(address, Felt::from_bytes_be_slice(self.to_str().as_bytes()))?)
-    }
-}
-
-impl<IG: IdentifierGetter> CairoSized<IG> for BuiltinName {
-    fn size(_identifier_getter: &IG) -> usize {
-        // In cairo this is a felt.
-        1
-    }
-}
-
-impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClassV1Inner {
+impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
     fn load_into(
         &self,
         vm: &mut VirtualMachine,
@@ -107,8 +92,10 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClassV1Inner {
         // Insert the bytecode entirely.
         let bytecode_base = vm.add_memory_segment();
         // TODO(Nimrod): See if we can transfer ownership here instead of cloning.
-        let copied_byte_code: Vec<_> = self.program.iter_data().cloned().collect();
-        vm.load_data(bytecode_base, &copied_byte_code)?;
+
+        let bytecode: Vec<_> =
+            self.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+        vm.load_data(bytecode_base, &bytecode)?;
 
         // Insert the fields.
         let nested_fields_and_value = [
@@ -120,7 +107,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClassV1Inner {
             ("constructors".to_string(), constructor_list_base.into()),
             ("n_constructors".to_string(), self.entry_points_by_type.constructor.len().into()),
             ("bytecode_ptr".to_string(), bytecode_base.into()),
-            ("bytecode_length".to_string(), copied_byte_code.len().into()),
+            ("bytecode_length".to_string(), bytecode.len().into()),
         ];
 
         insert_values_to_fields(
