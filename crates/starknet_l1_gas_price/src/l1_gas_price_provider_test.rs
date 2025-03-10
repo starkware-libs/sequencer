@@ -81,6 +81,7 @@ fn gas_price_provider_adding_samples() {
     let ret = provider.get_price_info(BlockTimestamp(final_timestamp + lag));
     matches!(ret, Result::Err(L1GasPriceProviderError::MissingDataError { .. }));
 }
+
 #[test]
 fn gas_price_provider_timestamp_changes_mean() {
     let (provider, samples) = make_provider();
@@ -96,4 +97,14 @@ fn gas_price_provider_timestamp_changes_mean() {
         provider.get_price_info(BlockTimestamp(final_timestamp + lag * 2)).unwrap();
     assert_ne!(gas_price_new, gas_price);
     assert_ne!(data_gas_price_new, data_gas_price);
+}
+
+#[test]
+fn gas_price_provider_can_start_at_nonzero_height() {
+    let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
+        number_of_blocks_for_mean: 3,
+        ..Default::default()
+    });
+    let sample = PriceSample { timestamp: 0, base_fee_per_gas: 0, blob_fee: 0 };
+    provider.add_price_info(42, sample.clone()).unwrap();
 }
