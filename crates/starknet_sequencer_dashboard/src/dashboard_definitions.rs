@@ -7,7 +7,7 @@ use starknet_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
 };
-use starknet_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
+use starknet_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use starknet_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
@@ -99,6 +99,13 @@ const PANEL_CONSENSUS_BLOCK_NUMBER: Panel = Panel::new(
     CONSENSUS_BLOCK_NUMBER.get_name(),
     CONSENSUS_BLOCK_NUMBER.get_description(),
     CONSENSUS_BLOCK_NUMBER.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_CONSENSUS_ROUND: Panel = Panel::new(
+    CONSENSUS_ROUND.get_name(),
+    CONSENSUS_ROUND.get_description(),
+    CONSENSUS_ROUND.get_name(),
     PanelType::Stat,
 );
 
@@ -295,7 +302,7 @@ const BATCHER_ROW: Row<'_> = Row::new(
 const CONSENSUS_ROW: Row<'_> = Row::new(
     "Consensus",
     "Consensus metrics including block number, round, and so on.",
-    &[PANEL_CONSENSUS_BLOCK_NUMBER],
+    &[PANEL_CONSENSUS_BLOCK_NUMBER, PANEL_CONSENSUS_ROUND],
 );
 
 const HTTP_SERVER_ROW: Row<'_> = Row::new(
