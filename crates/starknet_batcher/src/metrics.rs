@@ -24,7 +24,7 @@ define_metrics!(
 pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     #[allow(clippy::as_conversions)]
-    STORAGE_HEIGHT.set(storage_height.0 as f64);
+    STORAGE_HEIGHT.set_lossy(storage_height.0);
     CLASS_CACHE_MISSES.register();
     CLASS_CACHE_HITS.register();
 
