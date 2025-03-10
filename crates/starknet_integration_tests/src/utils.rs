@@ -587,3 +587,49 @@ pub fn create_state_sync_configs(
         })
         .collect()
 }
+
+pub type Round = u32;
+
+#[derive(Debug, Default, Eq, Hash, PartialEq)]
+pub struct BlockAndRound {
+    pub block_number: BlockNumber,
+    pub round: Round,
+}
+
+/// Stores tx hashes aggregated by height and round.
+/// Assumes that rounds are monotonically increasing and that the last round is the chosen one.
+#[derive(Debug, Default)]
+pub struct AggregatedTransactions(IndexMap<BlockAndRound, Vec<TransactionHash>>);
+
+impl AggregatedTransactions {
+    pub fn add_transactions(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        tx_hashes: &[TransactionHash],
+    ) {
+        self.validate_coherent_height_and_round(height, round);
+        self.0
+            .entry(BlockAndRound { block_number: height, round })
+            .or_default()
+            .extend_from_slice(tx_hashes);
+    }
+
+    pub fn get_all_txs_so_far(&self) -> Vec<TransactionHash> {
+        self.0.iter().flat_map(|(_, tx_hashes)| tx_hashes.clone()).collect()
+    }
+
+    fn validate_coherent_height_and_round(&mut self, height: BlockNumber, round: Round) {
+        let Some((BlockAndRound { block_number: last_height, round: last_round }, _)) =
+            self.0.last()
+        else {
+            return;
+        };
+        if *last_height > height {
+            panic!("Expected height to be greater or equal to the last height with transactions.");
+        }
+        if *last_height == height && *last_round > round {
+            panic!("Expected round to be greater or equal to the last round.");
+        }
+    }
+}
