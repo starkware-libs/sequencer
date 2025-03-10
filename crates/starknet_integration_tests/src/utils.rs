@@ -3,8 +3,6 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use alloy::primitives::U256;
-use alloy::providers::RootProvider;
-use alloy::transports::http::{Client, Http};
 use axum::http::StatusCode;
 use axum::routing::post;
 use axum::Router;
@@ -19,8 +17,8 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerConfig, Starknet};
-use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::test_utils::{StarknetL1Contract, DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS};
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
@@ -86,9 +84,6 @@ const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 pub type ExpectedContentId = Felt;
-/// An interface that plays the role of the starknet L1 contract. It is able to create messages to
-/// L2 from this contract, which appear on the corresponding base layer.
-pub type StarknetL1Contract = Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>>;
 
 pub trait TestScenario {
     fn create_txs(
