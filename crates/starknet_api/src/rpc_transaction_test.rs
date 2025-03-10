@@ -55,7 +55,6 @@ fn create_deploy_account_tx() -> RpcTransaction {
         contract_address_salt: ContractAddressSalt(felt!("0x1")),
         class_hash: class_hash!("0x2"),
         constructor_calldata: calldata![felt!("0x1")],
-        nonce: nonce!(1),
         signature: TransactionSignature(vec![felt!("0x1")]),
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         fee_data_availability_mode: DataAvailabilityMode::L1,
