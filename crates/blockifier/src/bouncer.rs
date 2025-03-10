@@ -93,7 +93,7 @@ impl SerializeConfig for BouncerConfig {
 
 #[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::AddAssign))]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
-/// Represents the execution resources counted throughout block creation.
+/// Represents the running resources counted throughout block creation.
 pub struct BouncerWeights {
     pub l1_gas: usize,
     pub message_segment_length: usize,
