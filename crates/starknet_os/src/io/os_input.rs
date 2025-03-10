@@ -61,6 +61,9 @@ pub struct StarknetOsInput {
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,
     pub(crate) chain_info: ChainInfo,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    #[allow(dead_code)]
+    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
@@ -86,6 +89,4 @@ pub struct CachedStateInput {
     pub(crate) address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub(crate) address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub(crate) class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
-    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
 }

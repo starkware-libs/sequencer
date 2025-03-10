@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
-use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::program::Program;
-use starknet_api::contract_class::SierraVersion;
 
 use crate::errors::StarknetOsError;
 use crate::io::os_input::{CachedStateInput, StarknetOsInput};
@@ -38,19 +36,6 @@ impl<S: StateReader> OsExecutionHelper<S> {
     ) -> Result<CachedState<S>, StarknetOsError> {
         let mut empty_cached_state = CachedState::new(state_reader);
         let mut state_maps = StateMaps::default();
-        let mut contract_classes = HashMap::new();
-
-        // Insert contracts.
-        for (class_hash, deprecated_class) in state_input.deprecated_compiled_classes.into_iter() {
-            contract_classes
-                .insert(class_hash, RunnableCompiledClass::V0(deprecated_class.try_into()?));
-        }
-        for (class_hash, class) in state_input.compiled_classes.into_iter() {
-            // It doesn't matter which version is used.
-            let sierra_version = SierraVersion::LATEST;
-            contract_classes
-                .insert(class_hash, RunnableCompiledClass::V1((class, sierra_version).try_into()?));
-        }
 
         // Insert storage.
         for (contract_address, storage) in state_input.storage.into_iter() {
@@ -68,7 +53,7 @@ impl<S: StateReader> OsExecutionHelper<S> {
         state_maps.compiled_class_hashes = state_input.class_hash_to_compiled_class_hash;
 
         // Update the cached state.
-        empty_cached_state.update_cache(&state_maps, contract_classes);
+        empty_cached_state.update_cache(&state_maps, HashMap::new());
 
         Ok(empty_cached_state)
     }
