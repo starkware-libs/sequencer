@@ -1,16 +1,36 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    insert_value_into_ap,
+};
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::DecodeNodeCase;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Scope;
+use crate::hints::vars::{Ids, Scope};
 
 pub(crate) fn set_siblings<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn is_case_right<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn is_case_right<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
+    let bit = get_integer_from_var_name(Ids::Bit.into(), vm, ids_data, ap_tracking)?;
+
+    let case_right = Felt::from(case == DecodeNodeCase::Right);
+
+    if bit != Felt::ZERO && bit != Felt::ONE {
+        return Err(OsHintError::ExpectedBit { id: Ids::Bit, felt: bit });
+    }
+
+    // Felts do not support XOR, compute it manually.
+    let value_felt = Felt::from(bit != case_right);
+    insert_value_into_ap(vm, value_felt)?;
+
+    Ok(())
 }
 
 pub(crate) fn set_bit<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {

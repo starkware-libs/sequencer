@@ -25,6 +25,8 @@ pub enum OsHintError {
     ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
     #[error(transparent)]
     ExecutionScopes(#[from] ExecScopeError),
+    #[error("{id:?} value {felt} is not a bit.")]
+    ExpectedBit { id: Ids, felt: Felt },
     #[error("The identifier {0:?} has no full name.")]
     IdentifierHasNoFullName(Box<Identifier>),
     #[error("The identifier {0:?} has no members.")]
