@@ -587,3 +587,61 @@ pub fn create_state_sync_configs(
         })
         .collect()
 }
+
+pub type Round = u32;
+
+#[derive(Debug, Default)]
+pub struct RoundTransactions {
+    pub round: Round,
+    pub tx_hashes: Vec<TransactionHash>,
+}
+
+/// Stores tx hashes aggregated by height and round.
+/// Assumes that rounds are monotonically increasing and that the last round is the chosen one.
+#[derive(Debug, Default)]
+pub struct AggregatedTransactions(Vec<(BlockNumber, RoundTransactions)>);
+
+impl AggregatedTransactions {
+    pub fn add_transactions(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        tx_hashes: &[TransactionHash],
+    ) {
+        self.validate_coherent_height_and_round(height, round);
+        let entry = self.prepare_entry(height, round);
+        entry.extend_from_slice(tx_hashes);
+    }
+
+    pub fn get_latest_block_with_txs(&self) -> Option<BlockNumber> {
+        self.0.last().map(|entry| entry.0)
+    }
+
+    pub fn get_all_txs_so_far(&self) -> Vec<TransactionHash> {
+        self.0
+            .iter()
+            .flat_map(|(_height, RoundTransactions { tx_hashes, .. })| tx_hashes.clone())
+            .collect()
+    }
+
+    fn validate_coherent_height_and_round(&mut self, height: BlockNumber, round: Round) {
+        let Some((last_height, RoundTransactions { round: last_round, .. })) = self.0.last() else {
+            return;
+        };
+        if *last_height > height {
+            panic!("Expected height to be greater or equal to the last height with transactions.");
+        }
+        if *last_height == height && *last_round > round {
+            panic!("Expected round to be greater or equal to the last round.");
+        }
+    }
+
+    fn prepare_entry(&mut self, height: BlockNumber, round: Round) -> &mut Vec<TransactionHash> {
+        if self.0.last().is_none_or(|(last_height, RoundTransactions { round: last_round, .. })| {
+            *last_height < height || (*last_height == height && *last_round < round)
+        }) {
+            self.0.push((height, RoundTransactions { round, ..Default::default() }));
+        }
+        &mut self.0.last_mut().unwrap().1.tx_hashes
+    }
+}

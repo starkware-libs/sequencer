@@ -70,7 +70,6 @@ use crate::utils::{
     send_message_to_l2,
     spawn_local_success_recorder,
     ExpectedContentId,
-    StarknetL1Contract,
 };
 
 const SEQUENCER_0: usize = 0;
