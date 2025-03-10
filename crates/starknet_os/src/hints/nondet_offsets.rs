@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::vm_core::VirtualMachine;
+
 use crate::hints::enum_definition::{AllHints, OsHint};
-use crate::hints::error::OsHintError;
+use crate::hints::error::{OsHintError, OsHintResult};
 
 #[cfg(test)]
 #[path = "nondet_offsets_test.rs"]
@@ -24,6 +27,15 @@ pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> = LazyLo
     ])
 });
 
-pub(crate) fn fetch_offset(hint: AllHints) -> Result<usize, OsHintError> {
+fn fetch_offset(hint: AllHints) -> Result<usize, OsHintError> {
     Ok(*NONDET_FP_OFFSETS.get(&hint).ok_or(OsHintError::MissingOffsetForHint { hint })?)
+}
+
+pub(crate) fn insert_nondet_hint_value<T: Into<MaybeRelocatable>>(
+    vm: &mut VirtualMachine,
+    hint: AllHints,
+    value: T,
+) -> OsHintResult {
+    let offset = fetch_offset(hint)?;
+    Ok(vm.insert_value((vm.get_fp() + offset)?, value)?)
 }
