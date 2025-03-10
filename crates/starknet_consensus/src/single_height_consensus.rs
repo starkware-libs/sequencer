@@ -22,6 +22,7 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
+use crate::metrics::{CONSENSUS_PROPOSALS_FAILED, CONSENSUS_PROPOSALS_VALIDATED};
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
     ConsensusContext,
@@ -315,9 +316,12 @@ impl SingleHeightConsensus {
                 );
                 // TODO(matan): Switch to signature validation.
                 if built_id != received_fin.as_ref().map(|fin| fin.proposal_commitment) {
+                    CONSENSUS_PROPOSALS_FAILED.increment(1);
                     warn!("proposal_id built from content received does not match fin.");
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                CONSENSUS_PROPOSALS_VALIDATED.increment(1);
+
                 // Retaining the entry for this round prevents us from receiving another proposal on
                 // this round. While this prevents spam attacks it also prevents re-receiving after
                 // a network issue.
