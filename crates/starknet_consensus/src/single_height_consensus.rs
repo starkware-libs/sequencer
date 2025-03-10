@@ -22,7 +22,11 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
-use crate::metrics::{CONSENSUS_PROPOSALS_FAILED, CONSENSUS_PROPOSALS_VALIDATED};
+use crate::metrics::{
+    CONSENSUS_BUILD_PROPOSAL_TOTAL,
+    CONSENSUS_PROPOSALS_FAILED,
+    CONSENSUS_PROPOSALS_VALIDATED,
+};
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
     ConsensusContext,
@@ -476,8 +480,11 @@ impl SingleHeightConsensus {
 
         // TODO(Matan): Figure out how to handle failed proposal building. I believe this should be
         // handled by applying timeoutPropose when we are the leader.
+        // TODO(guyn): need to figure out where we can report a failed proposal build (e.g., for
+        // metrics).
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
+        CONSENSUS_BUILD_PROPOSAL_TOTAL.increment(1);
         let fin_receiver = context.build_proposal(init, self.timeouts.proposal_timeout).await;
         vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
