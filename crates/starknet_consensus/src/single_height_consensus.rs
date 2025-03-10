@@ -22,6 +22,11 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
+use crate::metrics::{
+    CONSENSUS_PROPOSALS_INVALID,
+    CONSENSUS_PROPOSALS_VALIDATED,
+    CONSENSUS_PROPOSALS_VALID_INIT,
+};
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
     ConsensusContext,
@@ -240,6 +245,8 @@ impl SingleHeightConsensus {
             "Accepting {init:?}. node_round: {}, timeout: {timeout:?}",
             self.state_machine.round()
         );
+        CONSENSUS_PROPOSALS_VALID_INIT.increment(1);
+
         // Since validating the proposal is non-blocking, we want to avoid validating the same round
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
@@ -315,9 +322,12 @@ impl SingleHeightConsensus {
                 );
                 // TODO(matan): Switch to signature validation.
                 if built_id != received_fin.as_ref().map(|fin| fin.proposal_commitment) {
+                    CONSENSUS_PROPOSALS_INVALID.increment(1);
                     warn!("proposal_id built from content received does not match fin.");
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
+                CONSENSUS_PROPOSALS_VALIDATED.increment(1);
+
                 // Retaining the entry for this round prevents us from receiving another proposal on
                 // this round. While this prevents spam attacks it also prevents re-receiving after
                 // a network issue.
