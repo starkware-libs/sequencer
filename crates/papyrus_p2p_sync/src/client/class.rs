@@ -25,7 +25,6 @@ use super::block_data_stream_builder::{
 };
 use super::P2pSyncClientError;
 
-#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage<'a>(
         self: Box<Self>,
@@ -69,7 +68,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
                 .begin_rw_txn()?
                 .update_class_manager_block_marker(&self.2.unchecked_next())?
                 .commit()?;
-            SYNC_CLASS_MANAGER_MARKER.set(self.2.unchecked_next().0 as f64);
+            SYNC_CLASS_MANAGER_MARKER.set_lossy(self.2.unchecked_next().0);
 
             Ok(())
         }

@@ -169,7 +169,36 @@ impl MetricGauge {
     pub fn set<T: IntoF64>(&self, value: T) {
         gauge!(self.name).set(value.into_f64());
     }
+
+    pub fn set_lossy<T: LossyIntoF64>(&self, value: T) {
+        gauge!(self.name).set(value.into_f64());
+    }
 }
+
+/// An object which can be lossy converted into a `f64` representation.
+pub trait LossyIntoF64 {
+    fn into_f64(self) -> f64;
+}
+
+impl LossyIntoF64 for f64 {
+    fn into_f64(self) -> f64 {
+        self
+    }
+}
+
+macro_rules! into_f64 {
+    ($($ty:ty),*) => {
+        $(
+            impl LossyIntoF64 for $ty {
+                #[allow(clippy::as_conversions)]
+                fn into_f64(self) -> f64 {
+                    self as f64
+                }
+            }
+        )*
+    };
+}
+into_f64!(u64, usize, i64);
 
 pub struct LabeledMetricGauge {
     scope: MetricScope,
