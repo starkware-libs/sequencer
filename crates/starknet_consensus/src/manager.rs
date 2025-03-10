@@ -25,7 +25,12 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
-use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER, CONSENSUS_MAX_CACHED_HEIGHT};
+use crate::metrics::{
+    register_metrics,
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_CACHED_MESSAGES,
+    CONSENSUS_MAX_CACHED_HEIGHT,
+};
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -240,6 +245,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
     ) -> Result<ShcReturn, ConsensusError> {
+        // TODO(guyn): use int metrics so `as f64` may be removed.
+        #[allow(clippy::as_conversions)]
+        CONSENSUS_CACHED_MESSAGES.set(self.future_votes.entry(height.0).or_default().len() as f64);
         let mut tasks = match shc.start(context).await? {
             decision @ ShcReturn::Decision(_) => {
                 // Start should generate either TimeoutProposal (validator) or GetProposal
