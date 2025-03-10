@@ -51,7 +51,7 @@ use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, Instrument};
 use url::Url;
 
 use crate::integration_test_setup::NodeExecutionId;
@@ -80,9 +80,9 @@ pub struct FlowTestSetup {
     l1_handle: AnvilInstance,
     starknet_l1_contract: StarknetL1Contract,
 
-    // Channels for consensus proposals, used for asserting the right transactions are proposed.
-    pub consensus_proposals_channels:
-        BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+    // The transactions that were streamed in the consensus proposals, used for asserting the right
+    // transactions are batched.
+    pub accumulated_txs: Arc<Mutex<AccumulatedTransactions>>,
 }
 
 impl FlowTestSetup {
@@ -119,6 +119,16 @@ impl FlowTestSetup {
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
 
+        // Spawn a thread that listens to proposals and collects batched transactions.
+        let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
+        let tx_collector_task = TxCollector {
+            consensus_proposals_channels,
+            accumulated_txs: accumulated_txs.clone(),
+            chain_id: chain_info.chain_id.clone(),
+        };
+
+        tokio::spawn(tx_collector_task.collect_streamd_txs().in_current_span());
+
         // Create nodes one after the other in order to make sure the ports are not overlapping.
         let sequencer_0 = FlowSequencerSetup::new(
             accounts.to_vec(),
@@ -146,13 +156,7 @@ impl FlowTestSetup {
         )
         .await;
 
-        Self {
-            sequencer_0,
-            sequencer_1,
-            l1_handle: anvil,
-            starknet_l1_contract,
-            consensus_proposals_channels,
-        }
+        Self { sequencer_0, sequencer_1, l1_handle: anvil, starknet_l1_contract, accumulated_txs }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
@@ -319,14 +323,14 @@ pub fn create_consensus_manager_configs_and_channels(
 }
 
 // Collects batched transactions.
-struct _TxCollector {
+struct TxCollector {
     pub consensus_proposals_channels:
         BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
     pub accumulated_txs: Arc<Mutex<AccumulatedTransactions>>,
     pub chain_id: ChainId,
 }
 
-impl _TxCollector {
+impl TxCollector {
     #[instrument(skip(self))]
     pub async fn collect_streamd_txs(mut self) {
         loop {

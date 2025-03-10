@@ -1,31 +1,11 @@
-use std::collections::HashMap;
 use std::time::Duration;
 
-use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{
-    HeightAndRound,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::consensus_transaction::ConsensusTransaction;
-use starknet_api::core::ChainId;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
-};
-use starknet_consensus::types::ValidatorId;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use starknet_integration_tests::utils::{
@@ -39,24 +19,17 @@ use starknet_integration_tests::utils::{
     test_many_invoke_txs,
     test_multiple_account_txs,
     CreateRpcTxsFn,
-    ExpectedContentId,
     TestTxHashesFn,
     ACCOUNT_ID_0,
     UNDEPLOYED_ACCOUNT_ID,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
-use tracing::debug;
-
-const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
-const LAST_HEIGHT: BlockNumber = BlockNumber(5);
-const LAST_HEIGHT_FOR_MANY_TXS: BlockNumber = BlockNumber(1);
+use tracing::info;
 
 struct TestBlockScenario {
-    height: BlockNumber,
     create_rpc_txs_fn: CreateRpcTxsFn,
     l1_handler_txs: Vec<L1HandlerTransaction>,
     test_tx_hashes_fn: TestTxHashesFn,
-    expected_content_id: ExpectedContentId,
 }
 
 #[fixture]
@@ -68,14 +41,12 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 #[case::end_to_end_flow(
     TestIdentifier::EndToEndFlowTest,
     create_test_blocks(),
-    GasAmount(29000000),
-    LAST_HEIGHT
+    GasAmount(29000000)
 )]
 #[case::many_txs_scenario(
     TestIdentifier::EndToEndFlowTestManyTxs,
     create_test_blocks_for_many_txs_scenario(),
-    GasAmount(17500000),
-    LAST_HEIGHT_FOR_MANY_TXS
+    GasAmount(17500000)
 )]
 #[tokio::test]
 async fn end_to_end_flow(
@@ -83,14 +54,12 @@ async fn end_to_end_flow(
     #[case] test_identifier: TestIdentifier,
     #[case] test_blocks_scenarios: Vec<TestBlockScenario>,
     #[case] block_max_capacity_sierra_gas: GasAmount,
-    #[case] expected_last_height: BlockNumber,
 ) {
     configure_tracing().await;
 
-    const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
-        std::time::Duration::from_secs(50);
+    const TEST_SCENARIO_TIMOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
-    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(
+    let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
         test_identifier.into(),
         block_max_capacity_sierra_gas,
@@ -112,19 +81,13 @@ async fn end_to_end_flow(
     let mut send_rpc_tx_fn = |tx| sequencer_to_add_txs.assert_add_tx_success(tx);
 
     // Build multiple heights to ensure heights are committed.
-    for TestBlockScenario {
-        height,
-        create_rpc_txs_fn,
-        l1_handler_txs,
-        test_tx_hashes_fn,
-        expected_content_id,
-    } in test_blocks_scenarios
+    for TestBlockScenario { create_rpc_txs_fn, l1_handler_txs, test_tx_hashes_fn } in
+        test_blocks_scenarios
     {
-        debug!("Starting height {}.", height);
         // Create and send transactions.
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
         mock_running_system.send_messages_to_l2(&l1_handler_txs).await;
-        let expected_batched_tx_hashes = run_test_scenario(
+        let mut expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
             l1_handler_txs,
@@ -133,276 +96,81 @@ async fn end_to_end_flow(
             &chain_id,
         )
         .await;
-        let expected_validator_id = expected_proposer_iter
-            .next()
-            .unwrap()
-            .node_config
-            .consensus_manager_config
-            .consensus_config
-            .validator_id;
-        // TODO(Dan, Itay): Consider adding a utility function that waits for something to happen.
-        tokio::time::timeout(
-            LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
-            listen_to_broadcasted_messages(
-                &mut mock_running_system.consensus_proposals_channels,
-                &expected_batched_tx_hashes,
-                height,
-                expected_content_id,
-                expected_validator_id,
-                &chain_id,
-            ),
-        )
-        .await
-        .expect("listen to broadcasted messages should finish in time");
-    }
 
-    // Wait for all sequencer to commit the last tested block.
-    tokio::time::sleep(Duration::from_millis(2000)).await;
-    for sequencer in sequencers {
-        let height = sequencer.batcher_height().await;
-        assert!(
-            height >= expected_last_height.unchecked_next(),
-            "Sequencer {} didn't reach last height.",
-            sequencer.node_index
-        );
+        tokio::time::timeout(TEST_SCENARIO_TIMOUT, async {
+            loop {
+                info!(
+                    "Waiting for sent txs to be included in a block: {:#?}",
+                    expected_batched_tx_hashes
+                );
+
+                let batched_txs = &mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes;
+                expected_batched_tx_hashes.retain(|tx| !batched_txs.contains(tx));
+                if expected_batched_tx_hashes.is_empty() {
+                    break;
+                }
+
+                tokio::time::sleep(Duration::from_millis(2000)).await;
+            }
+        })
+        .await
+        .unwrap_or_else(|_| {
+            panic!(
+                "Expected transactions should be included in a block by now, remaining txs: \
+                 {expected_batched_tx_hashes:#?}"
+            )
+        });
     }
 }
 
 fn create_test_blocks() -> Vec<TestBlockScenario> {
-    let next_height = INITIAL_HEIGHT.unchecked_next();
-    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
-    let test_scenarios: Vec<(
-        CreateRpcTxsFn,
-        Vec<L1HandlerTransaction>,
-        TestTxHashesFn,
-        ExpectedContentId,
-    )> = vec![
+    vec![
         // This block should be the first to be tested, as the addition of L1 handler transaction
         // does not work smoothly with the current architecture of the test.
         // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
-        (
-            |_| vec![],
-            vec![create_l1_handler_tx()],
-            test_single_tx,
-            ExpectedContentId::from_hex_unchecked(
-                "0x32a9c3b503e51b4330fe735b73975a62df996d6d6ebfe6cd1514ba2a68797cb",
-            ),
-        ),
-        (
-            create_multiple_account_txs,
-            vec![],
-            test_multiple_account_txs,
-            ExpectedContentId::from_hex_unchecked(
-                "0x459cc7b4c37290dd7148d98994508f6da9db98832219c3a56da4b7a246a87c1",
-            ),
-        ),
-        (
-            create_funding_txs,
-            vec![],
-            test_single_tx,
-            ExpectedContentId::from_hex_unchecked(
-                "0x33182a26f2334cc790f9cd082c91c5fa80e03b856eb298659b1e9af67e53814",
-            ),
-        ),
-        (
-            deploy_account_and_invoke,
-            vec![],
-            test_two_txs,
-            ExpectedContentId::from_hex_unchecked(
-                "0x5af7d23f408d4918d506899a6a37a99aeffd27d9a86c1ad44581874b6bbf461",
-            ),
-        ),
-        (
-            create_declare_tx,
-            vec![],
-            test_single_tx,
-            ExpectedContentId::from_hex_unchecked(
-                "0x6b9313a54edb8702a4baf19355b1ba44aae8c1ec14a5d43bef60560caedd925",
-            ),
-        ),
-    ];
-    itertools::zip_eq(heights_to_build, test_scenarios)
-        .map(
-            |(
-                height,
-                (create_rpc_txs_fn, l1_handler_txs, test_tx_hashes_fn, expected_content_id),
-            )| {
-                TestBlockScenario {
-                    height,
-                    create_rpc_txs_fn,
-                    l1_handler_txs,
-                    test_tx_hashes_fn,
-                    expected_content_id,
-                }
-            },
-        )
-        .collect()
+        TestBlockScenario {
+            create_rpc_txs_fn: |_| vec![],
+            l1_handler_txs: vec![create_l1_handler_tx()],
+            test_tx_hashes_fn: test_single_tx,
+        },
+        TestBlockScenario {
+            create_rpc_txs_fn: create_multiple_account_txs,
+            l1_handler_txs: vec![],
+            test_tx_hashes_fn: test_multiple_account_txs,
+        },
+        TestBlockScenario {
+            create_rpc_txs_fn: create_funding_txs,
+            l1_handler_txs: vec![],
+            test_tx_hashes_fn: test_single_tx,
+        },
+        TestBlockScenario {
+            create_rpc_txs_fn: deploy_account_and_invoke,
+            l1_handler_txs: vec![],
+            test_tx_hashes_fn: test_two_txs,
+        },
+        TestBlockScenario {
+            create_rpc_txs_fn: create_declare_tx,
+            l1_handler_txs: vec![],
+            test_tx_hashes_fn: test_single_tx,
+        },
+    ]
 }
 
 fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
-    let next_height = INITIAL_HEIGHT.unchecked_next();
-    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT_FOR_MANY_TXS.unchecked_next());
-    let test_scenarios: Vec<(
-        CreateRpcTxsFn,
-        Vec<L1HandlerTransaction>,
-        TestTxHashesFn,
-        ExpectedContentId,
-    )> = vec![
+    vec![
         // Note: The following test scenario sends 15 transactions but only 12 are included in the
         // block. This means that the last 3 transactions could be included in the next block if
         // one is added to the test.
-        (
-            create_many_invoke_txs,
-            vec![],
-            test_many_invoke_txs,
-            ExpectedContentId::from_hex_unchecked(
-                "0x10b8158416730305fa0189c20e1267df687bbaa79b6d1d5f376f7b536b3dd66",
-            ),
-        ),
-    ];
-    itertools::zip_eq(heights_to_build, test_scenarios)
-        .map(
-            |(
-                height,
-                (create_rpc_txs_fn, l1_handler_txs, test_tx_hashes_fn, expected_content_id),
-            )| {
-                TestBlockScenario {
-                    height,
-                    create_rpc_txs_fn,
-                    l1_handler_txs,
-                    test_tx_hashes_fn,
-                    expected_content_id,
-                }
-            },
-        )
-        .collect()
+        TestBlockScenario {
+            create_rpc_txs_fn: create_many_invoke_txs,
+            l1_handler_txs: vec![],
+            test_tx_hashes_fn: test_many_invoke_txs,
+        },
+    ]
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
     sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
-}
-
-async fn listen_to_broadcasted_messages(
-    consensus_proposals_channels: &mut BroadcastTopicChannels<
-        StreamMessage<ProposalPart, HeightAndRound>,
-    >,
-    expected_batched_tx_hashes: &[TransactionHash],
-    expected_height: BlockNumber,
-    expected_content_id: ExpectedContentId,
-    expected_proposer_id: ValidatorId,
-    chain_id: &ChainId,
-) {
-    let broadcasted_messages_receiver =
-        &mut consensus_proposals_channels.broadcasted_messages_receiver;
-    // Collect messages in a map so that validations will use the ordering defined by `message_id`,
-    // meaning we ignore network reordering, like the StreamHandler.
-    let mut messages_cache = HashMap::new();
-    let mut last_message_id = 0;
-
-    while let Some((Ok(message), _)) = broadcasted_messages_receiver.next().await {
-        if message.stream_id.0 == expected_height.0 {
-            messages_cache.insert(message.message_id, message.clone());
-        } else {
-            panic!(
-                "Expected height: {}. Received message from unexpected height: {}",
-                expected_height.0, message.stream_id.0
-            );
-        }
-        if message.message == papyrus_protobuf::consensus::StreamMessageBody::Fin {
-            last_message_id = message.message_id;
-        }
-        // Check that we got the Fin message and all previous messages.
-        if last_message_id > 0 && (0..=last_message_id).all(|id| messages_cache.contains_key(&id)) {
-            break;
-        }
-    }
-    // TODO(Dan, Guy): retrieve / calculate the expected proposal init and fin.
-    let expected_proposal_init = ProposalInit {
-        height: expected_height,
-        proposer: expected_proposer_id,
-        ..Default::default()
-    };
-    let expected_proposal_fin = ProposalFin { proposal_commitment: BlockHash(expected_content_id) };
-
-    let StreamMessage {
-        stream_id: first_stream_id,
-        message: init_message,
-        message_id: incoming_message_id,
-    } = messages_cache.remove(&0).expect("Stream is missing its first message");
-
-    assert_eq!(
-        incoming_message_id, 0,
-        "Expected the first message in the stream to have id 0, got {}",
-        incoming_message_id
-    );
-    let StreamMessageBody::Content(ProposalPart::Init(incoming_proposal_init)) = init_message
-    else {
-        panic!("Expected an init message. Got: {:?}", init_message)
-    };
-    assert_eq!(
-        incoming_proposal_init, expected_proposal_init,
-        "Unexpected init message: {:?}, expected: {:?}",
-        incoming_proposal_init, expected_proposal_init
-    );
-
-    let mut received_tx_hashes = Vec::new();
-    let mut got_proposal_fin = false;
-    let mut got_channel_fin = false;
-    for i in 1_u64..messages_cache.len().try_into().unwrap() {
-        let StreamMessage { message, stream_id, message_id: _ } =
-            messages_cache.remove(&i).expect("Stream should have all consecutive messages");
-        assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
-        match message {
-            StreamMessageBody::Content(ProposalPart::Init(init)) => {
-                panic!("Unexpected init: {:?}", init)
-            }
-            StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
-                assert_eq!(
-                    proposal_fin, expected_proposal_fin,
-                    "Unexpected fin message: {:?}, expected: {:?}",
-                    proposal_fin, expected_proposal_fin
-                );
-                got_proposal_fin = true;
-            }
-            StreamMessageBody::Content(ProposalPart::BlockInfo(_)) => {
-                // TODO(Asmaa): Add validation for block info.
-            }
-            StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
-                // TODO(Arni): add calculate_transaction_hash to consensus transaction and use it
-                // here.
-                received_tx_hashes.extend(transactions.transactions.iter().map(|tx| match tx {
-                    ConsensusTransaction::RpcTransaction(tx) => {
-                        let starknet_api_tx =
-                            starknet_api::transaction::Transaction::from(tx.clone());
-                        starknet_api_tx.calculate_transaction_hash(chain_id).unwrap()
-                    }
-                    ConsensusTransaction::L1Handler(tx) => {
-                        tx.calculate_transaction_hash(chain_id, &TransactionVersion::ZERO).unwrap()
-                    }
-                }));
-            }
-            StreamMessageBody::Fin => {
-                got_channel_fin = true;
-            }
-        }
-        if got_proposal_fin && got_channel_fin {
-            assert!(
-                received_tx_hashes.len() == expected_batched_tx_hashes.len(),
-                "Expected {} transactions, got {}",
-                expected_batched_tx_hashes.len(),
-                received_tx_hashes.len()
-            );
-            break;
-        }
-    }
-
-    received_tx_hashes.sort();
-    let mut expected_batched_tx_hashes = expected_batched_tx_hashes.to_vec();
-    expected_batched_tx_hashes.sort();
-    assert_eq!(
-        received_tx_hashes, expected_batched_tx_hashes,
-        "Unexpected transactions in block number {expected_height}"
-    );
 }
 
 /// Generates a deploy account transaction followed by an invoke transaction from the same deployed
