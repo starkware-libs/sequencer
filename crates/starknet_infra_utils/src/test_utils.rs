@@ -2,12 +2,12 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
 use serde::Serialize;
-use tracing::info;
+use tracing::{info, instrument};
 
 const PORTS_PER_INSTANCE: u16 = 60;
-pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 10;
+pub const MAX_NUMBER_OF_INSTANCES_PER_TEST: u16 = 26;
 const MAX_NUMBER_OF_TESTS: u16 = 10;
-const BASE_PORT: u16 = 55000;
+const BASE_PORT: u16 = 43000;
 
 // Ensure available ports don't exceed u16::MAX.
 const _: () = {
@@ -75,6 +75,7 @@ impl AvailablePorts {
         AvailablePorts { start_port: current_port, current_port, max_port }
     }
 
+    #[instrument]
     pub fn get_next_port(&mut self) -> u16 {
         let port = self.current_port;
         self.current_port += 1;
@@ -87,11 +88,13 @@ impl AvailablePorts {
         std::iter::repeat_with(|| self.get_next_port()).take(n).collect()
     }
 
+    #[instrument]
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
     }
 }
 
+#[derive(Debug)]
 pub struct AvailablePortsGenerator {
     test_unique_id: u16,
     instance_index: u16,
@@ -106,6 +109,7 @@ impl AvailablePortsGenerator {
 impl Iterator for AvailablePortsGenerator {
     type Item = AvailablePorts;
 
+    #[instrument]
     fn next(&mut self) -> Option<Self::Item> {
         let res = Some(AvailablePorts::new(self.test_unique_id, self.instance_index));
         self.instance_index += 1;
