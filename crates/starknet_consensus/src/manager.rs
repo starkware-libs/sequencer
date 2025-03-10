@@ -176,9 +176,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
              {validators:?}"
         );
-        // TODO(guyn, Tsabary): use int metrics so `as f64` may be removed.
-        #[allow(clippy::as_conversions)]
-        CONSENSUS_BLOCK_NUMBER.set(height.0 as f64);
+        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
         let mut shc = SingleHeightConsensus::new(
             height,
