@@ -6,6 +6,7 @@ use cairo_vm::vm::errors::exec_scope_errors::ExecScopeError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
@@ -54,6 +55,8 @@ pub enum OsHintError {
     State(#[from] StateError),
     #[error("Convert {n_bits} bits for {type_name}.")]
     StatelessCompressionOverflow { n_bits: usize, type_name: String },
+    #[error(transparent)]
+    TryFromBigUint(#[from] TryFromBigIntError<BigUint>),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
     #[error(transparent)]

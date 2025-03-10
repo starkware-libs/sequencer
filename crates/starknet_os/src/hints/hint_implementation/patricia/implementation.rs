@@ -1,14 +1,17 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
+use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{DecodeNodeCase, PreimageMap};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Ids, Scope};
+use crate::hints::vars::{CairoStruct, Ids, Scope};
+use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn set_siblings<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -33,8 +36,28 @@ pub(crate) fn is_case_right<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_bit<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn set_bit<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let edge_path_addr = get_address_of_nested_fields(
+        ids_data,
+        Ids::Edge,
+        CairoStruct::NodeEdge,
+        vm,
+        ap_tracking,
+        &["path".to_string()],
+        &hint_processor.execution_helper.os_program,
+    )?;
+    let edge_path = vm.get_integer(edge_path_addr)?.into_owned();
+    let new_length = u8::try_from(
+        get_integer_from_var_name(Ids::NewLength.into(), vm, ids_data, ap_tracking)?.to_biguint(),
+    )?;
+
+    let bit = (edge_path.to_biguint() >> new_length) & BigUint::from(1u64);
+    let bit_felt = Felt::from(&bit);
+    insert_value_from_var_name(Ids::Bit.into(), bit_felt, vm, ids_data, ap_tracking)?;
+
+    Ok(())
 }
 
 pub(crate) fn set_ap_to_descend<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
