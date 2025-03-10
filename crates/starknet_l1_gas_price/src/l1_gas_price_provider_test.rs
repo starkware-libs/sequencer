@@ -1,5 +1,6 @@
 use papyrus_base_layer::PriceSample;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::BlockTimestamp;
+use starknet_l1_gas_price_types::PriceInfo;
 
 use crate::l1_gas_price_provider::{
     L1GasPriceProvider,
@@ -23,7 +24,7 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceSample>) {
         let time = (i * 2).try_into().unwrap();
         let sample = PriceSample { timestamp: time, base_fee_per_gas: price, blob_fee: price + 1 };
         samples.push(sample.clone());
-        provider.add_price_info(BlockNumber(block_num), sample).unwrap();
+        provider.add_price_info(block_num, sample).unwrap();
     }
     (provider, samples)
 }
@@ -38,7 +39,7 @@ fn gas_price_provider_mean_prices() {
 
     // This calculation will grab config.number_of_blocks_for_mean samples from the middle of the
     // range.
-    let (gas_price, data_gas_price) =
+    let PriceInfo { base_fee_per_gas: gas_price, blob_fee: data_gas_price } =
         provider.get_price_info(BlockTimestamp(final_timestamp + lag)).unwrap();
 
     // The gas prices should go from block 1 to 3.
@@ -58,14 +59,14 @@ fn gas_price_provider_adding_samples() {
     // Timestamp for sample[3] is used to define the interval of samples 1 to 3.
     let final_timestamp = samples[3].timestamp;
 
-    let (gas_price, data_gas_price) =
+    let PriceInfo { base_fee_per_gas: gas_price, blob_fee: data_gas_price } =
         provider.get_price_info(BlockTimestamp(final_timestamp + lag)).unwrap();
 
     // Add a block to the provider.
     let sample = PriceSample { timestamp: 10, base_fee_per_gas: 10, blob_fee: 11 };
-    provider.add_price_info(BlockNumber(5), sample).unwrap();
+    provider.add_price_info(5, sample).unwrap();
 
-    let (gas_price_new, data_gas_price_new) =
+    let PriceInfo { base_fee_per_gas: gas_price_new, blob_fee: data_gas_price_new } =
         provider.get_price_info(BlockTimestamp(final_timestamp + lag)).unwrap();
 
     // This should not change the results if we ask for the same timestamp.
@@ -74,11 +75,11 @@ fn gas_price_provider_adding_samples() {
 
     // Add another block to the provider.
     let sample = PriceSample { timestamp: 12, base_fee_per_gas: 12, blob_fee: 13 };
-    provider.add_price_info(BlockNumber(6), sample).unwrap();
+    provider.add_price_info(6, sample).unwrap();
 
     // Should fail because the memory of the provider is full, and we added another block.
     let ret = provider.get_price_info(BlockTimestamp(final_timestamp + lag));
-    matches!(ret, Result::Err(L1GasPriceProviderError::MissingData(_)));
+    matches!(ret, Result::Err(L1GasPriceProviderError::MissingDataError { .. }));
 }
 #[test]
 fn gas_price_provider_timestamp_changes_mean() {
@@ -87,11 +88,11 @@ fn gas_price_provider_timestamp_changes_mean() {
     // Timestamp for sample[3] is used to define the interval of samples 1 to 3.
     let final_timestamp = samples[3].timestamp;
 
-    let (gas_price, data_gas_price) =
+    let PriceInfo { base_fee_per_gas: gas_price, blob_fee: data_gas_price } =
         provider.get_price_info(BlockTimestamp(final_timestamp + lag)).unwrap();
 
     // If we take a higher timestamp the gas prices should change.
-    let (gas_price_new, data_gas_price_new) =
+    let PriceInfo { base_fee_per_gas: gas_price_new, blob_fee: data_gas_price_new } =
         provider.get_price_info(BlockTimestamp(final_timestamp + lag * 2)).unwrap();
     assert_ne!(gas_price_new, gas_price);
     assert_ne!(data_gas_price_new, data_gas_price);
