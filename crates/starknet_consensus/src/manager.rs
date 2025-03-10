@@ -29,6 +29,8 @@ use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_CACHED_MESSAGES,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_HEIGHT,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
@@ -172,6 +174,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         if context.try_sync(height).await {
+            CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
             return Ok(RunHeightRes::Sync);
         }
 
@@ -197,6 +200,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         match self.start_height(context, height, &mut shc).await? {
             ShcReturn::Decision(decision) => {
                 self.report_max_cached_height_metric(height);
+                CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
                 return Ok(RunHeightRes::Decision(decision));
             }
             ShcReturn::Tasks(tasks) => {
@@ -222,6 +226,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 _ = tokio::time::sleep(sync_retry_interval) => {
                     if context.try_sync(height).await {
+                        CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
                         return Ok(RunHeightRes::Sync);
                     }
                     continue;
@@ -229,7 +234,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             };
 
             match shc_return {
-                ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
+                ShcReturn::Decision(decision) => {
+                    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
+                    return Ok(RunHeightRes::Decision(decision));
+                }
                 ShcReturn::Tasks(tasks) => {
                     for task in tasks {
                         shc_events.push(task.run());
