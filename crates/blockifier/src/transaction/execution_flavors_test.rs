@@ -638,10 +638,10 @@ fn test_simulate_validate_charge_fee_mid_execution(
 
     // Second scenario: limit resources via sender bounds. Should revert if and only if step limit
     // is derived from sender bounds (`charge_fee` mode).
-    let (gas_bound, fee_bound) = gas_and_fee(6295_u32.into(), validate, &fee_type);
+    let (gas_bound, fee_bound) = gas_and_fee(6543_u32.into(), validate, &fee_type);
     // If `charge_fee` is true, execution is limited by sender bounds, so less resources will be
     // used. Otherwise, execution is limited by block bounds, so more resources will be used.
-    let (limited_gas_used, limited_fee) = gas_and_fee(7947_u32.into(), validate, &fee_type);
+    let (limited_gas_used, limited_fee) = gas_and_fee(8195_u32.into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
@@ -777,22 +777,17 @@ fn test_simulate_validate_charge_fee_post_execution(
     // If `charge_fee` is false - we do not revert, and simply report the fee and resources as used.
     // If `charge_fee` is true, we revert, charge the maximal allowed fee (derived from sender
     // bounds), and report resources base on execution steps reverted + other overhead.
-    let base_gas_bound = 8210_u32.into();
+    let invoke_steps = u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps);
+    let base_gas_bound = (invoke_steps + 2485).into();
     let (just_not_enough_gas_bound, just_not_enough_fee_bound) =
         gas_and_fee(base_gas_bound, validate, &fee_type);
     // `__validate__` and overhead resources + number of reverted steps, comes out slightly more
     // than the gas bound.
-    let (revert_gas_usage, revert_fee) = gas_and_fee(
-        (u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps) + 5730).into(),
-        validate,
-        &fee_type,
-    );
+    let (revert_gas_usage, revert_fee) =
+        gas_and_fee((invoke_steps + 4130).into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
-        u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 5730,
-        )
+        (invoke_steps
+            + u64_from_usize(get_syscall_resources(SyscallSelector::CallContract).n_steps + 4130))
         .into(),
         validate,
         &fee_type,
@@ -800,7 +795,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: just_not_enough_fee_bound,
         resource_bounds: l1_resource_bounds(just_not_enough_gas_bound, gas_price.into()),
-        calldata: recurse_calldata(test_contract_address, false, 1000),
+        calldata: recurse_calldata(test_contract_address, false, 600),
         nonce: nonce_manager.next(account_address),
         sender_address: account_address,
         version,
@@ -833,20 +828,15 @@ fn test_simulate_validate_charge_fee_post_execution(
     // Second scenario: balance too low.
     // Execute a transfer, and make sure we get the expected result.
     let (success_actual_gas, actual_fee) = gas_and_fee(
-        u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 4260,
-        )
-        .into(),
+        (u64_from_usize(get_syscall_resources(SyscallSelector::CallContract).n_steps)
+            + invoke_steps
+            + 4298)
+            .into(),
         validate,
         &fee_type,
     );
-    let (fail_actual_gas, fail_actual_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 2252).into(),
-        validate,
-        &fee_type,
-    );
+    let (fail_actual_gas, fail_actual_fee) =
+        gas_and_fee((invoke_steps + 2252).into(), validate, &fee_type);
     assert!(felt!(actual_fee.0) < current_balance);
     let transfer_amount = current_balance - Felt::from(actual_fee.0 / 2);
     let recipient = felt!(7_u8);
