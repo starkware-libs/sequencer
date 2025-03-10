@@ -95,11 +95,12 @@ impl ConsensusManager {
             outbound_network_sender,
         );
 
-        let observer_height =
-            self.batcher_client.get_height().await.map(|h| h.height).map_err(|e| {
-                error!("Failed to get height from batcher: {:?}", e);
-                ConsensusError::Other("Failed to get height from batcher".to_string())
-            })?;
+        let observer_height = self
+            .batcher_client
+            .get_height()
+            .await
+            .expect("Failed to get observer_height from batcher")
+            .height;
         let active_height = if self.config.immediate_active_height == observer_height {
             // Setting `start_height` is only used to enable consensus starting immediately without
             // observing the first height. This means consensus may return to a height
@@ -160,7 +161,7 @@ impl ConsensusManager {
             .batcher_client
             .get_height()
             .await
-            .expect("Failed to get height from batcher")
+            .expect("Failed to get batcher_height_marker from batcher")
             .height;
 
         // This function will panic if the revert fails.
