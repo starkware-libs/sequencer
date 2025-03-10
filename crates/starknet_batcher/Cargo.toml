@@ -13,6 +13,7 @@ apollo_reverts.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
+futures.workspace = true
 indexmap.workspace = true
 papyrus_config.workspace = true
 papyrus_state_reader.workspace = true
