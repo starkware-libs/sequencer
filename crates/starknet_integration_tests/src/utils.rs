@@ -95,7 +95,9 @@ pub trait TestScenario {
     fn n_txs(&self) -> usize;
 }
 
-pub struct InvokeTxs(pub usize);
+pub struct InvokeTxs {
+    pub n_invoke_txs: usize,
+}
 
 impl TestScenario for InvokeTxs {
     fn create_txs(
@@ -103,11 +105,11 @@ impl TestScenario for InvokeTxs {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> Vec<RpcTransaction> {
-        create_invoke_txs(tx_generator, account_id, self.0)
+        create_invoke_txs(tx_generator, account_id, self.n_invoke_txs)
     }
 
     fn n_txs(&self) -> usize {
-        self.0
+        self.n_invoke_txs
     }
 }
 
@@ -379,7 +381,7 @@ pub fn create_invoke_txs(
 
 /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
 /// [TestContract](FeatureContract::TestContract). Used for flow test.
-pub fn create_l1_handler_tx() -> L1HandlerTransaction {
+pub fn create_l1_handler_tx(key: &str, value: &str) -> L1HandlerTransaction {
     // TODO(Arni): Get test contract from test setup.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
@@ -387,12 +389,7 @@ pub fn create_l1_handler_tx() -> L1HandlerTransaction {
         contract_address: test_contract.get_instance_address(0),
         // TODO(Arni): Consider saving this value as a lazy constant.
         entry_point_selector: selector_from_name("l1_handler_set_value"),
-        calldata: calldata![
-            DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-            // Arbitrary key and value.
-            felt!("0x876"), // key
-            felt!("0x44")   // value
-        ],
+        calldata: calldata![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!(key), felt!(value)],
         ..Default::default()
     }
 }
@@ -487,7 +484,7 @@ pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHas
 }
 
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
-pub async fn send_account_txs<'a, Fut>(
+pub async fn send_consensus_txs<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     test_scenario: &impl TestScenario,

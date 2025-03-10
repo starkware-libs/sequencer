@@ -35,7 +35,7 @@ use crate::utils::{
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
     create_state_sync_configs,
-    send_account_txs,
+    send_consensus_txs,
     BootstrapTxs,
     InvokeTxs,
     TestScenario,
@@ -386,8 +386,9 @@ impl IntegrationTestManager {
             .await;
     }
 
-    pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
-        self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+    pub async fn send_txs_and_verify(&mut self, n_invoke_txs: usize, wait_for_block: BlockNumber) {
+        self.test_and_verify(InvokeTxs { n_invoke_txs }, DEFAULT_SENDER_ACCOUNT, wait_for_block)
+            .await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
@@ -450,7 +451,7 @@ impl IntegrationTestManager {
             node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
         };
 
-        send_account_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
+        send_consensus_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
             .await;
     }
 
