@@ -1,8 +1,11 @@
+use std::net::{IpAddr, Ipv4Addr};
+
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
+use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_sequencer_infra::component_client::ClientError;
 
 use crate::config::HttpServerConfig;
@@ -37,10 +40,9 @@ async fn get_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let ip = "127.0.0.1".parse().unwrap();
-    // TODO(Tsabary): replace the const port with something that is not hardcoded.
-    let port = 15123;
-    let http_server_config = HttpServerConfig { ip, port };
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 0);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
