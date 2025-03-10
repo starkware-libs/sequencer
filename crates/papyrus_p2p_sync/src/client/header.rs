@@ -46,8 +46,8 @@ impl BlockData for SignedBlockHeader {
                     .expect("Vec::first should return a value on a vector of size 1"),
                 )?
                 .commit()?;
-            SYNC_HEADER_MARKER.set(
-                self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64,
+            SYNC_HEADER_MARKER.set_lossy(
+                self.block_header.block_header_without_hash.block_number.unchecked_next().0,
             );
             // TODO(shahak): Fix code dup with central sync
             let time_delta = Utc::now()
@@ -61,7 +61,7 @@ impl BlockData for SignedBlockHeader {
             let header_latency = time_delta.num_seconds();
             debug!("Header latency: {}.", header_latency);
             if header_latency >= 0 {
-                SYNC_HEADER_LATENCY_SEC.set(header_latency as f64);
+                SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
             }
             Ok(())
         }

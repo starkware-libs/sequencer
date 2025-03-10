@@ -21,7 +21,6 @@ use super::block_data_stream_builder::{
 };
 use super::P2pSyncClientError;
 
-#[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
 impl BlockData for (BlockBody, BlockNumber) {
     fn write_to_storage<'a>(
         self: Box<Self>,
@@ -32,7 +31,7 @@ impl BlockData for (BlockBody, BlockNumber) {
             let num_txs =
                 self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
             storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
-            SYNC_BODY_MARKER.set(self.1.unchecked_next().0 as f64);
+            SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
             SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
         }
