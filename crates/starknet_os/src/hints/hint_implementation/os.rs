@@ -4,7 +4,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
-use crate::hints::nondet_offsets::fetch_offset;
+use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
@@ -24,10 +24,7 @@ pub(crate) fn write_full_output_to_memory<S: StateReader>(
 ) -> OsHintResult {
     let os_input = &hint_processor.execution_helper.os_input;
     let full_output = Felt::from(os_input.full_output);
-    let offset = fetch_offset(AllHints::OsHint(OsHint::WriteFullOutputToMemory))?;
-    // TODO(Aner): maybe consider get_fp_with_offset(offset) instead of get_fp + offset? Or maybe
-    // even insert_value_to_fp_with_offset?
-    Ok(vm.insert_value((vm.get_fp() + offset)?, full_output)?)
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
 pub(crate) fn configure_kzg_manager<S: StateReader>(

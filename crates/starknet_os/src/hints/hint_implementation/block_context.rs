@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
-use crate::hints::nondet_offsets::fetch_offset;
+use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
@@ -100,7 +100,9 @@ pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
     let use_kzg_da = hint_processor.execution_helper.os_input.block_info.use_kzg_da
         && !hint_processor.execution_helper.os_input.full_output;
 
-    let offset = fetch_offset(AllHints::OsHint(OsHint::WriteUseKzgDaToMemory))?;
-    let use_kzg_da_felt = Felt::from(use_kzg_da);
-    Ok(vm.insert_value((vm.get_fp() + offset)?, use_kzg_da_felt)?)
+    insert_nondet_hint_value(
+        vm,
+        AllHints::OsHint(OsHint::WriteUseKzgDaToMemory),
+        Felt::from(use_kzg_da),
+    )
 }
