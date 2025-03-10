@@ -1,3 +1,4 @@
+use std::net::{IpAddr, Ipv4Addr};
 use std::panic::AssertUnwindSafe;
 
 use axum::body::{Bytes, HttpBody};
@@ -10,6 +11,7 @@ use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
+use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
@@ -46,10 +48,9 @@ async fn record_region_test() {
     mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_1));
     mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_2));
 
-    let ip = "127.0.0.1".parse().unwrap();
-    // TODO(Tsabary): replace the const port with something that is not hardcoded.
-    let port = 15124;
-    let http_server_config = HttpServerConfig { ip, port };
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
@@ -82,10 +83,10 @@ async fn record_region_gateway_failing_tx() {
         )),
     ));
 
-    let ip = "127.0.0.1".parse().unwrap();
-    // TODO(Tsabary): replace the const port with something that is not hardcoded.
-    let port = 15125;
-    let http_server_config = HttpServerConfig { ip, port };
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 2);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
+    // let http_server_config = HttpServerConfig { ip, port };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
@@ -116,10 +117,9 @@ async fn test_response() {
         }),
     ));
 
-    let ip = "127.0.0.1".parse().unwrap();
-    // TODO(Tsabary): replace the const port with something that is not hardcoded.
-    let port = 15126;
-    let http_server_config = HttpServerConfig { ip, port };
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 3);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
