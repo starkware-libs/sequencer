@@ -461,8 +461,8 @@ pub struct BlockInfo {
     pub l1_gas_price_wei: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "7")]
     pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
-    #[prost(uint64, tag = "8")]
-    pub eth_to_strk_rate: u64,
+    #[prost(message, optional, tag = "8")]
+    pub eth_to_fri_rate: ::core::option::Option<Uint128>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
