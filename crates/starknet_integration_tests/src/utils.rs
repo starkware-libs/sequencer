@@ -11,6 +11,7 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     AccountTransactionGenerator,
@@ -586,4 +587,50 @@ pub fn create_state_sync_configs(
             ..Default::default()
         })
         .collect()
+}
+
+pub type Round = u32;
+
+#[derive(Debug, Default, Eq, Hash, PartialEq)]
+pub struct RoundTransactions {
+    pub round: Round,
+    pub tx_hashes: Vec<TransactionHash>,
+}
+
+/// Stores tx hashes aggregated by height and round.
+/// Assumes that rounds are monotonically increasing and that the last round is the chosen one.
+#[derive(Debug, Default)]
+pub struct AggregatedTransactions(IndexMap<BlockNumber, RoundTransactions>);
+
+impl AggregatedTransactions {
+    pub fn add_transactions(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        tx_hashes: &[TransactionHash],
+    ) {
+        self.validate_coherent_height_and_round(height, round);
+        let entry = self.0.entry(height).or_insert(RoundTransactions { round, tx_hashes: vec![] });
+        entry.tx_hashes.extend_from_slice(tx_hashes);
+        entry.round = round;
+    }
+
+    pub fn get_all_txs_so_far(&self) -> Vec<TransactionHash> {
+        self.0
+            .iter()
+            .flat_map(|(_, RoundTransactions { tx_hashes, .. })| tx_hashes.clone())
+            .collect()
+    }
+
+    fn validate_coherent_height_and_round(&mut self, height: BlockNumber, round: Round) {
+        let Some((last_height, RoundTransactions { round: last_round, .. })) = self.0.last() else {
+            return;
+        };
+        if *last_height > height {
+            panic!("Expected height to be greater or equal to the last height with transactions.");
+        }
+        if *last_height == height && *last_round > round {
+            panic!("Expected round to be greater or equal to the last round.");
+        }
+    }
 }
