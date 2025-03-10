@@ -10,7 +10,7 @@ mod sync_test;
 
 use std::cmp::min;
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use async_stream::try_stream;
@@ -26,7 +26,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_proc_macros::latency_histogram;
 use papyrus_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use papyrus_storage::body::BodyStorageWriter;
-use papyrus_storage::class::ClassStorageWriter;
+use papyrus_storage::class::{ClassStorageReader, ClassStorageWriter};
 use papyrus_storage::class_manager::ClassManagerStorageWriter;
 use papyrus_storage::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use papyrus_storage::db::DbError;
@@ -35,7 +35,15 @@ use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use sources::base_layer::BaseLayerSourceError;
-use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
+use starknet_api::block::{
+    Block,
+    BlockHash,
+    BlockHashAndNumber,
+    BlockNumber,
+    BlockSignature,
+    StarknetVersion,
+};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
@@ -72,6 +80,11 @@ const PENDING_SLEEP_DURATION: Duration = Duration::from_millis(500);
 
 // Sleep duration, in seconds, between sync progress checks.
 const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
+
+// The first starknet version where we can send sierras to the class manager without casms and it
+// will compile them.
+// TODO(Elin): Try to lower this to the earliest version possible.
+const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_14_0;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
@@ -169,6 +182,7 @@ pub struct GenericStateSync<
     writer: StorageWriter,
     sequencer_pub_key: Option<SequencerPublicKey>,
     class_manager_client: Option<SharedClassManagerClient>,
+    first_block_to_compile_from: Arc<OnceLock<BlockNumber>>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -351,6 +365,7 @@ impl<
             self.config.block_propagation_sleep_duration,
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
+            self.first_block_to_compile_from.clone(),
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -415,7 +430,7 @@ impl<
                 class_hash,
                 compiled_class_hash,
                 compiled_class,
-            } => self.store_compiled_class(class_hash, compiled_class_hash, compiled_class),
+            } => self.store_compiled_class(class_hash, compiled_class_hash, compiled_class).await,
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
                 self.store_base_layer_block(block_number, block_hash)
             }
@@ -464,6 +479,12 @@ impl<
         if header_latency >= 0 {
             SYNC_HEADER_LATENCY_SEC.set(header_latency as f64);
         }
+
+        if block.header.block_header_without_hash.starknet_version
+            >= STARKNET_VERSION_TO_COMPILE_FROM
+        {
+            let _ = self.first_block_to_compile_from.set(block_number);
+        }
         Ok(())
     }
 
@@ -498,13 +519,22 @@ impl<
                     .collect::<Vec<_>>(),
             )?
             .commit()?;
+
         if let Some(class_manager_client) = &self.class_manager_client {
-            for (expected_class_hash, class) in classes {
-                let class_hash = class_manager_client.add_class(class).await?.class_hash;
-                if class_hash != expected_class_hash {
-                    panic!(
-                        "Class hash mismatch. Expected: {expected_class_hash}, got: {class_hash}."
-                    );
+            // For blocks smaller than first_block_to_compile_from, the cairo 1 classes will be
+            // added through the compiled classes stream. The compiled classes stream stops after
+            // first_block_to_compile_from.
+            if self.first_block_to_compile_from.get().is_some_and(|first_block_to_compile_from| {
+                *first_block_to_compile_from <= block_number
+            }) {
+                for (expected_class_hash, class) in classes {
+                    let class_hash = class_manager_client.add_class(class).await?.class_hash;
+                    if class_hash != expected_class_hash {
+                        panic!(
+                            "Class hash mismatch. Expected: {expected_class_hash}, got: \
+                             {class_hash}."
+                        );
+                    }
                 }
             }
 
@@ -528,7 +558,7 @@ impl<
 
     #[latency_histogram("sync_store_compiled_class_latency_seconds", false)]
     #[instrument(skip(self, compiled_class), level = "debug", err)]
-    fn store_compiled_class(
+    async fn store_compiled_class(
         &mut self,
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
@@ -542,6 +572,26 @@ impl<
                 txn.commit()?;
                 let compiled_class_marker =
                     self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
+
+                // Write class and casm to class manager.
+                if let Some(class_manager_client) = &self.class_manager_client {
+                    let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
+                        "Compiled classes stream gave class hash that doesn't appear in storage.",
+                    );
+                    let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
+                        .expect("Failed reading sierra version from program.");
+                    let contract_class = ContractClass::V1((compiled_class, sierra_version));
+                    class_manager_client
+                        .add_class_and_executable_unsafe(
+                            class_hash,
+                            class,
+                            compiled_class_hash,
+                            contract_class,
+                        )
+                        .await
+                        .expect("Failed adding class and compiled class to class manager.");
+                }
+
                 SYNC_COMPILED_CLASS_MARKER.set(compiled_class_marker.0 as f64);
                 debug!("Added compiled class.");
                 Ok(())
@@ -834,6 +884,7 @@ impl StateSync {
             writer,
             sequencer_pub_key: None,
             class_manager_client,
+            first_block_to_compile_from: Arc::new(OnceLock::new()),
         }
     }
 }
@@ -843,6 +894,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
+    first_block_to_compile_from: Arc<OnceLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
@@ -868,7 +920,18 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            let up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
+            let mut up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
+            if let Some(first_block_to_compile_from) = first_block_to_compile_from.get().copied() {
+                up_to = min(up_to, first_block_to_compile_from);
+                if from >= first_block_to_compile_from {
+                    info!(
+                        "Downloaded all compiled classes that the class manager doesn't support. \
+                        Finished compiled classes stream."
+                    );
+                    futures::future::pending::<()>().await;
+                    break;
+                }
+            }
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();
