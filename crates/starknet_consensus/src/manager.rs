@@ -25,16 +25,14 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
-<<<<<<< HEAD
-use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER, CONSENSUS_MAX_CACHED_BLOCK_NUMBER};
-=======
 use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_CACHED_MESSAGES,
-    CONSENSUS_MAX_CACHED_HEIGHT,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
 };
->>>>>>> c53cb062b (chore(consensus): add metric for consensus number of cached messages)
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -107,10 +105,12 @@ where
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
                 info!("Decision reached. {:?}", decision);
+                CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
                 context.decision_reached(decision.block, decision.precommits).await?;
             }
             RunHeightRes::Sync => {
                 info!(height = current_height.0, "Decision learned via sync protocol.");
+                CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
                 counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
             }
         }
@@ -233,7 +233,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             };
 
             match shc_return {
-                ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
+                ShcReturn::Decision(decision) => {
+                    return Ok(RunHeightRes::Decision(decision));
+                }
                 ShcReturn::Tasks(tasks) => {
                     for task in tasks {
                         shc_events.push(task.run());
