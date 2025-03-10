@@ -19,6 +19,7 @@ use starknet_consensus::metrics::{
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
+    CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
 };
 use starknet_consensus_manager::metrics::{
@@ -190,6 +191,13 @@ const PANEL_CONSENSUS_BUILD_PROPOSAL_FAILED: Panel = Panel::new(
     CONSENSUS_BUILD_PROPOSAL_FAILED.get_name(),
     CONSENSUS_BUILD_PROPOSAL_FAILED.get_description(),
     CONSENSUS_BUILD_PROPOSAL_FAILED.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_CONSENSUS_REPROPOSALS: Panel = Panel::new(
+    CONSENSUS_REPROPOSALS.get_name(),
+    CONSENSUS_REPROPOSALS.get_description(),
+    CONSENSUS_REPROPOSALS.get_name(),
     PanelType::Stat,
 );
 
@@ -420,6 +428,7 @@ const CONSENSUS_ROW: Row<'_> = Row::new(
         PANEL_CONSENSUS_PROPOSALS_INVALID,
         PANEL_CONSENSUS_BUILD_PROPOSAL_TOTAL,
         PANEL_CONSENSUS_BUILD_PROPOSAL_FAILED,
+        PANEL_CONSENSUS_REPROPOSALS,
     ],
 );
 

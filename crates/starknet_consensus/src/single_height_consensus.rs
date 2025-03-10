@@ -28,6 +28,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
+    CONSENSUS_REPROPOSALS,
 };
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
@@ -525,6 +526,7 @@ impl SingleHeightConsensus {
             proposer: self.id,
             valid_round: Some(valid_round),
         };
+        CONSENSUS_REPROPOSALS.increment(1);
         context.repropose(id, init).await;
     }
 
