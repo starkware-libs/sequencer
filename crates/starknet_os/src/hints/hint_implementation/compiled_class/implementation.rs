@@ -77,7 +77,8 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    // TODO(Nimrod): Implement.
+    Ok(())
 }
 
 // Hint extensions.
