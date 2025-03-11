@@ -157,6 +157,10 @@ impl Mempool {
         self.tx_pool.capacity()
     }
 
+    pub fn delayed_declares_len(&self) -> usize {
+        self.delayed_declares.len()
+    }
+
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
@@ -268,6 +272,7 @@ impl Mempool {
             let (_submission_time, args) =
                 self.delayed_declares.pop_front().expect("Delay declare should exist.");
             self.add_tx_inner(args);
+            self.update_state_metrics();
         }
     }
 
