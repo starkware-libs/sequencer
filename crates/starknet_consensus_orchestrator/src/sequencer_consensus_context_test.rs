@@ -52,6 +52,7 @@ use starknet_class_manager_types::transaction_converter::{
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::types::{ConsensusContext, Round};
+use starknet_l1_gas_price_types::MockPriceOracleClientTrait;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
@@ -64,6 +65,7 @@ const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 const CHAIN_ID: ChainId = ChainId::Mainnet;
+const ETH_TO_FRI_RATE: u128 = 10000;
 
 lazy_static! {
     static ref TX_BATCH: Vec<ConsensusTransaction> =
@@ -105,6 +107,7 @@ struct NetworkDependencies {
 fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
+    price_oracle_client: MockPriceOracleClientTrait,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
     let (outbound_proposal_sender, outbound_proposal_receiver) =
         mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
@@ -129,6 +132,7 @@ fn setup(
         outbound_proposal_sender,
         votes_topic_client,
         Arc::new(cende_ambassador),
+        Some(Arc::new(price_oracle_client)),
     );
 
     let network_dependencies =
@@ -169,7 +173,9 @@ async fn build_proposal_setup(
         })
     });
 
-    let (mut context, _network) = setup(batcher, mock_cende_context);
+    let mut price_oracle_client = MockPriceOracleClientTrait::new();
+    price_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let (mut context, _network) = setup(batcher, mock_cende_context, price_oracle_client);
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, _network)
@@ -218,7 +224,8 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let (mut context, _network) =
+        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -248,7 +255,8 @@ async fn dont_send_block_info() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let (mut context, _network) =
+        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -286,7 +294,9 @@ async fn repropose() {
             })
         },
     );
-    let (mut context, mut network) = setup(batcher, success_cende_ammbassador());
+    let price_oracle_client = MockPriceOracleClientTrait::new();
+    let (mut context, mut network) =
+        setup(batcher, success_cende_ammbassador(), price_oracle_client);
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -353,7 +363,8 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let (mut context, _network) =
+        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -437,7 +448,8 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let (mut context, _network) =
+        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -487,9 +499,13 @@ async fn build_proposal() {
     let block_info = receiver.next().await.unwrap();
     let after: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    assert!(matches!(
-        block_info,
-        ProposalPart::BlockInfo(ConsensusBlockInfo {timestamp, .. }) if timestamp >= before && timestamp <= after));
+    let ProposalPart::BlockInfo(ConsensusBlockInfo { timestamp, eth_to_fri_rate, .. }) = block_info
+    else {
+        panic!("Expected ProposalPart::BlockInfo");
+    };
+
+    assert!(timestamp >= before && timestamp <= after);
+    assert_eq!(eth_to_fri_rate, ETH_TO_FRI_RATE);
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
@@ -538,7 +554,8 @@ async fn batcher_not_ready(#[case] proposer: bool) {
     batcher
         .expect_validate_block()
         .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let (mut context, _network) =
+        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
