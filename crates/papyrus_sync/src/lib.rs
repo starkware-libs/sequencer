@@ -504,6 +504,45 @@ impl<
         // classes.
         let (thin_state_diff, classes, deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
+
+        // Sending to class manager before updating the storage so that if the class manager send
+        // fails we retry the same block.
+        if let Some(class_manager_client) = &self.class_manager_client {
+            // Blocks smaller than compiler_backward_compatibility marker are added to class
+            // manager via the compiled classes stream.
+            // We're sure that if the current block is above the compiler_backward_compatibility
+            // marker then the compiler_backward_compatibility will not advance anymore, because
+            // the compiler_backward_compatibility marker advances in the header stream and this
+            // stream is behind the header stream
+            // The compiled classes stream is always behind the compiler_backward_compatibility
+            // marker
+            let compiler_backward_compatibility_marker =
+                self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
+
+            if compiler_backward_compatibility_marker <= block_number {
+                for (expected_class_hash, class) in &classes {
+                    let class_hash =
+                        class_manager_client.add_class(class.clone()).await?.class_hash;
+                    if class_hash != *expected_class_hash {
+                        panic!(
+                            "Class hash mismatch. Expected: {expected_class_hash}, got: \
+                             {class_hash}."
+                        );
+                    }
+                }
+            }
+
+            for (class_hash, deprecated_class) in &deprecated_classes {
+                class_manager_client
+                    .add_deprecated_class(*class_hash, deprecated_class.clone())
+                    .await?;
+            }
+            self.writer
+                .begin_rw_txn()?
+                .update_class_manager_block_marker(&block_number.unchecked_next())?
+                .commit()?;
+        }
+
         self.writer
             .begin_rw_txn()?
             .append_state_diff(block_number, thin_state_diff)?
@@ -518,38 +557,6 @@ impl<
             )?
             .commit()?;
 
-        if let Some(class_manager_client) = &self.class_manager_client {
-            // Blocks smaller than compiler_backward_compatibility marker are added to class
-            // manager via the compiled classes stream.
-            // We're sure that if the current block is above the compiler_backward_compatibility
-            // marker then the compiler_backward_compatibility will not advance anymore, because
-            // the compiler_backward_compatibility marker advances in the header stream and this
-            // stream is behind the header stream
-            // The compiled classes stream is always behind the compiler_backward_compatibility
-            // marker
-            let compiler_backward_compatibility_marker =
-                self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
-
-            if compiler_backward_compatibility_marker <= block_number {
-                for (expected_class_hash, class) in classes {
-                    let class_hash = class_manager_client.add_class(class).await?.class_hash;
-                    if class_hash != expected_class_hash {
-                        panic!(
-                            "Class hash mismatch. Expected: {expected_class_hash}, got: \
-                             {class_hash}."
-                        );
-                    }
-                }
-            }
-
-            for (class_hash, deprecated_class) in deprecated_classes {
-                class_manager_client.add_deprecated_class(class_hash, deprecated_class).await?;
-            }
-            self.writer
-                .begin_rw_txn()?
-                .update_class_manager_block_marker(&block_number.unchecked_next())?
-                .commit()?;
-        }
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
         SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
         SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
