@@ -52,7 +52,11 @@ use starknet_batcher_types::batcher_types::{
     StartHeightInput,
     ValidateBlockInput,
 };
-use starknet_batcher_types::communication::{BatcherClient, BatcherClientResult};
+use starknet_batcher_types::communication::{
+    BatcherClient,
+    BatcherClientError,
+    BatcherClientResult,
+};
 use starknet_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
@@ -65,6 +69,8 @@ use starknet_consensus::types::{
     Round,
     ValidatorId,
 };
+use starknet_l1_gas_price_types::errors::PriceOracleClientError;
+use starknet_l1_gas_price_types::PriceOracleClientTrait;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
@@ -115,12 +121,22 @@ type HeightToIdToContent = BTreeMap<
     >,
 >;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
+type BuildProposalResult<T> = Result<T, BuildProposalError>;
 
 enum HandledProposalPart {
     Continue,
     Invalid,
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+enum BuildProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+
+    #[error("Price oracle error: {0}")]
+    PriceOracle(#[from] PriceOracleClientError),
 }
 
 pub struct SequencerConsensusContext {
@@ -152,6 +168,8 @@ pub struct SequencerConsensusContext {
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<Vote>,
     cende_ambassador: Arc<dyn CendeContext>,
+    // TODO(Asmaa): remove the option once e2e integration tests are updated with fake http server.
+    price_oracle_client: Option<Arc<dyn PriceOracleClientTrait>>,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
     l2_gas_price: u64,
@@ -160,6 +178,7 @@ pub struct SequencerConsensusContext {
 }
 
 impl SequencerConsensusContext {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: ContextConfig,
         class_manager_client: SharedClassManagerClient,
@@ -168,6 +187,7 @@ impl SequencerConsensusContext {
         outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<Vote>,
         cende_ambassador: Arc<dyn CendeContext>,
+        price_oracle_client: Option<Arc<dyn PriceOracleClientTrait>>,
     ) -> Self {
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
@@ -194,6 +214,7 @@ impl SequencerConsensusContext {
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
             cende_ambassador,
+            price_oracle_client,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
@@ -219,6 +240,7 @@ struct ProposalBuildArguments {
     proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
+    price_oracle_client: Option<Arc<dyn PriceOracleClientTrait>>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -261,6 +283,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
+        let price_oracle_client = self.price_oracle_client.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
@@ -287,6 +310,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_sender,
                     fin_sender,
                     batcher,
+                    price_oracle_client,
                     valid_proposals,
                     proposal_id,
                     cende_write_success,
@@ -669,18 +693,8 @@ impl SequencerConsensusContext {
 }
 
 // Handles building a new proposal without blocking consensus:
-#[allow(clippy::too_many_arguments)]
 async fn build_proposal(mut args: ProposalBuildArguments) {
-    let block_info = initiate_build(
-        args.proposal_id,
-        &args.proposal_init,
-        args.l1_da_mode,
-        args.batcher_timeout,
-        args.batcher.as_ref(),
-        args.gas_prices,
-        args.builder_address,
-    )
-    .await;
+    let block_info = initiate_build(&args).await;
     let block_info = match block_info {
         Ok(info) => info,
         Err(e) => {
@@ -722,50 +736,41 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
     }
 }
 
-async fn initiate_build(
-    proposal_id: ProposalId,
-    proposal_init: &ProposalInit,
-    l1_da_mode: L1DataAvailabilityMode,
-    batcher_timeout: Duration,
-    batcher: &dyn BatcherClient,
-    gas_prices: GasPrices,
-    builder_address: ContractAddress,
-) -> BatcherClientResult<ConsensusBlockInfo> {
-    let batcher_timeout = chrono::Duration::from_std(batcher_timeout)
+async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
+    let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
+    let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
+    let eth_to_fri_rate = match &args.price_oracle_client {
+        Some(price_oracle_client) => price_oracle_client.eth_to_fri_rate(timestamp).await?,
+        None => 1,
+    };
     // TODO(Asmaa): change this to the real values.
     let block_info = ConsensusBlockInfo {
-        height: proposal_init.height,
-        timestamp: now.timestamp().try_into().expect("Failed to convert timestamp"),
-        builder: builder_address,
-        l1_da_mode,
-        l2_gas_price_fri: gas_prices.strk_gas_prices.l2_gas_price.get().0,
-        l1_gas_price_wei: gas_prices.eth_gas_prices.l1_gas_price.get().0,
-        l1_data_gas_price_wei: gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
-        eth_to_fri_rate: 1,
+        height: args.proposal_init.height,
+        timestamp,
+        builder: args.builder_address,
+        l1_da_mode: args.l1_da_mode,
+        l2_gas_price_fri: args.gas_prices.strk_gas_prices.l2_gas_price.get().0,
+        l1_gas_price_wei: args.gas_prices.eth_gas_prices.l1_gas_price.get().0,
+        l1_data_gas_price_wei: args.gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
+        eth_to_fri_rate,
     };
     let build_proposal_input = ProposeBlockInput {
-        proposal_id,
+        proposal_id: args.proposal_id,
         deadline: now + batcher_timeout,
         // TODO(Matan): This is not part of Milestone 1.
         retrospective_block_hash: Some(BlockHashAndNumber {
             number: BlockNumber::default(),
             hash: BlockHash::default(),
         }),
-        block_info: starknet_api::block::BlockInfo {
-            block_number: block_info.height,
-            gas_prices,
-            block_timestamp: BlockTimestamp(block_info.timestamp),
-            use_kzg_da: true,
-            sequencer_address: block_info.builder,
-        },
+        block_info: convert_to_sn_api_block_info(block_info.clone()),
     };
     // TODO(Matan): Should we be returning an error?
     // I think this implies defining an error type in this crate and moving the trait definition
     // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");
-    batcher.propose_block(build_proposal_input).await?;
+    args.batcher.propose_block(build_proposal_input).await?;
     Ok(block_info)
 }
 
