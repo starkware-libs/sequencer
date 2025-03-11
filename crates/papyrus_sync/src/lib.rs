@@ -10,7 +10,7 @@ mod sync_test;
 
 use std::cmp::min;
 use std::collections::BTreeMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_stream::try_stream;
@@ -27,7 +27,7 @@ use papyrus_proc_macros::latency_histogram;
 use papyrus_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::{ClassStorageReader, ClassStorageWriter};
-use papyrus_storage::class_manager::ClassManagerStorageWriter;
+use papyrus_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use papyrus_storage::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use papyrus_storage::db::DbError;
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
@@ -181,7 +181,6 @@ pub struct GenericStateSync<
     writer: StorageWriter,
     sequencer_pub_key: Option<SequencerPublicKey>,
     class_manager_client: Option<SharedClassManagerClient>,
-    first_block_to_compile_from: Arc<OnceLock<BlockNumber>>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -364,7 +363,6 @@ impl<
             self.config.block_propagation_sleep_duration,
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
-            self.first_block_to_compile_from.clone(),
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -379,9 +377,7 @@ impl<
         };
         // TODO(dvir): try use interval instead of stream.
         // TODO(DvirYo): fix the bug and remove this check.
-        let check_sync_progress =
-            check_sync_progress(self.reader.clone(), self.first_block_to_compile_from.clone())
-                .fuse();
+        let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
         pin_mut!(
             block_stream,
             state_diff_stream,
@@ -482,9 +478,11 @@ impl<
         }
 
         if block.header.block_header_without_hash.starknet_version
-            >= STARKNET_VERSION_TO_COMPILE_FROM
+            < STARKNET_VERSION_TO_COMPILE_FROM
         {
-            let _ = self.first_block_to_compile_from.set(block_number);
+            self.writer
+                .begin_rw_txn()?
+                .update_compiler_backward_compatibility_marker(&block_number.unchecked_next())?;
         }
         Ok(())
     }
@@ -521,12 +519,18 @@ impl<
             .commit()?;
 
         if let Some(class_manager_client) = &self.class_manager_client {
-            // For blocks smaller than first_block_to_compile_from, the cairo 1 classes will be
-            // added through the compiled classes stream. The compiled classes stream stops after
-            // first_block_to_compile_from.
-            if self.first_block_to_compile_from.get().is_some_and(|first_block_to_compile_from| {
-                *first_block_to_compile_from <= block_number
-            }) {
+            // Blocks smaller than compiler_backward_compatibility marker are added to class
+            // manager via the compiled classes stream.
+            // We're sure that if the current block is above the compiler_backward_compatibility
+            // marker then the compiler_backward_compatibility will not advance anymore, because
+            // the compiler_backward_compatibility marker advances in the header stream and this
+            // stream is behind the header stream
+            // The compiled classes stream is always behind the compiler_backward_compatibility
+            // marker
+            let compiler_backward_compatibility_marker =
+                self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
+
+            if compiler_backward_compatibility_marker <= block_number {
                 for (expected_class_hash, class) in classes {
                     let class_hash = class_manager_client.add_class(class).await?.class_hash;
                     if class_hash != expected_class_hash {
@@ -879,7 +883,6 @@ impl StateSync {
             writer,
             sequencer_pub_key: None,
             class_manager_client,
-            first_block_to_compile_from: Arc::new(OnceLock::new()),
         }
     }
 }
@@ -889,13 +892,13 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
-    first_block_to_compile_from: Arc<OnceLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
             let txn = reader.begin_ro_txn()?;
             let mut from = txn.get_compiled_class_marker()?;
             let state_marker = txn.get_state_marker()?;
+            let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
             // Avoid starting streams from blocks without declared classes.
             while from < state_marker {
                 let state_diff = txn.get_state_diff(from)?.expect("Expecting to have state diff up to the marker.");
@@ -915,18 +918,19 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            let mut up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
-            if let Some(first_block_to_compile_from) = first_block_to_compile_from.get().copied() {
-                up_to = min(up_to, first_block_to_compile_from);
-                if from >= first_block_to_compile_from {
-                    info!(
-                        "Downloaded all compiled classes that the class manager doesn't support. \
-                        Finished compiled classes stream."
-                    );
-                    futures::future::pending::<()>().await;
-                    break;
-                }
+            if from >= compiler_backward_compatibility_marker {
+                debug!(
+                    "Compiled classes syncing reached the last known block with classes \
+                    incompatible with our compiler version. Waiting for more blocks."
+                );
+                tokio::time::sleep(block_propagation_sleep_duration).await;
+                continue;
             }
+            let up_to = min(
+                min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size))),
+                compiler_backward_compatibility_marker,
+            );
+
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();
@@ -982,7 +986,6 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
 // TODO(dvir): add a test for this scenario.
 fn check_sync_progress(
     reader: StorageReader,
-    first_block_to_compile_from: Arc<OnceLock<BlockNumber>>,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         let mut txn=reader.begin_ro_txn()?;
@@ -996,10 +999,8 @@ fn check_sync_progress(
             let new_header_marker=txn.get_header_marker()?;
             let new_state_marker=txn.get_state_marker()?;
             let new_casm_marker=txn.get_compiled_class_marker()?;
-            let is_casm_stuck = casm_marker == new_casm_marker &&
-                first_block_to_compile_from.get().is_none_or(
-                    |first_block_to_compile_from| new_casm_marker < *first_block_to_compile_from
-                );
+            let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
+            let is_casm_stuck = casm_marker == new_casm_marker && new_casm_marker < compiler_backward_compatibility_marker;
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event.");
                 yield SyncEvent::NoProgress;

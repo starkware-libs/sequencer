@@ -1,5 +1,5 @@
 use core::panic;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use assert_matches::assert_matches;
@@ -134,11 +134,10 @@ async fn run_sync(
         writer,
         sequencer_pub_key: None,
         // TODO(shahak): Add test with mock class manager client.
-        class_manager_client,
         // TODO(shahak): Add test with post 0.14.0 block and mock class manager client and see that
         // up until that block we call add_class_and_executable_unsafe and from that block we call
         // add_class.
-        first_block_to_compile_from: Arc::new(OnceLock::new()),
+        class_manager_client,
     };
 
     state_sync.run().await?;
