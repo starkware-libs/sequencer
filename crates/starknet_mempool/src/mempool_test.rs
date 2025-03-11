@@ -10,7 +10,7 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
-use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionLabelValue};
+use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
@@ -18,23 +18,10 @@ use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use strum::IntoEnumIterator;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
-use crate::metrics::{
-    register_metrics,
-    DropReason,
-    LABEL_NAME_DROP_REASON,
-    LABEL_NAME_TX_TYPE,
-    MEMPOOL_GET_TXS_SIZE,
-    MEMPOOL_PENDING_QUEUE_SIZE,
-    MEMPOOL_POOL_SIZE,
-    MEMPOOL_PRIORITY_QUEUE_SIZE,
-    MEMPOOL_TRANSACTIONS_COMMITTED,
-    MEMPOOL_TRANSACTIONS_DROPPED,
-    MEMPOOL_TRANSACTIONS_RECEIVED,
-};
+use crate::metrics::register_metrics;
 use crate::test_utils::{
     add_tx,
     add_tx_expect_error,
@@ -45,7 +32,7 @@ use crate::test_utils::{
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
-use crate::{add_tx_input, assert_metric_eq, tx};
+use crate::{add_tx_input, tx};
 
 // Utils.
 
@@ -484,14 +471,13 @@ fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool.content());
 
     // Assert: metrics.
-    let metrics = recorder.handle().render();
     let expected_metrics = MempoolMetrics {
         txs_received_invoke: 2,
         txs_dropped_failed_add_tx_checks: 1,
         pool_size: 1,
         ..Default::default()
     };
-    expected_metrics.verify_metrics(&metrics);
+    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
@@ -816,10 +802,9 @@ fn test_update_gas_price_threshold_increases_threshold() {
     expected_mempool_content.assert_eq(&mempool.content());
 
     // Assert: metrics.
-    let metrics = recorder.handle().render();
     let expected_metrics =
         MempoolMetrics { priority_queue_size: 1, pending_queue_size: 1, ..Default::default() };
-    expected_metrics.verify_metrics(&metrics);
+    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
@@ -942,7 +927,6 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool.content());
 
     // Assert: metrics.
-    let metrics = recorder.handle().render();
     let expected_metrics = MempoolMetrics {
         txs_received_invoke: 4,
         txs_dropped_rejected: 2,
@@ -951,7 +935,7 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
         get_txs_size: 4,
         ..Default::default()
     };
-    expected_metrics.verify_metrics(&metrics);
+    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
@@ -1070,7 +1054,6 @@ fn get_txs_old_transactions_cleanup() {
     expected_mempool_content.assert_eq(&mempool.content());
 
     // Assert: metrics.
-    let metrics = recorder.handle().render();
     let expected_metrics = MempoolMetrics {
         txs_received_invoke: 2,
         txs_dropped_expired: 1,
@@ -1078,7 +1061,7 @@ fn get_txs_old_transactions_cleanup() {
         get_txs_size: 1,
         ..Default::default()
     };
-    expected_metrics.verify_metrics(&metrics);
+    expected_metrics.verify_metrics(&recorder);
 }
 
 #[test]
@@ -1087,35 +1070,8 @@ fn test_register_metrics() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     register_metrics();
 
-    let metrics = recorder.handle().render();
-
-    // Assert: counter metrics.
-    assert_metric_eq!(&metrics, 0, MEMPOOL_TRANSACTIONS_COMMITTED);
-
-    // Assert: labeled counter metrics.
-    for tx_type in InternalRpcTransactionLabelValue::iter() {
-        assert_metric_eq!(
-            &metrics,
-            0,
-            MEMPOOL_TRANSACTIONS_RECEIVED,
-            &[(LABEL_NAME_TX_TYPE, tx_type.into())]
-        );
-    }
-
-    for drop_reason in DropReason::iter() {
-        assert_metric_eq!(
-            &metrics,
-            0,
-            MEMPOOL_TRANSACTIONS_DROPPED,
-            &[(LABEL_NAME_DROP_REASON, drop_reason.into())]
-        );
-    }
-
-    // Assert: gauges metrics.
-    assert_metric_eq!(&metrics, 0, MEMPOOL_POOL_SIZE);
-    assert_metric_eq!(&metrics, 0, MEMPOOL_PRIORITY_QUEUE_SIZE);
-    assert_metric_eq!(&metrics, 0, MEMPOOL_PENDING_QUEUE_SIZE);
-    assert_metric_eq!(&metrics, 0, MEMPOOL_GET_TXS_SIZE);
+    let expected_metrics = MempoolMetrics::default();
+    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
