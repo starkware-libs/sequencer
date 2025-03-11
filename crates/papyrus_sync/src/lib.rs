@@ -296,9 +296,9 @@ impl<
                 | StateSyncError::BaseLayerSourceError(_)
                 | StateSyncError::ParentBlockHashMismatch { .. }
                 | StateSyncError::BaseLayerHashMismatch { .. }
-                | StateSyncError::ClassManagerClientError(_)
                 | StateSyncError::BaseLayerBlockWithoutMatchingHeader { .. } => true,
-                StateSyncError::SequencerPubKeyChanged { .. } => false,
+                StateSyncError::SequencerPubKeyChanged { .. }
+                | StateSyncError::ClassManagerClientError(_) => false,
             }
         }
     }
