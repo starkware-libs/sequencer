@@ -1196,8 +1196,8 @@ fn no_delay_declare_front_run() {
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(
         MempoolConfig {
-            // Always accept fee escalation to test only the delayed declare duplicate nonce.
             declare_delay: Duration::from_secs(5),
+            // Always accept fee escalation to test only the delayed declare duplicate nonce.
             enable_fee_escalation: true,
             fee_escalation_percentage: 0,
             ..Default::default()
