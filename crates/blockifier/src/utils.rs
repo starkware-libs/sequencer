@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
+use crate::blockifier_versioned_constants::GasCosts;
 use crate::transaction::errors::NumericConversionError;
-use crate::versioned_constants::GasCosts;
 
 #[cfg(test)]
 #[path = "utils_test.rs"]
