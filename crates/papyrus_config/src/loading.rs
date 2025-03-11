@@ -54,6 +54,7 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     default_config_file: File,
     command: Command,
     args: Vec<String>,
+    ignore_default_values: bool,
 ) -> Result<T, ConfigError> {
     let deserialized_default_config: Map<String, Value> =
         serde_json::from_reader(default_config_file)?;
@@ -62,7 +63,12 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     let (default_config_map, pointers_map) = split_pointers_map(deserialized_default_config);
     // Take param paths with corresponding descriptions, and get the matching arguments.
     let mut arg_matches = get_command_matches(&default_config_map, command, args)?;
+    // Retaining values from the default config map for backward compatibility.
     let (mut values_map, types_map) = split_values_and_types(default_config_map);
+    if ignore_default_values {
+        info!("Ignoring default values by overriding with an empty map.");
+        values_map = BTreeMap::new();
+    }
     // If the config_file arg is given, updates the values map according to this files.
     if let Some(custom_config_paths) = arg_matches.remove_many::<PathBuf>("config_file") {
         update_config_map_by_custom_configs(&mut values_map, &types_map, custom_config_paths)?;
