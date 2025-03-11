@@ -19,3 +19,15 @@ pub enum L1GasPriceClientError {
     #[error(transparent)]
     L1GasPriceProviderError(#[from] L1GasPriceProviderError),
 }
+
+#[derive(Debug, Error)]
+pub enum PriceOracleClientError {
+    #[error(transparent)]
+    RequestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    ParseError(#[from] serde_json::Error),
+    #[error("Missing or invalid field: {0}")]
+    MissingFieldError(&'static str),
+    #[error("Invalid decimals value: expected {0}, got {1}")]
+    InvalidDecimalsError(u64, u64),
+}
