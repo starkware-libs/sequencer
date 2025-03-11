@@ -571,7 +571,7 @@ impl SingleHeightConsensus {
             panic!("State machine should not send repeat votes: old={:?}, new={:?}", old, vote);
         }
         context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
-        if last_vote.as_ref().map_or(false, |last| round < last.round) {
+        if last_vote.as_ref().is_some_and(|last| round < last.round) {
             return Ok(Vec::new());
         }
         *last_vote = Some(vote);
