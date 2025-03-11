@@ -4,7 +4,6 @@ use syn::{
     parse,
     parse_macro_input,
     parse_str,
-    Block,
     ExprLit,
     Ident,
     ItemFn,
@@ -131,41 +130,31 @@ pub fn versioned_rpc(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// since the config value is false.
 #[proc_macro_attribute]
 pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let (metric_name, controll_with_config, input_fn, origin_block) =
-        parse_latency_histogram_attributes::<ExprLit>(
-            attr,
-            input,
-            "Expecting a string literal for metric name",
-        );
+    let (metric_name, control_with_config, input_fn) = parse_latency_histogram_attributes::<ExprLit>(
+        attr,
+        input,
+        "Expecting a string literal for metric name",
+    );
 
     // TODO(DanB): consider naming the input value instead of providing a bool
     // TODO(DanB): consider adding support for metrics levels (e.g. debug, info, warn, error)
     // instead of boolean
 
-    // Create a new block with the metric update.
-    let expanded_block = quote! {
-        {
-            let mut start_function_time = None;
-            if !#controll_with_config || (#controll_with_config && *(papyrus_common::metrics::COLLECT_PROFILING_METRICS.get().unwrap_or(&false))) {
-                start_function_time=Some(std::time::Instant::now());
-            }
-            let return_value=#origin_block;
-            if let Some(start_time) = start_function_time {
-                let exec_time = start_time.elapsed().as_secs_f64();
-                metrics::histogram!(#metric_name).record(exec_time);
-                tracing::debug!("{}: {}", #metric_name, exec_time);
-            }
-            return_value
-        }
+    let metric_recording_logic = quote! {
+        metrics::histogram!(#metric_name).record(exec_time);
     };
 
-    // Create a new function with the modified block.
-    let modified_function = ItemFn {
-        block: syn::parse2(expanded_block).expect("Parse tokens in latency_histogram attribute."),
-        ..input_fn
+    let collect_metric_flag = quote! {
+        papyrus_common::metrics::COLLECT_PROFILING_METRICS
     };
 
-    modified_function.to_token_stream().into()
+    create_modified_function(
+        metric_name,
+        control_with_config,
+        input_fn,
+        metric_recording_logic,
+        collect_metric_flag,
+    )
 }
 
 /// This macro will emit a histogram metric with the given name and the latency of the function.
@@ -197,37 +186,26 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// since the config value is false.
 #[proc_macro_attribute]
 pub fn sequencer_latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let (metric_name, control_with_config, input_fn, origin_block) =
-        parse_latency_histogram_attributes::<Ident>(
-            attr,
-            input,
-            "Expecting an identifier for metric name",
-        );
+    let (metric_name, control_with_config, input_fn) = parse_latency_histogram_attributes::<Ident>(
+        attr,
+        input,
+        "Expecting an identifier for metric name",
+    );
 
-    // Create a new block with the metric update.
-    let expanded_block = quote! {
-        {
-            let mut start_function_time = None;
-            if !#control_with_config || (#control_with_config && *(starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS.get().unwrap_or(&false))) {
-                start_function_time=Some(std::time::Instant::now());
-            }
-            let return_value=#origin_block;
-            if let Some(start_time) = start_function_time {
-                let exec_time = start_time.elapsed().as_secs_f64();
-                #metric_name.record(exec_time);
-                tracing::debug!("{}: {}", stringify!(#metric_name), exec_time);
-            }
-            return_value
-        }
+    let metric_recording_logic = quote! {
+        #metric_name.record(exec_time);
     };
 
-    // Create a new function with the modified block.
-    let modified_function = ItemFn {
-        block: syn::parse2(expanded_block).expect("Parse tokens in latency_histogram attribute."),
-        ..input_fn
+    let collect_metric_flag = quote! {
+        starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS
     };
-
-    modified_function.to_token_stream().into()
+    create_modified_function(
+        metric_name,
+        control_with_config,
+        input_fn,
+        metric_recording_logic,
+        collect_metric_flag,
+    )
 }
 
 /// Helper function to parse the attributes and input for the latency histogram macros.
@@ -235,7 +213,7 @@ fn parse_latency_histogram_attributes<T: syn::parse::Parse>(
     attr: TokenStream,
     input: TokenStream,
     err_msg: &str,
-) -> (T, LitBool, ItemFn, Block) {
+) -> (T, LitBool, ItemFn) {
     let binding = attr.to_string();
     let parts: Vec<&str> = binding.split(',').collect();
     let metric_name_string = parts
@@ -254,9 +232,43 @@ fn parse_latency_histogram_attributes<T: syn::parse::Parse>(
     let metric_name = parse_str::<T>(&metric_name_string).expect(err_msg);
 
     let input_fn = parse::<ItemFn>(input).expect("Failed to parse input as ItemFn");
-    let origin_block = *input_fn.block.clone();
 
-    (metric_name, control_with_config, input_fn, origin_block)
+    (metric_name, control_with_config, input_fn)
+}
+
+/// Helper function to create the expanded block and modified function.
+fn create_modified_function(
+    metric_name: impl ToTokens,
+    control_with_config: LitBool,
+    input_fn: ItemFn,
+    metric_recording_logic: impl ToTokens,
+    collect_metric_flag: impl ToTokens,
+) -> TokenStream {
+    // Create a new block with the metric update.
+    let origin_block = &input_fn.block;
+    let expanded_block = quote! {
+        {
+            let mut start_function_time = None;
+            if !#control_with_config || (#control_with_config && *(#collect_metric_flag.get().unwrap_or(&false))) {
+                start_function_time = Some(std::time::Instant::now());
+            }
+            let return_value = #origin_block;
+            if let Some(start_time) = start_function_time {
+                let exec_time = start_time.elapsed().as_secs_f64();
+                #metric_recording_logic
+                tracing::debug!("{}: {}", stringify!(#metric_name), exec_time);
+            }
+            return_value
+        }
+    };
+
+    // Create a new function with the modified block.
+    let modified_function = ItemFn {
+        block: syn::parse2(expanded_block).expect("Parse tokens in latency_histogram attribute."),
+        ..input_fn
+    };
+
+    modified_function.to_token_stream().into()
 }
 
 struct HandleAllResponseVariantsMacroInput {
