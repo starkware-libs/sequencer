@@ -36,6 +36,9 @@ use crate::reader::objects::transaction::{
 };
 use crate::reader::{ReaderClientError, ReaderClientResult};
 
+fn default_next_l2_gas_price() -> u64 {
+    1
+}
 /// A block as returned by the starknet gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -75,11 +78,15 @@ pub struct BlockPostV0_13_1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_diff_length: Option<usize>,
     // New field in V0.14.0
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub l2_gas_consumed: Option<u64>,
+    // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
+    // values are missing for older blocks. Change to GasAmount.
+    #[serde(default)]
+    pub l2_gas_consumed: u64,
     // New field in V0.14.0
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub next_l2_gas_price: Option<u64>,
+    // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
+    // values are missing for older blocks. Change to GasPrice.
+    #[serde(default = "default_next_l2_gas_price")]
+    pub next_l2_gas_price: u64,
 }
 
 impl BlockPostV0_13_1 {
@@ -273,13 +280,13 @@ impl Block {
         }
     }
 
-    pub fn l2_gas_consumed(&self) -> Option<u64> {
+    pub fn l2_gas_consumed(&self) -> u64 {
         match self {
             Block::PostV0_13_1(block) => block.l2_gas_consumed,
         }
     }
 
-    pub fn next_l2_gas_price(&self) -> Option<u64> {
+    pub fn next_l2_gas_price(&self) -> u64 {
         match self {
             Block::PostV0_13_1(block) => block.next_l2_gas_price,
         }
@@ -323,6 +330,8 @@ impl Block {
                 block_number: self.block_number(),
                 l1_gas_price: self.l1_gas_price(),
                 l2_gas_price: self.l2_gas_price(),
+                l2_gas_consumed: self.l2_gas_consumed(),
+                next_l2_gas_price: self.next_l2_gas_price(),
                 state_root: self.state_root(),
                 sequencer: self.sequencer_address(),
                 timestamp: self.timestamp(),
