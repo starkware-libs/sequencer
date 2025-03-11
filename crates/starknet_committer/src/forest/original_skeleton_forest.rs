@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::core::ContractAddress;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
@@ -9,7 +10,11 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::storage_trait::Storage;
 
-use crate::block_committer::input::{Config, ContractAddress, StarknetStorageValue};
+use crate::block_committer::input::{
+    contract_address_into_node_index,
+    Config,
+    StarknetStorageValue,
+};
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::{
@@ -94,7 +99,7 @@ impl<'a> OriginalSkeletonForest<'a> {
                 .get(address)
                 .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
             let contract_state = original_contracts_trie_leaves
-                .get(&address.into())
+                .get(&contract_address_into_node_index(address))
                 .ok_or(ForestError::MissingContractCurrentState(*address))?;
             let config =
                 OriginalSkeletonStorageTrieConfig::new(config.warn_on_trivial_modifications());

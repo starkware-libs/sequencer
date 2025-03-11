@@ -1,8 +1,9 @@
 use rstest::rstest;
+use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
-use crate::block_committer::input::{ContractAddress, StarknetStorageKey};
+use crate::block_committer::input::{contract_address_into_node_index, StarknetStorageKey};
 use crate::patricia_merkle_tree::types::fixed_hex_string_no_prefix;
 
 #[rstest]
@@ -12,7 +13,9 @@ fn test_cast_to_node_index(
 ) {
     let expected_node_index = NodeIndex::FIRST_LEAF + leaf_index;
     let actual: NodeIndex = if bool_from_contract_address {
-        (&ContractAddress(Felt::from(leaf_index))).into()
+        contract_address_into_node_index(
+            &ContractAddress::try_from(Felt::from(leaf_index)).unwrap(),
+        )
     } else {
         (&StarknetStorageKey(Felt::from(leaf_index))).into()
     };
