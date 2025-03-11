@@ -10,7 +10,7 @@ use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{info, instrument};
 
-use crate::config::MonitoringEndpointConfig;
+use crate::config::{MonitoringEndpointConfig, COLLECT_SEQUENCER_PROFILING_METRICS};
 
 #[cfg(test)]
 #[path = "monitoring_endpoint_test.rs"]
@@ -32,6 +32,10 @@ impl MonitoringEndpoint {
     pub fn new(config: MonitoringEndpointConfig, version: &'static str) -> Self {
         // TODO(Tsabary): consider error handling
         let prometheus_handle = if config.collect_metrics {
+            COLLECT_SEQUENCER_PROFILING_METRICS
+                .set(config.collect_profiling_metrics)
+                .expect("Should be able to set profiling metrics collection.");
+
             Some(
                 PrometheusBuilder::new()
                     .install_recorder()
