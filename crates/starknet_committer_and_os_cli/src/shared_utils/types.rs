@@ -9,22 +9,22 @@ pub(crate) type PythonTestResult<E> = Result<String, PythonTestError<E>>;
 #[derive(Debug, Args)]
 pub(crate) struct IoArgs {
     /// File path to input.
-    #[clap(long, short = 'i')]
+    #[arg(long, short = 'i')]
     pub(crate) input_path: String,
 
     /// File path to output.
-    #[clap(long, short = 'o', default_value = "stdout")]
+    #[arg(long, short = 'o', default_value = "stdout")]
     pub(crate) output_path: String,
 }
 
 #[derive(Debug, Args)]
 pub(crate) struct PythonTestArg {
     // TODO(Amos): Make this optional.
-    #[clap(flatten)]
+    #[command(flatten)]
     pub(crate) io_args: IoArgs,
 
     /// Test name.
-    #[clap(long)]
+    #[arg(long)]
     pub(crate) test_name: String,
 }
 
