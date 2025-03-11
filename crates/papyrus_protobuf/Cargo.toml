@@ -7,6 +7,12 @@ license-file.workspace = true
 
 [features]
 testing = ["papyrus_test_utils", "rand", "rand_chacha"]
+bin-deps = ["prost-build", "protoc-prebuilt"]
+
+[[bin]]
+name = "generate_protoc_output"
+path = "src/bin/generate_protoc_output.rs"
+required-features = ["bin-deps"]
 
 [dependencies]
 bytes.workspace = true
@@ -22,14 +28,18 @@ starknet_api.workspace = true
 starknet-types-core.workspace = true
 papyrus_test_utils = { workspace = true, optional = true }
 thiserror.workspace = true
+tracing.workspace = true
 papyrus_common.workspace = true
+
+# Binaries dependencies
+prost-build = { workspace = true, optional = true }
+protoc-prebuilt = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand.workspace = true
 rand_chacha.workspace = true
 papyrus_test_utils.workspace = true
-
-[build-dependencies]
+tempfile.workspace = true
 prost-build.workspace = true
 protoc-prebuilt.workspace = true
 
