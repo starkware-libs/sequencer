@@ -125,6 +125,15 @@ impl From<serde_json::Error> for ClassManagerError {
     }
 }
 
+// A helper type that the has an empty debug implementation.
+struct Omitted;
+
+impl std::fmt::Debug for Omitted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("<omitted>")
+    }
+}
+
 #[derive(Clone, Debug, Error)]
 pub enum ClassManagerClientError {
     #[error(transparent)]
@@ -133,7 +142,7 @@ pub enum ClassManagerClientError {
     ClassManagerError(#[from] ClassManagerError),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum ClassManagerRequest {
     AddClass(Class),
     AddClassAndExecutableUnsafe(ClassId, Class, ExecutableClassHash, ExecutableClass),
@@ -142,13 +151,66 @@ pub enum ClassManagerRequest {
     GetSierra(ClassId),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+impl std::fmt::Debug for ClassManagerRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AddClass(_class) => f.debug_struct("AddClass").field("class", &Omitted).finish(),
+            Self::AddClassAndExecutableUnsafe(
+                class_id,
+                _class,
+                executable_class_hash,
+                _executable_class,
+            ) => f
+                .debug_struct("AddClassAndExecutableUnsafe")
+                .field("class_id", class_id)
+                .field("class", &Omitted)
+                .field("executable_class_hash", executable_class_hash)
+                .field("executable_class", &Omitted)
+                .finish(),
+            Self::AddDeprecatedClass(class_id, _deprecated_class) => f
+                .debug_struct("AddDeprecatedClass")
+                .field("class_id", class_id)
+                .field("deprecated_class", &Omitted)
+                .finish(),
+            Self::GetExecutable(class_id) => {
+                f.debug_struct("GetExecutable").field("class_id", class_id).finish()
+            }
+            Self::GetSierra(class_id) => {
+                f.debug_struct("GetSierra").field("class_id", class_id).finish()
+            }
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub enum ClassManagerResponse {
     AddClass(ClassManagerResult<ClassHashes>),
     AddClassAndExecutableUnsafe(ClassManagerResult<()>),
     AddDeprecatedClass(ClassManagerResult<()>),
     GetExecutable(ClassManagerResult<Option<ExecutableClass>>),
     GetSierra(ClassManagerResult<Option<Class>>),
+}
+
+impl std::fmt::Debug for ClassManagerResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::AddClass(result) => f.debug_struct("AddClass").field("result", result).finish(),
+            Self::AddClassAndExecutableUnsafe(result) => {
+                f.debug_struct("AddClassAndExecutableUnsafe").field("result", result).finish()
+            }
+            Self::AddDeprecatedClass(result) => {
+                f.debug_struct("AddDeprecatedClass").field("result", result).finish()
+            }
+            Self::GetExecutable(result) => {
+                let result_ommitted = result.as_ref().map(|opt| opt.as_ref().map(|_| Omitted));
+                f.debug_struct("GetExecutable").field("result", &result_ommitted).finish()
+            }
+            Self::GetSierra(result) => {
+                let result_ommitted = result.as_ref().map(|opt| opt.as_ref().map(|_| Omitted));
+                f.debug_struct("GetExecutable").field("result", &result_ommitted).finish()
+            }
+        }
+    }
 }
 
 #[async_trait]
